@@ -390,7 +390,7 @@
     </style>
   </head>
   <body>
-    <!-- deploy-bust: 2026-02-07T16:05:10Z -->
+    <!-- deploy-bust: 2026-02-07T16:24:17Z -->
     <div id="app">
       <header>
         <div class="title">reader.pub books</div>
@@ -427,7 +427,7 @@
       (() => {
         "use strict";
 
-        const BUILD_STAMP = "2026-02-07T16:05:10Z";
+        const BUILD_STAMP = "2026-02-07T16:24:17Z";
         const BUILD_CHECK_URL = `${location.origin}/books/?__buildcheck=1`;
         const PENDING_HASH_KEY = "reader_pub_pending_hash";
 
@@ -543,10 +543,14 @@
           if (!searchState.query) {
             els.searchResults.style.display = "none";
             els.breadcrumbs.style.display = "";
+            els.content.style.display = "";
+            els.toolbar.style.display = "";
             return;
           }
           els.searchResults.style.display = "block";
           els.breadcrumbs.style.display = "none";
+          els.content.style.display = "none";
+          els.toolbar.style.display = "none";
           const headText = searchState.loading
             ? `Searching "${searchState.query}"...`
             : `Search results for "${searchState.query}" (${searchState.items.length})`;
@@ -566,8 +570,7 @@
           }
 
           if (!searchState.items.length) {
-            const empty = el("div", "srItem");
-            empty.appendChild(el("div", "srTitle", "No matches"));
+            const empty = el("div", "error", "No matches found");
             els.searchResults.appendChild(empty);
             return;
           }
@@ -866,6 +869,7 @@
           const searchPath = (config && config.searchPath) || "/search/{token}.json";
           const url = buildUrl(searchPath, { token });
           const data = await fetchJson(url, nonce);
+          if (!data) return [];
           const items = data.items || data.list || [];
           cache.searchIndex.set(token, items);
           return items;
@@ -883,7 +887,7 @@
             searchState = {
               query,
               items: [],
-              error: "Enter at least two letters or digits to search.",
+              error: "No matches found",
               loading: false,
             };
             renderSearchResults();
@@ -1652,6 +1656,8 @@
             els.search.value = "";
             updateSearchIcon();
             runSearch();
+            updateHash(DEFAULT_STATE, true);
+            renderState(parseState());
           }
         });
 
