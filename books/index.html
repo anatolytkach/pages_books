@@ -467,13 +467,27 @@
           }
 
           items.forEach((item) => {
-            const row = el("div", "srItem");
-            row.tabIndex = 0;
-            row.setAttribute("role", "button");
-            row.addEventListener("click", item.onClick);
-            row.addEventListener("keydown", (event) => {
-              if (event.key === "Enter") item.onClick();
-            });
+            const row = item.href ? el("a", "srItem") : el("div", "srItem");
+            if (item.href) {
+              row.href = item.href;
+              if (item.openInNewTab) {
+                row.target = "_blank";
+                row.rel = "noopener noreferrer";
+              }
+              if (item.onClick) {
+                row.addEventListener("click", (event) => {
+                  event.preventDefault();
+                  item.onClick();
+                });
+              }
+            } else {
+              row.tabIndex = 0;
+              row.setAttribute("role", "button");
+              row.addEventListener("click", item.onClick);
+              row.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") item.onClick();
+              });
+            }
 
             const cover = el("div", "srCover");
             if (item.cover) {
@@ -652,14 +666,6 @@
 
         function openBookUrl(id) {
           return `/books/${encodeURIComponent(id)}/`;
-        }
-
-        function openBookInNewTab(id) {
-          const url = openBookUrl(id);
-          const win = window.open(url, "_blank", "noopener");
-          if (!win) {
-            window.location.href = url;
-          }
         }
 
         function updateBookView(view) {
@@ -846,7 +852,9 @@
               meta: author.name || item.author || author.key || "Book",
               hint: "Open book",
               cover: resolveCoverUrl(item.cover),
-              onClick: () => openBookInNewTab(item.id),
+              href: openBookUrl(item.id),
+              openInNewTab: true,
+              onClick: null,
             })),
             query
           );
@@ -861,8 +869,10 @@
           if (viewMode === "grid") {
             const grid = el("div", "grid");
             filtered.forEach((book) => {
-              const card = el("div", "card");
-              card.addEventListener("click", () => openBookInNewTab(book.id));
+              const card = el("a", "card");
+              card.href = openBookUrl(book.id);
+              card.target = "_blank";
+              card.rel = "noopener noreferrer";
 
               const coverUrl = resolveCoverUrl(book.cover);
               const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
@@ -908,10 +918,6 @@
               link.href = openBookUrl(book.id);
               link.target = "_blank";
               link.rel = "noopener noreferrer";
-              link.addEventListener("click", (event) => {
-                event.preventDefault();
-                openBookInNewTab(book.id);
-              });
               cell.appendChild(link);
               row.appendChild(cell);
               row.appendChild(el("td", "count", ""));
