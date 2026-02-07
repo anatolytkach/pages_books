@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+
+<html class="no-js">
+<head>
+<meta charset="utf-8"/>
+<meta content="IE=edge,chrome=1" http-equiv="X-UA-Compatible"/>
+<title>Вопрос. Тони Вивер</title>
+<meta content="" name="description"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<link href="css/normalize.css" rel="stylesheet"/>
+<link href="css/main.css" rel="stylesheet"/>
+<link href="css/popup.css" rel="stylesheet"/>
+<script src="js/libs/jquery.min.js"></script>
+<script src="js/libs/zip.min.js"></script>
+<script>
+            "use strict";
+
+            function getQueryParam(name) {
+              try {
+                var params = new URLSearchParams(window.location.search || "");
+                var v = params.get(name);
+                return v ? decodeURIComponent(v) : "";
+              } catch (e) {
+                // Fallback for older browsers
+                var search = window.location.search || "";
+                if (!search || search.length < 2) return "";
+                var pairs = search.substring(1).split("&");
+                for (var i = 0; i < pairs.length; i++) {
+                  var parts = pairs[i].split("=");
+                  if (parts[0] === name) return decodeURIComponent(parts[1] || "");
+                }
+                return "";
+              }
+            }
+
+            function inferOpenAs(path) {
+              var p = (path || "").toLowerCase();
+              if (p.endsWith(".epub")) return "epub";
+              if (p.endsWith(".opf")) return "opf";
+              // For a directory-based EPUB (unpacked), we expect META-INF/container.xml under the base path
+              if (p.endsWith("/")) return "directory";
+              // If user passes something like "book" without trailing slash, still treat as directory
+              if (p && !p.includes(".")) return "directory";
+              return undefined;
+            }
+
+            document.onreadystatechange = function () {
+              if (document.readyState == "complete") {
+                // Book source: ONLY from catalog (exploded EPUB directories on R2).
+// Expect book id in either ?id=75586 or #75586 (hash).
+(function(){
+  const params = new URLSearchParams(location.search);
+  const qid = params.get("id");
+  const hid = (location.hash || "").replace(/^#/, "");
+  const id = (qid && qid.trim()) || (hid && hid.trim()) || "";
+
+  if(!/^\d+$/.test(id)){
+    const el = document.getElementById("viewer");
+    if(el){
+      el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
+        <h2 style="margin:0 0 10px 0;font-size:18px">No book selected</h2>
+        <div style="color:#666;font-size:14px;line-height:1.4">
+          Open a book from the catalog, or pass an id like
+          <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">?id=75586</code>
+          or
+          <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">#75586</code>.
+        </div>
+      </div>`;
+    }
+    return;
+  }
+
+  // Our catalog stores each book as an unpacked EPUB directory:
+  // /books/content/<id>/META-INF/container.xml, /OEBPS/content.opf, ...
+  const bookPath = `/books/content/${id}/`;
+
+  const opts = {
+    openAs: "directory",
+    restore: false
+  };
+
+  // Run Reader
+  window.reader = ePubReader(bookPath, opts);
+
+  // If hash changes to a different numeric id, reload the reader.
+  window.addEventListener("hashchange", () => {
+    const newId = (location.hash || "").replace(/^#/, "");
+    if(/^\d+$/.test(newId) && newId !== id){
+      location.search = `?id=${encodeURIComponent(newId)}`;
+    }
+  });
+})();
+              }
+            };
+
+        </script>
+<!-- File Storage -->
+<!-- <script src="js/libs/localforage.min.js"></script> -->
+<!-- Full Screen -->
+<script src="js/libs/screenfull.min.js"></script>
+<!-- Render -->
+<script src="js/epub.js"></script>
+<!-- Reader -->
+<script src="js/reader.js"></script>
+<script src="js/fullscreen-fix.js"></script>
+<!-- Plugins -->
+<!--
+-->
+<!-- Highlights -->
+<!--
+-->
+<!-- <script src="js/hooks/extensions/highlight.js"></script> -->
+</head>
+<body class="ui-hidden" role="application" aria-label="Reader">
+<div id="container">
+<div id="overlay-backdrop" class="overlay-backdrop hidden" aria-hidden="true"></div>
+<div id="overlay-toc" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Table of contents">
+  <div class="overlay-head">
+    <div class="overlay-title">Table of contents</div>
+    <button class="overlay-close" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="overlay-sep" aria-hidden="true"></div>
+  <div class="overlay-scroll">
+    <div class="view" id="tocView"></div>
+  </div>
+</div>
+<div id="overlay-bookmarks" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Bookmarks">
+  <div class="overlay-head">
+    <div class="overlay-title">Bookmarks</div>
+    <button class="overlay-close" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="overlay-sep" aria-hidden="true"></div>
+  <div class="overlay-scroll">
+    <div class="view" id="bookmarksView"><ul id="bookmarks"></ul></div>
+  </div>
+</div>
+<div id="overlay-notes" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Notes">
+  <div class="overlay-head">
+    <div class="overlay-title">Notes</div>
+    <button class="overlay-close" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="overlay-sep" aria-hidden="true"></div>
+  <div class="overlay-scroll">
+    <div class="view" id="notesView"><ul id="notes"></ul></div>
+  </div>
+</div>
+<div id="overlay-menu" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Menu">
+  <div class="overlay-head">
+    <div class="overlay-title">Menu</div>
+    <button class="overlay-close" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="overlay-sep" aria-hidden="true"></div>
+  <div class="overlay-scroll">
+    <div class="view" id="menuView">
+      <ul id="menuList">
+        <li>
+          <button class="menu-item" type="button" data-menu="toc" aria-label="Table of contents">
+            <span class="menu-icon icon-list" aria-hidden="true"></span>
+            <span class="menu-label">Table of contents</span>
+          </button>
+        </li>
+        <li>
+          <button class="menu-item" type="button" data-menu="notes" aria-label="Notes">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20">
+                <rect x="1" y="1" width="18" height="18" rx="2.5"></rect>
+                <line x1="4" y1="6.5" x2="16" y2="6.5"></line>
+                <line x1="4" y1="10" x2="16" y2="10"></line>
+                <line x1="4" y1="13.5" x2="12.5" y2="13.5"></line>
+              </svg>
+            </span>
+            <span class="menu-label">Notes</span>
+          </button>
+        </li>
+        <li>
+          <button class="menu-item" type="button" data-menu="bookmarks" aria-label="Bookmarks">
+            <span class="menu-icon icon-bookmark" aria-hidden="true"></span>
+            <span class="menu-label">Bookmarks</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Add comment (bookmark) -->
+<div id="commentBackdrop" class="comment-backdrop hidden" aria-hidden="true"></div>
+<div id="commentSheet" class="comment-sheet hidden" role="dialog" aria-modal="true" aria-label="Add Comment">
+  <div class="comment-title">Add Comment</div>
+  <textarea id="commentInput" class="comment-input" rows="4" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+  <div class="comment-actions">
+    <button id="commentCancel" type="button">Cancel</button>
+    <button id="commentSave" type="button">Save</button>
+  </div>
+</div>
+<div id="main">
+<div id="titlebar">
+<div id="opener">
+<a aria-label="TOC" class="icon-menu" id="slider"></a>
+  <button id="openNotes" class="icon-note-btn" type="button" aria-label="Notes">
+  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <rect x="1" y="1" width="18" height="18" rx="2.5"></rect>
+    <line x1="4" y1="6.5" x2="16" y2="6.5"></line>
+    <line x1="4" y1="10" x2="16" y2="10"></line>
+    <line x1="4" y1="13.5" x2="12.5" y2="13.5"></line>
+  </svg>
+</button>
+<a aria-label="Bookmarks" class="icon-bookmark" id="openBookmarks"></a>
+</div>
+<div id="metainfo">
+  <div id="metaText">
+    <div id="book-title"></div>
+    <div id="chapter-title"></div>
+  </div>
+</div>
+<div id="title-controls">
+<!-- Search (FBReader-like) -->
+<div id="searchDesktop" class="search-desktop" aria-label="Search" role="search">
+  <div class="search-nav desktop" aria-hidden="true">
+    <button id="searchPrevDesktop" class="search-btn search-arrow" type="button" aria-label="Previous match">‹</button>
+    <span id="searchCountDesktop" class="search-count">0/0</span>
+    <button id="searchNextDesktop" class="search-btn search-arrow" type="button" aria-label="Next match">›</button>
+  </div>
+  <div class="search-input-wrap">
+    <input
+      id="searchInputDesktop"
+      class="search-input"
+      type="search"
+      name="__fb_search"
+      placeholder=""
+      autocomplete="off"
+      autocapitalize="off"
+      autocorrect="off"
+      inputmode="search"
+      enterkeyhint="search"
+      spellcheck="false"
+      data-lpignore="true"
+    />
+    <button id="searchActionDesktop" class="search-clear search-action is-mag is-disabled" type="button" aria-label="Search">
+      <!-- SVG magnifier (mirrored horizontally to match FBReader look) -->
+      <svg class="search-mag-svg" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+        <circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+        <line x1="15" y1="15" x2="21" y2="21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <span class="search-clear-x" aria-hidden="true">✕</span>
+    </button>
+  </div>
+  <!-- Mobile-only clickable search icon (leftmost in right icon group) -->
+  <a aria-label="Search" class="icon-search" id="searchOpen"></a>
+</div>
+
+<a aria-label="Bookmark" class="icon-bookmark" id="bookmark"></a><a aria-label="Decrease font size" class="font-size-btn font-size-dec" id="fontDec">A</a><a aria-label="Increase font size" class="font-size-btn font-size-inc" id="fontInc">A</a>
+
+
+<button class="theme-icon-btn" id="themeToggle" aria-label="Toggle theme" type="button"><svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3 A9 9 0 0 0 12 21 Z" fill="currentColor"/></svg></button>
+<button class="icon-resize-full" id="addressBarToggle" aria-label="Hide address bar" type="button"></button>
+</div>
+</div>
+
+<!-- Mobile search bar (replaces titlebar content while searching) -->
+<div id="searchbar" class="searchbar hidden" role="search" aria-label="Book search">
+  <button id="searchBookmark" class="search-btn icon-bookmark" type="button" aria-label="Bookmark"></button>
+  <div class="search-nav">
+    <button id="searchPrev" class="search-btn search-arrow" type="button" aria-label="Previous match">‹</button>
+    <span id="searchCount" class="search-count">0/0</span>
+    <button id="searchNext" class="search-btn search-arrow" type="button" aria-label="Next match">›</button>
+  </div>
+        <div class="search-input-wrap mobile">
+          <span class="search-infield-icon" aria-hidden="true">
+            <svg class="search-mag-svg" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+              <line x1="14.5" y1="14.5" x2="21" y2="21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <!--
+            Android/Chrome autofill can overlay "key / card / address" icons near text inputs.
+            Make this field unmistakably a search field (not a login/form field) to suppress that UI.
+          -->
+          <input
+            id="searchInputMobile"
+            class="search-input"
+            type="search"
+            inputmode="search"
+            enterkeyhint="search"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            name="__fb_search_m"
+            data-lpignore="true"
+            aria-label="Search"
+          />
+          <button id="searchClearMobile" class="search-clear hidden" type="button" aria-label="Clear search">×</button>
+        </div>
+        <button id="searchClose" class="search-btn search-close" type="button" aria-label="Close search">×</button>
+</div>
+
+<!-- Selection toolbar (FBReader-like actions) -->
+<div id="selectionToolbar" class="selection-toolbar hidden" role="toolbar" aria-label="Selection actions">
+  <button class="sel-btn sel-note" data-action="note" type="button" aria-label="Note">
+    <span class="sel-icon" aria-hidden="true">
+      <svg viewBox="0 0 20 20">
+        <rect x="1" y="1" width="18" height="18" rx="2.5"></rect>
+        <line x1="4" y1="6.5" x2="16" y2="6.5"></line>
+        <line x1="4" y1="10" x2="16" y2="10"></line>
+        <line x1="4" y1="13.5" x2="12.5" y2="13.5"></line>
+      </svg>
+    </span>
+    <span class="sel-label">Note</span>
+  </button>
+  <button class="sel-btn sel-translate" data-action="translate" type="button" aria-label="Translate">
+    <span class="sel-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M4 5h8M8 5v14M4 19h8"></path>
+        <path d="M14 7h6"></path>
+        <path d="M16.5 7c0 3-2 6-4.5 8"></path>
+        <path d="M14 15c1.5 1.4 3.2 2.5 6 3"></path>
+      </svg>
+    </span>
+    <span class="sel-label">Translate</span>
+  </button>
+  <button class="sel-btn sel-search" data-action="search" type="button" aria-label="Search in browser">
+    <span class="sel-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="6"></circle>
+        <line x1="16" y1="16" x2="21" y2="21"></line>
+      </svg>
+    </span>
+    <span class="sel-label">Look Up</span>
+  </button>
+  <button class="sel-btn sel-share" data-action="share" type="button" aria-label="Share">
+    <span class="sel-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 16V5"></path>
+        <path d="M8 9l4-4 4 4"></path>
+        <rect x="5" y="12" width="14" height="8" rx="2"></rect>
+      </svg>
+    </span>
+    <span class="sel-label">Share</span>
+  </button>
+  <button class="sel-btn sel-copy" data-action="copy" type="button" aria-label="Copy">
+    <span class="sel-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <rect x="9" y="8" width="10" height="11" rx="2"></rect>
+        <rect x="5" y="5" width="10" height="11" rx="2"></rect>
+      </svg>
+    </span>
+    <span class="sel-label">Copy</span>
+  </button>
+</div>
+<div id="divider"></div>
+<div class="arrow" id="prev">‹</div>
+
+<!--
+  Swipe preview stack (mobile):
+  We keep 3 rendered views in DOM (prev / current / next) so that
+  during a swipe we can reveal a real neighboring page underneath.
+  NOTE: #viewer remains the CURRENT view for backwards compatibility.
+-->
+<div id="viewerStack" aria-label="Book Viewer">
+  <div id="viewer-prev" class="viewer-layer" aria-hidden="true"></div>
+  <div id="viewer" class="viewer-layer viewer-current"></div>
+  <div id="viewer-next" class="viewer-layer" aria-hidden="true"></div>
+  <div id="swipe-shadow" aria-hidden="true"></div>
+</div>
+
+<div class="arrow" id="next">›</div>
+<div id="bottombar">
+<div id="bottom-controls">
+<span class="page-count" id="page-count"></span>
+</div>
+</div>
+<div id="loader"><img src="img/loader.gif"/></div>
+</div>
+<div class="modal md-effect-1" id="settings-modal">
+<div class="md-content">
+<h3>Settings</h3>
+<div>
+<p>
+<input id="sidebarReflow" name="sidebarReflow" type="checkbox"/>Reflow text when sidebars are open.
+                  </p>
+</div>
+<div class="closer icon-cancel-circled"></div>
+</div>
+</div>
+<div class="overlay"></div>
+</div>
+
+<script src="js/fbreader-ui.js"></script>
+</body>
+</html>

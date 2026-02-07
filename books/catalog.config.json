@@ -1,0 +1,7 @@
+{
+  "baseUrl": "https://YOUR-R2-PUBLIC-BASE",
+  "lettersIndexPath": "/letters.json",
+  "letterPrefixesPath": "/letters/{letter}.json",
+  "prefixNodePath": "/prefix/{prefix}.json",
+  "authorPath": "/author/{key}.json"
+}

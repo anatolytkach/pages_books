@@ -1,0 +1,15 @@
+.DS_Store
+.node-version
+.npmrc
+.env
+.env.*
+*.log
+npm-debug.log*
+.yarn*
+.pnpm-store
+/node_modules
+/.wrangler
+/.cache
+/dist
+/build
+/out

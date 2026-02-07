@@ -1,0 +1,3171 @@
+@font-face {
+  font-family: 'fontello';
+  src: url('../font/fontello.eot?60518104');
+  src: url('../font/fontello.eot?60518104#iefix') format('embedded-opentype'),
+       url('../font/fontello.woff?60518104') format('woff'),
+       url('../font/fontello.ttf?60518104') format('truetype'),
+       url('../font/fontello.svg?60518104#fontello') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  /* Light theme: clean soft background (no gradients) */
+  background: var(--reader-bg, #fcfaf8);
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+/*
+  Responsive side padding for the book area.
+  Some mobile browsers can behave like a wide viewport; using a clamp() value
+  makes margins stable and symmetric even if media queries don't trigger.
+*/
+:root {
+  --viewer-side: clamp(8px, 2.2vw, 28px);
+  --arrow-gap: clamp(4px, 1.2vw, 14px);
+  /* Must match actual desktop #titlebar height (see #titlebar rule below) */
+  --titlebar-h: 32px;
+  --bottombar-h: 32px;
+  /* Tap zones for page turns (overlays content on mobile) */
+  --arrow-hit: 32px;
+
+  /* UI typography (header/footer/TOC) */
+  --ui-font-family: Roboto, Arial, sans-serif;
+  --ui-font-scale: 1;
+}
+
+html, body {
+  height: 100%;
+}
+
+/* ---------- Mobile layout tweaks ---------- */
+@media (max-width: 1024px) {
+  /* Телефон / планшет: уже поля */
+  :root {
+    /* Make margins about 2× narrower on phones */
+    --viewer-side: clamp(1px, 0.8vw, 3px);
+    --arrow-gap: 0px;
+    /* Phone: keep tap-zones narrow so they never cover inline content (e.g., footnote markers). */
+    --arrow-hit: 24px;
+  }
+
+  #prev,
+  #next {
+    width: var(--arrow-hit);
+    max-width: var(--arrow-hit);
+  }
+
+  /* Mobile: make the text go (almost) edge-to-edge.
+     Tap zones (prev/next) sit ON TOP of the page and are fully transparent. */
+  #viewer {
+    left: var(--viewer-side);
+    right: var(--viewer-side);
+  }
+}
+
+/* ============================
+   Dark UI theme (outside book)
+   ============================ */
+body.dark-ui {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+body:not(.dark-ui) {
+  background: var(--reader-bg, #fcfaf8);
+}
+
+body.dark-ui #main {
+  background: #000 !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
+}
+
+body.dark-ui #titlebar {
+  color: var(--fbbar-fg) !important;
+  /* Same header background in both themes (FBReader-like) */
+  background: var(--fbbar-bg) !important;
+  opacity: 1 !important;
+}
+
+body.dark-ui #bottombar {
+  /* Same footer background in both themes (FBReader-like) */
+  background: var(--fbbar-bg) !important;
+  color: var(--fbbar-fg) !important;
+  opacity: 1 !important;
+}
+
+body.dark-ui #titlebar a {
+  /* Dark theme: make Dark/Light label match header text color */
+  color: var(--fbbar-fg) !important;
+}
+
+body.dark-ui .arrow {
+  color: #fff !important;
+  /* области со стрелками должны быть полностью прозрачными */
+  background: transparent !important;
+}
+
+body.dark-ui .arrow:hover {
+  color: #fff !important;
+  opacity: 0.75;
+}
+
+/* Light theme: show arrow on hover (desktop) */
+body:not(.dark-ui) .arrow:hover {
+  color: #888888 !important;
+  opacity: 0.75;
+}
+
+body:not(.dark-ui) .arrow:active,
+body:not(.dark-ui) .arrow.active {
+  color: #888888 !important;
+  opacity: 0.75;
+}
+
+body.dark-ui .arrow:active,
+body.dark-ui .arrow.active { color: #888888;
+}
+
+/* ---------- Sidebar (FBReader-like) ----------
+   User requirement: sidebar colors must match FBReader in BOTH themes.
+   Therefore, we DO NOT flip TOC to black-on-white in light theme.
+*/
+body:not(.dark-ui) #sidebar,
+body:not(.dark-ui) #panels,
+body:not(.dark-ui) #tocView,
+body:not(.dark-ui) #bookmarksView,
+body:not(.dark-ui) #notesView,
+body:not(.dark-ui) .view,
+body:not(.dark-ui) #tocView ul,
+body:not(.dark-ui) .list_item,
+body:not(.dark-ui) .list_item a,
+body:not(.dark-ui) #tocView .toc_link,
+body:not(.dark-ui) #tocView a,
+body:not(.dark-ui) #bookmarksView a,
+body:not(.dark-ui) #panels a{
+  background: var(--fbbar-bg) !important;
+  color: var(--fbbar-fg) !important;
+}
+
+/* Active TOC item: underline (same behavior in both themes) */
+body:not(.dark-ui) #tocView li.currentChapter > a.toc_link{
+  color: var(--fbbar-fg-strong) !important;
+  text-decoration: underline !important;
+}
+body.dark-ui #tocView li.currentChapter > a.toc_link{
+  color: var(--fbbar-fg-strong) !important;
+  text-decoration: underline !important;
+}
+
+body:not(.dark-ui) .list_item:hover,
+body:not(.dark-ui) .list_item:hover a {
+  background: rgba(255,255,255,0.06) !important;
+}
+
+body:not(.dark-ui) .list_item.currentChapter,
+body:not(.dark-ui) .list_item.currentChapter a {
+  background: transparent !important;
+  color: var(--fbbar-fg-strong) !important;
+  text-decoration: underline !important;
+}
+
+/* ---------- UI: keep only Dark/Light + Fullscreen in the top-right ---------- */
+#setting,
+#store {
+  display: none !important;
+}
+
+.page-count {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: var(--bottom-font-size, 14px);
+  font-family: var(--ui-font-family);
+  opacity: 0.85;
+  color: inherit;
+}
+
+/* Header/footer colors + fonts */
+#book-title,
+#chapter-title {
+  font-family: var(--ui-font-family);
+}
+
+body.light #book-title,
+body.light #chapter-title,
+body.light .page-count {
+  color: #A7A7A7 !important;
+}
+
+body.light #themeToggle {
+  color: #A7A7A7 !important;
+  font-weight: 300;
+}
+
+body.light #slider,
+body.light #fullscreen {
+  color: #A7A7A7 !important;
+}
+
+body.dark #book-title,
+body.dark #chapter-title,
+body.dark .page-count {
+  color: #888888 !important;
+}
+
+body.dark #themeToggle {
+  color: #888888 !important;
+  font-weight: 400;
+}
+
+body.dark #slider,
+body.dark #fullscreen {
+  color: #888888 !important;
+}
+
+#main {
+  /* height: 500px; */
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  right: 0;
+  /* left: 40px; */
+/*   -webkit-transform: translate(40px, 0);
+  -moz-transform: translate(40px, 0); */
+
+  /* border-radius: 5px 0px 0px 5px; */
+  border-radius: 5px;
+  background: var(--reader-bg, #fcfaf8);
+  overflow: hidden;
+  -webkit-transition: -webkit-transform .4s, width .2s;
+  -moz-transition: -webkit-transform .4s, width .2s;
+  -ms-transition: -webkit-transform .4s, width .2s;
+
+  /* No gradients / no glow in light theme */
+  -moz-box-shadow: none;
+  -webkit-box-shadow: none;
+  -ms-box-shadow: none;
+  box-shadow: none;
+}
+
+
+#titlebar {
+  /* Smaller top bar */
+  height: 32px;
+  min-height: 32px;
+  padding: 4px 8px;
+  /* margin: 0 50px 0 50px; */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  color: #A7A7A7;
+  /* Keep header text weight consistent with the main text */
+  font-weight: 400;
+  font-family: Roboto, Arial, sans-serif;
+  opacity: 1;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  -webkit-transition: opacity .5s;
+  -moz-transition: opacity .5s;
+  -ms-transition: opacity .5s;
+  z-index: 10;
+  background: #ffffff;
+}
+
+/* Mobile: make the top bar 1.5x taller */
+@media (max-width: 768px) {
+  #titlebar {
+    height: 72px;
+    min-height: 72px;
+    padding: 12px 12px;
+  }
+}
+
+#titlebar:hover { opacity: 1; }
+
+#titlebar a {
+  width: 18px;
+  height: 19px;
+  line-height: 20px;
+  overflow: hidden;
+  display: inline-block;
+  opacity: 1;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+/* Make icon buttons behave the same on <button> as on <a> */
+#titlebar button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--ui-fg);
+  cursor: pointer;
+  line-height: 1;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#titlebar button:focus {
+  outline: none;
+}
+
+#titlebar .icon-note-btn{
+  width: 18px;
+  height: 19px;
+  line-height: 20px;
+  overflow: visible;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+#titlebar .icon-note-btn svg{
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none !important;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: scale(1.45);
+  transform-origin: center;
+}
+
+/* Make the Dark/Light toggle fit its label */
+#themeToggle {
+  width: auto !important;
+  overflow: visible !important;
+  padding: 4px 10px !important;
+  font-family: var(--ui-font-family);
+  font-weight: 400;
+}
+
+#themeToggle::before {
+  margin-right: 6px;
+}
+
+#addressBarToggle {
+  width: 18px;
+  height: 19px;
+  line-height: 20px;
+  overflow: hidden;
+  display: inline-block;
+  opacity: 1;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+#addressBarToggle.hidden {
+  display: none;
+}
+
+#titlebar a::before {
+  visibility: visible;
+}
+
+#titlebar a:hover {
+  opacity: .8;
+  border: 1px rgba(0,0,0,.2) solid;
+  padding: 3px;
+}
+
+#titlebar a:active {
+  opacity: 1;
+  color: rgba(0,0,0,.6);
+  /* margin: 1px -1px -1px 1px; */
+  -moz-box-shadow:    inset 0 0 6px rgba(155,155,155,.8);
+  -webkit-box-shadow: inset 0 0 6px rgba(155,155,155,.8);
+  -ms-box-shadow: inset 0 0 6px rgba(155,155,155,.8);
+  box-shadow: inset 0 0 6px rgba(155,155,155,.8);
+}
+
+#book-title {
+  font-family: var(--ui-font-family);
+  font-weight: 600;
+}
+
+#title-seperator {
+  display: none;
+}
+
+/*
+  Viewer stack:
+  - #viewerStack occupies the exact same rectangle that #viewer used to.
+  - Inside it we keep 3 layers (prev/current/next) so swipe preview
+    can reveal a REAL neighboring page under the dragged page.
+  - We do NOT change layout / margins: only internal layering.
+*/
+#viewerStack {
+  z-index: 2;
+  position: absolute;
+  left: var(--viewer-side);
+  right: var(--viewer-side);
+  margin: 0;
+  width: auto;
+  max-width: none;
+  top: var(--titlebar-h);
+  bottom: var(--bottombar-h);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+
+#viewer,
+#viewer-prev,
+#viewer-next {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--reader-bg, #ffffff);
+}
+
+/* Layer ordering: current above, neighbors below
+   IMPORTANT: keep ONLY ONE neighbor visible at a time.
+   If both are visible, the later DOM node can cover the other, which makes
+   dimming / shadow appear to "randomly" work only in one direction.
+*/
+#viewer-prev,
+#viewer-next {
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+}
+
+#viewer { z-index: 3; }
+
+/* Keep current page above underlay during swipe */
+#viewerStack.swiping #viewer { z-index: 3; }
+#viewerStack.swiping #viewer-prev,
+#viewerStack.swiping #viewer-next { z-index: 1; }
+/* During swipe, avoid white seams by letting any gap show the same dim tone */
+#viewerStack.swiping {
+  background: var(--reader-bg, #f1f1dd);
+}
+#viewerStack.swiping #viewer,
+#viewerStack.swiping #viewer-prev,
+#viewerStack.swiping #viewer-next {
+  background: transparent !important;
+}
+
+/* Reveal exactly one underlay depending on swipe direction */
+#viewerStack.swipe-reveal-prev #viewer-prev { opacity: 1; }
+#viewerStack.swipe-reveal-prev #viewer-next { opacity: 0; }
+
+#viewerStack.swipe-reveal-next #viewer-next { opacity: 1; }
+#viewerStack.swipe-reveal-next #viewer-prev { opacity: 0; }
+
+/* During swipe, tint ONLY the outer side margins (outside #viewerStack) */
+html.fb-swipe-margins #main::before,
+html.fb-swipe-margins #main::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--viewer-side);
+  background: rgba(0,0,0,0.22);
+  pointer-events: none;
+  z-index: 1;
+}
+html.fb-swipe-margins #main::before { left: 0; }
+html.fb-swipe-margins #main::after { right: 0; }
+
+/* Dim the revealed underlay during swipe (overlay, no filter) */
+#viewer-prev::after,
+#viewer-next::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.22);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+#viewerStack.swipe-reveal-prev #viewer-prev::after {
+  background: linear-gradient(to left, rgba(0,0,0,0) 0, rgba(0,0,0,0.22) 14px, rgba(0,0,0,0.22) 100%);
+}
+#viewerStack.swipe-reveal-next #viewer-next::after {
+  background: linear-gradient(to right, rgba(0,0,0,0) 0, rgba(0,0,0,0.22) 14px, rgba(0,0,0,0.22) 100%);
+}
+#viewerStack.swipe-reveal-prev #viewer-prev::after,
+#viewerStack.swipe-reveal-next #viewer-next::after {
+  opacity: 1;
+}
+
+/* Mobile stability: never show the prerendered neighbor layers during drag.
+   This removes the "double page" / shimmering artifact on slow swipes. */
+@media (hover: none) and (pointer: coarse) {
+  #viewer-prev,
+  #viewer-next {
+    opacity: 0 !important;
+    filter: none !important;
+  }
+  #viewerStack.swipe-reveal-prev #viewer-prev,
+  #viewerStack.swipe-reveal-next #viewer-next {
+    opacity: 0 !important;
+  }
+}
+
+/* iOS: allow neighbor pages to be visible during swipe (fix blank underlay) */
+@supports (-webkit-touch-callout: none) {
+  #viewerStack.swipe-reveal-prev #viewer-prev,
+  #viewerStack.swipe-reveal-next #viewer-next {
+    opacity: 1 !important;
+  }
+}
+
+/* Mobile: show and dim underlay during swipe */
+@media (hover: none) and (pointer: coarse) {
+  #viewerStack.swipe-reveal-prev #viewer-prev,
+  #viewerStack.swipe-reveal-next #viewer-next {
+    opacity: 1 !important;
+  }
+}
+
+/* Android: reduce shimmer by disabling forced GPU compositing */
+@media (hover: none) and (pointer: coarse) {
+  html:not(.is-ios) #viewer,
+  html:not(.is-ios) #viewer-prev,
+  html:not(.is-ios) #viewer-next,
+  html:not(.is-ios) #viewerStack iframe,
+  html:not(.is-ios) #viewer iframe,
+  html:not(.is-ios) #viewer-prev iframe,
+  html:not(.is-ios) #viewer-next iframe {
+    transform: none !important;
+    -webkit-transform: none !important;
+    will-change: auto !important;
+    backface-visibility: visible !important;
+    -webkit-backface-visibility: visible !important;
+  }
+}
+
+/* Shadow drawn ON the underlay near the moving page edge */
+#swipe-shadow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px; /* shorter edge shadow */
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2; /* between underlay and current page */
+}
+
+#viewerStack.swiping #swipe-shadow {
+  opacity: 1;
+}
+
+/* Default gradients (direction is updated by JS by toggling classes) */
+#viewerStack.shadow-left #swipe-shadow {
+  background: linear-gradient(to left, rgba(0,0,0,0.40), rgba(0,0,0,0));
+}
+
+#viewerStack.shadow-right #swipe-shadow {
+  background: linear-gradient(to right, rgba(0,0,0,0.40), rgba(0,0,0,0));
+}
+
+/* Iframes */
+#viewerStack iframe,
+#viewer iframe,
+#viewer-prev iframe,
+#viewer-next iframe {
+  border: none;
+}
+
+/* Swipe stability (Android/Chrome): reduce shimmer / duplicate rasterization on slow drags */
+#viewer, #viewer-prev, #viewer-next {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+}
+
+#viewerStack iframe,
+#viewer iframe,
+#viewer-prev iframe,
+#viewer-next iframe {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+
+#prev {
+  /* Keep arrow close to text (works on mobile + desktop) */
+	left: var(--arrow-gap);
+}
+
+
+#next {
+  /* Keep arrow close to text (works on mobile + desktop) */
+	right: var(--arrow-gap);
+}
+
+
+/* Smaller bottom bar */
+#bottombar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  z-index: 10;
+  color: #A7A7A7;
+  font-family: Roboto, Arial, sans-serif;
+  opacity: 1;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+}
+
+#bottombar:hover { opacity: 1; }
+
+body.dark-ui #bottombar {
+  opacity: 1;
+}
+
+.arrow {
+  /*
+    Navigation hit areas:
+    - transparent (do not cover text visually)
+    - do NOT overlap titlebar / bottombar
+  */
+  position: absolute;
+  top: var(--titlebar-h);
+  bottom: var(--bottombar-h);
+  width: var(--arrow-hit);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64px;
+  color: transparent; /* keep clickable but visually invisible */
+  font-family: arial, sans-serif;
+  font-weight: bold;
+  cursor: pointer;
+  background: transparent;
+  outline: none;
+  opacity: 0; /* fully transparent tap zones */
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+  touch-action: manipulation;
+  /* Above the EPUB iframe, but below the UI bars / TOC. */
+  z-index: 8;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.arrow:hover {
+  color: transparent;
+}
+
+.arrow:active,
+.arrow.active {
+  /* Do not flash / highlight on tap. */
+  color: transparent;
+  background: transparent;
+  opacity: 0;
+}
+
+#sidebar {
+  /* FBReader-like: overlay drawer (does NOT push the book) */
+  background: var(--fbbar-bg);
+  color: var(--fbbar-fg);
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: min(340px, 78vw);
+  height: 100%;
+  transform: translateX(-105%);
+  transition: transform 180ms ease;
+  overflow: hidden;
+  z-index: 10030;
+}
+
+#sidebar.open {
+  transform: translateX(0);
+}
+
+#main.closed {
+  /* Sidebar no longer pushes the book */
+  -webkit-transform: none;
+  -moz-transform: none;
+  -ms-transform: none;
+  transform: none;
+}
+
+#main.single {
+  width: 75%;
+}
+
+#main.single #viewer {
+  /* width: 60%;
+  margin-left: 20%; */
+}
+
+#panels {
+  background: #fff;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  padding: 13px 0;
+  height: 14px;
+  -moz-box-shadow: 0px 1px 3px rgba(0,0,0,.6);
+  -webkit-box-shadow: 0px 1px 3px rgba(0,0,0,.6);
+  -ms-box-shadow: 0px 1px 3px rgba(0,0,0,.6);
+  box-shadow: 0px 1px 3px rgba(0,0,0,.6);
+}
+
+#opener {
+  /* padding: 10px 10px; */
+  float: left;
+}
+
+/* #opener #slider {
+  width: 25px;
+} */
+
+#opener{
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  float: none;
+}
+
+#metainfo {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  margin-left: clamp(8px, 2vw, 30px);
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Prevent title/author text from running under search controls */
+#metaText { min-width: 0; overflow: hidden; }
+#book-title, #chapter-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#title-controls {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* Search cluster must never collapse on desktop */
+#searchDesktop,
+.search-desktop {
+  flex-shrink: 0;
+}
+
+/* Desktop: center the search field in the titlebar */
+@media (hover: hover) and (pointer: fine) {
+  #searchDesktop {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+  }
+}
+
+#title-controls a, #title-controls button{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 19px;
+  padding: 4px;
+  line-height: 1;
+}
+
+/* Keep the two A buttons visually tight */
+#title-controls .font-size-btn{ margin: 0 !important; padding: 4px 3px; }
+
+/* Theme toggle icon (single icon for both themes) */
+#title-controls .theme-icon-btn{ background: transparent; border: 0; cursor: pointer; }
+#title-controls .theme-icon{ width: 18px; height: 18px; display: block; }
+
+
+/*
+  Fullscreen button: hide the fallback text ("Full") so it doesn't render as
+  a stray vertical bar on some mobile browsers.
+*/
+/* fullscreen button removed */
+
+#themeToggle {
+  /* Make sure the label fully fits and sits aligned with icons */
+  padding: 2px 10px;
+  margin-left: 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 14px;
+}
+
+/* Font size menu (A button + 5-step scale)
+   - Uses currentColor / inherited backgrounds so it works in both light & dark UI.
+   - Selection is indicated via font-weight only (no color changes). */
+.font-menu-btn {
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 2px 8px;
+  margin-left: 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+}
+
+.font-menu-panel {
+  position: absolute;
+  top: 42px;
+  right: 70px;
+  display: none;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid currentColor;
+  background: inherit;
+  z-index: 2000;
+}
+
+/* Keep the panel near the titlebar on smaller screens */
+@media (max-width: 768px) {
+  .font-menu-panel {
+    right: 56px;
+    top: 44px;
+  }
+}
+
+/* ===== Desktop: keep bars fixed to top/bottom (never drift) ===== */
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  #viewerStack {
+    top: var(--titlebar-h);
+    bottom: var(--bottombar-h);
+  }
+}
+
+.font-menu-panel.is-open {
+  display: inline-flex;
+}
+
+.font-menu-item {
+  font: inherit;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.font-menu-item.is-active {
+  font-weight: 700;
+}
+
+#panels a {
+  width: 18px;
+  height: 20px;
+  overflow: hidden;
+  display: inline-block;
+  color: #ccc;
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 20px;
+  /* Safari (macOS/iOS): keep the anchor itself visible so taps/clicks work.
+     Labels are removed from HTML and kept only in aria-labels. */
+}
+
+/* Align the bookmark panel icon to the same visual baseline as TOC */
+#show-Bookmarks::before {
+  position: relative;
+  top: -1px;
+}
+
+/* Bookmarks tab is enabled */
+
+#panels a::before {
+  visibility: visible;
+}
+
+/* In the sidebar panel buttons we render icons only; avoid extra right spacing
+   from the generic icon font rule so glyphs stay centered inside 18px. */
+#panels a[class^="icon-"]::before,
+#panels a[class*=" icon-"]::before {
+  margin-right: 0;
+}
+
+#panels a:hover {
+  color: #AAA;
+}
+
+#panels a:active {
+  color: #AAA;
+  margin: 1px 0 -1px 6px;
+}
+
+#panels a.active,
+#panels a.active:hover {
+  color: #AAA;
+}
+
+#searchBox {
+  width: 165px;
+  float: left;
+  margin-left: 10px;
+  margin-top: -1px;
+  /*
+  border-radius: 5px;
+  background: #9b9b9b;
+  float: left;
+  margin-left: 5px;
+  margin-top: -5px;
+  padding: 3px 10px;
+  color: #000;
+  border: none;
+  outline: none; */
+
+}
+
+input::-webkit-input-placeholder {
+    color: #454545;
+}
+input:-moz-placeholder {
+    color: #454545;
+}
+input:-ms-placeholder {
+    color: #454545;
+}
+
+#divider {
+  position: absolute;
+  width: 1px;
+  border-right: 1px #000 solid;
+  height: 80%;
+  z-index: 1;
+  left: 50%;
+  margin-left: -1px;
+  top: 10%;
+  opacity: .15;
+  box-shadow: -2px 0 15px rgba(0, 0, 0, 1);
+  display: none;
+}
+
+#divider.show {
+  display: block;
+}
+
+#loader {
+  position: absolute;
+  z-index: 10;
+  left: 50%;
+  top: 50%;
+  margin: -33px 0 0 -33px;
+}
+
+#tocView,
+#bookmarksView {
+  overflow-x: hidden;
+  overflow-y: hidden;
+  min-width: 300px;
+  width: 25%;
+  height: 100%;
+  visibility: hidden;
+  -webkit-transition: visibility 0 ease .5s;
+  -moz-transition: visibility 0 ease .5s;
+  -ms-transition: visibility 0 ease .5s;
+}
+
+
+
+#sidebar.open #tocView,
+#sidebar.open #bookmarksView {
+  overflow-y: auto;
+  visibility: visible;
+  font-family: var(--ui-font-family);
+  font-size: calc(1rem * var(--ui-font-scale));
+  -webkit-transition: visibility 0 ease 0;
+  -moz-transition: visibility 0 ease 0;
+  -ms-transition: visibility 0 ease 0;
+}
+
+#sidebar.open #tocView {
+  display: block;
+}
+
+#tocView > ul,
+#bookmarksView > ul {
+  margin-top: 15px;
+  margin-bottom: 50px;
+  padding-left: 20px;
+  display: block;
+}
+
+#tocView li,
+#bookmarksView li {
+  margin-bottom:10px;
+  width: 225px;
+  font-family: inherit;
+  list-style: none;
+  /* не трогаем регистр: заголовки задаются кодом */
+  text-transform: none;
+  /* Match the sidebar base font-size */
+  font-size: 1em;
+}
+
+#tocView li:active,
+#tocView li.currentChapter
+{
+  list-style: none;
+}
+
+.list_item a {
+  /* Light theme TOC: black on white */
+  color: #000;
+  text-decoration: none;
+}
+
+.list_item a.chapter {
+  font-size: 1em;
+}
+
+.list_item a.section {
+  font-size: .8em;
+}
+
+/* Light theme: active chapter is underlined (no background) */
+.list_item.currentChapter > a {
+  color: #000;
+  text-decoration: underline;
+}
+
+.list_item a:hover {
+  color: #000;
+  text-decoration: underline;
+}
+
+/* (override old hover color rules) */
+
+.list_item ul {
+  padding-left:10px;
+  margin-top: 8px;
+  display: none;
+}
+
+.list_item.currentChapter > ul,
+.list_item.openChapter > ul {
+  display: block;
+}
+
+#tocView.hidden {
+  display: none;
+}
+
+.toc_toggle {
+  display: inline-block;
+  width: 14px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.toc_toggle:before {
+  content: '▸';
+  color: #fff;
+  margin-right: -4px;
+}
+
+.currentChapter > .toc_toggle:before,
+.openChapter > .toc_toggle:before {
+  content: '▾';
+}
+
+.view {
+  width: 300px;
+  height: 100%;
+  display: none;
+  padding-top: 50px;
+  overflow-y: auto;
+}
+
+#searchResults {
+  margin-bottom: 50px;
+  padding-left: 20px;
+  display: block;
+}
+
+#searchResults li {
+  margin-bottom:10px;
+  width: 225px;
+  font-family: Georgia, "Times New Roman", Times, serif;
+  list-style: none;
+}
+
+#searchResults a {
+  color: #AAA;
+  text-decoration: none;
+}
+
+#searchResults p {
+  text-decoration: none;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+#searchResults p .match {
+  background: #ccc;
+  color: #000;
+}
+
+#searchResults li > p {
+  color: #AAA;
+}
+
+#searchResults li a:hover {
+  color: #E2E2E2;
+}
+
+#searchView.shown {
+  display: block;
+  overflow-y: scroll;
+}
+
+#notes {
+ padding: 0 0 0 34px;
+}
+
+#notes li {
+  color: #eee;
+  font-size: 12px;
+  width: 240px;
+  border-top: 1px #fff solid;
+  padding-top: 6px;
+  margin-bottom: 6px;
+}
+
+#notes li a {
+  color: #fff;
+  display: inline-block;
+  margin-left: 6px;
+}
+
+#notes li a:hover {
+  text-decoration: underline;
+}
+
+#notes li img {
+  max-width: 240px;
+}
+
+#note-text {
+  display: block;
+  width: 260px;
+  height: 80px;
+  margin: 0 auto;
+  padding: 5px;
+  border-radius: 5px;
+}
+
+#note-text[disabled], #note-text[disabled="disabled"]{
+    opacity: .5;
+}
+
+#note-anchor {
+  margin-left: 218px;
+  margin-top: 5px;
+}
+
+#settingsPanel {
+  display:none;
+}
+
+#settingsPanel h3 {
+  color:#f1f1f1;
+  font-family:Georgia, "Times New Roman", Times, serif;
+  margin-bottom:10px;
+}
+
+#settingsPanel ul {
+  margin-top:60px;
+  list-style-type:none;
+}
+
+#settingsPanel li {
+  font-size:1em;
+  color:#f1f1f1;
+}
+
+#settingsPanel .xsmall {  font-size:x-small; }
+#settingsPanel .small {  font-size:small; }
+#settingsPanel .medium {  font-size:medium; }
+#settingsPanel .large {  font-size:large; }
+#settingsPanel .xlarge {  font-size:x-large; }
+
+.highlight { background-color: #61c2fa }
+
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 50%;
+  width: 630px;
+
+  height: auto;
+  z-index: 2000;
+  visibility: hidden;
+  margin-left: -320px;
+  margin-top: -160px;
+
+}
+
+.overlay {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  opacity: 0;
+  background: rgba(255,255,255,0.8);
+  -webkit-transition: all 0.3s;
+  -moz-transition: all 0.3s;
+  -ms-transition: all 0.3s;
+  transition: all 0.3s;
+}
+
+.md-show {
+    visibility: visible;
+}
+
+.md-show ~ .overlay {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Content styles */
+.md-content {
+  /* Readable modal in light theme */
+  color: #000;
+  background: #fff;
+  position: relative;
+  border-radius: 3px;
+  margin: 0 auto;
+  height: 320px;
+}
+
+body.dark-ui .md-content {
+  background: #000;
+  color: #fff;
+}
+
+.md-content h3 {
+  margin: 0;
+  padding: 6px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 300;
+  opacity: 0.8;
+  background: rgba(0,0,0,0.1);
+  border-radius: 3px 3px 0 0;
+}
+
+body.dark-ui .md-content h3 {
+  background: rgba(255,255,255,0.08);
+}
+
+/* Inputs / labels inside the modal */
+.md-content label,
+.md-content p,
+.md-content li {
+  color: inherit;
+}
+
+body.dark-ui .md-content select,
+body.dark-ui .md-content input,
+body.dark-ui .md-content textarea {
+  background: #111;
+  color: #fff;
+  border-color: #333;
+}
+
+.md-content > div {
+  padding: 15px 40px 30px;
+  margin: 0;
+  font-weight: 300;
+  font-size: 14px;
+}
+
+.md-content > div p {
+  margin: 0;
+  padding: 10px 0;
+}
+
+.md-content > div ul {
+  margin: 0;
+  padding: 0 0 30px 20px;
+}
+
+.md-content > div ul li {
+  padding: 5px 0;
+}
+
+.md-content button {
+  display: block;
+  margin: 0 auto;
+  font-size: 0.8em;
+}
+
+/* Effect 1: Fade in and scale up */
+.md-effect-1 .md-content {
+  -webkit-transform: scale(0.7);
+  -moz-transform: scale(0.7);
+  -ms-transform: scale(0.7);
+  transform: scale(0.7);
+  opacity: 0;
+  -webkit-transition: all 0.3s;
+  -moz-transition: all 0.3s;
+  -ms-transition: all 0.3s;
+  transition: all 0.3s;
+}
+
+.md-show.md-effect-1 .md-content {
+  -webkit-transform: scale(1);
+  -moz-transform: scale(1);
+  -ms-transform: scale(1);
+  transform: scale(1);
+  opacity: 1;
+}
+
+.md-content > .closer {
+  font-size: 18px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 24px;
+  padding: 4px;
+}
+
+/*
+  IMPORTANT:
+  The original epubjs-reader CSS shrank #viewer on narrower screens.
+  That creates huge asymmetric margins on some mobile browsers.
+  We keep only the divider hiding rule here.
+*/
+@media only screen and (max-width: 1040px) {
+	#divider,
+	#divider.show {
+		display: none;
+	}
+}
+
+@media only screen and (max-width: 550px) {
+  :root {
+    /* Phone: keep tap-zones narrow so they never cover inline content (e.g., footnote markers). */
+    --arrow-hit: 24px;
+    /* Phone side margins: still too wide → make ~2× narrower again */
+    --viewer-side: 4px;
+    --arrow-gap: 6px;
+    --header-h: 44px;
+    --footer-h: 34px;
+  }
+
+  .arrow {
+    /* Use the same geometry as desktop (vars above), and never cover header/footer */
+    top: var(--header-h);
+    height: calc(100% - var(--header-h) - var(--footer-h));
+    width: var(--arrow-hit);
+    text-indent: -10000px;
+  }
+
+  #main {
+    -webkit-transform: translate(0, 0);
+    -moz-transform: translate(0, 0);
+    -ms-transform: translate(0, 0);
+    -webkit-transition: -webkit-transform .3s;
+    -moz-transition: -moz-transform .3s;
+    -ms-transition: -moz-transform .3s;
+  }
+
+  #main.closed {
+    -webkit-transform: translate(260px, 0);
+    -moz-transform: translate(260px, 0);
+    -ms-transform: translate(260px, 0);
+  }
+
+  #titlebar {
+    /* font-size: 16px; */
+    /* margin: 0 50px 0 50px; */
+  }
+
+  #metainfo {
+    font-size: 10px;
+  }
+
+  #tocView {
+    width: 260px;
+  }
+
+  #tocView li {
+    font-size: inherit;
+  }
+
+  #tocView > ul{
+    padding-left: 10px;
+  }
+}
+
+
+/*
+  Legacy device-width rules (old iPad/iPhone breakpoints) were forcing a tiny fixed iframe width (e.g. 256px),
+  which makes modern Android / Chrome show huge asymmetric margins.
+  Use normal viewport-based breakpoints instead.
+*/
+
+@media (max-width: 1024px) {
+  #viewerStack iframe,
+  #viewer iframe,
+  #viewer-prev iframe,
+  #viewer-next iframe {
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /*
+    Mobile:
+    Keep #viewer left/right offsets driven by CSS variables so the page
+    never sits under the arrow tap-zones. We only tune the variables.
+  */
+  :root {
+    /* Phone: keep tap-zones narrow so they never cover inline content (e.g., footnote markers). */
+    --arrow-hit: 24px;
+    --viewer-side: 8px;
+    --header-h: 44px;
+    --footer-h: 34px;
+  }
+}
+
+[class^="icon-"]:before, [class*=" icon-"]:before {
+    font-family: "fontello";
+    font-style: normal;
+    font-weight: normal;
+    speak: none;
+
+    display: inline-block;
+    text-decoration: inherit;
+    width: 1em;
+    margin-right: .2em;
+    text-align: center;
+    /* opacity: .8; */
+
+    /* For safety - reset parent styles, that can break glyph codes*/
+    font-variant: normal;
+    text-transform: none;
+
+    /* you can be more comfortable with increased icons size */
+    font-size: 112%;
+}
+
+
+.icon-search:before { content: '\e807'; } /* '' */
+.icon-resize-full-1:before { content: '\e804'; } /* '' */
+.icon-cancel-circled2:before { content: '\e80f'; } /* '' */
+.icon-link:before { content: '\e80d'; } /* '' */
+.icon-bookmark:before { content: '\e805'; } /* '' */
+.icon-bookmark-empty:before { content: '\e806'; } /* '' */
+.icon-download-cloud:before { content: '\e811'; } /* '' */
+.icon-edit:before { content: '\e814'; } /* '' */
+.icon-menu:before { content: '\e802'; } /* '' */
+.icon-cog:before { content: '\e813'; } /* '' */
+.icon-resize-full:before { content: '\e812'; } /* '' */
+.icon-cancel-circled:before { content: '\e80e'; } /* '' */
+.icon-up-dir:before { content: '\e80c'; } /* '' */
+.icon-right-dir:before { content: '\e80b'; } /* '' */
+.icon-angle-right:before { content: '\e809'; } /* '' */
+.icon-angle-down:before { content: '\e80a'; } /* '' */
+.icon-right:before { content: '\e815'; } /* '' */
+.icon-list-1:before { content: '\e803'; } /* '' */
+.icon-list-numbered:before { content: '\e801'; } /* '' */
+.icon-columns:before { content: '\e810'; } /* '' */
+.icon-list:before { content: '\e800'; } /* '' */
+.icon-resize-small:before { content: '\e808'; } /* '' */
+
+
+/* Remove tap highlight for arrow zones */
+#prev, #next {
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
+
+/* --- Patch: bookmarks visibility + iOS fullscreen + tap-zone behavior --- */
+#show-Bookmarks { display: inline-flex !important; }
+
+.tap-zone, .tap-zone * { -webkit-tap-highlight-color: transparent !important; }
+.tap-zone { background: transparent !important; }
+.tap-zone:active { background: rgba(136,136,136,0.28) !important; } /* visible gray press feedback (both themes) */
+body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
+
+/* Selection toolbar (FBReader-like) */
+.selection-toolbar{
+  position: fixed;
+  z-index: 10050;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--fbbar-bg);
+  color: var(--fbbar-fg);
+  border: 1px solid var(--fbbar-border);
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(0,0,0,.18);
+  align-items: stretch;
+}
+.selection-toolbar.hidden{ display: none; }
+.selection-toolbar .sel-btn{
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 5px 6px;
+  gap: 10px;
+}
+.selection-toolbar .sel-icon{
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 26px;
+}
+.selection-toolbar .sel-btn svg{
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.selection-toolbar .sel-label{
+  font-size: 17px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.selection-toolbar .sel-note .sel-icon svg{
+  transform: scale(0.7);
+  transform-origin: center;
+}
+
+#selectionDismiss{
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  background: transparent;
+  pointer-events: none;
+  touch-action: none;
+}
+#selectionDismiss.active{
+  pointer-events: auto;
+}
+
+@media (hover: none) and (pointer: coarse){
+  .selection-toolbar .sel-icon{
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+  }
+  .selection-toolbar .sel-btn svg{
+    width: 29px;
+    height: 29px;
+  }
+  .selection-toolbar .sel-label{
+    font-size: 21px;
+  }
+}
+@media (hover: hover) and (pointer: fine){
+  .selection-toolbar .sel-share{ display: none; }
+}
+html.is-desktop .selection-toolbar .sel-share{ display: none; }
+
+
+/* Font size controls (no color changes)
+   Keep them on the same baseline as other titlebar controls.
+   Also keep the two A buttons close to each other. */
+#title-controls .font-size-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:100%;
+  line-height:1;
+  padding:4px 3px;
+  box-sizing: border-box;
+  text-decoration:none;
+  cursor:pointer;
+  user-select:none;
+  border: 1px solid transparent;
+  /* first A gets a normal gap from the bookmark icon */
+  margin-left:10px;
+}
+/* second A should be much closer to the first */
+#title-controls .font-size-btn + .font-size-btn{ margin-left:2px; }
+
+#title-controls .font-size-inc{ font-size:16px; }
+#title-controls .font-size-dec{ font-size:12px; }
+
+/* Prevent hover/active jitter for font size buttons */
+#title-controls .font-size-btn:hover,
+#title-controls .font-size-btn:active{
+  padding:4px 3px;
+}
+#title-controls .font-size-btn:hover{
+  border-color: rgba(0,0,0,.2);
+}
+
+
+/* Footer arrows: absolutely positioned so footer layout/height does not change */
+/* IMPORTANT: keep #bottombar positioned by the earlier rule (absolute at the bottom).
+   Do NOT override its positioning here, otherwise it will jump under the header. */
+
+/* Use the same glyph style as the sidebar close arrow (fontello icon-right).
+   Do not change footer size/layout: these are absolutely positioned. */
+#bottombar .footer-nav{
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 12;
+}
+
+/* Inherit the footer's existing text color (same as other UI arrows) */
+#bottombar .footer-nav:before{
+  margin-right: 0;
+  width: 1em;
+}
+
+/* Arrow direction
+   The fontello glyph used by .icon-right visually matches the existing sidebar arrow.
+   Based on user UI expectation: footer-prev must point LEFT, footer-next must point RIGHT.
+   So we rotate only the NEXT arrow.
+*/
+#bottombar #footer-prev{ left: 10px; transform: translateY(-50%); }
+#bottombar #footer-next{ right: 10px; transform: translateY(-50%) rotate(180deg); }
+
+/* --- Swipe visual preview (mobile): FBReader-like drag with underlay dim + edge shadow --- */
+/* We animate the epub.js view wrapper (.epub-view) on swipe. */
+.epub-view.dragging,
+.view.dragging,
+.epub-container.dragging {
+  will-change: transform;
+  transition: none !important;
+  overflow: visible !important;
+  position: relative;
+  z-index: 30;
+}
+
+/* Underlay overlay lives in the parent document (outside the iframe) */
+.swipe-underlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+}
+
+/* Dim only while swiping (so it never changes your normal colors/layout) */
+.swipe-underlay.is-active {
+  opacity: 1;
+}
+
+/* Dimmer (drawn ONLY over the revealed "underlay" side). This avoids dimming the moving page. */
+.swipe-underlay .swipe-dim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  /* Light dim so the underlying text stays readable (FBReader-like) */
+  background: rgba(0,0,0,0.14);
+}
+
+/* Edge shadow is drawn ON the underlay (so it looks like the moving page casts onto the page behind) */
+.swipe-underlay .swipe-shadow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px; /* short edge gradient like FBReader */
+  pointer-events: none;
+  opacity: 1;
+}
+
+/* Shadow direction:
+   - swipe left (to next): revealed page is on the RIGHT, so the shadow must extend RIGHT.
+   - swipe right (to prev): revealed page is on the LEFT, so the shadow must extend LEFT.
+   Exact position of the edge is set from JS every frame.
+*/
+.swipe-underlay.is-active.to-next .swipe-shadow {
+  /* Dark at the edge, fades into the revealed (right) page */
+  background: linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0));
+}
+.swipe-underlay.is-active.to-prev .swipe-shadow {
+  /* Dark at the edge, fades into the revealed (left) page */
+  background: linear-gradient(to left, rgba(0,0,0,0.55), rgba(0,0,0,0));
+}
+
+/* Disable the old fixed overlay approach (it was inconsistent in Chrome Android and sometimes covered text). */
+.swipe-underlay {
+  display: none !important;
+}
+
+/* When swipe preview is active, dim ONLY the non-moving view (the page behind). */
+html.swipe-preview-active .epub-view:not(.swipe-current),
+html.swipe-preview-active .view:not(.swipe-current) {
+  filter: brightness(0.82);
+}
+
+/* Moving page: add a short, darker edge gradient that visually lands on the page behind. */
+html.swipe-preview-active .swipe-current {
+  will-change: transform;
+}
+html.swipe-preview-active .swipe-current::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px; /* very short like FBReader */
+  pointer-events: none;
+  opacity: 0.95;
+}
+/* Swiping to NEXT (page moves left) -> edge is on the RIGHT */
+html.swipe-preview-active .swipe-current.drag-left::after {
+  right: -6px;
+  background: linear-gradient(to right, rgba(0,0,0,0.60), rgba(0,0,0,0));
+}
+/* Swiping to PREV (page moves right) -> edge is on the LEFT */
+html.swipe-preview-active .swipe-current.drag-right::after {
+  left: -6px;
+  background: linear-gradient(to left, rgba(0,0,0,0.60), rgba(0,0,0,0));
+}
+
+/*
+  FBReader-like swipe preview
+  -------------------------
+  The most reliable way across iOS + Android is:
+  - move ONLY the current rendered view (translate3d)
+  - dim ONLY the other (already rendered / preloaded) view(s)
+  This avoids clip-path / fixed overlay quirks in Chrome Android.
+*/
+
+/* While swiping, dim ONLY non-current views */
+.swipe-preview-active .epub-view:not(.swipe-current),
+.swipe-preview-active .view:not(.swipe-current) {
+  filter: brightness(0.82);
+}
+
+/* Draw a short, slightly darker edge shadow that visually falls onto the underlay */
+.epub-view.swipe-current.dragging::after,
+.view.swipe-current.dragging::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px; /* short like FBReader */
+  pointer-events: none;
+}
+
+.epub-view.swipe-current.dragging.drag-left::after,
+.view.swipe-current.dragging.drag-left::after {
+  right: -6px;
+  background: linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0));
+}
+
+.epub-view.swipe-current.dragging.drag-right::after,
+.view.swipe-current.dragging.drag-right::after {
+  left: -6px;
+  background: linear-gradient(to left, rgba(0,0,0,0.55), rgba(0,0,0,0));
+}
+
+
+/* ===== FBReader-like chrome (theme-aware) ===== */
+:root{
+  /* defaults (dark-ish) */
+  --fbbar-bg: #4a4a4a;
+  --fbbar-fg: #d0d0d0;
+  --fbbar-fg-strong: #ffffff;
+  --fbbar-border: rgba(255,255,255,0.18);
+  --fbbar-hover: rgba(255,255,255,0.08);
+}
+
+body.light{
+  /* Light theme should be light background with readable dark text */
+  --fbbar-bg: #f2f2f2;
+  --fbbar-fg: #4a4a4a;
+  --fbbar-fg-strong: #222222;
+  --fbbar-border: rgba(0,0,0,0.18);
+  --fbbar-hover: rgba(0,0,0,0.06);
+  --reader-bg: #fcfaf8;
+}
+
+body.dark{
+  --fbbar-bg: #4a4a4a;
+  --fbbar-fg: #d0d0d0;
+  --fbbar-fg-strong: #ffffff;
+  --fbbar-border: rgba(255,255,255,0.18);
+  --fbbar-hover: rgba(255,255,255,0.08);
+  --reader-bg: #000000;
+}
+
+/* Sidebar backdrop (tap outside to close) */
+#sidebar-backdrop{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.50);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 180ms ease, visibility 180ms ease;
+  z-index: 10025;
+}
+
+/* Center tap capture layer (reliable even when epub.js/iframe swallows events) */
+#fb-tap-layer{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10010; /* below bars (10020) but above book + epub iframes */
+}
+
+#fb-tap-center{
+  position: absolute;
+  left: 25vw;
+  width: 50vw;
+  top: var(--titlebar-h);
+  bottom: var(--bottombar-h);
+  pointer-events: auto;
+  background: transparent;
+}
+
+/* Disable center-tap capture while overlays are open (TOC / Bookmarks), so backdrop clicks work reliably */
+body.sidebar-open #fb-tap-layer{ display:none; }
+body.overlay-open #fb-tap-layer{ display:none; }
+
+body.sidebar-open #sidebar-backdrop{
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* ===== Sidebar palette + typography (FBReader-like in BOTH themes) ===== */
+#sidebar,
+#panels,
+#tocView,
+#bookmarksView,
+#notesView,
+.view{
+  background: var(--fbbar-bg) !important;
+  color: var(--fbbar-fg) !important;
+  opacity: 1 !important;
+}
+
+#tocView a,
+#bookmarksView a,
+#panels a{
+  color: var(--fbbar-fg) !important;
+}
+
+.list_item,
+.list_item a{
+  background: transparent !important;
+  color: var(--fbbar-fg) !important;
+}
+
+.list_item:hover,
+.list_item:hover a{
+  background: rgba(255,255,255,0.06) !important;
+}
+
+.list_item.currentChapter,
+.list_item.currentChapter a{
+  background: transparent !important;
+  text-decoration: underline !important;
+}
+
+/* Sidebar palette: same as FBReader drawer in both themes */
+#panels,
+#tocView,
+#bookmarksView,
+#notesView,
+#sidebar .view{
+  background: var(--fbbar-bg) !important;
+  color: var(--fbbar-fg) !important;
+}
+
+#panels{ box-shadow: none !important; }
+
+#panels a,
+#tocView a,
+#bookmarksView a,
+#notesView a{
+  color: var(--fbbar-fg) !important;
+}
+
+/* Hover/active in sidebar (desktop) */
+.list_item:hover,
+.list_item:hover a{
+  background: rgba(255,255,255,0.06) !important;
+}
+
+.list_item.currentChapter,
+.list_item.currentChapter a{
+  background: transparent !important;
+  text-decoration: underline !important;
+}
+
+#titlebar, #bottombar{
+  background: var(--fbbar-bg) !important;
+  /* Use the same color as the (author/title) primary text for ALL header controls */
+  color: var(--fbbar-fg) !important;
+}
+
+#titlebar{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10020;
+  border-bottom: none !important;
+}
+
+#bottombar{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10020;
+  border-top: none !important;
+}
+
+#divider{ display:none !important; }
+
+/* icons / controls color */
+/* icons / controls color */
+#titlebar a, #titlebar button,
+#bottombar a, #bottombar button,
+#titlebar #opener a{
+  color: currentColor !important;
+  fill: currentColor !important;
+}
+
+#titlebar .icon-search, #titlebar .icon-adjust, #titlebar .icon-resize-full{
+  color: var(--fbbar-fg) !important;
+}
+
+/* two-line title/author like FBReader */
+#metainfo{
+  display:flex;
+  align-items:center;
+  min-width:0;
+}
+#metaText{
+  display:flex;
+  flex-direction:column;
+  line-height:1.05;
+  min-width:0;
+}
+#book-title, #chapter-title{
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#book-title{ font-size: 16px; }
+#chapter-title{ font-size: 13px; opacity: 0.9; }
+
+/* Sidebar / TOC colors: keep FBReader-like palette in BOTH themes */
+#panels,
+#tocView,
+#bookmarksView,
+#notesView,
+#sidebar .view{
+  background: var(--fbbar-bg) !important;
+  color: var(--fbbar-fg) !important;
+}
+
+#panels{
+  box-shadow: none !important;
+  -moz-box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+}
+
+#panels a,
+#tocView a,
+#bookmarksView a{
+  color: var(--fbbar-fg) !important;
+}
+
+#tocView li.currentChapter > a.toc_link,
+body.dark-ui #tocView li.currentChapter > a.toc_link,
+body:not(.dark-ui) #tocView li.currentChapter > a.toc_link{
+  color: var(--fbbar-fg-strong) !important;
+  text-decoration: underline !important;
+}
+
+.list_item:hover,
+.list_item:hover a{
+  background: rgba(255,255,255,0.06) !important;
+}
+
+/* Search box inside title bar */
+#searchBox{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  min-width:0;
+  width:100%;
+}
+#searchBox.hidden{ display:none; }
+#metaText.hidden{ display:none; }
+
+#searchInput{
+  flex:1;
+  min-width:0;
+  height: 32px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(0,0,0,0.15);
+  color: var(--fbbar-fg-strong);
+  padding: 0 10px;
+  outline:none;
+}
+#searchInput::placeholder{ color: rgba(255,255,255,0.7); }
+
+#searchPrev, #searchNext{
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(0,0,0,0.12);
+  color: var(--fbbar-fg-strong);
+  border-radius:4px;
+  font-size: 18px;
+  line-height: 28px;
+  padding:0;
+}
+#searchClose{
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: transparent;
+  color: var(--fbbar-fg-strong);
+  border-radius:4px;
+}
+
+/* Hide UI bars until center tap */
+body.ui-hidden #titlebar{
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events:none;
+}
+body.ui-hidden #bottombar{
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events:none;
+}
+#titlebar, #bottombar{
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+body.ui-hidden #viewerStack{
+  top: 0 !important;
+  bottom: 0 !important;
+}
+
+/* Reader area: always sit BETWEEN the fixed top/bottom bars (no overlap) */
+#viewerStack{
+  position: fixed;
+  top: var(--titlebar-h);
+  bottom: var(--bottombar-h);
+  left: var(--viewer-side);
+  right: var(--viewer-side);
+}
+
+/* Viewer layers live inside #viewerStack (never fixed individually) */
+#viewer, #viewer-prev, #viewer-next{
+  position: absolute;
+  inset: 0;
+}
+
+/* Desktop: same geometry (still fixed) */
+
+/* avoid accidental text selection during swipe/tap */
+body.gesture-active{
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+
+/* Keep titlebar text/icons identical in both themes (FBReader-like) */
+body.light #titlebar { color: var(--fbbar-fg) !important; }
+body.dark #titlebar { color: var(--fbbar-fg) !important; }
+
+#titlebar #title-controls a, #titlebar #title-controls button, #titlebar #slider { color: inherit !important; }
+#titlebar svg { stroke: currentColor; fill: currentColor; }
+
+/* ===== HARD OVERRIDES (mobile/desktop): sidebar MUST NOT push the book ===== */
+#main.closed,
+#main.single{
+  -webkit-transform: none !important;
+  -moz-transform: none !important;
+  -ms-transform: none !important;
+  transform: none !important;
+}
+
+/* Ensure the backdrop is visible/clickable above the book */
+#sidebar-backdrop{ z-index: 10025 !important; }
+#sidebar{ z-index: 10030 !important; }
+
+/* Enforce FBReader-like drawer colors in both themes (some earlier rules override) */
+#sidebar,
+#sidebar .view,
+#sidebar #panels,
+#sidebar #tocView,
+#sidebar #bookmarksView,
+#sidebar #notesView{
+  background: var(--fbbar-bg) !important;
+  color: var(--fbbar-fg) !important;
+}
+
+#sidebar a,
+#sidebar .view a,
+#sidebar #tocView a,
+#sidebar #bookmarksView a,
+#sidebar #notesView a{
+  color: var(--fbbar-fg) !important;
+}
+
+/* Menu icon in sidebar header */
+#sidebar #slider,
+#sidebar #opener a,
+#sidebar #opener button{
+  color: var(--fbbar-fg-strong) !important;
+}
+
+
+/* === FBReader parity overrides (sidebar colors + sizing) === */
+:root{
+  --fbbar-bg: #4a4a4a;
+  --fbbar-fg: #d0d0d0;
+  --bottombar-font-size: 14px;
+}
+
+/* Bottom bar: define a stable reference size */
+#bottombar{
+  font-size: var(--bottombar-font-size) !important;
+}
+
+/* Sidebar/panels/views: force FBReader-like gray in BOTH themes */
+#sidebar,
+#panels,
+#tocView,
+#bookmarksView,
+#notesView,
+.view{
+  background: var(--fbbar-bg) !important;
+  color: var(--fbbar-fg) !important;
+  opacity: 1 !important;
+}
+
+/* Links/text inside sidebar */
+#panels a,
+#tocView a,
+#bookmarksView a,
+#notesView a,
+#tocView .toc_link,
+.list_item,
+.list_item a{
+  color: var(--fbbar-fg) !important;
+}
+
+/* Sidebar text size: 20% larger than bottom bar text */
+#tocView,
+#bookmarksView,
+#notesView{
+  font-size: calc(var(--bottombar-font-size) * 1.2) !important;
+  line-height: 1.35 !important;
+}
+
+/* Keep icons at the original (larger) size */
+#panels a{
+  font-size: 24px !important;
+  line-height: 20px !important;
+}
+
+/* Hover/active */
+.list_item:hover,
+.list_item:hover a{
+  background: rgba(255,255,255,0.06) !important;
+}
+
+.list_item.currentChapter,
+.list_item.currentChapter a{
+  background: transparent !important;
+  text-decoration: underline !important;
+}
+
+
+/* ============================
+   FBReader overlays (TOC / Bookmarks)
+   ============================ */
+:root {
+  --fb-overlay-bg: #4a4a4a;
+  --fb-overlay-fg: #d0d0d0;
+  --fb-overlay-fg-strong: #ffffff;
+  --fb-overlay-divider: rgba(255,255,255,0.18);
+}
+
+/* Backdrop only on desktop/tablet overlays */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 9998;
+}
+.overlay-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 360px;
+  height: 100vh;
+  background: var(--fbbar-bg);
+  color: var(--fbbar-fg);
+  z-index: 9999;
+  box-shadow: 0 0 16px rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+}
+.overlay-panel.hidden,
+.overlay-backdrop.hidden {
+  display: none !important;
+}
+
+.overlay-head {
+  position: relative;
+  padding: 12px 16px 10px 16px;
+}
+.overlay-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.overlay-sep {
+  height: 1px;
+  background: var(--fbbar-border);
+  width: 100%;
+}
+.overlay-close {
+  display: none; /* mobile only */
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fbbar-fg-strong);
+  font-size: 20px;
+  line-height: 40px;
+  box-shadow: none;
+}
+
+/* Mobile fallback: JS adds .is-mobile when viewport is mobile-like */
+.is-mobile .overlay-close {
+  display: inline-flex;
+}
+.overlay-scroll {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 16px 22px 16px;
+}
+
+.overlay-head{
+  padding: 12px 16px 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.overlay-title{
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--fbbar-fg-strong);
+}
+.overlay-sep{
+  height: 1px;
+  background: var(--fbbar-border);
+}
+
+/* Content styling (no icons, compact) */
+#overlay-toc #tocView,
+#overlay-bookmarks #bookmarksView,
+#overlay-notes #notesView,
+#overlay-menu #menuView {
+  font-family: var(--ui-font-family);
+  font-size: calc(var(--bottom-font-size, 14px) * 1.2);
+  /* In the legacy reader CSS, #tocView/#bookmarksView are hidden unless #sidebar.open.
+     For FBReader-style overlays we force them visible and sized to the overlay panel. */
+  visibility: visible;
+  display: block;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  overflow: visible;
+}
+
+#overlay-toc #tocView ul,
+#overlay-bookmarks #bookmarksView ul,
+#overlay-notes #notesView ul,
+#overlay-menu #menuView ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+#overlay-toc #tocView li,
+#overlay-bookmarks #bookmarksView li,
+#overlay-notes #notesView li,
+#overlay-menu #menuView li {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+}
+#overlay-toc #tocView a,
+#overlay-bookmarks #bookmarksView a,
+#overlay-notes #notesView a,
+#overlay-menu #menuView a {
+  display: block;
+  padding: 10px 6px;
+  color: var(--fbbar-fg) !important;
+  text-decoration: none;
+  border-bottom: 1px solid var(--fbbar-border);
+  flex: 1 1 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+#overlay-menu #menuView .menu-item{
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px;
+  background: transparent;
+  border: 0;
+  color: var(--fbbar-fg) !important;
+  text-align: left;
+  border-bottom: 1px solid var(--fbbar-border);
+  cursor: pointer;
+  font: inherit;
+}
+#overlay-menu #menuView .menu-icon{
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#overlay-menu #menuView .menu-icon:before{
+  margin-right: 0;
+}
+#overlay-menu #menuView .menu-icon svg{
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none !important;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#overlay-menu #menuView .menu-icon.icon-list:before{
+  font-size: 20px;
+  transform: scale(1.3);
+  transform-origin: center;
+  display: inline-block;
+}
+#overlay-menu #menuView .menu-icon.icon-list svg{
+  transform: scale(1.3);
+  transform-origin: center;
+}
+#overlay-menu #menuView .menu-label{
+  flex: 1 1 auto;
+}
+#overlay-bookmarks #bookmarksView .bookmark-text{
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+#overlay-notes #notesView .note-text{
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+#overlay-notes #notesView .note_link{
+  font-size: calc(var(--bottom-font-size, 14px) * 1.2);
+}
+#overlay-bookmarks #bookmarksView .bookmark-comment{
+  margin: 4px 6px 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--fbbar-border);
+  border-radius: 6px;
+  background: var(--fbbar-hover);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  max-height: calc(1.4em * 4 + 8px);
+  overflow-y: auto;
+  white-space: normal;
+  word-break: break-word;
+  width: 100%;
+  box-sizing: border-box;
+}
+#overlay-notes #notesView .note-comment{
+  margin: 4px 6px 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--fbbar-border);
+  border-radius: 6px;
+  background: var(--fbbar-hover);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  max-height: calc(1.4em * 4 + 8px);
+  overflow-y: auto;
+  white-space: normal;
+  word-break: break-word;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#overlay-bookmarks #bookmarksView .bookmark-delete{
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+#overlay-bookmarks #bookmarksView .bookmark-delete svg{
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#overlay-notes #notesView .note-delete{
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+#overlay-notes #notesView .note-delete svg{
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Add Comment popover / sheet */
+.comment-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 10040;
+}
+.comment-backdrop.hidden{ display: none !important; }
+.comment-sheet{
+  position: fixed;
+  z-index: 10050;
+  background: var(--fbbar-bg);
+  color: var(--fbbar-fg);
+  border: 1px solid var(--fbbar-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+  padding: 12px;
+  width: min(420px, calc(100vw - 24px));
+  left: 50%;
+  top: 20%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  max-width: 100vw;
+}
+.comment-sheet.hidden{ display: none; }
+.comment-title{
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.comment-input{
+  width: 100%;
+  border: 1px solid var(--fbbar-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: transparent;
+  color: inherit;
+  box-sizing: border-box;
+  resize: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.comment-actions{
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+.comment-actions button{
+  background: transparent;
+  border: 1px solid var(--fbbar-border);
+  color: inherit;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+@media (max-width: 768px){
+  .comment-sheet{
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    border-radius: 14px 14px 0 0;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    transform: none;
+    max-width: 100vw;
+  }
+}
+
+/* iOS: prevent viewport zoom on focus (font-size >= 16px) and keep sheet within viewport */
+html.is-ios .comment-input{
+  font-size: 16px;
+}
+html.is-ios .comment-sheet{
+  max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow: auto;
+}
+#overlay-toc #tocView a:before,
+#overlay-bookmarks #bookmarksView a:before,
+#overlay-toc #tocView .icon,
+#overlay-bookmarks #bookmarksView .icon {
+  display: none !important;
+}
+#overlay-toc #tocView a:hover,
+#overlay-bookmarks #bookmarksView a:hover {
+  background: var(--fbbar-hover) !important;
+}
+#overlay-toc #tocView .currentChapter a {
+  color: var(--fbbar-fg-strong);
+  text-decoration: underline;
+  background: transparent;
+}
+
+/* Mobile: overlays are FULLSCREEN and close via X (no backdrop) */
+@media (hover: none) and (pointer: coarse) {
+  .overlay-backdrop { display: none !important; }
+  .overlay-panel {
+    width: 100vw;
+  }
+  .overlay-close { display: inline-flex; }
+}
+
+/* Desktop: ensure the main container always fills the viewport.
+   (Bars are fixed; content is positioned via #viewerStack top/bottom offsets.) */
+@media (hover: hover) and (pointer: fine) {
+  /* Desktop: keep all top-bar controls visible without wrapping/overlap.
+     If the viewport becomes narrower than this, horizontal scroll is expected. */
+  html, body { min-width: 640px; overflow-x: auto; }
+  #titlebar, #footerbar { min-width: 640px; }
+  #main { height: 100vh; }
+}
+
+
+/* Swipe rendering stability */
+#swipeLayer { will-change: transform; }
+#viewer-current iframe, #viewer-prev iframe, #viewer-next iframe {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* =========================
+   FBReader-like Fulltext Search UI
+   ========================= */
+
+.search-desktop { display: inline-flex; align-items: center; gap: 8px; }
+.search-input-wrap { position: relative; display: inline-flex; align-items: center; }
+.search-infield-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  color: #777777;
+}
+.search-mag-svg {
+  width: 20px;
+  height: 20px;
+  transform: scaleX(-1);
+  fill: none;
+}
+.search-input {
+  height: 28px;
+  /* Desktop: search field width must NOT shrink when window narrows */
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
+  padding: 0 28px 0 34px;
+  border-radius: 6px;
+  border: 1px solid rgba(167,167,167,0.75);
+  background: rgba(0,0,0,0.04);
+  color: inherit;
+  outline: none;
+  font-size: 14px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.search-input::placeholder { opacity: 0; }
+
+/* Desktop: remove any native/autofill dropdown indicators inside the search field */
+#searchInputDesktop::-webkit-calendar-picker-indicator,
+#searchInputDesktop::-webkit-credentials-auto-fill-button,
+#searchInputDesktop::-webkit-contacts-auto-fill-button {
+  display: none !important;
+}
+#searchInputDesktop {
+  padding: 0 32px 0 10px;
+  background-image: none !important;
+}
+/* Desktop: remove native search dropdown/cancel icons */
+#searchInputDesktop::-webkit-search-decoration,
+#searchInputDesktop::-webkit-search-cancel-button,
+#searchInputDesktop::-webkit-search-results-button,
+#searchInputDesktop::-webkit-search-results-decoration {
+  display: none !important;
+}
+.search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.8;
+}
+.search-clear.hidden { display: none; }
+
+/* Desktop: search action (magnifier / clear) */
+#searchDesktop .search-infield-icon { display: none; }
+#searchActionDesktop.search-action { opacity: 0.45; }
+#searchActionDesktop.search-action.is-enabled { opacity: 0.9; pointer-events: auto; }
+#searchActionDesktop.search-action.is-disabled { opacity: 0.45; pointer-events: none; }
+#searchActionDesktop { width: 20px; height: 20px; }
+#searchActionDesktop .search-mag-svg { display: none; width: 20px; height: 20px; }
+#searchActionDesktop .search-clear-x { display: none; font-size: 18px; line-height: 1; }
+#searchActionDesktop.is-mag .search-mag-svg { display: block; }
+#searchActionDesktop.is-clear .search-clear-x { display: block; }
+/* Make the magnifier visually match the clear "x" size and weight */
+#searchActionDesktop.is-mag .search-mag-svg { transform: scaleX(-1) scale(1.25); }
+#searchActionDesktop.is-mag .search-mag-svg circle,
+#searchActionDesktop.is-mag .search-mag-svg line { stroke-width: 2; }
+
+.search-btn { border: 0; background: transparent; color: inherit; font-size: 18px; padding: 6px; cursor: pointer; opacity: 0.9; }
+.search-count { display: inline-block; min-width: 56px; text-align: center; font-size: 13px; opacity: 0.85; }
+
+.search-nav.desktop { display: none; align-items: center; gap: 4px; }
+.search-nav.desktop .search-arrow {
+  /* Match the clear "x" size and thickness */
+  font-size: 20px;
+  font-weight: 400;
+  width: 40px;
+  height: var(--titlebar-h);
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+}
+.search-nav.desktop .search-count { min-width: 52px; margin: 0 2px; }
+.search-nav.desktop .search-return {
+  /* Center it exactly on the bar, same visual height as clear "x" */
+  font-size: 20px;
+  line-height: 1;
+  padding: 0;
+  width: 40px;
+  height: var(--titlebar-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Remove browser-provided decorations (e.g., Chrome/Android extra dropdown/clear icons) */
+.search-input,
+.searchbar input[type="search"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.searchbar input[type="search"]::-webkit-search-decoration,
+.searchbar input[type="search"]::-webkit-search-cancel-button,
+.searchbar input[type="search"]::-webkit-search-results-button,
+.searchbar input[type="search"]::-webkit-search-results-decoration {
+  display: none;
+}
+
+/* Mobile search bar (replaces titlebar) */
+.searchbar { position: fixed; left: 0; right: 0; top: 0; height: var(--titlebar-h); display: flex; align-items: center; gap: 10px; padding: 0 12px; box-sizing: border-box; z-index: 9999; background: var(--fbbar-bg, #ffffff); color: var(--fbbar-fg, #333); }
+.searchbar.hidden { display: none; }
+.searchbar .search-input-wrap.mobile { flex: 1 1 0; min-width: 0; }
+.searchbar .search-input { width: 100%; min-width: 0; max-width: none; }
+.searchbar .search-nav { display: inline-flex; align-items: center; gap: 2px; }
+.searchbar .search-close { margin-left: 0; }
+.searchbar .search-return { font-size: 32px; padding: 4px 8px; }
+
+/* Desktop: always show search input left of icon */
+@media (hover:hover) and (pointer:fine) {
+  .searchbar { display: none !important; }
+  #searchOpen { display: none !important; }
+}
+
+/* When search is open on mobile, hide the normal titlebar content */
+body.search-open #titlebar #metainfo,
+body.search-open #titlebar #opener,
+body.search-open #titlebar #title-controls > :not(#searchDesktop) {
+  display: none !important;
+}
+body.search-open #titlebar { position: fixed; }
+body.search-open #searchbar { display: flex; }
+
+/* Mobile: replace the full top bar (avoid "ghost"/empty bar) */
+@media (max-width: 1024px) {
+  body.search-open #titlebar {
+    display: none;
+  }
+  body.search-open #searchbar {
+    display: flex;
+  }
+}
+
+/* Search icon placement: leftmost in the right icon group on mobile */
+@media (max-width: 768px) {
+  #searchDesktop .search-input-wrap { display: none; }
+  #searchDesktop .search-nav.desktop { display: none !important; }
+  :root { --titlebar-h: 48px; }
+  #titlebar { height: 48px; min-height: 48px; padding: 8px 10px; }
+
+  /* Search bar on mobile should be 1.5x taller */
+  #searchbar { height: var(--titlebar-h); padding: 8px 12px; }
+}
+
+/* Highlight style inside rendition documents */
+.epubjs-hl.search-match { background: #61c2fa; }
+
+/* epub.js highlight SVG (some engines ignore background on .epubjs-hl) */
+.search-match, .search-match rect {
+  fill: #61c2fa !important;
+  fill-opacity: 1 !important; opacity: 1 !important;
+}
+/* Text-only highlight (no rectangles) */
+.search-match-text { color: #61c2fa !important; background: transparent !important; }
+
+
+/* Mobile: keep search behavior; just hide counter */
+@media (max-width: 768px) {
+  #searchCount { display: none !important; }
+  body.ui-hidden #titlebar,
+  body.ui-hidden #bottombar { pointer-events: none; }
+  body.ui-hidden #titlebar *,
+  body.ui-hidden #bottombar * { pointer-events: auto; }
+  #opener #openNotes,
+  #opener #openBookmarks { display: none !important; }
+  #opener #slider {
+    font-size: 120%;
+    width: 22px;
+    height: 23px;
+    line-height: 23px;
+  }
+  #metainfo { margin-left: 6px !important; }
+  #title-controls { gap: 8px; }
+  #title-controls a, #title-controls button{
+    height: 23px;
+    padding: 5px;
+    font-size: 120%;
+  }
+  #title-controls .theme-icon{ width: 22px; height: 22px; }
+  #addressBarToggle{
+    width: 23px;
+    height: 23px;
+    line-height: 23px;
+    padding: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+  }
+  #overlay-menu #menuView .menu-icon{
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+  }
+  #overlay-menu #menuView .menu-icon:before{
+    font-size: 20px;
+  }
+  #overlay-menu #menuView .menu-icon svg{
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* iOS: prevent input focus zoom / horizontal pan from expanding bars */
+@supports (-webkit-touch-callout: none) {
+  html, body { overflow-x: hidden; }
+  #searchbar, #titlebar, #bottombar { width: 100vw; max-width: 100vw; }
+  #searchbar .search-input,
+  #searchInputMobile,
+  #searchInputDesktop { font-size: 16px; }
+  /* iOS: keep right icon group inset the same as the left */
+  #title-controls { margin-right: calc(10px + env(safe-area-inset-right)); }
+  /* iOS: keep EPUB iframes above SVG highlight overlays */
+  #viewerStack iframe,
+  #viewer iframe,
+  #viewer-prev iframe,
+  #viewer-next iframe { position: relative; z-index: 3; }
+  svg.epubjs-hl, .epubjs-hl { z-index: 1 !important; }
+  /* iOS: keep search bar compact so it never overflows */
+  #searchbar { padding: 0 12px; gap: 10px; }
+  #searchbar .search-input-wrap.mobile { flex: 1 1 0; min-width: 0; }
+  #searchbar .search-input { min-width: 0; max-width: none; }
+  #searchbar .search-btn { padding: 4px; font-size: 18px; }
+  #searchbar .search-return,
+  #searchbar .search-arrow,
+  #searchbar .search-close {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  #searchbar .search-return { font-size: 20px; }
+}
+/* Desktop overlays: ensure above both bars */
+@media (min-width: 769px) {
+  .overlay-panel, .overlay-backdrop { z-index: 20000 !important; }
+}
+/* Mobile overlays: full screen */
+@media (max-width: 768px) {
+  .overlay-panel { width: 100vw !important; height: 100vh !important; }
+  .overlay-head { padding-top: calc(12px + env(safe-area-inset-top)); }
+}
+
+/* Tablet portrait: use the same fullscreen overlays as phones */
+html.is-tablet.tablet-portrait .overlay-panel {
+  width: 100vw !important;
+  height: 100vh !important;
+}
+html.is-tablet.tablet-portrait .overlay-head {
+  padding-top: calc(12px + env(safe-area-inset-top));
+}
+
+/* ---- fix66: desktop layout + mobile isolation ---- */
+
+/* Hide search counters everywhere (logic can still use them) */
+.search-count,
+#searchCountDesktop,
+#searchCount {
+  display: none !important;
+}
+
+/* Desktop: robust single-row titlebar with no overlap (metainfo shrinks, controls stay right) */
+@media (hover:hover) and (pointer:fine) {
+  #titlebar {
+    justify-content: flex-start; /* avoid negative space with space-between */
+    gap: 8px;
+    overflow: hidden; /* never paint controls over the metainfo */
+  }
+  #metainfo {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-left: 8px; /* stable; no large clamp on narrow widths */
+  }
+  #title-controls {
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+
+  /* Desktop: hide address-bar toggle icon */
+  #addressBarToggle {
+    display: none !important;
+  }
+
+  /* Desktop: search field must keep its length */
+  #searchDesktop .search-input {
+    width: 220px !important;
+    min-width: 220px !important;
+    max-width: 220px !important;
+  }
+
+  /* Desktop: bigger arrows (no counter) */
+  /* Let JS control when nav buttons appear; never force them on with !important */
+  #searchDesktop .search-nav.desktop { display: none; }
+  #searchDesktop .search-btn.search-arrow {
+    font-size: 28px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
+  #searchDesktop .search-btn.search-return {
+    font-size: 22px;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+  }
+}
+
+/* Desktop: allow search cluster to approach title block on narrow windows */
+@media (max-width: 900px) and (hover:hover) and (pointer:fine) {
+  #metainfo { flex: 0 1 auto; }
+  #title-controls { margin-left: 8px !important; }
+}
+
+/* Desktop narrow: keep search visible + keep titlebar height fixed */
+@media (max-width: 768px) and (hover:hover) and (pointer:fine) {
+  :root { --titlebar-h: 32px; }
+  #titlebar { height: 32px !important; min-height: 32px !important; padding: 4px 8px !important; }
+  #searchDesktop .search-input-wrap { display: inline-flex !important; }
+  #searchDesktop .search-nav.desktop[aria-hidden="true"] { display: none !important; }
+  #searchDesktop .search-nav.desktop[aria-hidden="false"] { display: inline-flex !important; }
+}
+
+/* Tablet: desktop layout with +30% icon sizes, gaps, and side padding */
+html.is-tablet { --titlebar-h: 41.6px; }
+html.is-tablet #titlebar {
+  height: 41.6px !important;
+  min-height: 41.6px !important;
+  padding: 5.2px 10.4px !important;
+  justify-content: flex-start;
+  gap: 10.4px;
+  overflow: hidden;
+}
+html.is-tablet #titlebar a {
+  width: 23.4px;
+  height: 24.7px;
+  line-height: 26px;
+  padding: 5.2px;
+  border-radius: 5.2px;
+}
+html.is-tablet #titlebar .icon-note-btn{
+  width: 23.4px;
+  height: 24.7px;
+  line-height: 26px;
+  padding: 5.2px;
+}
+html.is-tablet #metainfo { margin-left: 10.4px !important; }
+html.is-tablet #title-controls {
+  margin-left: auto;
+  gap: 5.2px;
+}
+html.is-tablet #title-controls a,
+html.is-tablet #title-controls button{
+  height: 24.7px;
+  padding: 5.2px;
+}
+html.is-tablet #title-controls .font-size-btn{ padding: 5.2px 3.9px; }
+html.is-tablet #title-controls .font-size-btn + .font-size-btn{ margin-left: 2.6px; }
+html.is-tablet #title-controls .theme-icon{ width: 23.4px; height: 23.4px; }
+
+/* Tablet: force desktop search layout + scale inner controls */
+html.is-tablet #searchDesktop { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+html.is-tablet .search-desktop { gap: 10.4px; }
+html.is-tablet .search-infield-icon { left: 10.4px; }
+html.is-tablet .search-mag-svg { width: 26px; height: 26px; }
+html.is-tablet .search-clear { right: 5.2px; font-size: 23.4px; }
+html.is-tablet .search-input {
+  height: 36.4px;
+  padding: 0 36.4px 0 44.2px;
+  border-radius: 7.8px;
+  font-size: 18.2px;
+}
+html.is-tablet #searchInputDesktop { padding: 0 41.6px 0 13px; }
+html.is-tablet #searchDesktop .search-input-wrap { display: inline-flex !important; }
+html.is-tablet #searchDesktop .search-nav.desktop { display: none; }
+html.is-tablet #searchDesktop .search-btn.search-arrow {
+  font-size: 36.4px;
+  width: 41.6px;
+  height: 41.6px;
+  padding: 0;
+}
+html.is-tablet #searchDesktop .search-btn.search-return {
+  font-size: 28.6px;
+  width: 39px;
+  height: 39px;
+  padding: 0;
+}
+
+/* Tablets: no page-turn arrows */
+html.is-tablet #prev,
+html.is-tablet #next {
+  display: none !important;
+}
+
+/* Tablet portrait: left side only hamburger, menu like phones */
+html.is-tablet.tablet-portrait #openNotes,
+html.is-tablet.tablet-portrait #openBookmarks {
+  display: none !important;
+}
+
+/* Phones: never show desktop search input in the titlebar */
+html.is-phone #searchDesktop .search-input-wrap,
+html.is-phone #searchDesktop .search-nav.desktop {
+  display: none !important;
+}
+html.is-phone #searchOpen { display: inline-flex !important; }
+
+/* iOS tablets: hide rightmost fullscreen/address bar icon */
+html.is-ios.is-tablet #addressBarToggle {
+  display: none !important;
+}
+
+/* Tablets: overlays must always sit above the top bar (close X visible) */
+html.is-tablet .overlay-panel,
+html.is-tablet .overlay-backdrop {
+  z-index: 30000 !important;
+}
+/* Fallback for tablets that fail class detection (e.g., some Samsung devices) */
+@media (pointer: coarse) and (min-width: 600px) and (min-height: 600px) {
+  .overlay-panel,
+  .overlay-backdrop {
+    z-index: 30000 !important;
+  }
+}
+
+/* Mobile (touch): NEVER show desktop inline search input/nav. Keep existing mobile search behavior. */
+@media (hover:none) and (pointer:coarse) {
+  #searchDesktop .search-input-wrap,
+  #searchDesktop .search-nav.desktop {
+    display: none !important;
+  }
+  #searchOpen {
+    display: inline-flex !important;
+  }
+}
+
+/* Mobile + tablet: prevent vertical pull-to-refresh / page bounce */
+@media (hover: none) and (pointer: coarse) {
+  html, body {
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+    touch-action: pan-x;
+  }
+  #container,
+  #viewerStack,
+  #viewer {
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+    touch-action: pan-x;
+  }
+}
+
+/* Tablet override: keep desktop search field visible and hide mobile search icon */
+html.is-tablet #searchDesktop .search-input-wrap {
+  display: inline-flex !important;
+}
+html.is-tablet #searchDesktop .search-nav.desktop {
+  display: none !important;
+}
+html.is-tablet #searchDesktop .search-nav.desktop[aria-hidden="false"] {
+  display: inline-flex !important;
+}
+html.is-tablet #searchOpen { display: none !important; }
