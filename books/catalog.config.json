@@ -4,5 +4,6 @@
   "lettersIndexPath": "/letters.json",
   "letterPrefixesPath": "/p/{letter}.json",
   "prefixNodePath": "/p/{prefix}.json",
-  "authorPath": "/a/{key}.json"
+  "authorPath": "/a/{key}.json",
+  "searchPath": "/search/{token}.json"
 }

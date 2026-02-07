@@ -60,9 +60,14 @@
         justify-content: flex-end;
       }
 
-      .searchInput {
+      .searchForm {
+        position: relative;
         width: min(360px, 100%);
-        padding: 10px 14px;
+      }
+
+      .searchInput {
+        width: 100%;
+        padding: 10px 44px 10px 14px;
         border-radius: 999px;
         border: 1px solid var(--border);
         background: #fff;
@@ -72,6 +77,50 @@
       .searchInput:focus {
         outline: 2px solid rgba(45, 111, 107, 0.3);
         border-color: var(--accent);
+      }
+
+      .searchInput::-webkit-search-cancel-button,
+      .searchInput::-webkit-search-decoration,
+      .searchInput::-webkit-search-results-button,
+      .searchInput::-webkit-search-results-decoration {
+        -webkit-appearance: none;
+        appearance: none;
+        display: none;
+      }
+
+      .searchBtn {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        color: var(--accent-2);
+      }
+
+      .searchBtn:hover {
+        background: rgba(45, 111, 107, 0.08);
+      }
+
+      .icon {
+        display: none;
+        width: 18px;
+        height: 18px;
+      }
+
+      .searchForm.hasQuery .icon-clear {
+        display: block;
+      }
+
+      .searchForm:not(.hasQuery) .icon-search {
+        display: block;
       }
 
       #breadcrumbs {
@@ -189,6 +238,8 @@
         flex-direction: column;
         gap: 8px;
         min-height: 220px;
+        text-decoration: none;
+        color: inherit;
       }
 
       .card:hover {
@@ -270,6 +321,12 @@
         background: rgba(45, 111, 107, 0.06);
         margin-bottom: 6px;
         cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .srItem.noCover {
+        grid-template-columns: 1fr auto;
       }
 
       .srItem:hover {
@@ -323,6 +380,9 @@
         .srItem {
           grid-template-columns: 44px 1fr;
         }
+        .srItem.noCover {
+          grid-template-columns: 1fr;
+        }
         .srHint {
           grid-column: 1 / -1;
         }
@@ -330,12 +390,30 @@
     </style>
   </head>
   <body>
-    <!-- deploy-bust: 2026-02-07T07:18:49Z -->
+    <!-- deploy-bust: 2026-02-07T15:28:07Z -->
     <div id="app">
       <header>
         <div class="title">reader.pub books</div>
         <div class="searchWrap">
-          <input id="searchInput" class="searchInput" type="search" placeholder="Search letters, prefixes, authors, titles" />
+          <form id="searchForm" class="searchForm" role="search">
+            <input
+              id="searchInput"
+              class="searchInput"
+              type="search"
+              placeholder="Search authors and titles"
+              autocomplete="off"
+            />
+            <button id="searchBtn" class="searchBtn" type="submit" aria-label="Search">
+              <svg class="icon icon-search" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                <line x1="16.65" y1="16.65" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+              </svg>
+              <svg class="icon icon-clear" viewBox="0 0 24 24" aria-hidden="true">
+                <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+              </svg>
+            </button>
+          </form>
         </div>
       </header>
       <div id="breadcrumbs"></div>
@@ -349,6 +427,10 @@
       (() => {
         "use strict";
 
+        const BUILD_STAMP = "2026-02-07T15:28:07Z";
+        const BUILD_CHECK_URL = `${location.origin}/books/?__buildcheck=1`;
+        const PENDING_HASH_KEY = "reader_pub_pending_hash";
+
         const DEFAULT_STATE = {
           view: "letters",
           letter: "",
@@ -361,7 +443,9 @@
         const els = {
           breadcrumbs: document.getElementById("breadcrumbs"),
           toolbar: document.getElementById("toolbar"),
+          searchForm: document.getElementById("searchForm"),
           search: document.getElementById("searchInput"),
+          searchBtn: document.getElementById("searchBtn"),
           searchResults: document.getElementById("searchResults"),
           content: document.getElementById("content"),
           status: document.getElementById("status"),
@@ -369,13 +453,21 @@
 
         let config = null;
         let REQ_NONCE = 0;
+        let SEARCH_NONCE = 0;
         let currentView = null;
+        let searchState = {
+          query: "",
+          items: [],
+          error: "",
+          loading: false,
+        };
 
         const cache = {
           letters: null,
           letterPrefixes: new Map(),
           prefixNodes: new Map(),
           authorBooks: new Map(),
+          searchIndex: new Map(),
         };
 
         function el(tag, className, text) {
@@ -409,10 +501,6 @@
           els.content.appendChild(box);
         }
 
-        function getQuery() {
-          return els.search.value.trim().toLowerCase();
-        }
-
         function setBreadcrumbs(items) {
           els.breadcrumbs.innerHTML = "";
           items.forEach((item, idx) => {
@@ -436,6 +524,7 @@
         function setToolbar(view, bookView) {
           els.toolbar.innerHTML = "";
           if (view !== "author") return;
+          if (searchState && searchState.query) return;
 
           const listBtn = el("button", "toggleBtn", "List");
           const gridBtn = el("button", "toggleBtn", "Grid");
@@ -449,24 +538,41 @@
           els.toolbar.appendChild(gridBtn);
         }
 
-        function setSearchResults(items, query) {
+        function renderSearchResults() {
           els.searchResults.innerHTML = "";
-          if (!query) {
+          if (!searchState.query) {
             els.searchResults.style.display = "none";
+            els.breadcrumbs.style.display = "";
             return;
           }
           els.searchResults.style.display = "block";
-          const head = el("div", "srHead", `Search results (${items.length})`);
+          els.breadcrumbs.style.display = "none";
+          const headText = searchState.loading
+            ? `Searching "${searchState.query}"...`
+            : `Search results for "${searchState.query}" (${searchState.items.length})`;
+          const head = el("div", "srHead", headText);
           els.searchResults.appendChild(head);
 
-          if (!items.length) {
+          if (searchState.error) {
+            const err = el("div", "error", searchState.error);
+            els.searchResults.appendChild(err);
+            return;
+          }
+
+          if (searchState.loading) {
+            const loading = el("div", "loading", "Searching...");
+            els.searchResults.appendChild(loading);
+            return;
+          }
+
+          if (!searchState.items.length) {
             const empty = el("div", "srItem");
             empty.appendChild(el("div", "srTitle", "No matches"));
             els.searchResults.appendChild(empty);
             return;
           }
 
-          items.forEach((item) => {
+          searchState.items.forEach((item) => {
             const row = item.href ? el("a", "srItem") : el("div", "srItem");
             if (item.href) {
               row.href = item.href;
@@ -474,40 +580,44 @@
                 row.target = "_blank";
                 row.rel = "noopener noreferrer";
               }
-              if (item.onClick) {
-                row.addEventListener("click", (event) => {
-                  event.preventDefault();
-                  item.onClick();
-                });
-              }
             } else {
               row.tabIndex = 0;
               row.setAttribute("role", "button");
-              row.addEventListener("click", item.onClick);
+            }
+
+            if (item.onClick) {
+              row.addEventListener("click", (event) => {
+                if (item.href) event.preventDefault();
+                item.onClick();
+              });
               row.addEventListener("keydown", (event) => {
-                if (event.key === "Enter") item.onClick();
+                if (event.key === "Enter") {
+                  if (item.href) event.preventDefault();
+                  item.onClick();
+                }
               });
             }
 
-            const cover = el("div", "srCover");
             if (item.cover) {
+              const cover = el("div", "srCover");
               const img = new Image();
               img.loading = "lazy";
               img.decoding = "async";
               img.alt = "Cover";
               img.src = item.cover;
               img.onerror = () => {
-                cover.textContent = "No cover";
+                cover.remove();
+                row.classList.add("noCover");
               };
               cover.appendChild(img);
+              row.appendChild(cover);
             } else {
-              cover.textContent = "";
+              row.classList.add("noCover");
             }
 
             const body = el("div");
             body.appendChild(el("div", "srTitle", item.title));
             if (item.meta) body.appendChild(el("div", "srMeta", item.meta));
-            row.appendChild(cover);
             row.appendChild(body);
             row.appendChild(el("div", "srHint", item.hint || "Open"));
             els.searchResults.appendChild(row);
@@ -668,6 +778,154 @@
           return `/books/${encodeURIComponent(id)}/`;
         }
 
+        function updateSearchIcon() {
+          const hasQuery = els.search.value.trim().length > 0;
+          els.searchForm.classList.toggle("hasQuery", hasQuery);
+          els.searchBtn.type = hasQuery ? "button" : "submit";
+          els.searchBtn.setAttribute("aria-label", hasQuery ? "Clear search" : "Search");
+        }
+
+        function normalizeSearchMatch(text) {
+          return String(text || "")
+            .toLowerCase()
+            .normalize("NFKD")
+            .replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function normalizeSearchToken(query) {
+          const base = normalizeSearchMatch(query).replace(/[^a-z0-9]+/g, "");
+          if (base.length < 2) return "";
+          return base.slice(0, 2);
+        }
+
+        function matchesQuery(item, query) {
+          if (!query) return true;
+          const needle = normalizeSearchMatch(query);
+          if (!needle) return true;
+          const compactNeedle = needle.replace(/[^a-z0-9]+/g, "");
+          let fields = [];
+          if (item.type === "book") fields = [item.title, item.author];
+          if (item.type === "author") fields = [item.name];
+          return fields.some((field) => {
+            if (!field) return false;
+            const hay = normalizeSearchMatch(field);
+            if (hay.includes(needle)) return true;
+            if (compactNeedle && hay.replace(/[^a-z0-9]+/g, "").includes(compactNeedle)) return true;
+            return false;
+          });
+        }
+
+        async function fetchSearchIndex(token, nonce) {
+          if (cache.searchIndex.has(token)) return cache.searchIndex.get(token);
+          const searchPath = (config && config.searchPath) || "/search/{token}.json";
+          const url = buildUrl(searchPath, { token });
+          const data = await fetchJson(url, nonce);
+          const items = data.items || data.list || [];
+          cache.searchIndex.set(token, items);
+          return items;
+        }
+
+        async function runSearch() {
+          const query = els.search.value.trim();
+          if (!query) {
+            searchState = { query: "", items: [], error: "", loading: false };
+            renderSearchResults();
+            return;
+          }
+          const token = normalizeSearchToken(query);
+          if (!token) {
+            searchState = {
+              query,
+              items: [],
+              error: "Enter at least two letters or digits to search.",
+              loading: false,
+            };
+            renderSearchResults();
+            return;
+          }
+
+          const nonce = ++SEARCH_NONCE;
+          searchState = { query, items: [], error: "", loading: true };
+          renderSearchResults();
+
+          try {
+            await loadConfig(nonce);
+            if (nonce !== SEARCH_NONCE) return;
+
+            const rawItems = await fetchSearchIndex(token, nonce);
+            if (nonce !== SEARCH_NONCE) return;
+
+            const results = rawItems
+              .map((item) => {
+                if (!item) return null;
+                const type = item.t || item.type || "";
+                if (type === "a" || item.key || item.n) {
+                  return {
+                    type: "author",
+                    key: item.k || item.key || item.id || "",
+                    name: item.n || item.name || item.label || "",
+                    count: parseNumber(item.c ?? item.count),
+                  };
+                }
+                if (type === "p" || item.prefix || item.p) {
+                  const prefix = item.prefix || item.p || "";
+                  return {
+                    type: "prefix",
+                    prefix,
+                    count: parseNumber(item.c ?? item.count),
+                  };
+                }
+                return {
+                  type: "book",
+                  id: item.id || item.book_id || item.bookId || item.key,
+                  title: item.title || item.name || item.label,
+                  author: item.a || item.author || "",
+                  authorKey: item.k || item.authorKey || "",
+                  cover: item.cover || item.coverUrl || item.cover_url || "",
+                };
+              })
+              .filter(Boolean)
+              .filter((item) => matchesQuery(item, query))
+              .map((item) => {
+                if (item.type === "book") {
+                  return {
+                    title: item.title || item.id,
+                    meta: item.author || "Book",
+                    hint: "Open book",
+                    cover: resolveCoverUrl(item.cover),
+                    href: openBookUrl(item.id),
+                    openInNewTab: true,
+                  };
+                }
+                if (item.type === "author") {
+                  const authorKey = item.key || item.name || "";
+                  const authorName = item.name || item.key || "";
+                  return {
+                    title: authorName || authorKey,
+                    meta: item.count !== null ? `${item.count} books` : "Author",
+                    hint: "Open",
+                    cover: "",
+                    onClick: () => openAuthorFromSearch(authorKey, authorName),
+                  };
+                }
+                return null;
+              })
+              .filter(Boolean);
+
+            searchState = { query, items: results, error: "", loading: false };
+            renderSearchResults();
+          } catch (error) {
+            if (nonce !== SEARCH_NONCE) return;
+            searchState = {
+              query,
+              items: [],
+              error: error.message || "Search failed",
+              loading: false,
+            };
+            renderSearchResults();
+          }
+        }
+
         function updateBookView(view) {
           const state = parseState();
           state.bookView = view;
@@ -708,32 +966,110 @@
           updateHash(state, false);
         }
 
+        function authorHash(authorKey, authorName) {
+          const params = new URLSearchParams();
+          params.set("view", "author");
+          if (authorKey) params.set("authorKey", authorKey);
+          if (authorName) params.set("authorName", authorName);
+          params.set("bookView", parseState().bookView || "list");
+          return `#${params.toString()}`;
+        }
+
+        async function openAuthorFromSearch(authorKey, authorName) {
+          // Hide search results to show the author page immediately.
+          els.search.value = "";
+          searchState = { query: "", items: [], error: "", loading: false };
+          updateSearchIcon();
+          renderSearchResults();
+
+          const next = {
+            view: "author",
+            authorKey: authorKey || authorName || "",
+            authorName: authorName || authorKey || "",
+            bookView: (parseState().bookView || "list"),
+          };
+          updateHash(next, false);
+
+          const nonce = ++REQ_NONCE;
+          setStatus("");
+          try {
+            await loadConfig(nonce);
+            if (nonce !== REQ_NONCE) return;
+            showLoading("Loading author books...");
+            const payload = await getAuthorBooks(next.authorKey, nonce);
+            if (nonce !== REQ_NONCE) return;
+
+            const author = {
+              key: payload.author.key || next.authorKey,
+              name: payload.author.name || next.authorName || next.authorKey,
+            };
+            const viewMode = next.bookView || "list";
+
+            setBreadcrumbs([{ label: "Letters", onClick: () => navigate({ view: "letters" }) }, { label: author.name }]);
+            setToolbar("author", viewMode);
+            currentView = { renderer: () => renderAuthorBooks(author, payload.books, viewMode), data: payload.books };
+            renderAuthorBooks(author, payload.books, viewMode);
+            renderSearchResults();
+            try {
+              els.content.scrollIntoView({ behavior: "smooth", block: "start" });
+            } catch (error) {
+              // ignore
+            }
+          } catch (error) {
+            if (nonce !== REQ_NONCE) return;
+            showError("Catalog error", error.message || error);
+          }
+        }
+
+        function parseBuildStamp(html) {
+          const match = String(html || "").match(/deploy-bust:\\s*([^\\s<]+)/i);
+          return match ? match[1] : "";
+        }
+
+        async function fetchRemoteBuildStamp() {
+          const res = await fetch(BUILD_CHECK_URL, { cache: "no-store" });
+          if (!res.ok) return "";
+          const text = await res.text();
+          return parseBuildStamp(text);
+        }
+
+        async function checkForNewBuild() {
+          if (document.hidden) return;
+          try {
+            const stamp = await fetchRemoteBuildStamp();
+            if (stamp && stamp !== BUILD_STAMP) {
+              location.reload();
+            }
+          } catch (error) {
+            // ignore
+          }
+        }
+
+        function runWithLatestBuild(pendingHash, action) {
+          fetchRemoteBuildStamp()
+            .then((stamp) => {
+              if (stamp && stamp !== BUILD_STAMP) {
+                if (pendingHash) sessionStorage.setItem(PENDING_HASH_KEY, pendingHash);
+                location.reload();
+                return;
+              }
+              action();
+            })
+            .catch(() => {
+              action();
+            });
+        }
+
         function renderLetters(letters) {
-          const query = getQuery();
-          const filtered = query
-            ? letters.filter((letter) => String(letter).toLowerCase().includes(query))
-            : letters.slice();
-
-          setSearchResults(
-            filtered.map((letter) => ({
-              title: String(letter),
-              meta: "Letter",
-              hint: "Open",
-              onClick: () => navigate({ view: "prefixes", letter: String(letter) }),
-              cover: "",
-            })),
-            query
-          );
-
           els.content.innerHTML = "";
           const grid = el("div", "lettersGrid");
-          if (!filtered.length) {
-            const empty = el("div", "loading", query ? "No letters match your search." : "No letters available.");
+          if (!letters.length) {
+            const empty = el("div", "loading", "No letters available.");
             els.content.appendChild(empty);
             return;
           }
 
-          filtered.forEach((letter) => {
+          letters.forEach((letter) => {
             const btn = el("button", "letterBtn", String(letter));
             btn.addEventListener("click", () => navigate({ view: "prefixes", letter: String(letter) }));
             grid.appendChild(btn);
@@ -742,25 +1078,9 @@
         }
 
         function renderPrefixes(prefixes, letter) {
-          const query = getQuery();
-          const filtered = query
-            ? prefixes.filter((item) => String(item.prefix).toLowerCase().includes(query))
-            : prefixes.slice();
-
-          setSearchResults(
-            filtered.map((item) => ({
-              title: item.prefix,
-              meta: item.count !== null ? `${item.count} authors` : "Prefix",
-              hint: "Open",
-              onClick: () => navigate({ view: "prefix", letter, prefix: item.prefix }),
-              cover: "",
-            })),
-            query
-          );
-
           els.content.innerHTML = "";
-          if (!filtered.length) {
-            const empty = el("div", "loading", query ? "No prefixes match your search." : "No prefixes found.");
+          if (!prefixes.length) {
+            const empty = el("div", "loading", "No prefixes found.");
             els.content.appendChild(empty);
             return;
           }
@@ -774,7 +1094,7 @@
           table.appendChild(thead);
           const tbody = el("tbody");
 
-          filtered.forEach((item) => {
+          prefixes.forEach((item) => {
             const row = el("tr", "rowLink");
             row.addEventListener("click", () => navigate({ view: "prefix", letter, prefix: item.prefix }));
             row.appendChild(el("td", null, item.prefix));
@@ -787,32 +1107,9 @@
         }
 
         function renderAuthors(authors, letter, prefix) {
-          const query = getQuery();
-          const filtered = query
-            ? authors.filter((item) => String(item.name).toLowerCase().includes(query))
-            : authors.slice();
-
-          setSearchResults(
-            filtered.map((item) => ({
-              title: item.name,
-              meta: item.count !== null ? `${item.count} books` : "Author",
-              hint: "Open",
-              onClick: () =>
-                navigate({
-                  view: "author",
-                  letter,
-                  prefix,
-                  authorKey: item.key,
-                  authorName: item.name,
-                }),
-              cover: "",
-            })),
-            query
-          );
-
           els.content.innerHTML = "";
-          if (!filtered.length) {
-            const empty = el("div", "loading", query ? "No authors match your search." : "No authors found.");
+          if (!authors.length) {
+            const empty = el("div", "loading", "No authors found.");
             els.content.appendChild(empty);
             return;
           }
@@ -826,7 +1123,7 @@
           table.appendChild(thead);
           const tbody = el("tbody");
 
-          filtered.forEach((item) => {
+          authors.forEach((item) => {
             const row = el("tr", "rowLink");
             row.addEventListener("click", () =>
               navigate({ view: "author", letter, prefix, authorKey: item.key, authorName: item.name })
@@ -841,34 +1138,16 @@
         }
 
         function renderAuthorBooks(author, books, viewMode) {
-          const query = getQuery();
-          const filtered = query
-            ? books.filter((item) => String(item.title).toLowerCase().includes(query))
-            : books.slice();
-
-          setSearchResults(
-            filtered.map((item) => ({
-              title: item.title,
-              meta: author.name || item.author || author.key || "Book",
-              hint: "Open book",
-              cover: resolveCoverUrl(item.cover),
-              href: openBookUrl(item.id),
-              openInNewTab: true,
-              onClick: null,
-            })),
-            query
-          );
-
           els.content.innerHTML = "";
-          if (!filtered.length) {
-            const empty = el("div", "loading", query ? "No books match your search." : "No books found.");
+          if (!books.length) {
+            const empty = el("div", "loading", "No books found.");
             els.content.appendChild(empty);
             return;
           }
 
           if (viewMode === "grid") {
             const grid = el("div", "grid");
-            filtered.forEach((book) => {
+            books.forEach((book) => {
               const card = el("a", "card");
               card.href = openBookUrl(book.id);
               card.target = "_blank";
@@ -911,7 +1190,7 @@
             table.appendChild(thead);
             const tbody = el("tbody");
 
-            filtered.forEach((book) => {
+            books.forEach((book) => {
               const row = el("tr", null);
               const cell = el("td");
               const link = el("a", null, book.title);
@@ -953,6 +1232,7 @@
             key: vars.key || "",
             author: vars.key || vars.author || "",
             id: vars.key || vars.id || "",
+            token: vars.token || "",
           };
 
           Object.keys(replaceMap).forEach((key) => {
@@ -1095,6 +1375,7 @@
               setToolbar("letters");
               currentView = { renderer: () => renderLetters(letters), data: letters };
               renderLetters(letters);
+              renderSearchResults();
               return;
             }
 
@@ -1113,6 +1394,7 @@
               setToolbar("prefixes");
               currentView = { renderer: () => renderPrefixes(prefixes, state.letter), data: prefixes };
               renderPrefixes(prefixes, state.letter);
+              renderSearchResults();
               return;
             }
 
@@ -1148,6 +1430,7 @@
                 setToolbar("prefix");
                 currentView = { renderer: () => renderAuthors(node.authors, state.letter, state.prefix), data: node.authors };
                 renderAuthors(node.authors, state.letter, state.prefix);
+                renderSearchResults();
                 return;
               }
 
@@ -1155,6 +1438,7 @@
                 setToolbar("prefix");
                 currentView = { renderer: () => renderPrefixes(node.prefixes, state.letter), data: node.prefixes };
                 renderPrefixes(node.prefixes, state.letter);
+                renderSearchResults();
                 return;
               }
 
@@ -1162,6 +1446,7 @@
                 setToolbar("prefix");
                 currentView = { renderer: () => renderAuthors(node.authors, state.letter, state.prefix), data: node.authors };
                 renderAuthors(node.authors, state.letter, state.prefix);
+                renderSearchResults();
                 return;
               }
 
@@ -1201,6 +1486,7 @@
                 data: payload.books,
               };
               renderAuthorBooks(author, payload.books, viewMode);
+              renderSearchResults();
               return;
             }
 
@@ -1213,8 +1499,20 @@
         }
 
         els.search.addEventListener("input", () => {
-          if (currentView && typeof currentView.renderer === "function") {
-            currentView.renderer(currentView.data);
+          updateSearchIcon();
+        });
+
+        els.searchForm.addEventListener("submit", (event) => {
+          event.preventDefault();
+          runSearch();
+        });
+
+        els.searchBtn.addEventListener("click", (event) => {
+          if (els.searchForm.classList.contains("hasQuery")) {
+            event.preventDefault();
+            els.search.value = "";
+            updateSearchIcon();
+            runSearch();
           }
         });
 
@@ -1222,10 +1520,22 @@
           renderState(parseState());
         });
 
+        const pendingHash = sessionStorage.getItem(PENDING_HASH_KEY);
+        if (pendingHash) {
+          sessionStorage.removeItem(PENDING_HASH_KEY);
+          if (location.hash !== pendingHash) location.hash = pendingHash;
+        }
+
         if (!location.hash) {
           updateHash(DEFAULT_STATE, true);
         }
+        updateSearchIcon();
         renderState(parseState());
+
+        setInterval(checkForNewBuild, 60000);
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden) checkForNewBuild();
+        });
       })();
     </script>
   </body>
