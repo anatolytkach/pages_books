@@ -390,7 +390,7 @@
     </style>
   </head>
   <body>
-    <!-- deploy-bust: 2026-02-07T15:28:07Z -->
+    <!-- deploy-bust: 2026-02-07T16:05:10Z -->
     <div id="app">
       <header>
         <div class="title">reader.pub books</div>
@@ -427,7 +427,7 @@
       (() => {
         "use strict";
 
-        const BUILD_STAMP = "2026-02-07T15:28:07Z";
+        const BUILD_STAMP = "2026-02-07T16:05:10Z";
         const BUILD_CHECK_URL = `${location.origin}/books/?__buildcheck=1`;
         const PENDING_HASH_KEY = "reader_pub_pending_hash";
 
@@ -635,9 +635,55 @@
           else if (typeof data === "object") list = Object.keys(data);
 
           return list
-            .map((item) => (typeof item === "object" ? item.letter || item.key || item.value : item))
+            .map((item) => {
+              if (item && typeof item === "object") {
+                const label =
+                  item.letter ||
+                  item.label ||
+                  item.name ||
+                  item.value ||
+                  item.key ||
+                  item.id ||
+                  item.slug ||
+                  item.code;
+                const key =
+                  item.key ||
+                  item.id ||
+                  item.value ||
+                  item.slug ||
+                  item.code ||
+                  item.letter ||
+                  item.label ||
+                  item.name;
+                const labelText = String(label || "").trim();
+                const keyText = String(key || labelText).trim();
+                return labelText ? { label: labelText, key: keyText } : null;
+              }
+              const text = String(item || "").trim();
+              return text ? { label: text, key: text } : null;
+            })
+            .filter(Boolean);
+        }
+
+        function getLetterTokenList() {
+          if (!Array.isArray(cache.letters)) return [];
+          return cache.letters
+            .map((item) => (item && typeof item === "object" ? item.key || item.label : item))
             .map((item) => String(item || "").trim())
             .filter(Boolean);
+        }
+
+        function resolveLetterToken(letter) {
+          const token = String(letter || "").trim();
+          if (!Array.isArray(cache.letters)) return token;
+          const match = cache.letters.find((item) => {
+            if (!item || typeof item !== "object") return false;
+            return String(item.label || "").trim() === token || String(item.key || "").trim() === token;
+          });
+          if (match && (match.key || match.label)) {
+            return String(match.key || match.label).trim();
+          }
+          return token;
         }
 
         function normalizePrefixEntries(source) {
@@ -1070,8 +1116,11 @@
           }
 
           letters.forEach((letter) => {
-            const btn = el("button", "letterBtn", String(letter));
-            btn.addEventListener("click", () => navigate({ view: "prefixes", letter: String(letter) }));
+            const label =
+              letter && typeof letter === "object" ? String(letter.label || letter.key || "").trim() : String(letter || "").trim();
+            if (!label) return;
+            const btn = el("button", "letterBtn", label);
+            btn.addEventListener("click", () => navigate({ view: "prefixes", letter: label }));
             grid.appendChild(btn);
           });
           els.content.appendChild(grid);
@@ -1269,12 +1318,29 @@
           return letters;
         }
 
-        async function getLetterPrefixes(letter, nonce) {
-          const cacheKey = letter;
-          if (cache.letterPrefixes.has(cacheKey)) return cache.letterPrefixes.get(cacheKey);
+        function mergePrefixLists(lists) {
+          const map = new Map();
+          lists.flat().forEach((entry) => {
+            if (!entry || !entry.prefix) return;
+            const key = String(entry.prefix);
+            if (!map.has(key)) {
+              map.set(key, { prefix: key, count: entry.count });
+              return;
+            }
+            const existing = map.get(key);
+            if (existing.count === null || entry.count === null) {
+              existing.count = existing.count ?? entry.count ?? null;
+            } else {
+              existing.count += entry.count;
+            }
+          });
+          return Array.from(map.values()).sort((a, b) => String(a.prefix).localeCompare(String(b.prefix)));
+        }
+
+        async function fetchLetterPrefixesForToken(token, nonce) {
           const pattern = config.letterPrefixesPath || config.prefixNodePath;
           if (!pattern) throw new Error("catalog.config.json missing letterPrefixesPath or prefixNodePath");
-          const url = buildUrl(pattern, { letter, prefix: letter });
+          const url = buildUrl(pattern, { letter: token, prefix: token });
           const data = await fetchJson(url, nonce);
           const source =
             data.prefixes ||
@@ -1289,6 +1355,79 @@
           if (!prefixes.length) {
             throw new Error("Prefix list JSON missing expected prefixes array.");
           }
+          return prefixes;
+        }
+
+        function extractAuthorCount(data, authors) {
+          const count =
+            parseNumber(
+              data.authorCount ??
+                data.author_count ??
+                data.authorsCount ??
+                data.authors_total ??
+                data.totalAuthors ??
+                data.total ??
+                data.count
+            ) ?? null;
+          if (count !== null) return count;
+          if (Array.isArray(authors)) return authors.length;
+          return null;
+        }
+
+        async function getDigitPrefixes(nonce) {
+          const digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+          const entries = [];
+          let lastError = null;
+
+          for (const digit of digits) {
+            try {
+              const url = buildUrl(config.prefixNodePath || config.letterPrefixesPath, {
+                letter: digit,
+                prefix: digit,
+              });
+              const data = await fetchJson(url, nonce);
+              const authorSource = data.authors || data.author_list || data.people || data.authors_list || null;
+              const authors = normalizeAuthorEntries(authorSource);
+              const count = extractAuthorCount(data, authors);
+              entries.push({ prefix: digit, count });
+            } catch (error) {
+              lastError = error;
+            }
+          }
+
+          if (entries.length) {
+            return entries;
+          }
+
+          if (!cache.letters) await getLetters(nonce);
+          const tokenList = getLetterTokenList();
+          const candidates = tokenList.filter((token) => /[0-9]/.test(token));
+          const targets = candidates.length ? candidates : digits;
+
+          const collected = [];
+          for (const token of targets) {
+            try {
+              const prefixes = await fetchLetterPrefixesForToken(token, nonce);
+              collected.push(prefixes);
+            } catch (error) {
+              lastError = error;
+            }
+          }
+
+          const merged = mergePrefixLists(collected);
+          if (!merged.length) {
+            throw new Error(
+              `No numeric prefixes found. Ensure digit letter files exist (0-9). ${lastError ? lastError.message : ""}`.trim()
+            );
+          }
+          return merged;
+        }
+
+        async function getLetterPrefixes(letter, nonce) {
+          const cacheKey = letter;
+          if (cache.letterPrefixes.has(cacheKey)) return cache.letterPrefixes.get(cacheKey);
+          const letterToken = resolveLetterToken(letter);
+          const prefixes = letterToken === "#" ? await getDigitPrefixes(nonce) : await fetchLetterPrefixesForToken(letterToken, nonce);
           cache.letterPrefixes.set(cacheKey, prefixes);
           return prefixes;
         }
