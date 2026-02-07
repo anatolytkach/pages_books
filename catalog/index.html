@@ -38,6 +38,11 @@
 
       a {
         color: var(--accent);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: none;
       }
 
       #app {
@@ -61,6 +66,11 @@
         display: inline-flex;
         align-items: center;
         gap: 12px;
+      }
+
+      .brandLink {
+        color: inherit;
+        text-decoration: none;
       }
 
       .brandLogo {
@@ -197,6 +207,12 @@
         padding: 20px;
       }
 
+      .panel.noPanel {
+        background: transparent;
+        border: none;
+        padding: 0;
+      }
+
       .lettersGrid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
@@ -232,6 +248,10 @@
         border-bottom: 1px solid var(--border);
       }
 
+      .authorName {
+        color: var(--accent);
+      }
+
       table.list th.count,
       table.list td.count {
         width: 120px;
@@ -247,9 +267,14 @@
         background: rgba(45, 111, 107, 0.08);
       }
 
+      .prefixLabel {
+        color: var(--accent-2);
+        font-weight: 700;
+      }
+
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 350px));
+        grid-template-columns: repeat(auto-fit, minmax(160px, 250px));
         gap: 16px;
       }
 
@@ -379,6 +404,7 @@
 
       .srTitle {
         font-weight: 600;
+        color: var(--accent);
       }
 
       .srMeta {
@@ -391,6 +417,13 @@
         color: var(--accent-2);
         text-transform: uppercase;
         letter-spacing: 0.5px;
+      }
+
+      .srSectionTitle {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+        margin: 12px 0 6px;
       }
 
       @media (max-width: 720px) {
@@ -418,10 +451,10 @@
     <!-- deploy-bust: 2026-02-07T16:24:17Z -->
     <div id="app">
       <header>
-        <div class="brand">
+        <a class="brand brandLink" id="brandLink" href="#view=letters">
           <img class="brandLogo" src="/books/assets/logo.svg" alt="ReaderPub" />
           <div class="title">ReaderPub Books</div>
-        </div>
+        </a>
         <div class="searchWrap">
           <form id="searchForm" class="searchForm" role="search">
             <input
@@ -471,6 +504,7 @@
         const els = {
           breadcrumbs: document.getElementById("breadcrumbs"),
           toolbar: document.getElementById("toolbar"),
+          brandLink: document.getElementById("brandLink"),
           searchForm: document.getElementById("searchForm"),
           search: document.getElementById("searchInput"),
           searchBtn: document.getElementById("searchBtn"),
@@ -603,7 +637,67 @@
             return;
           }
 
-          searchState.items.forEach((item) => {
+          const authors = searchState.items.filter((item) => item.kind === "author");
+          const books = searchState.items.filter((item) => item.kind === "book");
+
+          if (authors.length) {
+            els.searchResults.appendChild(el("div", "srSectionTitle", "Authors:"));
+          }
+          authors.forEach((item) => {
+            const row = item.href ? el("a", "srItem") : el("div", "srItem");
+            if (item.href) {
+              row.href = item.href;
+              if (item.openInNewTab) {
+                row.target = "_blank";
+                row.rel = "noopener noreferrer";
+              }
+            } else {
+              row.tabIndex = 0;
+              row.setAttribute("role", "button");
+            }
+
+            if (item.onClick) {
+              row.addEventListener("click", (event) => {
+                if (item.href) event.preventDefault();
+                item.onClick();
+              });
+              row.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                  if (item.href) event.preventDefault();
+                  item.onClick();
+                }
+              });
+            }
+
+            if (item.cover) {
+              const cover = el("div", "srCover");
+              const img = new Image();
+              img.loading = "lazy";
+              img.decoding = "async";
+              img.alt = "Cover";
+              img.src = item.cover;
+              img.onerror = () => {
+                cover.remove();
+                row.classList.add("noCover");
+              };
+              cover.appendChild(img);
+              row.appendChild(cover);
+            } else {
+              row.classList.add("noCover");
+            }
+
+            const body = el("div");
+            body.appendChild(el("div", "srTitle", item.title));
+            if (item.meta) body.appendChild(el("div", "srMeta", item.meta));
+            row.appendChild(body);
+            row.appendChild(el("div", "srHint", item.hint || "Open"));
+            els.searchResults.appendChild(row);
+          });
+
+          if (books.length) {
+            els.searchResults.appendChild(el("div", "srSectionTitle", "Titles:"));
+          }
+          books.forEach((item) => {
             const row = item.href ? el("a", "srItem") : el("div", "srItem");
             if (item.href) {
               row.href = item.href;
@@ -976,6 +1070,7 @@
               .map((item) => {
                 if (item.type === "book") {
                   return {
+                    kind: "book",
                     title: item.title || item.id,
                     meta: item.author || "Book",
                     hint: "Open book",
@@ -988,6 +1083,7 @@
                   const authorKey = item.key || item.name || "";
                   const authorName = item.name || item.key || "";
                   return {
+                    kind: "author",
                     title: authorName || authorKey,
                     meta: item.count !== null ? `${item.count} books` : "Author",
                     hint: "Open",
@@ -1187,8 +1283,8 @@
           prefixes.forEach((item) => {
             const row = el("tr", "rowLink");
             row.addEventListener("click", () => navigate({ view: "prefix", letter, prefix: item.prefix }));
-            row.appendChild(el("td", null, item.prefix));
-            row.appendChild(el("td", "count", item.count !== null ? String(item.count) : ""));
+            row.appendChild(el("td", "prefixLabel", item.prefix));
+            row.appendChild(el("td", "count", item.count !== null ? `${item.count} authors` : ""));
             tbody.appendChild(row);
           });
 
@@ -1218,8 +1314,8 @@
             row.addEventListener("click", () =>
               navigate({ view: "author", letter, prefix, authorKey: item.key, authorName: item.name })
             );
-            row.appendChild(el("td", null, item.name));
-            row.appendChild(el("td", "count", item.count !== null ? String(item.count) : ""));
+            row.appendChild(el("td", "authorName", item.name));
+            row.appendChild(el("td", "count", item.count !== null ? `${item.count} books` : ""));
             tbody.appendChild(row);
           });
 
@@ -1542,12 +1638,14 @@
         async function renderState(state) {
           const nonce = ++REQ_NONCE;
           setStatus("");
+          els.content.classList.remove("noPanel");
 
           try {
             await loadConfig(nonce);
             if (nonce !== REQ_NONCE) return;
 
             if (!state.view || state.view === "letters") {
+              els.content.classList.add("noPanel");
               showLoading("Loading letters...");
               const letters = await getLetters(nonce);
               if (nonce !== REQ_NONCE) return;
@@ -1647,7 +1745,8 @@
                 key: payload.author.key || state.authorKey,
                 name: payload.author.name || state.authorName || state.authorKey,
               };
-              const viewMode = state.bookView || "list";
+              const viewMode = state.bookView || "grid";
+              const bookCount = payload.books ? payload.books.length : 0;
 
               setBreadcrumbs([
                 { label: "Letters", onClick: () => navigate({ view: "letters" }) },
@@ -1657,9 +1756,12 @@
                 state.prefix
                   ? { label: state.prefix, onClick: () => navigate({ view: "prefix", letter: state.letter, prefix: state.prefix }) }
                   : null,
-                { label: author.name },
+                { label: `${author.name} - ${bookCount} books` },
               ].filter(Boolean));
 
+              if (viewMode === "grid") {
+                els.content.classList.add("noPanel");
+              }
               setToolbar("author", viewMode);
               currentView = {
                 renderer: () => renderAuthorBooks(author, payload.books, viewMode),
@@ -1697,6 +1799,17 @@
             renderState(parseState());
           }
         });
+
+        if (els.brandLink) {
+          els.brandLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            els.search.value = "";
+            updateSearchIcon();
+            runSearch();
+            updateHash(DEFAULT_STATE, true);
+            renderState(parseState());
+          });
+        }
 
         window.addEventListener("hashchange", () => {
           renderState(parseState());
