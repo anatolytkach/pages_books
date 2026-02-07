@@ -1,7 +1,8 @@
 {
-  "baseUrl": "https://YOUR-R2-PUBLIC-BASE",
+  "baseUrl": "https://reader.pub/books/api",
+  "assetBaseUrl": "https://reader.pub",
   "lettersIndexPath": "/letters.json",
-  "letterPrefixesPath": "/letters/{letter}.json",
-  "prefixNodePath": "/prefix/{prefix}.json",
-  "authorPath": "/author/{key}.json"
+  "letterPrefixesPath": "/p/{letter}.json",
+  "prefixNodePath": "/p/{prefix}.json",
+  "authorPath": "/a/{key}.json"
 }

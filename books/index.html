@@ -4,11 +4,1223 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>reader.pub books</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap");
+
+      :root {
+        --bg: #f6f2ea;
+        --bg-2: #efe7d8;
+        --panel: #fffdf8;
+        --ink: #2a2622;
+        --muted: #6f665d;
+        --accent: #2d6f6b;
+        --accent-2: #1d4e4b;
+        --border: #e2d8c8;
+        --shadow: rgba(46, 33, 20, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: radial-gradient(1200px 700px at 20% -10%, #fff8ec 0%, var(--bg) 55%, var(--bg-2) 100%);
+        font-family: "Source Sans 3", "Helvetica Neue", sans-serif;
+        min-height: 100vh;
+      }
+
+      #app {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 20px 60px;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
+
+      .title {
+        font-family: "Fraunces", "Times New Roman", serif;
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+      }
+
+      .searchWrap {
+        flex: 1;
+        min-width: 240px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .searchInput {
+        width: min(360px, 100%);
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #fff;
+        font-size: 14px;
+      }
+
+      .searchInput:focus {
+        outline: 2px solid rgba(45, 111, 107, 0.3);
+        border-color: var(--accent);
+      }
+
+      #breadcrumbs {
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 14px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      #breadcrumbs a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      #breadcrumbs a:hover {
+        text-decoration: underline;
+      }
+
+      #toolbar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .toggleBtn {
+        border: 1px solid var(--border);
+        background: #fff;
+        padding: 6px 12px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .toggleBtn.active {
+        color: var(--panel);
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: 0 8px 24px var(--shadow);
+        padding: 18px;
+      }
+
+      .lettersGrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+        gap: 12px;
+      }
+
+      .letterBtn {
+        border: 1px solid var(--border);
+        background: #fff;
+        padding: 12px 0;
+        border-radius: 14px;
+        font-weight: 600;
+        color: var(--accent-2);
+        cursor: pointer;
+        transition: transform 0.08s ease, box-shadow 0.08s ease;
+      }
+
+      .letterBtn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+      }
+
+      table.list {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      table.list th,
+      table.list td {
+        text-align: left;
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      table.list th.count,
+      table.list td.count {
+        width: 120px;
+        text-align: right;
+        color: var(--muted);
+      }
+
+      tr.rowLink {
+        cursor: pointer;
+      }
+
+      tr.rowLink:hover td {
+        background: rgba(45, 111, 107, 0.08);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+        padding: 12px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-height: 220px;
+      }
+
+      .card:hover {
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+      }
+
+      .cover {
+        width: 100%;
+        aspect-ratio: 3 / 4;
+        background: #f3eee6;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .coverEmpty {
+        background: #f0e8dc;
+      }
+
+      .cardTitle {
+        font-weight: 600;
+      }
+
+      .cardMeta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 12px;
+      }
+
+      .error {
+        border: 1px solid #d7bcbc;
+        background: #fff7f7;
+        color: #7a1f1f;
+        padding: 14px;
+        border-radius: 12px;
+        font-size: 14px;
+      }
+
+      .loading {
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      #searchResults {
+        margin-bottom: 14px;
+      }
+
+      .srHead {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .srItem {
+        display: grid;
+        grid-template-columns: 44px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(45, 111, 107, 0.06);
+        margin-bottom: 6px;
+        cursor: pointer;
+      }
+
+      .srItem:hover {
+        background: rgba(45, 111, 107, 0.12);
+      }
+
+      .srCover {
+        width: 44px;
+        height: 58px;
+        border-radius: 8px;
+        background: #f3eee6;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .srCover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .srTitle {
+        font-weight: 600;
+      }
+
+      .srMeta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .srHint {
+        font-size: 11px;
+        color: var(--accent-2);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      @media (max-width: 720px) {
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .searchWrap {
+          width: 100%;
+          justify-content: flex-start;
+        }
+        .srItem {
+          grid-template-columns: 44px 1fr;
+        }
+        .srHint {
+          grid-column: 1 / -1;
+        }
+      }
+    </style>
   </head>
   <body>
-    <main>
-      <h1>reader.pub books</h1>
-      <p>Catalog scaffolding. Full UI will be wired in the next commit.</p>
-    </main>
+    <!-- deploy-bust: 2026-02-07T07:18:49Z -->
+    <div id="app">
+      <header>
+        <div class="title">reader.pub books</div>
+        <div class="searchWrap">
+          <input id="searchInput" class="searchInput" type="search" placeholder="Search letters, prefixes, authors, titles" />
+        </div>
+      </header>
+      <div id="breadcrumbs"></div>
+      <div id="toolbar"></div>
+      <div id="searchResults"></div>
+      <div id="content" class="panel"></div>
+      <div id="status" class="status"></div>
+    </div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const DEFAULT_STATE = {
+          view: "letters",
+          letter: "",
+          prefix: "",
+          authorKey: "",
+          authorName: "",
+          bookView: "list",
+        };
+
+        const els = {
+          breadcrumbs: document.getElementById("breadcrumbs"),
+          toolbar: document.getElementById("toolbar"),
+          search: document.getElementById("searchInput"),
+          searchResults: document.getElementById("searchResults"),
+          content: document.getElementById("content"),
+          status: document.getElementById("status"),
+        };
+
+        let config = null;
+        let REQ_NONCE = 0;
+        let currentView = null;
+
+        const cache = {
+          letters: null,
+          letterPrefixes: new Map(),
+          prefixNodes: new Map(),
+          authorBooks: new Map(),
+        };
+
+        function el(tag, className, text) {
+          const node = document.createElement(tag);
+          if (className) node.className = className;
+          if (text !== undefined) node.textContent = text;
+          return node;
+        }
+
+        function setStatus(message) {
+          els.status.textContent = message || "";
+        }
+
+        function showLoading(message) {
+          els.content.innerHTML = "";
+          const loading = el("div", "loading", message || "Loading...");
+          els.content.appendChild(loading);
+        }
+
+        function showError(message, detail) {
+          els.content.innerHTML = "";
+          const box = el("div", "error");
+          const head = el("div", null, message || "Unexpected error");
+          box.appendChild(head);
+          if (detail) {
+            const pre = el("pre", null, String(detail));
+            pre.style.margin = "8px 0 0";
+            pre.style.whiteSpace = "pre-wrap";
+            box.appendChild(pre);
+          }
+          els.content.appendChild(box);
+        }
+
+        function getQuery() {
+          return els.search.value.trim().toLowerCase();
+        }
+
+        function setBreadcrumbs(items) {
+          els.breadcrumbs.innerHTML = "";
+          items.forEach((item, idx) => {
+            if (idx > 0) {
+              els.breadcrumbs.appendChild(el("span", null, "›"));
+            }
+            if (item.onClick) {
+              const link = el("a", null, item.label);
+              link.href = "#";
+              link.addEventListener("click", (event) => {
+                event.preventDefault();
+                item.onClick();
+              });
+              els.breadcrumbs.appendChild(link);
+            } else {
+              els.breadcrumbs.appendChild(el("span", null, item.label));
+            }
+          });
+        }
+
+        function setToolbar(view, bookView) {
+          els.toolbar.innerHTML = "";
+          if (view !== "author") return;
+
+          const listBtn = el("button", "toggleBtn", "List");
+          const gridBtn = el("button", "toggleBtn", "Grid");
+          if (bookView === "list") listBtn.classList.add("active");
+          if (bookView === "grid") gridBtn.classList.add("active");
+
+          listBtn.addEventListener("click", () => updateBookView("list"));
+          gridBtn.addEventListener("click", () => updateBookView("grid"));
+
+          els.toolbar.appendChild(listBtn);
+          els.toolbar.appendChild(gridBtn);
+        }
+
+        function setSearchResults(items, query) {
+          els.searchResults.innerHTML = "";
+          if (!query) {
+            els.searchResults.style.display = "none";
+            return;
+          }
+          els.searchResults.style.display = "block";
+          const head = el("div", "srHead", `Search results (${items.length})`);
+          els.searchResults.appendChild(head);
+
+          if (!items.length) {
+            const empty = el("div", "srItem");
+            empty.appendChild(el("div", "srTitle", "No matches"));
+            els.searchResults.appendChild(empty);
+            return;
+          }
+
+          items.forEach((item) => {
+            const row = el("div", "srItem");
+            row.tabIndex = 0;
+            row.setAttribute("role", "button");
+            row.addEventListener("click", item.onClick);
+            row.addEventListener("keydown", (event) => {
+              if (event.key === "Enter") item.onClick();
+            });
+
+            const cover = el("div", "srCover");
+            if (item.cover) {
+              const img = new Image();
+              img.loading = "lazy";
+              img.decoding = "async";
+              img.alt = "Cover";
+              img.src = item.cover;
+              img.onerror = () => {
+                cover.textContent = "No cover";
+              };
+              cover.appendChild(img);
+            } else {
+              cover.textContent = "";
+            }
+
+            const body = el("div");
+            body.appendChild(el("div", "srTitle", item.title));
+            if (item.meta) body.appendChild(el("div", "srMeta", item.meta));
+            row.appendChild(cover);
+            row.appendChild(body);
+            row.appendChild(el("div", "srHint", item.hint || "Open"));
+            els.searchResults.appendChild(row);
+          });
+        }
+
+        function normalizeLetters(data) {
+          if (!data) return [];
+          let list = [];
+          if (Array.isArray(data)) list = data;
+          else if (Array.isArray(data.letters)) list = data.letters;
+          else if (Array.isArray(data.items)) list = data.items;
+          else if (Array.isArray(data.list)) list = data.list;
+          else if (data.letters && typeof data.letters === "object") list = Object.keys(data.letters);
+          else if (typeof data === "object") list = Object.keys(data);
+
+          return list
+            .map((item) => (typeof item === "object" ? item.letter || item.key || item.value : item))
+            .map((item) => String(item || "").trim())
+            .filter(Boolean);
+        }
+
+        function normalizePrefixEntries(source) {
+          if (!source) return [];
+          let list = [];
+          if (Array.isArray(source)) list = source;
+          else if (typeof source === "object") list = Object.keys(source).map((key) => ({ key, value: source[key] }));
+
+          return list
+            .map((item) => {
+              if (!item) return null;
+              if (typeof item === "string") return { prefix: item, count: null };
+              const prefix =
+                item.prefix ||
+                item.p ||
+                item.key ||
+                item.label ||
+                item.value ||
+                item.id ||
+                item.name ||
+                (typeof item.key === "string" ? item.key : null);
+              const count = parseNumber(
+                item.count ??
+                  item.c ??
+                  item.total ??
+                  item.n ??
+                  item.size ??
+                  item.authors ??
+                  item.authorCount ??
+                  item.author_count ??
+                  item.books ??
+                  item.bookCount ??
+                  item.value
+              );
+              if (!prefix) return null;
+              return { prefix: String(prefix), count };
+            })
+            .filter(Boolean);
+        }
+
+        function normalizeAuthorEntries(source) {
+          if (!source) return [];
+          let list = [];
+          if (Array.isArray(source)) list = source;
+          else if (typeof source === "object") list = Object.keys(source).map((key) => ({ key, value: source[key] }));
+
+          return list
+            .map((item) => {
+              if (!item) return null;
+              if (typeof item === "string") return { name: item, key: item, count: null };
+
+              const name = item.name || item.author || item.label || item.title || item.value || item.key || item.id;
+              const key = item.key || item.id || item.slug || item.authorKey || name;
+              const count = parseNumber(
+                item.count ??
+                  item.total ??
+                  item.n ??
+                  item.size ??
+                  item.books ??
+                  item.bookCount ??
+                  item.works ??
+                  item.value
+              );
+
+              if (!name) return null;
+              return { name: String(name), key: String(key || name), count };
+            })
+            .filter(Boolean);
+        }
+
+        function normalizeBooks(source) {
+          if (!source) return [];
+          let list = [];
+          if (Array.isArray(source)) list = source;
+          else if (typeof source === "object") list = Object.keys(source).map((key) => ({ key, value: source[key] }));
+
+          return list
+            .map((item) => {
+              if (!item) return null;
+              if (typeof item === "string") return { id: item, title: item };
+              const id = item.id || item.book_id || item.bookId || item.key || item.slug || item.value;
+              const title = item.title || item.name || item.label || item.book || item.work || item.value || id;
+              const cover = item.cover || item.coverUrl || item.cover_url || item.image || item.img || item.thumbnail;
+              const author = item.author || item.authorName || item.creator || item.by;
+              if (!id) return null;
+              return {
+                id: String(id),
+                title: String(title || id),
+                cover: cover ? String(cover) : "",
+                author: author ? String(author) : "",
+              };
+            })
+            .filter(Boolean);
+        }
+
+        function parseNumber(value) {
+          if (value === null || value === undefined || value === "") return null;
+          const num = Number(value);
+          return Number.isFinite(num) ? num : null;
+        }
+
+        function detectListType(source) {
+          if (!source) return null;
+          let sample = null;
+          if (Array.isArray(source)) sample = source[0];
+          else if (typeof source === "object") sample = Object.values(source)[0];
+          if (!sample) return null;
+
+          if (typeof sample === "object") {
+            if (sample.prefix || sample.children) return "prefix";
+            if (sample.name || sample.author || sample.books || sample.bookCount) return "author";
+            return null;
+          }
+
+          if (typeof sample === "string") {
+            if (sample.includes(" ") || sample.length > 5) return "author";
+            return "prefix";
+          }
+          return null;
+        }
+
+        function joinUrl(base, path) {
+          const cleanBase = String(base || "").replace(/\/$/, "");
+          const cleanPath = String(path || "").replace(/^\//, "");
+          return cleanBase && cleanPath ? `${cleanBase}/${cleanPath}` : cleanBase || cleanPath;
+        }
+
+        function resolveCoverUrl(cover) {
+          if (!cover) return "";
+          if (/^https?:\/\//i.test(cover) || cover.startsWith("data:") || cover.startsWith("blob:")) return cover;
+          if (cover.startsWith("//")) return `${location.protocol}${cover}`;
+          if (config && config.assetBaseUrl) return joinUrl(config.assetBaseUrl, cover);
+          if (config && config.baseUrl) return joinUrl(config.baseUrl, cover);
+          return cover;
+        }
+
+        function openBookUrl(id) {
+          return `/books/${encodeURIComponent(id)}/`;
+        }
+
+        function openBookInNewTab(id) {
+          const url = openBookUrl(id);
+          const win = window.open(url, "_blank", "noopener");
+          if (!win) {
+            window.location.href = url;
+          }
+        }
+
+        function updateBookView(view) {
+          const state = parseState();
+          state.bookView = view;
+          updateHash(state, true);
+          renderState(state);
+        }
+
+        function updateHash(state, replace) {
+          const params = new URLSearchParams();
+          params.set("view", state.view || "letters");
+          if (state.letter) params.set("letter", state.letter);
+          if (state.prefix) params.set("prefix", state.prefix);
+          if (state.authorKey) params.set("authorKey", state.authorKey);
+          if (state.authorName) params.set("authorName", state.authorName);
+          if (state.bookView) params.set("bookView", state.bookView);
+
+          const hash = `#${params.toString()}`;
+          if (replace) {
+            history.replaceState(null, "", hash);
+          } else {
+            location.hash = hash;
+          }
+        }
+
+        function parseState() {
+          const params = new URLSearchParams(location.hash.replace(/^#/, ""));
+          const state = { ...DEFAULT_STATE };
+          if (params.get("view")) state.view = params.get("view");
+          if (params.get("letter")) state.letter = params.get("letter");
+          if (params.get("prefix")) state.prefix = params.get("prefix");
+          if (params.get("authorKey")) state.authorKey = params.get("authorKey");
+          if (params.get("authorName")) state.authorName = params.get("authorName");
+          if (params.get("bookView")) state.bookView = params.get("bookView");
+          return state;
+        }
+
+        function navigate(state) {
+          updateHash(state, false);
+        }
+
+        function renderLetters(letters) {
+          const query = getQuery();
+          const filtered = query
+            ? letters.filter((letter) => String(letter).toLowerCase().includes(query))
+            : letters.slice();
+
+          setSearchResults(
+            filtered.map((letter) => ({
+              title: String(letter),
+              meta: "Letter",
+              hint: "Open",
+              onClick: () => navigate({ view: "prefixes", letter: String(letter) }),
+              cover: "",
+            })),
+            query
+          );
+
+          els.content.innerHTML = "";
+          const grid = el("div", "lettersGrid");
+          if (!filtered.length) {
+            const empty = el("div", "loading", query ? "No letters match your search." : "No letters available.");
+            els.content.appendChild(empty);
+            return;
+          }
+
+          filtered.forEach((letter) => {
+            const btn = el("button", "letterBtn", String(letter));
+            btn.addEventListener("click", () => navigate({ view: "prefixes", letter: String(letter) }));
+            grid.appendChild(btn);
+          });
+          els.content.appendChild(grid);
+        }
+
+        function renderPrefixes(prefixes, letter) {
+          const query = getQuery();
+          const filtered = query
+            ? prefixes.filter((item) => String(item.prefix).toLowerCase().includes(query))
+            : prefixes.slice();
+
+          setSearchResults(
+            filtered.map((item) => ({
+              title: item.prefix,
+              meta: item.count !== null ? `${item.count} authors` : "Prefix",
+              hint: "Open",
+              onClick: () => navigate({ view: "prefix", letter, prefix: item.prefix }),
+              cover: "",
+            })),
+            query
+          );
+
+          els.content.innerHTML = "";
+          if (!filtered.length) {
+            const empty = el("div", "loading", query ? "No prefixes match your search." : "No prefixes found.");
+            els.content.appendChild(empty);
+            return;
+          }
+
+          const table = el("table", "list");
+          const thead = el("thead");
+          const headRow = el("tr");
+          headRow.appendChild(el("th", null, "Prefix"));
+          headRow.appendChild(el("th", "count", "Count"));
+          thead.appendChild(headRow);
+          table.appendChild(thead);
+          const tbody = el("tbody");
+
+          filtered.forEach((item) => {
+            const row = el("tr", "rowLink");
+            row.addEventListener("click", () => navigate({ view: "prefix", letter, prefix: item.prefix }));
+            row.appendChild(el("td", null, item.prefix));
+            row.appendChild(el("td", "count", item.count !== null ? String(item.count) : ""));
+            tbody.appendChild(row);
+          });
+
+          table.appendChild(tbody);
+          els.content.appendChild(table);
+        }
+
+        function renderAuthors(authors, letter, prefix) {
+          const query = getQuery();
+          const filtered = query
+            ? authors.filter((item) => String(item.name).toLowerCase().includes(query))
+            : authors.slice();
+
+          setSearchResults(
+            filtered.map((item) => ({
+              title: item.name,
+              meta: item.count !== null ? `${item.count} books` : "Author",
+              hint: "Open",
+              onClick: () =>
+                navigate({
+                  view: "author",
+                  letter,
+                  prefix,
+                  authorKey: item.key,
+                  authorName: item.name,
+                }),
+              cover: "",
+            })),
+            query
+          );
+
+          els.content.innerHTML = "";
+          if (!filtered.length) {
+            const empty = el("div", "loading", query ? "No authors match your search." : "No authors found.");
+            els.content.appendChild(empty);
+            return;
+          }
+
+          const table = el("table", "list");
+          const thead = el("thead");
+          const headRow = el("tr");
+          headRow.appendChild(el("th", null, "Author"));
+          headRow.appendChild(el("th", "count", "Count"));
+          thead.appendChild(headRow);
+          table.appendChild(thead);
+          const tbody = el("tbody");
+
+          filtered.forEach((item) => {
+            const row = el("tr", "rowLink");
+            row.addEventListener("click", () =>
+              navigate({ view: "author", letter, prefix, authorKey: item.key, authorName: item.name })
+            );
+            row.appendChild(el("td", null, item.name));
+            row.appendChild(el("td", "count", item.count !== null ? String(item.count) : ""));
+            tbody.appendChild(row);
+          });
+
+          table.appendChild(tbody);
+          els.content.appendChild(table);
+        }
+
+        function renderAuthorBooks(author, books, viewMode) {
+          const query = getQuery();
+          const filtered = query
+            ? books.filter((item) => String(item.title).toLowerCase().includes(query))
+            : books.slice();
+
+          setSearchResults(
+            filtered.map((item) => ({
+              title: item.title,
+              meta: author.name || item.author || author.key || "Book",
+              hint: "Open book",
+              cover: resolveCoverUrl(item.cover),
+              onClick: () => openBookInNewTab(item.id),
+            })),
+            query
+          );
+
+          els.content.innerHTML = "";
+          if (!filtered.length) {
+            const empty = el("div", "loading", query ? "No books match your search." : "No books found.");
+            els.content.appendChild(empty);
+            return;
+          }
+
+          if (viewMode === "grid") {
+            const grid = el("div", "grid");
+            filtered.forEach((book) => {
+              const card = el("div", "card");
+              card.addEventListener("click", () => openBookInNewTab(book.id));
+
+              const coverUrl = resolveCoverUrl(book.cover);
+              const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
+              if (coverUrl) {
+                const img = new Image();
+                img.loading = "lazy";
+                img.decoding = "async";
+                img.alt = `${book.title} cover`;
+                img.src = coverUrl;
+                img.onerror = () => {
+                  cover.classList.add("coverEmpty");
+                  cover.textContent = "No cover";
+                };
+                cover.appendChild(img);
+              } else {
+                cover.textContent = "No cover";
+              }
+
+              const title = el("div", "cardTitle", book.title);
+              const metaText = author.name || book.author || "";
+              const meta = el("div", "cardMeta", metaText);
+
+              card.appendChild(cover);
+              card.appendChild(title);
+              card.appendChild(meta);
+              grid.appendChild(card);
+            });
+            els.content.appendChild(grid);
+          } else {
+            const table = el("table", "list");
+            const thead = el("thead");
+            const headRow = el("tr");
+            headRow.appendChild(el("th", null, "Title"));
+            headRow.appendChild(el("th", "count", ""));
+            thead.appendChild(headRow);
+            table.appendChild(thead);
+            const tbody = el("tbody");
+
+            filtered.forEach((book) => {
+              const row = el("tr", null);
+              const cell = el("td");
+              const link = el("a", null, book.title);
+              link.href = openBookUrl(book.id);
+              link.target = "_blank";
+              link.rel = "noopener noreferrer";
+              link.addEventListener("click", (event) => {
+                event.preventDefault();
+                openBookInNewTab(book.id);
+              });
+              cell.appendChild(link);
+              row.appendChild(cell);
+              row.appendChild(el("td", "count", ""));
+              tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            els.content.appendChild(table);
+          }
+        }
+
+        async function loadConfig(nonce) {
+          if (config) return config;
+          try {
+            const url = new URL("catalog.config.json", window.location.href);
+            const res = await fetch(url.toString(), { cache: "no-store" });
+            if (nonce !== REQ_NONCE) return null;
+            if (!res.ok) throw new Error(`Config fetch failed (${res.status})`);
+            config = await res.json();
+            return config;
+          } catch (error) {
+            showError("Failed to load catalog.config.json", error);
+            throw error;
+          }
+        }
+
+        function buildUrl(pattern, vars) {
+          if (!pattern) throw new Error("Missing URL pattern in catalog.config.json");
+          let url = String(pattern);
+          const replaceMap = {
+            letter: vars.letter || "",
+            prefix: vars.prefix || "",
+            key: vars.key || "",
+            author: vars.key || vars.author || "",
+            id: vars.key || vars.id || "",
+          };
+
+          Object.keys(replaceMap).forEach((key) => {
+            url = url.replace(new RegExp(`\\{${key}\\}`, "g"), encodeURIComponent(replaceMap[key]));
+          });
+
+          if (/^https?:\/\//i.test(url)) return url;
+          if (!config || !config.baseUrl) {
+            throw new Error("catalog.config.json missing baseUrl");
+          }
+          return joinUrl(config.baseUrl, url);
+        }
+
+        async function fetchJson(url, nonce) {
+          const res = await fetch(url, { cache: "no-store" });
+          if (nonce !== REQ_NONCE) return null;
+          if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${url}`);
+          try {
+            return await res.json();
+          } catch (error) {
+            throw new Error(`Invalid JSON from ${url}: ${error.message}`);
+          }
+        }
+
+        async function getLetters(nonce) {
+          if (cache.letters) return cache.letters;
+          const url = buildUrl(config.lettersIndexPath, {});
+          const data = await fetchJson(url, nonce);
+          const letters = normalizeLetters(data);
+          if (!letters.length) {
+            throw new Error("Letters index JSON missing expected letter list.");
+          }
+          cache.letters = letters;
+          return letters;
+        }
+
+        async function getLetterPrefixes(letter, nonce) {
+          const cacheKey = letter;
+          if (cache.letterPrefixes.has(cacheKey)) return cache.letterPrefixes.get(cacheKey);
+          const pattern = config.letterPrefixesPath || config.prefixNodePath;
+          if (!pattern) throw new Error("catalog.config.json missing letterPrefixesPath or prefixNodePath");
+          const url = buildUrl(pattern, { letter, prefix: letter });
+          const data = await fetchJson(url, nonce);
+          const source =
+            data.prefixes ||
+            data.next ||
+            data.items ||
+            data.children ||
+            data.list ||
+            data.nodes ||
+            data.prefix_list ||
+            data;
+          const prefixes = normalizePrefixEntries(source);
+          if (!prefixes.length) {
+            throw new Error("Prefix list JSON missing expected prefixes array.");
+          }
+          cache.letterPrefixes.set(cacheKey, prefixes);
+          return prefixes;
+        }
+
+        async function getPrefixNode(letter, prefix, nonce) {
+          const cacheKey = `${letter}:${prefix}`;
+          if (cache.prefixNodes.has(cacheKey)) return cache.prefixNodes.get(cacheKey);
+          if (!config.prefixNodePath) throw new Error("catalog.config.json missing prefixNodePath");
+          const url = buildUrl(config.prefixNodePath, { letter, prefix });
+          const data = await fetchJson(url, nonce);
+
+          let childSource =
+            data.children ||
+            data.next ||
+            data.prefixes ||
+            data.prefix_list ||
+            data.prefixes_list ||
+            data.nodes ||
+            null;
+          let authorSource = data.authors || data.author_list || data.people || data.authors_list || null;
+
+          if (!childSource && !authorSource) {
+            const items = data.items || data.list || data.entries || null;
+            const detected = detectListType(items);
+            if (detected === "author") authorSource = items;
+            if (detected === "prefix") childSource = items;
+          }
+
+          const prefixes = normalizePrefixEntries(childSource);
+          const authors = normalizeAuthorEntries(authorSource);
+
+          const authorCount =
+            authors.length ||
+            parseNumber(
+              data.authorCount ??
+                data.author_count ??
+                data.authorsCount ??
+                data.authors_total ??
+                data.totalAuthors ??
+                data.total ??
+                data.count
+            ) ||
+            null;
+
+          const node = { prefixes, authors, authorCount };
+          cache.prefixNodes.set(cacheKey, node);
+          return node;
+        }
+
+        async function getAuthorBooks(authorKey, nonce) {
+          if (cache.authorBooks.has(authorKey)) return cache.authorBooks.get(authorKey);
+          if (!config.authorPath) throw new Error("catalog.config.json missing authorPath");
+          const url = buildUrl(config.authorPath, { key: authorKey, author: authorKey });
+          const data = await fetchJson(url, nonce);
+
+          const author = {
+            key: data.key || data.id || authorKey,
+            name: data.name || data.author || data.label || data.title || authorKey,
+          };
+          let booksSource = data.books || data.items || data.list || data.results || data.works || data.entries || null;
+          if (!booksSource && Array.isArray(data)) booksSource = data;
+          const books = normalizeBooks(booksSource);
+          if (!books.length) {
+            throw new Error("Author JSON missing expected books list.");
+          }
+          const payload = { author, books };
+          cache.authorBooks.set(authorKey, payload);
+          return payload;
+        }
+
+        async function renderState(state) {
+          const nonce = ++REQ_NONCE;
+          setStatus("");
+
+          try {
+            await loadConfig(nonce);
+            if (nonce !== REQ_NONCE) return;
+
+            if (!state.view || state.view === "letters") {
+              showLoading("Loading letters...");
+              const letters = await getLetters(nonce);
+              if (nonce !== REQ_NONCE) return;
+              setBreadcrumbs([{ label: "Letters" }]);
+              setToolbar("letters");
+              currentView = { renderer: () => renderLetters(letters), data: letters };
+              renderLetters(letters);
+              return;
+            }
+
+            if (state.view === "prefixes") {
+              if (!state.letter) {
+                updateHash({ view: "letters" }, true);
+                return renderState(parseState());
+              }
+              showLoading("Loading prefixes...");
+              const prefixes = await getLetterPrefixes(state.letter, nonce);
+              if (nonce !== REQ_NONCE) return;
+              setBreadcrumbs([
+                { label: "Letters", onClick: () => navigate({ view: "letters" }) },
+                { label: state.letter },
+              ]);
+              setToolbar("prefixes");
+              currentView = { renderer: () => renderPrefixes(prefixes, state.letter), data: prefixes };
+              renderPrefixes(prefixes, state.letter);
+              return;
+            }
+
+            if (state.view === "prefix") {
+              if (!state.letter || !state.prefix) {
+                updateHash({ view: "letters" }, true);
+                return renderState(parseState());
+              }
+
+              showLoading("Loading prefix node...");
+              const node = await getPrefixNode(state.letter, state.prefix, nonce);
+              if (nonce !== REQ_NONCE) return;
+
+              const authorsCount = node.authorCount || node.authors.length || 0;
+              const shouldShowAuthors = authorsCount > 0 && authorsCount < 50;
+              const canShowPrefixes = node.prefixes.length > 0;
+              const hasAuthors = node.authors.length > 0;
+
+              setBreadcrumbs([
+                { label: "Letters", onClick: () => navigate({ view: "letters" }) },
+                { label: state.letter, onClick: () => navigate({ view: "prefixes", letter: state.letter }) },
+                { label: state.prefix },
+              ]);
+
+              if (shouldShowAuthors) {
+                if (!hasAuthors) {
+                  showError(
+                    "Prefix node indicates fewer than 50 authors, but no authors list was found.",
+                    "Check JSON schema for this prefix node."
+                  );
+                  return;
+                }
+                setToolbar("prefix");
+                currentView = { renderer: () => renderAuthors(node.authors, state.letter, state.prefix), data: node.authors };
+                renderAuthors(node.authors, state.letter, state.prefix);
+                return;
+              }
+
+              if (canShowPrefixes) {
+                setToolbar("prefix");
+                currentView = { renderer: () => renderPrefixes(node.prefixes, state.letter), data: node.prefixes };
+                renderPrefixes(node.prefixes, state.letter);
+                return;
+              }
+
+              if (hasAuthors) {
+                setToolbar("prefix");
+                currentView = { renderer: () => renderAuthors(node.authors, state.letter, state.prefix), data: node.authors };
+                renderAuthors(node.authors, state.letter, state.prefix);
+                return;
+              }
+
+              showError("Prefix node did not contain prefixes or authors.", "Check JSON schema for this node.");
+              return;
+            }
+
+            if (state.view === "author") {
+              if (!state.authorKey) {
+                updateHash({ view: "letters" }, true);
+                return renderState(parseState());
+              }
+              showLoading("Loading author books...");
+              const payload = await getAuthorBooks(state.authorKey, nonce);
+              if (nonce !== REQ_NONCE) return;
+
+              const author = {
+                key: payload.author.key || state.authorKey,
+                name: payload.author.name || state.authorName || state.authorKey,
+              };
+              const viewMode = state.bookView || "list";
+
+              setBreadcrumbs([
+                { label: "Letters", onClick: () => navigate({ view: "letters" }) },
+                state.letter
+                  ? { label: state.letter, onClick: () => navigate({ view: "prefixes", letter: state.letter }) }
+                  : null,
+                state.prefix
+                  ? { label: state.prefix, onClick: () => navigate({ view: "prefix", letter: state.letter, prefix: state.prefix }) }
+                  : null,
+                { label: author.name },
+              ].filter(Boolean));
+
+              setToolbar("author", viewMode);
+              currentView = {
+                renderer: () => renderAuthorBooks(author, payload.books, viewMode),
+                data: payload.books,
+              };
+              renderAuthorBooks(author, payload.books, viewMode);
+              return;
+            }
+
+            updateHash({ view: "letters" }, true);
+            renderState(parseState());
+          } catch (error) {
+            if (nonce !== REQ_NONCE) return;
+            showError("Catalog error", error.message || error);
+          }
+        }
+
+        els.search.addEventListener("input", () => {
+          if (currentView && typeof currentView.renderer === "function") {
+            currentView.renderer(currentView.data);
+          }
+        });
+
+        window.addEventListener("hashchange", () => {
+          renderState(parseState());
+        });
+
+        if (!location.hash) {
+          updateHash(DEFAULT_STATE, true);
+        }
+        renderState(parseState());
+      })();
+    </script>
   </body>
 </html>
