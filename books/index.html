@@ -1666,17 +1666,42 @@
                 return renderState(parseState());
               }
               showLoading("Loading prefixes...");
-              const prefixes = await getLetterPrefixes(state.letter, nonce);
-              if (nonce !== REQ_NONCE) return;
-              setBreadcrumbs([
-                { label: "Letters", onClick: () => navigate({ view: "letters" }) },
-                { label: state.letter },
-              ]);
-              setToolbar("prefixes");
-              currentView = { renderer: () => renderPrefixes(prefixes, state.letter), data: prefixes };
-              renderPrefixes(prefixes, state.letter);
-              renderSearchResults();
-              return;
+              try {
+                const prefixes = await getLetterPrefixes(state.letter, nonce);
+                if (nonce !== REQ_NONCE) return;
+                setBreadcrumbs([
+                  { label: "Letters", onClick: () => navigate({ view: "letters" }) },
+                  { label: state.letter },
+                ]);
+                setToolbar("prefixes");
+                currentView = { renderer: () => renderPrefixes(prefixes, state.letter), data: prefixes };
+                renderPrefixes(prefixes, state.letter);
+                renderSearchResults();
+                return;
+              } catch (error) {
+                try {
+                  const token = resolveLetterToken(state.letter);
+                  const node = await getPrefixNode(state.letter, token, nonce);
+                  if (nonce !== REQ_NONCE) return;
+                  if (node.authors.length) {
+                    setBreadcrumbs([
+                      { label: "Letters", onClick: () => navigate({ view: "letters" }) },
+                      { label: state.letter },
+                    ]);
+                    setToolbar("prefix");
+                    currentView = {
+                      renderer: () => renderAuthors(node.authors, state.letter, token),
+                      data: node.authors,
+                    };
+                    renderAuthors(node.authors, state.letter, token);
+                    renderSearchResults();
+                    return;
+                  }
+                } catch (fallbackError) {
+                  throw fallbackError;
+                }
+                throw error;
+              }
             }
 
             if (state.view === "prefix") {
