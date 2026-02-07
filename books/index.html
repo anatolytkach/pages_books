@@ -8,15 +8,14 @@
       @import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap");
 
       :root {
-        --bg: #f6f2ea;
-        --bg-2: #efe7d8;
-        --panel: #fffdf8;
-        --ink: #2a2622;
-        --muted: #6f665d;
-        --accent: #2d6f6b;
-        --accent-2: #1d4e4b;
-        --border: #e2d8c8;
-        --shadow: rgba(46, 33, 20, 0.08);
+        --bg: #f8f5ef;
+        --panel: #ffffff;
+        --ink: #1f1b16;
+        --muted: #6c645a;
+        --accent: #00796b;
+        --accent-2: #005f55;
+        --border: #e6ddcf;
+        --shadow: rgba(31, 27, 22, 0.08);
       }
 
       * {
@@ -26,15 +25,15 @@
       body {
         margin: 0;
         color: var(--ink);
-        background: radial-gradient(1200px 700px at 20% -10%, #fff8ec 0%, var(--bg) 55%, var(--bg-2) 100%);
+        background: var(--bg);
         font-family: "Source Sans 3", "Helvetica Neue", sans-serif;
         min-height: 100vh;
       }
 
       #app {
-        max-width: 1200px;
+        max-width: 1180px;
         margin: 0 auto;
-        padding: 32px 20px 60px;
+        padding: 28px 24px 64px;
       }
 
       header {
@@ -43,12 +42,14 @@
         justify-content: space-between;
         gap: 16px;
         flex-wrap: wrap;
-        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 28px;
       }
 
       .title {
         font-family: "Fraunces", "Times New Roman", serif;
-        font-size: 28px;
+        font-size: 30px;
         font-weight: 700;
         letter-spacing: 0.4px;
       }
@@ -62,16 +63,17 @@
 
       .searchForm {
         position: relative;
-        width: min(360px, 100%);
+        width: min(420px, 100%);
       }
 
       .searchInput {
         width: 100%;
-        padding: 10px 44px 10px 14px;
+        padding: 12px 48px 12px 16px;
         border-radius: 999px;
-        border: 1px solid var(--border);
+        border: 2px solid #e3d8c8;
         background: #fff;
-        font-size: 14px;
+        font-size: 15px;
+        color: var(--ink);
       }
 
       .searchInput:focus {
@@ -90,11 +92,11 @@
 
       .searchBtn {
         position: absolute;
-        right: 6px;
+        right: 8px;
         top: 50%;
         transform: translateY(-50%);
-        width: 32px;
-        height: 32px;
+        width: 34px;
+        height: 34px;
         border: none;
         background: transparent;
         cursor: pointer;
@@ -126,7 +128,7 @@
       #breadcrumbs {
         font-size: 13px;
         color: var(--muted);
-        margin-bottom: 14px;
+        margin-bottom: 18px;
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
@@ -151,7 +153,7 @@
       .toggleBtn {
         border: 1px solid var(--border);
         background: #fff;
-        padding: 6px 12px;
+        padding: 6px 14px;
         border-radius: 999px;
         cursor: pointer;
         font-size: 13px;
@@ -167,23 +169,23 @@
       .panel {
         background: var(--panel);
         border: 1px solid var(--border);
-        border-radius: 18px;
-        box-shadow: 0 8px 24px var(--shadow);
-        padding: 18px;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px var(--shadow);
+        padding: 20px;
       }
 
       .lettersGrid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-        gap: 12px;
+        gap: 14px;
       }
 
       .letterBtn {
-        border: 1px solid var(--border);
+        border: 1.5px solid #dfd3c2;
         background: #fff;
         padding: 12px 0;
-        border-radius: 14px;
-        font-weight: 600;
+        border-radius: 16px;
+        font-weight: 700;
         color: var(--accent-2);
         cursor: pointer;
         transition: transform 0.08s ease, box-shadow 0.08s ease;
@@ -316,9 +318,9 @@
         grid-template-columns: 44px 1fr auto;
         gap: 10px;
         align-items: center;
-        padding: 8px 10px;
-        border-radius: 10px;
-        background: rgba(45, 111, 107, 0.06);
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #f1ece4;
         margin-bottom: 6px;
         cursor: pointer;
         text-decoration: none;
@@ -330,7 +332,7 @@
       }
 
       .srItem:hover {
-        background: rgba(45, 111, 107, 0.12);
+        background: #e9e2d7;
       }
 
       .srCover {
@@ -868,9 +870,17 @@
           if (cache.searchIndex.has(token)) return cache.searchIndex.get(token);
           const searchPath = (config && config.searchPath) || "/search/{token}.json";
           const url = buildUrl(searchPath, { token });
-          const data = await fetchJson(url, nonce);
-          if (!data) return [];
-          const items = data.items || data.list || [];
+          const res = await fetch(url, { cache: "no-store" });
+          if (nonce !== SEARCH_NONCE) return null;
+          if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${url}`);
+          let data = null;
+          try {
+            data = await res.json();
+          } catch (error) {
+            throw new Error(`Invalid JSON from ${url}: ${error.message}`);
+          }
+          if (nonce !== SEARCH_NONCE) return null;
+          const items = (data && (data.items || data.list)) || [];
           cache.searchIndex.set(token, items);
           return items;
         }
@@ -904,6 +914,7 @@
 
             const rawItems = await fetchSearchIndex(token, nonce);
             if (nonce !== SEARCH_NONCE) return;
+            if (!rawItems) return;
 
             const results = rawItems
               .map((item) => {
