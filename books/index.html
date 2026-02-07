@@ -52,7 +52,10 @@
       #app {
         max-width: 1180px;
         margin: 0 auto;
-        padding: 28px 24px 64px;
+        padding: 28px 24px 12px;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
       }
 
       header {
@@ -185,6 +188,20 @@
         display: flex;
         gap: 8px;
         margin-bottom: 12px;
+      }
+
+      #main {
+        flex: 1;
+      }
+
+      #footer {
+        margin-top: auto;
+        padding-top: 6px;
+        padding-bottom: 4px;
+        font-size: 13px;
+        color: #ffffff;
+        text-shadow: 0 3px 8px rgba(0, 0, 0, 0.9);
+        text-align: center;
       }
 
       .toggleBtn {
@@ -484,11 +501,14 @@
           </form>
         </div>
       </header>
-      <div id="breadcrumbs"></div>
-      <div id="toolbar"></div>
-      <div id="searchResults"></div>
-      <div id="content" class="panel"></div>
-      <div id="status" class="status"></div>
+      <main id="main">
+        <div id="breadcrumbs"></div>
+        <div id="toolbar"></div>
+        <div id="searchResults"></div>
+        <div id="content" class="panel"></div>
+        <div id="status" class="status"></div>
+      </main>
+      <footer id="footer">©2026 | Credits: Project Gutenberg</footer>
     </div>
 
     <script>
