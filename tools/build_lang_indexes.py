@@ -37,6 +37,67 @@ def normalize_search_token(value: str) -> str:
     base = re.sub(r"[^a-z0-9]+", "", base)
     return base[:2] if len(base) >= 2 else ""
 
+def parse_author_name(name: str) -> tuple[str, str, str, str]:
+    raw = clean_text(name)
+    if not raw:
+        return "", "", "", ""
+
+    if "," in raw:
+        last, rest = raw.split(",", 1)
+        last = last.strip()
+        rest = rest.strip()
+    else:
+        parts = raw.split(" ")
+        if len(parts) == 1:
+            last = raw
+            rest = ""
+        else:
+            suffixes = {"jr.", "jr", "sr.", "sr", "ii", "iii", "iv", "v"}
+            particles = {
+                "da",
+                "de",
+                "del",
+                "der",
+                "di",
+                "du",
+                "la",
+                "le",
+                "van",
+                "von",
+                "st",
+                "st.",
+                "saint",
+                "san",
+                "den",
+                "ter",
+                "ten",
+                "dos",
+                "das",
+                "della",
+                "dell",
+                "dall",
+                "d'",
+                "l'",
+            }
+            last_token = parts[-1].lower()
+            if last_token in suffixes and len(parts) >= 2:
+                last = " ".join(parts[-2:])
+                rest = " ".join(parts[:-2])
+            else:
+                penult = parts[-2].lower()
+                if penult in particles:
+                    last = " ".join(parts[-2:])
+                    rest = " ".join(parts[:-2])
+                else:
+                    last = parts[-1]
+                    rest = " ".join(parts[:-1])
+
+    if not last:
+        last = raw
+    display = f"{last}, {rest}" if rest else last
+    index_name = f"{last} {rest}".strip()
+    return display, last, rest, index_name
+
 DC_NS = "http://purl.org/dc/elements/1.1/"
 OPF_NS = "http://www.idpf.org/2007/opf"
 CONTAINER_NS = "urn:oasis:names:tc:opendocument:xmlns:container"
@@ -141,14 +202,18 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
 
         title = opf_data.get("title") or book_id
         creators = opf_data.get("creators") or []
-        author_name = creators[0] if creators else "Unknown"
-        author_key = slugify(author_name) or f"author-{book_id}"
-        index_value = normalize_index(author_name) or author_key
+        author_name_raw = creators[0] if creators else "Unknown"
+        author_display, _last, _rest, index_name = parse_author_name(author_name_raw)
+        author_name = author_display or author_name_raw
+        author_key = slugify(author_name_raw) or f"author-{book_id}"
+        index_value = normalize_index(index_name or author_name_raw) or author_key
 
         languages = opf_data.get("languages") or ["und"]
         lang_codes = [normalize_lang(code) for code in languages if code]
         if not lang_codes:
             lang_codes = ["und"]
+        lang_codes = set(lang_codes)
+        lang_codes.add("all")
 
         cover_href = opf_data.get("cover_href") or ""
         cover_url = ""
@@ -163,7 +228,7 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
             "cover": cover_url,
         }
 
-        for lang in set(lang_codes):
+        for lang in lang_codes:
             author_map = by_lang_authors[lang]
             author = author_map.get(author_key)
             if not author:
@@ -214,7 +279,10 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
         for letter, keys in sorted(letters.items(), key=lambda item: item[0]):
             letter_items.append({"letter": letter, "key": letter.lower(), "count": len(keys)})
 
-        lang_root = os.path.join(output_root, "lang", lang)
+        if lang == "all":
+            lang_root = output_root
+        else:
+            lang_root = os.path.join(output_root, "lang", lang)
         write_json(os.path.join(lang_root, "letters.json"), {"letters": letter_items})
 
         # Build letter-level prefix lists or author lists
@@ -304,7 +372,7 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
         search_map = defaultdict(list)
         seen_author_tokens = defaultdict(set)
         for author in authors:
-            token = normalize_search_token(author["name"])
+            token = normalize_search_token(author.get("index") or author.get("name") or "")
             if token:
                 if author["key"] not in seen_author_tokens[token]:
                     search_map[token].append({
@@ -330,19 +398,21 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
         for token, items in search_map.items():
             write_json(os.path.join(lang_root, "search", f"{token}.json"), {"items": items})
 
-        language_summary.append({
-            "code": lang,
-            "count": len(by_lang_books.get(lang, [])),
-        })
+        if lang != "all":
+            language_summary.append({
+                "code": lang,
+                "count": len(by_lang_books.get(lang, [])),
+            })
 
     language_summary.sort(key=lambda item: (-item["count"], item["code"]))
     write_json(os.path.join(output_root, "languages.json"), {"languages": language_summary})
 
 
 def main():
+    default_output = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "reader_lang_indexes"))
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="/Volumes/2T/se_ingest/webbooks")
-    parser.add_argument("--output", default="/tmp/reader_lang_indexes")
+    parser.add_argument("--output", default=default_output)
     parser.add_argument("--max-prefix", type=int, default=5)
     parser.add_argument("--threshold", type=int, default=50)
     parser.add_argument("--limit", type=int)

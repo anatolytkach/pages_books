@@ -889,8 +889,14 @@
 
         function setBreadcrumbs(items) {
           els.breadcrumbs.innerHTML = "";
-          const filtered = (items || []).filter((item) => String(item.label || "").toLowerCase() !== "letters");
-          filtered.forEach((item, idx) => {
+          const mapped = (items || []).map((item) => {
+            const label = String(item.label || "");
+            if (label.trim().toLowerCase() === "letters") {
+              return { ...item, label: "All" };
+            }
+            return item;
+          });
+          mapped.forEach((item, idx) => {
             if (idx > 0) {
               els.breadcrumbs.appendChild(el("span", null, "›"));
             }
@@ -1296,6 +1302,90 @@
           return base.slice(0, 2);
         }
 
+        function normalizeAuthorName(name) {
+          const raw = String(name || "").trim().replace(/\s+/g, " ");
+          if (!raw) {
+            return { display: "", last: "", rest: "", sortKey: "" };
+          }
+          const commaIndex = raw.indexOf(",");
+          let last = "";
+          let rest = "";
+          if (commaIndex > -1) {
+            last = raw.slice(0, commaIndex).trim();
+            rest = raw.slice(commaIndex + 1).trim();
+          } else {
+            const parts = raw.split(" ");
+            if (parts.length === 1) {
+              last = raw;
+            } else {
+              const suffixes = new Set(["jr.", "jr", "sr.", "sr", "ii", "iii", "iv", "v"]);
+              const particles = new Set([
+                "da",
+                "de",
+                "del",
+                "der",
+                "di",
+                "du",
+                "la",
+                "le",
+                "van",
+                "von",
+                "st",
+                "st.",
+                "saint",
+                "san",
+                "den",
+                "ter",
+                "ten",
+                "dos",
+                "das",
+                "della",
+                "dell",
+                "dall",
+                "d'",
+                "l'",
+              ]);
+              const lastToken = parts[parts.length - 1].toLowerCase();
+              if (suffixes.has(lastToken) && parts.length >= 2) {
+                last = parts.slice(-2).join(" ");
+                rest = parts.slice(0, -2).join(" ");
+              } else if (parts.length >= 2) {
+                const penult = parts[parts.length - 2].toLowerCase();
+                if (particles.has(penult)) {
+                  last = parts.slice(-2).join(" ");
+                  rest = parts.slice(0, -2).join(" ");
+                } else {
+                  last = parts.slice(-1).join(" ");
+                  rest = parts.slice(0, -1).join(" ");
+                }
+              }
+            }
+          }
+          if (!last) last = raw;
+          const display = rest ? `${last}, ${rest}` : last;
+          const sortKey = normalizeSearchMatch(`${last} ${rest}`.trim() || display);
+          return { display, last, rest, sortKey };
+        }
+
+        function filterAuthorsForPrefix(authors, letter, prefix) {
+          const token = String(prefix || letter || "").trim();
+          if (!token) return authors;
+          if (token === "#") {
+            return authors.filter((item) => {
+              const parsed = normalizeAuthorName(item.name);
+              return /^\d/.test(parsed.last || "");
+            });
+          }
+          const normalizedToken = normalizeSearchMatch(token).replace(/[^a-z0-9]+/g, "");
+          if (!normalizedToken) return authors;
+          return authors.filter((item) => {
+            const parsed = normalizeAuthorName(item.name);
+            const last = normalizeSearchMatch(parsed.last || "").replace(/[^a-z0-9]+/g, "");
+            if (!last) return false;
+            return last.startsWith(normalizedToken);
+          });
+        }
+
         function matchesQuery(item, query) {
           if (!query) return true;
           const needle = normalizeSearchMatch(query);
@@ -1303,7 +1393,12 @@
           const compactNeedle = needle.replace(/[^a-z0-9]+/g, "");
           let fields = [];
           if (item.type === "book") fields = [item.title, item.author];
-          if (item.type === "author") fields = [item.name];
+          if (item.type === "author") {
+            const parsed = normalizeAuthorName(item.name);
+            const last = normalizeSearchMatch(parsed.last || "").replace(/[^a-z0-9]+/g, "");
+            if (!last) return false;
+            return compactNeedle ? last.startsWith(compactNeedle) : last.startsWith(needle);
+          }
           return fields.some((field) => {
             if (!field) return false;
             const hay = normalizeSearchMatch(field);
@@ -1408,7 +1503,8 @@
                 }
                 if (item.type === "author") {
                   const authorKey = item.key || item.name || "";
-                  const authorName = item.name || item.key || "";
+                  const parsed = normalizeAuthorName(item.name || item.key || "");
+                  const authorName = parsed.display || item.name || item.key || "";
                   return {
                     kind: "author",
                     title: authorName || authorKey,
@@ -1518,7 +1614,10 @@
 
             const author = {
               key: payload.author.key || next.authorKey,
-              name: payload.author.name || next.authorName || next.authorKey,
+              name:
+                normalizeAuthorName(payload.author.name || next.authorName || next.authorKey).display ||
+                next.authorName ||
+                next.authorKey,
             };
             const viewMode = next.bookView || "list";
 
@@ -1622,7 +1721,8 @@
 
         function renderAuthors(authors, letter, prefix) {
           els.content.innerHTML = "";
-          if (!authors.length) {
+          const filteredAuthors = filterAuthorsForPrefix(authors, letter, prefix);
+          if (!filteredAuthors.length) {
             const empty = el("div", "loading", "No authors found.");
             els.content.appendChild(empty);
             return;
@@ -1631,12 +1731,19 @@
           const table = el("table", "list");
           const tbody = el("tbody");
 
-          authors.forEach((item) => {
+          const sorted = filteredAuthors
+            .map((item) => {
+              const parsed = normalizeAuthorName(item.name);
+              return { ...item, displayName: parsed.display || item.name, sortKey: parsed.sortKey || item.name };
+            })
+            .sort((a, b) => a.sortKey.localeCompare(b.sortKey, undefined, { numeric: true, sensitivity: "base" }));
+
+          sorted.forEach((item) => {
             const row = el("tr", "rowLink");
             row.addEventListener("click", () =>
-              navigate({ view: "author", letter, prefix, authorKey: item.key, authorName: item.name })
+              navigate({ view: "author", letter, prefix, authorKey: item.key, authorName: item.displayName || item.name })
             );
-            row.appendChild(el("td", "authorName", item.name));
+            row.appendChild(el("td", "authorName", item.displayName || item.name));
             row.appendChild(el("td", "count", item.count !== null ? `${item.count} books` : ""));
             tbody.appendChild(row);
           });
@@ -2084,7 +2191,13 @@
 
           const author = {
             key: data.key || data.id || authorKey,
-            name: data.name || data.author || data.label || data.title || authorKey,
+            name:
+              normalizeAuthorName(data.name || data.author || data.label || data.title || authorKey).display ||
+              data.name ||
+              data.author ||
+              data.label ||
+              data.title ||
+              authorKey,
           };
           let booksSource = data.books || data.items || data.list || data.results || data.works || data.entries || null;
           if (!booksSource && Array.isArray(data)) booksSource = data;
@@ -2234,7 +2347,10 @@
 
               const author = {
                 key: payload.author.key || state.authorKey,
-                name: payload.author.name || state.authorName || state.authorKey,
+                name:
+                  normalizeAuthorName(payload.author.name || state.authorName || state.authorKey).display ||
+                  state.authorName ||
+                  state.authorKey,
               };
               const viewMode = state.bookView || "grid";
               const bookCount = payload.books ? payload.books.length : 0;
