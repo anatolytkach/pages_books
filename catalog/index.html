@@ -99,6 +99,126 @@
         min-width: 240px;
         display: flex;
         justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .langWrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 0 0 auto;
+        width: max-content;
+        position: relative;
+      }
+
+      .langSelect {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: max-content;
+        height: 44px;
+        padding: 10px 36px 10px 12px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: var(--rect-bg);
+        font-size: 14px;
+        color: var(--ink);
+        cursor: pointer;
+      }
+
+      .langValue {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .langSelect:focus {
+        outline: none;
+        border-color: var(--border-active);
+      }
+
+      .langSelect.disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      .langChevron {
+        margin-left: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .langMenu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        width: max-content;
+        overflow: hidden;
+        background: #f7f7f8;
+        border: 1px solid #d5d9e2;
+        border-radius: var(--radius-md);
+        box-shadow: none;
+        padding: 6px 0;
+        display: none;
+        z-index: 20;
+      }
+
+      .langList {
+        max-height: 540px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+
+      .langList::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+
+      .langList {
+        scrollbar-width: none;
+      }
+
+      .langWrap.open .langMenu {
+        display: block;
+      }
+
+      .langOption {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px;
+        font-size: 14px;
+        color: var(--ink);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .langOption span:first-child {
+        flex: 1;
+      }
+
+      .langOption:hover {
+        background: var(--rect-bg);
+      }
+
+      .langOption.active {
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .langCount {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        min-width: 32px;
+      }
+
+      .langDivider {
+        height: 1px;
+        margin: 4px 12px;
+        background: #d5d9e2;
       }
 
       .searchForm {
@@ -458,6 +578,14 @@
         .searchWrap {
           width: 100%;
           justify-content: flex-start;
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .langWrap {
+          width: 100%;
+        }
+        .searchForm {
+          width: 100%;
         }
         .srItem {
           grid-template-columns: 44px 1fr;
@@ -480,6 +608,13 @@
           <div class="title">ReaderPub Books</div>
         </a>
         <div class="searchWrap">
+          <div class="langWrap" id="languageWrap">
+            <button id="languageSelect" class="langSelect" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span class="langValue">All languages</span>
+              <span class="langChevron">▾</span>
+            </button>
+            <div id="languageMenu" class="langMenu" role="listbox" aria-label="Languages"></div>
+          </div>
           <form id="searchForm" class="searchForm" role="search">
             <input
               id="searchInput"
@@ -525,6 +660,7 @@
           prefix: "",
           authorKey: "",
           authorName: "",
+          language: "all",
           bookView: "grid",
         };
 
@@ -532,6 +668,9 @@
           breadcrumbs: document.getElementById("breadcrumbs"),
           toolbar: document.getElementById("toolbar"),
           brandLink: document.getElementById("brandLink"),
+          languageSelect: document.getElementById("languageSelect"),
+          languageWrap: document.getElementById("languageWrap"),
+          languageMenu: document.getElementById("languageMenu"),
           searchForm: document.getElementById("searchForm"),
           search: document.getElementById("searchInput"),
           searchBtn: document.getElementById("searchBtn"),
@@ -544,6 +683,7 @@
         let REQ_NONCE = 0;
         let SEARCH_NONCE = 0;
         let currentView = null;
+        let activeLanguage = "all";
         let searchState = {
           query: "",
           items: [],
@@ -557,7 +697,86 @@
           prefixNodes: new Map(),
           authorBooks: new Map(),
           searchIndex: new Map(),
+          languages: null,
         };
+
+        const LANGUAGE_NAMES = {
+          af: "Afrikaans",
+          ale: "Aleut",
+          ang: "Old English",
+          ar: "Arabic",
+          arp: "Arapaho",
+          bg: "Bulgarian",
+          bgs: "Tagabawa",
+          bo: "Tibetan",
+          br: "Breton",
+          brx: "Bodo",
+          ca: "Catalan",
+          ceb: "Cebuano",
+          cs: "Czech",
+          csb: "Kashubian",
+          cy: "Welsh",
+          da: "Danish",
+          de: "German",
+          el: "Greek",
+          en: "English",
+          enm: "Middle English",
+          eo: "Esperanto",
+          es: "Spanish",
+          et: "Estonian",
+          fa: "Persian",
+          fi: "Finnish",
+          fr: "French",
+          fur: "Friulian",
+          fy: "Western Frisian",
+          ga: "Irish",
+          gla: "Scottish Gaelic",
+          gl: "Galician",
+          grc: "Ancient Greek",
+          hai: "Haida",
+          he: "Hebrew",
+          hu: "Hungarian",
+          ia: "Interlingua",
+          ilo: "Ilocano",
+          is: "Icelandic",
+          it: "Italian",
+          iu: "Inuktitut",
+          ja: "Japanese",
+          kha: "Khasi",
+          kld: "Gamilaraay",
+          ko: "Korean",
+          la: "Latin",
+          mi: "Maori",
+          myn: "Mayan Languages",
+          nah: "Nahuatl",
+          nai: "American Indigenous",
+          nap: "Neapolitan",
+          nav: "Navajo",
+          nl: "Dutch",
+          no: "Norwegian",
+          oc: "Occitan",
+          oji: "Ojibwe",
+          pl: "Polish",
+          pt: "Portuguese",
+          rmq: "Caló",
+          ro: "Romanian",
+          ru: "Russian",
+          sa: "Sanskrit",
+          sco: "Scots",
+          sl: "Slovenian",
+          sr: "Serbian",
+          sv: "Swedish",
+          te: "Telugu",
+          tl: "Tagalog",
+          und: "Unknown",
+          zh: "Chinese",
+        };
+
+        function formatLanguageLabel(code) {
+          const key = String(code || "").toLowerCase();
+          if (!key) return "";
+          return LANGUAGE_NAMES[key] || LANGUAGE_NAMES[key.split("-")[0]] || key.toUpperCase();
+        }
 
         function el(tag, className, text) {
           const node = document.createElement(tag);
@@ -1150,6 +1369,7 @@
           if (state.prefix) params.set("prefix", state.prefix);
           if (state.authorKey) params.set("authorKey", state.authorKey);
           if (state.authorName) params.set("authorName", state.authorName);
+          if (state.language && state.language !== "all") params.set("lang", state.language);
           if (state.bookView) params.set("bookView", state.bookView);
 
           const hash = `#${params.toString()}`;
@@ -1168,20 +1388,23 @@
           if (params.get("prefix")) state.prefix = params.get("prefix");
           if (params.get("authorKey")) state.authorKey = params.get("authorKey");
           if (params.get("authorName")) state.authorName = params.get("authorName");
+          if (params.get("lang")) state.language = params.get("lang");
           if (params.get("bookView")) state.bookView = params.get("bookView");
           return state;
         }
 
         function navigate(state) {
-          updateHash(state, false);
+          updateHash({ ...parseState(), ...state }, false);
         }
 
         function authorHash(authorKey, authorName) {
           const params = new URLSearchParams();
+          const current = parseState();
           params.set("view", "author");
           if (authorKey) params.set("authorKey", authorKey);
           if (authorName) params.set("authorName", authorName);
-          params.set("bookView", parseState().bookView || "list");
+          if (current.language && current.language !== "all") params.set("lang", current.language);
+          params.set("bookView", current.bookView || "list");
           return `#${params.toString()}`;
         }
 
@@ -1192,11 +1415,13 @@
           updateSearchIcon();
           renderSearchResults();
 
+          const current = parseState();
           const next = {
             view: "author",
             authorKey: authorKey || authorName || "",
             authorName: authorName || authorKey || "",
-            bookView: (parseState().bookView || "list"),
+            bookView: (current.bookView || "list"),
+            language: current.language || "all",
           };
           updateHash(next, false);
 
@@ -1436,7 +1661,19 @@
           }
         }
 
-        function buildUrl(pattern, vars) {
+        function getBaseUrl(langOverride) {
+          if (!config || !config.baseUrl) {
+            throw new Error("catalog.config.json missing baseUrl");
+          }
+          const base = String(config.baseUrl || "");
+          const lang = langOverride !== undefined ? langOverride : activeLanguage;
+          if (!lang || lang === "all") return base;
+          const langBase = config.languageBasePath || "/lang/{lang}";
+          const langPath = String(langBase).replace(/\{lang\}/g, encodeURIComponent(lang));
+          return joinUrl(base, langPath);
+        }
+
+        function buildUrl(pattern, vars, opts = {}) {
           if (!pattern) throw new Error("Missing URL pattern in catalog.config.json");
           let url = String(pattern);
           const replaceMap = {
@@ -1453,10 +1690,8 @@
           });
 
           if (/^https?:\/\//i.test(url)) return url;
-          if (!config || !config.baseUrl) {
-            throw new Error("catalog.config.json missing baseUrl");
-          }
-          return joinUrl(config.baseUrl, url);
+          const base = opts.ignoreLang ? getBaseUrl("all") : getBaseUrl(opts.lang);
+          return joinUrl(base, url);
         }
 
         async function fetchJson(url, nonce) {
@@ -1467,6 +1702,128 @@
             return await res.json();
           } catch (error) {
             throw new Error(`Invalid JSON from ${url}: ${error.message}`);
+          }
+        }
+
+        function normalizeLanguageEntries(data) {
+          if (!data) return [];
+          let list = [];
+          if (Array.isArray(data)) list = data;
+          else if (Array.isArray(data.languages)) list = data.languages;
+          else if (Array.isArray(data.items)) list = data.items;
+          else if (Array.isArray(data.list)) list = data.list;
+          else if (data.languages && typeof data.languages === "object") list = Object.keys(data.languages);
+          else if (typeof data === "object") list = Object.keys(data);
+
+          return list
+            .map((item) => {
+              if (!item) return null;
+              if (typeof item === "string") {
+                const code = item.trim();
+                return code ? { code, label: code.toUpperCase(), count: null } : null;
+              }
+              const code =
+                item.code ||
+                item.lang ||
+                item.language ||
+                item.key ||
+                item.id ||
+                item.value ||
+                item.name;
+              if (!code) return null;
+              const label = item.label || item.title || item.name || String(code).toUpperCase();
+              const count = parseNumber(item.count ?? item.total ?? item.n ?? item.value);
+              return { code: String(code), label: String(label), count };
+            })
+            .filter(Boolean);
+        }
+
+        async function getLanguages(nonce) {
+          if (cache.languages) return cache.languages;
+          if (!config || !config.languagesPath) return [];
+          try {
+            const url = buildUrl(config.languagesPath, {}, { ignoreLang: true });
+            const data = await fetchJson(url, nonce);
+            const languages = normalizeLanguageEntries(data);
+            cache.languages = languages;
+            return languages;
+          } catch (error) {
+            cache.languages = [];
+            return [];
+          }
+        }
+
+        function renderLanguageSelect(languages) {
+          if (!els.languageSelect || !els.languageMenu || !els.languageWrap) return;
+          const current = activeLanguage || "all";
+          const valueNode = els.languageSelect.querySelector(".langValue");
+          if (valueNode) {
+            valueNode.textContent = current === "all" ? "All languages" : formatLanguageLabel(current);
+          }
+
+          els.languageMenu.innerHTML = "";
+          els.languageWrap.classList.remove("open");
+          els.languageSelect.setAttribute("aria-expanded", "false");
+
+          const list = document.createElement("div");
+          list.className = "langList";
+          els.languageMenu.appendChild(list);
+
+          const menuLanguages = [...languages]
+            .map((lang) => ({
+              code: String(lang.code || "").toLowerCase(),
+              label: formatLanguageLabel(lang.code),
+              count: lang.count,
+            }))
+            .filter((lang) => lang.code);
+
+          menuLanguages.sort((a, b) => {
+            if (a.code === "en") return -1;
+            if (b.code === "en") return 1;
+            return a.label.localeCompare(b.label);
+          });
+
+          const allOption = document.createElement("div");
+          allOption.className = "langOption" + (current === "all" ? " active" : "");
+          allOption.setAttribute("role", "option");
+          allOption.dataset.code = "all";
+          allOption.innerHTML = `<span>All languages</span><span class="langCount"></span>`;
+          list.appendChild(allOption);
+
+          menuLanguages.forEach((lang) => {
+            const row = document.createElement("div");
+            row.className = "langOption" + (lang.code === current ? " active" : "");
+            row.setAttribute("role", "option");
+            row.dataset.code = lang.code;
+            const countText = lang.count !== null && lang.count !== undefined ? String(lang.count) : "";
+            row.innerHTML = `<span>${lang.label}</span><span class="langCount">${countText}</span>`;
+            list.appendChild(row);
+          });
+
+          const isDisabled = languages.length === 0;
+          els.languageSelect.classList.toggle("disabled", isDisabled);
+          els.languageSelect.setAttribute("aria-disabled", isDisabled ? "true" : "false");
+        }
+
+        function resetCatalogCache() {
+          cache.letters = null;
+          cache.letterPrefixes.clear();
+          cache.prefixNodes.clear();
+          cache.authorBooks.clear();
+          cache.searchIndex.clear();
+        }
+
+        function setActiveLanguage(lang) {
+          const next = lang || "all";
+          if (activeLanguage !== next) {
+            activeLanguage = next;
+            resetCatalogCache();
+          }
+          if (els.languageSelect) {
+            const valueNode = els.languageSelect.querySelector(".langValue");
+            if (valueNode) {
+              valueNode.textContent = next === "all" ? "All languages" : formatLanguageLabel(next);
+            }
           }
         }
 
@@ -1515,6 +1872,21 @@
             data.nodes ||
             data.prefix_list ||
             data;
+          const authorSource = data.authors || data.author_list || data.people || data.authors_list || null;
+          if (!data.prefixes && !data.children && !data.next && !data.prefix_list && authorSource) {
+            const error = new Error("Letter node contains authors");
+            error.code = "LETTER_AUTHORS";
+            throw error;
+          }
+          if (!data.prefixes && !data.children && !data.next && !data.prefix_list) {
+            const items = data.items || data.list || data.entries || null;
+            const detected = detectListType(items);
+            if (detected === "author") {
+              const error = new Error("Letter node contains authors");
+              error.code = "LETTER_AUTHORS";
+              throw error;
+            }
+          }
           const prefixes = normalizePrefixEntries(source);
           if (!prefixes.length) {
             throw new Error("Prefix list JSON missing expected prefixes array.");
@@ -1670,6 +2042,10 @@
           try {
             await loadConfig(nonce);
             if (nonce !== REQ_NONCE) return;
+            const languages = await getLanguages(nonce);
+            if (nonce !== REQ_NONCE) return;
+            renderLanguageSelect(languages);
+            setActiveLanguage(state.language || "all");
 
             if (!state.view || state.view === "letters") {
               els.content.classList.add("noPanel");
@@ -1841,13 +2217,55 @@
           runSearch();
         });
 
+        if (els.languageSelect && els.languageMenu && els.languageWrap) {
+          const closeLanguageMenu = () => {
+            els.languageWrap.classList.remove("open");
+            els.languageSelect.setAttribute("aria-expanded", "false");
+          };
+
+          const openLanguageMenu = () => {
+            if (els.languageSelect.classList.contains("disabled")) return;
+            els.languageWrap.classList.add("open");
+            els.languageSelect.setAttribute("aria-expanded", "true");
+          };
+
+          els.languageSelect.addEventListener("click", (event) => {
+            event.stopPropagation();
+            if (els.languageWrap.classList.contains("open")) closeLanguageMenu();
+            else openLanguageMenu();
+          });
+
+          els.languageMenu.addEventListener("click", (event) => {
+            const option = event.target.closest(".langOption");
+            if (!option) return;
+            const next = option.dataset.code || "all";
+            closeLanguageMenu();
+            setActiveLanguage(next);
+            els.search.value = "";
+            searchState = { query: "", items: [], error: "", loading: false };
+            updateSearchIcon();
+            renderSearchResults();
+            updateHash({ ...DEFAULT_STATE, language: next }, true);
+            renderState(parseState());
+          });
+
+          document.addEventListener("click", (event) => {
+            if (!els.languageWrap.contains(event.target)) closeLanguageMenu();
+          });
+
+          document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") closeLanguageMenu();
+          });
+
+        }
+
         els.searchBtn.addEventListener("click", (event) => {
           if (els.searchForm.classList.contains("hasQuery")) {
             event.preventDefault();
             els.search.value = "";
             updateSearchIcon();
             runSearch();
-            updateHash(DEFAULT_STATE, true);
+            updateHash({ ...DEFAULT_STATE, language: activeLanguage }, true);
             renderState(parseState());
           }
         });
@@ -1858,7 +2276,7 @@
             els.search.value = "";
             updateSearchIcon();
             runSearch();
-            updateHash(DEFAULT_STATE, true);
+            updateHash({ ...DEFAULT_STATE, language: activeLanguage }, true);
             renderState(parseState());
           });
         }

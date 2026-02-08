@@ -5,5 +5,7 @@
   "letterPrefixesPath": "/p/{letter}.json",
   "prefixNodePath": "/p/{prefix}.json",
   "authorPath": "/a/{key}.json",
-  "searchPath": "/search/{token}.json"
+  "searchPath": "/search/{token}.json",
+  "languagesPath": "/languages.json",
+  "languageBasePath": "/lang/{lang}"
 }
