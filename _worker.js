@@ -3,6 +3,36 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    if (path.startsWith("/books/api/")) {
+      const key = `api/${path.slice("/books/api/".length)}`;
+      if (!env.READER_BOOKS) {
+        const headers = new Headers({
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+        });
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "r2-missing");
+        return new Response("R2 binding missing", { status: 500, headers });
+      }
+      const object = await env.READER_BOOKS.get(key);
+      if (!object) {
+        const headers = new Headers({
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+        });
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "r2-miss");
+        return new Response("Not found", { status: 404, headers });
+      }
+      const headers = new Headers();
+      object.writeHttpMetadata(headers);
+      headers.set("etag", object.httpEtag);
+      headers.set("cache-control", "no-store");
+      headers.set("x-reader-worker", "1");
+      headers.set("x-reader-route", "r2");
+      return new Response(object.body, { headers });
+    }
+
     if (path === "/books/ping") {
       const headers = new Headers({
         "content-type": "text/plain; charset=utf-8",

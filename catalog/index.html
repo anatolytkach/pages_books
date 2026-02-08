@@ -84,6 +84,11 @@
         padding-bottom: 16px;
         border-bottom: 1px solid var(--border);
         margin-bottom: 28px;
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: var(--bg);
+        padding-top: 12px;
       }
 
       .brand {
@@ -914,6 +919,13 @@
           });
         }
 
+        function formatPrefixLabel(value) {
+          const token = String(value || "").trim();
+          if (!token) return "";
+          if (token === "#") return "#";
+          return token.toUpperCase();
+        }
+
         function setToolbar(view, bookView) {
           els.toolbar.innerHTML = "";
           if (view !== "author") return;
@@ -1684,13 +1696,22 @@
             els.content.appendChild(empty);
             return;
           }
+          const mapped = letters
+            .map((letter) => {
+              const label =
+                letter && typeof letter === "object" ? String(letter.label || letter.key || "").trim() : String(letter || "").trim();
+              return label ? { label } : null;
+            })
+            .filter(Boolean);
+          const hashIndex = mapped.findIndex((item) => item.label === "#");
+          if (hashIndex >= 0) {
+            const [hashItem] = mapped.splice(hashIndex, 1);
+            mapped.push(hashItem);
+          }
 
-          letters.forEach((letter) => {
-            const label =
-              letter && typeof letter === "object" ? String(letter.label || letter.key || "").trim() : String(letter || "").trim();
-            if (!label) return;
-            const btn = el("button", "letterBtn", label);
-            btn.addEventListener("click", () => navigate({ view: "prefixes", letter: label }));
+          mapped.forEach((item) => {
+            const btn = el("button", "letterBtn", item.label);
+            btn.addEventListener("click", () => navigate({ view: "prefixes", letter: item.label }));
             grid.appendChild(btn);
           });
           els.content.appendChild(grid);
@@ -1698,7 +1719,8 @@
 
         function renderPrefixes(prefixes, letter) {
           els.content.innerHTML = "";
-          if (!prefixes.length) {
+          const filtered = prefixes.filter((item) => item.count === null || item.count > 0);
+          if (!filtered.length) {
             const empty = el("div", "loading", "No prefixes found.");
             els.content.appendChild(empty);
             return;
@@ -1707,7 +1729,7 @@
           const table = el("table", "list");
           const tbody = el("tbody");
 
-          prefixes.forEach((item) => {
+          filtered.forEach((item) => {
             const row = el("tr", "rowLink");
             row.addEventListener("click", () => navigate({ view: "prefix", letter, prefix: item.prefix }));
             row.appendChild(el("td", "prefixLabel", item.prefix));
@@ -1865,13 +1887,22 @@
         }
 
         async function fetchJson(url, nonce) {
-          const res = await fetch(url, { cache: "no-store" });
+          let finalUrl = url;
+          try {
+            if (!/\\bv=/.test(String(url))) {
+              const joiner = String(url).includes("?") ? "&" : "?";
+              finalUrl = `${url}${joiner}v=${encodeURIComponent(BUILD_STAMP)}`;
+            }
+          } catch (error) {
+            finalUrl = url;
+          }
+          const res = await fetch(finalUrl, { cache: "no-store" });
           if (nonce !== REQ_NONCE) return null;
-          if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${url}`);
+          if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${finalUrl}`);
           try {
             return await res.json();
           } catch (error) {
-            throw new Error(`Invalid JSON from ${url}: ${error.message}`);
+            throw new Error(`Invalid JSON from ${finalUrl}: ${error.message}`);
           }
         }
 
@@ -2133,7 +2164,19 @@
           const cacheKey = letter;
           if (cache.letterPrefixes.has(cacheKey)) return cache.letterPrefixes.get(cacheKey);
           const letterToken = resolveLetterToken(letter);
-          const prefixes = letterToken === "#" ? await getDigitPrefixes(nonce) : await fetchLetterPrefixesForToken(letterToken, nonce);
+          let prefixes;
+          if (letterToken === "#") {
+            try {
+              prefixes = await fetchLetterPrefixesForToken(letterToken, nonce);
+            } catch (error) {
+              if (error && error.code === "LETTER_AUTHORS") {
+                throw error;
+              }
+              prefixes = await getDigitPrefixes(nonce);
+            }
+          } else {
+            prefixes = await fetchLetterPrefixesForToken(letterToken, nonce);
+          }
           cache.letterPrefixes.set(cacheKey, prefixes);
           return prefixes;
         }
@@ -2247,7 +2290,7 @@
                 if (nonce !== REQ_NONCE) return;
                 setBreadcrumbs([
                   { label: "Letters", onClick: () => navigate({ view: "letters" }) },
-                  { label: state.letter },
+                  { label: formatPrefixLabel(state.letter) },
                 ]);
                 setToolbar("prefixes");
                 currentView = { renderer: () => renderPrefixes(prefixes, state.letter), data: prefixes };
@@ -2262,7 +2305,7 @@
                   if (node.authors.length) {
                     setBreadcrumbs([
                       { label: "Letters", onClick: () => navigate({ view: "letters" }) },
-                      { label: state.letter },
+                      { label: formatPrefixLabel(state.letter) },
                     ]);
                     setToolbar("prefix");
                     currentView = {
@@ -2297,8 +2340,8 @@
 
               setBreadcrumbs([
                 { label: "Letters", onClick: () => navigate({ view: "letters" }) },
-                { label: state.letter, onClick: () => navigate({ view: "prefixes", letter: state.letter }) },
-                { label: state.prefix },
+                { label: formatPrefixLabel(state.letter), onClick: () => navigate({ view: "prefixes", letter: state.letter }) },
+                { label: formatPrefixLabel(state.prefix) },
               ]);
 
               if (shouldShowAuthors) {
@@ -2358,10 +2401,13 @@
               setBreadcrumbs([
                 { label: "Letters", onClick: () => navigate({ view: "letters" }) },
                 state.letter
-                  ? { label: state.letter, onClick: () => navigate({ view: "prefixes", letter: state.letter }) }
+                  ? { label: formatPrefixLabel(state.letter), onClick: () => navigate({ view: "prefixes", letter: state.letter }) }
                   : null,
                 state.prefix
-                  ? { label: state.prefix, onClick: () => navigate({ view: "prefix", letter: state.letter, prefix: state.prefix }) }
+                  ? {
+                      label: formatPrefixLabel(state.prefix),
+                      onClick: () => navigate({ view: "prefix", letter: state.letter, prefix: state.prefix }),
+                    }
                   : null,
                 { label: `${author.name} - ${bookCount} books` },
               ].filter(Boolean));
