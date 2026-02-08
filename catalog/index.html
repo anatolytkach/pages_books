@@ -28,16 +28,33 @@
         box-sizing: border-box;
       }
 
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        font-size: 16px;
+      }
+
       body {
         margin: 0;
         color: var(--ink);
         background: var(--bg);
         font-family: "Source Sans 3", "Helvetica Neue", sans-serif;
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
         min-height: 100vh;
         background-image: url("/books/assets/background.png");
         background-size: 100% auto;
         background-position: center bottom;
         background-repeat: no-repeat;
+      }
+
+      input,
+      button,
+      select,
+      textarea {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
       }
 
       a {
@@ -101,6 +118,7 @@
         justify-content: flex-end;
         align-items: center;
         gap: 12px;
+        flex-wrap: nowrap;
       }
 
       .langWrap {
@@ -155,8 +173,8 @@
         left: 0;
         width: max-content;
         overflow: hidden;
-        background: #f7f7f8;
-        border: 1px solid #d5d9e2;
+        background: var(--rect-bg);
+        border: 1px solid var(--border);
         border-radius: var(--radius-md);
         box-shadow: none;
         padding: 6px 0;
@@ -168,6 +186,7 @@
         max-height: 540px;
         overflow-y: auto;
         overscroll-behavior: contain;
+        background: var(--rect-bg);
       }
 
       .langList::-webkit-scrollbar {
@@ -193,6 +212,7 @@
         color: var(--ink);
         cursor: pointer;
         white-space: nowrap;
+        background: var(--rect-bg);
       }
 
       .langOption span:first-child {
@@ -223,7 +243,9 @@
 
       .searchForm {
         position: relative;
-        width: min(420px, 100%);
+        flex: 1 1 auto;
+        min-width: 0;
+        width: auto;
       }
 
       .searchInput {
@@ -265,6 +287,33 @@
         justify-content: center;
         border-radius: 50%;
         color: var(--accent-2);
+      }
+
+      .searchPlaceholder {
+        position: absolute;
+        left: 16px;
+        right: 46px;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.15;
+        pointer-events: none;
+        white-space: normal;
+      }
+
+      .searchInput:focus ~ .searchPlaceholder {
+        opacity: 0;
+      }
+
+      .searchInput:placeholder-shown ~ .searchPlaceholder {
+        opacity: 1;
+      }
+
+      .searchInput:not(:placeholder-shown) ~ .searchPlaceholder {
+        opacity: 0;
       }
 
       .searchBtn:hover {
@@ -389,6 +438,8 @@
         text-align: left;
         padding: 10px 8px;
         border-bottom: 1px solid var(--border);
+        white-space: normal;
+        overflow-wrap: anywhere;
       }
 
       .authorName {
@@ -579,14 +630,16 @@
         .searchWrap {
           width: 100%;
           justify-content: flex-start;
-          align-items: stretch;
-          flex-direction: column;
+          align-items: center;
+          flex-direction: row;
+          flex-wrap: nowrap;
         }
         .langWrap {
-          width: 100%;
+          width: auto;
         }
         .searchForm {
-          width: 100%;
+          flex: 1;
+          min-width: 0;
         }
         .srItem {
           grid-template-columns: 44px 1fr;
@@ -621,9 +674,10 @@
               id="searchInput"
               class="searchInput"
               type="search"
-              placeholder="Search authors and titles"
+              placeholder=" "
               autocomplete="off"
             />
+            <span class="searchPlaceholder">Author or title</span>
             <button id="searchBtn" class="searchBtn" type="submit" aria-label="Search">
               <svg class="icon icon-search" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle>
@@ -812,7 +866,8 @@
 
         function setBreadcrumbs(items) {
           els.breadcrumbs.innerHTML = "";
-          items.forEach((item, idx) => {
+          const filtered = (items || []).filter((item) => String(item.label || "").toLowerCase() !== "letters");
+          filtered.forEach((item, idx) => {
             if (idx > 0) {
               els.breadcrumbs.appendChild(el("span", null, "›"));
             }
@@ -937,7 +992,6 @@
             body.appendChild(el("div", "srTitle", item.title));
             if (item.meta) body.appendChild(el("div", "srMeta", item.meta));
             row.appendChild(body);
-            row.appendChild(el("div", "srHint", item.hint || "Open"));
             els.searchResults.appendChild(row);
           });
 
@@ -991,7 +1045,6 @@
             body.appendChild(el("div", "srTitle", item.title));
             if (item.meta) body.appendChild(el("div", "srMeta", item.meta));
             row.appendChild(body);
-            row.appendChild(el("div", "srHint", item.hint || "Open"));
             els.searchResults.appendChild(row);
           });
         }
@@ -1525,12 +1578,6 @@
           }
 
           const table = el("table", "list");
-          const thead = el("thead");
-          const headRow = el("tr");
-          headRow.appendChild(el("th", null, "Prefix"));
-          headRow.appendChild(el("th", "count", "Count"));
-          thead.appendChild(headRow);
-          table.appendChild(thead);
           const tbody = el("tbody");
 
           prefixes.forEach((item) => {
@@ -1554,12 +1601,6 @@
           }
 
           const table = el("table", "list");
-          const thead = el("thead");
-          const headRow = el("tr");
-          headRow.appendChild(el("th", null, "Author"));
-          headRow.appendChild(el("th", "count", "Count"));
-          thead.appendChild(headRow);
-          table.appendChild(thead);
           const tbody = el("tbody");
 
           authors.forEach((item) => {
@@ -1621,12 +1662,6 @@
             els.content.appendChild(grid);
           } else {
             const table = el("table", "list");
-            const thead = el("thead");
-            const headRow = el("tr");
-            headRow.appendChild(el("th", null, "Title"));
-            headRow.appendChild(el("th", "count", ""));
-            thead.appendChild(headRow);
-            table.appendChild(thead);
             const tbody = el("tbody");
 
             books.forEach((book) => {
@@ -1638,7 +1673,6 @@
               link.rel = "noopener noreferrer";
               cell.appendChild(link);
               row.appendChild(cell);
-              row.appendChild(el("td", "count", ""));
               tbody.appendChild(row);
             });
 
