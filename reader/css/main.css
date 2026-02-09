@@ -457,7 +457,7 @@ html.is-desktop #openBookmarks {
 #viewerStack.swiping #viewer-next { z-index: 1; }
 /* During swipe, avoid white seams by letting any gap show the same dim tone */
 #viewerStack.swiping {
-  background: var(--reader-bg, #f1f1dd);
+  background: var(--reader-bg, #ffffff);
 }
 #viewerStack.swiping #viewer,
 #viewerStack.swiping #viewer-prev,
@@ -541,13 +541,13 @@ html.fb-swipe-margins #main::after { right: 0; }
 
 /* Android: reduce shimmer by disabling forced GPU compositing */
 @media (hover: none) and (pointer: coarse) {
-  html:not(.is-ios) #viewer,
-  html:not(.is-ios) #viewer-prev,
-  html:not(.is-ios) #viewer-next,
-  html:not(.is-ios) #viewerStack iframe,
-  html:not(.is-ios) #viewer iframe,
-  html:not(.is-ios) #viewer-prev iframe,
-  html:not(.is-ios) #viewer-next iframe {
+  html:not(.is-ios):not(.is-tablet) #viewer,
+  html:not(.is-ios):not(.is-tablet) #viewer-prev,
+  html:not(.is-ios):not(.is-tablet) #viewer-next,
+  html:not(.is-ios):not(.is-tablet) #viewerStack iframe,
+  html:not(.is-ios):not(.is-tablet) #viewer iframe,
+  html:not(.is-ios):not(.is-tablet) #viewer-prev iframe,
+  html:not(.is-ios):not(.is-tablet) #viewer-next iframe {
     transform: none !important;
     -webkit-transform: none !important;
     will-change: auto !important;
