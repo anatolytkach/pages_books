@@ -792,14 +792,14 @@ body.dark-ui #bottombar {
   flex-shrink: 0;
 }
 
-/* Desktop: center the search field in the titlebar */
+/* Desktop: keep search in flow to avoid title overlap */
 @media (hover: hover) and (pointer: fine) {
   #searchDesktop {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 2;
+    position: static;
+    left: auto;
+    top: auto;
+    transform: none;
+    z-index: auto;
   }
 }
 
@@ -2985,7 +2985,9 @@ html.is-tablet.tablet-portrait .overlay-head {
     flex: 1 1 auto;
     min-width: 0;
     margin-left: 8px; /* stable; no large clamp on narrow widths */
+    max-width: none;
   }
+  #metaText { max-width: 100%; width: 100%; }
   #title-controls {
     margin-left: auto;
     flex: 0 0 auto;
@@ -3063,6 +3065,14 @@ html.is-tablet #title-controls {
   margin-left: auto;
   gap: 5.2px;
 }
+/* Tablet: keep search in flow (no absolute centering) */
+html.is-tablet #searchDesktop {
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  z-index: auto;
+}
 html.is-tablet #title-controls a,
 html.is-tablet #title-controls button{
   height: 24.7px;
@@ -3072,8 +3082,8 @@ html.is-tablet #title-controls .font-size-btn{ padding: 5.2px 3.9px; }
 html.is-tablet #title-controls .font-size-btn + .font-size-btn{ margin-left: 2.6px; }
 html.is-tablet #title-controls .theme-icon{ width: 23.4px; height: 23.4px; }
 
-/* Tablet: force desktop search layout + scale inner controls */
-html.is-tablet #searchDesktop { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+/* Tablet: force desktop search layout + scale inner controls (keep in flow) */
+html.is-tablet #searchDesktop { position: static; left: auto; top: auto; transform: none; }
 html.is-tablet .search-desktop { gap: 10.4px; }
 html.is-tablet .search-infield-icon { left: 10.4px; }
 html.is-tablet .search-mag-svg { width: 26px; height: 26px; }
