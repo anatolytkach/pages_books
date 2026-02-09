@@ -2360,6 +2360,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-toc #tocView,
 #overlay-bookmarks #bookmarksView,
 #overlay-notes #notesView,
+#overlay-mybooks #mybooksView,
 #overlay-menu #menuView {
   font-family: var(--ui-font-family);
   font-size: calc(var(--bottom-font-size, 14px) * 1.2);
@@ -2376,6 +2377,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-toc #tocView ul,
 #overlay-bookmarks #bookmarksView ul,
 #overlay-notes #notesView ul,
+#overlay-mybooks #mybooksView ul,
 #overlay-menu #menuView ul {
   list-style: none;
   margin: 0;
@@ -2385,6 +2387,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-toc #tocView li,
 #overlay-bookmarks #bookmarksView li,
 #overlay-notes #notesView li,
+#overlay-mybooks #mybooksView li,
 #overlay-menu #menuView li {
   margin: 0;
   padding: 0;
@@ -2396,6 +2399,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-toc #tocView a,
 #overlay-bookmarks #bookmarksView a,
 #overlay-notes #notesView a,
+#overlay-mybooks #mybooksView a,
 #overlay-menu #menuView a {
   display: block;
   padding: 10px 6px;
@@ -2453,7 +2457,8 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-menu #menuView .menu-label{
   flex: 1 1 auto;
 }
-#overlay-bookmarks #bookmarksView .bookmark-text{
+#overlay-bookmarks #bookmarksView .bookmark-text,
+#overlay-mybooks #mybooksView .bookmark-text{
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -2470,7 +2475,8 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-notes #notesView .note_link{
   font-size: calc(var(--bottom-font-size, 14px) * 1.2);
 }
-#overlay-bookmarks #bookmarksView .bookmark-comment{
+#overlay-bookmarks #bookmarksView .bookmark-comment,
+#overlay-mybooks #mybooksView .bookmark-comment{
   margin: 4px 6px 8px;
   padding: 6px 8px;
   border: 1px solid var(--fbbar-border);
@@ -2503,7 +2509,8 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   box-sizing: border-box;
 }
 
-#overlay-bookmarks #bookmarksView .bookmark-delete{
+#overlay-bookmarks #bookmarksView .bookmark-delete,
+#overlay-mybooks #mybooksView .bookmark-delete{
   flex: 0 0 32px;
   width: 32px;
   height: 32px;
@@ -2516,7 +2523,8 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   cursor: pointer;
   padding: 0;
 }
-#overlay-bookmarks #bookmarksView .bookmark-delete svg{
+#overlay-bookmarks #bookmarksView .bookmark-delete svg,
+#overlay-mybooks #mybooksView .bookmark-delete svg{
   width: 18px;
   height: 18px;
   stroke: currentColor;

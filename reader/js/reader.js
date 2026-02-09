@@ -6016,6 +6016,12 @@ EPUBJS.reader.MetaController = function(meta) {
 		$title.html(title);
 		$author.html(author);
 		$dash.show();
+
+		try {
+			if (window.__fbMyBooks && typeof window.__fbMyBooks.addFromMeta === "function") {
+				window.__fbMyBooks.addFromMeta(title, author);
+			}
+		} catch (e) {}
 };
 
 EPUBJS.reader.NotesController = function() {
@@ -6734,10 +6740,207 @@ EPUBJS.reader.TocController = function(toc) {
 			}
 	});
 
-	return {
+return {
 		"show" : onShow,
 		"hide" : onHide
 	};
 };
+
+// ---- My Books (recently opened) ----
+(function () {
+	function getBookId() {
+		try {
+			var params = new URLSearchParams(window.location.search || "");
+			var qid = params.get("id");
+			if (qid && qid.trim()) return qid.trim();
+		} catch (e) {}
+		try {
+			var hid = (window.location.hash || "").replace(/^#/, "");
+			if (hid && hid.trim()) return hid.trim();
+		} catch (e2) {}
+		return "";
+	}
+
+	var STORAGE_KEY = "readerpub:mybooks:" + window.location.host;
+	var _memoryList = [];
+	var _lastSaveOk = null;
+
+	function getStorage() {
+		try {
+			return window.localStorage || null;
+		} catch (e) {
+			return null;
+		}
+	}
+
+	function loadList() {
+		var storage = getStorage();
+		if (!storage) return _memoryList.slice();
+		try {
+			var raw = storage.getItem(STORAGE_KEY);
+			if (!raw) return _memoryList.slice();
+			var parsed = JSON.parse(raw);
+			if (Array.isArray(parsed)) {
+				_memoryList = parsed.slice();
+				return parsed;
+			}
+			return _memoryList.slice();
+		} catch (e) {
+			return _memoryList.slice();
+		}
+	}
+
+	function saveList(list) {
+		_memoryList = Array.isArray(list) ? list.slice() : [];
+		var storage = getStorage();
+		if (!storage) { _lastSaveOk = false; return; }
+		try {
+			storage.setItem(STORAGE_KEY, JSON.stringify(list || []));
+			_lastSaveOk = true;
+		} catch (e) { _lastSaveOk = false; }
+	}
+
+	function render(list) {
+		var ul = document.getElementById("mybooks");
+		if (!ul) return;
+		var items = list || loadList();
+		while (ul.firstChild) ul.removeChild(ul.firstChild);
+		for (var i = 0; i < items.length; i++) {
+			var item = items[i];
+			if (!item || !item.id) continue;
+			var li = document.createElement("li");
+			li.className = "list_item";
+			li.setAttribute("data-book-id", item.id);
+
+			var wrap = document.createElement("div");
+			wrap.className = "bookmark-text";
+
+			var link = document.createElement("a");
+			link.className = "bookmark_link";
+			link.textContent = item.title || ("Book " + item.id);
+			link.href = "?id=" + encodeURIComponent(item.id);
+			link.setAttribute("data-book-id", item.id);
+			link.addEventListener("click", function (ev) {
+				ev.preventDefault();
+				var targetId = this.getAttribute("data-book-id") || "";
+				if (targetId) {
+					window.location.search = "?id=" + encodeURIComponent(targetId);
+				}
+				try { if (window.__fbCloseOverlays) window.__fbCloseOverlays(); } catch (e) {}
+			});
+
+			wrap.appendChild(link);
+			if (item.author) {
+				var meta = document.createElement("div");
+				meta.className = "bookmark-comment";
+				meta.textContent = item.author;
+				wrap.appendChild(meta);
+			}
+			li.appendChild(wrap);
+
+			var btn = document.createElement("button");
+			btn.type = "button";
+			btn.className = "bookmark-delete";
+			btn.setAttribute("aria-label", "Delete book");
+			btn.setAttribute("data-book-id", item.id);
+			btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+				+ '<path d="M4 7h16" />'
+				+ '<path d="M9 7V5h6v2" />'
+				+ '<rect x="6" y="7" width="12" height="13" rx="2" />'
+				+ '<path d="M10 11v6" />'
+				+ '<path d="M14 11v6" />'
+				+ '</svg>';
+			btn.addEventListener("click", function (ev) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				var bid = this.getAttribute("data-book-id");
+				removeBook(bid);
+			});
+			li.appendChild(btn);
+			ul.appendChild(li);
+		}
+	}
+
+	function addFromMeta(title, author) {
+		var id = getBookId();
+		if (!id || !/^\d+$/.test(id)) return;
+		upsertBook({ id: id, title: title || "", author: author || "" });
+	}
+
+	function upsertBook(entry) {
+		if (!entry || !entry.id) return;
+		var list = loadList();
+		var now = Date.now();
+		var existingIndex = -1;
+		for (var i = 0; i < list.length; i++) {
+			if (String(list[i].id) === String(entry.id)) {
+				existingIndex = i;
+				break;
+			}
+		}
+		var next = {
+			id: entry.id,
+			title: entry.title || (existingIndex >= 0 ? (list[existingIndex].title || "") : ""),
+			author: entry.author || (existingIndex >= 0 ? (list[existingIndex].author || "") : ""),
+			openedAt: now
+		};
+		if (existingIndex >= 0) list.splice(existingIndex, 1);
+		list.unshift(next);
+		if (list.length > 200) list.length = 200;
+		saveList(list);
+		render(list);
+	}
+
+	function ensureCurrentBook() {
+		var id = getBookId();
+		if (!id || !/^\d+$/.test(id)) return;
+		upsertBook({ id: id, title: "", author: "" });
+	}
+
+	function removeBook(id) {
+		if (!id) return;
+		var list = loadList();
+		for (var i = 0; i < list.length; i++) {
+			if (String(list[i].id) === String(id)) {
+				list.splice(i, 1);
+				break;
+			}
+		}
+		saveList(list);
+		render(list);
+	}
+
+	function syncFromDom() {
+		try {
+			var titleEl = document.getElementById("book-title");
+			var authorEl = document.getElementById("chapter-title");
+			var title = titleEl ? titleEl.textContent : "";
+			var author = authorEl ? authorEl.textContent : "";
+			if ((title && title.trim()) || (author && author.trim())) {
+				addFromMeta(title, author);
+			}
+		} catch (e) {}
+	}
+
+	window.__fbMyBooks = {
+		addFromMeta: addFromMeta,
+		render: render,
+		remove: removeBook,
+		syncFromDom: syncFromDom,
+		ensureCurrentBook: ensureCurrentBook
+	};
+
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", function () {
+			render();
+			ensureCurrentBook();
+			setTimeout(syncFromDom, 600);
+		});
+	} else {
+		render();
+		ensureCurrentBook();
+		setTimeout(syncFromDom, 600);
+	}
+})();
 
 //# sourceMappingURL=reader.js.map

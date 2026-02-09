@@ -102,8 +102,9 @@
 <!-- Render -->
 <script src="js/epub.js"></script>
 <!-- Reader -->
-<script src="js/reader.js"></script>
+<script src="js/reader.js?v=20260209-1"></script>
 <script src="js/fullscreen-fix.js"></script>
+<script src="js/fbreader-ui.js?v=20260209-1"></script>
 <!-- Plugins -->
 <!--
 -->
@@ -145,6 +146,16 @@
     <div class="view" id="notesView"><ul id="notes"></ul></div>
   </div>
 </div>
+<div id="overlay-mybooks" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="My Books">
+  <div class="overlay-head">
+    <div class="overlay-title">My Books</div>
+    <button class="overlay-close" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="overlay-sep" aria-hidden="true"></div>
+  <div class="overlay-scroll">
+    <div class="view" id="mybooksView"><ul id="mybooks"></ul></div>
+  </div>
+</div>
 <div id="overlay-menu" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Menu">
   <div class="overlay-head">
     <div class="overlay-title">Menu</div>
@@ -177,6 +188,12 @@
           <button class="menu-item" type="button" data-menu="bookmarks" aria-label="Bookmarks">
             <span class="menu-icon icon-bookmark" aria-hidden="true"></span>
             <span class="menu-label">Bookmarks</span>
+          </button>
+        </li>
+        <li>
+          <button class="menu-item" type="button" data-menu="mybooks" aria-label="My Books">
+            <span class="menu-icon icon-list" aria-hidden="true"></span>
+            <span class="menu-label">My Books</span>
           </button>
         </li>
       </ul>
@@ -387,6 +404,5 @@
 <div class="overlay"></div>
 </div>
 
-<script src="js/fbreader-ui.js"></script>
 </body>
 </html>

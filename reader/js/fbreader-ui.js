@@ -512,6 +512,7 @@
     var overlayToc = document.getElementById("overlay-toc");
     var overlayBookmarks = document.getElementById("overlay-bookmarks");
     var overlayNotes = document.getElementById("overlay-notes");
+    var overlayMyBooks = document.getElementById("overlay-mybooks");
     var overlayMenu = document.getElementById("overlay-menu");
     var menuView = document.getElementById("menuView");
     var btnToc = document.getElementById("slider");
@@ -524,6 +525,7 @@
       if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
       if (overlayNotes) overlayNotes.classList.add("hidden");
       if (overlayMenu) overlayMenu.classList.add("hidden");
+      if (overlayMyBooks) overlayMyBooks.classList.add("hidden");
       if (backdrop) backdrop.classList.add("hidden");
       try { document.body.classList.remove("overlay-open"); } catch (e) {}
     }
@@ -534,6 +536,7 @@
       if (overlayBookmarks) overlayBookmarks.style.zIndex = z;
       if (overlayNotes) overlayNotes.style.zIndex = z;
       if (overlayMenu) overlayMenu.style.zIndex = z;
+      if (overlayMyBooks) overlayMyBooks.style.zIndex = z;
       if (backdrop) backdrop.style.zIndex = (z - 1);
     }
 
@@ -565,7 +568,19 @@
         if (overlayToc) overlayToc.classList.add("hidden");
         if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
         if (overlayNotes) overlayNotes.classList.add("hidden");
+        if (overlayMyBooks) overlayMyBooks.classList.add("hidden");
         if (overlayMenu) overlayMenu.classList.remove("hidden");
+      } else if (which === "mybooks") {
+        if (overlayToc) overlayToc.classList.add("hidden");
+        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
+        if (overlayNotes) overlayNotes.classList.add("hidden");
+        if (overlayMenu) overlayMenu.classList.add("hidden");
+        if (overlayMyBooks) overlayMyBooks.classList.remove("hidden");
+        try {
+          if (window.__fbMyBooks && typeof window.__fbMyBooks.ensureCurrentBook === "function") window.__fbMyBooks.ensureCurrentBook();
+          if (window.__fbMyBooks && typeof window.__fbMyBooks.syncFromDom === "function") window.__fbMyBooks.syncFromDom();
+          if (window.__fbMyBooks && typeof window.__fbMyBooks.render === "function") window.__fbMyBooks.render();
+        } catch (e) {}
       }
     }
 
@@ -620,7 +635,7 @@
     });
 
     // Close when user selects a link (both overlays)
-    ["tocView", "bookmarksView", "notesView"].forEach(function (id) {
+    ["tocView", "bookmarksView", "notesView", "mybooksView"].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el || el.__fbCloseOnClick) return;
       el.__fbCloseOnClick = true;
