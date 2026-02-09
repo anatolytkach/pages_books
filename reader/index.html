@@ -52,8 +52,19 @@
 (function(){
   const params = new URLSearchParams(location.search);
   const qid = params.get("id");
-  const hid = (location.hash || "").replace(/^#/, "");
-  const id = (qid && qid.trim()) || (hid && hid.trim()) || "";
+  const rawHash = (location.hash || "");
+  const hid = rawHash.replace(/^#/, "");
+  const hashIsId = /^\d+$/.test(hid);
+  const hashIsCfi = /^epubcfi\(/i.test(hid);
+  let id = (qid && qid.trim()) || (hashIsId ? hid.trim() : "") || "";
+
+  // Fallback: remember last opened book id
+  try {
+    if (!/^\d+$/.test(id)) {
+      const lastId = localStorage && localStorage.getItem("readerpub:lastid");
+      if (lastId && /^\d+$/.test(lastId)) id = lastId;
+    }
+  } catch (e0) {}
 
   if(!/^\d+$/.test(id)){
     const el = document.getElementById("viewer");
@@ -70,6 +81,17 @@
     }
     return;
   }
+
+  // Always keep ?id in URL (for reload/share). Preserve CFI hash if present.
+  try {
+    if (!qid || qid !== id) {
+      const newSearch = `?id=${encodeURIComponent(id)}`;
+      const keepHash = hashIsCfi ? rawHash : "";
+      history.replaceState(null, "", `${location.pathname}${newSearch}${keepHash}`);
+    }
+  } catch (e1) {}
+
+  try { localStorage && localStorage.setItem("readerpub:lastid", id); } catch (e2) {}
 
   // Our catalog stores each book as an unpacked EPUB directory:
   // /books/content/<id>/META-INF/container.xml, /OEBPS/content.opf, ...
@@ -107,10 +129,19 @@
 
   // If hash changes to a different numeric id, reload the reader.
   window.addEventListener("hashchange", () => {
-    const newId = (location.hash || "").replace(/^#/, "");
+    const newHash = (location.hash || "");
+    const newId = newHash.replace(/^#/, "");
     if(/^\d+$/.test(newId) && newId !== id){
       location.search = `?id=${encodeURIComponent(newId)}`;
+      return;
     }
+    // If hash is a CFI but ?id is missing, restore it.
+    try {
+      const p = new URLSearchParams(location.search);
+      if (!p.get("id") && /^\d+$/.test(id)) {
+        history.replaceState(null, "", `${location.pathname}?id=${encodeURIComponent(id)}${newHash}`);
+      }
+    } catch (e) {}
   });
 })();
               }
