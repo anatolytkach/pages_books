@@ -77,11 +77,33 @@
 
   const opts = {
     openAs: "directory",
-    restore: false
+    restore: true
   };
 
   // Run Reader
   window.reader = ePubReader(bookPath, opts);
+
+  // Restore last position for this book (independent of EPUB.js internal restore)
+  (function(){
+    try {
+      if (!window.reader || !window.reader.rendition) return;
+      const key = `readerpub:lastcfi:${id}`;
+      try {
+        const last = localStorage && localStorage.getItem(key);
+        if (last) {
+          window.reader.rendition.display(last);
+        }
+      } catch (e1) {}
+      try {
+        window.reader.rendition.on("relocated", function(location){
+          try {
+            const cfi = location && location.start && location.start.cfi;
+            if (cfi && localStorage) localStorage.setItem(key, cfi);
+          } catch (e2) {}
+        });
+      } catch (e3) {}
+    } catch (e0) {}
+  })();
 
   // If hash changes to a different numeric id, reload the reader.
   window.addEventListener("hashchange", () => {
