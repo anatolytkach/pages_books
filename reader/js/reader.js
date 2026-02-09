@@ -3238,6 +3238,34 @@ function _applyUiScale(fontSizePct) {
   var scale = _percentToScale(fontSizePct);
   document.documentElement.style.setProperty('--ui-font-scale', String(scale));
 }
+function primeThemeForContents(contents, themeName) {
+  try {
+    if (!contents) return;
+    var doc = contents.document || contents.doc || null;
+    if (!doc || !doc.documentElement || !doc.body) return;
+    var isDark = themeName === "dark";
+    var bg = isDark ? "#000000" : "#FCFAF8";
+    var fg = isDark ? "#ffffff" : "#000000";
+    try {
+      if (contents.addStylesheetRules) {
+        contents.addStylesheetRules({
+          "html, body": {
+            "background": bg,
+            "color": fg
+          }
+        });
+      }
+    } catch (e0) {}
+    try { doc.documentElement.style.setProperty("background-color", bg, "important"); } catch (e1) {}
+    try { doc.body.style.setProperty("background-color", bg, "important"); } catch (e2) {}
+    try { doc.documentElement.style.setProperty("color", fg, "important"); } catch (e3) {}
+    try { doc.body.style.setProperty("color", fg, "important"); } catch (e4) {}
+    try {
+      var fe = (doc.defaultView && doc.defaultView.frameElement) ? doc.defaultView.frameElement : null;
+      if (fe && fe.style) fe.style.setProperty("background-color", bg, "important");
+    } catch (e5) {}
+  } catch (e6) {}
+}
 function applyThemeToDoc(doc, themeName) {
   try {
     if (!doc || !doc.documentElement || !doc.body) return;
@@ -3367,6 +3395,8 @@ function applyThemeToIframes(themeName) {
 
 	// Ensure swipe/tap handlers are attached for ALL renditions (current + neighbor views),
 	// so center-tap works on every page even after navigation and pre-render swaps.
+	try { this.renditionPrev.hooks.content.register(function(contents){ primeThemeForContents(contents, reader.currentTheme || "light"); }); } catch(e) {}
+	try { this.renditionNext.hooks.content.register(function(contents){ primeThemeForContents(contents, reader.currentTheme || "light"); }); } catch(e) {}
 	try { this.renditionPrev.hooks.content.register(attachToDoc); } catch(e) {}
 	try { this.renditionNext.hooks.content.register(attachToDoc); } catch(e) {}
 	try {
@@ -4920,6 +4950,7 @@ function attachSwipeToDoc(doc) {
 
 		// ---- /Swipe navigation ----
 
+try { rendition.hooks.content.register(function(contents){ primeThemeForContents(contents, reader.currentTheme || "light"); }); } catch (e) {}
 try { rendition.hooks.content.register(attachToDoc); } catch (e) {}
 
 // CRITICAL: Attach swipe/tap handlers via epub.js content hooks as well.
@@ -4940,9 +4971,17 @@ try {
   function scanIframes(){
     try {
       var iframes = document.querySelectorAll("#viewerStack iframe, #viewer iframe, #viewer-prev iframe, #viewer-next iframe");
+      var t = reader.currentTheme || "light";
+      var bg = (t === "dark") ? "#000000" : "#FCFAF8";
       for (var i=0;i<iframes.length;i++) {
         var f = iframes[i];
-        if (f && f.contentDocument) attachToDoc(f.contentDocument);
+        if (f && f.style) {
+          try { f.style.setProperty("background-color", bg, "important"); } catch(e1) {}
+        }
+        if (f && f.contentDocument) {
+          try { applyThemeToDoc(f.contentDocument, t); } catch(e2) {}
+          attachToDoc(f.contentDocument);
+        }
       }
     } catch(e) {}
   }
