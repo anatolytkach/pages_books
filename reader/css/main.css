@@ -2313,19 +2313,20 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   width: 100%;
 }
 .overlay-close {
-  display: none; /* mobile only */
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  width: 40px;
-  height: 40px;
+  display: inline-flex;
+  position: static;
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: var(--fbbar-fg-strong);
-  font-size: 20px;
-  line-height: 40px;
+  font-size: 22px;
+  line-height: 24px;
   box-shadow: none;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Mobile fallback: JS adds .is-mobile when viewport is mobile-like */
@@ -2396,6 +2397,18 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   gap: 10px;
   width: 100%;
 }
+#overlay-mybooks #mybooksView li{
+  border-bottom: 1px solid var(--fbbar-border);
+}
+#overlay-notes #notesView li{
+  border-bottom: 1px solid var(--fbbar-border);
+}
+#overlay-notes #notesView li:first-child{
+  border-top: 0;
+}
+#overlay-notes #notesView li:last-child{
+  border-bottom: 0;
+}
 #overlay-toc #tocView a,
 #overlay-bookmarks #bookmarksView a,
 #overlay-notes #notesView a,
@@ -2409,6 +2422,12 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   flex: 1 1 auto;
   width: 100%;
   box-sizing: border-box;
+}
+#overlay-mybooks #mybooksView a{
+  border-bottom: 0;
+}
+#overlay-notes #notesView a{
+  border-bottom: 0;
 }
 #overlay-menu #menuView .menu-item{
   width: 100%;
@@ -2424,35 +2443,36 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   cursor: pointer;
   font: inherit;
 }
+#overlay-menu #menuView{
+  --menu-icon-size: 24px;
+}
 #overlay-menu #menuView .menu-icon{
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
+  width: var(--menu-icon-size);
+  height: var(--menu-icon-size);
+  flex: 0 0 var(--menu-icon-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 #overlay-menu #menuView .menu-icon:before{
   margin-right: 0;
+  font-size: var(--menu-icon-size);
+  line-height: 1;
+  display: inline-block;
 }
 #overlay-menu #menuView .menu-icon svg{
-  width: 20px;
-  height: 20px;
+  width: var(--menu-icon-size);
+  height: var(--menu-icon-size);
+  display: block;
   stroke: currentColor;
   fill: none !important;
-  stroke-width: 1.6;
+  stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-#overlay-menu #menuView .menu-icon.icon-list:before{
-  font-size: 20px;
-  transform: scale(1.3);
-  transform-origin: center;
-  display: inline-block;
-}
-#overlay-menu #menuView .menu-icon.icon-list svg{
-  transform: scale(1.3);
-  transform-origin: center;
+#overlay-menu #menuView .menu-icon-catalog svg{
+  fill: currentColor !important;
+  stroke: none !important;
 }
 #overlay-menu #menuView .menu-label{
   flex: 1 1 auto;
@@ -2464,6 +2484,11 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   flex-direction: column;
   min-width: 0;
   width: 100%;
+}
+#overlay-mybooks #mybooksView .bookmark-text .bookmark_link{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 #overlay-notes #notesView .note-text{
   flex: 1 1 auto;
@@ -2478,14 +2503,14 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-bookmarks #bookmarksView .bookmark-comment,
 #overlay-mybooks #mybooksView .bookmark-comment{
   margin: 4px 6px 8px;
-  padding: 6px 8px;
-  border: 1px solid var(--fbbar-border);
-  border-radius: 6px;
-  background: var(--fbbar-hover);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: inherit;
   font-size: 12px;
   line-height: 1.4;
-  max-height: calc(1.4em * 4 + 8px);
+  max-height: calc(1.4em * 4);
   overflow-y: auto;
   white-space: normal;
   word-break: break-word;
@@ -2494,14 +2519,14 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 }
 #overlay-notes #notesView .note-comment{
   margin: 4px 6px 8px;
-  padding: 6px 8px;
-  border: 1px solid var(--fbbar-border);
-  border-radius: 6px;
-  background: var(--fbbar-hover);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: inherit;
   font-size: 12px;
   line-height: 1.4;
-  max-height: calc(1.4em * 4 + 8px);
+  max-height: calc(1.4em * 4);
   overflow-y: auto;
   white-space: normal;
   word-break: break-word;
