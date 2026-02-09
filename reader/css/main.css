@@ -301,6 +301,12 @@ body.dark #fullscreen {
   border-radius: 4px;
 }
 
+/* Desktop: use hamburger menu only (same as mobile/tablet) */
+html.is-desktop #openNotes,
+html.is-desktop #openBookmarks {
+  display: none !important;
+}
+
 /* Make icon buttons behave the same on <button> as on <a> */
 #titlebar button {
   background: none;

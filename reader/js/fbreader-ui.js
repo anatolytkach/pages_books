@@ -572,8 +572,7 @@
     if (btnToc) {
       btnToc.addEventListener("click", function (e) {
         e.preventDefault();
-        if (isMobileViewport() || isTabletPortrait()) open("menu");
-        else open("toc");
+        open("menu");
       });
     }
     if (btnNotes) {
