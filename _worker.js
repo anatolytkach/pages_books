@@ -2,9 +2,11 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
+    const decodedPath = decodeURIComponent(path);
 
-    if (path.startsWith("/books/api/")) {
-      const key = `api/${path.slice("/books/api/".length)}`;
+    if (decodedPath.startsWith("/books/api/")) {
+      const decodedKey = `api/${decodedPath.slice("/books/api/".length)}`;
+      const rawKey = `api/${path.slice("/books/api/".length)}`;
       if (!env.READER_BOOKS) {
         const headers = new Headers({
           "content-type": "text/plain; charset=utf-8",
@@ -14,7 +16,10 @@ export default {
         headers.set("x-reader-route", "r2-missing");
         return new Response("R2 binding missing", { status: 500, headers });
       }
-      const object = await env.READER_BOOKS.get(key);
+      let object = await env.READER_BOOKS.get(decodedKey);
+      if (!object && rawKey !== decodedKey) {
+        object = await env.READER_BOOKS.get(rawKey);
+      }
       if (!object) {
         const headers = new Headers({
           "content-type": "text/plain; charset=utf-8",

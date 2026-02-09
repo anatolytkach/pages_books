@@ -372,9 +372,9 @@
         margin-top: auto;
         padding-top: 6px;
         padding-bottom: 4px;
-        font-size: 13px;
+        font-size: 16px;
         color: #ffffff;
-        text-shadow: 0 3px 8px rgba(0, 0, 0, 0.9);
+        text-shadow: 0 3px 10px rgba(0, 0, 0, 0.95);
         text-align: center;
       }
 
@@ -743,7 +743,7 @@
           prefix: "",
           authorKey: "",
           authorName: "",
-          language: "all",
+          language: "en",
           bookView: "grid",
         };
 
@@ -766,7 +766,7 @@
         let REQ_NONCE = 0;
         let SEARCH_NONCE = 0;
         let currentView = null;
-        let activeLanguage = "all";
+        let activeLanguage = "en";
         let searchState = {
           query: "",
           items: [],
@@ -922,7 +922,7 @@
         function formatPrefixLabel(value) {
           const token = String(value || "").trim();
           if (!token) return "";
-          if (token === "#") return "#";
+          if (token === "#" || token.toLowerCase() === "num") return "#";
           return token.toUpperCase();
         }
 
@@ -1305,11 +1305,11 @@
           return String(text || "")
             .toLowerCase()
             .normalize("NFKD")
-            .replace(/[\u0300-\u036f]/g, "");
+            .replace(/\p{M}+/gu, "");
         }
 
         function normalizeSearchToken(query) {
-          const base = normalizeSearchMatch(query).replace(/[^a-z0-9]+/g, "");
+          const base = normalizeSearchMatch(query).replace(/[^\p{L}\p{N}]+/gu, "");
           if (base.length < 2) return "";
           return base.slice(0, 2);
         }
@@ -1382,17 +1382,17 @@
         function filterAuthorsForPrefix(authors, letter, prefix) {
           const token = String(prefix || letter || "").trim();
           if (!token) return authors;
-          if (token === "#") {
+          if (token === "#" || token.toLowerCase() === "num") {
             return authors.filter((item) => {
               const parsed = normalizeAuthorName(item.name);
               return /^\d/.test(parsed.last || "");
             });
           }
-          const normalizedToken = normalizeSearchMatch(token).replace(/[^a-z0-9]+/g, "");
+          const normalizedToken = normalizeSearchMatch(token).replace(/[^\p{L}\p{N}]+/gu, "");
           if (!normalizedToken) return authors;
           return authors.filter((item) => {
             const parsed = normalizeAuthorName(item.name);
-            const last = normalizeSearchMatch(parsed.last || "").replace(/[^a-z0-9]+/g, "");
+            const last = normalizeSearchMatch(parsed.last || "").replace(/[^\p{L}\p{N}]+/gu, "");
             if (!last) return false;
             return last.startsWith(normalizedToken);
           });
@@ -1402,12 +1402,12 @@
           if (!query) return true;
           const needle = normalizeSearchMatch(query);
           if (!needle) return true;
-          const compactNeedle = needle.replace(/[^a-z0-9]+/g, "");
+          const compactNeedle = needle.replace(/[^\p{L}\p{N}]+/gu, "");
           let fields = [];
           if (item.type === "book") fields = [item.title, item.author];
           if (item.type === "author") {
             const parsed = normalizeAuthorName(item.name);
-            const last = normalizeSearchMatch(parsed.last || "").replace(/[^a-z0-9]+/g, "");
+            const last = normalizeSearchMatch(parsed.last || "").replace(/[^\p{L}\p{N}]+/gu, "");
             if (!last) return false;
             return compactNeedle ? last.startsWith(compactNeedle) : last.startsWith(needle);
           }
@@ -1415,7 +1415,7 @@
             if (!field) return false;
             const hay = normalizeSearchMatch(field);
             if (hay.includes(needle)) return true;
-            if (compactNeedle && hay.replace(/[^a-z0-9]+/g, "").includes(compactNeedle)) return true;
+            if (compactNeedle && hay.replace(/[^\p{L}\p{N}]+/gu, "").includes(compactNeedle)) return true;
             return false;
           });
         }
@@ -1451,7 +1451,7 @@
             searchState = {
               query,
               items: [],
-              error: "No matches found",
+              error: "Enter at least two characters in the Search field",
               loading: false,
             };
             renderSearchResults();
@@ -1559,7 +1559,7 @@
           if (state.prefix) params.set("prefix", state.prefix);
           if (state.authorKey) params.set("authorKey", state.authorKey);
           if (state.authorName) params.set("authorName", state.authorName);
-          if (state.language && state.language !== "all") params.set("lang", state.language);
+          if (state.language && state.language !== DEFAULT_STATE.language) params.set("lang", state.language);
           if (state.bookView) params.set("bookView", state.bookView);
 
           const hash = `#${params.toString()}`;
@@ -1593,7 +1593,7 @@
           params.set("view", "author");
           if (authorKey) params.set("authorKey", authorKey);
           if (authorName) params.set("authorName", authorName);
-          if (current.language && current.language !== "all") params.set("lang", current.language);
+          if (current.language && current.language !== DEFAULT_STATE.language) params.set("lang", current.language);
           params.set("bookView", current.bookView || "list");
           return `#${params.toString()}`;
         }
@@ -1978,20 +1978,28 @@
             }))
             .filter((lang) => lang.code);
 
-          menuLanguages.sort((a, b) => {
-            if (a.code === "en") return -1;
-            if (b.code === "en") return 1;
-            return a.label.localeCompare(b.label);
-          });
+          const english = menuLanguages.find((lang) => lang.code === "en") || null;
+          const others = menuLanguages
+            .filter((lang) => lang.code !== "en")
+            .sort((a, b) => a.label.localeCompare(b.label));
 
-          const allOption = document.createElement("div");
-          allOption.className = "langOption" + (current === "all" ? " active" : "");
-          allOption.setAttribute("role", "option");
-          allOption.dataset.code = "all";
-          allOption.innerHTML = `<span>All languages</span><span class="langCount"></span>`;
-          list.appendChild(allOption);
+          if (english) {
+            const row = document.createElement("div");
+            row.className = "langOption" + (english.code === current ? " active" : "");
+            row.setAttribute("role", "option");
+            row.dataset.code = english.code;
+            const countText = english.count !== null && english.count !== undefined ? String(english.count) : "";
+            row.innerHTML = `<span>${english.label}</span><span class="langCount">${countText}</span>`;
+            list.appendChild(row);
+          }
 
-          menuLanguages.forEach((lang) => {
+          const totalCount = languages.reduce((sum, lang) => {
+            const value = typeof lang.count === "number" ? lang.count : parseInt(lang.count, 10);
+            return sum + (Number.isFinite(value) ? value : 0);
+          }, 0);
+          const allCount = totalCount > 0 ? String(totalCount) : "";
+
+          others.forEach((lang) => {
             const row = document.createElement("div");
             row.className = "langOption" + (lang.code === current ? " active" : "");
             row.setAttribute("role", "option");
@@ -2000,6 +2008,13 @@
             row.innerHTML = `<span>${lang.label}</span><span class="langCount">${countText}</span>`;
             list.appendChild(row);
           });
+
+          const allOption = document.createElement("div");
+          allOption.className = "langOption" + (current === "all" ? " active" : "");
+          allOption.setAttribute("role", "option");
+          allOption.dataset.code = "all";
+          allOption.innerHTML = `<span>All languages</span><span class="langCount">${allCount}</span>`;
+          list.appendChild(allOption);
 
           const isDisabled = languages.length === 0;
           els.languageSelect.classList.toggle("disabled", isDisabled);
@@ -2490,7 +2505,7 @@
             els.search.value = "";
             updateSearchIcon();
             runSearch();
-            updateHash({ ...DEFAULT_STATE, language: activeLanguage }, true);
+            updateHash({ ...DEFAULT_STATE, language: DEFAULT_STATE.language }, true);
             renderState(parseState());
           }
         });
@@ -2501,7 +2516,7 @@
             els.search.value = "";
             updateSearchIcon();
             runSearch();
-            updateHash({ ...DEFAULT_STATE, language: activeLanguage }, true);
+            updateHash({ ...DEFAULT_STATE, language: DEFAULT_STATE.language }, true);
             renderState(parseState());
           });
         }

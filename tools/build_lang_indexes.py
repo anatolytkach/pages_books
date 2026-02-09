@@ -12,15 +12,23 @@ def clean_text(value: str) -> str:
 
 def strip_diacritics(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value)
-    return normalized.encode("ascii", "ignore").decode("ascii")
+    return "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
 
 def normalize_lang(code: str) -> str:
     base = clean_text(code).lower().replace("_", "-")
     base = re.sub(r"[^a-z0-9-]+", "-", base)
     base = re.sub(r"-+", "-", base).strip("-")
+    if "-" in base:
+        base = base.split("-", 1)[0]
     return base or "und"
 
 def normalize_index(value: str) -> str:
+    base = strip_diacritics(clean_text(value)).lower()
+    base = re.sub(r"[^\w]+", "", base, flags=re.UNICODE)
+    base = base.replace("_", "")
+    return base
+
+def normalize_index_ascii(value: str) -> str:
     base = strip_diacritics(clean_text(value)).lower()
     base = re.sub(r"[^a-z0-9]+", "", base)
     return base
@@ -34,7 +42,8 @@ def normalize_search_match(value: str) -> str:
 
 def normalize_search_token(value: str) -> str:
     base = normalize_search_match(value)
-    base = re.sub(r"[^a-z0-9]+", "", base)
+    base = re.sub(r"[^\w]+", "", base, flags=re.UNICODE)
+    base = base.replace("_", "")
     return base[:2] if len(base) >= 2 else ""
 
 def parse_author_name(name: str) -> tuple[str, str, str, str]:
@@ -179,10 +188,270 @@ def write_json(path: str, data):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
 
+def read_json(path: str, default=None):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return default
+
+def load_existing_authors(lang_root: str):
+    authors_by_key = {}
+    a_dir = os.path.join(lang_root, "a")
+    if not os.path.isdir(a_dir):
+        return authors_by_key, []
+    for entry in os.scandir(a_dir):
+        if not entry.is_file() or not entry.name.endswith(".json"):
+            continue
+        data = read_json(entry.path, {}) or {}
+        key = data.get("key") or os.path.splitext(entry.name)[0]
+        name = data.get("name") or key
+        books = data.get("books") or []
+        authors_by_key[key] = {
+            "key": key,
+            "name": name,
+            "books": books,
+        }
+    return authors_by_key, list(authors_by_key.values())
+
+def build_language_indexes(lang: str, authors: list, output_root: str, max_prefix: int, threshold: int) -> int:
+    authors_by_key = {a["key"]: a for a in authors}
+    for author in authors:
+        display, _last, _rest, index_name = parse_author_name(author.get("name", ""))
+        author["name"] = display or author.get("name", "")
+        author["index"] = normalize_index(index_name or author["name"]) or slugify(author["name"])
+        author["index_ascii"] = normalize_index_ascii(index_name or author["name"])
+        if "books" not in author or not isinstance(author["books"], list):
+            author["books"] = []
+        author["books"].sort(key=lambda b: b.get("title", ""))
+
+    books = []
+    for author in authors:
+        for book in author.get("books", []):
+            books.append({
+                "id": book.get("id"),
+                "title": book.get("title"),
+                "author": author.get("name", ""),
+                "author_key": author.get("key", ""),
+                "cover": book.get("cover", ""),
+            })
+
+    letters = defaultdict(set)
+    prefix_authors = defaultdict(set)
+
+    for author in authors:
+        idx = author.get("index") or ""
+        if lang == "en":
+            idx = author.get("index_ascii") or idx
+        if not idx:
+            continue
+        first = idx[0]
+        letter = "#" if first.isdigit() else first.upper()
+        letters[letter].add(author["key"])
+        max_len = min(max_prefix, len(idx))
+        for length in range(1, max_len + 1):
+            prefix_authors[idx[:length]].add(author["key"])
+
+    letter_items = []
+    for letter, keys in sorted(letters.items(), key=lambda item: item[0]):
+        if letter == "#":
+            letter_key = "num"
+        else:
+            letter_key = letter.lower()
+        letter_items.append({"letter": letter, "key": letter_key, "count": len(keys)})
+
+    lang_root = output_root if lang == "all" else os.path.join(output_root, "lang", lang)
+    write_json(os.path.join(lang_root, "letters.json"), {"letters": letter_items})
+
+    for letter, keys in letters.items():
+        letter_key = "num" if letter == "#" else letter.lower()
+        author_keys = sorted(keys)
+        if len(author_keys) < threshold:
+            authors_payload = []
+            for key in author_keys:
+                author = authors_by_key.get(key)
+                if not author:
+                    continue
+                authors_payload.append({
+                    "key": author["key"],
+                    "name": author["name"],
+                    "count": len(author.get("books", [])),
+                })
+            node = {
+                "authors": authors_payload,
+                "authorCount": len(authors_payload),
+            }
+            write_json(os.path.join(lang_root, "p", f"{letter_key}.json"), node)
+            continue
+
+        prefixes = []
+        seen = set()
+        for prefix, pkeys in prefix_authors.items():
+            if len(prefix) < 2:
+                continue
+            if letter == "#":
+                if not prefix[0].isdigit():
+                    continue
+            else:
+                if prefix[0].upper() != letter:
+                    continue
+            if prefix in seen:
+                continue
+            seen.add(prefix)
+            prefixes.append({"prefix": prefix, "count": len(pkeys)})
+        prefixes.sort(key=lambda item: item["prefix"])
+        write_json(os.path.join(lang_root, "p", f"{letter_key}.json"), {"prefixes": prefixes})
+
+    for prefix, keys in prefix_authors.items():
+        author_keys = sorted(keys)
+        prefix_node = {
+            "authorCount": len(author_keys),
+        }
+        next_length = len(prefix) + 1
+        if len(author_keys) < threshold or len(prefix) >= max_prefix:
+            authors_payload = []
+            for key in author_keys:
+                author = authors_by_key.get(key)
+                if not author:
+                    continue
+                authors_payload.append({
+                    "key": author["key"],
+                    "name": author["name"],
+                    "count": len(author.get("books", [])),
+                })
+            prefix_node["authors"] = authors_payload
+        else:
+            child_prefixes = []
+            seen = set()
+            for key in author_keys:
+                idx = authors_by_key[key]["index"]
+                if len(idx) < next_length:
+                    continue
+                child = idx[:next_length]
+                if child in seen:
+                    continue
+                seen.add(child)
+                child_keys = prefix_authors.get(child, set())
+                child_prefixes.append({"prefix": child, "count": len(child_keys)})
+            child_prefixes.sort(key=lambda item: item["prefix"])
+            prefix_node["prefixes"] = child_prefixes
+
+        write_json(os.path.join(lang_root, "p", f"{prefix}.json"), prefix_node)
+
+    for author in authors:
+        author_out = {
+            "key": author["key"],
+            "name": author["name"],
+            "books": author.get("books", []),
+        }
+        write_json(os.path.join(lang_root, "a", f"{author['key']}.json"), author_out)
+
+    search_map = defaultdict(list)
+    seen_author_tokens = defaultdict(set)
+    for author in authors:
+        token = normalize_search_token(author.get("index") or author.get("name") or "")
+        if token:
+            if author["key"] not in seen_author_tokens[token]:
+                search_map[token].append({
+                    "t": "a",
+                    "k": author["key"],
+                    "n": author["name"],
+                    "c": len(author.get("books", [])),
+                })
+                seen_author_tokens[token].add(author["key"])
+
+    for book in books:
+        token = normalize_search_token(book.get("title") or "")
+        if not token:
+            continue
+        search_map[token].append({
+            "id": book.get("id"),
+            "title": book.get("title"),
+            "a": book.get("author"),
+            "k": book.get("author_key"),
+            "cover": book.get("cover"),
+        })
+
+    for token, items in search_map.items():
+        write_json(os.path.join(lang_root, "search", f"{token}.json"), {"items": items})
+
+    return len(books)
+
+def build_incremental(input_root: str, output_root: str, book_id: str, max_prefix: int, threshold: int):
+    book_path = os.path.join(input_root, book_id)
+    container_path = os.path.join(book_path, "META-INF", "container.xml")
+    if not os.path.exists(container_path):
+        raise FileNotFoundError(f"Missing container.xml for book {book_id}")
+
+    opf_rel = parse_container(container_path)
+    if not opf_rel:
+        raise FileNotFoundError(f"Missing OPF path for book {book_id}")
+    opf_path = os.path.join(book_path, opf_rel)
+    if not os.path.exists(opf_path):
+        raise FileNotFoundError(f"Missing OPF file for book {book_id}")
+
+    opf_data = parse_opf(opf_path)
+    title = opf_data.get("title") or book_id
+    creators = opf_data.get("creators") or []
+    author_name_raw = creators[0] if creators else "Unknown"
+    author_display, _last, _rest, index_name = parse_author_name(author_name_raw)
+    author_name = author_display or author_name_raw
+    author_key = slugify(author_name_raw) or f"author-{book_id}"
+
+    languages = opf_data.get("languages") or ["und"]
+    lang_codes = [normalize_lang(code) for code in languages if code]
+    if not lang_codes:
+        lang_codes = ["und"]
+    lang_codes = set(lang_codes)
+    lang_codes.add("all")
+
+    cover_href = opf_data.get("cover_href") or ""
+    cover_url = ""
+    if cover_href:
+        cover_rel_dir = os.path.dirname(opf_rel)
+        cover_rel = os.path.normpath(os.path.join(cover_rel_dir, cover_href))
+        cover_url = f"/books/content/{book_id}/{cover_rel}"
+
+    book_entry = {
+        "id": book_id,
+        "title": title,
+        "cover": cover_url,
+    }
+
+    languages_path = os.path.join(output_root, "languages.json")
+    languages_data = read_json(languages_path, {"languages": []}) or {"languages": []}
+    lang_map = {item.get("code"): item.get("count", 0) for item in languages_data.get("languages", []) if item.get("code")}
+
+    for lang in lang_codes:
+        lang_root = output_root if lang == "all" else os.path.join(output_root, "lang", lang)
+        authors_by_key, authors = load_existing_authors(lang_root)
+        author = authors_by_key.get(author_key)
+        if not author:
+            author = {
+                "key": author_key,
+                "name": author_name,
+                "books": [],
+            }
+            authors_by_key[author_key] = author
+            authors.append(author)
+        else:
+            author["name"] = author_name
+
+        has_book = any(b.get("id") == book_id for b in author.get("books", []))
+        if not has_book:
+            author["books"].append(book_entry)
+
+        book_count = build_language_indexes(lang, authors, output_root, max_prefix, threshold)
+        if lang != "all":
+            lang_map[lang] = book_count
+
+    lang_items = [{"code": code, "count": count} for code, count in lang_map.items()]
+    lang_items.sort(key=lambda item: (-item["count"], item["code"]))
+    write_json(languages_path, {"languages": lang_items})
+
 
 def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold: int, limit: int | None):
     by_lang_authors = defaultdict(dict)
-    by_lang_books = defaultdict(list)
 
     processed = 0
     for book_id, book_path in iter_books(input_root):
@@ -240,13 +509,6 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
                 }
                 author_map[author_key] = author
             author["books"].append(book_entry)
-            by_lang_books[lang].append({
-                "id": book_id,
-                "title": title,
-                "author": author_name,
-                "author_key": author_key,
-                "cover": cover_url,
-            })
 
         processed += 1
         if limit and processed >= limit:
@@ -256,152 +518,11 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
 
     for lang, author_map in by_lang_authors.items():
         authors = list(author_map.values())
-        for author in authors:
-            author["books"].sort(key=lambda b: b.get("title", ""))
-
-        authors_by_key = {a["key"]: a for a in authors}
-
-        letters = defaultdict(set)
-        prefix_authors = defaultdict(set)
-
-        for author in authors:
-            idx = author.get("index") or ""
-            if not idx:
-                continue
-            first = idx[0]
-            letter = "#" if first.isdigit() else first.upper()
-            letters[letter].add(author["key"])
-            max_len = min(max_prefix, len(idx))
-            for length in range(1, max_len + 1):
-                prefix_authors[idx[:length]].add(author["key"])
-
-        letter_items = []
-        for letter, keys in sorted(letters.items(), key=lambda item: item[0]):
-            letter_items.append({"letter": letter, "key": letter.lower(), "count": len(keys)})
-
-        if lang == "all":
-            lang_root = output_root
-        else:
-            lang_root = os.path.join(output_root, "lang", lang)
-        write_json(os.path.join(lang_root, "letters.json"), {"letters": letter_items})
-
-        # Build letter-level prefix lists or author lists
-        for letter, keys in letters.items():
-            letter_key = letter.lower()
-            author_keys = sorted(keys)
-            if len(author_keys) < threshold:
-                authors_payload = []
-                for key in author_keys:
-                    author = authors_by_key.get(key)
-                    if not author:
-                        continue
-                    authors_payload.append({
-                        "key": author["key"],
-                        "name": author["name"],
-                        "count": len(author["books"]),
-                    })
-                node = {
-                    "authors": authors_payload,
-                    "authorCount": len(authors_payload),
-                }
-                write_json(os.path.join(lang_root, "p", f"{letter_key}.json"), node)
-                continue
-
-            # Prefix list for the letter (length 2)
-            prefixes = []
-            seen = set()
-            for prefix, pkeys in prefix_authors.items():
-                if len(prefix) < 2:
-                    continue
-                if prefix[0].upper() != letter:
-                    continue
-                if prefix in seen:
-                    continue
-                seen.add(prefix)
-                prefixes.append({"prefix": prefix, "count": len(pkeys)})
-            prefixes.sort(key=lambda item: item["prefix"])
-            write_json(os.path.join(lang_root, "p", f"{letter_key}.json"), {"prefixes": prefixes})
-
-        # Build prefix nodes
-        for prefix, keys in prefix_authors.items():
-            author_keys = sorted(keys)
-            prefix_node = {
-                "authorCount": len(author_keys),
-            }
-            next_length = len(prefix) + 1
-            if len(author_keys) < threshold or len(prefix) >= max_prefix:
-                authors_payload = []
-                for key in author_keys:
-                    author = authors_by_key.get(key)
-                    if not author:
-                        continue
-                    authors_payload.append({
-                        "key": author["key"],
-                        "name": author["name"],
-                        "count": len(author["books"]),
-                    })
-                prefix_node["authors"] = authors_payload
-            else:
-                child_prefixes = []
-                seen = set()
-                for key in author_keys:
-                    idx = authors_by_key[key]["index"]
-                    if len(idx) < next_length:
-                        continue
-                    child = idx[:next_length]
-                    if child in seen:
-                        continue
-                    seen.add(child)
-                    child_keys = prefix_authors.get(child, set())
-                    child_prefixes.append({"prefix": child, "count": len(child_keys)})
-                child_prefixes.sort(key=lambda item: item["prefix"])
-                prefix_node["prefixes"] = child_prefixes
-
-            write_json(os.path.join(lang_root, "p", f"{prefix}.json"), prefix_node)
-
-        # Build author JSON files
-        for author in authors:
-            author_out = {
-                "key": author["key"],
-                "name": author["name"],
-                "books": author["books"],
-            }
-            write_json(os.path.join(lang_root, "a", f"{author['key']}.json"), author_out)
-
-        # Build search indexes
-        search_map = defaultdict(list)
-        seen_author_tokens = defaultdict(set)
-        for author in authors:
-            token = normalize_search_token(author.get("index") or author.get("name") or "")
-            if token:
-                if author["key"] not in seen_author_tokens[token]:
-                    search_map[token].append({
-                        "t": "a",
-                        "k": author["key"],
-                        "n": author["name"],
-                        "c": len(author["books"]),
-                    })
-                    seen_author_tokens[token].add(author["key"])
-
-        for book in by_lang_books.get(lang, []):
-            token = normalize_search_token(book["title"])
-            if not token:
-                continue
-            search_map[token].append({
-                "id": book["id"],
-                "title": book["title"],
-                "a": book["author"],
-                "k": book["author_key"],
-                "cover": book["cover"],
-            })
-
-        for token, items in search_map.items():
-            write_json(os.path.join(lang_root, "search", f"{token}.json"), {"items": items})
-
+        book_count = build_language_indexes(lang, authors, output_root, max_prefix, threshold)
         if lang != "all":
             language_summary.append({
                 "code": lang,
-                "count": len(by_lang_books.get(lang, [])),
+                "count": book_count,
             })
 
     language_summary.sort(key=lambda item: (-item["count"], item["code"]))
@@ -416,8 +537,12 @@ def main():
     parser.add_argument("--max-prefix", type=int, default=5)
     parser.add_argument("--threshold", type=int, default=50)
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--book-id")
     args = parser.parse_args()
 
+    if args.book_id:
+        build_incremental(args.input, args.output, str(args.book_id), args.max_prefix, args.threshold)
+        return
     build_indexes(args.input, args.output, args.max_prefix, args.threshold, args.limit)
 
 
