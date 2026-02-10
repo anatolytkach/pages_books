@@ -339,10 +339,17 @@
         display: block;
       }
 
+      .breadcrumbs-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
       #breadcrumbs {
         font-size: 13px;
         color: var(--muted);
-        margin-bottom: 18px;
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
@@ -356,6 +363,32 @@
 
       #breadcrumbs a:hover {
         text-decoration: underline;
+      }
+
+      .my-books-link {
+        font-size: 13px;
+        color: var(--accent);
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .my-books-link:hover {
+        text-decoration: underline;
+      }
+
+      .my-books-link {
+        font-size: 13px;
+        color: var(--accent);
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .my-books-link:hover {
+        text-decoration: underline;
+      }
+
+      #breadcrumbs .my-books-link {
+        margin-left: auto;
       }
 
       #toolbar {
@@ -720,7 +753,10 @@
         </div>
       </header>
       <main id="main">
-        <div id="breadcrumbs"></div>
+        <div id="breadcrumbsRow" class="breadcrumbs-row">
+          <div id="breadcrumbs"></div>
+          <a class="my-books-link" href="/books/reader/?mybooks=1" target="_blank" rel="noopener noreferrer">My Books</a>
+        </div>
         <div id="toolbar"></div>
         <div id="searchResults"></div>
         <div id="content" class="panel"></div>
@@ -749,6 +785,7 @@
 
         const els = {
           breadcrumbs: document.getElementById("breadcrumbs"),
+          breadcrumbsRow: document.getElementById("breadcrumbsRow"),
           toolbar: document.getElementById("toolbar"),
           brandLink: document.getElementById("brandLink"),
           languageSelect: document.getElementById("languageSelect"),
@@ -947,13 +984,15 @@
           els.searchResults.innerHTML = "";
           if (!searchState.query) {
             els.searchResults.style.display = "none";
-            els.breadcrumbs.style.display = "";
+            if (els.breadcrumbsRow) els.breadcrumbsRow.style.display = "";
+            else els.breadcrumbs.style.display = "";
             els.content.style.display = "";
             els.toolbar.style.display = "";
             return;
           }
           els.searchResults.style.display = "block";
-          els.breadcrumbs.style.display = "none";
+          if (els.breadcrumbsRow) els.breadcrumbsRow.style.display = "none";
+          else els.breadcrumbs.style.display = "none";
           els.content.style.display = "none";
           els.toolbar.style.display = "none";
           const headText = searchState.loading
