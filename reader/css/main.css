@@ -29,6 +29,8 @@ body {
   /* Must match actual desktop #titlebar height (see #titlebar rule below) */
   --titlebar-h: 32px;
   --bottombar-h: 32px;
+  --app-vh: 100vh;
+  --app-vw: 100vw;
   /* Tap zones for page turns (overlays content on mobile) */
   --arrow-hit: 32px;
 
@@ -38,7 +40,12 @@ body {
 }
 
 html, body {
-  height: 100%;
+  height: var(--app-vh, 100vh);
+}
+
+#container {
+  position: relative;
+  height: var(--app-vh, 100vh);
 }
 
 /* ---------- Mobile layout tweaks ---------- */
@@ -1897,6 +1904,24 @@ body.dark{
   background: transparent;
 }
 
+#fb-tap-left,
+#fb-tap-right{
+  position: absolute;
+  top: var(--titlebar-h);
+  bottom: var(--bottombar-h);
+  width: 0;
+  pointer-events: none;
+  background: transparent;
+}
+#fb-tap-left{ left: 0; }
+#fb-tap-right{ right: 0; }
+
+html.is-tablet #fb-tap-left,
+html.is-tablet #fb-tap-right{
+  width: 33.34vw;
+  pointer-events: none;
+}
+
 /* Disable center-tap capture while overlays are open (TOC / Bookmarks), so backdrop clicks work reliably */
 body.sidebar-open #fb-tap-layer{ display:none; }
 body.overlay-open #fb-tap-layer{ display:none; }
@@ -3143,7 +3168,7 @@ html.is-tablet #searchDesktop .search-btn.search-return {
   padding: 0;
 }
 
-/* Tablets: no page-turn arrows */
+/* Tablets: hide legacy side arrows (gestures/taps handled in iframe) */
 html.is-tablet #prev,
 html.is-tablet #next {
   display: none !important;

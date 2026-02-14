@@ -7,7 +7,7 @@
   "use strict";
 
   // -------- device detection --------
-  var __fb_isDesktop = (function () {
+  var __fb_desktopRaw = (function () {
     try {
       // "desktop" here means: wide viewport OR real mouse/trackpad (hover)
       if (window.matchMedia && window.matchMedia("(min-width: 769px)").matches) return true;
@@ -15,6 +15,7 @@
     } catch (e) {}
     return false;
   })();
+  var __fb_isDesktop = __fb_desktopRaw;
 
   window.__fb_isDesktop = __fb_isDesktop;
   window.__fb_no_fullscreen__ = __fb_isDesktop;
@@ -75,6 +76,17 @@
     return false;
   }
 
+  function syncDesktopFlag() {
+    try {
+      var isTablet = isTabletViewport();
+      var effectiveDesktop = __fb_desktopRaw && !isTablet;
+      __fb_isDesktop = effectiveDesktop;
+      window.__fb_isDesktop = effectiveDesktop;
+      window.__fb_no_fullscreen__ = effectiveDesktop;
+      document.documentElement.classList.toggle("is-desktop", !!effectiveDesktop);
+    } catch (e) {}
+  }
+
   function isTabletPortrait() {
     try {
       if (!isTabletViewport()) return false;
@@ -94,16 +106,107 @@
       root.classList.toggle("is-phone", !!isPhone);
       root.classList.toggle("tablet-portrait", !!(isTablet && isTabletPortrait()));
       root.classList.toggle("tablet-landscape", !!(isTablet && !isTabletPortrait()));
+      syncDesktopFlag();
     } catch (e) {}
   }
   syncTabletClass();
+  function syncViewportVars() {
+    try {
+      var vv = window.visualViewport;
+      var h = (vv && vv.height) ? vv.height : (window.innerHeight || 0);
+      var w = (vv && vv.width) ? vv.width : (window.innerWidth || 0);
+      if (h) document.documentElement.style.setProperty("--app-vh", h + "px");
+      if (w) document.documentElement.style.setProperty("--app-vw", w + "px");
+    } catch (e) {}
+  }
+
+  function forceRenditionResize() {
+    try {
+      if (window.reader) {
+        if (window.reader.rendition && window.reader.rendition.resize) window.reader.rendition.resize();
+        if (window.reader.renditionPrev && window.reader.renditionPrev.resize) window.reader.renditionPrev.resize();
+        if (window.reader.renditionNext && window.reader.renditionNext.resize) window.reader.renditionNext.resize();
+      }
+    } catch (e) {}
+  }
+
+  function scheduleLayoutSync() {
+    try {
+      syncViewportVars();
+      syncBarHeights();
+      forceRenditionResize();
+      requestAnimationFrame(function(){
+        syncViewportVars();
+        syncBarHeights();
+        forceRenditionResize();
+      });
+      setTimeout(function(){
+        syncViewportVars();
+        syncBarHeights();
+        forceRenditionResize();
+      }, 60);
+    } catch (e) {}
+  }
+
+  function scheduleLayoutSyncBurst() {
+    try {
+      scheduleLayoutSync();
+      setTimeout(scheduleLayoutSync, 120);
+      setTimeout(scheduleLayoutSync, 360);
+      setTimeout(scheduleLayoutSync, 900);
+    } catch (e) {}
+  }
+
   try {
-    window.addEventListener("resize", syncTabletClass, { passive: true });
-    window.addEventListener("orientationchange", syncTabletClass, { passive: true });
+    window.__fbScheduleLayoutSync = scheduleLayoutSyncBurst;
+    window.__fbSyncBarHeights = syncBarHeights;
+  } catch (e) {}
+
+  try {
+    window.addEventListener("resize", function(){
+      syncTabletClass();
+      scheduleLayoutSync();
+    }, { passive: true });
+    window.addEventListener("orientationchange", function(){
+      syncTabletClass();
+      scheduleLayoutSync();
+    }, { passive: true });
     if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", syncTabletClass);
-      window.visualViewport.addEventListener("scroll", syncTabletClass);
+      window.visualViewport.addEventListener("resize", function(){
+        syncTabletClass();
+        scheduleLayoutSync();
+      });
+      window.visualViewport.addEventListener("scroll", function(){
+        syncTabletClass();
+        scheduleLayoutSync();
+      });
     }
+  } catch (e) {}
+
+  try {
+    document.addEventListener("visibilitychange", function () {
+      try {
+        if (!document.hidden) {
+          syncTabletClass();
+          scheduleLayoutSyncBurst();
+        }
+      } catch (e1) {}
+    });
+    window.addEventListener("pageshow", function (evt) {
+      try {
+        syncTabletClass();
+        scheduleLayoutSyncBurst();
+        if (evt && evt.persisted) {
+          setTimeout(function(){ scheduleLayoutSyncBurst(); }, 120);
+        }
+      } catch (e2) {}
+    });
+    window.addEventListener("focus", function () {
+      try {
+        syncTabletClass();
+        scheduleLayoutSyncBurst();
+      } catch (e3) {}
+    });
   } catch (e) {}
 
   function isMobileViewport() {
@@ -129,8 +232,10 @@
         vs.style.bottom = (bottomH || 0) + "px";
       }
       try {
-        if (window.reader && window.reader.rendition && window.reader.rendition.resize) {
-          window.reader.rendition.resize();
+        if (window.reader) {
+          if (window.reader.rendition && window.reader.rendition.resize) window.reader.rendition.resize();
+          if (window.reader.renditionPrev && window.reader.renditionPrev.resize) window.reader.renditionPrev.resize();
+          if (window.reader.renditionNext && window.reader.renditionNext.resize) window.reader.renditionNext.resize();
         }
       } catch (e2) {}
     } catch (e) {}
@@ -150,18 +255,56 @@
       applyViewerInsets(topH, bottomH);
     } catch (e) {}
   }
+
+  function installBarResizeObserver() {
+    try {
+      if (window.__fbBarResizeObserverInstalled) return;
+      window.__fbBarResizeObserverInstalled = true;
+      if (!window.ResizeObserver) return;
+      var top = document.getElementById("titlebar");
+      var bottom = document.getElementById("bottombar");
+      var search = document.getElementById("searchbar");
+      var ro = new ResizeObserver(function () {
+        try { syncBarHeights(); } catch (e) {}
+      });
+      try { if (top) ro.observe(top); } catch (e1) {}
+      try { if (bottom) ro.observe(bottom); } catch (e2) {}
+      try { if (search) ro.observe(search); } catch (e3) {}
+      window.__fbBarResizeObserver = ro;
+    } catch (e) {}
+  }
+
+  function installUiHiddenObserver() {
+    try {
+      if (window.__fbUiHiddenObserverInstalled) return;
+      window.__fbUiHiddenObserverInstalled = true;
+      if (!window.MutationObserver) return;
+      var mo = new MutationObserver(function (muts) {
+        try {
+          for (var i = 0; i < muts.length; i++) {
+            if (muts[i].attributeName === "class") {
+              scheduleLayoutSyncBurst();
+              break;
+            }
+          }
+        } catch (e) {}
+      });
+      mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+      window.__fbUiHiddenObserver = mo;
+    } catch (e) {}
+  }
   function showUi() {
     document.body.classList.remove("ui-hidden");
-    syncBarHeights();
+    scheduleLayoutSync();
   }
   function hideUi() {
     document.body.classList.add("ui-hidden");
-    syncBarHeights();
+    scheduleLayoutSync();
   }
   function toggleUi() {
     if (window.__fbSelectionActive) return;
     document.body.classList.toggle("ui-hidden");
-    syncBarHeights();
+    scheduleLayoutSync();
   }
 
   // -------- ultra-robust center-tap capture (ported from old fix5) --------
@@ -200,9 +343,15 @@
 
     var layer = document.createElement("div");
     layer.id = "fb-tap-layer";
+    var left = document.createElement("div");
+    left.id = "fb-tap-left";
     var center = document.createElement("div");
     center.id = "fb-tap-center";
+    var right = document.createElement("div");
+    right.id = "fb-tap-right";
+    layer.appendChild(left);
     layer.appendChild(center);
+    layer.appendChild(right);
     if (!host) host = viewer.parentNode || document.body || viewer;
     host.appendChild(layer);
 
@@ -227,10 +376,17 @@
       try {
         var vw = getVisibleViewportWidth();
         var centerW = Math.max(0, Math.round(vw * 0.30));
+        var edgeW = Math.max(0, Math.round(vw * (1/3)));
         var left = Math.max(0, Math.round((vw - centerW) / 2));
         center.style.left = left + "px";
         center.style.width = centerW + "px";
         center.style.right = "auto";
+        try {
+          var leftZone = document.getElementById("fb-tap-left");
+          var rightZone = document.getElementById("fb-tap-right");
+          if (leftZone) leftZone.style.width = edgeW + "px";
+          if (rightZone) rightZone.style.width = edgeW + "px";
+        } catch (e4) {}
         // Expose bounds for iframe-level handlers to use the exact same zone.
         window.__fbTapCenterBounds = { left: left, right: left + centerW, width: vw };
       } catch (e3) {}
@@ -292,11 +448,17 @@
       try {
         var prevLayerPE = layer.style.pointerEvents;
         var prevCenterPE = center.style.pointerEvents;
+        var prevLeftPE = left.style.pointerEvents;
+        var prevRightPE = right.style.pointerEvents;
         layer.style.pointerEvents = "none";
         center.style.pointerEvents = "none";
+        left.style.pointerEvents = "none";
+        right.style.pointerEvents = "none";
         var el = document.elementFromPoint(x, y);
         layer.style.pointerEvents = prevLayerPE;
         center.style.pointerEvents = prevCenterPE;
+        left.style.pointerEvents = prevLeftPE;
+        right.style.pointerEvents = prevRightPE;
         if (!el) return null;
         var ifr = (el.tagName === "IFRAME") ? el : (el.closest ? el.closest("iframe") : null);
         if (!ifr) ifr = findIframeAtPoint(x, y);
@@ -428,6 +590,56 @@
       } catch (e3) {}
     }
 
+    function tryEdgeTurn(e, isNext) {
+      var now = Date.now();
+      if (now - lastToggleAt < 350) return;
+      try {
+        if (!(isTabletViewport && isTabletViewport())) return;
+      } catch (eTv) { return; }
+      try {
+        if (overlaysOpen()) return;
+        if (moved) return;
+        if (Date.now() - st > 220) return;
+        var tgt = e && e.target;
+        if (isUiChromeTarget(tgt)) return;
+        try {
+          var pt = (e && (e.changedTouches && e.changedTouches[0])) || (e && (e.touches && e.touches[0])) || e;
+          if (pt && typeof pt.clientX === "number" && typeof pt.clientY === "number") {
+            var ifr = findIframeAtPoint(pt.clientX, pt.clientY);
+            if (ifr && ifr.getBoundingClientRect && ifr.contentDocument && ifr.contentDocument.__fb_tryFootnoteAtPoint) {
+              var r = ifr.getBoundingClientRect();
+              var ix = pt.clientX - r.left;
+              var iy = pt.clientY - r.top;
+              try { if (ifr.contentDocument.__fb_tryFootnoteAtPoint(ix, iy)) return; } catch (eT0) {}
+            }
+            var foot = findFootnoteAnchorNearPoint(pt.clientX, pt.clientY);
+            if (foot) {
+              try { if (foot.focus) foot.focus(); } catch (eF0) {}
+              try { if (foot.click) foot.click(); } catch (eF1) {}
+              return;
+            }
+            var interactive = findInteractiveNearPoint(pt.clientX, pt.clientY);
+            if (interactive) {
+              try { if (interactive.focus) interactive.focus(); } catch (eI0) {}
+              try { if (interactive.click) interactive.click(); } catch (eI1) {}
+              return;
+            }
+          }
+        } catch (eHit) {}
+        try {
+          if (e && e.stopPropagation) e.stopPropagation();
+          if (e && e.preventDefault) e.preventDefault();
+        } catch (eStop) {}
+        lastToggleAt = Date.now();
+        var targetId = isNext ? "next" : "prev";
+        var btn = document.getElementById(targetId);
+        if (btn && typeof btn.click === "function") {
+          btn.click();
+          return;
+        }
+      } catch (e3) {}
+    }
+
     function onStart(e) {
       moved = false;
       st = Date.now();
@@ -476,10 +688,58 @@
         if (e.pointerType !== "touch") return;
         activePointerId = null;
       });
+      left.addEventListener("pointerdown", function (e) {
+        if (e.pointerType !== "touch") return;
+        activePointerId = e.pointerId;
+        try { left.setPointerCapture(activePointerId); } catch (e0) {}
+        onStart(e);
+      });
+      left.addEventListener("pointermove", function (e) {
+        if (e.pointerType !== "touch") return;
+        if (activePointerId == null || e.pointerId !== activePointerId) return;
+        onMove(e);
+      });
+      left.addEventListener("pointerup", function (e) {
+        if (e.pointerType !== "touch") return;
+        if (activePointerId == null || e.pointerId !== activePointerId) return;
+        activePointerId = null;
+        tryEdgeTurn(e, false);
+      });
+      left.addEventListener("pointercancel", function (e) {
+        if (e.pointerType !== "touch") return;
+        activePointerId = null;
+      });
+      right.addEventListener("pointerdown", function (e) {
+        if (e.pointerType !== "touch") return;
+        activePointerId = e.pointerId;
+        try { right.setPointerCapture(activePointerId); } catch (e0) {}
+        onStart(e);
+      });
+      right.addEventListener("pointermove", function (e) {
+        if (e.pointerType !== "touch") return;
+        if (activePointerId == null || e.pointerId !== activePointerId) return;
+        onMove(e);
+      });
+      right.addEventListener("pointerup", function (e) {
+        if (e.pointerType !== "touch") return;
+        if (activePointerId == null || e.pointerId !== activePointerId) return;
+        activePointerId = null;
+        tryEdgeTurn(e, true);
+      });
+      right.addEventListener("pointercancel", function (e) {
+        if (e.pointerType !== "touch") return;
+        activePointerId = null;
+      });
     } else {
       center.addEventListener("touchstart", onStart, { passive: true });
       center.addEventListener("touchmove", onMove, { passive: true });
       center.addEventListener("touchend", tryToggle, { passive: false });
+      left.addEventListener("touchstart", onStart, { passive: true });
+      left.addEventListener("touchmove", onMove, { passive: true });
+      left.addEventListener("touchend", function (e) { tryEdgeTurn(e, false); }, { passive: false });
+      right.addEventListener("touchstart", onStart, { passive: true });
+      right.addEventListener("touchmove", onMove, { passive: true });
+      right.addEventListener("touchend", function (e) { tryEdgeTurn(e, true); }, { passive: false });
     }
 
     updateCenterTapBounds();
@@ -583,6 +843,18 @@
         } catch (e) {}
       }
     }
+
+    // Expose for deep-linking (e.g., ?mybooks=1)
+    window.__fbOpenOverlay = open;
+    try {
+      var p = new URLSearchParams(window.location.search || "");
+      var wantMyBooks = (p.get("mybooks") === "1" || p.get("mybooks") === "true");
+      var h = (window.location.hash || "").replace(/^#/, "").toLowerCase();
+      if (!wantMyBooks && h === "mybooks") wantMyBooks = true;
+      if (wantMyBooks) {
+        setTimeout(function(){ try { open("mybooks"); } catch(e) {} }, 0);
+      }
+    } catch (e) {}
 
     if (btnToc) {
       btnToc.addEventListener("click", function (e) {
@@ -831,10 +1103,16 @@
           var pt = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : e;
           if (!pt) return;
           var x = pt.clientX, y = pt.clientY;
-          var w = doc.defaultView.innerWidth || doc.documentElement.clientWidth;
-          var centerW = w * 0.30;
-          var mx1 = (w - centerW) / 2;
-          var mx2 = mx1 + centerW;
+          var inCenter = false;
+          var inCenterY = false;
+          var isTablet = false;
+          try {
+            if (window.parent && window.parent.document && window.parent.document.documentElement) {
+              isTablet = window.parent.document.documentElement.classList.contains("is-tablet");
+            } else if (document.documentElement) {
+              isTablet = document.documentElement.classList.contains("is-tablet");
+            }
+          } catch (eTb) {}
           // Prefer the parent-calculated bounds (actual visible viewport).
           try {
             if (window.parent && window.parent.__fbTapCenterBounds && doc.defaultView && doc.defaultView.frameElement) {
@@ -842,13 +1120,28 @@
               if (fr && fr.getBoundingClientRect) {
                 var r = fr.getBoundingClientRect();
                 var px = x + r.left;
+                var py = y + r.top;
                 var bounds = window.parent.__fbTapCenterBounds;
-                if (px >= bounds.left && px <= bounds.right) toggleUi();
-                return;
+                inCenter = (px >= bounds.left && px <= bounds.right);
+                if (isTablet) {
+                  var vhParent = (window.parent.visualViewport && window.parent.visualViewport.height)
+                    ? window.parent.visualViewport.height
+                    : (window.parent.innerHeight || 0);
+                  inCenterY = (py >= vhParent * (1/3) && py <= vhParent * (2/3));
+                }
               }
             }
           } catch (e0) {}
-          if (x >= mx1 && x <= mx2) toggleUi();
+          if (!inCenter) {
+            var w = doc.defaultView.innerWidth || doc.documentElement.clientWidth;
+            var h = doc.defaultView.innerHeight || doc.documentElement.clientHeight;
+            var centerW = w * 0.30;
+            var mx1 = (w - centerW) / 2;
+            var mx2 = mx1 + centerW;
+            inCenter = (x >= mx1 && x <= mx2);
+            if (isTablet) inCenterY = (y >= h * (1/3) && y <= h * (2/3));
+          }
+          if (inCenter && (!isTablet || inCenterY)) toggleUi();
         } catch (e2) {}
       }
 
@@ -3700,11 +3993,14 @@
     } else {
       hideUi();
     }
-    try { syncBarHeights(); } catch (e) {}
+    try { scheduleLayoutSync(); } catch (e) {}
+    try { installBarResizeObserver(); } catch (e) {}
+    try { installUiHiddenObserver(); } catch (e) {}
     try {
-      window.addEventListener("resize", syncBarHeights);
+      window.addEventListener("resize", scheduleLayoutSync);
       if (window.visualViewport && window.visualViewport.addEventListener) {
-        window.visualViewport.addEventListener("resize", syncBarHeights);
+        window.visualViewport.addEventListener("resize", scheduleLayoutSync);
+        window.visualViewport.addEventListener("scroll", scheduleLayoutSync);
       }
     } catch (e) {}
     setupOverlays();

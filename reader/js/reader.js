@@ -4199,13 +4199,68 @@ if (!doc) return;
 		// UI center-tap toggle (independent from swipe)
 		// We attach this to EVERY rendered iframe document (current/prev/next),
 		// because the visible view can come from any of the 3 prerendered renditions.
-		function attachUiTapToDoc(doc) {
-			try {
-				if (!doc || doc.__uiTapAttached) return;
-				doc.__uiTapAttached = true;
+			function attachUiTapToDoc(doc) {
+				try {
+					if (!doc || doc.__uiTapAttached) return;
+					doc.__uiTapAttached = true;
 
-				var win = doc.defaultView || window;
-				var st = { x: 0, y: 0, ts: 0, moved: false };
+					var win = doc.defaultView || window;
+					var st = { x: 0, y: 0, ts: 0, moved: false };
+
+					function isMobileUi(topWin) {
+						try {
+							if (topWin.matchMedia && topWin.matchMedia('(pointer: coarse)').matches) return true;
+							if (topWin.matchMedia && topWin.matchMedia('(max-width: 768px)').matches) return true;
+							if (topWin.navigator && topWin.navigator.maxTouchPoints && topWin.navigator.maxTouchPoints > 0) return true;
+						} catch (e) {}
+						return false;
+					}
+
+					function isTabletUi(topWin) {
+						try {
+							if (topWin.document && topWin.document.documentElement && topWin.document.documentElement.classList.contains("is-tablet")) return true;
+						} catch (e0) {}
+						try {
+							var w = topWin.innerWidth || 0;
+							var h = topWin.innerHeight || 0;
+							var minDim = Math.min(w, h);
+							var coarse = topWin.matchMedia && topWin.matchMedia("(pointer: coarse)").matches;
+							return !!(coarse && minDim >= 600);
+						} catch (e1) {}
+						return false;
+					}
+
+					function isTapInCenterZone(localX, localY) {
+						var topWin = (win && win.parent) ? win.parent : window;
+						var absX = localX;
+						var absY = localY;
+						try {
+							var fr = win && win.frameElement;
+							if (fr && fr.getBoundingClientRect) {
+								var rr = fr.getBoundingClientRect();
+								absX = localX + rr.left;
+								absY = localY + rr.top;
+							}
+						} catch (eFr) {}
+
+						var vw = 0;
+						try {
+							vw = (topWin.visualViewport && topWin.visualViewport.width) ? topWin.visualViewport.width : (topWin.innerWidth || 0);
+						} catch (eVw) {}
+						var topBounds = null;
+						try { topBounds = topWin.__fbTapCenterBounds; } catch (eB) { topBounds = null; }
+						var leftB = topBounds && typeof topBounds.left === "number" ? topBounds.left : (vw * 0.35);
+						var rightB = topBounds && typeof topBounds.right === "number" ? topBounds.right : (vw * 0.65);
+						var inCenterX = (absX >= leftB && absX <= rightB);
+						if (!inCenterX) return false;
+						if (!isTabletUi(topWin)) return true;
+
+						var vh = 0;
+						try {
+							vh = (topWin.visualViewport && topWin.visualViewport.height) ? topWin.visualViewport.height : (topWin.innerHeight || 0);
+						} catch (eVh) {}
+						return (absY >= vh * (1/3) && absY <= vh * (2/3));
+					}
 
 				function isInteractiveTarget(t){
 					try {
@@ -4243,30 +4298,19 @@ if (!doc) return;
 						if (!ev || st._interactive) return;
 						if (st.moved) return;
 
-						var changed = (ev.changedTouches && ev.changedTouches[0]) ? ev.changedTouches[0] : null;
-						if (!changed) return;
+							var changed = (ev.changedTouches && ev.changedTouches[0]) ? ev.changedTouches[0] : null;
+							if (!changed) return;
 
-						var x = st.x;
-						// Use start X for center detection (more stable than end X on some devices)
-						var w = (win && win.innerWidth) ? win.innerWidth : window.innerWidth;
-						// fix63: center-tap bar toggle is MOBILE-ONLY
-						var __topWin = (win && win.parent) ? win.parent : window;
-						var __isMobileUi = false;
-						try {
-							if (__topWin.matchMedia && __topWin.matchMedia('(pointer: coarse)').matches) __isMobileUi = true;
-							else if (__topWin.matchMedia && __topWin.matchMedia('(max-width: 768px)').matches) __isMobileUi = true;
-							else if (__topWin.navigator && __topWin.navigator.maxTouchPoints && __topWin.navigator.maxTouchPoints > 0) __isMobileUi = true;
-						} catch(e) {}
-						if (!__isMobileUi) return;
-						// Middle 30% of the VISIBLE viewport (match top-layer zone)
-						var topBounds = null;
-						try { topBounds = __topWin.__fbTapCenterBounds; } catch (eB) { topBounds = null; }
-						var leftB = topBounds && typeof topBounds.left === "number" ? topBounds.left : (w * 0.35);
-						var rightB = topBounds && typeof topBounds.right === "number" ? topBounds.right : (w * 0.65);
-						var inCenter = (x >= leftB && x <= rightB);
+							var x = st.x;
+							var y = st.y;
+							// Use start coordinates for center detection (more stable than end coords on some devices)
+							// fix63: center-tap bar toggle is MOBILE-ONLY
+							var __topWin = (win && win.parent) ? win.parent : window;
+							if (!isMobileUi(__topWin)) return;
+							var inCenter = isTapInCenterZone(x, y);
 
-						var dt = Date.now() - (st.ts || Date.now());
-						if (!inCenter || dt > 800) return;
+							var dt = Date.now() - (st.ts || Date.now());
+							if (!inCenter || dt > 800) return;
 
 						// Toggle bars on TOP document (bars live there, not in iframe)
 						var topWin = (win && win.parent) ? win.parent : window;
@@ -4280,6 +4324,7 @@ if (!doc) return;
 								topWin.document.body.classList.toggle("ui-hidden");
 							}
 						} catch(eToggle){}
+						try { topWin.__fbScheduleLayoutSync && topWin.__fbScheduleLayoutSync(); } catch(eSync){}
 
 						// Prevent synthetic click after touchend (Android/iOS)
 						if (ev.preventDefault) ev.preventDefault();
@@ -4305,22 +4350,11 @@ if (!doc) return;
 							doc.addEventListener("pointerup", function(ev){
 								if (!ev || st._interactive || st.moved) return;
 								var x = st.x;
-								var w = (win && win.innerWidth) ? win.innerWidth : window.innerWidth;
+								var y = st.y;
 								// fix63: center-tap bar toggle is MOBILE-ONLY
 								var __topWinP = (win && win.parent) ? win.parent : window;
-								var __isMobileUiP = false;
-								try {
-									if (__topWinP.matchMedia && __topWinP.matchMedia('(pointer: coarse)').matches) __isMobileUiP = true;
-									else if (__topWinP.matchMedia && __topWinP.matchMedia('(max-width: 768px)').matches) __isMobileUiP = true;
-									else if (__topWinP.navigator && __topWinP.navigator.maxTouchPoints && __topWinP.navigator.maxTouchPoints > 0) __isMobileUiP = true;
-								} catch(e) {}
-								if (!__isMobileUiP) return;
-								// Middle 30% of the VISIBLE viewport (match top-layer zone)
-								var topBounds = null;
-								try { topBounds = __topWinP.__fbTapCenterBounds; } catch (eBP) { topBounds = null; }
-								var leftB = topBounds && typeof topBounds.left === "number" ? topBounds.left : (w * 0.35);
-								var rightB = topBounds && typeof topBounds.right === "number" ? topBounds.right : (w * 0.65);
-								var inCenter = (x >= leftB && x <= rightB);
+								if (!isMobileUi(__topWinP)) return;
+								var inCenter = isTapInCenterZone(x, y);
 								var dt = Date.now() - (st.ts || Date.now());
 								if (!inCenter || dt > 800) return;
 								var topWin = (win && win.parent) ? win.parent : window;
@@ -4329,6 +4363,7 @@ if (!doc) return;
 								if ((now - lastTs) < 350) return;
 								topWin.__fbUiLastToggleTs = now;
 								try { topWin.document.body.classList.toggle("ui-hidden"); } catch(e2) {}
+								try { topWin.__fbScheduleLayoutSync && topWin.__fbScheduleLayoutSync(); } catch(eSync2) {}
 								try { ev.preventDefault && ev.preventDefault(); ev.stopPropagation && ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation(); } catch(e3) {}
 							}, { passive: false, capture: true });
 						} catch(ePtr) {}
@@ -4366,8 +4401,64 @@ function attachSwipeToDoc(doc) {
 						var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
 						return !!(coarse && minS >= 600);
 					} catch (e2) {}
-					return false;
-				}
+						return false;
+					}
+
+					function allowEdgeTapTurn() {
+						try {
+							if (isTabletMode()) return true;
+						} catch (e0) {}
+						try {
+							if (document.documentElement && document.documentElement.classList.contains("is-tablet")) return true;
+						} catch (e1) {}
+						try {
+							var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+							var touch = !!(navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+							var w = window.innerWidth || 0;
+							var h = window.innerHeight || 0;
+							var minDim = Math.min(w, h);
+							var maxDim = Math.max(w, h);
+							// Conservative fallback for tablets that aren't tagged as is-tablet.
+							// Keep thresholds high to avoid matching phones.
+							return !!(coarse && touch && maxDim >= 900 && minDim >= 560);
+						} catch (e2) {}
+						return false;
+					}
+
+					function isTapInCenterZone(absX, absY) {
+						try {
+							var rectTap = stack.getBoundingClientRect();
+							var wTap = rectTap.width || window.innerWidth || 0;
+							var hTap = rectTap.height || window.innerHeight || 0;
+							var xRel = absX - rectTap.left;
+							var yRel = absY - rectTap.top;
+							var inCenterX = (xRel >= wTap * (1/3) && xRel <= wTap * (2/3));
+							if (!inCenterX) return false;
+							if (!isTabletMode()) return true;
+							return (yRel >= hTap * (1/3) && yRel <= hTap * (2/3));
+						} catch (eTapZone) {}
+						return false;
+					}
+
+						function getTabletTapZone(absX, absY) {
+							try {
+								var rectTap = stack.getBoundingClientRect();
+								var wTap = rectTap.width || window.innerWidth || 0;
+								var hTap = rectTap.height || window.innerHeight || 0;
+							var xRel = absX - rectTap.left;
+							var yRel = absY - rectTap.top;
+							if (xRel < 0 || xRel > wTap || yRel < 0 || yRel > hTap) return "none";
+							var leftCut = wTap * (1/3);
+							var rightCut = wTap * (2/3);
+								if (xRel >= leftCut && xRel <= rightCut) {
+									if (isTabletMode() && !(yRel >= hTap * (1/3) && yRel <= hTap * (2/3))) return "none";
+									return "center";
+								}
+								if (!allowEdgeTapTurn()) return "none";
+								return xRel < leftCut ? "left" : "right";
+							} catch (eTapZone2) {}
+							return "none";
+						}
 
 				// Inject swipe CSS into the iframe once (makes padding transparent during swipe only).
 				try {
@@ -4752,15 +4843,23 @@ function attachSwipeToDoc(doc) {
 							var dyTap = abs.y - state.startY;
 							// Be forgiving on Android: a "tap" often has noticeable jitter.
 							var moved = (Math.abs(dxTap) > 30 || Math.abs(dyTap) > 30);
-							// Middle VERTICAL third of the screen (as requested): 1/3..2/3
-							var rectTap = stack.getBoundingClientRect();
-							var wTap = rectTap.width || window.innerWidth || 0;
-							var xRel = abs.x - rectTap.left;
-							var inCenter = (xRel >= wTap * (1/3) && xRel <= wTap * (2/3));
+							var tapZone = getTabletTapZone(abs.x, abs.y);
+							var inCenter = (tapZone === "center");
 							// Short tap only
 							var dt = Date.now() - (state.downTs || Date.now());
 							// Some Android devices report longer press durations for a normal tap.
-							if (!moved && inCenter && dt < 900) {
+							if (!moved && dt < 900) {
+								if (tapZone === "left" || tapZone === "right") {
+									commitTurn(tapZone === "right");
+									if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
+									if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
+									if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+									return;
+								}
+								if (!inCenter) {
+									resetTransform();
+									return;
+								}
 								// Debounce globally to avoid double-toggle (touchend + synthetic click).
 								// IMPORTANT: store state on the TOP window so it persists across iframe re-renders.
 								var now = Date.now();
@@ -4792,10 +4891,21 @@ function attachSwipeToDoc(doc) {
 								var dtTap2 = Date.now() - (state.downTs || Date.now());
 								var rectTap2 = stack.getBoundingClientRect();
 								var wTap2 = rectTap2.width || window.innerWidth || 0;
-								var xRel2 = abs.x - rectTap2.left;
-								var inCenter2 = (xRel2 >= wTap2 * (1/3) && xRel2 <= wTap2 * (2/3));
+								var tapZone2 = getTabletTapZone(abs.x, abs.y);
+								var inCenter2 = (tapZone2 === "center");
 								var slop = Math.max(35, wTap2 * 0.04); // 4% width, min 35px
-								if (inCenter2 && dtTap2 < 900 && Math.abs(dx) < slop && Math.abs(dy) < 35) {
+								if (dtTap2 < 900 && Math.abs(dx) < slop && Math.abs(dy) < 35) {
+										if (tapZone2 === "left" || tapZone2 === "right") {
+											commitTurn(tapZone2 === "right");
+											if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
+											if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
+											if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+											return;
+										}
+									if (!inCenter2) {
+										resetTransform();
+										return;
+									}
 									var now2 = Date.now();
 									var topWin2 = (win && win.parent) ? win.parent : window;
 									var lastTs2 = topWin2.__fbUiLastToggleTs || 0;
@@ -5053,6 +5163,7 @@ if (doc) {
 				} catch(e) {}
 			$("body").toggleClass("dark-ui", next === "dark");
 			applyThemeToIframes(next);
+			try { if (window.__fbScheduleLayoutSync) window.__fbScheduleLayoutSync(); } catch(eSyncTheme) {}
 });
 	}
 
@@ -6413,6 +6524,22 @@ EPUBJS.reader.ReaderController = function(book) {
 
 	var keylock = false;
 
+	function goNextByUi() {
+		if(book.package.metadata.direction === "rtl") {
+			rendition.prev();
+		} else {
+			rendition.next();
+		}
+	}
+
+	function goPrevByUi() {
+		if(book.package.metadata.direction === "rtl") {
+			rendition.next();
+		} else {
+			rendition.prev();
+		}
+	}
+
 	var arrowKeys = function(e) {
 		if(e.keyCode == 37) {
 
@@ -6455,24 +6582,12 @@ EPUBJS.reader.ReaderController = function(book) {
 	document.addEventListener('keydown', arrowKeys, false);
 
 	$next.on("click", function(e){
-
-		if(book.package.metadata.direction === "rtl") {
-			rendition.prev();
-		} else {
-			rendition.next();
-		}
-
+		goNextByUi();
 		e.preventDefault();
 	});
 
 	$prev.on("click", function(e){
-
-		if(book.package.metadata.direction === "rtl") {
-			rendition.next();
-		} else {
-			rendition.prev();
-		}
-
+		goPrevByUi();
 		e.preventDefault();
 	});
 
