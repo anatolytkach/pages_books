@@ -3878,19 +3878,30 @@
       try { if (typeof reader.saveSettings === "function") reader.saveSettings(); } catch (e) {}
     }
 
-    function openNote(note) {
-      if (!note || !note.cfi) return;
+    function openNoteCfi(cfi) {
+      if (!cfi) return;
       try { if (window.__fbClearSelectionToolbar) window.__fbClearSelectionToolbar(); } catch (e0) {}
-      try { if (window.__fbShowNoteHighlight) window.__fbShowNoteHighlight(note.cfi, true); } catch (e1) {}
+      try { if (window.__fbShowNoteHighlight) window.__fbShowNoteHighlight(cfi, true); } catch (e1) {}
       try {
-        var p = reader.rendition.display(note.cfi);
+        var p = reader.rendition.display(cfi);
         if (p && typeof p.then === "function") {
           p.then(function () {
-            try { if (window.__fbShowNoteHighlight) window.__fbShowNoteHighlight(note.cfi); } catch (e2) {}
+            try { if (window.__fbShowNoteHighlight) window.__fbShowNoteHighlight(cfi); } catch (e2) {}
           });
+        } else {
+          setTimeout(function () {
+            try { if (window.__fbShowNoteHighlight) window.__fbShowNoteHighlight(cfi); } catch (e2b) {}
+          }, 0);
         }
       } catch (e3) {}
       try { if (window.__fbCloseOverlays) window.__fbCloseOverlays(); } catch (e3) {}
+    }
+
+    window.__fbOpenNoteAtCfi = openNoteCfi;
+
+    function openNote(note) {
+      if (!note || !note.cfi) return;
+      openNoteCfi(note.cfi);
     }
 
     function createItem(note) {

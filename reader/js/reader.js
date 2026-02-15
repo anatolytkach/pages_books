@@ -6281,6 +6281,12 @@ EPUBJS.reader.NotesController = function() {
 		link.innerHTML = " context &#187;";
 		link.href = "#"+annotation.anchor;
 		link.onclick = function(){
+			try {
+				if (window.__fbOpenNoteAtCfi) {
+					window.__fbOpenNoteAtCfi(annotation.anchor);
+					return false;
+				}
+			} catch (eOpen) {}
 			rendition.display(annotation.anchor);
 			return false;
 		};
