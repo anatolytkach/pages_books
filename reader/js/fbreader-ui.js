@@ -383,8 +383,8 @@
     function updateCenterTapBounds() {
       try {
         var vw = getVisibleViewportWidth();
-        var centerW = Math.max(0, Math.round(vw * 0.30));
-        var edgeW = Math.max(0, Math.round(vw * (1/3)));
+        var centerW = Math.max(0, Math.round(vw * 0.60));
+        var edgeW = Math.max(0, Math.round(vw * 0.20));
         var left = Math.max(0, Math.round((vw - centerW) / 2));
         center.style.left = left + "px";
         center.style.width = centerW + "px";
@@ -1143,7 +1143,7 @@
           if (!inCenter) {
             var w = doc.defaultView.innerWidth || doc.documentElement.clientWidth;
             var h = doc.defaultView.innerHeight || doc.documentElement.clientHeight;
-            var centerW = w * 0.30;
+            var centerW = w * 0.60;
             var mx1 = (w - centerW) / 2;
             var mx2 = mx1 + centerW;
             inCenter = (x >= mx1 && x <= mx2);

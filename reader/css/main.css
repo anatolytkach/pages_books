@@ -1898,8 +1898,8 @@ body.dark{
 
 #fb-tap-center{
   position: absolute;
-  left: 25vw;
-  width: 50vw;
+  left: 20vw;
+  width: 60vw;
   top: var(--titlebar-h);
   bottom: var(--bottombar-h);
   pointer-events: auto;
@@ -1920,7 +1920,7 @@ body.dark{
 
 html.is-tablet #fb-tap-left,
 html.is-tablet #fb-tap-right{
-  width: 33.34vw;
+  width: 20vw;
   pointer-events: none;
 }
 

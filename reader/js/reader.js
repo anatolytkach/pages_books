@@ -4249,8 +4249,8 @@ if (!doc) return;
 						} catch (eVw) {}
 						var topBounds = null;
 						try { topBounds = topWin.__fbTapCenterBounds; } catch (eB) { topBounds = null; }
-						var leftB = topBounds && typeof topBounds.left === "number" ? topBounds.left : (vw * 0.35);
-						var rightB = topBounds && typeof topBounds.right === "number" ? topBounds.right : (vw * 0.65);
+							var leftB = topBounds && typeof topBounds.left === "number" ? topBounds.left : (vw * 0.20);
+							var rightB = topBounds && typeof topBounds.right === "number" ? topBounds.right : (vw * 0.80);
 						var inCenterX = (absX >= leftB && absX <= rightB);
 						if (!inCenterX) return false;
 						if (!isTabletUi(topWin)) return true;
@@ -4432,7 +4432,7 @@ function attachSwipeToDoc(doc) {
 							var hTap = rectTap.height || window.innerHeight || 0;
 							var xRel = absX - rectTap.left;
 							var yRel = absY - rectTap.top;
-							var inCenterX = (xRel >= wTap * (1/3) && xRel <= wTap * (2/3));
+								var inCenterX = (xRel >= wTap * 0.20 && xRel <= wTap * 0.80);
 							if (!inCenterX) return false;
 							if (!isTabletMode()) return true;
 							return (yRel >= hTap * (1/3) && yRel <= hTap * (2/3));
@@ -4448,8 +4448,8 @@ function attachSwipeToDoc(doc) {
 							var xRel = absX - rectTap.left;
 							var yRel = absY - rectTap.top;
 							if (xRel < 0 || xRel > wTap || yRel < 0 || yRel > hTap) return "none";
-							var leftCut = wTap * (1/3);
-							var rightCut = wTap * (2/3);
+								var leftCut = wTap * 0.20;
+								var rightCut = wTap * 0.80;
 								if (xRel >= leftCut && xRel <= rightCut) {
 									if (isTabletMode() && !(yRel >= hTap * (1/3) && yRel <= hTap * (2/3))) return "none";
 									return "center";
@@ -4850,11 +4850,22 @@ function attachSwipeToDoc(doc) {
 						resetTransform();
 						return;
 					}
-					var abs = toAbsXY(x, y);
-					if (!state.horizontal) {
-						try {
-							var dxTap = abs.x - state.startX;
-							var dyTap = abs.y - state.startY;
+						var abs = toAbsXY(x, y);
+						if (!state.horizontal) {
+							try {
+								if (typeof x === "number" && typeof y === "number" && doc && typeof doc.__fb_tryFootnoteAtPoint === "function") {
+									try {
+										if (doc.__fb_tryFootnoteAtPoint(x, y)) {
+											if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
+											if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
+											if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+											resetTransform();
+											return;
+										}
+									} catch (eFootTap1) {}
+								}
+								var dxTap = abs.x - state.startX;
+								var dyTap = abs.y - state.startY;
 							// Be forgiving on Android: a "tap" often has noticeable jitter.
 							var moved = (Math.abs(dxTap) > 30 || Math.abs(dyTap) > 30);
 							var tapZone = getTabletTapZone(abs.x, abs.y);
@@ -4900,11 +4911,22 @@ function attachSwipeToDoc(doc) {
 
 					var dx = abs.x - state.startX;
 					var dy = abs.y - state.startY;
-						// Treat small drags as TAPs (Android jitter): if movement is small, toggle UI in center.
-						try {
-							if (!state.startedOnInteractive) {
-								var dtTap2 = Date.now() - (state.downTs || Date.now());
-								var rectTap2 = stack.getBoundingClientRect();
+							// Treat small drags as TAPs (Android jitter): if movement is small, toggle UI in center.
+							try {
+								if (!state.startedOnInteractive) {
+									if (typeof x === "number" && typeof y === "number" && doc && typeof doc.__fb_tryFootnoteAtPoint === "function") {
+										try {
+											if (doc.__fb_tryFootnoteAtPoint(x, y)) {
+												if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
+												if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
+												if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+												resetTransform();
+												return;
+											}
+										} catch (eFootTap2) {}
+									}
+									var dtTap2 = Date.now() - (state.downTs || Date.now());
+									var rectTap2 = stack.getBoundingClientRect();
 								var wTap2 = rectTap2.width || window.innerWidth || 0;
 								var tapZone2 = getTabletTapZone(abs.x, abs.y);
 								var inCenter2 = (tapZone2 === "center");
