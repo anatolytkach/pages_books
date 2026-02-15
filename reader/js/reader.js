@@ -4324,7 +4324,7 @@ if (!doc) return;
 								topWin.document.body.classList.toggle("ui-hidden");
 							}
 						} catch(eToggle){}
-						try { topWin.__fbScheduleLayoutSync && topWin.__fbScheduleLayoutSync(); } catch(eSync){}
+						try { topWin.__fbSyncBarHeights && topWin.__fbSyncBarHeights(false); } catch(eSync){}
 
 						// Prevent synthetic click after touchend (Android/iOS)
 						if (ev.preventDefault) ev.preventDefault();
@@ -4363,7 +4363,7 @@ if (!doc) return;
 								if ((now - lastTs) < 350) return;
 								topWin.__fbUiLastToggleTs = now;
 								try { topWin.document.body.classList.toggle("ui-hidden"); } catch(e2) {}
-								try { topWin.__fbScheduleLayoutSync && topWin.__fbScheduleLayoutSync(); } catch(eSync2) {}
+								try { topWin.__fbSyncBarHeights && topWin.__fbSyncBarHeights(false); } catch(eSync2) {}
 								try { ev.preventDefault && ev.preventDefault(); ev.stopPropagation && ev.stopPropagation(); ev.stopImmediatePropagation && ev.stopImmediatePropagation(); } catch(e3) {}
 							}, { passive: false, capture: true });
 						} catch(ePtr) {}
@@ -4678,7 +4678,21 @@ function attachSwipeToDoc(doc) {
 					state.appliedDx = 1e9;
 				}
 
-				function commitTurn(isNext) {
+					function isRtlReadingOrderSafe() {
+						try {
+							var md = book && book.package && book.package.metadata ? book.package.metadata : null;
+							if (!md) return false;
+							var dir = ((md.direction || "") + "").toLowerCase();
+							if (dir !== "rtl") return false;
+							var lang = ((md.language || md.lang || "") + "").toLowerCase();
+							// Do not auto-flip when language is missing; this causes false RTL on many LTR books.
+							if (!lang) return false;
+							return /^(ar|fa|he|ur|ps|sd|yi|ug|dv|ku|ckb)\b/.test(lang);
+						} catch (e) {}
+						return false;
+					}
+
+					function commitTurn(isNext) {
 					if (state.lock) return;
 					state.lock = true;
 					// Watchdog: epub.js can sometimes take longer to relocate on mobile;
@@ -4693,11 +4707,11 @@ function attachSwipeToDoc(doc) {
 						layerCurrent.style.transform = "translate3d(" + off + "px,0,0)";
 						setReveal(off);
 						setTimeout(function(){
-							try {
-								var rtl = (book && book.package && book.package.metadata && book.package.metadata.direction === "rtl");
-								var goNext = isNext;
-								if (rtl) goNext = !goNext;
-								if (goNext) rendition.next(); else rendition.prev();
+								try {
+									var rtl = isRtlReadingOrderSafe();
+									var goNext = isNext;
+									if (rtl) goNext = !goNext;
+									if (goNext) rendition.next(); else rendition.prev();
 							} catch (e) {}
 							// After epub.js rerenders, reset transform
 							setTimeout(function(){
@@ -4865,14 +4879,15 @@ function attachSwipeToDoc(doc) {
 								var now = Date.now();
 								var topWin = (win && win.parent) ? win.parent : window;
 								var lastTs = topWin.__fbUiLastToggleTs || 0;
-								if ((now - lastTs) > 500) {
-									topWin.__fbUiLastToggleTs = now;
-									try {
-										if (topWin.document && topWin.document.body) {
-											topWin.document.body.classList.toggle("ui-hidden");
-										}
-									} catch (eToggle) {}
-								}
+									if ((now - lastTs) > 500) {
+										topWin.__fbUiLastToggleTs = now;
+										try {
+											if (topWin.document && topWin.document.body) {
+												topWin.document.body.classList.toggle("ui-hidden");
+											}
+										} catch (eToggle) {}
+										try { topWin.__fbSyncBarHeights && topWin.__fbSyncBarHeights(false); } catch(eSync3) {}
+									}
 								// Suppress synthetic click after touchend
 								if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
 								if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
@@ -4909,10 +4924,11 @@ function attachSwipeToDoc(doc) {
 									var now2 = Date.now();
 									var topWin2 = (win && win.parent) ? win.parent : window;
 									var lastTs2 = topWin2.__fbUiLastToggleTs || 0;
-									if ((now2 - lastTs2) > 500) {
-										topWin2.__fbUiLastToggleTs = now2;
-										try { topWin2.document.body.classList.toggle("ui-hidden"); } catch(eT2) {}
-									}
+										if ((now2 - lastTs2) > 500) {
+											topWin2.__fbUiLastToggleTs = now2;
+											try { topWin2.document.body.classList.toggle("ui-hidden"); } catch(eT2) {}
+											try { topWin2.__fbSyncBarHeights && topWin2.__fbSyncBarHeights(false); } catch(eSync4) {}
+										}
 									if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
 									if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
 									if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
@@ -6524,8 +6540,21 @@ EPUBJS.reader.ReaderController = function(book) {
 
 	var keylock = false;
 
+	function isRtlReadingOrderSafe() {
+		try {
+			var md = book && book.package && book.package.metadata ? book.package.metadata : null;
+			if (!md) return false;
+			var dir = ((md.direction || "") + "").toLowerCase();
+			if (dir !== "rtl") return false;
+			var lang = ((md.language || md.lang || "") + "").toLowerCase();
+			if (!lang) return false;
+			return /^(ar|fa|he|ur|ps|sd|yi|ug|dv|ku|ckb)\b/.test(lang);
+		} catch (e) {}
+		return false;
+	}
+
 	function goNextByUi() {
-		if(book.package.metadata.direction === "rtl") {
+		if (isRtlReadingOrderSafe()) {
 			rendition.prev();
 		} else {
 			rendition.next();
@@ -6533,7 +6562,7 @@ EPUBJS.reader.ReaderController = function(book) {
 	}
 
 	function goPrevByUi() {
-		if(book.package.metadata.direction === "rtl") {
+		if (isRtlReadingOrderSafe()) {
 			rendition.next();
 		} else {
 			rendition.prev();
@@ -6543,7 +6572,7 @@ EPUBJS.reader.ReaderController = function(book) {
 	var arrowKeys = function(e) {
 		if(e.keyCode == 37) {
 
-			if(book.package.metadata.direction === "rtl") {
+			if (isRtlReadingOrderSafe()) {
 				rendition.next();
 			} else {
 				rendition.prev();
@@ -6561,7 +6590,7 @@ EPUBJS.reader.ReaderController = function(book) {
 		}
 		if(e.keyCode == 39) {
 
-			if(book.package.metadata.direction === "rtl") {
+			if (isRtlReadingOrderSafe()) {
 				rendition.prev();
 			} else {
 				rendition.next();

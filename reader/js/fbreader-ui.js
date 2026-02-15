@@ -219,7 +219,7 @@
   }
 
   // -------- UI bars --------
-  function applyViewerInsets(topH, bottomH) {
+  function applyViewerInsets(topH, bottomH, withResize) {
     try {
       var vs = document.getElementById("viewerStack") || document.getElementById("viewer");
       if (!vs) return;
@@ -231,17 +231,19 @@
         vs.style.top = (topH || 0) + "px";
         vs.style.bottom = (bottomH || 0) + "px";
       }
-      try {
-        if (window.reader) {
-          if (window.reader.rendition && window.reader.rendition.resize) window.reader.rendition.resize();
-          if (window.reader.renditionPrev && window.reader.renditionPrev.resize) window.reader.renditionPrev.resize();
-          if (window.reader.renditionNext && window.reader.renditionNext.resize) window.reader.renditionNext.resize();
-        }
-      } catch (e2) {}
+      if (withResize !== false) {
+        try {
+          if (window.reader) {
+            if (window.reader.rendition && window.reader.rendition.resize) window.reader.rendition.resize();
+            if (window.reader.renditionPrev && window.reader.renditionPrev.resize) window.reader.renditionPrev.resize();
+            if (window.reader.renditionNext && window.reader.renditionNext.resize) window.reader.renditionNext.resize();
+          }
+        } catch (e2) {}
+      }
     } catch (e) {}
   }
 
-  function syncBarHeights() {
+  function syncBarHeights(withResize) {
     try {
       var root = document.documentElement;
       var top = document.getElementById("titlebar");
@@ -252,7 +254,7 @@
       var bottomH = (bottom && bottom.offsetHeight) || 0;
       root.style.setProperty("--titlebar-h", (topH || 0) + "px");
       root.style.setProperty("--bottombar-h", (bottomH || 0) + "px");
-      applyViewerInsets(topH, bottomH);
+      applyViewerInsets(topH, bottomH, withResize);
     } catch (e) {}
   }
 
@@ -283,6 +285,12 @@
         try {
           for (var i = 0; i < muts.length; i++) {
             if (muts[i].attributeName === "class") {
+              var now = Date.now();
+              var lastUiToggle = window.__fbUiLastToggleTs || 0;
+              if ((now - lastUiToggle) < 800) {
+                syncBarHeights(false);
+                break;
+              }
               scheduleLayoutSyncBurst();
               break;
             }
@@ -295,16 +303,16 @@
   }
   function showUi() {
     document.body.classList.remove("ui-hidden");
-    scheduleLayoutSync();
+    syncBarHeights(false);
   }
   function hideUi() {
     document.body.classList.add("ui-hidden");
-    scheduleLayoutSync();
+    syncBarHeights(false);
   }
   function toggleUi() {
     if (window.__fbSelectionActive) return;
     document.body.classList.toggle("ui-hidden");
-    scheduleLayoutSync();
+    syncBarHeights(false);
   }
 
   // -------- ultra-robust center-tap capture (ported from old fix5) --------
