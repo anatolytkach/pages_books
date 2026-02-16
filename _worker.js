@@ -43,6 +43,11 @@ export default {
         const text = String(body?.text || "").trim();
         const source = String(body?.source || "auto").trim() || "auto";
         const target = String(body?.target || "en").trim() || "en";
+        const translateApiKey = String(
+          env.READERPUB_GOOGLE_TRANSLATE_API_KEY ||
+            env.GOOGLE_TRANSLATE_API_KEY ||
+            ""
+        ).trim();
         if (!text) {
           const headers = new Headers({
             "content-type": "application/json; charset=utf-8",
@@ -58,25 +63,139 @@ export default {
             { status: 400, headers }
           );
         }
+        if (!translateApiKey) {
+          const headers = new Headers({
+            "content-type": "application/json; charset=utf-8",
+            "cache-control": "no-store",
+            "access-control-allow-origin": "*",
+            "access-control-allow-methods": "POST, OPTIONS",
+            "access-control-allow-headers": "content-type",
+          });
+          headers.set("x-reader-worker", "1");
+          headers.set("x-reader-route", "translate-config");
+          return new Response(
+            JSON.stringify({ error: "Translate API key is not configured." }),
+            { status: 503, headers }
+          );
+        }
 
-        const params = new URLSearchParams({
-          client: "gtx",
-          sl: source,
-          tl: target,
-          dt: "t",
-          q: text.slice(0, 5000),
-        });
-        const upstream = await fetch(
-          `https://translate.googleapis.com/translate_a/single?${params.toString()}`,
-          {
-            method: "GET",
-            headers: {
-              accept: "application/json,text/plain,*/*",
-            },
+        const queryText = text.slice(0, 5000);
+        const endpoint = `https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(
+          translateApiKey
+        )}`;
+        const decodeHtmlEntities = (input) =>
+          String(input || "")
+            .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
+              String.fromCodePoint(parseInt(hex, 16))
+            )
+            .replace(/&#(\d+);/g, (_, dec) =>
+              String.fromCodePoint(parseInt(dec, 10))
+            )
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&apos;/g, "'")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&amp;/g, "&");
+        const payload = {
+          q: queryText,
+          target,
+          format: "text",
+        };
+        if (source && source !== "auto") payload.source = source;
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        let translatedText = "";
+        let detectedSource = source;
+        let lastFailure = {
+          status: 0,
+          detail: "",
+        };
+        let attempts = 0;
+
+        for (let attempt = 1; attempt <= 3 && !translatedText; attempt++) {
+          attempts = attempt;
+          let controller = null;
+          let timeoutId = null;
+          try {
+            if (typeof AbortController !== "undefined") {
+              controller = new AbortController();
+              timeoutId = setTimeout(() => {
+                try {
+                  controller.abort();
+                } catch (e0) {}
+              }, 9000);
+            }
+            const upstream = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                accept: "application/json,text/plain,*/*",
+                "content-type": "application/json; charset=utf-8",
+              },
+              body: JSON.stringify(payload),
+              signal: controller ? controller.signal : undefined,
+            });
+            const raw = await upstream.text();
+            let data = null;
+            try {
+              data = raw ? JSON.parse(raw) : null;
+            } catch (e0) {
+              data = null;
+            }
+            if (!upstream.ok) {
+              const errorDetail =
+                (data &&
+                  data.error &&
+                  (data.error.message || data.error.status || data.error.code)) ||
+                raw ||
+                "";
+              lastFailure = {
+                status: upstream.status || 0,
+                detail: String(errorDetail).slice(0, 300),
+              };
+              if (attempt < 3 && (upstream.status === 429 || upstream.status >= 500)) {
+                await sleep(220 * attempt);
+                continue;
+              }
+              break;
+            }
+            const first =
+              data &&
+              data.data &&
+              Array.isArray(data.data.translations) &&
+              data.data.translations.length
+                ? data.data.translations[0]
+                : null;
+            if (!first || !first.translatedText) {
+              lastFailure = {
+                status: 502,
+                detail: "Official API returned empty translation.",
+              };
+              if (attempt < 3) {
+                await sleep(220 * attempt);
+                continue;
+              }
+              break;
+            }
+            translatedText = decodeHtmlEntities(first.translatedText);
+            detectedSource =
+              (first.detectedSourceLanguage &&
+                String(first.detectedSourceLanguage).trim()) ||
+              source;
+          } catch (e) {
+            lastFailure = {
+              status: 0,
+              detail: e && e.message ? String(e.message).slice(0, 300) : "network error",
+            };
+            if (attempt < 3) {
+              await sleep(220 * attempt);
+              continue;
+            }
+          } finally {
+            if (timeoutId) clearTimeout(timeoutId);
           }
-        );
-        const raw = await upstream.text();
-        if (!upstream.ok) {
+        }
+
+        if (!translatedText) {
           const headers = new Headers({
             "content-type": "application/json; charset=utf-8",
             "cache-control": "no-store",
@@ -89,48 +208,13 @@ export default {
           return new Response(
             JSON.stringify({
               error: "Translate upstream failed.",
-              status: upstream.status,
-              detail: raw.slice(0, 300),
+              status: lastFailure.status,
+              detail: lastFailure.detail,
+              attempts,
             }),
             { status: 502, headers }
           );
         }
-        let data = null;
-        try {
-          data = JSON.parse(raw);
-        } catch (e) {
-          data = null;
-        }
-        let translatedText = "";
-        if (Array.isArray(data) && Array.isArray(data[0])) {
-          for (const part of data[0]) {
-            if (Array.isArray(part) && typeof part[0] === "string") {
-              translatedText += part[0];
-            }
-          }
-        }
-        if (!translatedText) {
-          const headers = new Headers({
-            "content-type": "application/json; charset=utf-8",
-            "cache-control": "no-store",
-            "access-control-allow-origin": "*",
-            "access-control-allow-methods": "POST, OPTIONS",
-            "access-control-allow-headers": "content-type",
-          });
-          headers.set("x-reader-worker", "1");
-          headers.set("x-reader-route", "translate-parse");
-          return new Response(
-            JSON.stringify({
-              error: "Translate parse failed.",
-              detail: raw.slice(0, 300),
-            }),
-            { status: 502, headers }
-          );
-        }
-        const detectedSource =
-          Array.isArray(data) && typeof data[2] === "string" && data[2]
-            ? data[2]
-            : source;
 
         const headers = new Headers({
           "content-type": "application/json; charset=utf-8",
