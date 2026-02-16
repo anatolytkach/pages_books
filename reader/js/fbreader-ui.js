@@ -3643,6 +3643,386 @@
       tryOnce();
     };
 
+    var TRANSLATE_LANG_KEY = "readerpub:translate:targetLang";
+    var TRANSLATE_LANGS = [
+      ["en", "English"],
+      ["es", "Spanish"],
+      ["fr", "French"],
+      ["de", "German"],
+      ["it", "Italian"],
+      ["pt", "Portuguese"],
+      ["uk", "Ukrainian"],
+      ["ru", "Russian"],
+      ["pl", "Polish"],
+      ["nl", "Dutch"],
+      ["tr", "Turkish"],
+      ["ar", "Arabic"],
+      ["hi", "Hindi"],
+      ["zh", "Chinese"],
+      ["ja", "Japanese"],
+      ["ko", "Korean"]
+    ];
+    var translateUi = {
+      root: null,
+      source: null,
+      result: null,
+      status: null,
+      langSelect: null,
+      copyBtn: null,
+      text: "",
+      requestId: 0,
+      abortController: null,
+      escBound: false
+    };
+
+    function normalizeTranslateLang(lang) {
+      var val = (lang || "").toLowerCase().trim();
+      if (!val) return "en";
+      for (var i = 0; i < TRANSLATE_LANGS.length; i++) {
+        if (TRANSLATE_LANGS[i][0] === val) return val;
+      }
+      return "en";
+    }
+
+    function detectTranslateLang() {
+      var candidate = "en";
+      try {
+        candidate = (navigator.language || "en").split("-")[0].toLowerCase();
+      } catch (e) {}
+      return normalizeTranslateLang(candidate);
+    }
+
+    function getTranslateTargetLang() {
+      try {
+        var saved = localStorage.getItem(TRANSLATE_LANG_KEY);
+        if (saved) return normalizeTranslateLang(saved);
+      } catch (e) {}
+      return detectTranslateLang();
+    }
+
+    function setTranslateTargetLang(lang) {
+      var normalized = normalizeTranslateLang(lang);
+      try { localStorage.setItem(TRANSLATE_LANG_KEY, normalized); } catch (e) {}
+      return normalized;
+    }
+
+    function copyTextFallback(value) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(value);
+          return;
+        }
+      } catch (e0) {}
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = value || "";
+        ta.setAttribute("readonly", "true");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch (e1) {}
+        document.body.removeChild(ta);
+      } catch (e2) {}
+    }
+
+    function normalizeTranslateInput(text) {
+      var s = String(text || "");
+      if (!s) return "";
+      s = s.replace(/\u00ad/g, "");
+      s = s.replace(/\r\n?/g, "\n");
+      s = s.replace(/[ \t\u00a0]+\n/g, "\n");
+      s = s.replace(/\n[ \t\u00a0]+/g, "\n");
+      s = s.replace(/\n{3,}/g, "\n\n");
+      s = s.replace(/([^\n])\n([^\n])/g, "$1 $2");
+      s = s.replace(/[ \t]{2,}/g, " ");
+      return s.trim();
+    }
+
+    function setTranslateStatus(message, isError) {
+      if (!translateUi.status) return;
+      translateUi.status.textContent = message || "";
+      translateUi.status.classList.toggle("is-error", !!isError);
+    }
+
+    function closeTranslateDialog() {
+      try {
+        if (translateUi.abortController) {
+          try { translateUi.abortController.abort(); } catch (e0) {}
+          translateUi.abortController = null;
+        }
+      } catch (e1) {}
+      translateUi.requestId++;
+      if (translateUi.root) translateUi.root.classList.add("hidden");
+    }
+
+    function ensureTranslateDialog() {
+      if (translateUi.root) return;
+
+      var root = document.createElement("div");
+      root.id = "selectionTranslate";
+      root.className = "selection-translate hidden";
+      root.setAttribute("role", "dialog");
+      root.setAttribute("aria-modal", "true");
+      root.setAttribute("aria-label", "Translate");
+
+      var panel = document.createElement("div");
+      panel.className = "selection-translate-panel";
+      root.appendChild(panel);
+
+      var head = document.createElement("div");
+      head.className = "selection-translate-head";
+      panel.appendChild(head);
+
+      var title = document.createElement("div");
+      title.className = "selection-translate-title";
+      title.textContent = "Translate";
+      head.appendChild(title);
+
+      var closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.className = "selection-translate-close";
+      closeBtn.setAttribute("aria-label", "Close");
+      closeBtn.textContent = "✕";
+      head.appendChild(closeBtn);
+
+      var targetRow = document.createElement("div");
+      targetRow.className = "selection-translate-target";
+      panel.appendChild(targetRow);
+
+      var targetLabel = document.createElement("label");
+      targetLabel.className = "selection-translate-target-label";
+      targetLabel.textContent = "Translate to";
+      targetRow.appendChild(targetLabel);
+
+      var langSelect = document.createElement("select");
+      langSelect.className = "selection-translate-select";
+      for (var i = 0; i < TRANSLATE_LANGS.length; i++) {
+        var pair = TRANSLATE_LANGS[i];
+        var opt = document.createElement("option");
+        opt.value = pair[0];
+        opt.textContent = pair[1];
+        langSelect.appendChild(opt);
+      }
+      targetRow.appendChild(langSelect);
+
+      var sourceLabel = document.createElement("div");
+      sourceLabel.className = "selection-translate-label";
+      sourceLabel.textContent = "Selected text";
+      panel.appendChild(sourceLabel);
+
+      var sourceBox = document.createElement("div");
+      sourceBox.className = "selection-translate-source";
+      panel.appendChild(sourceBox);
+
+      var resultLabel = document.createElement("div");
+      resultLabel.className = "selection-translate-label";
+      resultLabel.textContent = "Translation";
+      panel.appendChild(resultLabel);
+
+      var resultBox = document.createElement("div");
+      resultBox.className = "selection-translate-result";
+      panel.appendChild(resultBox);
+
+      var status = document.createElement("div");
+      status.className = "selection-translate-status";
+      panel.appendChild(status);
+
+      var actions = document.createElement("div");
+      actions.className = "selection-translate-actions";
+      panel.appendChild(actions);
+
+      var copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "selection-translate-btn";
+      copyBtn.textContent = "Copy";
+      copyBtn.disabled = true;
+      actions.appendChild(copyBtn);
+
+      var doneBtn = document.createElement("button");
+      doneBtn.type = "button";
+      doneBtn.className = "selection-translate-btn primary";
+      doneBtn.textContent = "Done";
+      actions.appendChild(doneBtn);
+
+      document.body.appendChild(root);
+
+      translateUi.root = root;
+      translateUi.source = sourceBox;
+      translateUi.result = resultBox;
+      translateUi.status = status;
+      translateUi.langSelect = langSelect;
+      translateUi.copyBtn = copyBtn;
+
+      langSelect.value = getTranslateTargetLang();
+
+      root.addEventListener("click", function (e) {
+        if (e && e.target === root) closeTranslateDialog();
+      });
+      panel.addEventListener("click", function (e) {
+        try { e.stopPropagation(); } catch (e0) {}
+      });
+      closeBtn.addEventListener("click", closeTranslateDialog);
+      doneBtn.addEventListener("click", closeTranslateDialog);
+      copyBtn.addEventListener("click", function () {
+        var out = "";
+        try { out = (translateUi.result && translateUi.result.textContent) || ""; } catch (e0) {}
+        if (!out) return;
+        copyTextFallback(out);
+      });
+      langSelect.addEventListener("change", function () {
+        if (!translateUi.text) return;
+        requestTranslation();
+      });
+
+      if (!translateUi.escBound) {
+        translateUi.escBound = true;
+        document.addEventListener("keydown", function (e) {
+          try {
+            if (!e || e.key !== "Escape") return;
+            if (!translateUi.root || translateUi.root.classList.contains("hidden")) return;
+            e.preventDefault();
+            closeTranslateDialog();
+          } catch (e0) {}
+        });
+      }
+    }
+
+    function requestTranslation() {
+      if (!translateUi.root || translateUi.root.classList.contains("hidden")) return;
+      var sourceText = String(translateUi.text || "").trim();
+      if (!sourceText) return;
+
+      var lang = "en";
+      try { lang = translateUi.langSelect ? translateUi.langSelect.value : "en"; } catch (e0) {}
+      lang = setTranslateTargetLang(lang);
+      if (translateUi.langSelect) translateUi.langSelect.value = lang;
+
+      var requestId = ++translateUi.requestId;
+      if (translateUi.abortController) {
+        try { translateUi.abortController.abort(); } catch (e1) {}
+      }
+      translateUi.abortController = (typeof AbortController !== "undefined")
+        ? new AbortController()
+        : null;
+
+      if (translateUi.copyBtn) translateUi.copyBtn.disabled = true;
+      if (translateUi.result) translateUi.result.textContent = "";
+      setTranslateStatus("Translating...", false);
+
+      var timeoutId = null;
+      if (translateUi.abortController) {
+        timeoutId = setTimeout(function () {
+          try { translateUi.abortController.abort(); } catch (e2) {}
+        }, 14000);
+      }
+
+      var payload = JSON.stringify({
+        text: sourceText,
+        source: "auto",
+        target: lang
+      });
+      var candidates = [];
+      function pushCandidate(url) {
+        if (!url) return;
+        for (var i = 0; i < candidates.length; i++) {
+          if (candidates[i] === url) return;
+        }
+        candidates.push(url);
+      }
+      try {
+        var p = String((window.location && window.location.pathname) || "");
+        if (p.indexOf("/books/") === 0) {
+          pushCandidate("/books/api/translate");
+          pushCandidate("/api/translate");
+        } else {
+          pushCandidate("/api/translate");
+          pushCandidate("/books/api/translate");
+        }
+      } catch (ePath) {
+        pushCandidate("/books/api/translate");
+        pushCandidate("/api/translate");
+      }
+      // reader.pub may be routed via another worker; fallback to the Pages alias where
+      // translate endpoint is guaranteed to exist.
+      pushCandidate("https://master.reader-books.pages.dev/books/api/translate");
+      pushCandidate("https://master.reader-books.pages.dev/api/translate");
+
+      function parseTranslateResponse(res) {
+        return res.text().then(function (raw) {
+          var data = null;
+          try { data = raw ? JSON.parse(raw) : null; } catch (e3) { data = null; }
+          return { res: res, data: data };
+        });
+      }
+
+      function fetchTranslateAt(index) {
+        if (index >= candidates.length) {
+          return Promise.reject(new Error("Translate endpoint not found (404)."));
+        }
+        return fetch(candidates[index], {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: payload,
+          signal: translateUi.abortController ? translateUi.abortController.signal : undefined
+        }).then(parseTranslateResponse).then(function (pack) {
+          var res = pack.res;
+          var data = pack.data;
+          if (res.status === 404) return fetchTranslateAt(index + 1);
+          if (!res.ok) {
+            var err = (data && data.error) ? data.error : ("Translate failed (" + res.status + ")");
+            throw new Error(err);
+          }
+          return data || {};
+        });
+      }
+
+      fetchTranslateAt(0).then(function (data) {
+        if (requestId !== translateUi.requestId) return;
+        var translated = "";
+        try { translated = String(data.translatedText || "").trim(); } catch (e4) {}
+        if (!translated) throw new Error("Empty translation result.");
+        if (translateUi.result) translateUi.result.textContent = translated;
+        if (translateUi.copyBtn) translateUi.copyBtn.disabled = false;
+        var detected = "";
+        try { detected = String(data.detectedSource || "").trim(); } catch (e5) {}
+        if (detected && detected !== "auto") {
+          setTranslateStatus("Detected: " + detected.toUpperCase() + " -> " + lang.toUpperCase(), false);
+        } else {
+          setTranslateStatus("", false);
+        }
+      }).catch(function (err) {
+        if (requestId !== translateUi.requestId) return;
+        if (err && err.name === "AbortError") {
+          setTranslateStatus("Translation timed out. Try again.", true);
+          return;
+        }
+        var message = "Unable to translate.";
+        try {
+          if (err && err.message) message = err.message;
+        } catch (e6) {}
+        setTranslateStatus(message, true);
+      }).finally(function () {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (requestId === translateUi.requestId) {
+          translateUi.abortController = null;
+        }
+      });
+    }
+
+    function openTranslateDialog(text) {
+      ensureTranslateDialog();
+      translateUi.text = normalizeTranslateInput(text);
+      if (!translateUi.text) return;
+      if (translateUi.source) translateUi.source.textContent = translateUi.text;
+      if (translateUi.result) translateUi.result.textContent = "";
+      if (translateUi.copyBtn) translateUi.copyBtn.disabled = true;
+      if (translateUi.langSelect) translateUi.langSelect.value = getTranslateTargetLang();
+      setTranslateStatus("", false);
+      translateUi.root.classList.remove("hidden");
+      requestTranslation();
+    }
+
     function openUrl(url) {
       try { window.open(url, "_blank", "noopener"); } catch (e) { window.location.href = url; }
     }
@@ -3664,12 +4044,7 @@
           return;
         }
       } else if (action === "translate") {
-        var lang = "en";
-        try {
-          lang = (navigator.language || "en").split("-")[0];
-        } catch (e) {}
-        var trUrl = "https://translate.google.com/?sl=auto&tl=" + encodeURIComponent(lang) + "&text=" + encodeURIComponent(text) + "&op=translate";
-        openUrl(trUrl);
+        openTranslateDialog(text);
       } else if (action === "search") {
         var qUrl = "https://www.google.com/search?q=" + encodeURIComponent(text);
         openUrl(qUrl);
