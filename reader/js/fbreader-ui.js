@@ -324,13 +324,6 @@
   // detect a center tap on EVERY page.
   function installCenterTapLayer() {
     try {
-      if (isTabletViewport && isTabletViewport()) {
-        var existingTablet = document.getElementById("fb-tap-layer");
-        if (existingTablet && existingTablet.parentNode) existingTablet.parentNode.removeChild(existingTablet);
-        return;
-      }
-    } catch (eTab) {}
-    try {
       var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
       var touch = (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
       if (__fb_isDesktop && !coarse && !touch) return;
@@ -382,7 +375,10 @@
 
     function updateCenterTapBounds() {
       try {
-        var vw = getVisibleViewportWidth();
+        var layerRect = null;
+        try { layerRect = layer && layer.getBoundingClientRect ? layer.getBoundingClientRect() : null; } catch (eL) { layerRect = null; }
+        var vw = (layerRect && layerRect.width) ? layerRect.width : getVisibleViewportWidth();
+        var vLeft = (layerRect && typeof layerRect.left === "number") ? layerRect.left : 0;
         var centerW = Math.max(0, Math.round(vw * 0.60));
         var edgeW = Math.max(0, Math.round(vw * 0.20));
         var left = Math.max(0, Math.round((vw - centerW) / 2));
@@ -396,7 +392,7 @@
           if (rightZone) rightZone.style.width = edgeW + "px";
         } catch (e4) {}
         // Expose bounds for iframe-level handlers to use the exact same zone.
-        window.__fbTapCenterBounds = { left: left, right: left + centerW, width: vw };
+        window.__fbTapCenterBounds = { left: vLeft + left, right: vLeft + left + centerW, width: vw };
       } catch (e3) {}
     }
 
@@ -523,16 +519,20 @@
       }
     }
 
-    function findInteractiveNearPoint(x, y) {
-      var offsets = [0, 6, -6, 12, -12];
-      for (var i = 0; i < offsets.length; i++) {
-        for (var j = 0; j < offsets.length; j++) {
-          var el = findUnderlyingElementAtPoint(x + offsets[i], y + offsets[j]);
-          var inter = closestInteractive(el);
-          if (inter) return inter;
+    function findInteractiveAtPoint(x, y) {
+      try {
+        var el = findUnderlyingElementAtPoint(x, y);
+        var inter = closestInteractive(el);
+        if (!inter) return null;
+        // Strict hit only: do not "snap" to nearby links (can trigger wrong chapter jumps).
+        if (inter.getBoundingClientRect) {
+          var rect = inter.getBoundingClientRect();
+          if (!(x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom)) return null;
         }
+        return inter;
+      } catch (e) {
+        return null;
       }
-      return null;
     }
 
     function tryToggle(e) {
@@ -543,7 +543,9 @@
       try {
         if (overlaysOpen()) return;
         if (moved) return;
-        if (Date.now() - st > 150) return;
+        // Real-world taps on mobile are often longer than 150ms.
+        // Too low threshold lets synthetic click leak to underlying epub view (can trigger prev page).
+        if (Date.now() - st > 900) return;
 
         var tgt = e && e.target;
         if (isUiChromeTarget(tgt)) return;
@@ -567,7 +569,7 @@
               try { if (foot.click) foot.click(); } catch (eF1) {}
               return;
             }
-            var interactive = findInteractiveNearPoint(pt.clientX, pt.clientY);
+            var interactive = findInteractiveAtPoint(pt.clientX, pt.clientY);
             if (interactive) {
               // Prefer footnote anchors when near the tap (larger hit area).
               if (interactive.tagName === "A" || (interactive.closest && interactive.closest("a"))) {
@@ -602,9 +604,6 @@
       var now = Date.now();
       if (now - lastToggleAt < 350) return;
       try {
-        if (!(isTabletViewport && isTabletViewport())) return;
-      } catch (eTv) { return; }
-      try {
         if (overlaysOpen()) return;
         if (moved) return;
         if (Date.now() - st > 220) return;
@@ -626,7 +625,7 @@
               try { if (foot.click) foot.click(); } catch (eF1) {}
               return;
             }
-            var interactive = findInteractiveNearPoint(pt.clientX, pt.clientY);
+            var interactive = findInteractiveAtPoint(pt.clientX, pt.clientY);
             if (interactive) {
               try { if (interactive.focus) interactive.focus(); } catch (eI0) {}
               try { if (interactive.click) interactive.click(); } catch (eI1) {}
@@ -910,6 +909,23 @@
     closeBtns.forEach(function (b) {
       b.addEventListener("click", function (e) {
         e.preventDefault();
+        var panelId = "";
+        try {
+          var panel = b.closest ? b.closest(".overlay-panel") : null;
+          panelId = panel && panel.id ? String(panel.id) : "";
+        } catch (e0) {}
+
+        // For list overlays, return to sidebar menu instead of closing everything.
+        if (
+          panelId === "overlay-toc" ||
+          panelId === "overlay-bookmarks" ||
+          panelId === "overlay-notes" ||
+          panelId === "overlay-mybooks"
+        ) {
+          open("menu");
+          return;
+        }
+
         closeAll();
       });
     });
@@ -4022,8 +4038,10 @@
         window.visualViewport.addEventListener("scroll", scheduleLayoutSync);
       }
     } catch (e) {}
-    setupOverlays();
-    enableIframeGestures(reader);
+	    setupOverlays();
+	    // Mobile tap/swipe is handled by reader.js attachSwipeToDoc().
+	    // Keep this legacy bridge desktop-only to avoid competing mobile gesture handlers.
+	    if (window.__fb_isDesktop) enableIframeGestures(reader);
 
     // Mobile: ultra-robust center tap toggle (works even when the page is inside an iframe).
     // This is the same approach that worked earlier (fix5): a dedicated center hit layer.

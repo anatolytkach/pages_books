@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="google-drive-client-id" content="" />
     <title>reader.pub books</title>
     <link rel="icon" type="image/svg+xml" href="/books/assets/logo.svg" />
     <style>
@@ -427,6 +428,77 @@
         border-color: var(--border-active);
       }
 
+      .toggleBtn[disabled] {
+        opacity: 0.45;
+        cursor: default;
+      }
+
+      .mybooks-auth {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--rect-bg);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 520px;
+      }
+
+      .mybooks-auth-title {
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .mybooks-auth-copy {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .mybooks-auth-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .mybooks-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .mybooks-check {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+
+      .mybooks-open {
+        font-size: 12px;
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .mybooks-open:hover {
+        text-decoration: underline;
+      }
+
+      .mybooks-list-row td:first-child {
+        width: 34px;
+      }
+
+      .mybooks-meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .mybooks-empty {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
       .panel {
         background: var(--rect-bg);
         border: 1px solid var(--border);
@@ -555,6 +627,23 @@
 
       .cardTitle {
         font-weight: 600;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-height: calc(1.3em * 2);
+      }
+
+      .cardTitle a {
+        color: inherit;
+        text-decoration: none;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .cardMeta {
@@ -755,7 +844,7 @@
       <main id="main">
         <div id="breadcrumbsRow" class="breadcrumbs-row">
           <div id="breadcrumbs"></div>
-          <a class="my-books-link" href="/books/reader/?mybooks=1" target="_blank" rel="noopener noreferrer">My Books</a>
+          <a id="myBooksLink" class="my-books-link" href="#view=mybooks">My Books</a>
         </div>
         <div id="toolbar"></div>
         <div id="searchResults"></div>
@@ -765,6 +854,7 @@
       <footer id="footer">©2026 | Credits: Project Gutenberg</footer>
     </div>
 
+    <script src="/books/shared/drive-sync.js"></script>
     <script>
       (() => {
         "use strict";
@@ -786,6 +876,7 @@
         const els = {
           breadcrumbs: document.getElementById("breadcrumbs"),
           breadcrumbsRow: document.getElementById("breadcrumbsRow"),
+          myBooksLink: document.getElementById("myBooksLink"),
           toolbar: document.getElementById("toolbar"),
           brandLink: document.getElementById("brandLink"),
           languageSelect: document.getElementById("languageSelect"),
@@ -810,6 +901,15 @@
           error: "",
           loading: false,
         };
+        let myBooksState = {
+          items: [],
+          selected: new Set(),
+          deleting: false,
+          loaded: false,
+          loading: false,
+          lastLoadAt: 0,
+        };
+        let hiddenEmptyPrefixes = new Set();
 
         const cache = {
           letters: null,
@@ -963,10 +1063,43 @@
           return token.toUpperCase();
         }
 
+        async function deleteSelectedMyBooks() {
+          if (myBooksState.deleting) return;
+          const ids = Array.from(myBooksState.selected || []);
+          if (!ids.length) return;
+          const ok = window.confirm(`Delete ${ids.length} selected book(s) from My Books and remove their position, bookmarks and notes?`);
+          if (!ok) return;
+          const sync = window.ReaderPubDriveSync || null;
+          if (!sync) return;
+          myBooksState.deleting = true;
+          setToolbar("mybooks", parseState().bookView || "grid");
+          setStatus("Deleting selected books...");
+          try {
+            const snapshot = await sync.deleteBooksCascade(ids, { interactive: true });
+            try { sync.applySnapshotToLocalReader(snapshot); } catch (eApply) {}
+            myBooksState.items = sync.listMyBooks(snapshot);
+            myBooksState.selected = new Set();
+            myBooksState.loaded = true;
+            myBooksState.lastLoadAt = Date.now();
+            setStatus("Selected books deleted.");
+            setToolbar("mybooks", parseState().bookView || "grid");
+            renderMyBooks(stateFromHash(parseState()).bookView || "grid");
+          } catch (error) {
+            setStatus(error && error.message ? error.message : "Failed to delete selected books");
+          } finally {
+            myBooksState.deleting = false;
+            setToolbar("mybooks", parseState().bookView || "grid");
+          }
+        }
+
+        function stateFromHash(state) {
+          return state || parseState();
+        }
+
         function setToolbar(view, bookView) {
           els.toolbar.innerHTML = "";
-          if (view !== "author") return;
           if (searchState && searchState.query) return;
+          if (view !== "author" && view !== "mybooks") return;
 
           const listBtn = el("button", "toggleBtn", "List");
           const gridBtn = el("button", "toggleBtn", "Grid");
@@ -978,6 +1111,19 @@
 
           els.toolbar.appendChild(listBtn);
           els.toolbar.appendChild(gridBtn);
+
+          if (view === "mybooks") {
+            const delBtn = el(
+              "button",
+              "toggleBtn",
+              myBooksState.selected.size ? `Delete selected (${myBooksState.selected.size})` : "Delete selected"
+            );
+            if (!myBooksState.selected.size || myBooksState.deleting) {
+              delBtn.disabled = true;
+            }
+            delBtn.addEventListener("click", deleteSelectedMyBooks);
+            els.toolbar.appendChild(delBtn);
+          }
         }
 
         function renderSearchResults() {
@@ -1333,6 +1479,12 @@
           return `/books/${encodeURIComponent(id)}/`;
         }
 
+        function openReaderUrl(id) {
+          const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
+          const base = isPagesDev ? "/reader/" : "/books/reader/";
+          return `${base}?id=${encodeURIComponent(id)}`;
+        }
+
         function updateSearchIcon() {
           const hasQuery = els.search.value.trim().length > 0;
           els.searchForm.classList.toggle("hasQuery", hasQuery);
@@ -1437,6 +1589,25 @@
           });
         }
 
+        function prefixStateKey(letter, prefix) {
+          const l = normalizeSearchMatch(letter || "").replace(/[^\p{L}\p{N}#]+/gu, "");
+          const p = normalizeSearchMatch(prefix || "").replace(/[^\p{L}\p{N}#]+/gu, "");
+          if (!l || !p) return "";
+          return `${l}:${p}`;
+        }
+
+        function markPrefixAsEmpty(letter, prefix) {
+          const deadKey = prefixStateKey(letter, prefix);
+          if (!deadKey) return;
+          hiddenEmptyPrefixes.add(deadKey);
+
+          const cacheKey = String(letter || "");
+          if (!cache.letterPrefixes.has(cacheKey)) return;
+          const current = cache.letterPrefixes.get(cacheKey) || [];
+          const filtered = current.filter((item) => prefixStateKey(letter, item && item.prefix) !== deadKey);
+          cache.letterPrefixes.set(cacheKey, filtered);
+        }
+
         function matchesQuery(item, query) {
           if (!query) return true;
           const needle = normalizeSearchMatch(query);
@@ -1476,6 +1647,65 @@
           const items = (data && (data.items || data.list)) || [];
           cache.searchIndex.set(token, items);
           return items;
+        }
+
+        function getSearchBookId(item) {
+          if (!item || typeof item !== "object") return "";
+          const rawId = item.id || item.book_id || item.bookId || item.work_id || item.workId || "";
+          return rawId ? String(rawId) : "";
+        }
+
+        function getSearchBookCover(item) {
+          if (!item || typeof item !== "object") return "";
+          const cover = item.cover || item.coverUrl || item.cover_url || item.image || item.img || item.thumbnail;
+          return cover ? String(cover) : "";
+        }
+
+        async function fetchSearchIndexForCatalog(token) {
+          if (!token) return [];
+          if (cache.searchIndex.has(token)) return cache.searchIndex.get(token) || [];
+          const searchPath = (config && config.searchPath) || "/search/{token}.json";
+          const url = buildUrl(searchPath, { token });
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${url}`);
+          const data = await res.json();
+          const items = (data && (data.items || data.list)) || [];
+          cache.searchIndex.set(token, items);
+          return items;
+        }
+
+        async function hydrateMyBooksCovers(itemsInput, expectedNonce) {
+          const items = Array.isArray(itemsInput) ? itemsInput : [];
+          if (!items.length) return [];
+          const hydrated = await Promise.all(
+            items.map(async (item) => {
+              if (!item || typeof item !== "object") return item;
+              if (item.cover || item.coverUrl || item.cover_url) return item;
+              const id = String(item.id || "");
+              if (!id) return item;
+
+              const tokens = new Set();
+              const titleToken = normalizeSearchToken(item.title || "");
+              const authorToken = normalizeSearchToken(item.author || "");
+              if (titleToken) tokens.add(titleToken);
+              if (authorToken) tokens.add(authorToken);
+
+              for (const token of tokens) {
+                if (expectedNonce !== REQ_NONCE) return item;
+                try {
+                  const hits = await fetchSearchIndexForCatalog(token);
+                  const matched = hits.find((candidate) => getSearchBookId(candidate) === id);
+                  if (!matched) continue;
+                  const cover = getSearchBookCover(matched);
+                  if (!cover) continue;
+                  return { ...item, cover };
+                } catch (error) {}
+              }
+              return item;
+            })
+          );
+          if (expectedNonce !== REQ_NONCE) return items;
+          return hydrated;
         }
 
         async function runSearch() {
@@ -1758,7 +1988,13 @@
 
         function renderPrefixes(prefixes, letter) {
           els.content.innerHTML = "";
-          const filtered = prefixes.filter((item) => item.count === null || item.count > 0);
+          const filtered = prefixes.filter((item) => {
+            if (!item) return false;
+            if (!(item.count === null || item.count > 0)) return false;
+            const deadKey = prefixStateKey(letter, item.prefix);
+            if (deadKey && hiddenEmptyPrefixes.has(deadKey)) return false;
+            return true;
+          });
           if (!filtered.length) {
             const empty = el("div", "loading", "No prefixes found.");
             els.content.appendChild(empty);
@@ -1875,6 +2111,226 @@
             table.appendChild(tbody);
             els.content.appendChild(table);
           }
+        }
+
+        async function renderMyBooks(viewMode, nonce) {
+          const sync = window.ReaderPubDriveSync || null;
+          const renderNonce = typeof nonce === "number" ? nonce : REQ_NONCE;
+          els.content.innerHTML = "";
+
+          function setSelected(bookId, checked) {
+            const id = String(bookId || "");
+            if (!id) return;
+            if (checked) myBooksState.selected.add(id);
+            else myBooksState.selected.delete(id);
+            setToolbar("mybooks", parseState().bookView || "grid");
+          }
+
+          function renderAuthCard(message, actionLabel, action) {
+            els.content.innerHTML = "";
+            const box = el("div", "mybooks-auth");
+            box.appendChild(el("div", "mybooks-auth-title", "My Books in Google Drive"));
+            box.appendChild(
+              el(
+                "div",
+                "mybooks-auth-copy",
+                message || "Authorize Google Drive to open your synced books and manage deletions."
+              )
+            );
+            const actions = el("div", "mybooks-auth-actions");
+            if (typeof action === "function") {
+              const signInBtn = el("button", "toggleBtn", actionLabel || "Authorize Google Drive");
+              signInBtn.addEventListener("click", async () => {
+                signInBtn.disabled = true;
+                setStatus("Opening Google authorization...");
+                try {
+                  await action();
+                  if (renderNonce !== REQ_NONCE) return;
+                  setStatus("");
+                  renderState(parseState());
+                } catch (error) {
+                  signInBtn.disabled = false;
+                  setStatus(error && error.message ? error.message : "Google authorization failed");
+                }
+              });
+              actions.appendChild(signInBtn);
+            }
+            if (actions.children.length) box.appendChild(actions);
+            els.content.appendChild(box);
+          }
+
+          function renderItems(itemsInput) {
+            els.content.innerHTML = "";
+            const items = Array.isArray(itemsInput) ? itemsInput : [];
+            const existingIds = new Set(items.map((item) => String(item.id || "")));
+            myBooksState.selected = new Set(
+              Array.from(myBooksState.selected || []).filter((id) => existingIds.has(String(id)))
+            );
+            setToolbar("mybooks", viewMode);
+
+            if (!items.length) {
+              const empty = el("div", "mybooks-empty", "My Books is empty in Google Drive.");
+              els.content.appendChild(empty);
+              return;
+            }
+
+            if (viewMode === "grid") {
+              const grid = el("div", "grid");
+              items.forEach((book) => {
+                const bookId = String(book.id || "");
+                const card = el("div", "card");
+                card.addEventListener("click", (event) => {
+                  const t = event.target;
+                  if (t && t.closest && t.closest("a, input, button, label")) return;
+                  const url = openReaderUrl(bookId);
+                  window.open(url, "_blank", "noopener");
+                });
+
+                const head = el("div", "mybooks-card-head");
+                const check = document.createElement("input");
+                check.type = "checkbox";
+                check.className = "mybooks-check";
+                check.checked = myBooksState.selected.has(bookId);
+                check.setAttribute("aria-label", "Select book for deletion");
+                check.addEventListener("click", (event) => event.stopPropagation());
+                check.addEventListener("change", (event) => {
+                  setSelected(bookId, !!event.target.checked);
+                });
+
+                head.appendChild(check);
+
+                const coverUrl = resolveCoverUrl(book.cover || book.coverUrl || book.cover_url || "");
+                const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
+                if (coverUrl) {
+                  const img = new Image();
+                  img.loading = "lazy";
+                  img.decoding = "async";
+                  img.alt = `${book.title || `Book ${bookId}`} cover`;
+                  img.src = coverUrl;
+                  img.onerror = () => {
+                    cover.classList.add("coverEmpty");
+                    cover.textContent = "No cover";
+                  };
+                  cover.appendChild(img);
+                } else {
+                  cover.textContent = "No cover";
+                }
+                const titleWrap = el("div", "cardTitle");
+                const titleLink = el("a", null, book.title || `Book ${bookId}`);
+                titleLink.href = openReaderUrl(bookId);
+                titleLink.target = "_blank";
+                titleLink.rel = "noopener noreferrer";
+                titleWrap.appendChild(titleLink);
+                const meta = el("div", "cardMeta", book.author || "");
+
+                card.appendChild(head);
+                card.appendChild(cover);
+                card.appendChild(titleWrap);
+                card.appendChild(meta);
+                grid.appendChild(card);
+              });
+              els.content.appendChild(grid);
+              return;
+            }
+
+            const table = el("table", "list");
+            const tbody = el("tbody");
+
+            items.forEach((book) => {
+              const bookId = String(book.id || "");
+              const row = el("tr", "mybooks-list-row");
+
+              const selectCell = el("td");
+              const check = document.createElement("input");
+              check.type = "checkbox";
+              check.className = "mybooks-check";
+              check.checked = myBooksState.selected.has(bookId);
+              check.setAttribute("aria-label", "Select book for deletion");
+              check.addEventListener("change", (event) => {
+                setSelected(bookId, !!event.target.checked);
+              });
+              selectCell.appendChild(check);
+
+              const bookCell = el("td");
+              const titleLink = el("a", null, book.title || `Book ${bookId}`);
+              titleLink.href = openReaderUrl(bookId);
+              titleLink.target = "_blank";
+              titleLink.rel = "noopener noreferrer";
+              bookCell.appendChild(titleLink);
+              if (book.author) {
+                bookCell.appendChild(el("div", "mybooks-meta", book.author));
+              }
+
+              const openCell = el("td", "count");
+              const openLink = el("a", "mybooks-open", "Open");
+              openLink.href = openReaderUrl(bookId);
+              openLink.target = "_blank";
+              openLink.rel = "noopener noreferrer";
+              openCell.appendChild(openLink);
+
+              row.appendChild(selectCell);
+              row.appendChild(bookCell);
+              row.appendChild(openCell);
+              tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            els.content.appendChild(table);
+          }
+
+          if (!sync || typeof sync.isConfigured !== "function" || !sync.isConfigured()) {
+            renderAuthCard(
+              "Google Drive integration is not configured for this build. Add a Google client id to enable My Books sync."
+            );
+            return;
+          }
+
+          if (myBooksState.loaded) {
+            const hydratedItems = await hydrateMyBooksCovers(myBooksState.items, renderNonce);
+            if (renderNonce !== REQ_NONCE) return;
+            myBooksState.items = hydratedItems;
+            setStatus("");
+            renderItems(hydratedItems);
+            return;
+          }
+
+          let snapshot = null;
+          try {
+            showLoading("Loading My Books from Google Drive...");
+            myBooksState.loading = true;
+            snapshot = await sync.pullSnapshot({ interactive: false });
+            if (renderNonce !== REQ_NONCE) return;
+          } catch (error) {
+            if (renderNonce !== REQ_NONCE) return;
+            const msg = error && error.message ? error.message : "Failed to load My Books from Google Drive";
+            if (/authoriz|popup/i.test(msg)) {
+              renderAuthCard(
+                "Authorize Google Drive in this browser/device to see books from your cloud library.",
+                "Authorize Google Drive",
+                async () => {
+                  await sync.signIn();
+                }
+              );
+              return;
+            }
+            showError("My Books error", msg);
+            return;
+          } finally {
+            myBooksState.loading = false;
+          }
+
+          try {
+            sync.applySnapshotToLocalReader(snapshot);
+          } catch (error) {}
+
+          const items = sync.listMyBooks(snapshot);
+          const hydratedItems = await hydrateMyBooksCovers(items, renderNonce);
+          if (renderNonce !== REQ_NONCE) return;
+          myBooksState.items = hydratedItems;
+          myBooksState.loaded = true;
+          myBooksState.lastLoadAt = Date.now();
+          setStatus("");
+          renderItems(hydratedItems);
         }
 
         async function loadConfig(nonce) {
@@ -2066,6 +2522,7 @@
           cache.prefixNodes.clear();
           cache.authorBooks.clear();
           cache.searchIndex.clear();
+          hiddenEmptyPrefixes.clear();
         }
 
         function setActiveLanguage(lang) {
@@ -2391,6 +2848,8 @@
               const shouldShowAuthors = authorsCount > 0 && authorsCount < 50;
               const canShowPrefixes = node.prefixes.length > 0;
               const hasAuthors = node.authors.length > 0;
+              const visibleAuthors = filterAuthorsForPrefix(node.authors, state.letter, state.prefix);
+              const hasVisibleAuthors = visibleAuthors.length > 0;
 
               setBreadcrumbs([
                 { label: "Letters", onClick: () => navigate({ view: "letters" }) },
@@ -2399,16 +2858,15 @@
               ]);
 
               if (shouldShowAuthors) {
-                if (!hasAuthors) {
-                  showError(
-                    "Prefix node indicates fewer than 50 authors, but no authors list was found.",
-                    "Check JSON schema for this prefix node."
-                  );
-                  return;
+                if (!hasVisibleAuthors) {
+                  markPrefixAsEmpty(state.letter, state.prefix);
+                  setStatus(`Prefix ${formatPrefixLabel(state.prefix)} is empty and was hidden.`);
+                  updateHash({ ...state, view: "prefixes", prefix: "", authorKey: "", authorName: "" }, true);
+                  return renderState(parseState());
                 }
                 setToolbar("prefix");
-                currentView = { renderer: () => renderAuthors(node.authors, state.letter, state.prefix), data: node.authors };
-                renderAuthors(node.authors, state.letter, state.prefix);
+                currentView = { renderer: () => renderAuthors(visibleAuthors, state.letter, state.prefix), data: visibleAuthors };
+                renderAuthors(visibleAuthors, state.letter, state.prefix);
                 renderSearchResults();
                 return;
               }
@@ -2422,15 +2880,23 @@
               }
 
               if (hasAuthors) {
+                if (!hasVisibleAuthors) {
+                  markPrefixAsEmpty(state.letter, state.prefix);
+                  setStatus(`Prefix ${formatPrefixLabel(state.prefix)} is empty and was hidden.`);
+                  updateHash({ ...state, view: "prefixes", prefix: "", authorKey: "", authorName: "" }, true);
+                  return renderState(parseState());
+                }
                 setToolbar("prefix");
-                currentView = { renderer: () => renderAuthors(node.authors, state.letter, state.prefix), data: node.authors };
-                renderAuthors(node.authors, state.letter, state.prefix);
+                currentView = { renderer: () => renderAuthors(visibleAuthors, state.letter, state.prefix), data: visibleAuthors };
+                renderAuthors(visibleAuthors, state.letter, state.prefix);
                 renderSearchResults();
                 return;
               }
 
-              showError("Prefix node did not contain prefixes or authors.", "Check JSON schema for this node.");
-              return;
+              markPrefixAsEmpty(state.letter, state.prefix);
+              setStatus(`Prefix ${formatPrefixLabel(state.prefix)} is empty and was hidden.`);
+              updateHash({ ...state, view: "prefixes", prefix: "", authorKey: "", authorName: "" }, true);
+              return renderState(parseState());
             }
 
             if (state.view === "author") {
@@ -2475,6 +2941,23 @@
                 data: payload.books,
               };
               renderAuthorBooks(author, payload.books, viewMode);
+              renderSearchResults();
+              return;
+            }
+
+            if (state.view === "mybooks") {
+              const viewMode = state.bookView || "grid";
+              if (viewMode === "grid") {
+                els.content.classList.add("noPanel");
+              }
+              setBreadcrumbs([
+                { label: "Letters", onClick: () => navigate({ view: "letters" }) },
+                { label: "My Books" },
+              ]);
+              setToolbar("mybooks", viewMode);
+              currentView = { renderer: () => renderMyBooks(viewMode, REQ_NONCE), data: myBooksState.items };
+              await renderMyBooks(viewMode, nonce);
+              if (nonce !== REQ_NONCE) return;
               renderSearchResults();
               return;
             }
@@ -2557,6 +3040,17 @@
             runSearch();
             updateHash({ ...DEFAULT_STATE, language: DEFAULT_STATE.language }, true);
             renderState(parseState());
+          });
+        }
+
+        if (els.myBooksLink) {
+          els.myBooksLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            els.search.value = "";
+            searchState = { query: "", items: [], error: "", loading: false };
+            updateSearchIcon();
+            renderSearchResults();
+            navigate({ view: "mybooks", letter: "", prefix: "", authorKey: "", authorName: "" });
           });
         }
 

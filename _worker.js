@@ -3,6 +3,9 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
     const decodedPath = decodeURIComponent(path);
+    const driveClientId = String(
+      env.READERPUB_GOOGLE_CLIENT_ID || env.GOOGLE_DRIVE_CLIENT_ID || ""
+    ).trim();
 
     if (decodedPath.startsWith("/books/api/")) {
       const decodedKey = `api/${decodedPath.slice("/books/api/".length)}`;
@@ -64,11 +67,30 @@ export default {
     const headers = new Headers(response.headers);
     const isCatalogHtml =
       path === "/books" || path === "/books/" || path === "/books/index.html";
+    const contentType = String(headers.get("content-type") || "").toLowerCase();
+    const isHtml = contentType.includes("text/html");
 
     headers.set("x-reader-worker", "1");
     headers.set("x-reader-route", isCatalogHtml ? "catalog" : "assets");
     if (isCatalogHtml) {
       headers.set("cache-control", "no-store");
+    }
+
+    if (isHtml && driveClientId) {
+      const rewritten = new HTMLRewriter()
+        .on('meta[name="google-drive-client-id"]', {
+          element(element) {
+            element.setAttribute("content", driveClientId);
+          },
+        })
+        .transform(
+          new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+          })
+        );
+      return rewritten;
     }
 
     return new Response(response.body, {

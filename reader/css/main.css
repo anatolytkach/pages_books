@@ -471,7 +471,7 @@ html.is-desktop #openBookmarks {
 #viewerStack.swiping #viewer,
 #viewerStack.swiping #viewer-prev,
 #viewerStack.swiping #viewer-next {
-  background: transparent !important;
+  background: var(--reader-bg, #ffffff) !important;
 }
 
 /* Reveal exactly one underlay depending on swipe direction */
@@ -1902,7 +1902,7 @@ body.dark{
   width: 60vw;
   top: var(--titlebar-h);
   bottom: var(--bottombar-h);
-  pointer-events: auto;
+  pointer-events: none;
   background: transparent;
 }
 
@@ -1911,18 +1911,12 @@ body.dark{
   position: absolute;
   top: var(--titlebar-h);
   bottom: var(--bottombar-h);
-  width: 0;
+  width: 20vw;
   pointer-events: none;
   background: transparent;
 }
 #fb-tap-left{ left: 0; }
 #fb-tap-right{ right: 0; }
-
-html.is-tablet #fb-tap-left,
-html.is-tablet #fb-tap-right{
-  width: 20vw;
-  pointer-events: none;
-}
 
 /* Disable center-tap capture while overlays are open (TOC / Bookmarks), so backdrop clicks work reliably */
 body.sidebar-open #fb-tap-layer{ display:none; }
@@ -2543,6 +2537,37 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   word-break: break-word;
   width: 100%;
   box-sizing: border-box;
+}
+#overlay-mybooks #mybooksView .mybooks-auth-item{
+  border-bottom: 0;
+  padding: 4px 0 0;
+}
+#overlay-mybooks #mybooksView .mybooks-auth-wrap{
+  border: 1px solid var(--fbbar-border);
+  border-radius: 10px;
+  padding: 10px 10px 12px;
+}
+#overlay-mybooks #mybooksView .mybooks-auth-title{
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 6px 4px;
+}
+#overlay-mybooks #mybooksView .mybooks-auth-copy{
+  margin-bottom: 10px;
+}
+#overlay-mybooks #mybooksView .mybooks-auth-btn{
+  margin: 0 6px;
+  border: 1px solid var(--fbbar-border);
+  background: transparent;
+  color: inherit;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+#overlay-mybooks #mybooksView .mybooks-auth-btn[disabled]{
+  opacity: 0.65;
+  cursor: default;
 }
 #overlay-notes #notesView .note-comment{
   margin: 4px 6px 8px;
