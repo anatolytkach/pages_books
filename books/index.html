@@ -909,6 +909,7 @@
           loading: false,
           lastLoadAt: 0,
         };
+        const MYBOOKS_LOCAL_KEY = `readerpub:mybooks:${window.location.host}`;
         let hiddenEmptyPrefixes = new Set();
 
         const cache = {
@@ -2159,6 +2160,27 @@
             els.content.appendChild(box);
           }
 
+          function loadLocalMyBooksFallback() {
+            try {
+              const storage = window.localStorage || null;
+              if (!storage) return [];
+              const raw = storage.getItem(MYBOOKS_LOCAL_KEY) || "[]";
+              const parsed = JSON.parse(raw);
+              if (!Array.isArray(parsed)) return [];
+              return parsed
+                .map((item) => ({
+                  id: String((item && item.id) || ""),
+                  title: String((item && item.title) || ""),
+                  author: String((item && item.author) || ""),
+                  cover: String((item && (item.cover || item.coverUrl || item.cover_url)) || ""),
+                  openedAt: parseInt((item && item.openedAt) || "0", 10) || 0,
+                }))
+                .filter((item) => /^\d+$/.test(item.id));
+            } catch (e) {
+              return [];
+            }
+          }
+
           function renderItems(itemsInput) {
             els.content.innerHTML = "";
             const items = Array.isArray(itemsInput) ? itemsInput : [];
@@ -2291,6 +2313,29 @@
             myBooksState.items = hydratedItems;
             setStatus("");
             renderItems(hydratedItems);
+            return;
+          }
+
+          const authState = (typeof sync.getAuthState === "function") ? sync.getAuthState() : { configured: true, authorized: false };
+          if (!authState || !authState.authorized) {
+            const localItems = loadLocalMyBooksFallback();
+            const hydratedLocalItems = await hydrateMyBooksCovers(localItems, renderNonce);
+            if (renderNonce !== REQ_NONCE) return;
+            if (hydratedLocalItems.length) {
+              myBooksState.items = hydratedLocalItems;
+              myBooksState.loaded = true;
+              myBooksState.lastLoadAt = Date.now();
+              setStatus("Showing locally saved My Books. Authorize Google Drive to refresh from cloud.");
+              renderItems(hydratedLocalItems);
+              return;
+            }
+            renderAuthCard(
+              "Authorize Google Drive in this browser/device to see books from your cloud library.",
+              "Authorize Google Drive",
+              async () => {
+                await sync.signIn();
+              }
+            );
             return;
           }
 
