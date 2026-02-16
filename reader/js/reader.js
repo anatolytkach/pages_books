@@ -4460,6 +4460,33 @@ function attachSwipeToDoc(doc) {
 							return "none";
 						}
 
+						function isPhoneTouchMode() {
+							try {
+								if (isTabletMode()) return false;
+								var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+								var touch = !!(navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+								return !!(coarse && touch);
+							} catch (ePhoneMode) {}
+							return false;
+						}
+
+						function getPhoneTapZone(absX, absY) {
+							try {
+								if (!isPhoneTouchMode()) return "none";
+								var rectTap = stack.getBoundingClientRect();
+								var wTap = rectTap.width || window.innerWidth || 0;
+								var hTap = rectTap.height || window.innerHeight || 0;
+								var xRel = absX - rectTap.left;
+								var yRel = absY - rectTap.top;
+								if (xRel < 0 || xRel > wTap || yRel < 0 || yRel > hTap) return "none";
+								var leftCut = wTap * 0.20;
+								var rightCut = wTap * 0.80;
+								if (xRel >= leftCut && xRel <= rightCut) return "center";
+								return xRel < leftCut ? "left" : "right";
+							} catch (ePhoneZone) {}
+							return "none";
+						}
+
 				// Inject swipe CSS into the iframe once (makes padding transparent during swipe only).
 				try {
 					if (!doc.getElementById("__fb_swipe_css")) {
@@ -4481,13 +4508,14 @@ function attachSwipeToDoc(doc) {
 				if (!stack || !layerCurrent) return;
 
 				// Shared swipe state (per-iframe doc, but uses stable outer layers)
-					var state = {
-					tracking: false,
-					horizontal: false,
-					startedOnInteractive: false,
-					waitingNeighbors: false,
-					pointerActive: false,
-					pointerId: null,
+						var state = {
+						tracking: false,
+						horizontal: false,
+						startedOnInteractive: false,
+						startPhoneEdge: false,
+						waitingNeighbors: false,
+						pointerActive: false,
+						pointerId: null,
 					downTs: 0,
 					startX: 0,
 					startY: 0,
@@ -4728,6 +4756,26 @@ function attachSwipeToDoc(doc) {
 					}
 				}
 
+					function commitTapTurn(isNext) {
+						if (state.lock) return;
+						state.lock = true;
+						try { resetTransform(); } catch (e0) {}
+						try {
+							var rtl = isRtlReadingOrderSafe();
+							var goNext = isNext;
+							if (rtl) goNext = !goNext;
+							if (goNext) rendition.next(); else rendition.prev();
+						} catch (e1) {}
+						try {
+							setTimeout(function(){
+								try { resetTransform(); } catch (e2) {}
+								state.lock = false;
+							}, 240);
+						} catch (e3) {
+							state.lock = false;
+						}
+					}
+
 					function onStart(x, y, target) {
 					if (state.lock) return;
 					if (isSelectionActive()) return;
@@ -4743,6 +4791,7 @@ function attachSwipeToDoc(doc) {
 					state.tracking = true;
 					state.horizontal = false;
 					state.startedOnInteractive = isInteractive(target);
+					state.startPhoneEdge = false;
 						state.waitingNeighbors = false;
 					state.downTs = Date.now();
 					state.startX = state.lastX = abs.x;
@@ -4755,6 +4804,10 @@ function attachSwipeToDoc(doc) {
 						try {
 							state.viewW = stack.getBoundingClientRect().width || window.innerWidth || 0;
 							state.shadowW = shadow ? (shadow.getBoundingClientRect().width || 6) : 6;
+							if (isPhoneTouchMode()) {
+								var phoneStartZone = getPhoneTapZone(abs.x, abs.y);
+								state.startPhoneEdge = (phoneStartZone === "left" || phoneStartZone === "right");
+							}
 						} catch(e0) { state.viewW = window.innerWidth || 0; state.shadowW = 6; }
 					try {
 						layerCurrent.style.willChange = "transform";
@@ -4799,6 +4852,11 @@ function attachSwipeToDoc(doc) {
 					state.lastX = abs.x; state.lastY = abs.y;
 					var dx = abs.x - state.startX;
 					var dy = abs.y - state.startY;
+					var elapsed = Date.now() - (state.downTs || Date.now());
+					if (state.startPhoneEdge && isPhoneTouchMode() && elapsed < 280) {
+						var edgeTapSlopX = Math.max(120, (state.viewW || window.innerWidth || 0) * 0.20);
+						if (Math.abs(dx) < edgeTapSlopX && Math.abs(dy) < 90) return;
+					}
 						// Do not quantize/ignore small deltas here.
 						// Ignoring micro-deltas causes visible "stutter" when the finger moves slowly.
 						state.lastRawDx = dx;
@@ -4806,7 +4864,10 @@ function attachSwipeToDoc(doc) {
 					if (!state.horizontal) {
 						// Mobile browsers often report small jitter even for a simple tap.
 						// Use a larger threshold so center-taps don't get mis-classified as swipes.
-						if (Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.15) {
+						var horizontalThreshold = (state.startPhoneEdge && isPhoneTouchMode())
+							? Math.max(120, (state.viewW || window.innerWidth || 0) * 0.20)
+							: 14;
+						if (Math.abs(dx) > horizontalThreshold && Math.abs(dx) > Math.abs(dy) * 1.15) {
 							state.horizontal = true;
 							try {
 								doc.documentElement.style.touchAction = "none";
@@ -4869,13 +4930,14 @@ function attachSwipeToDoc(doc) {
 							// Be forgiving on Android: a "tap" often has noticeable jitter.
 							var moved = (Math.abs(dxTap) > 30 || Math.abs(dyTap) > 30);
 							var tapZone = getTabletTapZone(abs.x, abs.y);
+							if (tapZone === "none") tapZone = getPhoneTapZone(abs.x, abs.y);
 							var inCenter = (tapZone === "center");
 							// Short tap only
 							var dt = Date.now() - (state.downTs || Date.now());
 							// Some Android devices report longer press durations for a normal tap.
 							if (!moved && dt < 900) {
 								if (tapZone === "left" || tapZone === "right") {
-									commitTurn(tapZone === "right");
+									commitTapTurn(tapZone === "right");
 									if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
 									if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
 									if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
@@ -4929,11 +4991,12 @@ function attachSwipeToDoc(doc) {
 									var rectTap2 = stack.getBoundingClientRect();
 								var wTap2 = rectTap2.width || window.innerWidth || 0;
 								var tapZone2 = getTabletTapZone(abs.x, abs.y);
+								if (tapZone2 === "none") tapZone2 = getPhoneTapZone(abs.x, abs.y);
 								var inCenter2 = (tapZone2 === "center");
 								var slop = Math.max(35, wTap2 * 0.04); // 4% width, min 35px
 								if (dtTap2 < 900 && Math.abs(dx) < slop && Math.abs(dy) < 35) {
 										if (tapZone2 === "left" || tapZone2 === "right") {
-											commitTurn(tapZone2 === "right");
+											commitTapTurn(tapZone2 === "right");
 											if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
 											if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
 											if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
