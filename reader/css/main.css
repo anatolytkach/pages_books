@@ -1746,6 +1746,60 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
   border-color: rgba(27, 145, 121, 0.35);
 }
 
+/* Footnote modal: same visual style as Translate modal */
+.selection-translate.fn-main-modal{
+  z-index: 2147483647;
+}
+.selection-translate.fn-main-modal .selection-translate-panel.fn-main-panel{
+  width: min(820px, 100%);
+  border: 0 !important;
+  box-shadow: none !important;
+  background: var(--fbbar-bg) !important;
+  color: var(--fbbar-fg) !important;
+  padding: 0 !important;
+  border-radius: 10px;
+}
+.selection-translate.fn-main-modal .selection-translate-result.fn-main-body{
+  position: relative;
+  margin-top: 0;
+  min-height: 0;
+  max-height: none;
+  border-radius: 10px;
+  background: var(--fbbar-bg) !important;
+  border-color: var(--fbbar-border) !important;
+  color: var(--fbbar-fg) !important;
+  white-space: normal;
+  line-height: 1.45;
+  font-size: 1.25em;
+  overflow-wrap: anywhere;
+  padding: 54px 20px 18px 20px;
+}
+.selection-translate.fn-main-modal .selection-translate-close.fn-main-close{
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: auto;
+  height: auto;
+  padding: 0;
+  border: 0 !important;
+  outline: 0;
+  border-radius: 0;
+  background: transparent !important;
+  line-height: 1;
+  font-size: 18px;
+  font-weight: 200;
+}
+.selection-translate.fn-main-modal .selection-translate-close.fn-main-close:hover,
+.selection-translate.fn-main-modal .selection-translate-close.fn-main-close:focus{
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.selection-translate.fn-main-modal .fn-main-content{
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 @media (hover: none) and (pointer: coarse){
   .selection-toolbar .sel-icon{
     width: 32px;
@@ -2455,13 +2509,15 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   top: 0;
   left: 0;
   width: 360px;
-  height: 100vh;
+  height: var(--app-vh, 100vh);
+  max-height: var(--app-vh, 100vh);
   background: var(--fbbar-bg);
   color: var(--fbbar-fg);
   z-index: 9999;
   box-shadow: 0 0 16px rgba(0,0,0,0.35);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .overlay-panel.hidden,
 .overlay-backdrop.hidden {
@@ -2505,9 +2561,10 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 }
 .overlay-scroll {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 10px 16px 22px 16px;
+  padding: 10px 16px calc(22px + env(safe-area-inset-bottom)) 16px;
 }
 
 .overlay-head{
@@ -2996,7 +3053,7 @@ html.is-ios .comment-sheet{
 #searchActionDesktop.is-mag .search-mag-svg { display: block; }
 #searchActionDesktop.is-clear .search-clear-x { display: block; }
 /* Make the magnifier visually match the clear "x" size and weight */
-#searchActionDesktop.is-mag .search-mag-svg { transform: scaleX(-1) scale(1.25); }
+#searchActionDesktop.is-mag .search-mag-svg { transform: scale(1.25); }
 #searchActionDesktop.is-mag .search-mag-svg circle,
 #searchActionDesktop.is-mag .search-mag-svg line { stroke-width: 2; }
 
@@ -3186,14 +3243,19 @@ body.search-open #searchbar { display: flex; }
 }
 /* Mobile overlays: full screen */
 @media (max-width: 768px) {
-  .overlay-panel { width: 100vw !important; height: 100vh !important; }
+  .overlay-panel {
+    width: 100vw !important;
+    height: var(--app-vh, 100vh) !important;
+    max-height: var(--app-vh, 100vh) !important;
+  }
   .overlay-head { padding-top: calc(12px + env(safe-area-inset-top)); }
 }
 
 /* Tablet portrait: use the same fullscreen overlays as phones */
 html.is-tablet.tablet-portrait .overlay-panel {
   width: 100vw !important;
-  height: 100vh !important;
+  height: var(--app-vh, 100vh) !important;
+  max-height: var(--app-vh, 100vh) !important;
 }
 html.is-tablet.tablet-portrait .overlay-head {
   padding-top: calc(12px + env(safe-area-inset-top));
@@ -3397,14 +3459,33 @@ html.is-tablet .overlay-backdrop {
   html, body {
     overscroll-behavior: none;
     overscroll-behavior-y: none;
-    touch-action: pan-x;
+    touch-action: auto;
   }
-  #container,
+  #container {
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+    touch-action: auto;
+  }
   #viewerStack,
-  #viewer {
+  #viewer,
+  #viewer-prev,
+  #viewer-next {
     overscroll-behavior: none;
     overscroll-behavior-y: none;
     touch-action: pan-x;
+  }
+  /* Sidebar/overlay lists must keep vertical scrolling on touch devices. */
+  .overlay-panel,
+  .overlay-panel .overlay-scroll,
+  #overlay-toc #tocView,
+  #overlay-bookmarks #bookmarksView,
+  #overlay-notes #notesView,
+  #overlay-mybooks #mybooksView,
+  #overlay-menu #menuView {
+    touch-action: pan-y !important;
+    overscroll-behavior: contain;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
