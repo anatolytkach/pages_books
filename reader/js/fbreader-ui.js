@@ -302,15 +302,18 @@
     } catch (e) {}
   }
   function showUi() {
+    try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs0) {}
     document.body.classList.remove("ui-hidden");
     syncBarHeights(false);
   }
   function hideUi() {
+    try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs1) {}
     document.body.classList.add("ui-hidden");
     syncBarHeights(false);
   }
   function toggleUi() {
     if (window.__fbSelectionActive) return;
+    try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs2) {}
     document.body.classList.toggle("ui-hidden");
     syncBarHeights(false);
   }

@@ -3698,43 +3698,34 @@ function applyThemeToIframes(themeName) {
 		// ===== Main-document modal =====
 		var mainModal = null;
 
-		function ensureMainModal() {
-			var host = document.getElementById("container") || document.body;
-			if (mainModal) {
-				try {
-					if (host && mainModal.overlay && mainModal.overlay.parentNode !== host) host.appendChild(mainModal.overlay);
+			function ensureMainModal() {
+				var host = document.getElementById("container") || document.body;
+				if (mainModal) {
+					try {
+						if (host && mainModal.overlay && mainModal.overlay.parentNode !== host) host.appendChild(mainModal.overlay);
 				} catch (e0) {}
 				return mainModal;
 			}
 
-			var overlay = document.createElement("div");
-			overlay.id = "fnMainOverlay";
-			overlay.style.cssText =
-				"position:fixed;left:0;top:0;right:0;bottom:0;" +
-				"display:none;align-items:center;justify-content:center;" +
-				"z-index:2147483647;";
+				var overlay = document.createElement("div");
+				overlay.id = "fnMainOverlay";
+				overlay.className = "selection-translate fn-main-modal hidden";
 
-			var box = document.createElement("div");
-			box.id = "fnMainBox";
-			box.style.cssText =
-				"position:relative;" +
-				"max-width:82vw;max-height:70vh;overflow:auto;" +
-				"border-radius:12px;" +
-				"padding:18px 18px 14px 18px;" +
-				"box-sizing:border-box;";
+				var box = document.createElement("div");
+				box.id = "fnMainBox";
+				box.className = "selection-translate-panel fn-main-panel";
 
-			var close = document.createElement("button");
-			close.type = "button";
-			close.setAttribute("aria-label", "Close");
-			close.textContent = "×";
-			close.style.cssText =
-				"position:absolute;top:8px;right:10px;" +
-				"font-size:22px;line-height:22px;" +
-				"background:transparent;border:0;cursor:pointer;padding:0;";
+				var close = document.createElement("button");
+				close.type = "button";
+				close.setAttribute("aria-label", "Close");
+				close.className = "selection-translate-close fn-main-close";
+				close.textContent = "×";
 
-			var body = document.createElement("div");
-			body.id = "fnMainBody";
-			body.style.cssText = "margin-top:6px;white-space:normal;font-size:1.3em;";
+				var body = document.createElement("div");
+				body.id = "fnMainBody";
+				body.className = "selection-translate-result fn-main-body";
+				var content = document.createElement("div");
+				content.className = "fn-main-content";
 
 			close.addEventListener("click", function (ev) {
 				ev.preventDefault();
@@ -3745,41 +3736,34 @@ function applyThemeToIframes(themeName) {
 				if (ev.target === overlay) hideMainModal();
 			});
 
-			box.appendChild(close);
-			box.appendChild(body);
-			overlay.appendChild(box);
+				body.appendChild(close);
+				body.appendChild(content);
+				box.appendChild(body);
+				overlay.appendChild(box);
 			try {
 				(host || document.body).appendChild(overlay);
 			} catch (e1) {
 				document.body.appendChild(overlay);
 			}
 
-			mainModal = { overlay: overlay, box: box, body: body, close: close };
-			return mainModal;
-		}
-
-		function applyMainModalTheme(themeName) {
-			var m = ensureMainModal();
-			if (themeName === "dark") {
-				m.box.style.background = "#000000";
-				m.box.style.border = "1px solid #ffffff";
-				m.body.style.color = "#ffffff";
-				m.close.style.color = "#ffffff";
-			} else {
-				m.box.style.background = "#eeeeee";
-				m.box.style.border = "1px solid #cccccc";
-				m.body.style.color = "#000000";
-				m.close.style.color = "#000000";
+				mainModal = { overlay: overlay, box: box, body: body, content: content, close: close };
+				return mainModal;
 			}
-		}
 
-		function showMainModal(html) {
-			var themeName = (reader && reader.currentTheme) ? reader.currentTheme : "light";
-			applyMainModalTheme(themeName);
-			var m = ensureMainModal();
-			m.body.innerHTML = html || "<p>Сноска не найдена.</p>";
-			m.overlay.style.display = "flex";
-		}
+			function applyMainModalTheme(themeName) {
+				try {
+					var m = ensureMainModal();
+					m.overlay.setAttribute("data-theme", themeName || "light");
+				} catch (eTheme) {}
+			}
+
+			function showMainModal(html) {
+				var themeName = (reader && reader.currentTheme) ? reader.currentTheme : "light";
+				applyMainModalTheme(themeName);
+				var m = ensureMainModal();
+				m.content.innerHTML = html || "<p>Сноска не найдена.</p>";
+				m.overlay.classList.remove("hidden");
+			}
 
 		function isIOSDevice() {
 			try {
@@ -3869,10 +3853,10 @@ function applyThemeToIframes(themeName) {
 		var lastFootnoteScrollState = null;
 		var lastFootnoteCfi = null;
 
-		function hideMainModal() {
-			var m = ensureMainModal();
-			m.overlay.style.display = "none";
-			// iOS: close footnote can leave the iframe horizontally shifted
+			function hideMainModal() {
+				var m = ensureMainModal();
+				m.overlay.classList.add("hidden");
+				// iOS: close footnote can leave the iframe horizontally shifted
 			// (reset scroll + force a resize to stabilize the layout)
 			if (isIOSDevice()) {
 				var snap = lastFootnoteScrollState;
@@ -4508,11 +4492,12 @@ function attachSwipeToDoc(doc) {
 				if (!stack || !layerCurrent) return;
 
 				// Shared swipe state (per-iframe doc, but uses stable outer layers)
-						var state = {
+					var state = {
 						tracking: false,
 						horizontal: false,
 						startedOnInteractive: false,
 						startPhoneEdge: false,
+						startPhoneZone: "none",
 						waitingNeighbors: false,
 						pointerActive: false,
 						pointerId: null,
@@ -4806,7 +4791,10 @@ function attachSwipeToDoc(doc) {
 							state.shadowW = shadow ? (shadow.getBoundingClientRect().width || 6) : 6;
 							if (isPhoneTouchMode()) {
 								var phoneStartZone = getPhoneTapZone(abs.x, abs.y);
+								state.startPhoneZone = phoneStartZone || "none";
 								state.startPhoneEdge = (phoneStartZone === "left" || phoneStartZone === "right");
+							} else {
+								state.startPhoneZone = "none";
 							}
 						} catch(e0) { state.viewW = window.innerWidth || 0; state.shadowW = 6; }
 					try {
@@ -4928,19 +4916,27 @@ function attachSwipeToDoc(doc) {
 								var dxTap = abs.x - state.startX;
 								var dyTap = abs.y - state.startY;
 							// Be forgiving on Android: a "tap" often has noticeable jitter.
-							var moved = (Math.abs(dxTap) > 30 || Math.abs(dyTap) > 30);
-							var tapZone = getTabletTapZone(abs.x, abs.y);
-							if (tapZone === "none") tapZone = getPhoneTapZone(abs.x, abs.y);
-							var inCenter = (tapZone === "center");
-							// Short tap only
-							var dt = Date.now() - (state.downTs || Date.now());
-							// Some Android devices report longer press durations for a normal tap.
-							if (!moved && dt < 900) {
-								if (tapZone === "left" || tapZone === "right") {
-									commitTapTurn(tapZone === "right");
-									if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
-									if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
-									if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+								var moved = (Math.abs(dxTap) > 30 || Math.abs(dyTap) > 30);
+								var tapZone = getTabletTapZone(abs.x, abs.y);
+								if (tapZone === "none") tapZone = getPhoneTapZone(abs.x, abs.y);
+								var effectiveTapZone = tapZone;
+								if (isPhoneTouchMode()) {
+									if (state.startPhoneZone === "left" || state.startPhoneZone === "right") {
+										effectiveTapZone = state.startPhoneZone;
+									} else if (state.startPhoneZone === "center" && (tapZone === "left" || tapZone === "right")) {
+										effectiveTapZone = "center";
+									}
+								}
+								var inCenter = (effectiveTapZone === "center");
+								// Short tap only
+								var dt = Date.now() - (state.downTs || Date.now());
+								// Some Android devices report longer press durations for a normal tap.
+								if (!moved && dt < 900) {
+									if (effectiveTapZone === "left" || effectiveTapZone === "right") {
+										commitTapTurn(effectiveTapZone === "right");
+										if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
+										if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
+										if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
 									return;
 								}
 								if (!inCenter) {
@@ -4989,17 +4985,25 @@ function attachSwipeToDoc(doc) {
 									}
 									var dtTap2 = Date.now() - (state.downTs || Date.now());
 									var rectTap2 = stack.getBoundingClientRect();
-								var wTap2 = rectTap2.width || window.innerWidth || 0;
-								var tapZone2 = getTabletTapZone(abs.x, abs.y);
-								if (tapZone2 === "none") tapZone2 = getPhoneTapZone(abs.x, abs.y);
-								var inCenter2 = (tapZone2 === "center");
-								var slop = Math.max(35, wTap2 * 0.04); // 4% width, min 35px
-								if (dtTap2 < 900 && Math.abs(dx) < slop && Math.abs(dy) < 35) {
-										if (tapZone2 === "left" || tapZone2 === "right") {
-											commitTapTurn(tapZone2 === "right");
-											if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
-											if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
-											if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+									var wTap2 = rectTap2.width || window.innerWidth || 0;
+									var tapZone2 = getTabletTapZone(abs.x, abs.y);
+									if (tapZone2 === "none") tapZone2 = getPhoneTapZone(abs.x, abs.y);
+									var effectiveTapZone2 = tapZone2;
+									if (isPhoneTouchMode()) {
+										if (state.startPhoneZone === "left" || state.startPhoneZone === "right") {
+											effectiveTapZone2 = state.startPhoneZone;
+										} else if (state.startPhoneZone === "center" && (tapZone2 === "left" || tapZone2 === "right")) {
+											effectiveTapZone2 = "center";
+										}
+									}
+									var inCenter2 = (effectiveTapZone2 === "center");
+									var slop = Math.max(35, wTap2 * 0.04); // 4% width, min 35px
+									if (dtTap2 < 900 && Math.abs(dx) < slop && Math.abs(dy) < 35) {
+											if (effectiveTapZone2 === "left" || effectiveTapZone2 === "right") {
+												commitTapTurn(effectiveTapZone2 === "right");
+												if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
+												if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
+												if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
 											return;
 										}
 									if (!inCenter2) {
@@ -5269,7 +5273,7 @@ if (doc) {
 	}
 
 	// -----------------------------
-	// Footer progress: percentage across the whole book + current TOC title
+	// Footer progress: global page X/Y across the whole book
 	// -----------------------------
 	var pageCountEl = document.getElementById("page-count");
 	this.totalPages = 0;
@@ -5278,6 +5282,73 @@ if (doc) {
 	this._tocMap = null;
 	this._tocList = null;
 	this._lastRelocated = null;
+	this._spineHrefToIndex = Object.create(null);
+	this._globalPageMap = {
+		ready: false,
+		key: "",
+		totalPages: 0,
+		sectionTotals: [],
+		sectionOffsets: []
+	};
+	this._globalPageMapBuildToken = 0;
+	this._globalPageMapBuilding = false;
+	this._globalPageMapQueued = false;
+	this._globalPageMapQueuedForce = false;
+	this._globalPageMapTimer = null;
+	this._globalPageMapTimerForce = false;
+	this._pageCalcHost = null;
+	this._pageCalcRendition = null;
+	this._globalPageMapQuickCache = Object.create(null);
+	this._globalPageMapExactCache = Object.create(null);
+	this._globalPageMapExactBuilding = false;
+	this._globalPageMapExactKey = "";
+	this._pageCounterPending = false;
+	this._pageCounterPendingTimer = null;
+	this._lastStablePageCounterText = "";
+
+	function setPageCounterPending(pending) {
+		reader._pageCounterPending = !!pending;
+		try {
+			if (reader._pageCounterPendingTimer) {
+				clearTimeout(reader._pageCounterPendingTimer);
+				reader._pageCounterPendingTimer = null;
+			}
+		} catch (e0) {}
+		if (reader._pageCounterPending) {
+			if (pageCountEl) {
+				var currentText = String(pageCountEl.textContent || "").trim();
+				if (currentText && currentText !== "…/…") {
+					reader._lastStablePageCounterText = currentText;
+				}
+				pageCountEl.textContent = "…/…";
+			}
+			// Fail-open timeout is needed only on touch/iOS (resize-noise contexts).
+			// On desktop it causes a visible rollback to old numbers while recount is still running.
+			var allowFailOpen = false;
+			try {
+				var coarse = !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+				allowFailOpen = coarse || isIosResizeNoiseContext();
+			} catch (eAllow) {}
+			if (allowFailOpen) {
+				reader._pageCounterPendingTimer = setTimeout(function () {
+					if (!reader._pageCounterPending) return;
+					reader._pageCounterPending = false;
+					try {
+						if (pageCountEl && reader._lastStablePageCounterText) {
+							pageCountEl.textContent = reader._lastStablePageCounterText;
+						}
+					} catch (e1) {}
+					try {
+						var mapReady = !!(reader._globalPageMap && reader._globalPageMap.ready && reader._globalPageMap.totalPages);
+						if (mapReady) {
+							var locNow = reader._lastRelocated || (reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
+							if (locNow) updatePageCount(locNow);
+						}
+					} catch (e2) {}
+				}, 5000);
+			}
+		}
+	}
 
 	function normalizeHref(href) {
 		if (!href) return "";
@@ -5336,6 +5407,182 @@ if (doc) {
 		}
 	}
 
+	function getCurrentSpreadMode() {
+		var isMobile = (window.matchMedia && window.matchMedia("(max-width: 768px)").matches) || window.innerWidth <= 768;
+		return isMobile ? "none" : "auto";
+	}
+
+	function getViewerSize() {
+		var stack = document.getElementById("viewerStack");
+		if (stack && stack.getBoundingClientRect) {
+			var rs = stack.getBoundingClientRect();
+			var ws = Math.max(1, Math.round(rs.width || 0));
+			var hs = Math.max(1, Math.round(rs.height || 0));
+			if (ws > 1 && hs > 1) return { width: ws, height: hs };
+		}
+		var viewer = document.getElementById("viewer");
+		if (viewer && viewer.getBoundingClientRect) {
+			var r = viewer.getBoundingClientRect();
+			var w = Math.max(1, Math.round(r.width || 0));
+			var h = Math.max(1, Math.round(r.height || 0));
+			if (w > 1 && h > 1) return { width: w, height: h };
+		}
+		return {
+			width: Math.max(1, Math.round(window.innerWidth || 1)),
+			height: Math.max(1, Math.round(window.innerHeight || 1))
+		};
+	}
+
+	function getPageLayoutKey() {
+		var size = getViewerSize();
+		return [
+			size.width,
+			size.height,
+			getUiFontPct(),
+			getCurrentSpreadMode()
+		].join("|");
+	}
+
+	function isSpineItemLinear(item) {
+		try {
+			if (!item) return false;
+			if (item.linear === false) return false;
+			var lin = (item.linear == null) ? "yes" : String(item.linear).toLowerCase();
+			if (lin === "no" || lin === "false" || lin === "0") return false;
+			return true;
+		} catch (e) {
+			return true;
+		}
+	}
+
+	function ensureSpineHrefIndex() {
+		try {
+			reader._spineHrefToIndex = Object.create(null);
+			var items = (reader.book && reader.book.spine && reader.book.spine.spineItems) ? reader.book.spine.spineItems : [];
+			for (var i = 0; i < items.length; i++) {
+				var h = normalizeHref(items[i] && items[i].href);
+				if (h && reader._spineHrefToIndex[h] == null) {
+					reader._spineHrefToIndex[h] = i;
+				}
+			}
+		} catch (e) {}
+	}
+
+	function ensurePageCalcRendition(reset) {
+		var size = getViewerSize();
+		if (!reader._pageCalcHost) {
+			var host = document.createElement("div");
+			host.id = "reader-pagecalc-host";
+			host.setAttribute("aria-hidden", "true");
+			host.style.position = "fixed";
+			host.style.left = "-20000px";
+			host.style.top = "0";
+			host.style.opacity = "0";
+			host.style.pointerEvents = "none";
+			host.style.overflow = "hidden";
+			host.style.zIndex = "-1";
+			document.body.appendChild(host);
+			reader._pageCalcHost = host;
+		}
+		if (reset && reader._pageCalcRendition) {
+			try {
+				if (reader._pageCalcRendition.destroy) reader._pageCalcRendition.destroy();
+			} catch (eDestroy) {}
+			reader._pageCalcRendition = null;
+			try { reader._pageCalcHost.innerHTML = ""; } catch (eClear) {}
+		}
+		reader._pageCalcHost.style.width = size.width + "px";
+		reader._pageCalcHost.style.height = size.height + "px";
+
+		if (!reader._pageCalcRendition) {
+			reader._pageCalcRendition = reader.book.renderTo(reader._pageCalcHost, {
+				ignoreClass: "annotator-hl",
+				width: "100%",
+				height: "100%",
+				spread: getCurrentSpreadMode(),
+				flow: "paginated"
+			});
+			try { reader._pageCalcRendition.themes.register("light", lightThemeCss); } catch (e0) {}
+			try { reader._pageCalcRendition.themes.register("dark", darkThemeCss); } catch (e01) {}
+		}
+
+		try {
+			if (reader._pageCalcRendition.spread) reader._pageCalcRendition.spread(getCurrentSpreadMode());
+		} catch (e1) {}
+		try {
+			if (reader._pageCalcRendition.resize) reader._pageCalcRendition.resize(size.width, size.height);
+		} catch (e2) {}
+		try {
+			var fs = reader && reader.settings && reader.settings.styles && reader.settings.styles.fontSize
+				? reader.settings.styles.fontSize
+				: null;
+			if (fs && reader._pageCalcRendition.themes && reader._pageCalcRendition.themes.fontSize) {
+				reader._pageCalcRendition.themes.fontSize(fs);
+			}
+		} catch (e3) {}
+		try {
+			if (reader.currentTheme && reader._pageCalcRendition.themes && reader._pageCalcRendition.themes.select) {
+				reader._pageCalcRendition.themes.select(reader.currentTheme);
+			}
+		} catch (e4) {}
+	}
+
+	function getSpineIndexFromLocation(loc) {
+		try {
+			if (loc && loc.start && typeof loc.start.index === "number") return loc.start.index;
+		} catch (e0) {}
+		try {
+			var cfi = loc && loc.start && loc.start.cfi ? loc.start.cfi : null;
+			if (cfi && reader.book && reader.book.spine && typeof reader.book.spine.get === "function") {
+				var item = reader.book.spine.get(cfi);
+				if (item && typeof item.index === "number") return item.index;
+			}
+		} catch (e1) {}
+		try {
+			var href = normalizeHref(loc && loc.start && loc.start.href ? loc.start.href : "");
+			if (href && reader._spineHrefToIndex && reader._spineHrefToIndex[href] != null) {
+				return reader._spineHrefToIndex[href];
+			}
+		} catch (e2) {}
+		return -1;
+	}
+
+	function getGlobalPageFromLocation(loc) {
+		try {
+			var map = reader._globalPageMap;
+			if (!map || !map.ready || !map.totalPages) return null;
+			var spineIndex = getSpineIndexFromLocation(loc);
+			if (spineIndex < 0 || spineIndex >= map.sectionTotals.length) return null;
+			var localTotal = parseInt(map.sectionTotals[spineIndex], 10);
+			if (!localTotal || isNaN(localTotal) || localTotal < 1) {
+				var fallbackPage = 1;
+				for (var j = 0; j <= spineIndex; j++) {
+					var jt = parseInt(map.sectionTotals[j], 10);
+					if (!jt || isNaN(jt) || jt < 1) continue;
+					var jo = parseInt(map.sectionOffsets[j], 10);
+					if (isNaN(jo) || jo < 0) jo = 0;
+					fallbackPage = jo + 1;
+				}
+				if (fallbackPage > map.totalPages) fallbackPage = map.totalPages;
+				return { page: fallbackPage, total: map.totalPages };
+			}
+			var localPage = 1;
+			if (loc && loc.start && loc.start.displayed && typeof loc.start.displayed.page === "number") {
+				localPage = parseInt(loc.start.displayed.page, 10);
+			}
+			if (!localPage || isNaN(localPage) || localPage < 1) localPage = 1;
+			if (localPage > localTotal) localPage = localTotal;
+			var offset = parseInt(map.sectionOffsets[spineIndex] || 0, 10);
+			if (isNaN(offset) || offset < 0) offset = 0;
+			var globalPage = offset + localPage;
+			if (globalPage < 1) globalPage = 1;
+			if (globalPage > map.totalPages) globalPage = map.totalPages;
+			return { page: globalPage, total: map.totalPages };
+		} catch (e) {
+			return null;
+		}
+	}
+
 	function getUiFontPct() {
 		try {
 			// settings.styles.fontSize like "124%"
@@ -5352,6 +5599,8 @@ if (doc) {
 		try {
 			var n = parseInt(pct, 10);
 			if (!n || isNaN(n)) return;
+			// Show "recalculating" state immediately on the first tap/click.
+			setPageCounterPending(true);
 			var value = n + "%";
 			reader.settings.styles = reader.settings.styles || {};
 			reader.settings.styles.fontSize = value;
@@ -5362,14 +5611,11 @@ if (doc) {
 			// Keep UI scale (TOC etc.) in sync
 			try { _applyUiScale(value); } catch (e3) {}
 			// Update footer + bookmarks after reflow settles.
-			// Percent progress is based on the global Locations map and must stay stable
-			// across font-size changes, so we do NOT regenerate locations here.
 			try {
 				if (reader._fontUiTimer) clearTimeout(reader._fontUiTimer);
 				reader._fontUiTimer = setTimeout(function(){
-					var loc = reader._lastRelocated || reader.rendition.currentLocation();
-					if (loc) updatePageCount(loc);
 					updateBookmarkLabelsIfPossible();
+					scheduleGlobalPageMapRebuild("font-size", true);
 				}, 120);
 			} catch (e4) {}
 		} catch (e) {}
@@ -5408,25 +5654,504 @@ if (doc) {
 	}
 	reader.__generateLocationsOnce = generateLocationsOnce;
 	reader.__setFontPct = setFontPct;
+	reader._userInteractionTs = Date.now();
+
+	function markReaderInteraction() {
+		try { reader._userInteractionTs = Date.now(); } catch (e) {}
+	}
+
+	function waitFrame() {
+		return new Promise(function (resolve) {
+			try {
+				if (window.requestAnimationFrame) {
+					window.requestAnimationFrame(function () { resolve(); });
+					return;
+				}
+			} catch (e0) {}
+			setTimeout(resolve, 0);
+		});
+	}
+
+	function waitForResponsiveSlot() {
+		var last = 0;
+		try { last = parseInt(reader._userInteractionTs || 0, 10) || 0; } catch (e0) {}
+		var elapsed = Date.now() - last;
+		var extraDelay = (elapsed < 220) ? 120 : 0;
+		return new Promise(function (resolve) {
+			setTimeout(function () {
+				waitFrame().then(resolve);
+			}, extraDelay);
+		});
+	}
+
+	function getLocationFingerprint(loc) {
+		try {
+			var href = normalizeHref(loc && loc.start && loc.start.href ? loc.start.href : "");
+			var cfi = (loc && loc.start && loc.start.cfi) ? String(loc.start.cfi) : "";
+			var page = (loc && loc.start && loc.start.displayed && typeof loc.start.displayed.page === "number")
+				? parseInt(loc.start.displayed.page, 10)
+				: 0;
+			if (!page || isNaN(page) || page < 0) page = 0;
+			return href + "|" + cfi + "|" + String(page);
+		} catch (e) {
+			return "";
+		}
+	}
+
+	function extractDisplayedTotal(loc) {
+		try {
+			var t = 0;
+			if (loc && loc.start && loc.start.displayed && typeof loc.start.displayed.total === "number") {
+				t = loc.start.displayed.total;
+			}
+			if (!t && loc && loc.end && loc.end.displayed && typeof loc.end.displayed.total === "number") {
+				t = loc.end.displayed.total;
+			}
+			t = parseInt(t, 10);
+			if (!t || isNaN(t) || t < 1) t = 1;
+			return t;
+		} catch (e) {
+			return 1;
+		}
+	}
+
+	function clonePageMap(map) {
+		if (!map) return null;
+		return {
+			ready: !!map.ready,
+			key: map.key || "",
+			totalPages: parseInt(map.totalPages, 10) || 1,
+			sectionTotals: (map.sectionTotals || []).slice(0),
+			sectionOffsets: (map.sectionOffsets || []).slice(0),
+			isExact: !!map.isExact
+		};
+	}
+
+	function createPageMapFromSectionTotals(key, sectionTotals, isExact) {
+		var totals = (sectionTotals || []).slice(0);
+		var offsets = new Array(totals.length);
+		var sum = 0;
+		for (var i = 0; i < totals.length; i++) {
+			offsets[i] = sum;
+			var t = parseInt(totals[i], 10);
+			if (!t || isNaN(t) || t < 1) {
+				totals[i] = 0;
+				continue;
+			}
+			totals[i] = t;
+			sum += t;
+		}
+		if (sum < 1) sum = 1;
+		return {
+			ready: true,
+			key: key,
+			totalPages: sum,
+			sectionTotals: totals,
+			sectionOffsets: offsets,
+			isExact: !!isExact
+		};
+	}
+
+	function pageMapsEqual(a, b) {
+		if (!a || !b) return false;
+		if ((a.key || "") !== (b.key || "")) return false;
+		if ((parseInt(a.totalPages, 10) || 0) !== (parseInt(b.totalPages, 10) || 0)) return false;
+		var at = a.sectionTotals || [];
+		var bt = b.sectionTotals || [];
+		if (at.length !== bt.length) return false;
+		for (var i = 0; i < at.length; i++) {
+			var av = parseInt(at[i], 10) || 0;
+			var bv = parseInt(bt[i], 10) || 0;
+			if (av !== bv) return false;
+		}
+		return true;
+	}
+
+	function applyGlobalPageMap(map, clearPending) {
+		if (!map) return;
+		reader._globalPageMap = clonePageMap(map);
+		reader.totalPages = reader._globalPageMap.totalPages || 1;
+		if (clearPending !== false) setPageCounterPending(false);
+		var locNow = reader._lastRelocated || (reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
+		if (locNow) updatePageCount(locNow);
+	}
+
+	function countSectionPagesQuick(item, token) {
+		var target = item && (item.href || item.url || item.cfiBase || null);
+		if (!target || !reader._pageCalcRendition) return Promise.resolve(1);
+		return waitForResponsiveSlot().then(function () {
+			return reader._pageCalcRendition.display(target);
+		}).then(function () {
+			return waitForResponsiveSlot();
+		}).then(function () {
+			return waitForResponsiveSlot();
+		}).then(function () {
+			if (token !== reader._globalPageMapBuildToken) return 1;
+			var loc = reader._pageCalcRendition.currentLocation ? reader._pageCalcRendition.currentLocation() : null;
+			return extractDisplayedTotal(loc);
+		}).catch(function () {
+			return 1;
+		});
+	}
+
+	function countSectionPages(item, sectionIndex, token) {
+		var target = item && (item.href || item.url || item.cfiBase || null);
+		if (!target || !reader._pageCalcRendition) return Promise.resolve(1);
+
+		return reader._pageCalcRendition.display(target).then(function () {
+			if (token !== reader._globalPageMapBuildToken) return 1;
+
+			var startLoc = reader._pageCalcRendition.currentLocation ? reader._pageCalcRendition.currentLocation() : null;
+			var activeSectionIndex = getSpineIndexFromLocation(startLoc);
+			if (activeSectionIndex < 0) activeSectionIndex = sectionIndex;
+			var activeHref = normalizeHref(
+				(startLoc && startLoc.start && startLoc.start.href)
+					? startLoc.start.href
+					: (item && item.href ? item.href : "")
+			);
+
+			var pages = 1;
+			var guard = 0;
+			var lastFingerprint = getLocationFingerprint(startLoc);
+
+			function walk() {
+				if (token !== reader._globalPageMapBuildToken) return Promise.resolve(Math.max(1, pages));
+				guard += 1;
+				if (guard > 12000) return Promise.resolve(Math.max(1, pages));
+
+				return waitForResponsiveSlot().then(function () {
+					return reader._pageCalcRendition.next();
+				}).then(function () {
+					if (token !== reader._globalPageMapBuildToken) return Math.max(1, pages);
+
+					var loc = reader._pageCalcRendition.currentLocation ? reader._pageCalcRendition.currentLocation() : null;
+					if (!loc || !loc.start) return Math.max(1, pages);
+
+					var fp = getLocationFingerprint(loc);
+					if (!fp || fp === lastFingerprint) return Math.max(1, pages);
+
+					var idx = getSpineIndexFromLocation(loc);
+					if (idx >= 0 && idx !== activeSectionIndex) return Math.max(1, pages);
+					var hrefNow = normalizeHref(loc && loc.start && loc.start.href ? loc.start.href : "");
+					if (activeHref && hrefNow && hrefNow !== activeHref) return Math.max(1, pages);
+
+					lastFingerprint = fp;
+					pages += 1;
+					if ((pages % 3) === 0) {
+						return waitForResponsiveSlot().then(function () { return walk(); });
+					}
+					return walk();
+				}).catch(function () {
+					return Math.max(1, pages);
+				});
+			}
+
+			return walk();
+		}).catch(function () {
+			return 1;
+		});
+	}
+
+	function buildSectionTotalsQuick(items, token) {
+		var sectionTotals = new Array(items.length);
+		var index = 0;
+		function step() {
+			if (token !== reader._globalPageMapBuildToken) return Promise.resolve(sectionTotals);
+			if (index >= items.length) return Promise.resolve(sectionTotals);
+			var item = items[index];
+			if (!isSpineItemLinear(item)) {
+				sectionTotals[index] = 0;
+				index += 1;
+				return step();
+			}
+			return countSectionPagesQuick(item, token).then(function (count) {
+				var parsed = parseInt(count, 10);
+				if (!parsed || isNaN(parsed) || parsed < 1) parsed = 1;
+				sectionTotals[index] = parsed;
+			}).catch(function () {
+				sectionTotals[index] = 1;
+			}).then(function () {
+				index += 1;
+				if ((index % 5) === 0) {
+					return waitForResponsiveSlot().then(function () { return step(); });
+				}
+				return step();
+			});
+		}
+		return step();
+	}
+
+	function buildSectionTotalsExact(items, token) {
+		var sectionTotals = new Array(items.length);
+		var index = 0;
+		function step() {
+			if (token !== reader._globalPageMapBuildToken) return Promise.resolve(sectionTotals);
+			if (index >= items.length) return Promise.resolve(sectionTotals);
+			var item = items[index];
+			if (!isSpineItemLinear(item)) {
+				sectionTotals[index] = 0;
+				index += 1;
+				return waitForResponsiveSlot().then(function () { return step(); });
+			}
+			return waitForResponsiveSlot().then(function () {
+				return countSectionPages(item, index, token);
+			}).then(function (count) {
+				var parsed = parseInt(count, 10);
+				if (!parsed || isNaN(parsed) || parsed < 1) parsed = 1;
+				sectionTotals[index] = parsed;
+			}).catch(function () {
+				sectionTotals[index] = 1;
+			}).then(function () {
+				index += 1;
+				return waitForResponsiveSlot().then(function () { return step(); });
+			});
+		}
+		return waitForResponsiveSlot().then(function () { return step(); });
+	}
+
+	function maybeLaunchExactRefinement(key, items, token) {
+		// Disabled for now: exact pass can produce unstable jumps on real devices.
+		// Keep quick-pass totals only (deterministic and fast across desktop/mobile).
+		return;
+		if (reader._globalPageMapExactCache[key]) return;
+		if (reader._globalPageMapExactBuilding && reader._globalPageMapExactKey === key) return;
+
+		reader._globalPageMapExactBuilding = true;
+		reader._globalPageMapExactKey = key;
+
+		buildSectionTotalsExact(items, token).then(function (exactTotals) {
+			if (token !== reader._globalPageMapBuildToken) return;
+			var exactMap = createPageMapFromSectionTotals(key, exactTotals, true);
+			reader._globalPageMapExactCache[key] = clonePageMap(exactMap);
+
+			var currentMap = reader._globalPageMap || null;
+			var shouldApply = !currentMap || !currentMap.ready || currentMap.key !== key || !pageMapsEqual(currentMap, exactMap) || !currentMap.isExact;
+			if (shouldApply) applyGlobalPageMap(exactMap, false);
+		}).finally(function () {
+			reader._globalPageMapExactBuilding = false;
+			reader._globalPageMapExactKey = "";
+		});
+	}
+
+	function buildGlobalPageMap(force) {
+		if (!reader.book || !reader.book.spine || !reader.rendition) {
+			if (reader._pageCounterPending) setPageCounterPending(false);
+			return Promise.resolve();
+		}
+
+		var key = getPageLayoutKey();
+		var currentMap = reader._globalPageMap || {};
+		// When force=true (font/resize rebuild), ignore cached totals to guarantee a real recount.
+		var exactCached = (!force) ? clonePageMap(reader._globalPageMapExactCache[key]) : null;
+		if (exactCached) {
+			applyGlobalPageMap(exactCached, true);
+			return Promise.resolve();
+		}
+
+		if (!force && currentMap.ready && currentMap.key === key && currentMap.totalPages > 0) {
+			if (reader._pageCounterPending) {
+				setPageCounterPending(false);
+				var locStable = reader._lastRelocated || (reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
+				if (locStable) updatePageCount(locStable);
+			}
+			return Promise.resolve();
+		}
+
+		if (reader._globalPageMapBuilding) {
+			reader._globalPageMapQueued = true;
+			reader._globalPageMapQueuedForce = !!(reader._globalPageMapQueuedForce || force);
+			return Promise.resolve();
+		}
+
+		reader._globalPageMapBuilding = true;
+		var token = ++reader._globalPageMapBuildToken;
+		setPageCounterPending(true);
+
+		ensureSpineHrefIndex();
+		ensurePageCalcRendition(!!force);
+
+		var items = (reader.book && reader.book.spine && reader.book.spine.spineItems) ? reader.book.spine.spineItems : [];
+		var useExactNow = false;
+
+		function finalizeQuickPhase() {
+			reader._globalPageMapBuilding = false;
+			if (reader._globalPageMapQueued) {
+				var qForce = !!reader._globalPageMapQueuedForce;
+				reader._globalPageMapQueued = false;
+				reader._globalPageMapQueuedForce = false;
+				setTimeout(function () { buildGlobalPageMap(qForce); }, 0);
+			}
+		}
+
+		var quickCached = (!force) ? clonePageMap(reader._globalPageMapQuickCache[key]) : null;
+		var quickPromise;
+		if (useExactNow) {
+			quickPromise = buildSectionTotalsExact(items, token).then(function (exactTotalsNow) {
+				if (token !== reader._globalPageMapBuildToken) return null;
+				var exactNowMap = createPageMapFromSectionTotals(key, exactTotalsNow, true);
+				reader._globalPageMapExactCache[key] = clonePageMap(exactNowMap);
+				return exactNowMap;
+			});
+		} else {
+			quickPromise = quickCached
+				? Promise.resolve(quickCached)
+				: buildSectionTotalsQuick(items, token).then(function (quickTotals) {
+					if (token !== reader._globalPageMapBuildToken) return null;
+					var quickMap = createPageMapFromSectionTotals(key, quickTotals, false);
+					reader._globalPageMapQuickCache[key] = clonePageMap(quickMap);
+					return quickMap;
+				});
+		}
+
+		return quickPromise.then(function (quickMap) {
+			if (!quickMap || token !== reader._globalPageMapBuildToken) return;
+			applyGlobalPageMap(quickMap, true);
+			if (!useExactNow) maybeLaunchExactRefinement(key, items, token);
+		}).catch(function () {
+			if (token === reader._globalPageMapBuildToken) setPageCounterPending(false);
+		}).finally(function () {
+			finalizeQuickPhase();
+		});
+	}
+
+	function scheduleGlobalPageMapRebuild(reason, force) {
+		// Coalesce rapid resize/font events without losing "force=true".
+		// If any event in the burst requires force, the scheduled build must stay forced.
+		var nextForce = !!force;
+		if (reader._globalPageMapTimerForce) nextForce = true;
+		if (reader._globalPageMapTimer) {
+			try { clearTimeout(reader._globalPageMapTimer); } catch (e0) {}
+		}
+		reader._globalPageMapTimerForce = nextForce;
+		reader._globalPageMapTimer = setTimeout(function () {
+			reader._globalPageMapTimer = null;
+			var runForce = !!reader._globalPageMapTimerForce;
+			reader._globalPageMapTimerForce = false;
+			buildGlobalPageMap(runForce);
+		}, 280);
+	}
+
+	reader.__scheduleGlobalPageMapRebuild = scheduleGlobalPageMapRebuild;
+
+	function isUiToggleResizeNoise(reason) {
+		try {
+			if (reason !== "resize" && reason !== "visual-viewport-resize" && reason !== "viewer-resize-observer") {
+				return false;
+			}
+			var topWin = (window && window.top) ? window.top : window;
+			var ts = 0;
+			try { ts = topWin.__fbUiLastToggleTs || 0; } catch (eTopTs) {}
+			if (!ts) {
+				try { ts = window.__fbUiLastToggleTs || 0; } catch (eWinTs) {}
+			}
+			if (!ts) return false;
+			return (Date.now() - ts) < 950;
+		} catch (e) {}
+		return false;
+	}
+
+	function isIosResizeNoiseContext() {
+		try {
+			var ua = navigator.userAgent || "";
+			var iOS = /iP(ad|hone|od)/i.test(ua);
+			var iPadOS = /Macintosh/i.test(ua) && navigator.maxTouchPoints && navigator.maxTouchPoints > 1;
+			return !!(iOS || iPadOS);
+		} catch (e) {}
+		return false;
+	}
+
+	function isPassiveResizeReason(reason) {
+		if (reason === "visual-viewport-resize") return true;
+		if (reason === "viewer-resize-observer") return isIosResizeNoiseContext();
+		if (reason === "resize" && isIosResizeNoiseContext()) return true;
+		return false;
+	}
+
+	function scheduleLayoutReflowAndPageRebuild(reason, forceRebuild) {
+		if (isUiToggleResizeNoise(reason)) {
+			return;
+		}
+		var passiveResize = isPassiveResizeReason(reason);
+		var rebuildForce = passiveResize ? false : !!forceRebuild;
+		if (!passiveResize) {
+			setPageCounterPending(true);
+		}
+		try {
+			if (reader._layoutReflowTimer) clearTimeout(reader._layoutReflowTimer);
+		} catch (e0) {}
+		reader._layoutReflowTimer = setTimeout(function () {
+			reader._layoutReflowTimer = null;
+			try { if (reader.rendition && reader.rendition.resize) reader.rendition.resize(); } catch (e1) {}
+			try { if (reader.renditionPrev && reader.renditionPrev.resize) reader.renditionPrev.resize(); } catch (e2) {}
+			try { if (reader.renditionNext && reader.renditionNext.resize) reader.renditionNext.resize(); } catch (e3) {}
+			scheduleGlobalPageMapRebuild(reason || "layout", rebuildForce);
+		}, 140);
+	}
 
 	function updatePageCount(loc) {
-		if (!pageCountEl || !loc || !reader.book || !reader.book.locations) return;
+		if (!pageCountEl || !loc) return;
 		try {
-			var cfi = loc.start && loc.start.cfi ? loc.start.cfi : null;
-			if (!cfi) return;
-			var pctF = (typeof reader.book.locations.percentageFromCfi === "function")
-				? reader.book.locations.percentageFromCfi(cfi)
-				: null;
-			if (typeof pctF !== "number" || isNaN(pctF)) return;
-			var pct = Math.round(Math.max(0, Math.min(1, pctF)) * 100);
+			if (reader._pageCounterPending) {
+				pageCountEl.textContent = "…/…";
+				return;
+			}
+			var p = getGlobalPageFromLocation(loc);
+			if (!p || !p.total) {
+				pageCountEl.textContent = "…/…";
+				return;
+			}
+			if (loc && loc.atEnd) p.page = p.total;
+			if (loc && loc.atStart) p.page = 1;
 			var tocTitle = getTocTitleForLocation(loc);
-			pageCountEl.textContent = tocTitle ? (pct + "% - " + tocTitle) : (pct + "%");
+			var pageLabel = String(p.page) + "/" + String(p.total);
+			var fullLabel = tocTitle ? (pageLabel + " - " + tocTitle) : pageLabel;
+			pageCountEl.textContent = fullLabel;
+			reader._lastStablePageCounterText = fullLabel;
 		} catch (e) {}
 	}
 
-	// Generate the stable locations map once the book is ready.
-	book.ready.then(function(){ return generateLocationsOnce(); });
+	// Generate locations map for swipe neighbors and build global page map for footer.
+	book.ready.then(function(){ return generateLocationsOnce(); })
+		.then(function(){ return buildGlobalPageMap(true); });
 
+	window.addEventListener("resize", function () {
+		scheduleLayoutReflowAndPageRebuild("resize", true);
+	}, { passive: true });
+	window.addEventListener("pointerdown", markReaderInteraction, { passive: true });
+	window.addEventListener("touchstart", markReaderInteraction, { passive: true });
+	window.addEventListener("keydown", markReaderInteraction, { passive: true });
+	window.addEventListener("wheel", markReaderInteraction, { passive: true });
+	window.addEventListener("orientationchange", function () {
+		scheduleLayoutReflowAndPageRebuild("orientation", true);
+	}, { passive: true });
+	try {
+		if (window.visualViewport && window.visualViewport.addEventListener) {
+			window.visualViewport.addEventListener("resize", function () {
+				scheduleLayoutReflowAndPageRebuild("visual-viewport-resize", true);
+			}, { passive: true });
+		}
+	} catch (eVvResize) {}
+	try {
+		if (window.ResizeObserver) {
+			var pageResizeTarget = document.getElementById("viewerStack") || document.getElementById("viewer");
+			if (pageResizeTarget) {
+				var lastW = 0;
+				var lastH = 0;
+				var ro = new ResizeObserver(function (entries) {
+					if (!entries || !entries.length) return;
+					var rect = entries[0].contentRect || {};
+					var w = Math.round(rect.width || 0);
+					var h = Math.round(rect.height || 0);
+					if (w < 1 || h < 1) return;
+					if (w === lastW && h === lastH) return;
+					lastW = w;
+					lastH = h;
+					scheduleLayoutReflowAndPageRebuild("viewer-resize-observer", true);
+				});
+				ro.observe(pageResizeTarget);
+			}
+		}
+	} catch (eRo) {}
 	// -----------------------------
 	// Font size menu UI (single "A" button + 5-step scale)
 	// -----------------------------
