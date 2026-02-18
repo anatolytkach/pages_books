@@ -918,6 +918,7 @@
           prefixNodes: new Map(),
           authorBooks: new Map(),
           searchIndex: new Map(),
+          bookCoverById: new Map(),
           languages: null,
         };
 
@@ -1471,6 +1472,10 @@
           if (!cover) return "";
           if (/^https?:\/\//i.test(cover) || cover.startsWith("data:") || cover.startsWith("blob:")) return cover;
           if (cover.startsWith("//")) return `${location.protocol}${cover}`;
+          // Absolute paths from API/Drive must stay absolute.
+          if (cover.startsWith("/")) return cover;
+          // Normalize common relative root form used by catalog data.
+          if (cover.startsWith("books/")) return `/${cover}`;
           if (config && config.assetBaseUrl) return joinUrl(config.assetBaseUrl, cover);
           if (config && config.baseUrl) return joinUrl(config.baseUrl, cover);
           return cover;
@@ -1480,10 +1485,13 @@
           return `/books/${encodeURIComponent(id)}/`;
         }
 
-        function openReaderUrl(id) {
+        function openReaderUrl(id, cover) {
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
           const base = isPagesDev ? "/reader/" : "/books/reader/";
-          return `${base}?id=${encodeURIComponent(id)}`;
+          let url = `${base}?id=${encodeURIComponent(id)}`;
+          const coverHint = String(cover || "").trim();
+          if (coverHint) url += `&cover=${encodeURIComponent(coverHint)}`;
+          return url;
         }
 
         function updateSearchIcon() {
@@ -1675,6 +1683,61 @@
           return items;
         }
 
+        function decodeHtmlAttr(value) {
+          return String(value || "")
+            .replace(/&amp;/g, "&")
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">");
+        }
+
+        async function fetchBookCoverById(id) {
+          const bookId = String(id || "").trim();
+          if (!bookId) return "";
+          if (cache.bookCoverById.has(bookId)) return cache.bookCoverById.get(bookId) || "";
+          const url = openBookUrl(bookId);
+          try {
+            const res = await fetch(url, { cache: "no-store" });
+            if (!res.ok) {
+              cache.bookCoverById.set(bookId, "");
+              return "";
+            }
+            const html = await res.text();
+            let cover = "";
+            const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+            if (ogMatch && ogMatch[1]) cover = ogMatch[1];
+            if (!cover) {
+              const twMatch = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
+              if (twMatch && twMatch[1]) cover = twMatch[1];
+            }
+            if (!cover) {
+              const preloadMatch = html.match(/<link[^>]+rel=["']preload["'][^>]+as=["']image["'][^>]+href=["']([^"']+)["']/i);
+              if (preloadMatch && preloadMatch[1]) cover = preloadMatch[1];
+            }
+            if (!cover) {
+              const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+              if (imgMatch && imgMatch[1]) cover = imgMatch[1];
+            }
+            if (!cover) {
+              const absRe = new RegExp("/books/content/" + bookId + "/[^\"'\\s>]+\\.(?:jpe?g|png|webp|avif|gif)", "i");
+              const absMatch = html.match(absRe);
+              if (absMatch && absMatch[0]) cover = absMatch[0];
+            }
+            if (!cover) {
+              const relRe = new RegExp("books/content/" + bookId + "/[^\"'\\s>]+\\.(?:jpe?g|png|webp|avif|gif)", "i");
+              const relMatch = html.match(relRe);
+              if (relMatch && relMatch[0]) cover = `/${relMatch[0].replace(/^\/+/, "")}`;
+            }
+            cover = resolveCoverUrl(decodeHtmlAttr(String(cover || "").trim()));
+            cache.bookCoverById.set(bookId, cover || "");
+            return cover || "";
+          } catch (error) {
+            cache.bookCoverById.set(bookId, "");
+            return "";
+          }
+        }
+
         async function hydrateMyBooksCovers(itemsInput, expectedNonce) {
           const items = Array.isArray(itemsInput) ? itemsInput : [];
           if (!items.length) return [];
@@ -1702,6 +1765,9 @@
                   return { ...item, cover };
                 } catch (error) {}
               }
+              if (expectedNonce !== REQ_NONCE) return item;
+              const coverById = await fetchBookCoverById(id);
+              if (coverById) return { ...item, cover: coverById };
               return item;
             })
           );
@@ -2204,7 +2270,7 @@
                 card.addEventListener("click", (event) => {
                   const t = event.target;
                   if (t && t.closest && t.closest("a, input, button, label")) return;
-                  const url = openReaderUrl(bookId);
+                  const url = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
                   window.open(url, "_blank", "noopener");
                 });
 
@@ -2229,7 +2295,12 @@
                   img.decoding = "async";
                   img.alt = `${book.title || `Book ${bookId}`} cover`;
                   img.src = coverUrl;
-                  img.onerror = () => {
+                  img.onerror = async () => {
+                    const fallback = await fetchBookCoverById(bookId);
+                    if (fallback && fallback !== coverUrl) {
+                      img.src = fallback;
+                      return;
+                    }
                     cover.classList.add("coverEmpty");
                     cover.textContent = "No cover";
                   };
@@ -2239,7 +2310,7 @@
                 }
                 const titleWrap = el("div", "cardTitle");
                 const titleLink = el("a", null, book.title || `Book ${bookId}`);
-                titleLink.href = openReaderUrl(bookId);
+                titleLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
                 titleLink.target = "_blank";
                 titleLink.rel = "noopener noreferrer";
                 titleWrap.appendChild(titleLink);
@@ -2275,7 +2346,7 @@
 
               const bookCell = el("td");
               const titleLink = el("a", null, book.title || `Book ${bookId}`);
-              titleLink.href = openReaderUrl(bookId);
+              titleLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
               titleLink.target = "_blank";
               titleLink.rel = "noopener noreferrer";
               bookCell.appendChild(titleLink);
@@ -2285,7 +2356,7 @@
 
               const openCell = el("td", "count");
               const openLink = el("a", "mybooks-open", "Open");
-              openLink.href = openReaderUrl(bookId);
+              openLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
               openLink.target = "_blank";
               openLink.rel = "noopener noreferrer";
               openCell.appendChild(openLink);

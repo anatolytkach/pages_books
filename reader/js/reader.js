@@ -7760,9 +7760,36 @@ return {
 		return "";
 	}
 
+	function getBookCoverHint() {
+		try {
+			var params = new URLSearchParams(window.location.search || "");
+			var cover = params.get("cover");
+			if (cover) return String(cover);
+		} catch (e0) {}
+		return "";
+	}
+
+	function readerHrefFromBook(item) {
+		var id = String((item && item.id) || "");
+		if (!id) return "?id=";
+		var href = "?id=" + encodeURIComponent(id);
+		var cover = String((item && (item.cover || item.coverUrl || item.cover_url)) || "");
+		if (cover) href += "&cover=" + encodeURIComponent(cover);
+		return href;
+	}
+
 	var STORAGE_KEY = "readerpub:mybooks:" + window.location.host;
 	var _memoryList = [];
 	var _lastSaveOk = null;
+	var _driveHydrated = false;
+
+	function getDriveSync() {
+		try {
+			return window.ReaderPubDriveSync || null;
+		} catch (e) {
+			return null;
+		}
+	}
 
 	function getStorage() {
 		try {
@@ -7817,16 +7844,14 @@ return {
 			var link = document.createElement("a");
 			link.className = "bookmark_link";
 			link.textContent = item.title || ("Book " + item.id);
-			link.href = "?id=" + encodeURIComponent(item.id);
+				link.href = readerHrefFromBook(item);
 			link.setAttribute("data-book-id", item.id);
 			link.addEventListener("click", function (ev) {
 				ev.preventDefault();
 				var targetId = this.getAttribute("data-book-id") || "";
-				if (targetId) {
-					window.location.search = "?id=" + encodeURIComponent(targetId);
-				}
-				try { if (window.__fbCloseOverlays) window.__fbCloseOverlays(); } catch (e) {}
-			});
+					if (targetId) window.location.href = this.href;
+					try { if (window.__fbCloseOverlays) window.__fbCloseOverlays(); } catch (e) {}
+				});
 
 			wrap.appendChild(link);
 			if (item.author) {
@@ -7860,6 +7885,35 @@ return {
 		}
 	}
 
+	function scheduleDriveStateSync(meta, delayMs) {
+		try {
+			var sync = getDriveSync();
+			if (!sync || typeof sync.scheduleCurrentReaderStateSync !== "function") return;
+			sync.scheduleCurrentReaderStateSync(window.reader || null, meta || null, typeof delayMs === "number" ? delayMs : 300);
+		} catch (e) {}
+	}
+
+	function hydrateFromDriveSilent() {
+		if (_driveHydrated) return;
+		_driveHydrated = true;
+		try {
+			var sync = getDriveSync();
+			if (!sync || typeof sync.pullSnapshot !== "function") return;
+			sync.pullSnapshot({ interactive: false }).then(function (snapshot) {
+				try {
+					if (typeof sync.applySnapshotToLocalReader === "function") sync.applySnapshotToLocalReader(snapshot);
+				} catch (eApply) {}
+				try {
+					if (typeof sync.listMyBooks === "function") {
+						render(sync.listMyBooks(snapshot));
+						return;
+					}
+				} catch (eList) {}
+				render();
+			}).catch(function () {});
+		} catch (e) {}
+	}
+
 	function addFromMeta(title, author) {
 		var id = getBookId();
 		if (!id || !/^\d+$/.test(id)) return;
@@ -7888,12 +7942,18 @@ return {
 		if (list.length > 200) list.length = 200;
 		saveList(list);
 		render(list);
+		scheduleDriveStateSync({
+			id: String(entry.id),
+			title: entry.title || "",
+			author: entry.author || "",
+			cover: entry.cover || entry.coverUrl || entry.cover_url || ""
+		}, 250);
 	}
 
 	function ensureCurrentBook() {
 		var id = getBookId();
 		if (!id || !/^\d+$/.test(id)) return;
-		upsertBook({ id: id, title: "", author: "" });
+		upsertBook({ id: id, title: "", author: "", cover: getBookCoverHint() });
 	}
 
 	function removeBook(id) {
@@ -7907,6 +7967,22 @@ return {
 		}
 		saveList(list);
 		render(list);
+		try {
+			var sync = getDriveSync();
+			if (!sync || typeof sync.deleteBooksCascade !== "function") return;
+			sync.deleteBooksCascade([String(id)], { interactive: false }).then(function (snapshot) {
+				try {
+					if (typeof sync.applySnapshotToLocalReader === "function") sync.applySnapshotToLocalReader(snapshot);
+				} catch (eApply) {}
+				try {
+					if (typeof sync.listMyBooks === "function") {
+						render(sync.listMyBooks(snapshot));
+						return;
+					}
+				} catch (eList) {}
+				render();
+			}).catch(function () {});
+		} catch (e0) {}
 	}
 
 	function syncFromDom() {
@@ -7932,11 +8008,13 @@ return {
 	if (document.readyState === "loading") {
 		document.addEventListener("DOMContentLoaded", function () {
 			render();
+			hydrateFromDriveSilent();
 			ensureCurrentBook();
 			setTimeout(syncFromDom, 600);
 		});
 	} else {
 		render();
+		hydrateFromDriveSilent();
 		ensureCurrentBook();
 		setTimeout(syncFromDom, 600);
 	}
