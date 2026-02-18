@@ -2083,6 +2083,34 @@
           els.content.appendChild(table);
         }
 
+        async function pruneEmptyPrefixes(letter, prefixes, nonce) {
+          const list = Array.isArray(prefixes) ? prefixes : [];
+          if (!list.length || !config || !config.prefixNodePath) return list;
+
+          const checked = await Promise.all(
+            list.map(async (item) => {
+              if (!item || !item.prefix) return null;
+              if (nonce !== REQ_NONCE) return null;
+              try {
+                const node = await getPrefixNode(letter, item.prefix, nonce);
+                if (nonce !== REQ_NONCE) return null;
+                const visibleAuthors = filterAuthorsForPrefix(node.authors, letter, item.prefix);
+                if (!node.prefixes.length && !visibleAuthors.length) {
+                  const deadKey = prefixStateKey(letter, item.prefix);
+                  if (deadKey) hiddenEmptyPrefixes.add(deadKey);
+                  return null;
+                }
+              } catch (error) {
+                return item;
+              }
+              return item;
+            })
+          );
+
+          if (nonce !== REQ_NONCE) return list;
+          return checked.filter(Boolean);
+        }
+
         function renderAuthors(authors, letter, prefix) {
           els.content.innerHTML = "";
           const filteredAuthors = filterAuthorsForPrefix(authors, letter, prefix);
@@ -2913,7 +2941,9 @@
               }
               showLoading("Loading prefixes...");
               try {
-                const prefixes = await getLetterPrefixes(state.letter, nonce);
+                const prefixesRaw = await getLetterPrefixes(state.letter, nonce);
+                if (nonce !== REQ_NONCE) return;
+                const prefixes = await pruneEmptyPrefixes(state.letter, prefixesRaw, nonce);
                 if (nonce !== REQ_NONCE) return;
                 setBreadcrumbs([
                   { label: "Letters", onClick: () => navigate({ view: "letters" }) },
