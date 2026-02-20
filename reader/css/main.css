@@ -821,6 +821,31 @@ body.dark-ui #bottombar {
   line-height: 1;
 }
 
+#title-controls .tts-toggle {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  border-radius: 4px;
+}
+#title-controls .tts-toggle .tts-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#title-controls .tts-toggle .tts-icon-off { display: none; }
+#title-controls .tts-toggle.is-speaking .tts-icon-on { display: none; }
+#title-controls .tts-toggle.is-speaking .tts-icon-off { display: block; }
+#ttsToggleDesktop { display: inline-flex; }
+#ttsToggleMobile { display: none; }
+
 /* Keep the two A buttons visually tight */
 #title-controls .font-size-btn{ margin: 0 !important; padding: 4px 3px; }
 
@@ -2589,6 +2614,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-bookmarks #bookmarksView,
 #overlay-notes #notesView,
 #overlay-mybooks #mybooksView,
+#overlay-voice #voiceView,
 #overlay-menu #menuView {
   font-family: var(--ui-font-family);
   font-size: calc(var(--bottom-font-size, 14px) * 1.2);
@@ -2606,6 +2632,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-bookmarks #bookmarksView ul,
 #overlay-notes #notesView ul,
 #overlay-mybooks #mybooksView ul,
+#overlay-voice #voiceView ul,
 #overlay-menu #menuView ul {
   list-style: none;
   margin: 0;
@@ -2616,6 +2643,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-bookmarks #bookmarksView li,
 #overlay-notes #notesView li,
 #overlay-mybooks #mybooksView li,
+#overlay-voice #voiceView li,
 #overlay-menu #menuView li {
   margin: 0;
   padding: 0;
@@ -2640,6 +2668,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #overlay-bookmarks #bookmarksView a,
 #overlay-notes #notesView a,
 #overlay-mybooks #mybooksView a,
+#overlay-voice #voiceView a,
 #overlay-menu #menuView a {
   display: block;
   padding: 10px 6px;
@@ -2703,6 +2732,44 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 }
 #overlay-menu #menuView .menu-label{
   flex: 1 1 auto;
+}
+
+#overlay-voice #voiceView {
+  padding: 10px 6px;
+}
+.voice-picker-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.voice-picker-label {
+  font-size: 14px;
+  color: var(--fbbar-fg-strong);
+}
+.voice-picker-select {
+  height: 34px;
+  border: 1px solid var(--fbbar-border);
+  border-radius: 6px;
+  background: var(--fbbar-bg);
+  color: var(--fbbar-fg);
+  padding: 0 8px;
+  font-size: 14px;
+}
+.voice-picker-status {
+  min-height: 18px;
+  font-size: 13px;
+  color: var(--fbbar-fg);
+  opacity: 0.95;
+}
+.voice-refresh-btn {
+  width: fit-content;
+  border: 1px solid var(--fbbar-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fbbar-fg);
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
 }
 #overlay-bookmarks #bookmarksView .bookmark-text,
 #overlay-mybooks #mybooksView .bookmark-text{
@@ -3113,6 +3180,8 @@ html.is-ios .comment-sheet{
 @media (hover:hover) and (pointer:fine) {
   .searchbar { display: none !important; }
   #searchOpen { display: none !important; }
+  #ttsToggleMobile { display: none !important; }
+  #ttsToggleDesktop { display: inline-flex !important; }
 }
 
 /* When search is open on mobile, hide the normal titlebar content */
@@ -3180,6 +3249,8 @@ body.search-open #searchbar { display: flex; }
     font-size: 120%;
   }
   #title-controls .theme-icon{ width: 22px; height: 22px; }
+  #ttsToggleDesktop { display: none !important; }
+  #ttsToggleMobile { display: inline-flex !important; }
   #addressBarToggle{
     width: 23px;
     height: 23px;
@@ -3500,3 +3571,5 @@ html.is-tablet #searchDesktop .search-nav.desktop[aria-hidden="false"] {
   display: inline-flex !important;
 }
 html.is-tablet #searchOpen { display: none !important; }
+html.is-tablet #ttsToggleDesktop { display: none !important; }
+html.is-tablet #ttsToggleMobile { display: inline-flex !important; }

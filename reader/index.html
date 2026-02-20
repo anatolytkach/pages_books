@@ -10,7 +10,7 @@
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <link rel="icon" type="image/svg+xml" href="/books/assets/logo-flip.svg?v=20260218-1" />
 <link href="css/normalize.css" rel="stylesheet"/>
-<link href="css/main.css?v=20260217-10" rel="stylesheet"/>
+<link href="css/main.css?v=20260220-ttsfix2" rel="stylesheet"/>
 <link href="css/popup.css" rel="stylesheet"/>
 <script src="js/libs/jquery.min.js"></script>
 <script src="js/libs/zip.min.js"></script>
@@ -157,9 +157,9 @@
 <script src="js/epub.js"></script>
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
-<script src="js/reader.js?v=20260218-33"></script>
+<script src="js/reader.js?v=20260220-ttsfix2"></script>
 <script src="js/fullscreen-fix.js"></script>
-<script src="js/fbreader-ui.js?v=20260217-7"></script>
+<script src="js/fbreader-ui.js?v=20260220-ttsfix2"></script>
 <!-- Plugins -->
 <!--
 -->
@@ -209,6 +209,23 @@
   <div class="overlay-sep" aria-hidden="true"></div>
   <div class="overlay-scroll">
     <div class="view" id="mybooksView"><ul id="mybooks"></ul></div>
+  </div>
+</div>
+<div id="overlay-voice" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Choose Voice">
+  <div class="overlay-head">
+    <div class="overlay-title">Choose Voice</div>
+    <button class="overlay-close" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="overlay-sep" aria-hidden="true"></div>
+  <div class="overlay-scroll">
+    <div class="view" id="voiceView">
+      <div class="voice-picker-wrap">
+        <label for="voiceSelect" class="voice-picker-label">Voice</label>
+        <select id="voiceSelect" class="voice-picker-select" aria-label="Voice"></select>
+        <div id="voiceStatus" class="voice-picker-status" aria-live="polite"></div>
+        <button id="voiceRefresh" class="voice-refresh-btn" type="button">Refresh voices</button>
+      </div>
+    </div>
   </div>
 </div>
 <div id="overlay-menu" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Menu">
@@ -270,6 +287,18 @@
           </button>
         </li>
         <li>
+          <button class="menu-item" type="button" data-menu="voice" aria-label="Choose Voice">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 14V10h4l5-5v14l-5-5z"></path>
+                <path d="M16 9c1.2 1 1.8 2 1.8 3s-.6 2-1.8 3"></path>
+                <path d="M18.5 7c2.1 1.7 3 3.5 3 5s-.9 3.3-3 5"></path>
+              </svg>
+            </span>
+            <span class="menu-label">Choose Voice</span>
+          </button>
+        </li>
+        <li>
           <a class="menu-item" href="https://reader.pub/books/" target="_blank" rel="noopener noreferrer" aria-label="Catalog">
             <span class="menu-icon menu-icon-catalog" aria-hidden="true">
               <svg viewBox="0 0 334.44 304.97">
@@ -315,6 +344,18 @@
   </div>
 </div>
 <div id="title-controls">
+<button id="ttsToggleDesktop" class="tts-toggle tts-desktop" type="button" aria-label="Start reading aloud" title="Read aloud">
+  <svg class="tts-icon tts-icon-on" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M4 14V10h4l5-5v14l-5-5z"></path>
+    <path d="M16.5 9.5c1 .8 1.5 1.7 1.5 2.5s-.5 1.7-1.5 2.5"></path>
+    <path d="M19 7c1.8 1.5 2.8 3.2 2.8 5s-1 3.5-2.8 5"></path>
+  </svg>
+  <svg class="tts-icon tts-icon-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M4 14V10h4l5-5v14l-5-5z"></path>
+    <path d="M16.5 9.5c1 .8 1.5 1.7 1.5 2.5s-.5 1.7-1.5 2.5"></path>
+    <line x1="5" y1="5" x2="21" y2="21"></line>
+  </svg>
+</button>
 <!-- Search (FBReader-like) -->
 <div id="searchDesktop" class="search-desktop" aria-label="Search" role="search">
   <div class="search-nav desktop" aria-hidden="true">
@@ -347,6 +388,16 @@
     </button>
   </div>
   <!-- Mobile-only clickable search icon (leftmost in right icon group) -->
+  <button id="ttsToggleMobile" class="tts-toggle tts-mobile" type="button" aria-label="Start reading aloud" title="Read aloud">
+    <svg class="tts-icon tts-icon-on" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 14V10h4l5-5v14l-5-5z"></path>
+      <path d="M16.5 9.5c1 .8 1.5 1.7 1.5 2.5s-.5 1.7-1.5 2.5"></path>
+    </svg>
+    <svg class="tts-icon tts-icon-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 14V10h4l5-5v14l-5-5z"></path>
+      <line x1="5" y1="5" x2="21" y2="21"></line>
+    </svg>
+  </button>
   <a aria-label="Search" class="icon-search" id="searchOpen"></a>
 </div>
 
