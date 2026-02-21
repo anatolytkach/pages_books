@@ -52,6 +52,15 @@ test("Unit: TTS payload is anchored to current CFI", () => {
   assert.match(js, /\.range\(cfi\)/);
 });
 
+test("Unit: TTS restarts when font buttons are used", () => {
+  const js = read("reader/js/fbreader-ui.js");
+  assert.match(js, /function bindFontRestart\(id\)/);
+  assert.match(js, /bindFontRestart\("fontInc"\)/);
+  assert.match(js, /bindFontRestart\("fontDec"\)/);
+  assert.match(js, /el\.addEventListener\("click", h\)/);
+  assert.match(js, /restartCurrentPage\(\)/);
+});
+
 test("Unit: TTS keeps segment speech and updates highlight by boundary", () => {
   const js = read("reader/js/fbreader-ui.js");
   assert.match(js, /function speakSegment\(idx\)/);

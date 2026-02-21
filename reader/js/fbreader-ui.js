@@ -5256,6 +5256,20 @@
     });
     if (synth && "onvoiceschanged" in synth) synth.onvoiceschanged = refreshVoiceList;
 
+    function bindFontRestart(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var h = function () {
+        if (!state.enabled) return;
+        restartCurrentPage();
+      };
+      el.addEventListener("click", h);
+      el.addEventListener("touchend", h, { passive: true });
+      el.addEventListener("pointerup", h);
+    }
+    bindFontRestart("fontInc");
+    bindFontRestart("fontDec");
+
     loadSavedVoice();
     refreshVoiceList();
     setButtonState(false);
