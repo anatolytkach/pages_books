@@ -23,13 +23,12 @@ test("Unit: reader html exposes desktop and mobile TTS buttons", () => {
   assert.match(html, /id="ttsToggleMobile"/);
 });
 
-test("Unit: fbreader speech setup wires speech synthesis and relocated restart", () => {
+test("Unit: fbreader speech setup wires speech synthesis", () => {
   const js = read("reader/js/fbreader-ui.js");
   assert.match(js, /function setupSpeech\(reader\)/);
   assert.match(js, /window\.speechSynthesis/);
-  assert.match(js, /reader\.rendition\.on\("relocated", function \(\) \{/);
-  assert.match(js, /restartCurrentPage\(\)/);
-  assert.match(js, /reader\.rendition\.next/);
+  assert.match(js, /function toggleSpeech\(\)/);
+  assert.match(js, /function stopAndRevealLastWord\(\)/);
 });
 
 test("Unit: speech toggle updates icon state and highlight hooks", () => {
@@ -50,23 +49,36 @@ test("Unit: TTS payload is anchored to current CFI", () => {
   assert.match(js, /payloadFromCurrentCfi/);
   assert.match(js, /currentLocation\(\)/);
   assert.match(js, /\.range\(cfi\)/);
+  assert.match(js, /start && start\.displayed && start\.displayed\.page/);
+  assert.match(js, /key\.push\("s=" \+ scfi\)/);
+  assert.match(js, /rr0\.setStart\(n, baseOffset \+ mm0\.index\)/);
+  assert.match(js, /rr0\.setEnd\(n, baseOffset \+ mm0\.index \+ mm0\[0\]\.length\)/);
+  assert.match(js, /reachedLowerHalf/);
+  assert.match(js, /lastTop !== null && reachedLowerHalf/);
 });
 
-test("Unit: TTS restarts when font buttons are used", () => {
+test("Unit: TTS does not restart on font controls", () => {
   const js = read("reader/js/fbreader-ui.js");
-  assert.match(js, /function bindFontRestart\(id\)/);
-  assert.match(js, /bindFontRestart\("fontInc"\)/);
-  assert.match(js, /bindFontRestart\("fontDec"\)/);
-  assert.match(js, /el\.addEventListener\("click", h\)/);
-  assert.match(js, /restartCurrentPage\(\)/);
+  assert.doesNotMatch(js, /function bindFontRestart\(id\)/);
+  assert.doesNotMatch(js, /bindFontRestart\("fontInc"\)/);
+  assert.doesNotMatch(js, /bindFontRestart\("fontDec"\)/);
 });
 
-test("Unit: TTS keeps segment speech and updates highlight by boundary", () => {
+test("Unit: TTS keeps segment speech and tracks last spoken word by boundary", () => {
   const js = read("reader/js/fbreader-ui.js");
   assert.match(js, /function speakSegment\(idx\)/);
   assert.match(js, /u\.onboundary = function \(ev\)/);
-  assert.match(js, /applyHighlight\(seg\.start \+ Math\.max\(0, ev\.charIndex\)\)/);
+  assert.match(js, /state\.lastSpokenSeg = segRef/);
+  assert.match(js, /state\.lastWordCfi = segToCfi\(segRef\)/);
+  assert.doesNotMatch(js, /applyHighlight\(seg\.start \+ Math\.max\(0, ev\.charIndex\)\)/);
   assert.doesNotMatch(js, /function speakWord\(idx\)/);
+});
+
+test("Unit: TTS no longer auto-advances page", () => {
+  const js = read("reader/js/fbreader-ui.js");
+  assert.match(js, /if \(idx >= segments\.length\)/);
+  assert.match(js, /state\.enabled = false;/);
+  assert.doesNotMatch(js, /Promise\.resolve\(requestAutoNextPage\(\)\)/);
 });
 
 test("Unit: TTS highlight uses word offsets in map entries", () => {
@@ -77,7 +89,7 @@ test("Unit: TTS highlight uses word offsets in map entries", () => {
   assert.match(js, /r\.setEnd\(seg\.node, eo\)/);
 });
 
-test("Unit: mobile fallback sweep advances highlight without boundary events", () => {
+test("Unit: mobile fallback sweep tracks last spoken word without boundary events", () => {
   const js = read("reader/js/fbreader-ui.js");
   assert.match(js, /function isMobileLikeDevice\(\)/);
   assert.match(js, /function startFallbackSweepIfNeeded\(\)/);
@@ -86,7 +98,19 @@ test("Unit: mobile fallback sweep advances highlight without boundary events", (
   assert.match(js, /segmentSweepStartTimer = setTimeout\(startFallbackSweepIfNeeded, fallbackStartDelayMs\)/);
   assert.match(js, /segmentSweepTimer = setInterval/);
   assert.match(js, /var target = Math\.min\(words\.length - 1, Math\.floor\(elapsed \/ fallbackWordMs\)\)/);
+  assert.match(js, /state\.lastSpokenSeg = words\[wi\]/);
+  assert.match(js, /state\.lastWordCfi = segToCfi\(words\[wi\]\)/);
   assert.match(js, /boundarySeen = true;/);
   assert.match(js, /state\.fallbackMsPerWord = Math\.round\(\(state\.fallbackMsPerWord \* 0\.75\) \+ \(measured \* 0\.25\)\)/);
   assert.match(js, /stopSegmentSweep\(\);/);
+});
+
+test("Unit: TTS stop reveals location and highlights last spoken word", () => {
+  const js = read("reader/js/fbreader-ui.js");
+  assert.match(js, /function stopAndRevealLastWord\(\)/);
+  assert.match(js, /segToCfi\(state\.lastSpokenSeg\)/);
+  assert.match(js, /reader\.rendition\.display\(targetCfi\)/);
+  assert.match(js, /reader\.rendition\.display\(fallbackPageCfi\)/);
+  assert.match(js, /function showStoppedWordHighlight\(\)/);
+  assert.match(js, /function applyStopHighlightRange\(doc, range\)/);
 });

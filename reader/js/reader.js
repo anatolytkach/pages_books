@@ -7385,6 +7385,11 @@ EPUBJS.reader.ReaderController = function(book) {
 		}
 	}
 
+	try {
+		window.__fbGoNextPage = goNextByUi;
+		window.__fbGoPrevPage = goPrevByUi;
+	} catch (eExposeNav) {}
+
 	var arrowKeys = function(e) {
 		if(e.keyCode == 37) {
 

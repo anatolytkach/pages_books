@@ -4419,13 +4419,17 @@
       token: 0,
       map: [],
       doc: null,
+      content: null,
       fallbackNode: null,
       fallbackOverlay: null,
       selectedVoiceURI: null,
       restartTimer: null,
       speakPending: false,
       lastSpokenText: "",
-      fallbackMsPerWord: 240
+      fallbackMsPerWord: 240,
+      pageStartCfi: "",
+      lastSpokenSeg: null,
+      lastWordCfi: ""
     };
 
     function isMobileLikeDevice() {
@@ -4553,11 +4557,26 @@
 
     function getLocationKey() {
       try {
-        var loc = reader && reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
-        if (loc && loc.start && loc.start.cfi) return String(loc.start.cfi);
-        var href = normHref(loc && loc.start && loc.start.href ? loc.start.href : "");
-        var p = (loc && loc.start && loc.start.displayed && loc.start.displayed.page) ? String(loc.start.displayed.page) : "";
-        return href ? (href + "::" + p) : "";
+        var loc = null;
+        try {
+          loc = (reader && reader._lastRelocated) ? reader._lastRelocated : null;
+        } catch (e0) { loc = null; }
+        if (!loc) {
+          loc = reader && reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
+        }
+        var start = (loc && loc.start) ? loc.start : null;
+        var end = (loc && loc.end) ? loc.end : null;
+        var href = normHref(start && start.href ? start.href : "");
+        var scfi = start && start.cfi ? String(start.cfi) : "";
+        var ecfi = end && end.cfi ? String(end.cfi) : "";
+        var p = (start && start.displayed && start.displayed.page) ? String(start.displayed.page) : "";
+        var t = (start && start.displayed && start.displayed.total) ? String(start.displayed.total) : "";
+        var key = [];
+        if (href) key.push("h=" + href);
+        if (scfi) key.push("s=" + scfi);
+        if (ecfi) key.push("e=" + ecfi);
+        if (p || t) key.push("p=" + (p || "") + "/" + (t || ""));
+        return key.join("|");
       } catch (e) {
         return "";
       }
@@ -4627,7 +4646,7 @@
         try { contents = reader && reader.rendition && reader.rendition.getContents ? (reader.rendition.getContents() || []) : []; } catch (e1) {}
         if (!contents.length) return null;
 
-        function collectFromDoc(startDoc, startNode, startOffset) {
+        function collectFromDoc(startDoc, startNode, startOffset, sourceContent) {
           if (!startDoc || !startNode) return null;
           var nf = (startDoc.defaultView && startDoc.defaultView.NodeFilter) ? startDoc.defaultView.NodeFilter : NodeFilter;
           var tw = null;
@@ -4650,47 +4669,62 @@
             if (isVisibleNode(n, startDoc)) {
               var raw = String(n.nodeValue || "");
               if (n === startNode && startOffset > 0 && startOffset < raw.length) raw = raw.slice(startOffset);
-              var token = normText(raw);
-              if (token) {
-                var vis = false;
+              var rawSrc = raw;
+              var baseOffset = (n === startNode && startOffset > 0 && startOffset < String(n.nodeValue || "").length) ? startOffset : 0;
+              var re0 = /\S+\s*/g;
+              var mm0;
+              var foundAny = false;
+              var localInvisible = 0;
+              var lastTop = null;
+              var reachedLowerHalf = false;
+              while ((mm0 = re0.exec(rawSrc))) {
+                var t0 = normText(mm0[0] || "");
+                if (!t0) continue;
+                var visWord = false;
+                var visTop = null;
                 try {
-                  var rr = startDoc.createRange();
-                  rr.selectNodeContents(n);
-                  var rects = rr.getClientRects ? rr.getClientRects() : [];
-                  for (var ri = 0; ri < rects.length; ri++) {
-                    var r = rects[ri];
-                    if (r && r.width > 0 && r.height > 0 && r.right > 0 && r.left < vw && r.bottom > 0 && r.top < vh) { vis = true; break; }
+                  var rr0 = startDoc.createRange();
+                  rr0.setStart(n, baseOffset + mm0.index);
+                  rr0.setEnd(n, baseOffset + mm0.index + mm0[0].length);
+                  var rects0 = rr0.getClientRects ? rr0.getClientRects() : [];
+                  for (var ri0 = 0; ri0 < rects0.length; ri0++) {
+                    var r0 = rects0[ri0];
+                    if (r0 && r0.width > 0 && r0.height > 0 && r0.right > 0 && r0.left < vw && r0.bottom > 0 && r0.top < vh) {
+                      visWord = true;
+                      visTop = Number(r0.top || 0);
+                      break;
+                    }
                   }
                 } catch (e3) {}
-                if (vis) {
-                  var rawSrc = raw;
-                  var baseOffset = (n === startNode && startOffset > 0 && startOffset < String(n.nodeValue || "").length) ? startOffset : 0;
-                  var re0 = /\S+\s*/g;
-                  var mm0;
-                  var foundAny = false;
-                  while ((mm0 = re0.exec(rawSrc))) {
-                    var t0 = normText(mm0[0] || "");
-                    if (!t0) continue;
-                    if (text) { text += " "; idx += 1; }
-                    var s0 = idx;
-                    text += t0;
-                    idx += t0.length;
-                    map.push({
-                      start: s0,
-                      end: idx,
-                      node: n,
-                      startOffset: baseOffset + mm0.index,
-                      endOffset: baseOffset + mm0.index + mm0[0].length
-                    });
-                    startedVisible = true;
-                    invisibleTail = 0;
-                    foundAny = true;
-                  }
-                  if (!foundAny && startedVisible) invisibleTail++;
-                } else if (startedVisible) {
-                  invisibleTail++;
+                if (!visWord) {
+                  if (startedVisible) localInvisible++;
+                  if (startedVisible && localInvisible > 32) break;
+                  continue;
                 }
+                if (typeof visTop === "number") {
+                  if (visTop > (vh * 0.58)) reachedLowerHalf = true;
+                  if (lastTop !== null && reachedLowerHalf && (lastTop > (vh * 0.58)) && (visTop < (vh * 0.24))) {
+                    break;
+                  }
+                  lastTop = visTop;
+                }
+                localInvisible = 0;
+                if (text) { text += " "; idx += 1; }
+                var s0 = idx;
+                text += t0;
+                idx += t0.length;
+                map.push({
+                  start: s0,
+                  end: idx,
+                  node: n,
+                  startOffset: baseOffset + mm0.index,
+                  endOffset: baseOffset + mm0.index + mm0[0].length
+                });
+                startedVisible = true;
+                invisibleTail = 0;
+                foundAny = true;
               }
+              if (!foundAny && startedVisible) invisibleTail++;
             } else if (startedVisible) {
               invisibleTail++;
             }
@@ -4699,7 +4733,7 @@
             n = tw.nextNode();
           }
           if (!text) return null;
-          return { doc: startDoc, text: text, map: map, locKey: getLocationKey() };
+          return { doc: startDoc, content: sourceContent || null, text: text, map: map, locKey: getLocationKey() };
         }
 
         for (var i = 0; i < contents.length; i++) {
@@ -4718,7 +4752,7 @@
               if (firstText) { sn = firstText; so = 0; }
             } catch (e5) {}
           }
-          var p = collectFromDoc(c.document, sn, so);
+          var p = collectFromDoc(c.document, sn, so, c);
           if (p && p.text) return p;
         }
         return null;
@@ -4798,6 +4832,7 @@
       if (viewportPayload && viewportPayload.text) {
         return {
           doc: doc,
+          content: content,
           text: viewportPayload.text,
           map: viewportPayload.map,
           locKey: getLocationKey()
@@ -4896,11 +4931,11 @@
         node = walker.nextNode();
       }
       if (!text) return null;
-      return { doc: doc, text: text, map: map, locKey: getLocationKey() };
+      return { doc: doc, content: content, text: text, map: map, locKey: getLocationKey() };
     }
 
-    function applyHighlight(charIndex) {
-      if (!state.doc || !state.map || !state.map.length) return;
+    function getMapSegAt(charIndex) {
+      if (!state.map || !state.map.length) return null;
       var seg = null;
       var i = 0;
       for (i = 0; i < state.map.length; i++) {
@@ -4913,39 +4948,73 @@
         }
       }
       if (!seg) seg = state.map[state.map.length - 1] || null;
-      if (!seg || !seg.node) return;
+      return seg;
+    }
+
+    function segToRange(seg, doc) {
+      var d = doc || state.doc;
+      if (!d || !seg || !seg.node) return null;
+      try {
+        var r = d.createRange();
+        var nlen = seg.node.nodeValue ? seg.node.nodeValue.length : 0;
+        var so = (typeof seg.startOffset === "number") ? Math.max(0, Math.min(nlen, seg.startOffset)) : 0;
+        var eo = (typeof seg.endOffset === "number") ? Math.max(so, Math.min(nlen, seg.endOffset)) : nlen;
+        if (eo <= so) eo = Math.min(nlen, so + 1);
+        r.setStart(seg.node, so);
+        r.setEnd(seg.node, eo);
+        return r;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function segToCfi(seg) {
+      try {
+        if (!seg || !seg.node || !state.doc || !state.content || typeof state.content.cfiFromRange !== "function") return "";
+        var r = segToRange(seg, state.doc);
+        if (!r) return "";
+        var cfi = state.content.cfiFromRange(r);
+        return String(cfi || "");
+      } catch (e) {
+        return "";
+      }
+    }
+
+    function resolveRangeFromCfi(cfi) {
+      if (!cfi) return null;
+      try {
+        var contents = reader && reader.rendition && reader.rendition.getContents ? (reader.rendition.getContents() || []) : [];
+        for (var i = 0; i < contents.length; i++) {
+          var c = contents[i];
+          if (!c || !c.document || typeof c.range !== "function") continue;
+          var r = null;
+          try { r = c.range(cfi); } catch (e0) { r = null; }
+          if (r) return { doc: c.document, range: r };
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    function applyStopHighlightRange(doc, range) {
+      if (!doc || !range) return;
+      clearFallbackHighlight();
+      state.doc = doc;
 
       try {
-        var w = state.doc && state.doc.defaultView;
+        var w = doc && doc.defaultView;
         if (w && w.CSS && w.CSS.highlights && w.Highlight) {
-          var r = state.doc.createRange();
-          var nlen = seg.node.nodeValue ? seg.node.nodeValue.length : 0;
-          var so = (typeof seg.startOffset === "number") ? Math.max(0, Math.min(nlen, seg.startOffset)) : 0;
-          var eo = (typeof seg.endOffset === "number") ? Math.max(so, Math.min(nlen, seg.endOffset)) : nlen;
-          if (eo <= so) eo = Math.min(nlen, so + 1);
-          r.setStart(seg.node, so);
-          r.setEnd(seg.node, eo);
-          w.CSS.highlights.set(HIGHLIGHT_NAME, new w.Highlight(r));
-          clearFallbackHighlight();
+          w.CSS.highlights.set(HIGHLIGHT_NAME, new w.Highlight(range));
           return;
         }
       } catch (e) {}
 
-      clearFallbackHighlight();
       try {
-        var rr2 = state.doc.createRange();
-        var nlen2 = seg.node.nodeValue ? seg.node.nodeValue.length : 0;
-        var so2 = (typeof seg.startOffset === "number") ? Math.max(0, Math.min(nlen2, seg.startOffset)) : 0;
-        var eo2 = (typeof seg.endOffset === "number") ? Math.max(so2, Math.min(nlen2, seg.endOffset)) : nlen2;
-        if (eo2 <= so2) eo2 = Math.min(nlen2, so2 + 1);
-        rr2.setStart(seg.node, so2);
-        rr2.setEnd(seg.node, eo2);
         var rect = null;
-        var rects = rr2.getClientRects ? rr2.getClientRects() : [];
+        var rects = range.getClientRects ? range.getClientRects() : [];
         if (rects && rects.length) rect = rects[0];
-        if (!rect && rr2.getBoundingClientRect) rect = rr2.getBoundingClientRect();
+        if (!rect && range.getBoundingClientRect) rect = range.getBoundingClientRect();
         if (rect && rect.width > 0 && rect.height > 0) {
-          var ov = state.doc.createElement("div");
+          var ov = doc.createElement("div");
           ov.className = "fb-tts-word-overlay";
           ov.style.position = "fixed";
           ov.style.left = rect.left + "px";
@@ -4956,10 +5025,22 @@
           ov.style.borderRadius = "2px";
           ov.style.pointerEvents = "none";
           ov.style.zIndex = "2147483647";
-          (state.doc.body || state.doc.documentElement).appendChild(ov);
+          (doc.body || doc.documentElement).appendChild(ov);
           state.fallbackOverlay = ov;
         }
       } catch (e2) {}
+    }
+
+    function showStoppedWordHighlight() {
+      var cfi = String(state.lastWordCfi || "");
+      var rangeInfo = cfi ? resolveRangeFromCfi(cfi) : null;
+      if (rangeInfo && rangeInfo.doc && rangeInfo.range) {
+        applyStopHighlightRange(rangeInfo.doc, rangeInfo.range);
+        return;
+      }
+      var seg = state.lastSpokenSeg || null;
+      var r = segToRange(seg, state.doc);
+      if (r) applyStopHighlightRange(state.doc, r);
     }
 
     function pickVoice(voices, payload) {
@@ -4992,6 +5073,128 @@
       try { if (synth) synth.cancel(); } catch (e) {}
       setButtonState(false);
       if (!keepEnabled) state.enabled = false;
+    }
+
+    function stopAndRevealLastWord() {
+      var targetCfi = String(state.lastWordCfi || segToCfi(state.lastSpokenSeg) || "");
+      var fallbackPageCfi = String(state.pageStartCfi || "");
+      stopSpeaking(false);
+      if (!reader || !reader.rendition || typeof reader.rendition.display !== "function") {
+        showStoppedWordHighlight();
+        return;
+      }
+      function afterDisplay() {
+        setTimeout(function () { showStoppedWordHighlight(); }, 90);
+      }
+      if (targetCfi) {
+        Promise.resolve(reader.rendition.display(targetCfi)).then(afterDisplay).catch(function () {
+          if (fallbackPageCfi) {
+            Promise.resolve(reader.rendition.display(fallbackPageCfi)).then(afterDisplay).catch(function () {
+              showStoppedWordHighlight();
+            });
+          } else {
+            showStoppedWordHighlight();
+          }
+        });
+        return;
+      }
+      if (fallbackPageCfi) {
+        Promise.resolve(reader.rendition.display(fallbackPageCfi)).then(afterDisplay).catch(function () {
+          showStoppedWordHighlight();
+        });
+        return;
+      }
+      showStoppedWordHighlight();
+    }
+
+    function waitForLocationAdvance(prevLocKey, timeoutMs) {
+      return new Promise(function (resolve) {
+        var baseline = String(prevLocKey || "");
+        if (!baseline) baseline = String(getLocationKey() || "");
+        var t0 = Date.now();
+        (function poll() {
+          var cur = getLocationKey();
+          if (cur && baseline && cur !== baseline) return resolve(true);
+          if (cur && !baseline) return resolve(true);
+          if (Date.now() - t0 > (timeoutMs || 1400)) return resolve(false);
+          setTimeout(poll, 60);
+        })();
+      });
+    }
+
+    function waitForRelocated(timeoutMs) {
+      return new Promise(function (resolve) {
+        var r = null;
+        try { r = reader && reader.rendition ? reader.rendition : null; } catch (e0) { r = null; }
+        if (!r || typeof r.on !== "function") return resolve(false);
+        var done = false;
+        var timer = null;
+        var handler = function () {
+          if (done) return;
+          done = true;
+          try { if (timer) clearTimeout(timer); } catch (e1) {}
+          try { if (typeof r.off === "function") r.off("relocated", handler); } catch (e2) {}
+          resolve(true);
+        };
+        try { r.on("relocated", handler); } catch (e3) { return resolve(false); }
+        timer = setTimeout(function () {
+          if (done) return;
+          done = true;
+          try { if (typeof r.off === "function") r.off("relocated", handler); } catch (e4) {}
+          resolve(false);
+        }, timeoutMs || 1400);
+      });
+    }
+
+    function runNavAndWait(navFn, prevLocKey, timeoutMs) {
+      var tmo = timeoutMs || 1400;
+      var relocatedPromise = waitForRelocated(tmo);
+      try { navFn(); } catch (e0) {}
+      return Promise.all([
+        waitForLocationAdvance(prevLocKey, tmo),
+        relocatedPromise
+      ]).then(function (res) {
+        return !!(res && (res[0] || res[1]));
+      });
+    }
+
+    function requestAutoNextPage() {
+      var prevLocKey = getLocationKey();
+      var loc = null;
+      try {
+        loc = reader && reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
+      } catch (eLoc) { loc = null; }
+      var endCfi = String(loc && loc.end && loc.end.cfi ? loc.end.cfi : "");
+
+      try {
+        if (typeof window !== "undefined" && typeof window.__fbGoNextPage === "function") {
+          return runNavAndWait(function () { window.__fbGoNextPage(); }, prevLocKey, 1400).then(function (ok) {
+            if (ok) return true;
+            if (reader && reader.rendition && typeof reader.rendition.next === "function") {
+              return runNavAndWait(function () { reader.rendition.next(); }, prevLocKey, 1400).then(function (ok2) {
+                if (ok2) return true;
+                if (endCfi && reader && reader.rendition && typeof reader.rendition.display === "function") {
+                  return runNavAndWait(function () { reader.rendition.display(endCfi); }, prevLocKey, 1400);
+                }
+                return false;
+              });
+            }
+            return false;
+          });
+        }
+      } catch (e0) {}
+      try {
+        if (reader && reader.rendition && typeof reader.rendition.next === "function") {
+          return runNavAndWait(function () { reader.rendition.next(); }, prevLocKey, 1400).then(function (ok3) {
+            if (ok3) return true;
+            if (endCfi && reader && reader.rendition && typeof reader.rendition.display === "function") {
+              return runNavAndWait(function () { reader.rendition.display(endCfi); }, prevLocKey, 1400);
+            }
+            return false;
+          });
+        }
+      } catch (e1) {}
+      return Promise.resolve(false);
     }
 
     function buildSegments(text) {
@@ -5040,6 +5243,15 @@
       state.lastSpokenText = payload.text;
       state.map = payload.map;
       state.doc = payload.doc;
+      state.content = payload.content || null;
+      state.lastSpokenSeg = null;
+      state.lastWordCfi = "";
+      try {
+        var loc = reader && reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
+        state.pageStartCfi = String(loc && loc.start && loc.start.cfi ? loc.start.cfi : "");
+      } catch (ePageCfi) {
+        state.pageStartCfi = "";
+      }
       clearHighlight();
 
       var myToken = ++state.token;
@@ -5061,19 +5273,12 @@
         if (idx >= segments.length) {
           stopSegmentSweep();
           clearHighlight();
-          try {
-            Promise.resolve(reader.rendition.next && reader.rendition.next()).catch(function () {
-              state.enabled = false;
-              setButtonState(false);
-            });
-          } catch (e) {
-            state.enabled = false;
-            setButtonState(false);
-          }
+          state.speakPending = false;
+          state.enabled = false;
+          setButtonState(false);
           return;
         }
         var seg = segments[idx];
-        applyHighlight(seg.start);
         var u = new SpeechUtterance(seg.text);
         var boundarySeen = false;
         var useMobileFallback = isMobileLikeDevice();
@@ -5092,7 +5297,8 @@
           }
           if (!words.length) return;
           var wi = 0;
-          applyHighlight(words[wi].start);
+          state.lastSpokenSeg = words[wi];
+          state.lastWordCfi = segToCfi(words[wi]);
           segmentSweepTimer = setInterval(function () {
             if (boundarySeen || !state.enabled || myToken !== state.token) {
               stopSegmentSweep();
@@ -5101,12 +5307,14 @@
             var elapsed = Math.max(0, Date.now() - segmentStartedAt);
             var target = Math.min(words.length - 1, Math.floor(elapsed / fallbackWordMs));
             if (target > wi) wi = target;
+            if (words[wi]) {
+              state.lastSpokenSeg = words[wi];
+              state.lastWordCfi = segToCfi(words[wi]);
+            }
             if (wi >= words.length - 1) {
-              applyHighlight(words[words.length - 1].start);
               stopSegmentSweep();
               return;
             }
-            applyHighlight(words[wi].start);
           }, 60);
         }
 
@@ -5127,7 +5335,11 @@
           if (!ev || typeof ev.charIndex !== "number") return;
           boundarySeen = true;
           stopSegmentSweep();
-          applyHighlight(seg.start + Math.max(0, ev.charIndex));
+          var segRef = getMapSegAt(seg.start + Math.max(0, ev.charIndex));
+          if (segRef) {
+            state.lastSpokenSeg = segRef;
+            state.lastWordCfi = segToCfi(segRef);
+          }
         };
         u.onend = function () {
           if (!state.enabled || myToken !== state.token) return;
@@ -5144,6 +5356,11 @@
             }
           }
           stopSegmentSweep();
+          var tailSeg = getMapSegAt(seg.end - 1);
+          if (tailSeg) {
+            state.lastSpokenSeg = tailSeg;
+            state.lastWordCfi = segToCfi(tailSeg);
+          }
           speakSegment(idx + 1);
         };
         u.onerror = function () {
@@ -5190,7 +5407,7 @@
     function toggleSpeech() {
       if (!synth || !SpeechUtterance) return;
       if (state.enabled) {
-        stopSpeaking(false);
+        stopAndRevealLastWord();
         return;
       }
       state.enabled = true;
@@ -5252,40 +5469,12 @@
     });
     if (voiceSelect) voiceSelect.addEventListener("change", function () {
       saveVoice(voiceSelect.value || "");
-      if (state.enabled) restartCurrentPage();
     });
     if (synth && "onvoiceschanged" in synth) synth.onvoiceschanged = refreshVoiceList;
-
-    function bindFontRestart(id) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      var h = function () {
-        if (!state.enabled) return;
-        restartCurrentPage();
-      };
-      el.addEventListener("click", h);
-      el.addEventListener("touchend", h, { passive: true });
-      el.addEventListener("pointerup", h);
-    }
-    bindFontRestart("fontInc");
-    bindFontRestart("fontDec");
 
     loadSavedVoice();
     refreshVoiceList();
     setButtonState(false);
-
-    try {
-      reader.rendition.on("relocated", function () {
-        if (!state.enabled) return;
-        restartCurrentPage();
-      });
-    } catch (e) {}
-    try {
-      reader.rendition.on("rendered", function () {
-        if (!state.enabled) return;
-        restartCurrentPage();
-      });
-    } catch (e2) {}
   }
 
   // -------- init --------
