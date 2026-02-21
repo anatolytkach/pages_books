@@ -5304,7 +5304,9 @@ if (doc) {
 	this._globalPageMapExactKey = "";
 	this._pageCounterPending = false;
 	this._pageCounterPendingTimer = null;
+	this._pageCounterPendingSince = 0;
 	this._lastStablePageCounterText = "";
+	this._globalPageMapBuildWatchdog = null;
 
 	function setPageCounterPending(pending) {
 		reader._pageCounterPending = !!pending;
@@ -5314,7 +5316,11 @@ if (doc) {
 				reader._pageCounterPendingTimer = null;
 			}
 		} catch (e0) {}
+		if (!reader._pageCounterPending) {
+			reader._pageCounterPendingSince = 0;
+		}
 		if (reader._pageCounterPending) {
+			reader._pageCounterPendingSince = Date.now();
 			if (pageCountEl) {
 				var currentText = String(pageCountEl.textContent || "").trim();
 				if (currentText && currentText !== "…/…") {
@@ -5327,12 +5333,13 @@ if (doc) {
 			var allowFailOpen = false;
 			try {
 				var coarse = !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
-				allowFailOpen = coarse || isIosResizeNoiseContext();
+				var touchCapable = !!((navigator && navigator.maxTouchPoints > 0) || ("ontouchstart" in window));
+				allowFailOpen = coarse || touchCapable || isIosResizeNoiseContext();
 			} catch (eAllow) {}
 			if (allowFailOpen) {
 				reader._pageCounterPendingTimer = setTimeout(function () {
 					if (!reader._pageCounterPending) return;
-					reader._pageCounterPending = false;
+					setPageCounterPending(false);
 					try {
 						if (pageCountEl && reader._lastStablePageCounterText) {
 							pageCountEl.textContent = reader._lastStablePageCounterText;
@@ -5966,6 +5973,16 @@ if (doc) {
 		reader._globalPageMapBuilding = true;
 		var token = ++reader._globalPageMapBuildToken;
 		setPageCounterPending(true);
+		var finalized = false;
+
+		function clearBuildWatchdog() {
+			try {
+				if (reader._globalPageMapBuildWatchdog) {
+					clearTimeout(reader._globalPageMapBuildWatchdog);
+					reader._globalPageMapBuildWatchdog = null;
+				}
+			} catch (eWdClear) {}
+		}
 
 		ensureSpineHrefIndex();
 		ensurePageCalcRendition(!!force);
@@ -5974,6 +5991,9 @@ if (doc) {
 		var useExactNow = false;
 
 		function finalizeQuickPhase() {
+			if (finalized) return;
+			finalized = true;
+			clearBuildWatchdog();
 			reader._globalPageMapBuilding = false;
 			if (reader._globalPageMapQueued) {
 				var qForce = !!reader._globalPageMapQueuedForce;
@@ -5982,6 +6002,18 @@ if (doc) {
 				setTimeout(function () { buildGlobalPageMap(qForce); }, 0);
 			}
 		}
+		try {
+			reader._globalPageMapBuildWatchdog = setTimeout(function () {
+				if (token !== reader._globalPageMapBuildToken) return;
+				if (!reader._globalPageMapBuilding) return;
+				setPageCounterPending(false);
+				try {
+					var locNow = reader._lastRelocated || (reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
+					if (locNow) updatePageCount(locNow);
+				} catch (eWdUpdate) {}
+				finalizeQuickPhase();
+			}, 9000);
+		} catch (eWd) {}
 
 		var quickCached = (!force) ? clonePageMap(reader._globalPageMapQuickCache[key]) : null;
 		var quickPromise;
@@ -6091,6 +6123,16 @@ if (doc) {
 	function updatePageCount(loc) {
 		if (!pageCountEl || !loc) return;
 		try {
+			if (reader._pageCounterPending) {
+				try {
+					var pendingSince = parseInt(reader._pageCounterPendingSince || 0, 10) || 0;
+					var pendingTooLong = pendingSince > 0 && ((Date.now() - pendingSince) > 7000);
+					var mapReady = !!(reader._globalPageMap && reader._globalPageMap.ready && reader._globalPageMap.totalPages);
+					if (pendingTooLong || mapReady) {
+						setPageCounterPending(false);
+					}
+				} catch (ePendingGuard) {}
+			}
 			if (reader._pageCounterPending) {
 				pageCountEl.textContent = "…/…";
 				return;

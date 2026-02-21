@@ -140,3 +140,14 @@ test("Unit: TTS stop reveals location and highlights last spoken word", () => {
   assert.match(js, /function showStoppedWordHighlight\(\)/);
   assert.match(js, /function applyStopHighlightRange\(doc, range\)/);
 });
+
+test("Unit: TTS resumes from last stopped word on next start", () => {
+  const js = read("reader/js/fbreader-ui.js");
+  assert.match(js, /resumeFromStopCfi:\s*""/);
+  assert.match(js, /resumeLocKey:\s*""/);
+  assert.match(js, /state\.resumeFromStopCfi = targetCfi \|\| "";/);
+  assert.match(js, /state\.resumeLocKey = String\(getLocationKey\(\) \|\| ""\);/);
+  assert.match(js, /var resumeCfi = state\.resumeFromStopCfi \? String\(state\.resumeFromStopCfi \|\| ""\) : "";/);
+  assert.match(js, /startCurrentPage\(currentLocKey, 6, resumeCfi\);/);
+  assert.match(js, /var payload = pagePayload\(resumeCfi\);/);
+});

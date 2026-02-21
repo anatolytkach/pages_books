@@ -852,6 +852,13 @@ body.dark-ui #bottombar {
 #ttsToggleDesktop { display: inline-flex; }
 #ttsToggleMobile { display: none; }
 
+@media (hover: hover) and (pointer: fine) {
+  /* Desktop: keep a clearer gap between TTS icon and search field */
+  #ttsToggleDesktop {
+    margin-right: 10px;
+  }
+}
+
 /* Keep the two A buttons visually tight */
 #title-controls .font-size-btn{
   margin: 0 !important;
@@ -3472,6 +3479,13 @@ html.is-tablet.tablet-portrait .overlay-head {
 @media (max-width: 900px) and (hover:hover) and (pointer:fine) {
   #metainfo { flex: 0 1 auto; }
   #title-controls { margin-left: 8px !important; }
+}
+
+/* Desktop (not tablet): move TTS icon clearly left from search field */
+@media (hover:hover) and (pointer:fine) {
+  html:not(.is-tablet) #ttsToggleDesktop {
+    margin-right: 18px !important;
+  }
 }
 
 /* Desktop narrow: keep search visible + keep titlebar height fixed */

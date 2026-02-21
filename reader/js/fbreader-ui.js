@@ -4437,6 +4437,8 @@
       pageStartCfi: "",
       lastSpokenSeg: null,
       lastWordCfi: "",
+      resumeFromStopCfi: "",
+      resumeLocKey: "",
       selectedVoiceLang: "en-US"
     };
 
@@ -4628,7 +4630,7 @@
       return null;
     }
 
-    function pagePayload() {
+    function pagePayload(preferredStartCfi) {
       var content = activeContent();
       if (!content || !content.document) return null;
       var doc = content.document;
@@ -4641,12 +4643,15 @@
         return String(s || "").replace(/\s+/g, " ").trim();
       }
 
-      function payloadFromCurrentCfi() {
+      function payloadFromCurrentCfi(startFromCfi) {
         var loc = null;
         var cfi = "";
         try {
-          loc = reader && reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
-          cfi = String(loc && loc.start && loc.start.cfi ? loc.start.cfi : "");
+          cfi = String(startFromCfi || "");
+          if (!cfi) {
+            loc = reader && reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
+            cfi = String(loc && loc.start && loc.start.cfi ? loc.start.cfi : "");
+          }
         } catch (e0) { cfi = ""; }
         if (!cfi) return null;
 
@@ -4766,7 +4771,7 @@
         return null;
       }
 
-      var fromCfi = payloadFromCurrentCfi();
+      var fromCfi = payloadFromCurrentCfi(preferredStartCfi);
       if (fromCfi && fromCfi.text) return fromCfi;
 
       // Primary strategy: sample visible blocks directly from the current viewport.
@@ -5216,12 +5221,16 @@
     function stopAndRevealLastWord() {
       var targetCfi = String(state.lastWordCfi || segToCfi(state.lastSpokenSeg) || "");
       var fallbackPageCfi = String(state.pageStartCfi || "");
+      state.resumeFromStopCfi = targetCfi || "";
+      state.resumeLocKey = "";
       stopSpeaking(false);
       if (!reader || !reader.rendition || typeof reader.rendition.display !== "function") {
+        state.resumeLocKey = String(getLocationKey() || "");
         showStoppedWordHighlight();
         return;
       }
       function afterDisplay() {
+        state.resumeLocKey = String(getLocationKey() || "");
         setTimeout(function () { showStoppedWordHighlight(); }, 90);
       }
       if (targetCfi) {
@@ -5360,7 +5369,8 @@
       if (!state.enabled) return;
       if (!synth || !SpeechUtterance) return;
       var retries = (typeof retriesLeft === "number") ? retriesLeft : 0;
-      var payload = pagePayload();
+      var resumeCfi = arguments.length > 2 ? String(arguments[2] || "") : "";
+      var payload = pagePayload(resumeCfi);
       if (!payload) {
         if (retries > 0) {
           state.restartTimer = setTimeout(function () { startCurrentPage(expectedLocKey, retries - 1); }, 120);
@@ -5383,7 +5393,7 @@
       state.doc = payload.doc;
       state.content = payload.content || null;
       state.lastSpokenSeg = null;
-      state.lastWordCfi = "";
+      state.lastWordCfi = resumeCfi || "";
       try {
         var loc = reader && reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
         state.pageStartCfi = String(loc && loc.start && loc.start.cfi ? loc.start.cfi : "");
@@ -5413,6 +5423,8 @@
           clearHighlight();
           state.speakPending = false;
           state.enabled = false;
+          state.resumeFromStopCfi = "";
+          state.resumeLocKey = "";
           setButtonState(false);
           return;
         }
@@ -5550,7 +5562,11 @@
       }
       state.enabled = true;
       setButtonState(true);
-      startCurrentPage(getLocationKey(), 6);
+      var currentLocKey = String(getLocationKey() || "");
+      var resumeCfi = state.resumeFromStopCfi ? String(state.resumeFromStopCfi || "") : "";
+      state.resumeFromStopCfi = "";
+      state.resumeLocKey = "";
+      startCurrentPage(currentLocKey, 6, resumeCfi);
     }
 
     function setVoiceMessage(txt) {
