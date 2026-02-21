@@ -5276,6 +5276,78 @@ if (doc) {
 	// Footer progress: global page X/Y across the whole book
 	// -----------------------------
 	var pageCountEl = document.getElementById("page-count");
+	var pageCountTextEl = null;
+	var pageCounterForceIosPaint = false;
+	try {
+		var uaPc = navigator.userAgent || "";
+		var iOSP = /iP(ad|hone|od)/i.test(uaPc);
+		var iPadOSP = /Macintosh/i.test(uaPc) && navigator.maxTouchPoints && navigator.maxTouchPoints > 1;
+		pageCounterForceIosPaint = !!(iOSP || iPadOSP);
+	} catch (ePcIos) {}
+
+	function ensurePageCountTextEl() {
+		if (!pageCountEl) return null;
+		if (pageCountTextEl && pageCountTextEl.parentNode === pageCountEl) return pageCountTextEl;
+		try {
+			var found = pageCountEl.querySelector(".pc-text");
+			if (found) {
+				pageCountTextEl = found;
+				return pageCountTextEl;
+			}
+		} catch (e0) {}
+		try {
+			var span = document.createElement("span");
+			span.className = "pc-text";
+			span.setAttribute("aria-hidden", "true");
+			pageCountEl.appendChild(span);
+			pageCountTextEl = span;
+			return pageCountTextEl;
+		} catch (e1) {}
+		return null;
+	}
+
+	function renderPageCountLabel(label) {
+		if (!pageCountEl) return;
+		var text = String(label || "");
+		if (!text) text = ".../...";
+		var textEl = ensurePageCountTextEl();
+		try {
+			if (textEl) textEl.textContent = text;
+			else pageCountEl.textContent = text;
+		} catch (e0) {}
+		try {
+			if (!textEl) pageCountEl.innerText = text;
+		} catch (e1) {}
+		try { pageCountEl.setAttribute("data-page-counter", text); } catch (e2) {}
+		try { pageCountEl.setAttribute("aria-label", text); } catch (e2a) {}
+		try {
+			pageCountEl.style.display = "inline-block";
+			pageCountEl.style.visibility = "visible";
+			pageCountEl.style.opacity = "1";
+			pageCountEl.style.color = "#d0d0d0";
+			pageCountEl.style.fontSize = "14px";
+			pageCountEl.style.whiteSpace = "nowrap";
+			if (pageCounterForceIosPaint) pageCountEl.style.webkitTextFillColor = "#d0d0d0";
+			else pageCountEl.style.webkitTextFillColor = "currentColor";
+			if (textEl) {
+				textEl.style.display = "inline-block";
+				textEl.style.visibility = "visible";
+				textEl.style.opacity = "1";
+				textEl.style.color = "#d0d0d0";
+				if (pageCounterForceIosPaint) textEl.style.webkitTextFillColor = "#d0d0d0";
+				else textEl.style.webkitTextFillColor = "currentColor";
+				textEl.style.fontSize = "14px";
+				textEl.style.whiteSpace = "nowrap";
+				textEl.style.lineHeight = "1.1";
+				textEl.style.fontVariantLigatures = "none";
+			}
+		} catch (e3) {}
+	}
+	try {
+		if (pageCountEl && !String(pageCountEl.textContent || "").trim()) {
+			renderPageCountLabel("…/…");
+		}
+	} catch (ePageInit) {}
 	this.totalPages = 0;
 	this._locationsChars = 1600;
 	this._regenLocationsTimer = null;
@@ -5302,6 +5374,7 @@ if (doc) {
 	this._globalPageMapExactCache = Object.create(null);
 	this._globalPageMapExactBuilding = false;
 	this._globalPageMapExactKey = "";
+	this._navInProgressUntil = 0;
 	this._pageCounterPending = false;
 	this._pageCounterPendingTimer = null;
 	this._pageCounterPendingSince = 0;
@@ -5326,7 +5399,7 @@ if (doc) {
 				if (currentText && currentText !== "…/…") {
 					reader._lastStablePageCounterText = currentText;
 				}
-				pageCountEl.textContent = "…/…";
+				renderPageCountLabel("…/…");
 			}
 			// Fail-open timeout is needed only on touch/iOS (resize-noise contexts).
 			// On desktop it causes a visible rollback to old numbers while recount is still running.
@@ -5342,7 +5415,7 @@ if (doc) {
 					setPageCounterPending(false);
 					try {
 						if (pageCountEl && reader._lastStablePageCounterText) {
-							pageCountEl.textContent = reader._lastStablePageCounterText;
+							renderPageCountLabel(reader._lastStablePageCounterText);
 						}
 					} catch (e1) {}
 					try {
@@ -5356,6 +5429,58 @@ if (doc) {
 			}
 		}
 	}
+
+	function getCurrentLocationSafe() {
+		try {
+			var loc = reader._lastRelocated || null;
+			if (loc) return loc;
+		} catch (e0) {}
+		try {
+			return (reader.rendition && reader.rendition.currentLocation) ? reader.rendition.currentLocation() : null;
+		} catch (e1) {}
+		return null;
+	}
+
+	function schedulePageCounterRecovery(reason) {
+		try {
+			// iOS: recovery polling can race with first TOC navigation and cause blank-page transitions.
+			// Keep iOS stable and rely on direct relocated updates + CSS fallback rendering.
+			if (isIosResizeNoiseContext()) return;
+		} catch (eIosGuard) {}
+		try {
+			if (reader._pageCounterRecoveryTimer) clearTimeout(reader._pageCounterRecoveryTimer);
+		} catch (e0) {}
+		try { reader._pageCounterRecoveryTries = 0; } catch (e1) {}
+		reader._pageCounterRecoveryTimer = setTimeout(function tick() {
+			reader._pageCounterRecoveryTimer = null;
+			try {
+				if (reader._navInProgressUntil && Date.now() < reader._navInProgressUntil) {
+					reader._pageCounterRecoveryTimer = setTimeout(tick, 320);
+					return;
+				}
+			} catch (eNavWait) {}
+			var txt = "";
+			try { txt = String((pageCountEl && pageCountEl.textContent) || "").trim(); } catch (eTxt) { txt = ""; }
+			var waiting = !txt || txt === "…/…" || reader._pageCounterPending;
+			if (!waiting) return;
+			try {
+				var locNow = getCurrentLocationSafe();
+				if (locNow) updatePageCount(locNow);
+			} catch (e2) {}
+			var tries = 0;
+			try { tries = (reader._pageCounterRecoveryTries || 0) + 1; reader._pageCounterRecoveryTries = tries; } catch (e3) { tries = 1; }
+			if (tries < 28) {
+				reader._pageCounterRecoveryTimer = setTimeout(tick, 360);
+			}
+		}, 220);
+	}
+
+	function markNavigationInProgress(ms) {
+		var hold = parseInt(ms, 10);
+		if (!hold || isNaN(hold) || hold < 200) hold = 1200;
+		try { reader._navInProgressUntil = Date.now() + hold; } catch (e) {}
+	}
+	reader.__markNavigationInProgress = markNavigationInProgress;
 
 	function normalizeHref(href) {
 		if (!href) return "";
@@ -5779,8 +5904,9 @@ if (doc) {
 		reader._globalPageMap = clonePageMap(map);
 		reader.totalPages = reader._globalPageMap.totalPages || 1;
 		if (clearPending !== false) setPageCounterPending(false);
-		var locNow = reader._lastRelocated || (reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
+		var locNow = getCurrentLocationSafe();
 		if (locNow) updatePageCount(locNow);
+		else schedulePageCounterRecovery("apply-map-no-loc");
 	}
 
 	function countSectionPagesQuick(item, token) {
@@ -6121,7 +6247,14 @@ if (doc) {
 	}
 
 	function updatePageCount(loc) {
-		if (!pageCountEl || !loc) return;
+		if (!pageCountEl) return;
+		if (!loc) loc = getCurrentLocationSafe();
+		if (!loc) {
+			try {
+				if (!String(pageCountEl.textContent || "").trim()) renderPageCountLabel("…/…");
+			} catch (eEmpty) {}
+			return;
+		}
 		try {
 			if (reader._pageCounterPending) {
 				try {
@@ -6134,12 +6267,12 @@ if (doc) {
 				} catch (ePendingGuard) {}
 			}
 			if (reader._pageCounterPending) {
-				pageCountEl.textContent = "…/…";
+				renderPageCountLabel("…/…");
 				return;
 			}
 			var p = getGlobalPageFromLocation(loc);
 			if (!p || !p.total) {
-				pageCountEl.textContent = "…/…";
+				renderPageCountLabel("…/…");
 				return;
 			}
 			if (loc && loc.atEnd) p.page = p.total;
@@ -6147,7 +6280,7 @@ if (doc) {
 			var tocTitle = getTocTitleForLocation(loc);
 			var pageLabel = String(p.page) + "/" + String(p.total);
 			var fullLabel = tocTitle ? (pageLabel + " - " + tocTitle) : pageLabel;
-			pageCountEl.textContent = fullLabel;
+			renderPageCountLabel(fullLabel);
 			reader._lastStablePageCounterText = fullLabel;
 		} catch (e) {}
 	}
@@ -6238,14 +6371,25 @@ if (doc) {
 
 	this.rendition.on("relocated", function (location) {
 		try { reader._lastRelocated = location; } catch (e) {}
+		try { reader._navInProgressUntil = 0; } catch (eNavDone) {}
 		updatePageCount(location);
+		schedulePageCounterRecovery("relocated");
 		try { if (reader.__updateSwipeNeighbors) reader.__updateSwipeNeighbors(location); } catch (e2) {}
 		scheduleSaveLocation();
 	});
 
+	try {
+		document.addEventListener("visibilitychange", function () {
+			if (document.visibilityState === "visible") schedulePageCounterRecovery("visible");
+		}, { passive: true });
+		window.addEventListener("pageshow", function () { schedulePageCounterRecovery("pageshow"); }, { passive: true });
+	} catch (eVis) {}
+
 	if(this.settings.previousLocationCfi) {
+		try { markNavigationInProgress(2200); } catch (eNavInit1) {}
 		this.displayed = this.rendition.display(this.settings.previousLocationCfi);
 	} else {
+		try { markNavigationInProgress(2200); } catch (eNavInit2) {}
 		this.displayed = this.rendition.display();
 	}
 
@@ -6499,6 +6643,7 @@ EPUBJS.Reader.prototype.unload = function(){
 
 EPUBJS.Reader.prototype.hashChanged = function(){
 	var hash = window.location.hash.slice(1);
+	try { if (this.__markNavigationInProgress) this.__markNavigationInProgress(1600); } catch (e0) {}
 	this.rendition.display(hash);
 };
 
@@ -7761,6 +7906,7 @@ EPUBJS.reader.TocController = function(toc) {
 
 			//-- Provide the Book with the url to show
 			//   The Url must be found in the books manifest
+			try { if (reader.__markNavigationInProgress) reader.__markNavigationInProgress(1800); } catch (eNavToc) {}
 			rendition.display(url);
 
 			$list.find(".currentChapter")

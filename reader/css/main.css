@@ -197,6 +197,11 @@ body:not(.dark-ui) .list_item.currentChapter a {
   opacity: 0.85;
   color: inherit;
 }
+.page-count .pc-text {
+  display: inline-block;
+  white-space: nowrap;
+  line-height: 1.1;
+}
 
 /* Header/footer colors + fonts */
 #book-title,
@@ -3365,6 +3370,18 @@ body.search-open #searchbar { display: flex; }
 @supports (-webkit-touch-callout: none) {
   html, body { overflow-x: hidden; }
   #searchbar, #titlebar, #bottombar { width: 100vw; max-width: 100vw; }
+  /* iPhone/iPad Safari: keep footer counter text always paintable/visible */
+  #page-count {
+    color: var(--fbbar-fg) !important;
+    -webkit-text-fill-color: var(--fbbar-fg) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: inline-block !important;
+    min-height: 1em;
+    line-height: 1.1;
+    white-space: nowrap;
+    font-size: var(--bottombar-font-size) !important;
+  }
   #searchbar .search-input,
   #searchInputMobile,
   #searchInputDesktop { font-size: 16px; }
