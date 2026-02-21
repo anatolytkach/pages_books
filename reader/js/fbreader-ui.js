@@ -4409,10 +4409,17 @@
     var SpeechUtterance = window.SpeechSynthesisUtterance || null;
     var btnDesktop = document.getElementById("ttsToggleDesktop");
     var btnMobile = document.getElementById("ttsToggleMobile");
+    var voiceLangSelect = document.getElementById("voiceLangSelect");
+    var voiceLangDropdown = document.getElementById("voiceLangDropdown");
+    var voiceLangToggle = document.getElementById("voiceLangToggle");
+    var voiceLangList = document.getElementById("voiceLangList");
     var voiceSelect = document.getElementById("voiceSelect");
+    var voiceDropdown = document.getElementById("voiceDropdown");
+    var voiceToggle = document.getElementById("voiceToggle");
+    var voiceList = document.getElementById("voiceList");
     var voiceStatus = document.getElementById("voiceStatus");
-    var voiceRefresh = document.getElementById("voiceRefresh");
     var VOICE_KEY = "fbreader:tts:voiceURI";
+    var VOICE_LANG_KEY = "fbreader:tts:voiceLang";
     var HIGHLIGHT_NAME = "fb-tts";
     var state = {
       enabled: false,
@@ -4429,7 +4436,8 @@
       fallbackMsPerWord: 240,
       pageStartCfi: "",
       lastSpokenSeg: null,
-      lastWordCfi: ""
+      lastWordCfi: "",
+      selectedVoiceLang: "en-US"
     };
 
     function isMobileLikeDevice() {
@@ -5045,6 +5053,15 @@
 
     function pickVoice(voices, payload) {
       if (!voices || !voices.length) return null;
+      var wantedLang = normalizeLangTag(state.selectedVoiceLang || "");
+      if (wantedLang) {
+        var byLang = [];
+        for (var li = 0; li < voices.length; li++) {
+          var lang = normalizeLangTag(voices[li] && voices[li].lang ? voices[li].lang : "");
+          if (lang === wantedLang) byLang.push(voices[li]);
+        }
+        if (byLang.length) voices = byLang;
+      }
       if (state.selectedVoiceURI) {
         for (var i = 0; i < voices.length; i++) {
           if (voices[i] && voices[i].voiceURI === state.selectedVoiceURI) return voices[i];
@@ -5062,6 +5079,127 @@
         }
       }
       return voices[0] || null;
+    }
+
+    function normalizeLangTag(lang) {
+      var s = String(lang || "").trim();
+      if (!s) return "";
+      return s.replace(/_/g, "-").toLowerCase();
+    }
+
+    function closeVoiceDropdowns() {
+      var all = [voiceLangDropdown, voiceDropdown];
+      for (var i = 0; i < all.length; i++) {
+        var root = all[i];
+        if (!root) continue;
+        root.classList.remove("is-open");
+        var t = root.querySelector(".voice-picker-dropdown-toggle");
+        if (t) t.setAttribute("aria-expanded", "false");
+      }
+    }
+
+    function selectedOption(selectEl) {
+      if (!selectEl || !selectEl.options || !selectEl.options.length) return null;
+      var idx = selectEl.selectedIndex;
+      if (idx < 0) idx = 0;
+      return selectEl.options[idx] || null;
+    }
+
+    function syncCustomToggleText(selectEl, toggleEl) {
+      if (!toggleEl) return;
+      var opt = selectedOption(selectEl);
+      toggleEl.textContent = opt ? String(opt.textContent || "").trim() : "";
+    }
+
+    function syncCustomDropdown(selectEl, dropdownEl, toggleEl, listEl) {
+      if (!selectEl || !dropdownEl || !toggleEl || !listEl) return;
+      listEl.innerHTML = "";
+      var opts = selectEl.options ? Array.prototype.slice.call(selectEl.options) : [];
+      for (var i = 0; i < opts.length; i++) {
+        var opt = opts[i];
+        if (!opt) continue;
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "voice-picker-option" + (opt.selected ? " is-selected" : "");
+        btn.setAttribute("role", "option");
+        btn.setAttribute("aria-selected", opt.selected ? "true" : "false");
+        btn.dataset.value = String(opt.value || "");
+        btn.textContent = String(opt.textContent || "");
+        btn.addEventListener("click", function (ev) {
+          ev.preventDefault();
+          var v = this && this.dataset ? this.dataset.value : "";
+          if (selectEl.value !== v) {
+            selectEl.value = v;
+            try { selectEl.dispatchEvent(new Event("change", { bubbles: true })); } catch (e0) {}
+          } else {
+            syncCustomDropdown(selectEl, dropdownEl, toggleEl, listEl);
+          }
+          closeVoiceDropdowns();
+        });
+        listEl.appendChild(btn);
+      }
+      syncCustomToggleText(selectEl, toggleEl);
+    }
+
+    function bindCustomDropdown(dropdownEl, toggleEl, listEl) {
+      if (!dropdownEl || !toggleEl || !listEl) return;
+      if (dropdownEl.__fbBound) return;
+      dropdownEl.__fbBound = true;
+      toggleEl.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        var open = dropdownEl.classList.contains("is-open");
+        closeVoiceDropdowns();
+        if (!open) {
+          dropdownEl.classList.add("is-open");
+          toggleEl.setAttribute("aria-expanded", "true");
+        }
+      });
+    }
+
+    function titleCasePart(part) {
+      var p = String(part || "").toLowerCase();
+      if (!p) return "";
+      return p.charAt(0).toUpperCase() + p.slice(1);
+    }
+
+    function buildLangLabel(tag) {
+      var raw = String(tag || "").trim();
+      if (!raw) return "";
+      var norm = normalizeLangTag(raw);
+      var parts = norm.split("-");
+      var langCode = parts[0] || "";
+      var regionCode = parts[1] ? parts[1].toUpperCase() : "";
+      if (norm === "en-us") return "English (United States)";
+      try {
+        if (typeof Intl !== "undefined" && typeof Intl.DisplayNames === "function") {
+          var langNames = new Intl.DisplayNames(["en"], { type: "language" });
+          var regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+          var langName = langCode ? langNames.of(langCode) : "";
+          var regionName = regionCode ? regionNames.of(regionCode) : "";
+          if (langName && regionName) return langName + " (" + regionName + ")";
+          if (langName) return langName + " (" + raw + ")";
+        }
+      } catch (e) {}
+      if (langCode && regionCode) return titleCasePart(langCode) + " (" + regionCode + ")";
+      return raw;
+    }
+
+    function uniqueLangsFromVoices(voices) {
+      var seen = Object.create(null);
+      var out = [];
+      for (var i = 0; i < voices.length; i++) {
+        var v = voices[i];
+        var raw = String((v && v.lang) || "").trim();
+        if (!raw) continue;
+        var key = normalizeLangTag(raw);
+        if (!key || seen[key]) continue;
+        seen[key] = true;
+        out.push({ key: key, raw: raw });
+      }
+      out.sort(function (a, b) {
+        return buildLangLabel(a.raw).localeCompare(buildLangLabel(b.raw), "en", { sensitivity: "base" });
+      });
+      return out;
     }
 
     function stopSpeaking(keepEnabled) {
@@ -5422,6 +5560,10 @@
 
     function loadSavedVoice() {
       try { state.selectedVoiceURI = localStorage.getItem(VOICE_KEY) || null; } catch (e) { state.selectedVoiceURI = null; }
+      try {
+        var savedLang = localStorage.getItem(VOICE_LANG_KEY) || "";
+        if (savedLang) state.selectedVoiceLang = savedLang;
+      } catch (e2) {}
     }
 
     function saveVoice(uri) {
@@ -5432,16 +5574,68 @@
       } catch (e) {}
     }
 
+    function saveVoiceLang(lang) {
+      state.selectedVoiceLang = lang || "";
+      try {
+        if (state.selectedVoiceLang) localStorage.setItem(VOICE_LANG_KEY, state.selectedVoiceLang);
+        else localStorage.removeItem(VOICE_LANG_KEY);
+      } catch (e) {}
+    }
+
     function refreshVoiceList() {
       if (!voiceSelect) return;
       var voices = synth && synth.getVoices ? (synth.getVoices() || []) : [];
+      var langs = uniqueLangsFromVoices(voices);
+      var wantLang = normalizeLangTag(state.selectedVoiceLang || "");
+      var defaultUs = "en-us";
+      var hasUs = false;
+      for (var i = 0; i < langs.length; i++) {
+        if (langs[i].key === defaultUs) { hasUs = true; break; }
+      }
+      if (!wantLang) wantLang = hasUs ? defaultUs : (langs[0] ? langs[0].key : "");
+      if (wantLang === defaultUs && !hasUs) wantLang = langs[0] ? langs[0].key : "";
+
+      if (voiceLangSelect) {
+        voiceLangSelect.innerHTML = "";
+        for (var li = 0; li < langs.length; li++) {
+          var lo = document.createElement("option");
+          lo.value = langs[li].key;
+          lo.textContent = buildLangLabel(langs[li].raw);
+          if (langs[li].key === wantLang) lo.selected = true;
+          voiceLangSelect.appendChild(lo);
+        }
+        if (voiceLangSelect.value) wantLang = normalizeLangTag(voiceLangSelect.value);
+      }
+      saveVoiceLang(wantLang);
+
       voiceSelect.innerHTML = "";
       if (!voices.length) {
-        setVoiceMessage("No system voices found. Install a voice in your device settings, then tap Refresh voices.");
+        setVoiceMessage("No system voices found. Install a voice in your device settings.");
+        return;
+      }
+      var filtered = [];
+      for (var vi = 0; vi < voices.length; vi++) {
+        var vv = voices[vi];
+        if (!vv) continue;
+        if (!wantLang || normalizeLangTag(vv.lang || "") === wantLang) filtered.push(vv);
+      }
+      filtered.sort(function (a, b) {
+        var an = String((a && a.name) || "");
+        var bn = String((b && b.name) || "");
+        var byName = an.localeCompare(bn, "en", { sensitivity: "base" });
+        if (byName !== 0) return byName;
+        var al = String((a && a.lang) || "");
+        var bl = String((b && b.lang) || "");
+        return al.localeCompare(bl, "en", { sensitivity: "base" });
+      });
+      if (!filtered.length) {
+        setVoiceMessage("No voices found for the selected language.");
+        syncCustomDropdown(voiceLangSelect, voiceLangDropdown, voiceLangToggle, voiceLangList);
+        syncCustomDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
         return;
       }
       setVoiceMessage("Select a voice for reading aloud.");
-      voices.forEach(function (v) {
+      filtered.forEach(function (v) {
         if (!v) return;
         var opt = document.createElement("option");
         opt.value = v.voiceURI || "";
@@ -5449,10 +5643,12 @@
         if (state.selectedVoiceURI && opt.value === state.selectedVoiceURI) opt.selected = true;
         voiceSelect.appendChild(opt);
       });
-      if (!voiceSelect.value && voices[0] && voices[0].voiceURI) {
-        voiceSelect.value = voices[0].voiceURI;
+      if (!voiceSelect.value && filtered[0] && filtered[0].voiceURI) {
+        voiceSelect.value = filtered[0].voiceURI;
         saveVoice(voiceSelect.value);
       }
+      syncCustomDropdown(voiceLangSelect, voiceLangDropdown, voiceLangToggle, voiceLangList);
+      syncCustomDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
     }
 
     if (btnDesktop) btnDesktop.addEventListener("click", function (e) {
@@ -5463,14 +5659,24 @@
       e.preventDefault();
       toggleSpeech();
     });
-    if (voiceRefresh) voiceRefresh.addEventListener("click", function (e) {
-      e.preventDefault();
+    if (voiceLangSelect) voiceLangSelect.addEventListener("change", function () {
+      saveVoiceLang(normalizeLangTag(voiceLangSelect.value || ""));
+      state.selectedVoiceURI = null;
       refreshVoiceList();
     });
     if (voiceSelect) voiceSelect.addEventListener("change", function () {
       saveVoice(voiceSelect.value || "");
+      syncCustomDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
     });
     if (synth && "onvoiceschanged" in synth) synth.onvoiceschanged = refreshVoiceList;
+
+    bindCustomDropdown(voiceLangDropdown, voiceLangToggle, voiceLangList);
+    bindCustomDropdown(voiceDropdown, voiceToggle, voiceList);
+    document.addEventListener("click", function (ev) {
+      var t = ev && ev.target ? ev.target : null;
+      if (t && t.closest && (t.closest("#voiceLangDropdown") || t.closest("#voiceDropdown"))) return;
+      closeVoiceDropdowns();
+    }, true);
 
     loadSavedVoice();
     refreshVoiceList();

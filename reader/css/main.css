@@ -787,6 +787,7 @@ body.dark-ui #bottombar {
 }
 
 #title-controls {
+  --title-icon-size: 18px;
   flex: 0 0 auto;
   flex-shrink: 0;
   display: flex;
@@ -825,20 +826,25 @@ body.dark-ui #bottombar {
   border: 0;
   background: transparent;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
-  padding: 3px;
+  width: auto;
+  height: auto;
+  padding: 0;
   border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 #title-controls .tts-toggle .tts-icon {
-  width: 18px;
-  height: 18px;
+  width: var(--title-icon-size);
+  height: var(--title-icon-size);
   display: block;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.9;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transform: scale(1.22);
+  transform-origin: center center;
 }
 #title-controls .tts-toggle .tts-icon-off { display: none; }
 #title-controls .tts-toggle.is-speaking .tts-icon-on { display: none; }
@@ -847,11 +853,15 @@ body.dark-ui #bottombar {
 #ttsToggleMobile { display: none; }
 
 /* Keep the two A buttons visually tight */
-#title-controls .font-size-btn{ margin: 0 !important; padding: 4px 3px; }
+#title-controls .font-size-btn{
+  margin: 0 !important;
+  padding: 0 2px;
+  line-height: 1;
+}
 
 /* Theme toggle icon (single icon for both themes) */
 #title-controls .theme-icon-btn{ background: transparent; border: 0; cursor: pointer; }
-#title-controls .theme-icon{ width: 18px; height: 18px; display: block; }
+#title-controls .theme-icon{ width: var(--title-icon-size); height: var(--title-icon-size); display: block; }
 
 
 /*
@@ -1878,7 +1888,7 @@ html.is-desktop .selection-toolbar .sel-share{ display: none; }
   justify-content:center;
   height:100%;
   line-height:1;
-  padding:4px 3px;
+  padding:0 2px;
   box-sizing: border-box;
   text-decoration:none;
   cursor:pointer;
@@ -1890,13 +1900,13 @@ html.is-desktop .selection-toolbar .sel-share{ display: none; }
 /* second A should be much closer to the first */
 #title-controls .font-size-btn + .font-size-btn{ margin-left:2px; }
 
-#title-controls .font-size-inc{ font-size:16px; }
-#title-controls .font-size-dec{ font-size:12px; }
+#title-controls .font-size-inc{ font-size: calc(var(--title-icon-size) * 0.95); }
+#title-controls .font-size-dec{ font-size: calc(var(--title-icon-size) * 0.80); }
 
 /* Prevent hover/active jitter for font size buttons */
 #title-controls .font-size-btn:hover,
 #title-controls .font-size-btn:active{
-  padding:4px 3px;
+  padding:0 2px;
 }
 #title-controls .font-size-btn:hover{
   border-color: rgba(0,0,0,.2);
@@ -2755,6 +2765,75 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   padding: 0 8px;
   font-size: 14px;
 }
+.voice-picker-select {
+  display: none;
+}
+.voice-picker-dropdown {
+  position: relative;
+  width: 100%;
+}
+.voice-picker-dropdown-toggle {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--fbbar-border);
+  border-radius: 6px;
+  background: var(--fbbar-bg);
+  color: var(--fbbar-fg);
+  padding: 6px 34px 6px 10px;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+}
+.voice-picker-dropdown-toggle::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-65%) rotate(45deg);
+  opacity: 0.9;
+}
+.voice-picker-dropdown.is-open .voice-picker-dropdown-toggle::after {
+  transform: translateY(-35%) rotate(-135deg);
+}
+.voice-picker-dropdown-list {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  width: 100%;
+  max-height: min(220px, 38vh);
+  overflow-y: auto;
+  border: 1px solid var(--fbbar-border);
+  border-radius: 6px;
+  background: var(--fbbar-bg);
+  z-index: 6;
+  box-sizing: border-box;
+}
+.voice-picker-dropdown.is-open .voice-picker-dropdown-list {
+  display: block;
+}
+.voice-picker-option {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--fbbar-border);
+  background: transparent;
+  color: var(--fbbar-fg);
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+.voice-picker-option:last-child {
+  border-bottom: 0;
+}
+.voice-picker-option.is-selected {
+  background: rgba(255, 255, 255, 0.08);
+}
 .voice-picker-status {
   min-height: 18px;
   font-size: 13px;
@@ -3248,7 +3327,7 @@ body.search-open #searchbar { display: flex; }
     padding: 5px;
     font-size: 120%;
   }
-  #title-controls .theme-icon{ width: 22px; height: 22px; }
+  #title-controls { --title-icon-size: 22px; }
   #ttsToggleDesktop { display: none !important; }
   #ttsToggleMobile { display: inline-flex !important; }
   #addressBarToggle{
@@ -3445,9 +3524,9 @@ html.is-tablet #title-controls button{
   height: 24.7px;
   padding: 5.2px;
 }
-html.is-tablet #title-controls .font-size-btn{ padding: 5.2px 3.9px; }
+html.is-tablet #title-controls .font-size-btn{ padding: 0 2.6px; }
 html.is-tablet #title-controls .font-size-btn + .font-size-btn{ margin-left: 2.6px; }
-html.is-tablet #title-controls .theme-icon{ width: 23.4px; height: 23.4px; }
+html.is-tablet #title-controls { --title-icon-size: 23.4px; }
 
 /* Tablet: force desktop search layout + scale inner controls (keep in flow) */
 html.is-tablet #searchDesktop { position: static; left: auto; top: auto; transform: none; }

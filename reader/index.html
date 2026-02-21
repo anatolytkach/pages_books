@@ -159,7 +159,7 @@
 <!-- Reader -->
 <script src="js/reader.js?v=20260220-ttsfix2"></script>
 <script src="js/fullscreen-fix.js"></script>
-<script src="js/fbreader-ui.js?v=20260220-ttsfix2"></script>
+<script src="js/fbreader-ui.js?v=20260221-voice-lang1"></script>
 <!-- Plugins -->
 <!--
 -->
@@ -217,13 +217,22 @@
     <button class="overlay-close" type="button" aria-label="Close">✕</button>
   </div>
   <div class="overlay-sep" aria-hidden="true"></div>
-  <div class="overlay-scroll">
-    <div class="view" id="voiceView">
+    <div class="overlay-scroll">
+      <div class="view" id="voiceView">
       <div class="voice-picker-wrap">
+        <div id="voiceStatus" class="voice-picker-status" aria-live="polite">Select a voice for reading aloud.</div>
+        <label for="voiceLangSelect" class="voice-picker-label">Language</label>
+        <div id="voiceLangDropdown" class="voice-picker-dropdown">
+          <button id="voiceLangToggle" type="button" class="voice-picker-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false"></button>
+          <div id="voiceLangList" class="voice-picker-dropdown-list" role="listbox" aria-label="Language options"></div>
+        </div>
+        <select id="voiceLangSelect" class="voice-picker-select" aria-label="Language"></select>
         <label for="voiceSelect" class="voice-picker-label">Voice</label>
+        <div id="voiceDropdown" class="voice-picker-dropdown">
+          <button id="voiceToggle" type="button" class="voice-picker-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false"></button>
+          <div id="voiceList" class="voice-picker-dropdown-list" role="listbox" aria-label="Voice options"></div>
+        </div>
         <select id="voiceSelect" class="voice-picker-select" aria-label="Voice"></select>
-        <div id="voiceStatus" class="voice-picker-status" aria-live="polite"></div>
-        <button id="voiceRefresh" class="voice-refresh-btn" type="button">Refresh voices</button>
       </div>
     </div>
   </div>

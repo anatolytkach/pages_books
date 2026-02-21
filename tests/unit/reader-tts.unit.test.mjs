@@ -13,8 +13,16 @@ test("Unit: reader html exposes Choose Voice in sidebar menu", () => {
   const html = read("reader/index.html");
   assert.match(html, /data-menu="voice"/);
   assert.match(html, /overlay-voice/);
+  assert.match(html, /id="voiceLangSelect"/);
+  assert.match(html, /id="voiceLangDropdown"/);
+  assert.match(html, /id="voiceLangToggle"/);
+  assert.match(html, /id="voiceLangList"/);
   assert.match(html, /id="voiceSelect"/);
-  assert.match(html, /id="voiceRefresh"/);
+  assert.match(html, /id="voiceDropdown"/);
+  assert.match(html, /id="voiceToggle"/);
+  assert.match(html, /id="voiceList"/);
+  assert.match(html, /id="voiceStatus" class="voice-picker-status"[^>]*>Select a voice for reading aloud\./);
+  assert.doesNotMatch(html, /id="voiceRefresh"/);
 });
 
 test("Unit: reader html exposes desktop and mobile TTS buttons", () => {
@@ -35,7 +43,25 @@ test("Unit: speech toggle updates icon state and highlight hooks", () => {
   const js = read("reader/js/fbreader-ui.js");
   assert.match(js, /classList\.toggle\("is-speaking", !!on\)/);
   assert.match(js, /HIGHLIGHT_NAME = "fb-tts"/);
+  assert.match(js, /VOICE_LANG_KEY = "fbreader:tts:voiceLang"/);
+  assert.match(js, /voiceLangSelect\.addEventListener\("change"/);
   assert.match(js, /voiceSelect\.addEventListener\("change"/);
+});
+
+test("Unit: voice picker filters voices by selected language", () => {
+  const js = read("reader/js/fbreader-ui.js");
+  assert.match(js, /function normalizeLangTag\(lang\)/);
+  assert.match(js, /function closeVoiceDropdowns\(\)/);
+  assert.match(js, /function syncCustomDropdown\(selectEl, dropdownEl, toggleEl, listEl\)/);
+  assert.match(js, /function bindCustomDropdown\(dropdownEl, toggleEl, listEl\)/);
+  assert.match(js, /function uniqueLangsFromVoices\(voices\)/);
+  assert.match(js, /var defaultUs = "en-us"/);
+  assert.match(js, /normalizeLangTag\(vv\.lang \|\| ""\) === wantLang/);
+  assert.match(js, /buildLangLabel\(a\.raw\)\.localeCompare\(buildLangLabel\(b\.raw\)/);
+  assert.match(js, /filtered\.sort\(function \(a, b\)/);
+  assert.match(js, /bindCustomDropdown\(voiceLangDropdown, voiceLangToggle, voiceLangList\)/);
+  assert.match(js, /bindCustomDropdown\(voiceDropdown, voiceToggle, voiceList\)/);
+  assert.match(js, /setVoiceMessage\("No voices found for the selected language\."\)/);
 });
 
 test("Unit: TTS payload samples visible viewport blocks", () => {
