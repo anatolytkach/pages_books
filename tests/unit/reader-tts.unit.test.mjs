@@ -51,3 +51,28 @@ test("Unit: TTS payload is anchored to current CFI", () => {
   assert.match(js, /currentLocation\(\)/);
   assert.match(js, /\.range\(cfi\)/);
 });
+
+test("Unit: TTS keeps segment speech and updates highlight by boundary", () => {
+  const js = read("reader/js/fbreader-ui.js");
+  assert.match(js, /function speakSegment\(idx\)/);
+  assert.match(js, /u\.onboundary = function \(ev\)/);
+  assert.match(js, /applyHighlight\(seg\.start \+ Math\.max\(0, ev\.charIndex\)\)/);
+  assert.doesNotMatch(js, /function speakWord\(idx\)/);
+});
+
+test("Unit: TTS highlight uses word offsets in map entries", () => {
+  const js = read("reader/js/fbreader-ui.js");
+  assert.match(js, /startOffset: startOff/);
+  assert.match(js, /endOffset: endOff/);
+  assert.match(js, /r\.setStart\(seg\.node, so\)/);
+  assert.match(js, /r\.setEnd\(seg\.node, eo\)/);
+});
+
+test("Unit: mobile fallback sweep advances highlight without boundary events", () => {
+  const js = read("reader/js/fbreader-ui.js");
+  assert.match(js, /function startFallbackSweepIfNeeded\(\)/);
+  assert.match(js, /segmentSweepStartTimer = setTimeout\(startFallbackSweepIfNeeded, 260\)/);
+  assert.match(js, /segmentSweepTimer = setInterval/);
+  assert.match(js, /boundarySeen = true;/);
+  assert.match(js, /stopSegmentSweep\(\);/);
+});

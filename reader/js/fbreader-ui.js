@@ -4420,6 +4420,7 @@
       map: [],
       doc: null,
       fallbackNode: null,
+      fallbackOverlay: null,
       selectedVoiceURI: null,
       restartTimer: null,
       speakPending: false,
@@ -4439,7 +4440,13 @@
       try {
         if (state.fallbackNode) state.fallbackNode.classList.remove("fb-tts-node-highlight");
       } catch (e) {}
+      try {
+        if (state.fallbackOverlay && state.fallbackOverlay.parentNode) {
+          state.fallbackOverlay.parentNode.removeChild(state.fallbackOverlay);
+        }
+      } catch (e2) {}
       state.fallbackNode = null;
+      state.fallbackOverlay = null;
     }
 
     function clearHighlight() {
@@ -4646,13 +4653,30 @@
                   }
                 } catch (e3) {}
                 if (vis) {
-                  if (text) { text += " "; idx += 1; }
-                  var s0 = idx;
-                  text += token;
-                  idx += token.length;
-                  map.push({ start: s0, end: idx, node: n });
-                  startedVisible = true;
-                  invisibleTail = 0;
+                  var rawSrc = raw;
+                  var baseOffset = (n === startNode && startOffset > 0 && startOffset < String(n.nodeValue || "").length) ? startOffset : 0;
+                  var re0 = /\S+\s*/g;
+                  var mm0;
+                  var foundAny = false;
+                  while ((mm0 = re0.exec(rawSrc))) {
+                    var t0 = normText(mm0[0] || "");
+                    if (!t0) continue;
+                    if (text) { text += " "; idx += 1; }
+                    var s0 = idx;
+                    text += t0;
+                    idx += t0.length;
+                    map.push({
+                      start: s0,
+                      end: idx,
+                      node: n,
+                      startOffset: baseOffset + mm0.index,
+                      endOffset: baseOffset + mm0.index + mm0[0].length
+                    });
+                    startedVisible = true;
+                    invisibleTail = 0;
+                    foundAny = true;
+                  }
+                  if (!foundAny && startedVisible) invisibleTail++;
                 } else if (startedVisible) {
                   invisibleTail++;
                 }
@@ -4730,13 +4754,26 @@
           if (!tw) continue;
           var n = tw.nextNode();
           while (n) {
-            var token = normText(n.nodeValue || "");
-            if (token && isVisibleNode(n, doc)) {
-              if (text) { text += " "; idx += 1; }
-              var s0 = idx;
-              text += token;
-              idx += token.length;
-              map.push({ start: s0, end: idx, node: n });
+            var rawText = String(n.nodeValue || "");
+            if (rawText && isVisibleNode(n, doc)) {
+              var re1 = /\S+\s*/g;
+              var mm1;
+              while ((mm1 = re1.exec(rawText))) {
+                var token = normText(mm1[0] || "");
+                if (!token) continue;
+                if (text) { text += " "; idx += 1; }
+                var s0 = idx;
+                text += token;
+                idx += token.length;
+                map.push({
+                  start: s0,
+                  end: idx,
+                  node: n,
+                  startOffset: mm1.index,
+                  endOffset: mm1.index + mm1[0].length
+                });
+                if (idx > 7000) break;
+              }
               if (idx > 7000) break;
             }
             n = tw.nextNode();
@@ -4804,7 +4841,13 @@
               var s = idx;
               text += token;
               idx += token.length;
-              map.push({ start: s, end: idx, node: node });
+              map.push({
+                start: s,
+                end: idx,
+                node: node,
+                startOffset: startOff,
+                endOffset: endOff
+              });
               foundVisible = true;
               if (idx > 7000) break;
             }
@@ -4827,7 +4870,13 @@
                   var ws = idx;
                   text += norm;
                   idx += norm.length;
-                  map.push({ start: ws, end: idx, node: node });
+                  map.push({
+                    start: ws,
+                    end: idx,
+                    node: node,
+                    startOffset: 0,
+                    endOffset: node.nodeValue ? node.nodeValue.length : 0
+                  });
                 }
               }
             }
@@ -4848,6 +4897,11 @@
         var m = state.map[i];
         if (charIndex >= m.start && charIndex < m.end) { seg = m; break; }
       }
+      if (!seg) {
+        for (i = 0; i < state.map.length; i++) {
+          if (charIndex <= state.map[i].start) { seg = state.map[i]; break; }
+        }
+      }
       if (!seg) seg = state.map[state.map.length - 1] || null;
       if (!seg || !seg.node) return;
 
@@ -4855,8 +4909,12 @@
         var w = state.doc && state.doc.defaultView;
         if (w && w.CSS && w.CSS.highlights && w.Highlight) {
           var r = state.doc.createRange();
-          r.setStart(seg.node, 0);
-          r.setEnd(seg.node, seg.node.nodeValue ? seg.node.nodeValue.length : 0);
+          var nlen = seg.node.nodeValue ? seg.node.nodeValue.length : 0;
+          var so = (typeof seg.startOffset === "number") ? Math.max(0, Math.min(nlen, seg.startOffset)) : 0;
+          var eo = (typeof seg.endOffset === "number") ? Math.max(so, Math.min(nlen, seg.endOffset)) : nlen;
+          if (eo <= so) eo = Math.min(nlen, so + 1);
+          r.setStart(seg.node, so);
+          r.setEnd(seg.node, eo);
           w.CSS.highlights.set(HIGHLIGHT_NAME, new w.Highlight(r));
           clearFallbackHighlight();
           return;
@@ -4865,14 +4923,32 @@
 
       clearFallbackHighlight();
       try {
-        var block = seg.node.parentElement;
-        if (!block) return;
-        if (block.closest) {
-          var b = block.closest("p,li,div,blockquote,h1,h2,h3,h4,h5,h6");
-          if (b) block = b;
+        var rr2 = state.doc.createRange();
+        var nlen2 = seg.node.nodeValue ? seg.node.nodeValue.length : 0;
+        var so2 = (typeof seg.startOffset === "number") ? Math.max(0, Math.min(nlen2, seg.startOffset)) : 0;
+        var eo2 = (typeof seg.endOffset === "number") ? Math.max(so2, Math.min(nlen2, seg.endOffset)) : nlen2;
+        if (eo2 <= so2) eo2 = Math.min(nlen2, so2 + 1);
+        rr2.setStart(seg.node, so2);
+        rr2.setEnd(seg.node, eo2);
+        var rect = null;
+        var rects = rr2.getClientRects ? rr2.getClientRects() : [];
+        if (rects && rects.length) rect = rects[0];
+        if (!rect && rr2.getBoundingClientRect) rect = rr2.getBoundingClientRect();
+        if (rect && rect.width > 0 && rect.height > 0) {
+          var ov = state.doc.createElement("div");
+          ov.className = "fb-tts-word-overlay";
+          ov.style.position = "fixed";
+          ov.style.left = rect.left + "px";
+          ov.style.top = rect.top + "px";
+          ov.style.width = rect.width + "px";
+          ov.style.height = rect.height + "px";
+          ov.style.background = "rgba(97,194,250,0.38)";
+          ov.style.borderRadius = "2px";
+          ov.style.pointerEvents = "none";
+          ov.style.zIndex = "2147483647";
+          (state.doc.body || state.doc.documentElement).appendChild(ov);
+          state.fallbackOverlay = ov;
         }
-        block.classList.add("fb-tts-node-highlight");
-        state.fallbackNode = block;
       } catch (e2) {}
     }
 
@@ -4960,10 +5036,20 @@
       var segments = buildSegments(payload.text);
       var voices = synth.getVoices ? (synth.getVoices() || []) : [];
       var voice = pickVoice(voices, payload);
+      var segmentSweepTimer = null;
+      var segmentSweepStartTimer = null;
+
+      function stopSegmentSweep() {
+        try { if (segmentSweepTimer) clearInterval(segmentSweepTimer); } catch (e0) {}
+        try { if (segmentSweepStartTimer) clearTimeout(segmentSweepStartTimer); } catch (e1) {}
+        segmentSweepTimer = null;
+        segmentSweepStartTimer = null;
+      }
 
       function speakSegment(idx) {
         if (!state.enabled || myToken !== state.token) return;
         if (idx >= segments.length) {
+          stopSegmentSweep();
           clearHighlight();
           try {
             Promise.resolve(reader.rendition.next && reader.rendition.next()).catch(function () {
@@ -4979,6 +5065,34 @@
         var seg = segments[idx];
         applyHighlight(seg.start);
         var u = new SpeechUtterance(seg.text);
+        var boundarySeen = false;
+
+        function startFallbackSweepIfNeeded() {
+          if (boundarySeen || !state.enabled || myToken !== state.token) return;
+          var words = [];
+          var i = 0;
+          for (i = 0; i < state.map.length; i++) {
+            var m = state.map[i];
+            if (!m) continue;
+            if (m.start >= seg.start && m.start < seg.end) words.push(m);
+          }
+          if (!words.length) return;
+          var wi = 0;
+          applyHighlight(words[wi].start);
+          segmentSweepTimer = setInterval(function () {
+            if (boundarySeen || !state.enabled || myToken !== state.token) {
+              stopSegmentSweep();
+              return;
+            }
+            wi += 1;
+            if (wi >= words.length) {
+              stopSegmentSweep();
+              return;
+            }
+            applyHighlight(words[wi].start);
+          }, 140);
+        }
+
         if (voice) {
           u.voice = voice;
           if (voice.lang) u.lang = voice.lang;
@@ -4987,13 +5101,24 @@
           if (!state.enabled || myToken !== state.token) return;
           state.speakPending = false;
           setButtonState(true);
+          stopSegmentSweep();
+          segmentSweepStartTimer = setTimeout(startFallbackSweepIfNeeded, 260);
+        };
+        u.onboundary = function (ev) {
+          if (!state.enabled || myToken !== state.token) return;
+          if (!ev || typeof ev.charIndex !== "number") return;
+          boundarySeen = true;
+          stopSegmentSweep();
+          applyHighlight(seg.start + Math.max(0, ev.charIndex));
         };
         u.onend = function () {
           if (!state.enabled || myToken !== state.token) return;
+          stopSegmentSweep();
           speakSegment(idx + 1);
         };
         u.onerror = function () {
           if (!state.enabled || myToken !== state.token) return;
+          stopSegmentSweep();
           state.speakPending = false;
           clearHighlight();
           state.enabled = false;
@@ -5002,6 +5127,7 @@
         try {
           synth.speak(u);
         } catch (e2) {
+          stopSegmentSweep();
           state.speakPending = false;
           clearHighlight();
           state.enabled = false;
