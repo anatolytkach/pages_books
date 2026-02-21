@@ -70,9 +70,14 @@ test("Unit: TTS highlight uses word offsets in map entries", () => {
 
 test("Unit: mobile fallback sweep advances highlight without boundary events", () => {
   const js = read("reader/js/fbreader-ui.js");
+  assert.match(js, /function isMobileLikeDevice\(\)/);
   assert.match(js, /function startFallbackSweepIfNeeded\(\)/);
-  assert.match(js, /segmentSweepStartTimer = setTimeout\(startFallbackSweepIfNeeded, 260\)/);
+  assert.match(js, /fallbackWordMs = Math\.max\(120, Math\.min\(700, Number\(state\.fallbackMsPerWord \|\| 240\)\)\)/);
+  assert.match(js, /fallbackStartDelayMs = Math\.max\(80, Math\.min\(320, Math\.round\(fallbackWordMs \* 0\.5\)\)\)/);
+  assert.match(js, /segmentSweepStartTimer = setTimeout\(startFallbackSweepIfNeeded, fallbackStartDelayMs\)/);
   assert.match(js, /segmentSweepTimer = setInterval/);
+  assert.match(js, /var target = Math\.min\(words\.length - 1, Math\.floor\(elapsed \/ fallbackWordMs\)\)/);
   assert.match(js, /boundarySeen = true;/);
+  assert.match(js, /state\.fallbackMsPerWord = Math\.round\(\(state\.fallbackMsPerWord \* 0\.75\) \+ \(measured \* 0\.25\)\)/);
   assert.match(js, /stopSegmentSweep\(\);/);
 });

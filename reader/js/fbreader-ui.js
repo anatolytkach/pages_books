@@ -4424,8 +4424,18 @@
       selectedVoiceURI: null,
       restartTimer: null,
       speakPending: false,
-      lastSpokenText: ""
+      lastSpokenText: "",
+      fallbackMsPerWord: 240
     };
+
+    function isMobileLikeDevice() {
+      try {
+        if (window.matchMedia && window.matchMedia("(max-width: 1024px), (pointer: coarse)").matches) return true;
+      } catch (e) {}
+      var ua = "";
+      try { ua = String((navigator && navigator.userAgent) || ""); } catch (e2) {}
+      return /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+    }
 
     function setButtonState(on) {
       [btnDesktop, btnMobile].forEach(function (btn) {
@@ -5066,9 +5076,13 @@
         applyHighlight(seg.start);
         var u = new SpeechUtterance(seg.text);
         var boundarySeen = false;
+        var useMobileFallback = isMobileLikeDevice();
+        var fallbackWordMs = Math.max(120, Math.min(700, Number(state.fallbackMsPerWord || 240)));
+        var fallbackStartDelayMs = Math.max(80, Math.min(320, Math.round(fallbackWordMs * 0.5)));
+        var segmentStartedAt = 0;
 
         function startFallbackSweepIfNeeded() {
-          if (boundarySeen || !state.enabled || myToken !== state.token) return;
+          if (!useMobileFallback || boundarySeen || !state.enabled || myToken !== state.token) return;
           var words = [];
           var i = 0;
           for (i = 0; i < state.map.length; i++) {
@@ -5084,13 +5098,16 @@
               stopSegmentSweep();
               return;
             }
-            wi += 1;
-            if (wi >= words.length) {
+            var elapsed = Math.max(0, Date.now() - segmentStartedAt);
+            var target = Math.min(words.length - 1, Math.floor(elapsed / fallbackWordMs));
+            if (target > wi) wi = target;
+            if (wi >= words.length - 1) {
+              applyHighlight(words[words.length - 1].start);
               stopSegmentSweep();
               return;
             }
             applyHighlight(words[wi].start);
-          }, 140);
+          }, 60);
         }
 
         if (voice) {
@@ -5101,8 +5118,9 @@
           if (!state.enabled || myToken !== state.token) return;
           state.speakPending = false;
           setButtonState(true);
+          segmentStartedAt = Date.now();
           stopSegmentSweep();
-          segmentSweepStartTimer = setTimeout(startFallbackSweepIfNeeded, 260);
+          segmentSweepStartTimer = setTimeout(startFallbackSweepIfNeeded, fallbackStartDelayMs);
         };
         u.onboundary = function (ev) {
           if (!state.enabled || myToken !== state.token) return;
@@ -5113,6 +5131,18 @@
         };
         u.onend = function () {
           if (!state.enabled || myToken !== state.token) return;
+          if (useMobileFallback && !boundarySeen && segmentStartedAt > 0) {
+            var wordsCount = 0;
+            for (var wi0 = 0; wi0 < state.map.length; wi0++) {
+              var wm = state.map[wi0];
+              if (wm && wm.start >= seg.start && wm.start < seg.end) wordsCount++;
+            }
+            if (wordsCount > 0) {
+              var measured = Math.round((Date.now() - segmentStartedAt) / wordsCount);
+              measured = Math.max(120, Math.min(700, measured));
+              state.fallbackMsPerWord = Math.round((state.fallbackMsPerWord * 0.75) + (measured * 0.25));
+            }
+          }
           stopSegmentSweep();
           speakSegment(idx + 1);
         };
