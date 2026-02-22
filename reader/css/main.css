@@ -1452,7 +1452,7 @@ body.dark-ui .md-content textarea {
 	}
 }
 
-@media only screen and (max-width: 550px) {
+@media only screen and (max-width: 550px) and (hover: none) and (pointer: coarse) {
   :root {
     /* Phone: keep tap-zones narrow so they never cover inline content (e.g., footnote markers). */
     --arrow-hit: 24px;
@@ -3104,10 +3104,9 @@ html.is-ios .comment-sheet{
 /* Desktop: ensure the main container always fills the viewport.
    (Bars are fixed; content is positioned via #viewerStack top/bottom offsets.) */
 @media (hover: hover) and (pointer: fine) {
-  /* Desktop: keep all top-bar controls visible without wrapping/overlap.
-     If the viewport becomes narrower than this, horizontal scroll is expected. */
-  html, body { min-width: 640px; overflow-x: auto; }
-  #titlebar, #footerbar { min-width: 640px; }
+  /* Desktop: do not force horizontal min width; right controls must stay visible by compression. */
+  html, body { min-width: 0; overflow-x: hidden; }
+  #titlebar, #footerbar { min-width: 0; }
   #main { height: 100vh; }
 }
 
@@ -3452,7 +3451,7 @@ html.is-tablet.tablet-portrait .overlay-head {
     overflow: hidden; /* never paint controls over the metainfo */
   }
   #metainfo {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-width: 0;
     margin-left: 8px; /* stable; no large clamp on narrow widths */
     max-width: none;
@@ -3470,8 +3469,8 @@ html.is-tablet.tablet-portrait .overlay-head {
 
   /* Desktop: search field must keep its length */
   #searchDesktop .search-input {
-    width: 220px !important;
-    min-width: 220px !important;
+    width: clamp(72px, 18vw, 220px) !important;
+    min-width: 72px !important;
     max-width: 220px !important;
   }
 
@@ -3492,11 +3491,20 @@ html.is-tablet.tablet-portrait .overlay-head {
   }
 }
 
-/* Desktop: allow search cluster to approach title block on narrow windows */
-@media (max-width: 900px) and (hover:hover) and (pointer:fine) {
-  #metainfo { flex: 0 1 auto; }
-  #title-controls { margin-left: 8px !important; }
+/* Desktop hard-order: speaker must stay LEFT of search, never swap with mobile TTS button */
+html.is-desktop #title-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
 }
+html.is-desktop #ttsToggleDesktop { display: inline-flex !important; order: 10; }
+html.is-desktop #searchDesktop { order: 20; min-width: 0; flex: 0 1 auto; }
+html.is-desktop #bookmark { order: 30; }
+html.is-desktop #fontDec { order: 40; }
+html.is-desktop #fontInc { order: 50; }
+html.is-desktop #themeToggle { order: 60; }
+html.is-desktop #addressBarToggle { order: 70; }
+html.is-desktop #ttsToggleMobile { display: none !important; }
 
 /* Desktop (not tablet): move TTS icon clearly left from search field */
 @media (hover:hover) and (pointer:fine) {
@@ -3507,6 +3515,13 @@ html.is-tablet.tablet-portrait .overlay-head {
   html:not(.is-tablet) #searchDesktop {
     margin-right: 10px !important;
   }
+}
+
+/* Desktop medium widths: compress right controls so all icons stay visible */
+@media (max-width: 1280px) and (hover:hover) and (pointer:fine) {
+  html:not(.is-tablet) #ttsToggleDesktop { margin-right: 8px !important; }
+  html:not(.is-tablet) #searchDesktop { margin-right: 4px !important; }
+  #title-controls { gap: 2px; }
 }
 
 /* Desktop narrow: keep search visible + keep titlebar height fixed */
