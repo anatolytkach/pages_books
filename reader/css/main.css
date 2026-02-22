@@ -3503,6 +3503,10 @@ html.is-tablet.tablet-portrait .overlay-head {
   html:not(.is-tablet) #ttsToggleDesktop {
     margin-right: 18px !important;
   }
+  /* Desktop (not tablet): keep a small gap between search and bookmark icon */
+  html:not(.is-tablet) #searchDesktop {
+    margin-right: 10px !important;
+  }
 }
 
 /* Desktop narrow: keep search visible + keep titlebar height fixed */

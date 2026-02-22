@@ -151,3 +151,9 @@ test("Unit: TTS resumes from last stopped word on next start", () => {
   assert.match(js, /startCurrentPage\(currentLocKey, 6, resumeCfi\);/);
   assert.match(js, /var payload = pagePayload\(resumeCfi\);/);
 });
+
+test("Unit: desktop search is offset from bookmark icon", () => {
+  const css = read("reader/css/main.css");
+  assert.match(css, /html:not\(\.is-tablet\) #searchDesktop \{/);
+  assert.match(css, /margin-right: 10px !important;/);
+});
