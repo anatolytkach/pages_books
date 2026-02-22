@@ -3519,8 +3519,8 @@ html.is-desktop #ttsToggleMobile { display: none !important; }
 
 /* Desktop medium widths: compress right controls so all icons stay visible */
 @media (max-width: 1280px) and (hover:hover) and (pointer:fine) {
-  html:not(.is-tablet) #ttsToggleDesktop { margin-right: 8px !important; }
-  html:not(.is-tablet) #searchDesktop { margin-right: 4px !important; }
+  html:not(.is-tablet) #ttsToggleDesktop { margin-right: 16px !important; }
+  html:not(.is-tablet) #searchDesktop { margin-right: 8px !important; }
   #title-controls { gap: 2px; }
 }
 
