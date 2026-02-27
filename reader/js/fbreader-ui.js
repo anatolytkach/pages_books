@@ -866,6 +866,7 @@
         if (overlayMyBooks) overlayMyBooks.classList.add("hidden");
         if (overlayMenu) overlayMenu.classList.add("hidden");
         if (overlayVoice) overlayVoice.classList.remove("hidden");
+        try { document.dispatchEvent(new CustomEvent("fb:voice-opened")); } catch (eVoiceEv) {}
       }
     }
 
@@ -5092,6 +5093,32 @@
       return s.replace(/_/g, "-").toLowerCase();
     }
 
+    function getCurrentBookLang() {
+      try {
+        var md = reader && reader.book && reader.book.package && reader.book.package.metadata ? reader.book.package.metadata : null;
+        if (!md) return "";
+        var raw = String(md.language || md.lang || "").trim();
+        return normalizeLangTag(raw);
+      } catch (e) {}
+      return "";
+    }
+
+    function matchLangKey(preferredKey, langs) {
+      var key = normalizeLangTag(preferredKey || "");
+      if (!key || !langs || !langs.length) return "";
+      var i;
+      for (i = 0; i < langs.length; i++) {
+        if (langs[i] && langs[i].key === key) return langs[i].key;
+      }
+      var base = key.split("-")[0];
+      if (!base) return "";
+      for (i = 0; i < langs.length; i++) {
+        var lk = langs[i] && langs[i].key ? String(langs[i].key) : "";
+        if (lk === base || lk.indexOf(base + "-") === 0) return lk;
+      }
+      return "";
+    }
+
     function closeVoiceDropdowns() {
       var all = [voiceLangDropdown, voiceDropdown];
       for (var i = 0; i < all.length; i++) {
@@ -5598,18 +5625,52 @@
       } catch (e) {}
     }
 
-    function refreshVoiceList() {
+    function refreshVoiceList(opts) {
       if (!voiceSelect) return;
+      var options = opts || {};
       var voices = synth && synth.getVoices ? (synth.getVoices() || []) : [];
       var langs = uniqueLangsFromVoices(voices);
-      var wantLang = normalizeLangTag(state.selectedVoiceLang || "");
+      var savedLang = normalizeLangTag(state.selectedVoiceLang || "");
+      var bookLang = getCurrentBookLang();
       var defaultUs = "en-us";
-      var hasUs = false;
-      for (var i = 0; i < langs.length; i++) {
-        if (langs[i].key === defaultUs) { hasUs = true; break; }
+      var fallbackUs = matchLangKey(defaultUs, langs);
+      var matchedBookLang = matchLangKey(bookLang, langs);
+      var matchedSavedLang = matchLangKey(savedLang, langs);
+      var keepSelection = !!options.keepSelection;
+      var wantLang = "";
+
+      if (keepSelection && matchedSavedLang) {
+        wantLang = matchedSavedLang;
+      } else if (matchedBookLang) {
+        wantLang = matchedBookLang;
+      } else if (matchedSavedLang) {
+        wantLang = matchedSavedLang;
+      } else if (fallbackUs) {
+        wantLang = fallbackUs;
+      } else {
+        wantLang = langs[0] ? langs[0].key : "";
       }
-      if (!wantLang) wantLang = hasUs ? defaultUs : (langs[0] ? langs[0].key : "");
-      if (wantLang === defaultUs && !hasUs) wantLang = langs[0] ? langs[0].key : "";
+
+      var topKey = "";
+      if (matchedBookLang) {
+        topKey = matchedBookLang;
+      } else if (matchedSavedLang) {
+        topKey = matchedSavedLang;
+      } else if (fallbackUs) {
+        topKey = fallbackUs;
+      } else {
+        topKey = langs[0] ? langs[0].key : "";
+      }
+      if (topKey && langs.length > 1) {
+        var topIdx = -1;
+        for (var ti = 0; ti < langs.length; ti++) {
+          if (langs[ti] && langs[ti].key === topKey) { topIdx = ti; break; }
+        }
+        if (topIdx > 0) {
+          var topItem = langs.splice(topIdx, 1)[0];
+          langs.unshift(topItem);
+        }
+      }
 
       if (voiceLangSelect) {
         voiceLangSelect.innerHTML = "";
@@ -5678,13 +5739,23 @@
     if (voiceLangSelect) voiceLangSelect.addEventListener("change", function () {
       saveVoiceLang(normalizeLangTag(voiceLangSelect.value || ""));
       state.selectedVoiceURI = null;
-      refreshVoiceList();
+      refreshVoiceList({ keepSelection: true });
     });
     if (voiceSelect) voiceSelect.addEventListener("change", function () {
       saveVoice(voiceSelect.value || "");
       syncCustomDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
     });
     if (synth && "onvoiceschanged" in synth) synth.onvoiceschanged = refreshVoiceList;
+    document.addEventListener("fb:voice-opened", function () {
+      refreshVoiceList();
+    });
+    try {
+      if (reader && reader.book && reader.book.ready && typeof reader.book.ready.then === "function") {
+        reader.book.ready.then(function () {
+          refreshVoiceList();
+        }).catch(function () {});
+      }
+    } catch (eReady) {}
 
     bindCustomDropdown(voiceLangDropdown, voiceLangToggle, voiceLangList);
     bindCustomDropdown(voiceDropdown, voiceToggle, voiceList);

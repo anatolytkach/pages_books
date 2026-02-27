@@ -1,0 +1,174 @@
+/* AUTO-BUILT: DO NOT EDIT */
+/* BASE CSS (ручной слой)
+   Заголовки по размерам/отступам/центровке здесь НЕ задаем — это делает auto CSS.
+*/
+
+/* ГЛОБАЛЬНО: просим автоперенос максимально жестко */
+html, body, section, div, p, li, blockquote {
+  -webkit-hyphens: auto;
+  -moz-hyphens: auto;
+  hyphens: auto;
+  -epub-hyphens: auto;
+
+  /* важно: не ломать переносы принудительным разрывом слов */
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+/* Ограничители переносов (WebKit/Apple Books) */
+html {
+  -webkit-hyphenate-limit-before: 2;
+  -webkit-hyphenate-limit-after: 2;
+  -webkit-hyphenate-limit-lines: 2;
+  -webkit-hyphenate-limit-last: always;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-size: 1em;
+  line-height: 1.35;
+  widows: 2;
+  orphans: 2;
+
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+p {
+  margin: 0;
+  text-indent: 1.25em;
+
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+/* Заголовки — только технические правила */
+h1, h2, h3, h4, h5, h6 {
+  text-indent: 0;
+  hyphens: none;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+sup { line-height: 1; font-size: 0.75em; }
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em auto;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  max-height: 70vh;
+}
+
+img + h1 {
+  break-before: avoid;
+  page-break-before: avoid;
+}
+
+.chapterhead {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  -moz-column-break-inside: avoid;
+  column-break-inside: avoid;
+}
+
+.chapterhead h1 {
+  break-before: avoid;
+  page-break-before: avoid;
+}
+
+blockquote {
+  margin: 1.2em 1.5em;
+  padding-left: 1em;
+  border-left: 0.25em solid #cccccc;
+  text-indent: 0;
+  text-align: left;
+}
+
+code, pre {
+  font-family: monospace;
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  word-break: break-word;
+
+  text-align: left;
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  hyphens: none;
+}
+
+/* AUTO-GENERATED FILE. DO NOT EDIT. */
+/* source: vopros.docx */
+/* base font: 12.00pt (used for pt->em) */
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  padding: 0;
+  display: block;
+  text-indent: 0;
+  hyphens: none;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+h1 {
+  font-size: 1.5em;
+  margin-top: 2em;
+  margin-bottom: 0.5em;
+  text-align: center;
+  font-weight: 400;
+  text-indent: 0;
+}
+
+h2 {
+  font-size: 1.0833em;
+  margin-top: 0.1667em;
+  margin-bottom: 0.1667em;
+  text-align: center;
+  font-weight: 400;
+  text-indent: 0;
+}
+
+h3 {
+  font-size: 0.9167em;
+  margin-top: 1.1667em;
+  margin-bottom: 0em;
+  font-style: italic;
+  font-weight: 400;
+  text-indent: 0;
+}
+
+h4 {
+  font-size: 1.0833em;
+  margin-top: 0em;
+  margin-bottom: 0.5em;
+  font-weight: 400;
+  text-indent: 0;
+}
+
+h5 {
+  font-size: 0.9167em;
+  margin-top: 0.3333em;
+  margin-bottom: 0em;
+  font-style: italic;
+  font-weight: 400;
+  text-indent: 0;
+}
+
+h6 {
+  font-size: 1.0833em;
+  margin-top: 0.3333em;
+  margin-bottom: 0em;
+  font-weight: 400;
+  text-indent: 0;
+}
+
+/* suppress inline strong/b inside headings */
+h1 strong, h2 strong, h3 strong, h4 strong, h5 strong, h6 strong,
+h1 b, h2 b, h3 b, h4 b, h5 b, h6 b {
+  font-weight: 400;
+}
