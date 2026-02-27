@@ -10,6 +10,7 @@
   var TOKEN_EXP_KEY = "readerpub:drive:access_token_exp";
   var FILE_ID_KEY = "readerpub:drive:file_id";
   var MYBOOKS_LOCAL_KEY = "readerpub:mybooks:" + window.location.host;
+  var TTS_LANG_LOCAL_KEY = "fbreader:tts:voiceLang";
 
   function nowTs() {
     return Date.now();
@@ -39,6 +40,15 @@
     if (!s.positions || typeof s.positions !== "object") s.positions = {};
     if (!s.bookmarks || typeof s.bookmarks !== "object") s.bookmarks = {};
     if (!s.notes || typeof s.notes !== "object") s.notes = {};
+    if (!s.preferences || typeof s.preferences !== "object") s.preferences = {};
+    if (!s.preferences.tts || typeof s.preferences.tts !== "object") s.preferences.tts = {};
+    if (s.preferences.tts.lastDetectedLanguage != null) {
+      s.preferences.tts.lastDetectedLanguage = String(s.preferences.tts.lastDetectedLanguage || "").trim();
+    }
+    if (!s.preferences.tts.updatedAt) s.preferences.tts.updatedAt = 0;
+    if (s.preferences.tts.lastBookId != null) {
+      s.preferences.tts.lastBookId = String(s.preferences.tts.lastBookId || "").trim();
+    }
     return s;
   }
 
@@ -493,6 +503,13 @@
       var lastId = storage.getItem("readerpub:lastid");
       if (lastId) ensureBook(lastId, { openedAt: ts });
     } catch (e2) {}
+    try {
+      var lang = String(storage.getItem(TTS_LANG_LOCAL_KEY) || "").trim();
+      if (lang) {
+        snapshot.preferences.tts.lastDetectedLanguage = lang;
+        snapshot.preferences.tts.updatedAt = ts;
+      }
+    } catch (eLang) {}
 
     snapshot.updatedAt = ts;
     return normalizeSnapshot(snapshot);
@@ -539,6 +556,40 @@
       var lastId = storage.getItem("readerpub:lastid");
       if (lastId && !present[String(lastId)]) storage.removeItem("readerpub:lastid");
     } catch (e3) {}
+    try {
+      var lang = String(s.preferences && s.preferences.tts && s.preferences.tts.lastDetectedLanguage || "").trim();
+      if (lang) storage.setItem(TTS_LANG_LOCAL_KEY, lang);
+    } catch (e4) {}
+  }
+
+  function getLastDetectedTtsLanguage(snapshot) {
+    var s = normalizeSnapshot(snapshot || {});
+    return String(s.preferences && s.preferences.tts && s.preferences.tts.lastDetectedLanguage || "").trim();
+  }
+
+  function setLastDetectedTtsLanguage(language, meta, options) {
+    var lang = String(language || "").trim();
+    if (!lang) return Promise.resolve(false);
+    var m = (meta && typeof meta === "object") ? meta : {};
+    var opts = options || {};
+    var bookId = String(m.bookId || currentBookId() || "").trim();
+    return pullSnapshot({ interactive: !!opts.interactive }).then(function (snapshot) {
+      var prevLang = getLastDetectedTtsLanguage(snapshot);
+      var prevBookId = String(snapshot.preferences && snapshot.preferences.tts && snapshot.preferences.tts.lastBookId || "").trim();
+      if (prevLang === lang && prevBookId === bookId) {
+        applySnapshotToLocalReader(snapshot);
+        return false;
+      }
+      snapshot.preferences.tts.lastDetectedLanguage = lang;
+      snapshot.preferences.tts.updatedAt = nowTs();
+      snapshot.preferences.tts.lastBookId = bookId || "";
+      return saveSnapshot(snapshot, { interactive: !!opts.interactive }).then(function (saved) {
+        applySnapshotToLocalReader(saved);
+        return true;
+      });
+    }).catch(function () {
+      return false;
+    });
   }
 
   function buildReaderPayload(reader, meta) {
@@ -644,6 +695,8 @@
     listMyBooks: listMyBooks,
     deleteBooksCascade: deleteBooksCascade,
     applySnapshotToLocalReader: applySnapshotToLocalReader,
+    getLastDetectedTtsLanguage: getLastDetectedTtsLanguage,
+    setLastDetectedTtsLanguage: setLastDetectedTtsLanguage,
     syncCurrentReaderState: syncCurrentReaderState,
     scheduleCurrentReaderStateSync: scheduleCurrentReaderStateSync
   };

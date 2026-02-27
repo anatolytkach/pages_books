@@ -4442,6 +4442,7 @@
       resumeLocKey: "",
       selectedVoiceLang: "en-US"
     };
+    var driveLangSyncTimer = null;
 
     function isMobileLikeDevice() {
       try {
@@ -5625,6 +5626,47 @@
       } catch (e) {}
     }
 
+    function getCurrentBookId() {
+      try {
+        var params = new URLSearchParams(window.location.search || "");
+        var id = String(params.get("id") || "").trim();
+        if (/^\d+$/.test(id)) return id;
+      } catch (e0) {}
+      return "";
+    }
+
+    function queueDriveDetectedLangSync(lang) {
+      var normalized = normalizeLangTag(lang || "");
+      if (!normalized) return;
+      try {
+        if (driveLangSyncTimer) {
+          clearTimeout(driveLangSyncTimer);
+          driveLangSyncTimer = null;
+        }
+      } catch (e0) {}
+      driveLangSyncTimer = setTimeout(function () {
+        driveLangSyncTimer = null;
+        try {
+          var sync = window.ReaderPubDriveSync || null;
+          if (!sync || typeof sync.setLastDetectedTtsLanguage !== "function") return;
+          sync.setLastDetectedTtsLanguage(normalized, { bookId: getCurrentBookId() }, { interactive: false }).catch(function () {});
+        } catch (e1) {}
+      }, 220);
+    }
+
+    function hydrateVoiceLangFromDrive() {
+      try {
+        var sync = window.ReaderPubDriveSync || null;
+        if (!sync || typeof sync.pullSnapshot !== "function" || typeof sync.getLastDetectedTtsLanguage !== "function") return;
+        sync.pullSnapshot({ interactive: false }).then(function (snapshot) {
+          var fromDrive = normalizeLangTag(sync.getLastDetectedTtsLanguage(snapshot) || "");
+          if (!fromDrive) return;
+          saveVoiceLang(fromDrive);
+          refreshVoiceList();
+        }).catch(function () {});
+      } catch (e0) {}
+    }
+
     function refreshVoiceList(opts) {
       if (!voiceSelect) return;
       var options = opts || {};
@@ -5684,6 +5726,7 @@
         if (voiceLangSelect.value) wantLang = normalizeLangTag(voiceLangSelect.value);
       }
       saveVoiceLang(wantLang);
+      queueDriveDetectedLangSync(wantLang);
 
       voiceSelect.innerHTML = "";
       if (!voices.length) {
@@ -5767,6 +5810,7 @@
 
     loadSavedVoice();
     refreshVoiceList();
+    hydrateVoiceLangFromDrive();
     setButtonState(false);
   }
 
