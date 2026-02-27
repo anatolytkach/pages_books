@@ -1846,7 +1846,7 @@
                     hint: "Open book",
                     cover: resolveCoverUrl(item.cover),
                     href: openBookUrl(item.id),
-                    openInNewTab: true,
+                    openInNewTab: false,
                   };
                 }
                 if (item.type === "author") {
@@ -2157,8 +2157,6 @@
             books.forEach((book) => {
               const card = el("a", "card");
               card.href = openBookUrl(book.id);
-              card.target = "_blank";
-              card.rel = "noopener noreferrer";
 
               const coverUrl = resolveCoverUrl(book.cover);
               const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
@@ -2196,8 +2194,6 @@
               const cell = el("td");
               const link = el("a", null, book.title);
               link.href = openBookUrl(book.id);
-              link.target = "_blank";
-              link.rel = "noopener noreferrer";
               cell.appendChild(link);
               row.appendChild(cell);
               tbody.appendChild(row);
@@ -2299,7 +2295,7 @@
                   const t = event.target;
                   if (t && t.closest && t.closest("a, input, button, label")) return;
                   const url = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
-                  window.open(url, "_blank", "noopener");
+                  window.location.href = url;
                 });
 
                 const head = el("div", "mybooks-card-head");
@@ -2339,8 +2335,6 @@
                 const titleWrap = el("div", "cardTitle");
                 const titleLink = el("a", null, book.title || `Book ${bookId}`);
                 titleLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
-                titleLink.target = "_blank";
-                titleLink.rel = "noopener noreferrer";
                 titleWrap.appendChild(titleLink);
                 const meta = el("div", "cardMeta", book.author || "");
 
@@ -2375,8 +2369,6 @@
               const bookCell = el("td");
               const titleLink = el("a", null, book.title || `Book ${bookId}`);
               titleLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
-              titleLink.target = "_blank";
-              titleLink.rel = "noopener noreferrer";
               bookCell.appendChild(titleLink);
               if (book.author) {
                 bookCell.appendChild(el("div", "mybooks-meta", book.author));
@@ -2385,8 +2377,6 @@
               const openCell = el("td", "count");
               const openLink = el("a", "mybooks-open", "Open");
               openLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
-              openLink.target = "_blank";
-              openLink.rel = "noopener noreferrer";
               openCell.appendChild(openLink);
 
               row.appendChild(selectCell);
