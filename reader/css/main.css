@@ -3612,6 +3612,20 @@ html.is-tablet #next {
   display: none !important;
 }
 
+/* Phones: hide legacy side arrows as well (edge taps are handled in iframe/tap layer) */
+html.is-phone #prev,
+html.is-phone #next {
+  display: none !important;
+}
+
+/* Extra safety for touch layouts: never show legacy side arrows */
+@media (hover: none) and (pointer: coarse) {
+  #prev,
+  #next {
+    display: none !important;
+  }
+}
+
 /* Tablet portrait: left side only hamburger, menu like phones */
 html.is-tablet.tablet-portrait #openNotes,
 html.is-tablet.tablet-portrait #openBookmarks {
