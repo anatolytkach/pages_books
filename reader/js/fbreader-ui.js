@@ -322,11 +322,184 @@
   function toggleUi() {
     if (window.__fbSelectionActive) return;
     try {
+      if ((window.__fbSuppressUiTapUntil || 0) > Date.now()) return;
+    } catch (eSup) {}
+    try {
       if (document.body && document.body.classList && document.body.classList.contains("search-open")) return;
     } catch (eSearchOpen) {}
+    try {
+      if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
+        if (typeof window.__fb_closeMobileMore === "function") window.__fb_closeMobileMore();
+        return;
+      }
+    } catch (eMoreOpen) {}
     try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs2) {}
     document.body.classList.toggle("ui-hidden");
     syncBarHeights(false);
+  }
+
+  function setupMobileMoreMenu() {
+    var toggle = document.getElementById("mobileMoreToggle");
+    var panel = document.getElementById("mobileMorePanel");
+    var bookmarkBtn = document.getElementById("mobileMoreBookmark");
+    var fontDecBtn = document.getElementById("mobileMoreFontDec");
+    var fontIncBtn = document.getElementById("mobileMoreFontInc");
+    var bookmark = document.getElementById("bookmark");
+    var fontDec = document.getElementById("fontDec");
+    var fontInc = document.getElementById("fontInc");
+    if (!toggle || !panel) return;
+    var backdrop = document.getElementById("mobileMoreBackdrop");
+    if (!backdrop) {
+      try {
+        backdrop = document.createElement("div");
+        backdrop.id = "mobileMoreBackdrop";
+        backdrop.className = "mobile-more-backdrop hidden";
+        document.body.appendChild(backdrop);
+      } catch (eCreateBackdrop) {}
+    }
+
+    function nodeInside(target, root) {
+      try {
+        if (!target || !root) return false;
+        if (root.contains && root.contains(target)) return true;
+        var n = target;
+        while (n) {
+          if (n === root) return true;
+          n = n.parentNode;
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    function isTouchUi() {
+      try { return isTabletViewport() || isMobileViewport(); } catch (e) { return false; }
+    }
+
+    function isOpen() {
+      try { return document.body.classList.contains("mobile-more-open"); } catch (e) {}
+      return false;
+    }
+
+    function syncBookmarkState() {
+      try {
+        if (!bookmarkBtn || !bookmark) return;
+        bookmarkBtn.classList.remove("icon-bookmark", "icon-bookmark-empty");
+        if (bookmark.classList.contains("icon-bookmark-empty")) bookmarkBtn.classList.add("icon-bookmark-empty");
+        else bookmarkBtn.classList.add("icon-bookmark");
+      } catch (e) {}
+    }
+
+    function closePanel() {
+      try { panel.classList.add("hidden"); } catch (e0) {}
+      try { if (backdrop) backdrop.classList.add("hidden"); } catch (e0b) {}
+      try { document.body.classList.remove("mobile-more-open"); } catch (e1) {}
+      try { toggle.setAttribute("aria-expanded", "false"); } catch (e2) {}
+    }
+
+    function openPanel() {
+      if (!isTouchUi()) return;
+      syncBookmarkState();
+      try { if (backdrop) backdrop.classList.remove("hidden"); } catch (e0b) {}
+      try { panel.classList.remove("hidden"); } catch (e0) {}
+      try { document.body.classList.add("mobile-more-open"); } catch (e1) {}
+      try { toggle.setAttribute("aria-expanded", "true"); } catch (e2) {}
+    }
+
+    function togglePanel() {
+      if (isOpen()) closePanel();
+      else openPanel();
+    }
+
+    window.__fb_isMobileMoreOpen = function () {
+      return isOpen();
+    };
+    window.__fb_closeMobileMore = function () {
+      closePanel();
+    };
+
+    if (!toggle.__fbMobileMoreBound) {
+      toggle.__fbMobileMoreBound = true;
+      toggle.addEventListener("click", function (e) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        togglePanel();
+      });
+    }
+
+    if (bookmarkBtn && !bookmarkBtn.__fbMobileMoreBound) {
+      bookmarkBtn.__fbMobileMoreBound = true;
+      bookmarkBtn.addEventListener("click", function (e) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        try { if (bookmark && typeof bookmark.click === "function") bookmark.click(); } catch (e0) {}
+      });
+    }
+
+    if (fontDecBtn && !fontDecBtn.__fbMobileMoreBound) {
+      fontDecBtn.__fbMobileMoreBound = true;
+      fontDecBtn.addEventListener("click", function (e) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        try { if (fontDec && typeof fontDec.click === "function") fontDec.click(); } catch (e0) {}
+      });
+    }
+
+    if (fontIncBtn && !fontIncBtn.__fbMobileMoreBound) {
+      fontIncBtn.__fbMobileMoreBound = true;
+      fontIncBtn.addEventListener("click", function (e) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        try { if (fontInc && typeof fontInc.click === "function") fontInc.click(); } catch (e0) {}
+      });
+    }
+
+    if (bookmark && window.MutationObserver && !bookmark.__fbMobileMoreObserver) {
+      try {
+        var mo = new MutationObserver(function () { syncBookmarkState(); });
+        mo.observe(bookmark, { attributes: true, attributeFilter: ["class"] });
+        bookmark.__fbMobileMoreObserver = mo;
+      } catch (eMo) {}
+    }
+
+    if (!panel.__fbMobileMorePanelBound) {
+      panel.__fbMobileMorePanelBound = true;
+      var swallowInside = function (ev) {
+        try {
+          if (ev && ev.stopPropagation) ev.stopPropagation();
+        } catch (e) {}
+      };
+      panel.addEventListener("touchstart", swallowInside, { passive: true });
+      panel.addEventListener("pointerdown", swallowInside);
+      panel.addEventListener("click", swallowInside);
+    }
+
+    if (backdrop && !backdrop.__fbMobileMoreBackdropBound) {
+      backdrop.__fbMobileMoreBackdropBound = true;
+      var onBackdropTap = function (ev) {
+        try {
+          if (!isOpen()) return;
+          try { window.__fbSuppressUiTapUntil = Date.now() + 1200; } catch (eSup0) {}
+          closePanel();
+          if (ev && ev.preventDefault) ev.preventDefault();
+          if (ev && ev.stopPropagation) ev.stopPropagation();
+          if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+        } catch (eTap) {}
+      };
+      backdrop.addEventListener("click", onBackdropTap);
+      backdrop.addEventListener("touchstart", onBackdropTap, { passive: false });
+      backdrop.addEventListener("pointerdown", onBackdropTap);
+    }
+
+    syncBookmarkState();
+    closePanel();
   }
 
   // -------- ultra-robust center-tap capture (ported from old fix5) --------
@@ -422,7 +595,14 @@
 
     function isUiChromeTarget(tgt) {
       if (!tgt || !tgt.closest) return false;
-      return !!(tgt.closest("#titlebar") || tgt.closest("#bottombar") || tgt.closest(".overlay") || tgt.closest("#overlay-backdrop"));
+      return !!(
+        tgt.closest("#titlebar") ||
+        tgt.closest("#bottombar") ||
+        tgt.closest(".overlay") ||
+        tgt.closest("#overlay-backdrop") ||
+        tgt.closest("#mobileMorePanel") ||
+        tgt.closest("#mobileMoreToggle")
+      );
     }
 
     function closestInteractive(el) {
@@ -556,6 +736,14 @@
 
       try {
         if (overlaysOpen()) return;
+        try {
+          if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
+            if (typeof window.__fb_closeMobileMore === "function") window.__fb_closeMobileMore();
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (e && e.preventDefault) e.preventDefault();
+            return;
+          }
+        } catch (eMore) {}
         if (moved) return;
         // Real-world taps on mobile are often longer than 150ms.
         // Too low threshold lets synthetic click leak to underlying epub view (can trigger prev page).
@@ -619,6 +807,14 @@
       if (now - lastToggleAt < 350) return;
       try {
         if (overlaysOpen()) return;
+        try {
+          if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
+            if (typeof window.__fb_closeMobileMore === "function") window.__fb_closeMobileMore();
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (e && e.preventDefault) e.preventDefault();
+            return;
+          }
+        } catch (eMore) {}
         if (moved) return;
         if (Date.now() - st > 220) return;
         var tgt = e && e.target;
@@ -5911,6 +6107,7 @@
       }
     } catch (e) {}
 	    setupOverlays();
+      try { setupMobileMoreMenu(); } catch (eMoreMenu) {}
 	    // Mobile tap/swipe is handled by reader.js attachSwipeToDoc().
 	    // Keep this legacy bridge desktop-only to avoid competing mobile gesture handlers.
 	    if (window.__fb_isDesktop) enableIframeGestures(reader);

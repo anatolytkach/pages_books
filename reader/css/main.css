@@ -875,6 +875,72 @@ body.dark-ui #bottombar {
 #title-controls .theme-icon-btn{ background: transparent; border: 0; cursor: pointer; }
 #title-controls .theme-icon{ width: var(--title-icon-size); height: var(--title-icon-size); display: block; }
 
+.mobile-more-toggle {
+  display: none !important;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  min-width: 23px;
+  height: 23px;
+  padding: 5px 6px;
+  line-height: 1;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: visible;
+}
+.mobile-more-toggle .mobile-more-icon {
+  width: calc(var(--title-icon-size) + 1px);
+  height: calc(var(--title-icon-size) + 1px);
+  display: block;
+  fill: currentColor;
+  transform: none;
+}
+
+.mobile-more-panel {
+  position: fixed;
+  top: calc(var(--titlebar-h) + 6px);
+  right: 8px;
+  z-index: 12050;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--fbbar-bg);
+  color: var(--fbbar-fg);
+  border: 1px solid rgba(255,255,255,0.18);
+}
+.mobile-more-panel.hidden { display: none !important; }
+.mobile-more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12040;
+  background: transparent;
+}
+.mobile-more-backdrop.hidden { display: none !important; }
+.mobile-more-btn {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.mobile-more-btn.font-size-inc {
+  font-size: 26px;
+  line-height: 1;
+}
+.mobile-more-btn.font-size-dec {
+  font-size: 13px;
+  line-height: 1;
+}
+
 
 /*
   Fullscreen button: hide the fallback text ("Full") so it doesn't render as
@@ -3398,6 +3464,9 @@ body.search-open.search-minimized #searchbar { display: none !important; }
   #title-controls { --title-icon-size: 22px; }
   #ttsToggleDesktop { display: none !important; }
   #ttsToggleMobile { display: inline-flex !important; }
+  #ttsToggleMobile { margin-right: 0 !important; }
+  #searchOpen { margin: 0 12px !important; }
+  #themeToggle { margin-left: 0 !important; }
   #addressBarToggle{
     width: 23px;
     height: 23px;
@@ -3778,3 +3847,44 @@ html.is-tablet #searchDesktop .search-nav.desktop[aria-hidden="false"] {
 html.is-tablet #searchOpen { display: inline-flex !important; }
 html.is-tablet #ttsToggleDesktop { display: none !important; }
 html.is-tablet #ttsToggleMobile { display: inline-flex !important; }
+html.is-tablet #bookmark,
+html.is-tablet #fontDec,
+html.is-tablet #fontInc {
+  display: none !important;
+}
+html.is-tablet #mobileMoreToggle {
+  display: inline-flex !important;
+}
+
+html.is-phone #bookmark,
+html.is-phone #fontDec,
+html.is-phone #fontInc {
+  display: none !important;
+}
+html.is-phone #mobileMoreToggle {
+  display: inline-flex !important;
+}
+
+/* Touch layouts: move bookmark + font controls to ⋮ menu */
+@media (hover:none) and (pointer:coarse) {
+  #bookmark,
+  #fontDec,
+  #fontInc {
+    display: none !important;
+  }
+  #mobileMoreToggle {
+    display: inline-flex !important;
+  }
+  /* Keep ⋮ always visible at the far right on mobile/tablet */
+  #titlebar { position: relative; }
+  #mobileMoreToggle {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+  }
+  #title-controls {
+    padding-right: 28px;
+  }
+}

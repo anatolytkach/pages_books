@@ -10,7 +10,7 @@
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <link rel="icon" type="image/svg+xml" href="/books/assets/logo-flip.svg?v=20260218-1" />
 <link href="css/normalize.css" rel="stylesheet"/>
-<link href="css/main.css?v=20260221-ios-counter3" rel="stylesheet"/>
+<link href="css/main.css?v=20260302-mobile-more-8" rel="stylesheet"/>
 <link href="css/popup.css" rel="stylesheet"/>
 <script src="js/libs/jquery.min.js"></script>
 <script src="js/libs/zip.min.js"></script>
@@ -157,9 +157,9 @@
 <script src="js/epub.js"></script>
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
-<script src="js/reader.js?v=20260221-ios-counter3"></script>
+<script src="js/reader.js?v=20260302-mobile-more-8"></script>
 <script src="js/fullscreen-fix.js"></script>
-<script src="js/fbreader-ui.js?v=20260221-ios-counter3"></script>
+<script src="js/fbreader-ui.js?v=20260302-mobile-more-8"></script>
 <!-- Plugins -->
 <!--
 -->
@@ -415,7 +415,20 @@
 
 <button class="theme-icon-btn" id="themeToggle" aria-label="Toggle theme" type="button"><svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3 A9 9 0 0 0 12 21 Z" fill="currentColor"/></svg></button>
 <button class="icon-resize-full" id="addressBarToggle" aria-label="Hide address bar" type="button"></button>
+<button id="mobileMoreToggle" class="mobile-more-toggle" type="button" aria-label="More actions" title="More actions">
+  <svg class="mobile-more-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="5.5" r="2.4"></circle>
+    <circle cx="12" cy="12" r="2.4"></circle>
+    <circle cx="12" cy="18.5" r="2.4"></circle>
+  </svg>
+</button>
 </div>
+</div>
+
+<div id="mobileMorePanel" class="mobile-more-panel hidden" aria-label="More actions menu">
+  <button id="mobileMoreBookmark" class="mobile-more-btn icon-bookmark" type="button" aria-label="Bookmark"></button>
+  <button id="mobileMoreFontDec" class="mobile-more-btn font-size-btn font-size-dec" type="button" aria-label="Decrease font size">A</button>
+  <button id="mobileMoreFontInc" class="mobile-more-btn font-size-btn font-size-inc" type="button" aria-label="Increase font size">A</button>
 </div>
 
 <!-- Mobile search bar (replaces titlebar content while searching) -->

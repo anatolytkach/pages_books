@@ -4283,6 +4283,14 @@ if (!doc) return;
 						try {
 							var __topWinSearch = (win && win.parent) ? win.parent : window;
 							if (__topWinSearch && __topWinSearch.document && __topWinSearch.document.body && __topWinSearch.document.body.classList.contains("search-open")) return;
+								if (__topWinSearch && __topWinSearch.document && __topWinSearch.document.body && __topWinSearch.document.body.classList.contains("mobile-more-open")) {
+									try { if (typeof __topWinSearch.__fb_closeMobileMore === "function") __topWinSearch.__fb_closeMobileMore(); } catch (eCloseMore0) {}
+									try { __topWinSearch.__fbSuppressUiTapUntil = Date.now() + 600; } catch (eSupMore0) {}
+									try { if (ev.preventDefault) ev.preventDefault(); } catch (eP0) {}
+									try { if (ev.stopPropagation) ev.stopPropagation(); } catch (eP1) {}
+									try { if (ev.stopImmediatePropagation) ev.stopImmediatePropagation(); } catch (eP2) {}
+									return;
+								}
 						} catch (eSearchOpen0) {}
 						if (st.moved) return;
 
@@ -4301,9 +4309,10 @@ if (!doc) return;
 							if (!inCenter || dt > 800) return;
 
 						// Toggle bars on TOP document (bars live there, not in iframe)
-						var topWin = (win && win.parent) ? win.parent : window;
-						var now = Date.now();
-						var lastTs = topWin.__fbUiLastToggleTs || 0;
+							var topWin = (win && win.parent) ? win.parent : window;
+							var now = Date.now();
+							if ((topWin.__fbSuppressUiTapUntil || 0) > now) return;
+							var lastTs = topWin.__fbUiLastToggleTs || 0;
 						if ((now - lastTs) < 350) return;
 						topWin.__fbUiLastToggleTs = now;
 
@@ -4340,6 +4349,14 @@ if (!doc) return;
 								try {
 									var __topWinSearchP = (win && win.parent) ? win.parent : window;
 									if (__topWinSearchP && __topWinSearchP.document && __topWinSearchP.document.body && __topWinSearchP.document.body.classList.contains("search-open")) return;
+										if (__topWinSearchP && __topWinSearchP.document && __topWinSearchP.document.body && __topWinSearchP.document.body.classList.contains("mobile-more-open")) {
+											try { if (typeof __topWinSearchP.__fb_closeMobileMore === "function") __topWinSearchP.__fb_closeMobileMore(); } catch (eCloseMore1) {}
+											try { __topWinSearchP.__fbSuppressUiTapUntil = Date.now() + 600; } catch (eSupMore1) {}
+											try { if (ev.preventDefault) ev.preventDefault(); } catch (eP3) {}
+											try { if (ev.stopPropagation) ev.stopPropagation(); } catch (eP4) {}
+											try { if (ev.stopImmediatePropagation) ev.stopImmediatePropagation(); } catch (eP5) {}
+											return;
+										}
 								} catch (eSearchOpen1) {}
 								var x = st.x;
 								var y = st.y;
@@ -4913,6 +4930,15 @@ function attachSwipeToDoc(doc) {
 							resetTransform();
 							return;
 						}
+						if (__topWinTapSearch0 && __topWinTapSearch0.document && __topWinTapSearch0.document.body && __topWinTapSearch0.document.body.classList.contains("mobile-more-open")) {
+							try { if (typeof __topWinTapSearch0.__fb_closeMobileMore === "function") __topWinTapSearch0.__fb_closeMobileMore(); } catch (eCloseMore2) {}
+							try { __topWinTapSearch0.__fbSuppressUiTapUntil = Date.now() + 600; } catch (eSupMore2) {}
+							try { if (ev && typeof ev.preventDefault === "function") ev.preventDefault(); } catch (eP6) {}
+							try { if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation(); } catch (eP7) {}
+							try { if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation(); } catch (eP8) {}
+							resetTransform();
+							return;
+						}
 					} catch (eSearchTap0) {}
 						var abs = toAbsXY(x, y);
 						if (!state.horizontal) {
@@ -4960,9 +4986,13 @@ function attachSwipeToDoc(doc) {
 								}
 								// Debounce globally to avoid double-toggle (touchend + synthetic click).
 								// IMPORTANT: store state on the TOP window so it persists across iframe re-renders.
-								var now = Date.now();
-								var topWin = (win && win.parent) ? win.parent : window;
-								var lastTs = topWin.__fbUiLastToggleTs || 0;
+									var now = Date.now();
+									var topWin = (win && win.parent) ? win.parent : window;
+									if ((topWin.__fbSuppressUiTapUntil || 0) > now) {
+										resetTransform();
+										return;
+									}
+									var lastTs = topWin.__fbUiLastToggleTs || 0;
 									if ((now - lastTs) > 500) {
 										topWin.__fbUiLastToggleTs = now;
 										try {
@@ -4990,6 +5020,15 @@ function attachSwipeToDoc(doc) {
 									try {
 										var __topWinTapSearch1 = (win && win.parent) ? win.parent : window;
 										if (__topWinTapSearch1 && __topWinTapSearch1.document && __topWinTapSearch1.document.body && __topWinTapSearch1.document.body.classList.contains("search-open")) {
+											resetTransform();
+											return;
+										}
+										if (__topWinTapSearch1 && __topWinTapSearch1.document && __topWinTapSearch1.document.body && __topWinTapSearch1.document.body.classList.contains("mobile-more-open")) {
+											try { if (typeof __topWinTapSearch1.__fb_closeMobileMore === "function") __topWinTapSearch1.__fb_closeMobileMore(); } catch (eCloseMore3) {}
+											try { __topWinTapSearch1.__fbSuppressUiTapUntil = Date.now() + 600; } catch (eSupMore3) {}
+											try { if (ev && typeof ev.preventDefault === "function") ev.preventDefault(); } catch (eP9) {}
+											try { if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation(); } catch (eP10) {}
+											try { if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation(); } catch (eP11) {}
 											resetTransform();
 											return;
 										}
@@ -5034,6 +5073,10 @@ function attachSwipeToDoc(doc) {
 									}
 									var now2 = Date.now();
 									var topWin2 = (win && win.parent) ? win.parent : window;
+									if ((topWin2.__fbSuppressUiTapUntil || 0) > now2) {
+										resetTransform();
+										return;
+									}
 									var lastTs2 = topWin2.__fbUiLastToggleTs || 0;
 										if ((now2 - lastTs2) > 500) {
 											topWin2.__fbUiLastToggleTs = now2;
