@@ -7020,12 +7020,21 @@ function _isIOS(){
 
 function _updateAddressBarIcon(hidden){
 	if (!$addressBarToggle || !$addressBarToggle.length) return;
-	$addressBarToggle
-		.addClass("icon-resize-full")
-		.removeClass("icon-resize-small")
-		.toggleClass("hidden", !!hidden)
-		.attr("aria-label", "Hide address bar")
-		.attr("title", "Hide address bar");
+	if (hidden) {
+		$addressBarToggle
+			.addClass("icon-resize-small")
+			.removeClass("icon-resize-full")
+			.removeClass("hidden")
+			.attr("aria-label", "Exit fullscreen")
+			.attr("title", "Exit fullscreen");
+	} else {
+		$addressBarToggle
+			.addClass("icon-resize-full")
+			.removeClass("icon-resize-small")
+			.removeClass("hidden")
+			.attr("aria-label", "Enter fullscreen")
+			.attr("title", "Enter fullscreen");
+	}
 }
 
 function _getViewportHeight(){
@@ -7051,7 +7060,7 @@ function _syncAddressBarIconState(){
 		addressBarBaseline = Math.min(addressBarBaseline, h);
 	}
 	var delta = h - addressBarBaseline;
-	var hiddenNow = delta > 40; // Android Chrome typically increases viewport by ~50+ px
+	var hiddenNow = _nativeIsFullscreen() || (delta > 40); // fullscreen or collapsed browser UI
 	if (hiddenNow !== addressBarHidden) {
 		addressBarHidden = hiddenNow;
 		_updateAddressBarIcon(addressBarHidden);
@@ -7059,6 +7068,22 @@ function _syncAddressBarIconState(){
 }
 
 function _toggleAddressBar(){
+	// If native fullscreen is active, this click must return to normal mode.
+	if (_nativeIsFullscreen()) {
+		_nativeExitFullscreen();
+		setTimeout(function(){
+			addressBarHidden = false;
+			_updateAddressBarIcon(false);
+		}, 60);
+		return;
+	}
+	// If browser UI is already collapsed (pseudo-fullscreen), try restoring first.
+	if (addressBarHidden) {
+		try { window.scrollTo(0, 0); } catch(e0) {}
+		setTimeout(_syncAddressBarIconState, 80);
+		setTimeout(_syncAddressBarIconState, 240);
+		return;
+	}
 	_nudgeAddressBarNow();
 	setTimeout(_syncAddressBarIconState, 100);
 	setTimeout(_syncAddressBarIconState, 250);
@@ -7091,17 +7116,17 @@ if ($addressBarToggle && $addressBarToggle.length) {
 	if (_isIOS()) {
 		$addressBarToggle.addClass("hidden");
 	} else {
-	_updateAddressBarIcon(addressBarHidden);
-	$addressBarToggle.on("click", function(){
-		_toggleAddressBar();
-	});
-	window.addEventListener("scroll", _syncAddressBarIconState, {passive:true});
-	window.addEventListener("resize", _syncAddressBarIconState);
-	if (window.visualViewport && window.visualViewport.addEventListener) {
-		window.visualViewport.addEventListener("resize", _syncAddressBarIconState);
-		window.visualViewport.addEventListener("scroll", _syncAddressBarIconState);
-	}
-	_syncAddressBarIconState();
+		_updateAddressBarIcon(addressBarHidden);
+		$addressBarToggle.on("click", function(){
+			_toggleAddressBar();
+		});
+		window.addEventListener("scroll", _syncAddressBarIconState, {passive:true});
+		window.addEventListener("resize", _syncAddressBarIconState);
+		if (window.visualViewport && window.visualViewport.addEventListener) {
+			window.visualViewport.addEventListener("resize", _syncAddressBarIconState);
+			window.visualViewport.addEventListener("scroll", _syncAddressBarIconState);
+		}
+		_syncAddressBarIconState();
 	}
 }
 
