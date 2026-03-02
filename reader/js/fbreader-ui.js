@@ -1796,8 +1796,9 @@
           try { r = c.range(cfi); } catch (e0) { r = null; }
           if (!r || r.collapsed) continue;
           if (!rangeMatchesQuery(r)) continue;
-          // iOS: use text spans to guarantee visible highlight under text.
-          if (__fb_isIOS) {
+          // Touch devices: use text spans to guarantee visible highlight under text.
+          // SVG/CSS overlays can end up under iframe composition on mobile/tablet browsers.
+          if (__fb_isIOS || isTouchDeviceForSearchHighlight()) {
             try {
               var spans = highlightTextRange(r);
               if (spans && spans.length) {
@@ -1951,6 +1952,16 @@
         }
         return true;
       }
+      return false;
+    }
+
+    function isTouchDeviceForSearchHighlight() {
+      try {
+        if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
+      } catch (e0) {}
+      try {
+        if (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0) return true;
+      } catch (e1) {}
       return false;
     }
 
