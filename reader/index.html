@@ -420,7 +420,6 @@
 
 <!-- Mobile search bar (replaces titlebar content while searching) -->
 <div id="searchbar" class="searchbar hidden" role="search" aria-label="Book search">
-  <button id="searchBookmark" class="search-btn icon-bookmark" type="button" aria-label="Bookmark"></button>
   <div class="search-nav">
     <button id="searchPrev" class="search-btn search-arrow" type="button" aria-label="Previous match">‹</button>
     <span id="searchCount" class="search-count">0/0</span>
@@ -454,6 +453,28 @@
           <button id="searchClearMobile" class="search-clear hidden" type="button" aria-label="Clear search">×</button>
         </div>
         <button id="searchClose" class="search-btn search-close" type="button" aria-label="Close search">×</button>
+</div>
+
+<div id="searchFloatControls" class="search-float-controls hidden" aria-label="Search navigation">
+  <button id="searchFloatPrev" class="search-float-btn search-float-arrow" type="button" aria-label="Previous match">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M19 12H5"></path>
+      <path d="M11 6L5 12L11 18"></path>
+    </svg>
+  </button>
+  <button id="searchFloatClose" class="search-float-btn search-float-close" type="button" aria-label="Close search">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M6 6L18 18"></path>
+      <path d="M18 6L6 18"></path>
+    </svg>
+  </button>
+  <button id="searchFloatNext" class="search-float-btn search-float-arrow" type="button" aria-label="Next match">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 12H19"></path>
+      <path d="M13 6L19 12L13 18"></path>
+    </svg>
+  </button>
+  <button id="searchFloatReturn" class="search-float-btn search-float-return" type="button" aria-label="Go to first match">↶</button>
 </div>
 
 <!-- Selection toolbar (FBReader-like actions) -->

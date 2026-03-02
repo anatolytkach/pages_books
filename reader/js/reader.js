@@ -4280,6 +4280,10 @@ if (!doc) return;
 				function onEnd(ev){
 					try {
 						if (!ev || st._interactive) return;
+						try {
+							var __topWinSearch = (win && win.parent) ? win.parent : window;
+							if (__topWinSearch && __topWinSearch.document && __topWinSearch.document.body && __topWinSearch.document.body.classList.contains("search-open")) return;
+						} catch (eSearchOpen0) {}
 						if (st.moved) return;
 
 							var changed = (ev.changedTouches && ev.changedTouches[0]) ? ev.changedTouches[0] : null;
@@ -4333,6 +4337,10 @@ if (!doc) return;
 							}, { passive: true, capture: true });
 							doc.addEventListener("pointerup", function(ev){
 								if (!ev || st._interactive || st.moved) return;
+								try {
+									var __topWinSearchP = (win && win.parent) ? win.parent : window;
+									if (__topWinSearchP && __topWinSearchP.document && __topWinSearchP.document.body && __topWinSearchP.document.body.classList.contains("search-open")) return;
+								} catch (eSearchOpen1) {}
 								var x = st.x;
 								var y = st.y;
 								// fix63: center-tap bar toggle is MOBILE-ONLY
@@ -4899,6 +4907,13 @@ function attachSwipeToDoc(doc) {
 						resetTransform();
 						return;
 					}
+					try {
+						var __topWinTapSearch0 = (win && win.parent) ? win.parent : window;
+						if (__topWinTapSearch0 && __topWinTapSearch0.document && __topWinTapSearch0.document.body && __topWinTapSearch0.document.body.classList.contains("search-open")) {
+							resetTransform();
+							return;
+						}
+					} catch (eSearchTap0) {}
 						var abs = toAbsXY(x, y);
 						if (!state.horizontal) {
 							try {
@@ -4972,6 +4987,13 @@ function attachSwipeToDoc(doc) {
 							// Treat small drags as TAPs (Android jitter): if movement is small, toggle UI in center.
 							try {
 								if (!state.startedOnInteractive) {
+									try {
+										var __topWinTapSearch1 = (win && win.parent) ? win.parent : window;
+										if (__topWinTapSearch1 && __topWinTapSearch1.document && __topWinTapSearch1.document.body && __topWinTapSearch1.document.body.classList.contains("search-open")) {
+											resetTransform();
+											return;
+										}
+									} catch (eSearchTap1) {}
 									if (typeof x === "number" && typeof y === "number" && doc && typeof doc.__fb_tryFootnoteAtPoint === "function") {
 										try {
 											if (doc.__fb_tryFootnoteAtPoint(x, y)) {

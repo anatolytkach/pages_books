@@ -3274,9 +3274,56 @@ html.is-ios .comment-sheet{
 .searchbar .search-close { margin-left: 0; }
 .searchbar .search-return { font-size: 32px; padding: 4px 8px; }
 
+.search-float-controls {
+  position: fixed;
+  left: 50%;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 10040;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(68, 68, 68, 0.50);
+}
+.search-float-controls.hidden { display: none !important; }
+.search-float-btn {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #f4f4f4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  text-align: center;
+}
+.search-float-btn:active { opacity: 0.75; }
+.search-float-btn svg {
+  width: 40px;
+  height: 40px;
+  display: block;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.search-float-return {
+  font-size: 54px;
+  font-weight: 300;
+  line-height: 1;
+  transform: rotate(90deg);
+  transform-origin: 50% 50%;
+}
+
 /* Desktop: always show search input left of icon */
 @media (hover:hover) and (pointer:fine) {
   .searchbar { display: none !important; }
+  .search-float-controls { display: none !important; }
   #searchOpen { display: none !important; }
   #ttsToggleMobile { display: none !important; }
   #ttsToggleDesktop { display: inline-flex !important; }
@@ -3290,6 +3337,7 @@ body.search-open #titlebar #title-controls > :not(#searchDesktop) {
 }
 body.search-open #titlebar { position: fixed; }
 body.search-open #searchbar { display: flex; }
+body.search-open.search-minimized #searchbar { display: none !important; }
 
 /* Mobile: replace the full top bar (avoid "ghost"/empty bar) */
 @media (max-width: 1024px) {
@@ -3327,6 +3375,7 @@ body.search-open #searchbar { display: flex; }
 /* Mobile: keep search behavior; just hide counter */
 @media (max-width: 768px) {
   #searchCount { display: none !important; }
+  #searchbar .search-nav { display: none !important; }
   body.ui-hidden #titlebar,
   body.ui-hidden #bottombar { pointer-events: none; }
   body.ui-hidden #titlebar *,
@@ -3371,6 +3420,11 @@ body.search-open #searchbar { display: flex; }
     width: 22px;
     height: 22px;
   }
+}
+
+/* Touch devices: hide nav arrows in top search bar; use floating panel instead. */
+@media (hover: none) and (pointer: coarse) {
+  #searchbar .search-nav { display: none !important; }
 }
 
 /* iOS: prevent input focus zoom / horizontal pan from expanding bars */
@@ -3711,9 +3765,9 @@ html.is-tablet .overlay-backdrop {
   }
 }
 
-/* Tablet override: keep desktop search field visible and hide mobile search icon */
+/* Tablet override: use mobile-style search entry icon (same behavior as phones). */
 html.is-tablet #searchDesktop .search-input-wrap {
-  display: inline-flex !important;
+  display: none !important;
 }
 html.is-tablet #searchDesktop .search-nav.desktop {
   display: none !important;
@@ -3721,6 +3775,6 @@ html.is-tablet #searchDesktop .search-nav.desktop {
 html.is-tablet #searchDesktop .search-nav.desktop[aria-hidden="false"] {
   display: inline-flex !important;
 }
-html.is-tablet #searchOpen { display: none !important; }
+html.is-tablet #searchOpen { display: inline-flex !important; }
 html.is-tablet #ttsToggleDesktop { display: none !important; }
 html.is-tablet #ttsToggleMobile { display: inline-flex !important; }

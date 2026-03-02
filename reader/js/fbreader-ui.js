@@ -321,6 +321,9 @@
   }
   function toggleUi() {
     if (window.__fbSelectionActive) return;
+    try {
+      if (document.body && document.body.classList && document.body.classList.contains("search-open")) return;
+    } catch (eSearchOpen) {}
     try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs2) {}
     document.body.classList.toggle("ui-hidden");
     syncBarHeights(false);
@@ -1135,6 +1138,9 @@
       function onEnd(e) {
         // Center tap toggles bars on mobile only, and only if it was a real tap (no swipe).
         if (__fb_isDesktop) return;
+        try {
+          if (document.body && document.body.classList && document.body.classList.contains("search-open")) return;
+        } catch (eSearch) {}
         if (moved) return;
         try {
           if (Date.now() - startTime > 150) return;
@@ -1374,7 +1380,12 @@
       mobileBookmark: document.getElementById("searchBookmark"),
       mobilePrev: document.getElementById("searchPrev"),
       mobileNext: document.getElementById("searchNext"),
-      mobileCount: document.getElementById("searchCount")
+      mobileCount: document.getElementById("searchCount"),
+      floatPanel: document.getElementById("searchFloatControls"),
+      floatPrev: document.getElementById("searchFloatPrev"),
+      floatNext: document.getElementById("searchFloatNext"),
+      floatClose: document.getElementById("searchFloatClose"),
+      floatReturn: document.getElementById("searchFloatReturn")
     };
 
     var state = {
@@ -1406,8 +1417,16 @@
       matchIndex: -1,
       legacyTextHlCleared: false,
       ensureVisibleToken: 0,
-      ensureVisibleTimer: null
+      ensureVisibleTimer: null,
+      preUiHidden: true
     };
+
+    function isTouchSearchUi() {
+      try {
+        return isTabletViewport() || isMobileViewport();
+      } catch (e) {}
+      return false;
+    }
 
     function setCountText(txt) {
       if (els.mobileCount) els.mobileCount.textContent = txt;
@@ -1421,9 +1440,8 @@
     }
 
     function setMobileNavVisible(v) {
-      // On mobile we show arrows+counter only when query is non-empty (FBReader-like).
-      var nav = els.mobileBar && els.mobileBar.querySelector(".search-nav");
-      if (nav) nav.style.display = v ? "inline-flex" : "none";
+      // On touch devices navigation lives in a floating panel (FBReader-like).
+      if (els.floatPanel) els.floatPanel.classList.toggle("hidden", !v);
     }
 
     function refreshSearchUiVisibility() {
@@ -1497,20 +1515,22 @@
 
     function openSearch() {
       if (state.open) return;
-      // Make sure bars are visible (especially after returning from fullscreen on mobile)
-      // before we swap the titlebar layout into the search bar.
-      try { showUi(); } catch (e) {}
       state.open = true;
+      state.preUiHidden = !!document.body.classList.contains("ui-hidden");
+      document.body.classList.remove("search-minimized");
       state.preCfi = getCurrentCfi();
       state.preHref = getCurrentHref();
       state.legacyTextHlCleared = false;
-      if (!isDesktopNow()) {
+      if (isTouchSearchUi()) {
+        // Mobile/tablet: hide bars; keep only search UI and floating search controls.
+        try { hideUi(); } catch (eHide) {}
         document.body.classList.add("search-open");
         if (els.mobileBar) els.mobileBar.classList.remove("hidden");
         try { syncBarHeights(); } catch (e) {}
         syncBookmarkIcon();
         // Mobile: do NOT auto-focus. Keyboard must appear only after user taps the input.
       } else {
+        try { showUi(); } catch (eShow) {}
         try { if (els.deskInput) els.deskInput.focus(); } catch(e){}
       }
       setCountText("0/0");
@@ -1521,7 +1541,9 @@
       if (!state.open) return;
       state.open = false;
       document.body.classList.remove("search-open");
+      document.body.classList.remove("search-minimized");
       if (els.mobileBar) els.mobileBar.classList.add("hidden");
+      if (els.floatPanel) els.floatPanel.classList.add("hidden");
       try { syncBarHeights(); } catch (e) {}
       setDesktopNavVisible(false);
       setMobileNavVisible(false);
@@ -1557,10 +1579,17 @@
       setCountText("0/0");
       try { if (els.mobileInput) els.mobileInput.value = ""; } catch(e){}
       try { if (els.deskInput) els.deskInput.value = ""; } catch(e){}
+      if (isTouchSearchUi()) {
+        try {
+          // Closing floating search on touch must keep bars hidden.
+          hideUi();
+        } catch (eUiRestore) {}
+      }
     }
 
     function clearInput() {
       state.query = "";
+      document.body.classList.remove("search-minimized");
       state.searchActive = false;
       state.lastSearchQuery = "";
       state.excludeFootnotes = false;
@@ -2097,6 +2126,12 @@
 
     function goPrev() { navigate(-1, false); }
     function goNext() { navigate(1, false); }
+    function goFirstMatch() {
+      if (state.searching) return;
+      if (!state.searchActive) return;
+      if (!state.matchList || !state.matchList.length) return;
+      showMatchByIndex(0);
+    }
 
     function goBackToPre() {
       // Clear the current query and return to the location where search was opened.
@@ -2331,6 +2366,9 @@
     function runSearch(query) {
       var q = (query || "").trim();
       state.query = q;
+      if (isTouchSearchUi()) {
+        document.body.classList.toggle("search-minimized", !!q);
+      }
       showClearButtons();
       refreshSearchUiVisibility();
 
@@ -2459,6 +2497,16 @@
     if (els.mobileClear) els.mobileClear.addEventListener("click", clearInput);
     if (els.mobilePrev) els.mobilePrev.addEventListener("click", goPrev);
     if (els.mobileNext) els.mobileNext.addEventListener("click", goNext);
+    if (els.floatPrev) els.floatPrev.addEventListener("click", goPrev);
+    if (els.floatNext) els.floatNext.addEventListener("click", goNext);
+    if (els.floatReturn) els.floatReturn.addEventListener("click", function (e) {
+      if (e) e.preventDefault();
+      goFirstMatch();
+    });
+    if (els.floatClose) els.floatClose.addEventListener("click", function (e) {
+      if (e) e.preventDefault();
+      closeSearch();
+    });
     if (els.deskPrev) els.deskPrev.addEventListener("click", goPrev);
     if (els.deskNext) els.deskNext.addEventListener("click", goNext);
     const onReturn = (e) => {
