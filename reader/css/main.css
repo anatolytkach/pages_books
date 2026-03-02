@@ -2410,6 +2410,14 @@ body.ui-hidden #viewerStack{
   right: var(--viewer-side);
 }
 
+/* Mobile/tablet: bars overlay text and must not resize the reading viewport */
+@media (hover: none) and (pointer: coarse) {
+  #viewerStack {
+    top: 0 !important;
+    bottom: 0 !important;
+  }
+}
+
 /* Viewer layers live inside #viewerStack (never fixed individually) */
 #viewer, #viewer-prev, #viewer-next{
   position: absolute;

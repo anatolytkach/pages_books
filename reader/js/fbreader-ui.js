@@ -223,8 +223,16 @@
     try {
       var vs = document.getElementById("viewerStack") || document.getElementById("viewer");
       if (!vs) return;
+      var overlayBars = false;
+      try {
+        // Mobile + tablet: bars must overlay content and never change reading viewport.
+        overlayBars = isTabletViewport() || isMobileViewport();
+      } catch (eOverlay) {}
       var hidden = document.body.classList.contains("ui-hidden");
-      if (hidden) {
+      if (overlayBars) {
+        vs.style.top = "0px";
+        vs.style.bottom = "0px";
+      } else if (hidden) {
         vs.style.top = "0px";
         vs.style.bottom = "0px";
       } else {
