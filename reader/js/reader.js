@@ -7871,14 +7871,12 @@ EPUBJS.reader.SidebarController = function(book) {
 		reader.sidebarOpen = true;
 		reader.ReaderController.slideOut();
 		$sidebar.addClass("open");
-		$slider.addClass("icon-right").removeClass("icon-menu");
 	};
 
 	var hide = function() {
 		reader.sidebarOpen = false;
 		reader.ReaderController.slideIn();
 		$sidebar.removeClass("open");
-		$slider.addClass("icon-menu").removeClass("icon-right");
 	};
 
 	$panels.find(".show_view").on("click", function(event) {

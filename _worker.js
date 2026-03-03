@@ -315,6 +315,13 @@ export default {
     const headers = new Headers(response.headers);
     const isCatalogHtml =
       path === "/books" || path === "/books/" || path === "/books/index.html";
+    const isReaderPath =
+      path === "/books/reader/" ||
+      path === "/books/reader/index.html" ||
+      path.startsWith("/books/reader/css/") ||
+      path.startsWith("/books/reader/js/") ||
+      path.startsWith("/books/reader/icons/") ||
+      path.startsWith("/books/reader/fonts/");
     const contentType = String(headers.get("content-type") || "").toLowerCase();
     const isHtml = contentType.includes("text/html");
 
@@ -322,6 +329,13 @@ export default {
     headers.set("x-reader-route", isCatalogHtml ? "catalog" : "assets");
     if (isCatalogHtml) {
       headers.set("cache-control", "no-store");
+    }
+    if (isReaderPath) {
+      headers.set("cache-control", "no-store, no-cache, must-revalidate, max-age=0");
+      headers.set("pragma", "no-cache");
+      headers.set("expires", "0");
+      headers.set("cdn-cache-control", "no-store");
+      headers.set("cloudflare-cdn-cache-control", "no-store");
     }
 
     if (isHtml && driveClientId) {

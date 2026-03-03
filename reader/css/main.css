@@ -383,6 +383,11 @@ html.is-desktop #openBookmarks {
   content: none !important;
   display: none !important;
 }
+#slider.icon-menu::before,
+#slider.icon-right::before {
+  content: none !important;
+  display: none !important;
+}
 #slider,
 #slider:hover,
 #slider:active {
@@ -773,8 +778,8 @@ body.dark-ui #bottombar {
 }
 
 #title-controls {
-  --title-icon-size: 22px;
-  --title-icon-glyph-size: 20px;
+  --title-icon-size: 20px;
+  --title-icon-glyph-size: 18px;
   --title-icon-gap: 10px;
   flex: 0 0 auto;
   flex-shrink: 0;
@@ -820,6 +825,7 @@ body.dark-ui #bottombar {
 #title-controls .tts-toggle {
   cursor: pointer;
   overflow: visible;
+  margin-left: 12px;
 }
 #title-controls .tts-toggle .tts-icon {
   width: var(--title-icon-glyph-size);
@@ -880,6 +886,7 @@ body.dark-ui #bottombar {
 #addressBarToggle .ab-icon,
 #mobileMoreToggle .mobile-more-icon {
   object-fit: fill;
+  vertical-align: middle;
   filter: brightness(0) saturate(100%) invert(86%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(101%) contrast(90%);
 }
 
@@ -891,14 +898,23 @@ body.dark-ui #bottombar {
   display: block;
   border-radius: 0 !important;
   background: transparent !important;
-  fill: currentColor !important;
+  fill: #d0d0d0 !important;
   stroke: none !important;
   filter: none !important;
   object-fit: contain !important;
 }
 #slider .menu-hamburger-icon * {
-  fill: currentColor !important;
+  fill: #d0d0d0 !important;
   stroke: none !important;
+}
+#slider .menu-hamburger-icon-img {
+  width: var(--title-icon-glyph-size, 20px);
+  height: var(--title-icon-glyph-size, 20px);
+  min-width: var(--title-icon-glyph-size, 20px);
+  min-height: var(--title-icon-glyph-size, 20px);
+  display: none;
+  object-fit: fill;
+  filter: brightness(0) saturate(100%) invert(86%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(101%) contrast(90%);
 }
 #titlebar #slider,
 #titlebar #slider:hover,
@@ -3481,6 +3497,11 @@ html.is-tablet #opener #openNotes,
 html.is-tablet #opener #openBookmarks {
   display: none !important;
 }
+/* iOS safety: even if is-phone/is-tablet class detection fails, keep only hamburger in opener */
+html.is-ios #opener #openNotes,
+html.is-ios #opener #openBookmarks {
+  display: none !important;
+}
 html.is-phone #opener #slider,
 html.is-tablet #opener #slider {
   width: var(--title-icon-size, 22px);
@@ -3491,6 +3512,16 @@ html.is-tablet #opener #slider {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+html.is-ios #opener #slider {
+  width: var(--title-icon-size, 22px) !important;
+  height: var(--title-icon-size, 22px) !important;
+  min-width: var(--title-icon-size, 22px) !important;
+  min-height: var(--title-icon-size, 22px) !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 html.is-phone #titlebar,
 html.is-tablet #titlebar {
@@ -3523,13 +3554,16 @@ html.is-tablet #metainfo {
 }
 html.is-phone #title-controls,
 html.is-tablet #title-controls {
-  --title-icon-size: 22px;
-  --title-icon-glyph-size: 22px;
+  --title-icon-size: 20px;
+  --title-icon-glyph-size: 20px;
   --title-icon-gap: 18px;
   margin-left: auto;
   gap: var(--title-icon-gap);
   padding-left: 12px;
   padding-right: calc(6px + env(safe-area-inset-right));
+}
+html.is-ios #title-controls {
+  padding-right: calc(12px + env(safe-area-inset-right));
 }
 html.is-phone #title-controls > *,
 html.is-tablet #title-controls > * {
@@ -3577,6 +3611,10 @@ html.is-tablet #addressBarToggle {
   display: inline-flex !important;
   margin: 0 !important;
 }
+html.is-phone #ttsToggleMobile,
+html.is-tablet #ttsToggleMobile {
+  margin-left: 12px !important;
+}
 html.is-phone #title-controls a,
 html.is-phone #title-controls button,
 html.is-tablet #title-controls a,
@@ -3609,6 +3647,16 @@ html.is-tablet #mobileMoreToggle .mobile-more-icon {
   transform: none !important;
   display: block !important;
   object-fit: fill !important;
+}
+html.is-ios #slider .menu-hamburger-icon {
+  display: none !important;
+}
+html.is-ios #slider {
+  background-image: url("../icons/hamburger.svg?v=20260303-ios-hamburger-bg-1") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: var(--title-icon-glyph-size) var(--title-icon-glyph-size) !important;
+  border-radius: 0 !important;
 }
 html.is-phone #ttsToggleMobile .tts-icon-on,
 html.is-tablet #ttsToggleMobile .tts-icon-on {
