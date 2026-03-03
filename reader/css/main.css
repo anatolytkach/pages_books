@@ -891,21 +891,7 @@ body.dark-ui #bottombar {
 }
 
 #slider .menu-hamburger-icon {
-  width: var(--title-icon-glyph-size, 20px);
-  height: var(--title-icon-glyph-size, 20px);
-  min-width: var(--title-icon-glyph-size, 20px);
-  min-height: var(--title-icon-glyph-size, 20px);
-  display: block;
-  border-radius: 0 !important;
-  background: transparent !important;
-  fill: #d0d0d0 !important;
-  stroke: none !important;
-  filter: none !important;
-  object-fit: contain !important;
-}
-#slider .menu-hamburger-icon * {
-  fill: #d0d0d0 !important;
-  stroke: none !important;
+  display: none !important;
 }
 #slider .menu-hamburger-icon-img {
   width: var(--title-icon-glyph-size, 20px);
@@ -919,6 +905,10 @@ body.dark-ui #bottombar {
 #titlebar #slider,
 #titlebar #slider:hover,
 #titlebar #slider:active {
+  background-image: url("../icons/hamburger.svg?v=20260303-hamburger-bg-all-1") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: var(--title-icon-glyph-size) var(--title-icon-glyph-size) !important;
   border-radius: 0 !important;
   overflow: visible !important;
 }
