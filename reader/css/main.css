@@ -2268,6 +2268,7 @@ body.dark{
 /* Disable center-tap capture while overlays are open (TOC / Bookmarks), so backdrop clicks work reliably */
 body.sidebar-open #fb-tap-layer{ display:none; }
 body.overlay-open #fb-tap-layer{ display:none; }
+body.mobile-more-open #fb-tap-layer{ display:none; }
 
 body.sidebar-open #sidebar-backdrop{
   opacity: 1;

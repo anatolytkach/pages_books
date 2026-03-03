@@ -348,6 +348,11 @@
     var fontDec = document.getElementById("fontDec");
     var fontInc = document.getElementById("fontInc");
     if (!toggle || !panel) return;
+    // Keep the panel in the root stacking context. On iOS, fixed overlays nested
+    // inside transformed containers can lose hit-testing priority to backdrops.
+    try {
+      if (panel.parentNode !== document.body) document.body.appendChild(panel);
+    } catch (ePanelMove) {}
     var backdrop = document.getElementById("mobileMoreBackdrop");
     if (!backdrop) {
       try {
