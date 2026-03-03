@@ -4250,8 +4250,12 @@ if (!doc) return;
 					try {
 						if (!t) return false;
 						var tag = (t.tagName || "").toLowerCase();
-						if (tag === "a" || tag === "button" || tag === "input" || tag === "textarea" || tag === "select" || tag === "label") return true;
-						if (t.closest && t.closest("a,button,input,textarea,select,label")) return true;
+						if (tag === "button" || tag === "input" || tag === "textarea" || tag === "select" || tag === "label") return true;
+						var a = null;
+						if (tag === "a") a = t;
+						else if (t.closest) a = t.closest("a");
+						if (a && looksLikeFootnoteHref(a.getAttribute("href"))) return true;
+						if (t.closest && t.closest("button,input,textarea,select,label")) return true;
 					} catch(e){}
 					return false;
 				}
@@ -4592,8 +4596,12 @@ function attachSwipeToDoc(doc) {
 					try {
 						if (!el) return false;
 						var tag = (el.tagName || "").toLowerCase();
-						if (tag === "a" || tag === "button" || tag === "input" || tag === "textarea" || tag === "select" || tag === "label") return true;
-						return !!(el.closest && el.closest("a,button,input,textarea,select,label"));
+						if (tag === "button" || tag === "input" || tag === "textarea" || tag === "select" || tag === "label") return true;
+						var a = null;
+						if (tag === "a") a = el;
+						else if (el.closest) a = el.closest("a");
+						if (a && looksLikeFootnoteHref(a.getAttribute("href"))) return true;
+						return !!(el.closest && el.closest("button,input,textarea,select,label"));
 					} catch (e) { return false; }
 				}
 

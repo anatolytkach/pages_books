@@ -787,10 +787,15 @@
                   return;
                 }
               }
-              // Exact hit on any interactive should also pass through.
-              try { if (interactive.focus) interactive.focus(); } catch (e2) {}
-              try { if (interactive.click) interactive.click(); } catch (e3) {}
-              return;
+              // Keep native controls clickable, but allow non-footnote links/text to toggle bars.
+              try {
+                var tag = ((interactive.tagName || "") + "").toLowerCase();
+                if (tag === "button" || tag === "input" || tag === "textarea" || tag === "select" || tag === "label") {
+                  try { if (interactive.focus) interactive.focus(); } catch (e2) {}
+                  try { if (interactive.click) interactive.click(); } catch (e3) {}
+                  return;
+                }
+              } catch (eTag) {}
             }
           }
         } catch (e2) {}
@@ -842,9 +847,22 @@
             }
             var interactive = findInteractiveAtPoint(pt.clientX, pt.clientY);
             if (interactive) {
-              try { if (interactive.focus) interactive.focus(); } catch (eI0) {}
-              try { if (interactive.click) interactive.click(); } catch (eI1) {}
-              return;
+              if (interactive.tagName === "A" || (interactive.closest && interactive.closest("a"))) {
+                var a2 = (interactive.tagName === "A") ? interactive : (interactive.closest ? interactive.closest("a") : null);
+                if (a2 && isFootnoteAnchor(a2)) {
+                  try { if (a2.focus) a2.focus(); } catch (eI0) {}
+                  try { if (a2.click) a2.click(); } catch (eI1) {}
+                  return;
+                }
+              }
+              try {
+                var tag2 = ((interactive.tagName || "") + "").toLowerCase();
+                if (tag2 === "button" || tag2 === "input" || tag2 === "textarea" || tag2 === "select" || tag2 === "label") {
+                  try { if (interactive.focus) interactive.focus(); } catch (eI2) {}
+                  try { if (interactive.click) interactive.click(); } catch (eI3) {}
+                  return;
+                }
+              } catch (eITag) {}
             }
           }
         } catch (eHit) {}
