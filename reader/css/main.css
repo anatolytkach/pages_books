@@ -3548,13 +3548,14 @@ html.is-tablet #title-controls {
   --title-icon-size: 20px;
   --title-icon-glyph-size: 20px;
   --title-icon-gap: 18px;
+  --controls-right-pad: 12px;
   margin-left: auto;
   gap: var(--title-icon-gap);
   padding-left: 12px;
-  padding-right: calc(6px + env(safe-area-inset-right));
+  padding-right: calc(var(--controls-right-pad) + env(safe-area-inset-right));
 }
 html.is-ios #title-controls {
-  padding-right: calc(12px + env(safe-area-inset-right));
+  padding-right: calc(18px + env(safe-area-inset-right)) !important;
 }
 html.is-phone #title-controls > *,
 html.is-tablet #title-controls > * {
@@ -3605,6 +3606,9 @@ html.is-tablet #addressBarToggle {
 html.is-phone #ttsToggleMobile,
 html.is-tablet #ttsToggleMobile {
   margin-left: 12px !important;
+}
+html.is-ios #mobileMoreToggle {
+  margin-right: 4px !important;
 }
 html.is-phone #title-controls a,
 html.is-phone #title-controls button,
