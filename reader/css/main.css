@@ -293,15 +293,6 @@ body.dark #fullscreen {
   background: #ffffff;
 }
 
-/* Mobile: make the top bar 1.5x taller */
-@media (max-width: 768px) {
-  #titlebar {
-    height: 72px;
-    min-height: 72px;
-    padding: 12px 12px;
-  }
-}
-
 #titlebar:hover { opacity: 1; }
 
 #titlebar a {
@@ -363,30 +354,6 @@ html.is-desktop #openBookmarks {
   transform-origin: center;
 }
 
-/* Make the Dark/Light toggle fit its label */
-#themeToggle {
-  width: auto !important;
-  overflow: visible !important;
-  padding: 4px 10px !important;
-  font-family: var(--ui-font-family);
-  font-weight: 400;
-}
-
-#themeToggle::before {
-  margin-right: 6px;
-}
-
-#addressBarToggle {
-  width: 18px;
-  height: 19px;
-  line-height: 20px;
-  overflow: hidden;
-  display: inline-block;
-  opacity: 1;
-  padding: 4px;
-  border-radius: 4px;
-}
-
 #addressBarToggle.hidden {
   display: none;
 }
@@ -409,6 +376,20 @@ html.is-desktop #openBookmarks {
   -webkit-box-shadow: inset 0 0 6px rgba(155,155,155,.8);
   -ms-box-shadow: inset 0 0 6px rgba(155,155,155,.8);
   box-shadow: inset 0 0 6px rgba(155,155,155,.8);
+}
+
+/* Hamburger must use only SVG (no icon-font / hover box artifacts). */
+#slider::before {
+  content: none !important;
+  display: none !important;
+}
+#slider,
+#slider:hover,
+#slider:active {
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 #book-title {
@@ -776,7 +757,7 @@ body.dark-ui #bottombar {
   display: flex;
   align-items: center;
   text-align: left;
-  margin-left: clamp(8px, 2vw, 30px);
+  margin-left: 8px;
   min-width: 0;
   max-width: 100%;
 }
@@ -792,12 +773,14 @@ body.dark-ui #bottombar {
 }
 
 #title-controls {
-  --title-icon-size: 18px;
+  --title-icon-size: 22px;
+  --title-icon-glyph-size: 20px;
+  --title-icon-gap: 10px;
   flex: 0 0 auto;
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--title-icon-gap);
   white-space: nowrap;
 }
 
@@ -822,34 +805,29 @@ body.dark-ui #bottombar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 19px;
-  padding: 4px;
+  width: var(--title-icon-size);
+  height: var(--title-icon-size);
+  min-width: var(--title-icon-size);
+  min-height: var(--title-icon-size);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
   line-height: 1;
+  border-radius: 0;
 }
 
 #title-controls .tts-toggle {
-  border: 0;
-  background: transparent;
   cursor: pointer;
-  width: auto;
-  height: auto;
-  padding: 0;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  overflow: visible;
 }
 #title-controls .tts-toggle .tts-icon {
-  width: var(--title-icon-size);
-  height: var(--title-icon-size);
+  width: var(--title-icon-glyph-size);
+  height: var(--title-icon-glyph-size);
+  min-width: var(--title-icon-glyph-size);
+  min-height: var(--title-icon-glyph-size);
   display: block;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transform: scale(1.22);
-  transform-origin: center center;
+  object-fit: fill;
 }
 #title-controls .tts-toggle .tts-icon-off { display: none; }
 #title-controls .tts-toggle.is-speaking .tts-icon-on { display: none; }
@@ -857,44 +835,68 @@ body.dark-ui #bottombar {
 #ttsToggleDesktop { display: inline-flex; }
 #ttsToggleMobile { display: none; }
 
-@media (hover: hover) and (pointer: fine) {
-  /* Desktop: keep a clearer gap between TTS icon and search field */
-  #ttsToggleDesktop {
-    margin-right: 10px;
-  }
-}
-
 /* Keep the two A buttons visually tight */
 #title-controls .font-size-btn{
   margin: 0 !important;
+  width: auto;
+  min-width: 0;
   padding: 0 2px;
   line-height: 1;
 }
 
 /* Theme toggle icon (single icon for both themes) */
 #title-controls .theme-icon-btn{ background: transparent; border: 0; cursor: pointer; }
-#title-controls .theme-icon{ width: var(--title-icon-size); height: var(--title-icon-size); display: block; }
+#title-controls .theme-icon{ width: var(--title-icon-glyph-size); height: var(--title-icon-glyph-size); display: block; object-fit: fill; }
 
 .mobile-more-toggle {
   display: none !important;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  min-width: 23px;
-  height: 23px;
-  padding: 5px 6px;
-  line-height: 1;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  overflow: visible;
+  overflow: hidden;
 }
 .mobile-more-toggle .mobile-more-icon {
-  width: calc(var(--title-icon-size) + 1px);
-  height: calc(var(--title-icon-size) + 1px);
+  width: var(--title-icon-glyph-size);
+  height: var(--title-icon-glyph-size);
+  min-width: var(--title-icon-glyph-size);
+  min-height: var(--title-icon-glyph-size);
   display: block;
-  fill: currentColor;
-  transform: none;
+  object-fit: fill;
+}
+
+#searchOpen .search-open-icon,
+#addressBarToggle .ab-icon {
+  width: var(--title-icon-glyph-size);
+  height: var(--title-icon-glyph-size);
+  min-width: var(--title-icon-glyph-size);
+  min-height: var(--title-icon-glyph-size);
+  display: block;
+  object-fit: fill;
+}
+
+#title-controls .tts-icon,
+#searchOpen .search-open-icon,
+#themeToggle .theme-icon,
+#addressBarToggle .ab-icon,
+#slider .menu-hamburger-icon,
+#mobileMoreToggle .mobile-more-icon {
+  object-fit: fill;
+  filter: brightness(0) saturate(100%) invert(86%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(101%) contrast(90%);
+}
+
+#slider .menu-hamburger-icon {
+  width: var(--title-icon-glyph-size, 20px);
+  height: var(--title-icon-glyph-size, 20px);
+  min-width: var(--title-icon-glyph-size, 20px);
+  min-height: var(--title-icon-glyph-size, 20px);
+  display: block;
+}
+
+#addressBarToggle::before,
+#searchOpen::before,
+#mobileMoreToggle::before {
+  content: none !important;
+  display: none !important;
 }
 
 .mobile-more-panel {
@@ -949,12 +951,11 @@ body.dark-ui #bottombar {
 /* fullscreen button removed */
 
 #themeToggle {
-  /* Make sure the label fully fits and sits aligned with icons */
-  padding: 2px 10px;
-  margin-left: 10px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  font-size: 14px;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  border: 0;
+  font-size: inherit;
 }
 
 /* Font size menu (A button + 5-step scale)
@@ -1972,8 +1973,7 @@ html.is-desktop .selection-toolbar .sel-share{ display: none; }
   cursor:pointer;
   user-select:none;
   border: 1px solid transparent;
-  /* first A gets a normal gap from the bookmark icon */
-  margin-left:10px;
+  margin-left:0;
 }
 /* second A should be much closer to the first */
 #title-controls .font-size-btn + .font-size-btn{ margin-left:2px; }
@@ -3386,16 +3386,7 @@ html.is-ios .comment-sheet{
   transform-origin: 50% 50%;
 }
 
-/* Desktop: always show search input left of icon */
-@media (hover:hover) and (pointer:fine) {
-  .searchbar { display: none !important; }
-  .search-float-controls { display: none !important; }
-  #searchOpen { display: none !important; }
-  #ttsToggleMobile { display: none !important; }
-  #ttsToggleDesktop { display: inline-flex !important; }
-}
-
-/* When search is open on mobile, hide the normal titlebar content */
+/* Search/topbar mode switching */
 body.search-open #titlebar #metainfo,
 body.search-open #titlebar #opener,
 body.search-open #titlebar #title-controls > :not(#searchDesktop) {
@@ -3405,25 +3396,235 @@ body.search-open #titlebar { position: fixed; }
 body.search-open #searchbar { display: flex; }
 body.search-open.search-minimized #searchbar { display: none !important; }
 
-/* Mobile: replace the full top bar (avoid "ghost"/empty bar) */
-@media (max-width: 1024px) {
-  body.search-open #titlebar {
-    display: none;
-  }
-  body.search-open #searchbar {
-    display: flex;
-  }
+/* Touch: while mobile search is open, hide titlebar completely */
+html.is-phone body.search-open:not(.search-minimized) #titlebar,
+html.is-tablet body.search-open:not(.search-minimized) #titlebar {
+  display: none;
+}
+html.is-phone body.search-open:not(.search-minimized) #searchbar,
+html.is-tablet body.search-open:not(.search-minimized) #searchbar {
+  display: flex;
 }
 
-/* Search icon placement: leftmost in the right icon group on mobile */
-@media (max-width: 768px) {
-  #searchDesktop .search-input-wrap { display: none; }
-  #searchDesktop .search-nav.desktop { display: none !important; }
-  :root { --titlebar-h: 48px; }
-  #titlebar { height: 48px; min-height: 48px; padding: 8px 10px; }
+/* Canonical desktop/touch control policy */
+.search-count,
+#searchCountDesktop,
+#searchCount {
+  display: none !important;
+}
 
-  /* Search bar on mobile should be 1.5x taller */
-  #searchbar { height: var(--titlebar-h); padding: 8px 12px; }
+html.is-desktop .searchbar { display: none !important; }
+html.is-desktop .search-float-controls { display: none !important; }
+html.is-desktop #searchOpen { display: none !important; }
+html.is-desktop #ttsToggleMobile { display: none !important; }
+html.is-desktop #ttsToggleDesktop { display: inline-flex !important; }
+html.is-desktop #addressBarToggle { display: none !important; }
+
+html.is-phone #prev,
+html.is-phone #next,
+html.is-tablet #prev,
+html.is-tablet #next {
+  display: none !important;
+}
+
+/* Touch geometry and icon layout (single source of truth) */
+html.is-phone #searchCount,
+html.is-tablet #searchCount,
+html.is-phone #searchbar .search-nav,
+html.is-tablet #searchbar .search-nav {
+  display: none !important;
+}
+html.is-phone body.ui-hidden #titlebar,
+html.is-phone body.ui-hidden #bottombar,
+html.is-tablet body.ui-hidden #titlebar,
+html.is-tablet body.ui-hidden #bottombar {
+  pointer-events: none;
+}
+html.is-phone body.ui-hidden #titlebar *,
+html.is-phone body.ui-hidden #bottombar *,
+html.is-tablet body.ui-hidden #titlebar *,
+html.is-tablet body.ui-hidden #bottombar * {
+  pointer-events: auto;
+}
+html.is-phone #opener #openNotes,
+html.is-phone #opener #openBookmarks,
+html.is-tablet #opener #openNotes,
+html.is-tablet #opener #openBookmarks {
+  display: none !important;
+}
+html.is-phone #opener #slider,
+html.is-tablet #opener #slider {
+  width: var(--title-icon-size, 22px);
+  height: var(--title-icon-size, 22px);
+  min-width: var(--title-icon-size, 22px);
+  min-height: var(--title-icon-size, 22px);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+html.is-phone #titlebar,
+html.is-tablet #titlebar {
+  --titlebar-h: 48px;
+  height: var(--titlebar-h);
+  min-height: var(--titlebar-h);
+  padding: 8px 10px;
+  justify-content: flex-start;
+  gap: 8px;
+  overflow: hidden;
+}
+html.is-phone #searchbar,
+html.is-tablet #searchbar {
+  height: 48px;
+  padding: 8px 12px;
+}
+html.is-phone #bottombar,
+html.is-tablet #bottombar {
+  min-height: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+html.is-phone #metainfo,
+html.is-tablet #metainfo {
+  margin-left: 6px !important;
+  margin-right: 0 !important;
+  overflow: hidden;
+}
+html.is-phone #title-controls,
+html.is-tablet #title-controls {
+  --title-icon-size: 22px;
+  --title-icon-glyph-size: 22px;
+  --title-icon-gap: 18px;
+  margin-left: auto;
+  gap: var(--title-icon-gap);
+  padding-left: 12px;
+  padding-right: calc(6px + env(safe-area-inset-right));
+}
+html.is-phone #title-controls > *,
+html.is-tablet #title-controls > * {
+  flex: 0 0 auto;
+}
+html.is-phone #searchDesktop,
+html.is-tablet #searchDesktop {
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  z-index: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--title-icon-gap);
+  margin: 0;
+  flex: 0 0 auto;
+}
+html.is-phone #searchDesktop .search-input-wrap,
+html.is-phone #searchDesktop .search-nav.desktop,
+html.is-tablet #searchDesktop .search-input-wrap,
+html.is-tablet #searchDesktop .search-nav.desktop {
+  display: none !important;
+}
+html.is-phone #ttsToggleDesktop,
+html.is-tablet #ttsToggleDesktop,
+html.is-phone #bookmark,
+html.is-phone #fontDec,
+html.is-phone #fontInc,
+html.is-tablet #bookmark,
+html.is-tablet #fontDec,
+html.is-tablet #fontInc {
+  display: none !important;
+}
+html.is-phone #ttsToggleMobile,
+html.is-phone #searchOpen,
+html.is-phone #themeToggle,
+html.is-phone #mobileMoreToggle,
+html.is-phone #addressBarToggle,
+html.is-tablet #ttsToggleMobile,
+html.is-tablet #searchOpen,
+html.is-tablet #themeToggle,
+html.is-tablet #mobileMoreToggle,
+html.is-tablet #addressBarToggle {
+  display: inline-flex !important;
+  margin: 0 !important;
+}
+html.is-phone #title-controls a,
+html.is-phone #title-controls button,
+html.is-tablet #title-controls a,
+html.is-tablet #title-controls button {
+  width: var(--title-icon-size);
+  height: var(--title-icon-size);
+  min-width: var(--title-icon-size);
+  min-height: var(--title-icon-size);
+  padding: 0;
+  margin: 0;
+}
+html.is-phone #ttsToggleMobile .tts-icon,
+html.is-phone #searchOpen .search-open-icon,
+html.is-phone #themeToggle .theme-icon,
+html.is-phone #addressBarToggle .ab-icon,
+html.is-phone #slider .menu-hamburger-icon,
+html.is-phone #mobileMoreToggle .mobile-more-icon,
+html.is-tablet #ttsToggleMobile .tts-icon,
+html.is-tablet #searchOpen .search-open-icon,
+html.is-tablet #themeToggle .theme-icon,
+html.is-tablet #addressBarToggle .ab-icon,
+html.is-tablet #slider .menu-hamburger-icon,
+html.is-tablet #mobileMoreToggle .mobile-more-icon {
+  width: var(--title-icon-glyph-size) !important;
+  height: var(--title-icon-glyph-size) !important;
+  min-width: var(--title-icon-glyph-size) !important;
+  min-height: var(--title-icon-glyph-size) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  display: block !important;
+  object-fit: fill !important;
+}
+html.is-phone #ttsToggleMobile .tts-icon-on,
+html.is-tablet #ttsToggleMobile .tts-icon-on {
+  display: block !important;
+}
+html.is-phone #ttsToggleMobile .tts-icon-off,
+html.is-tablet #ttsToggleMobile .tts-icon-off {
+  display: none !important;
+}
+html.is-phone #ttsToggleMobile.is-speaking .tts-icon-on,
+html.is-tablet #ttsToggleMobile.is-speaking .tts-icon-on {
+  display: none !important;
+}
+html.is-phone #ttsToggleMobile.is-speaking .tts-icon-off,
+html.is-tablet #ttsToggleMobile.is-speaking .tts-icon-off {
+  display: block !important;
+}
+html.is-phone #addressBarToggle .ab-icon,
+html.is-tablet #addressBarToggle .ab-icon {
+  display: none !important;
+}
+html.is-phone #addressBarToggle.ab-state-full .ab-icon-full,
+html.is-tablet #addressBarToggle.ab-state-full .ab-icon-full {
+  display: block !important;
+}
+html.is-phone #addressBarToggle.ab-state-small .ab-icon-small,
+html.is-tablet #addressBarToggle.ab-state-small .ab-icon-small {
+  display: block !important;
+}
+html.is-ios #addressBarToggle {
+  display: none !important;
+}
+html.is-phone #overlay-menu #menuView .menu-icon,
+html.is-tablet #overlay-menu #menuView .menu-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+}
+html.is-phone #overlay-menu #menuView .menu-icon:before,
+html.is-tablet #overlay-menu #menuView .menu-icon:before {
+  font-size: 20px;
+}
+html.is-phone #overlay-menu #menuView .menu-icon svg,
+html.is-tablet #overlay-menu #menuView .menu-icon svg {
+  width: 22px;
+  height: 22px;
 }
 
 /* Highlight style inside rendition documents */
@@ -3437,64 +3638,6 @@ body.search-open.search-minimized #searchbar { display: none !important; }
 /* Text-only highlight (no rectangles) */
 .search-match-text { color: #61c2fa !important; background: transparent !important; }
 
-
-/* Mobile: keep search behavior; just hide counter */
-@media (max-width: 768px) {
-  #searchCount { display: none !important; }
-  #searchbar .search-nav { display: none !important; }
-  body.ui-hidden #titlebar,
-  body.ui-hidden #bottombar { pointer-events: none; }
-  body.ui-hidden #titlebar *,
-  body.ui-hidden #bottombar * { pointer-events: auto; }
-  #opener #openNotes,
-  #opener #openBookmarks { display: none !important; }
-  #opener #slider {
-    font-size: 120%;
-    width: 22px;
-    height: 23px;
-    line-height: 23px;
-  }
-  #metainfo { margin-left: 6px !important; }
-  #title-controls { gap: 8px; }
-  #title-controls a, #title-controls button{
-    height: 23px;
-    padding: 5px;
-    font-size: 120%;
-  }
-  #title-controls { --title-icon-size: 22px; }
-  #ttsToggleDesktop { display: none !important; }
-  #ttsToggleMobile { display: inline-flex !important; }
-  #ttsToggleMobile { margin-right: 0 !important; }
-  #searchOpen { margin: 0 12px !important; }
-  #themeToggle { margin-left: 0 !important; }
-  #addressBarToggle{
-    width: 23px;
-    height: 23px;
-    line-height: 23px;
-    padding: 5px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    overflow: visible;
-  }
-  #overlay-menu #menuView .menu-icon{
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
-  }
-  #overlay-menu #menuView .menu-icon:before{
-    font-size: 20px;
-  }
-  #overlay-menu #menuView .menu-icon svg{
-    width: 22px;
-    height: 22px;
-  }
-}
-
-/* Touch devices: hide nav arrows in top search bar; use floating panel instead. */
-@media (hover: none) and (pointer: coarse) {
-  #searchbar .search-nav { display: none !important; }
-}
 
 /* iOS: prevent input focus zoom / horizontal pan from expanding bars */
 @supports (-webkit-touch-callout: none) {
@@ -3515,8 +3658,6 @@ body.search-open.search-minimized #searchbar { display: none !important; }
   #searchbar .search-input,
   #searchInputMobile,
   #searchInputDesktop { font-size: 16px; }
-  /* iOS: keep right icon group inset the same as the left */
-  #title-controls { margin-right: calc(10px + env(safe-area-inset-right)); }
   /* iOS: keep EPUB iframes above SVG highlight overlays */
   #viewerStack iframe,
   #viewer iframe,
@@ -3565,238 +3706,11 @@ html.is-tablet.tablet-portrait .overlay-head {
   padding-top: calc(12px + env(safe-area-inset-top));
 }
 
-/* ---- fix66: desktop layout + mobile isolation ---- */
-
-/* Hide search counters everywhere (logic can still use them) */
-.search-count,
-#searchCountDesktop,
-#searchCount {
-  display: none !important;
-}
-
-/* Desktop: robust single-row titlebar with no overlap (metainfo shrinks, controls stay right) */
-@media (hover:hover) and (pointer:fine) {
-  #titlebar {
-    justify-content: flex-start; /* avoid negative space with space-between */
-    gap: 8px;
-    overflow: hidden; /* never paint controls over the metainfo */
-  }
-  #metainfo {
-    flex: 1 1 0;
-    min-width: 0;
-    margin-left: 8px; /* stable; no large clamp on narrow widths */
-    max-width: none;
-  }
-  #metaText { max-width: 100%; width: 100%; }
-  #title-controls {
-    margin-left: auto;
-    flex: 0 0 auto;
-  }
-
-  /* Desktop: hide address-bar toggle icon */
-  #addressBarToggle {
-    display: none !important;
-  }
-
-  /* Desktop: search field must keep its length */
-  #searchDesktop .search-input {
-    width: clamp(72px, 18vw, 220px) !important;
-    min-width: 72px !important;
-    max-width: 220px !important;
-  }
-
-  /* Desktop: bigger arrows (no counter) */
-  /* Let JS control when nav buttons appear; never force them on with !important */
-  #searchDesktop .search-nav.desktop { display: none; }
-  #searchDesktop .search-btn.search-arrow {
-    font-size: 28px;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-  }
-  #searchDesktop .search-btn.search-return {
-    font-size: 22px;
-    width: 30px;
-    height: 30px;
-    padding: 0;
-  }
-}
-
-/* Desktop hard-order: speaker must stay LEFT of search, never swap with mobile TTS button */
-html.is-desktop #title-controls {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-}
-html.is-desktop #ttsToggleDesktop { display: inline-flex !important; order: 10; }
-html.is-desktop #searchDesktop { order: 20; min-width: 0; flex: 0 1 auto; }
-html.is-desktop #bookmark { order: 30; }
-html.is-desktop #fontDec { order: 40; }
-html.is-desktop #fontInc { order: 50; }
-html.is-desktop #themeToggle { order: 60; }
-html.is-desktop #addressBarToggle { order: 70; }
-html.is-desktop #ttsToggleMobile { display: none !important; }
-
-/* Desktop (not tablet): move TTS icon clearly left from search field */
-@media (hover:hover) and (pointer:fine) {
-  html:not(.is-tablet) #ttsToggleDesktop {
-    margin-right: 18px !important;
-  }
-  /* Desktop (not tablet): keep a small gap between search and bookmark icon */
-  html:not(.is-tablet) #searchDesktop {
-    margin-right: 10px !important;
-  }
-}
-
-/* Desktop medium widths: compress right controls so all icons stay visible */
-@media (max-width: 1280px) and (hover:hover) and (pointer:fine) {
-  html:not(.is-tablet) #ttsToggleDesktop { margin-right: 16px !important; }
-  html:not(.is-tablet) #searchDesktop { margin-right: 8px !important; }
-  #title-controls { gap: 2px; }
-}
-
-/* Desktop narrow: keep search visible + keep titlebar height fixed */
-@media (max-width: 768px) and (hover:hover) and (pointer:fine) {
-  :root { --titlebar-h: 32px; }
-  #titlebar { height: 32px !important; min-height: 32px !important; padding: 4px 8px !important; }
-  #searchDesktop .search-input-wrap { display: inline-flex !important; }
-  #searchDesktop .search-nav.desktop[aria-hidden="true"] { display: none !important; }
-  #searchDesktop .search-nav.desktop[aria-hidden="false"] { display: inline-flex !important; }
-}
-
-/* Tablet: desktop layout with +30% icon sizes, gaps, and side padding */
-html.is-tablet { --titlebar-h: 41.6px; }
-html.is-tablet #titlebar {
-  height: 41.6px !important;
-  min-height: 41.6px !important;
-  padding: 5.2px 10.4px !important;
-  justify-content: flex-start;
-  gap: 10.4px;
-  overflow: hidden;
-}
-html.is-tablet #titlebar a {
-  width: 23.4px;
-  height: 24.7px;
-  line-height: 26px;
-  padding: 5.2px;
-  border-radius: 5.2px;
-}
-html.is-tablet #titlebar .icon-note-btn{
-  width: 23.4px;
-  height: 24.7px;
-  line-height: 26px;
-  padding: 5.2px;
-}
-html.is-tablet #metainfo { margin-left: 10.4px !important; }
-html.is-tablet #title-controls {
-  margin-left: auto;
-  gap: 5.2px;
-}
-/* Tablet: keep search in flow (no absolute centering) */
-html.is-tablet #searchDesktop {
-  position: static;
-  left: auto;
-  top: auto;
-  transform: none;
-  z-index: auto;
-}
-html.is-tablet #title-controls a,
-html.is-tablet #title-controls button{
-  height: 24.7px;
-  padding: 5.2px;
-}
-html.is-tablet #title-controls .font-size-btn{ padding: 0 2.6px; }
-html.is-tablet #title-controls .font-size-btn + .font-size-btn{ margin-left: 2.6px; }
-html.is-tablet #title-controls { --title-icon-size: 23.4px; }
-
-/* Tablet: force desktop search layout + scale inner controls (keep in flow) */
-html.is-tablet #searchDesktop { position: static; left: auto; top: auto; transform: none; }
-html.is-tablet .search-desktop { gap: 10.4px; }
-html.is-tablet .search-infield-icon { left: 10.4px; }
-html.is-tablet .search-mag-svg { width: 26px; height: 26px; }
-html.is-tablet .search-clear { right: 5.2px; font-size: 23.4px; }
-html.is-tablet .search-input {
-  height: 36.4px;
-  padding: 0 36.4px 0 44.2px;
-  border-radius: 7.8px;
-  font-size: 18.2px;
-}
-html.is-tablet #searchInputDesktop { padding: 0 41.6px 0 13px; }
-html.is-tablet #searchDesktop .search-input-wrap { display: inline-flex !important; }
-html.is-tablet #searchDesktop .search-nav.desktop { display: none; }
-html.is-tablet #searchDesktop .search-btn.search-arrow {
-  font-size: 36.4px;
-  width: 41.6px;
-  height: 41.6px;
-  padding: 0;
-}
-html.is-tablet #searchDesktop .search-btn.search-return {
-  font-size: 28.6px;
-  width: 39px;
-  height: 39px;
-  padding: 0;
-}
-
-/* Tablets: hide legacy side arrows (gestures/taps handled in iframe) */
-html.is-tablet #prev,
-html.is-tablet #next {
-  display: none !important;
-}
-
-/* Phones: hide legacy side arrows as well (edge taps are handled in iframe/tap layer) */
-html.is-phone #prev,
-html.is-phone #next {
-  display: none !important;
-}
-
-/* Extra safety for touch layouts: never show legacy side arrows */
-@media (hover: none) and (pointer: coarse) {
-  #prev,
-  #next {
-    display: none !important;
-  }
-}
-
-/* Tablet portrait: left side only hamburger, menu like phones */
-html.is-tablet.tablet-portrait #openNotes,
-html.is-tablet.tablet-portrait #openBookmarks {
-  display: none !important;
-}
-
-/* Phones: never show desktop search input in the titlebar */
-html.is-phone #searchDesktop .search-input-wrap,
-html.is-phone #searchDesktop .search-nav.desktop {
-  display: none !important;
-}
-html.is-phone #searchOpen { display: inline-flex !important; }
-
-/* iOS tablets: hide rightmost fullscreen/address bar icon */
-html.is-ios.is-tablet #addressBarToggle {
-  display: none !important;
-}
-
-/* Tablets: overlays must always sit above the top bar (close X visible) */
+html.is-phone .overlay-panel,
+html.is-phone .overlay-backdrop,
 html.is-tablet .overlay-panel,
 html.is-tablet .overlay-backdrop {
   z-index: 30000 !important;
-}
-/* Fallback for tablets that fail class detection (e.g., some Samsung devices) */
-@media (pointer: coarse) and (min-width: 600px) and (min-height: 600px) {
-  .overlay-panel,
-  .overlay-backdrop {
-    z-index: 30000 !important;
-  }
-}
-
-/* Mobile (touch): NEVER show desktop inline search input/nav. Keep existing mobile search behavior. */
-@media (hover:none) and (pointer:coarse) {
-  #searchDesktop .search-input-wrap,
-  #searchDesktop .search-nav.desktop {
-    display: none !important;
-  }
-  #searchOpen {
-    display: inline-flex !important;
-  }
 }
 
 /* Mobile + tablet: prevent vertical pull-to-refresh / page bounce */
@@ -3834,57 +3748,13 @@ html.is-tablet .overlay-backdrop {
   }
 }
 
-/* Tablet override: use mobile-style search entry icon (same behavior as phones). */
-html.is-tablet #searchDesktop .search-input-wrap {
+/* Touch controls use only SVG icons; disable legacy icon-font pseudo-elements. */
+html.is-phone #searchOpen::before,
+html.is-tablet #searchOpen::before,
+html.is-phone #addressBarToggle::before,
+html.is-tablet #addressBarToggle::before,
+html.is-phone #mobileMoreToggle::before,
+html.is-tablet #mobileMoreToggle::before {
+  content: none !important;
   display: none !important;
-}
-html.is-tablet #searchDesktop .search-nav.desktop {
-  display: none !important;
-}
-html.is-tablet #searchDesktop .search-nav.desktop[aria-hidden="false"] {
-  display: inline-flex !important;
-}
-html.is-tablet #searchOpen { display: inline-flex !important; }
-html.is-tablet #ttsToggleDesktop { display: none !important; }
-html.is-tablet #ttsToggleMobile { display: inline-flex !important; }
-html.is-tablet #bookmark,
-html.is-tablet #fontDec,
-html.is-tablet #fontInc {
-  display: none !important;
-}
-html.is-tablet #mobileMoreToggle {
-  display: inline-flex !important;
-}
-
-html.is-phone #bookmark,
-html.is-phone #fontDec,
-html.is-phone #fontInc {
-  display: none !important;
-}
-html.is-phone #mobileMoreToggle {
-  display: inline-flex !important;
-}
-
-/* Touch layouts: move bookmark + font controls to ⋮ menu */
-@media (hover:none) and (pointer:coarse) {
-  #bookmark,
-  #fontDec,
-  #fontInc {
-    display: none !important;
-  }
-  #mobileMoreToggle {
-    display: inline-flex !important;
-  }
-  /* Keep ⋮ always visible at the far right on mobile/tablet */
-  #titlebar { position: relative; }
-  #mobileMoreToggle {
-    position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 3;
-  }
-  #title-controls {
-    padding-right: 28px;
-  }
 }

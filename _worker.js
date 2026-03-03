@@ -292,6 +292,14 @@ export default {
       return new Response("pong\n", { status: 200, headers });
     }
 
+    // Normalize reader/catalog roots to trailing-slash form to avoid 404 on some routes.
+    if (path === "/books/reader" || path === "/books/catalog") {
+      const headers = new Headers({ location: `${path}/` });
+      headers.set("x-reader-worker", "1");
+      headers.set("x-reader-route", "slash-redirect");
+      return new Response(null, { status: 302, headers });
+    }
+
     const idMatch = path.match(/^\/books\/(\d+)(\/)?$/);
     if (idMatch) {
       const id = idMatch[1];

@@ -7085,20 +7085,27 @@ function _isIOS(){
 
 function _updateAddressBarIcon(hidden){
 	if (!$addressBarToggle || !$addressBarToggle.length) return;
+	$addressBarToggle.removeClass("icon-resize-full icon-resize-small icon-resize-full-1");
+	var $abFull = $addressBarToggle.find(".ab-icon-full");
+	var $abSmall = $addressBarToggle.find(".ab-icon-small");
 	if (hidden) {
 		$addressBarToggle
-			.addClass("icon-resize-small")
-			.removeClass("icon-resize-full")
+			.addClass("ab-state-small")
+			.removeClass("ab-state-full")
 			.removeClass("hidden")
 			.attr("aria-label", "Exit fullscreen")
 			.attr("title", "Exit fullscreen");
+		if ($abFull && $abFull.length) $abFull.css("display", "none");
+		if ($abSmall && $abSmall.length) $abSmall.css("display", "block");
 	} else {
 		$addressBarToggle
-			.addClass("icon-resize-full")
-			.removeClass("icon-resize-small")
+			.addClass("ab-state-full")
+			.removeClass("ab-state-small")
 			.removeClass("hidden")
 			.attr("aria-label", "Enter fullscreen")
 			.attr("title", "Enter fullscreen");
+		if ($abFull && $abFull.length) $abFull.css("display", "block");
+		if ($abSmall && $abSmall.length) $abSmall.css("display", "none");
 	}
 }
 

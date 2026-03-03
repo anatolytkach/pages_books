@@ -4669,6 +4669,9 @@
 
   // -------- text-to-speech (Web Speech API) --------
   function setupSpeech(reader) {
+    if (window.__fbSpeechSetupDone) return;
+    window.__fbSpeechSetupDone = true;
+
     var synth = window.speechSynthesis || null;
     var SpeechUtterance = window.SpeechSynthesisUtterance || null;
     var btnDesktop = document.getElementById("ttsToggleDesktop");
@@ -5674,11 +5677,6 @@
         state.restartTimer = setTimeout(function () { startCurrentPage(expectedLocKey, retries - 1); }, 100);
         return;
       }
-      if (expectedLocKey && payload.text === state.lastSpokenText && retries > 0) {
-        state.restartTimer = setTimeout(function () { startCurrentPage(expectedLocKey, retries - 1); }, 100);
-        return;
-      }
-
       state.lastSpokenText = payload.text;
       state.map = payload.map;
       state.doc = payload.doc;
@@ -5852,12 +5850,16 @@
         return;
       }
       state.enabled = true;
+      // iOS Safari may block delayed speak() calls that are no longer in the
+      // original click gesture chain. Reset this guard so the first call
+      // starts immediately from the user tap.
+      state.lastSpokenText = "";
       setButtonState(true);
       var currentLocKey = String(getLocationKey() || "");
       var resumeCfi = state.resumeFromStopCfi ? String(state.resumeFromStopCfi || "") : "";
       state.resumeFromStopCfi = "";
       state.resumeLocKey = "";
-      startCurrentPage(currentLocKey, 6, resumeCfi);
+      startCurrentPage(currentLocKey, 20, resumeCfi);
     }
 
     function setVoiceMessage(txt) {
@@ -6034,14 +6036,22 @@
       syncCustomDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
     }
 
-    if (btnDesktop) btnDesktop.addEventListener("click", function (e) {
-      e.preventDefault();
-      toggleSpeech();
-    });
-    if (btnMobile) btnMobile.addEventListener("click", function (e) {
-      e.preventDefault();
-      toggleSpeech();
-    });
+    if (btnDesktop && !btnDesktop.__fbSpeechBound) {
+      btnDesktop.__fbSpeechBound = true;
+      btnDesktop.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSpeech();
+      });
+    }
+    if (btnMobile && !btnMobile.__fbSpeechBound) {
+      btnMobile.__fbSpeechBound = true;
+      btnMobile.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSpeech();
+      });
+    }
     if (voiceLangSelect) voiceLangSelect.addEventListener("change", function () {
       saveVoiceLang(normalizeLangTag(voiceLangSelect.value || ""));
       state.selectedVoiceURI = null;
