@@ -5408,6 +5408,53 @@ if (doc) {
 			}
 		} catch (e3) {}
 	}
+
+	function getPageCountMaxLabelWidth() {
+		try {
+			var bottomBarEl = document.getElementById("bottombar");
+			if (!bottomBarEl) return 0;
+			var w = Math.floor((bottomBarEl.clientWidth || 0) * 0.8);
+			return w > 0 ? w : 0;
+		} catch (e) {}
+		return 0;
+	}
+
+	function measurePageCountLabelWidth(label) {
+		try {
+			var textEl = ensurePageCountTextEl();
+			if (!textEl) return 0;
+			var prev = textEl.textContent || "";
+			textEl.textContent = String(label || "");
+			// scrollWidth gives the intrinsic width even if element is centered/overflow-hidden.
+			var w = textEl.scrollWidth || textEl.offsetWidth || 0;
+			textEl.textContent = prev;
+			return w;
+		} catch (e) {}
+		return 0;
+	}
+
+	function buildFittedPageCounterLabel(pageLabel, tocTitle) {
+		var pageOnly = String(pageLabel || "");
+		var title = String(tocTitle || "").trim();
+		if (!title) return pageOnly;
+		var full = pageOnly + " - " + title;
+		var maxW = getPageCountMaxLabelWidth();
+		if (!maxW) return full;
+		if (measurePageCountLabelWidth(full) <= maxW) return full;
+
+		var prefix = pageOnly + " - ";
+		var ellipsis = "…";
+		var lo = 0;
+		var hi = title.length;
+		while (lo < hi) {
+			var mid = Math.ceil((lo + hi) / 2);
+			var probe = prefix + title.slice(0, mid) + ellipsis;
+			if (measurePageCountLabelWidth(probe) <= maxW) lo = mid;
+			else hi = mid - 1;
+		}
+		if (lo <= 0) return pageOnly;
+		return prefix + title.slice(0, lo) + ellipsis;
+	}
 	try {
 		if (pageCountEl && !String(pageCountEl.textContent || "").trim()) {
 			renderPageCountLabel("…/…");
@@ -6344,7 +6391,7 @@ if (doc) {
 			if (loc && loc.atStart) p.page = 1;
 			var tocTitle = getTocTitleForLocation(loc);
 			var pageLabel = String(p.page) + "/" + String(p.total);
-			var fullLabel = tocTitle ? (pageLabel + " - " + tocTitle) : pageLabel;
+			var fullLabel = buildFittedPageCounterLabel(pageLabel, tocTitle);
 			renderPageCountLabel(fullLabel);
 			reader._lastStablePageCounterText = fullLabel;
 		} catch (e) {}
