@@ -1637,6 +1637,8 @@
       legacyTextHlCleared: false,
       ensureVisibleToken: 0,
       ensureVisibleTimer: null,
+      firstMatchConfirmToken: 0,
+      firstMatchConfirmTimer: null,
       preUiHidden: true
     };
 
@@ -1783,6 +1785,7 @@
       state.matchIndex = -1;
       state.legacyTextHlCleared = false;
       state.ensureVisibleToken++;
+      cancelFirstMatchConfirm();
       if (state.ensureVisibleTimer) {
         try { clearTimeout(state.ensureVisibleTimer); } catch (e) {}
         state.ensureVisibleTimer = null;
@@ -1825,6 +1828,7 @@
       state.matchIndex = -1;
       state.legacyTextHlCleared = false;
       state.ensureVisibleToken++;
+      cancelFirstMatchConfirm();
       if (state.ensureVisibleTimer) {
         try { clearTimeout(state.ensureVisibleTimer); } catch (e) {}
         state.ensureVisibleTimer = null;
@@ -1870,6 +1874,14 @@
           }
         }
       } catch (e) {}
+    }
+
+    function cancelFirstMatchConfirm() {
+      state.firstMatchConfirmToken++;
+      if (state.firstMatchConfirmTimer) {
+        try { clearTimeout(state.firstMatchConfirmTimer); } catch (e) {}
+        state.firstMatchConfirmTimer = null;
+      }
     }
 
     function clearHighlight() {
@@ -2245,6 +2257,66 @@
       }, 60);
     }
 
+    function waitForTouchLayoutStable(done) {
+      if (!isTouchDeviceForSearchHighlight()) {
+        done();
+        return;
+      }
+      var raf = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); };
+      var called = false;
+      var safeDone = function () {
+        if (called) return;
+        called = true;
+        done();
+      };
+      try {
+        raf(function () {
+          raf(function () {
+            state.firstMatchConfirmTimer = setTimeout(safeDone, 20);
+          });
+        });
+      } catch (e) {
+        state.firstMatchConfirmTimer = setTimeout(safeDone, 40);
+      }
+      state.firstMatchConfirmTimer = setTimeout(safeDone, 260);
+    }
+
+    function confirmFirstMatchHighlight(cfi, item, onDone) {
+      if (!cfi) {
+        onDone(false);
+        return;
+      }
+      cancelFirstMatchConfirm();
+      var token = state.firstMatchConfirmToken;
+      var started = Date.now();
+      var maxWaitMs = 1800;
+      var maxAttempts = 16;
+      var tries = 0;
+      var finished = false;
+      var done = function (ok) {
+        if (finished) return;
+        finished = true;
+        if (token !== state.firstMatchConfirmToken) return;
+        cancelFirstMatchConfirm();
+        onDone(!!ok);
+      };
+      var step = function () {
+        if (token !== state.firstMatchConfirmToken) return;
+        if (!state.searchActive) return;
+        tries++;
+        if (applyHighlightWithCorrection(cfi, item)) {
+          done(true);
+          return;
+        }
+        if (tries >= maxAttempts || (Date.now() - started) >= maxWaitMs) {
+          done(false);
+          return;
+        }
+        state.firstMatchConfirmTimer = setTimeout(step, 110);
+      };
+      waitForTouchLayoutStable(step);
+    }
+
     function buildMatchesForContents(contents, queryLower, queryLen) {
       try {
         if (!contents || !contents.document || !contents.document.body) return [];
@@ -2273,6 +2345,7 @@
       var safeIdx = ((idx % total) + total) % total;
       var item = state.matchList[safeIdx];
       if (!item) return;
+      cancelFirstMatchConfirm();
       state.matchIndex = safeIdx;
       state.index = safeIdx;
       setCountText((state.index + 1) + "/" + state.totalMatches);
@@ -2288,12 +2361,28 @@
         state.pendingHighlightCfi = null;
         try {
           reader.rendition.display(targetCfi).then(function () {
+            var firstTouchMatch = (safeIdx === 0) && isTouchDeviceForSearchHighlight();
+            if (firstTouchMatch) {
+              confirmFirstMatchHighlight(targetCfi, item, function (ok) {
+                if (!ok) scheduleHighlightRetry(targetCfi);
+                scheduleEnsureVisible(item);
+              });
+              return;
+            }
             if (!applyHighlightWithCorrection(targetCfi, item)) {
               scheduleHighlightRetry(targetCfi);
               return;
             }
             scheduleEnsureVisible(item);
           }).catch(function () {
+            var firstTouchMatch = (safeIdx === 0) && isTouchDeviceForSearchHighlight();
+            if (firstTouchMatch) {
+              confirmFirstMatchHighlight(targetCfi, item, function (ok) {
+                if (!ok) scheduleHighlightRetry(targetCfi);
+                scheduleEnsureVisible(item);
+              });
+              return;
+            }
             if (!applyHighlightWithCorrection(targetCfi, item)) {
               scheduleHighlightRetry(targetCfi);
               return;
@@ -2301,6 +2390,14 @@
             scheduleEnsureVisible(item);
           });
         } catch (e) {
+          var firstTouchMatch = (safeIdx === 0) && isTouchDeviceForSearchHighlight();
+          if (firstTouchMatch) {
+            confirmFirstMatchHighlight(targetCfi, item, function (ok) {
+              if (!ok) scheduleHighlightRetry(targetCfi);
+              scheduleEnsureVisible(item);
+            });
+            return;
+          }
           if (!applyHighlightWithCorrection(targetCfi, item)) {
             scheduleHighlightRetry(targetCfi);
             return;
@@ -2620,6 +2717,7 @@
       state.matchList = [];
       state.matchIndex = -1;
       state.ensureVisibleToken++;
+      cancelFirstMatchConfirm();
       if (state.ensureVisibleTimer) {
         try { clearTimeout(state.ensureVisibleTimer); } catch (e) {}
         state.ensureVisibleTimer = null;
