@@ -3521,7 +3521,7 @@ html.is-tablet #titlebar {
   min-height: var(--titlebar-h);
   padding: 8px 10px;
   justify-content: flex-start;
-  gap: 8px;
+  gap: 0;
   overflow: hidden;
 }
 html.is-phone #searchbar,
@@ -3539,14 +3539,14 @@ html.is-tablet #bottombar {
 }
 html.is-phone #metainfo,
 html.is-tablet #metainfo {
-  margin-left: 6px !important;
+  margin-left: 14px !important;
   margin-right: 0 !important;
   overflow: hidden;
 }
 html.is-phone #title-controls,
 html.is-tablet #title-controls {
   --title-icon-size: 20px;
-  --title-icon-glyph-size: 20px;
+  --title-icon-glyph-size: 18px;
   --title-icon-gap: 18px;
   --controls-right-pad: 12px;
   margin-left: auto;
