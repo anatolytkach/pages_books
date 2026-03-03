@@ -3649,11 +3649,15 @@ html.is-tablet #mobileMoreToggle .mobile-more-icon {
   display: block !important;
   object-fit: fill !important;
 }
-html.is-ios #slider .menu-hamburger-icon {
+html.is-ios #slider .menu-hamburger-icon,
+html.is-phone #slider .menu-hamburger-icon,
+html.is-tablet #slider .menu-hamburger-icon {
   display: none !important;
 }
-html.is-ios #slider {
-  background-image: url("../icons/hamburger.svg?v=20260303-ios-hamburger-bg-1") !important;
+html.is-ios #slider,
+html.is-phone #slider,
+html.is-tablet #slider {
+  background-image: url("../icons/hamburger.svg?v=20260303-mobile-hamburger-bg-1") !important;
   background-repeat: no-repeat !important;
   background-position: center !important;
   background-size: var(--title-icon-glyph-size) var(--title-icon-glyph-size) !important;
