@@ -4878,7 +4878,17 @@
       input.value = "";
       sheet.classList.remove("hidden");
       backdrop.classList.remove("hidden");
-      setTimeout(function () { try { input.focus(); } catch (e) {} }, 0);
+      var isCoarsePointer = false;
+      var isAndroid = false;
+      try {
+        isCoarsePointer = !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+      } catch (e0) {}
+      try {
+        isAndroid = /Android/i.test((navigator && navigator.userAgent) ? navigator.userAgent : "");
+      } catch (e1) {}
+      if (!isCoarsePointer && !isAndroid) {
+        setTimeout(function () { try { input.focus(); } catch (e2) {} }, 0);
+      }
     }
 
     function save() {
