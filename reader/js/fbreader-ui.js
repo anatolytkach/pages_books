@@ -5399,19 +5399,36 @@
     importSharedNotesFromUrl();
     if (copyBtn && !copyBtn.__fbBound) {
       copyBtn.__fbBound = true;
+      var clearCopyState = function (btn) {
+        btn.classList.remove("is-pressed");
+        btn.classList.remove("is-copied");
+        btn.classList.remove("is-failed");
+      };
+      copyBtn.addEventListener("mousedown", function () { copyBtn.classList.add("is-pressed"); });
+      copyBtn.addEventListener("mouseup", function () { copyBtn.classList.remove("is-pressed"); });
+      copyBtn.addEventListener("mouseleave", function () { copyBtn.classList.remove("is-pressed"); });
       copyBtn.addEventListener("click", function (event) {
         if (event) event.preventDefault();
         var btn = copyBtn;
+        clearCopyState(btn);
         var oldText = btn.textContent || "Copy link";
         getCopyNotesUrl()
           .then(function (url) { return copyText(url); })
           .then(function () {
+            btn.classList.add("is-copied");
             btn.textContent = "Copied";
-            setTimeout(function () { btn.textContent = oldText; }, 1200);
+            setTimeout(function () {
+              btn.textContent = oldText;
+              clearCopyState(btn);
+            }, 1200);
           })
           .catch(function () {
+            btn.classList.add("is-failed");
             btn.textContent = "Copy failed";
-            setTimeout(function () { btn.textContent = oldText; }, 1500);
+            setTimeout(function () {
+              btn.textContent = oldText;
+              clearCopyState(btn);
+            }, 1500);
           });
       });
     }
