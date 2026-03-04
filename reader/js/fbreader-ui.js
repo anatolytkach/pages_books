@@ -3244,10 +3244,30 @@
     };
     var notePendingCfi = null;
 
+    function isTouchSelectionMode() {
+      try {
+        if (document.documentElement && document.documentElement.classList.contains("is-tablet")) return true;
+      } catch (e0) {}
+      try {
+        var ua = (navigator && navigator.userAgent) ? navigator.userAgent : "";
+        if (/Android/i.test(ua)) return true;
+      } catch (e0a) {}
+      try {
+        if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
+      } catch (e1) {}
+      try {
+        if (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0) return true;
+      } catch (e2) {}
+      try {
+        if ("ontouchstart" in window) return true;
+      } catch (e3) {}
+      return !window.__fb_isDesktop;
+    }
+
     function isDesktopSelectionMode() {
       try {
         if (!window.__fb_isDesktop) return false;
-        if (document.documentElement && document.documentElement.classList.contains("is-tablet")) return false;
+        if (isTouchSelectionMode()) return false;
         return true;
       } catch (e) {}
       return false;
@@ -3527,7 +3547,7 @@
     }
 
     function updateFromSelection(doc) {
-      if (!window.__fb_isDesktop) return;
+      if (!isDesktopSelectionMode()) return;
       var sel = getSelection(doc);
       if (!sel || sel.isCollapsed || !sel.rangeCount) {
         if (state.ignoreSelectionChange || state.locked) return;
@@ -3624,13 +3644,8 @@
       if (!doc || doc.__fbSelToolbarAttached) return;
       doc.__fbSelToolbarAttached = true;
 
-      // Mobile/tablet: disable native selection and use custom long-press selection
-      var isMobile = !window.__fb_isDesktop;
-      try {
-        if (document.documentElement && document.documentElement.classList.contains("is-tablet")) {
-          isMobile = true;
-        }
-      } catch (e0) {}
+      // Touch input must use custom long-press selection even if viewport was classified as desktop.
+      var isMobile = isTouchSelectionMode();
       if (isMobile) {
         try {
           if (doc.documentElement && doc.documentElement.style) {
@@ -3953,6 +3968,9 @@
 
       function onTouchStart(e) {
         if (!e || !e.touches || !e.touches[0]) return;
+        try { if (e.cancelable && e.preventDefault) e.preventDefault(); } catch (e0) {}
+        try { if (e.stopImmediatePropagation) e.stopImmediatePropagation(); } catch (e1) {}
+        try { if (e.stopPropagation) e.stopPropagation(); } catch (e2) {}
         lpStartX = e.touches[0].clientX;
         lpStartY = e.touches[0].clientY;
         lpLastX = lpStartX;
