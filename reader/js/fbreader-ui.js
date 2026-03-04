@@ -4916,6 +4916,7 @@
   function setupNotes(reader) {
     if (!reader || !reader.rendition) return;
     var list = document.getElementById("notes");
+    var copyBtn = document.getElementById("copyNotesLinkBtn");
     if (!list) return;
     if (!reader.settings) reader.settings = {};
     if (!Array.isArray(reader.settings.notes)) reader.settings.notes = [];
@@ -4927,6 +4928,293 @@
 
     function save() {
       try { if (typeof reader.saveSettings === "function") reader.saveSettings(); } catch (e) {}
+    }
+
+    function encodeNotesForUrl(notes) {
+      try {
+        var payload = JSON.stringify(Array.isArray(notes) ? notes : []);
+        return btoa(unescape(encodeURIComponent(payload)));
+      } catch (e) {}
+      return "";
+    }
+
+    function toBase64Url(uint8) {
+      try {
+        var CHUNK = 0x8000;
+        var parts = [];
+        for (var i = 0; i < uint8.length; i += CHUNK) {
+          parts.push(String.fromCharCode.apply(null, uint8.subarray(i, i + CHUNK)));
+        }
+        return btoa(parts.join("")).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      } catch (e) {}
+      return "";
+    }
+
+    function fromBase64Url(token) {
+      try {
+        var b64 = String(token || "").replace(/-/g, "+").replace(/_/g, "/");
+        while (b64.length % 4) b64 += "=";
+        var bin = atob(b64);
+        var out = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+      } catch (e) {}
+      return new Uint8Array(0);
+    }
+
+    function encodeNotesCompressed(notes) {
+      try {
+        if (!window.CompressionStream || !window.TextEncoder) return Promise.resolve("");
+        var payload = JSON.stringify(Array.isArray(notes) ? notes : []);
+        var enc = new TextEncoder();
+        var input = enc.encode(payload);
+        var cs = new CompressionStream("gzip");
+        var writer = cs.writable.getWriter();
+        writer.write(input);
+        writer.close();
+        return new Response(cs.readable).arrayBuffer().then(function (ab) {
+          return toBase64Url(new Uint8Array(ab));
+        }).catch(function () { return ""; });
+      } catch (e) {}
+      return Promise.resolve("");
+    }
+
+    function decodeNotesCompressed(token) {
+      try {
+        if (!window.DecompressionStream || !window.TextDecoder) return Promise.resolve([]);
+        var bytes = fromBase64Url(token);
+        if (!bytes || !bytes.length) return Promise.resolve([]);
+        var ds = new DecompressionStream("gzip");
+        var writer = ds.writable.getWriter();
+        writer.write(bytes);
+        writer.close();
+        return new Response(ds.readable).arrayBuffer().then(function (ab) {
+          var text = new TextDecoder().decode(new Uint8Array(ab));
+          var arr = JSON.parse(text);
+          return Array.isArray(arr) ? arr : [];
+        }).catch(function () { return []; });
+      } catch (e) {}
+      return Promise.resolve([]);
+    }
+
+    function decodeNotesFromUrl(token) {
+      try {
+        if (!token) return [];
+        var json = decodeURIComponent(escape(atob(String(token))));
+        var arr = JSON.parse(json);
+        if (!Array.isArray(arr)) return [];
+        var out = [];
+        for (var i = 0; i < arr.length; i++) {
+          var n = arr[i] || {};
+          if (!n.cfi) continue;
+          out.push({
+            id: n.id || ("shared-" + i + "-" + Date.now()),
+            cfi: String(n.cfi),
+            href: n.href || null,
+            quote: normalizeQuote(n.quote || ""),
+            comment: String(n.comment || "")
+          });
+        }
+        return out;
+      } catch (e) {}
+      return [];
+    }
+
+    function normalizeImportedNotes(raw) {
+      var arr = Array.isArray(raw) ? raw : [];
+      var out = [];
+      for (var i = 0; i < arr.length; i++) {
+        var n = arr[i] || {};
+        if (!n.cfi) continue;
+        out.push({
+          id: n.id || ("shared-" + i + "-" + Date.now()),
+          cfi: String(n.cfi),
+          href: n.href || null,
+          quote: normalizeQuote(n.quote || ""),
+          comment: String(n.comment || "")
+        });
+      }
+      return out;
+    }
+
+    function extractShareableNotes() {
+      var notes = reader.settings && Array.isArray(reader.settings.notes) ? reader.settings.notes : [];
+      var out = [];
+      for (var i = 0; i < notes.length; i++) {
+        var n = notes[i] || {};
+        if (!n.cfi) continue;
+        out.push({
+          id: n.id || ("n-" + i),
+          cfi: String(n.cfi),
+          href: n.href || null,
+          quote: normalizeQuote(n.quote || ""),
+          comment: String(n.comment || "")
+        });
+      }
+      return out;
+    }
+
+    function getCurrentBookId() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        var id = u.searchParams.get("id") || u.searchParams.get("i");
+        if (id) return String(id);
+      } catch (e0) {}
+      return "";
+    }
+
+    function buildUrlWithParams(params, clearHash) {
+      var u = new URL(window.location.href || "", window.location.origin);
+      if (params && typeof params === "object") {
+        Object.keys(params).forEach(function (k) {
+          var v = params[k];
+          if (v == null || v === "") u.searchParams.delete(k);
+          else u.searchParams.set(k, String(v));
+        });
+      }
+      if (clearHash) u.hash = "";
+      return u.toString();
+    }
+
+    function getNotesShareCreateEndpoints() {
+      var endpoints = ["/books/api/notes-share", "/api/notes-share"];
+      try {
+        var host = String(window.location.hostname || "").toLowerCase();
+        if (host === "reader.pub" || host === "www.reader.pub") {
+          endpoints.push("https://master.reader-books.pages.dev/books/api/notes-share");
+        }
+      } catch (e0) {}
+      return endpoints;
+    }
+
+    function getNotesShareReadEndpoints(shareId) {
+      var id = encodeURIComponent(String(shareId || ""));
+      var endpoints = [
+        "/books/api/notes-share/" + id,
+        "/api/notes-share/" + id
+      ];
+      try {
+        var host = String(window.location.hostname || "").toLowerCase();
+        if (host === "reader.pub" || host === "www.reader.pub") {
+          endpoints.push("https://master.reader-books.pages.dev/books/api/notes-share/" + id);
+        }
+      } catch (e0) {}
+      return endpoints;
+    }
+
+    function createShortNotesShare(notesPayload) {
+      var body = {
+        bookId: getCurrentBookId(),
+        notes: notesPayload
+      };
+      var endpoints = getNotesShareCreateEndpoints();
+      var idx = 0;
+      var tryNext = function () {
+        if (idx >= endpoints.length) return Promise.reject(new Error("share create failed"));
+        var endpoint = endpoints[idx++];
+        return fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json; charset=utf-8" },
+          credentials: "same-origin",
+          body: JSON.stringify(body)
+        }).then(function (resp) {
+          if (!resp || !resp.ok) throw new Error("share create failed");
+          return resp.json();
+        }).then(function (data) {
+          var shareId = data && data.shareId ? String(data.shareId) : "";
+          if (!shareId) throw new Error("missing share id");
+          return buildUrlWithParams({
+            i: getCurrentBookId(),
+            id: null,
+            n: shareId,
+            notesShare: null,
+            notes: null,
+            notesz: null
+          }, true);
+        }).catch(function () {
+          return tryNext();
+        });
+      };
+      return tryNext();
+    }
+
+    function getCopyNotesUrl() {
+      try {
+        if (typeof window.__fbBuildNotesShareLink === "function") {
+          return Promise.resolve(window.__fbBuildNotesShareLink(reader));
+        }
+      } catch (e0) {}
+      try {
+        var notesPayload = extractShareableNotes();
+        if (notesPayload.length) {
+          return createShortNotesShare(notesPayload).catch(function () {
+            return encodeNotesCompressed(notesPayload).then(function (token) {
+              if (!token) {
+                var legacy = encodeNotesForUrl(notesPayload);
+                return buildUrlWithParams({
+                  i: getCurrentBookId(),
+                  id: null,
+                  notes: legacy,
+                  n: null,
+                  notesShare: null,
+                  notesz: null
+                }, true);
+              }
+              return buildUrlWithParams({
+                i: getCurrentBookId(),
+                id: null,
+                notesz: token,
+                n: null,
+                notesShare: null,
+                notes: null
+              }, true);
+            });
+          });
+        }
+        return Promise.resolve(buildUrlWithParams({
+          i: getCurrentBookId(),
+          id: null,
+          n: null,
+          notesShare: null,
+          notes: null,
+          notesz: null
+        }, true));
+      } catch (e1) {}
+      return Promise.resolve(window.location.href || "");
+    }
+
+    function copyText(value) {
+      var txt = String(value || "");
+      if (!txt) return Promise.reject(new Error("No text to copy"));
+      var fallbackCopy = function () {
+        return new Promise(function (resolve, reject) {
+          try {
+            var ta = document.createElement("textarea");
+            ta.value = txt;
+            ta.setAttribute("readonly", "readonly");
+            ta.style.position = "fixed";
+            ta.style.top = "-9999px";
+            ta.style.left = "-9999px";
+            document.body.appendChild(ta);
+            ta.select();
+            var ok = false;
+            try { ok = document.execCommand("copy"); } catch (e1) { ok = false; }
+            document.body.removeChild(ta);
+            if (ok) resolve();
+            else reject(new Error("Copy command failed"));
+          } catch (e2) {
+            reject(e2);
+          }
+        });
+      };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(txt).catch(function () {
+            return fallbackCopy();
+          });
+        }
+      } catch (e0) {}
+      return fallbackCopy();
     }
 
     function openNoteCfi(cfi) {
@@ -5040,7 +5328,71 @@
       render();
     }
 
+    function importSharedNotesFromUrl() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        var shareId = String(u.searchParams.get("n") || u.searchParams.get("notesShare") || "").trim();
+        if (shareId) {
+          var endpoints = getNotesShareReadEndpoints(shareId);
+          var i = 0;
+          var tryLoad = function () {
+            if (i >= endpoints.length) return;
+            fetch(endpoints[i++], { method: "GET", credentials: "same-origin" })
+              .then(function (resp) {
+                if (!resp || !resp.ok) throw new Error("share load failed");
+                return resp.json();
+              })
+              .then(function (data) {
+                var imported = normalizeImportedNotes(data && data.notes);
+                if (!imported.length) return;
+                reader.settings.notes = imported;
+                render();
+              })
+              .catch(function () {
+                tryLoad();
+              });
+          };
+          tryLoad();
+          return;
+        }
+        var compressed = String(u.searchParams.get("notesz") || "").trim();
+        if (compressed) {
+          decodeNotesCompressed(compressed).then(function (raw) {
+            var importedZ = normalizeImportedNotes(raw);
+            if (!importedZ.length) return;
+            reader.settings.notes = importedZ;
+            render();
+          }).catch(function () {});
+          return;
+        }
+        var token = u.searchParams.get("notes");
+        if (!token) return;
+        var imported = decodeNotesFromUrl(token);
+        if (!imported.length) return;
+        reader.settings.notes = imported;
+      } catch (e) {}
+    }
+
     window.__fbAddNote = addNote;
+    importSharedNotesFromUrl();
+    if (copyBtn && !copyBtn.__fbBound) {
+      copyBtn.__fbBound = true;
+      copyBtn.addEventListener("click", function (event) {
+        if (event) event.preventDefault();
+        var btn = copyBtn;
+        var oldText = btn.textContent || "Copy link";
+        getCopyNotesUrl()
+          .then(function (url) { return copyText(url); })
+          .then(function () {
+            btn.textContent = "Copied";
+            setTimeout(function () { btn.textContent = oldText; }, 1200);
+          })
+          .catch(function () {
+            btn.textContent = "Copy failed";
+            setTimeout(function () { btn.textContent = oldText; }, 1500);
+          });
+      });
+    }
     render();
   }
 
@@ -6271,7 +6623,7 @@
     function getCurrentBookId() {
       try {
         var params = new URLSearchParams(window.location.search || "");
-        var id = String(params.get("id") || "").trim();
+        var id = String(params.get("id") || params.get("i") || "").trim();
         if (/^\d+$/.test(id)) return id;
       } catch (e0) {}
       return "";

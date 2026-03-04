@@ -532,6 +532,10 @@
         transition: transform 0.08s ease, box-shadow 0.08s ease;
       }
 
+      .letterBtnNonEnglish {
+        background: linear-gradient(90deg, #e5f9f4 0%, #ffffff 100%);
+      }
+
       .letterBtn:hover {
         transform: translateY(-2px);
         box-shadow: none;
@@ -2045,8 +2049,11 @@
             mapped.push(hashItem);
           }
 
+          const isEnglishAlphabetCard = (label) => /^[A-Za-z]$/.test(String(label || "").trim());
+
           mapped.forEach((item) => {
             const btn = el("button", "letterBtn", item.label);
+            if (!isEnglishAlphabetCard(item.label)) btn.classList.add("letterBtnNonEnglish");
             btn.addEventListener("click", () => navigate({ view: "prefixes", letter: item.label }));
             grid.appendChild(btn);
           });

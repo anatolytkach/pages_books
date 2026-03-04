@@ -2785,6 +2785,11 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   padding: 10px 16px calc(22px + env(safe-area-inset-bottom)) 16px;
 }
 
+#overlay-notes .overlay-scroll{
+  overflow: hidden;
+  padding: 0;
+}
+
 .overlay-head{
   padding: 12px 16px 10px 16px;
   display: flex;
@@ -2819,6 +2824,48 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   height: auto;
   min-width: 0;
   overflow: visible;
+}
+
+#overlay-notes #notesView{
+  height: 100%;
+  min-height: 0;
+  padding-top: 0 !important;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#overlay-notes #notes{
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 16px 0 !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+#overlay-notes #notesView .notes-copy-link-wrap{
+  position: relative;
+  z-index: 3;
+  margin-top: auto;
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--fbbar-border);
+  background: var(--fbbar-bg);
+}
+
+#overlay-notes #notesView .notes-copy-link-btn{
+  width: 100%;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fbbar-fg);
+  font: inherit;
+  padding: 0;
+  text-align: center;
+  cursor: pointer;
 }
 
 #overlay-toc #tocView ul,

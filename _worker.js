@@ -1,3 +1,88 @@
+function jsonResponse(payload, status = 200, extraHeaders = {}) {
+  const headers = new Headers({
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+    "access-control-allow-origin": "*",
+    ...extraHeaders,
+  });
+  headers.set("x-reader-worker", "1");
+  return new Response(JSON.stringify(payload), { status, headers });
+}
+
+function notesShareCorsHeaders() {
+  return {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-headers": "content-type",
+    "cache-control": "no-store",
+  };
+}
+
+function randomShareId() {
+  const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  const bytes = new Uint8Array(9);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) {
+    out += alphabet[bytes[i] % alphabet.length];
+  }
+  return out;
+}
+
+function buildNotesShareCacheKey(shareId) {
+  return new Request(`https://notes-share.reader.pub/${encodeURIComponent(String(shareId || ""))}`);
+}
+
+async function cachePutNotesShare(shareId, payload) {
+  try {
+    const cache = caches && caches.default ? caches.default : null;
+    if (!cache) return false;
+    const key = buildNotesShareCacheKey(shareId);
+    const body = JSON.stringify(payload || {});
+    const resp = new Response(body, {
+      status: 200,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=31536000",
+      },
+    });
+    await cache.put(key, resp);
+    return true;
+  } catch (e) {}
+  return false;
+}
+
+async function cacheGetNotesShare(shareId) {
+  try {
+    const cache = caches && caches.default ? caches.default : null;
+    if (!cache) return null;
+    const key = buildNotesShareCacheKey(shareId);
+    const hit = await cache.match(key);
+    if (!hit) return null;
+    return await hit.json();
+  } catch (e) {}
+  return null;
+}
+
+function normalizeNotes(raw) {
+  const src = Array.isArray(raw) ? raw : [];
+  const out = [];
+  for (const item of src) {
+    if (!item || typeof item !== "object") continue;
+    const cfi = String(item.cfi || "").trim();
+    if (!cfi) continue;
+    out.push({
+      id: String(item.id || "").trim() || undefined,
+      cfi,
+      href: item.href == null ? null : String(item.href),
+      quote: String(item.quote || "").slice(0, 2000),
+      comment: String(item.comment || "").slice(0, 8000),
+    });
+    if (out.length >= 500) break;
+  }
+  return out;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -7,6 +92,136 @@ export default {
     const driveClientId = String(
       env.READERPUB_GOOGLE_CLIENT_ID || env.GOOGLE_DRIVE_CLIENT_ID || ""
     ).trim();
+    const notesSharePrefix = "api/notes_shares/";
+
+    if (
+      normalizedPath === "/books/api/notes-share" ||
+      normalizedPath === "/api/notes-share" ||
+      normalizedPath.startsWith("/books/api/notes-share/") ||
+      normalizedPath.startsWith("/api/notes-share/")
+    ) {
+      if (request.method === "OPTIONS") {
+        const headers = new Headers(notesShareCorsHeaders());
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "notes-share-options");
+        return new Response(null, { status: 204, headers });
+      }
+      if (normalizedPath === "/books/api/notes-share" || normalizedPath === "/api/notes-share") {
+        if (request.method !== "POST") {
+          const headers = new Headers(notesShareCorsHeaders());
+          headers.set("content-type", "application/json; charset=utf-8");
+          headers.set("x-reader-worker", "1");
+          headers.set("x-reader-route", "notes-share-method");
+          return new Response(JSON.stringify({ error: "Method not allowed" }), {
+            status: 405,
+            headers,
+          });
+        }
+        try {
+          const body = await request.json();
+          const notes = normalizeNotes(body?.notes);
+          if (!notes.length) {
+            return jsonResponse(
+              { error: "No notes to share" },
+              400,
+              notesShareCorsHeaders()
+            );
+          }
+          const bookId = String(body?.bookId || "").trim().slice(0, 200);
+          const createdAt = Date.now();
+          let shareId = "";
+          let key = "";
+          for (let i = 0; i < 5; i++) {
+            shareId = randomShareId();
+            key = `${notesSharePrefix}${shareId}.json`;
+            if (env.READER_BOOKS) {
+              const existing = await env.READER_BOOKS.get(key);
+              if (!existing) break;
+            } else {
+              const existing = await cacheGetNotesShare(shareId);
+              if (!existing) break;
+            }
+            shareId = "";
+          }
+          if (!shareId) {
+            return jsonResponse(
+              { error: "Failed to create share id" },
+              500,
+              notesShareCorsHeaders()
+            );
+          }
+          const payload = {
+            v: 1,
+            bookId,
+            createdAt,
+            notes,
+          };
+          if (env.READER_BOOKS) {
+            await env.READER_BOOKS.put(key, JSON.stringify(payload), {
+              httpMetadata: { contentType: "application/json; charset=utf-8" },
+            });
+          } else {
+            const cached = await cachePutNotesShare(shareId, payload);
+            if (!cached) {
+              return jsonResponse(
+                { error: "Notes share storage unavailable" },
+                500,
+                notesShareCorsHeaders()
+              );
+            }
+          }
+          return jsonResponse(
+            { shareId, count: notes.length },
+            200,
+            notesShareCorsHeaders()
+          );
+        } catch (error) {
+          return jsonResponse(
+            {
+              error: "Failed to create notes share",
+              detail: error && error.message ? error.message : String(error || ""),
+            },
+            500,
+            notesShareCorsHeaders()
+          );
+        }
+      }
+
+      if (request.method !== "GET") {
+        return jsonResponse({ error: "Method not allowed" }, 405, notesShareCorsHeaders());
+      }
+      try {
+        const idMatch = normalizedPath.match(/\/notes-share\/([A-Za-z0-9_-]+)$/);
+        const shareId = idMatch ? String(idMatch[1]) : "";
+        if (!shareId) {
+          return jsonResponse({ error: "Missing share id" }, 400, notesShareCorsHeaders());
+        }
+        let data = null;
+        if (env.READER_BOOKS) {
+          const key = `${notesSharePrefix}${shareId}.json`;
+          const obj = await env.READER_BOOKS.get(key);
+          if (obj) data = await obj.json();
+        } else {
+          data = await cacheGetNotesShare(shareId);
+        }
+        if (!data) return jsonResponse({ error: "Not found" }, 404, notesShareCorsHeaders());
+        const notes = normalizeNotes(data?.notes);
+        return jsonResponse(
+          { shareId, bookId: String(data?.bookId || ""), notes },
+          200,
+          notesShareCorsHeaders()
+        );
+      } catch (error) {
+        return jsonResponse(
+          {
+            error: "Failed to load notes share",
+            detail: error && error.message ? error.message : String(error || ""),
+          },
+          500,
+          notesShareCorsHeaders()
+        );
+      }
+    }
 
     if (
       normalizedPath === "/books/api/translate" ||

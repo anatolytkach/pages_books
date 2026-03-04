@@ -10,7 +10,7 @@
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <link rel="icon" type="image/svg+xml" href="/books/assets/logo-flip.svg?v=20260218-1" />
 <link href="css/normalize.css" rel="stylesheet"/>
-<link href="css/main.css?v=20260303-desktop-font-dec-minus20-1" rel="stylesheet"/>
+<link href="css/main.css?v=20260304-notes-copy-link-sticky-5" rel="stylesheet"/>
 <link href="css/popup.css" rel="stylesheet"/>
 <script src="js/libs/jquery.min.js"></script>
 <script src="js/libs/zip.min.js"></script>
@@ -53,11 +53,12 @@
 (function(){
   const params = new URLSearchParams(location.search);
   const qid = params.get("id");
+  const qidShort = params.get("i");
   const rawHash = (location.hash || "");
   const hid = rawHash.replace(/^#/, "");
   const hashIsId = /^\d+$/.test(hid);
   const hashIsCfi = /^epubcfi\(/i.test(hid);
-  let id = (qid && qid.trim()) || (hashIsId ? hid.trim() : "") || "";
+  let id = (qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId ? hid.trim() : "") || "";
 
   // Fallback: remember last opened book id
   try {
@@ -86,7 +87,10 @@
   // Always keep ?id in URL (for reload/share). Preserve CFI hash if present.
   try {
     if (!qid || qid !== id) {
-      const newSearch = `?id=${encodeURIComponent(id)}`;
+      const nextParams = new URLSearchParams(location.search || "");
+      nextParams.set("id", id);
+      nextParams.delete("i");
+      const newSearch = `?${nextParams.toString()}`;
       const keepHash = hashIsCfi ? rawHash : "";
       history.replaceState(null, "", `${location.pathname}${newSearch}${keepHash}`);
     }
@@ -139,8 +143,9 @@
     // If hash is a CFI but ?id is missing, restore it.
     try {
       const p = new URLSearchParams(location.search);
-      if (!p.get("id") && /^\d+$/.test(id)) {
-        history.replaceState(null, "", `${location.pathname}?id=${encodeURIComponent(id)}${newHash}`);
+      if (!p.get("id") && !p.get("i") && /^\d+$/.test(id)) {
+        p.set("id", id);
+        history.replaceState(null, "", `${location.pathname}?${p.toString()}${newHash}`);
       }
     } catch (e) {}
   });
@@ -159,7 +164,7 @@
 <!-- Reader -->
 <script src="js/reader.js?v=20260303-iphone-search-keyboard-layout-1"></script>
 <script src="js/fullscreen-fix.js"></script>
-<script src="js/fbreader-ui.js?v=20260303-iphone-search-keyboard-layout-1"></script>
+<script src="js/fbreader-ui.js?v=20260304-notes-short-link-7"></script>
 <!-- Plugins -->
 <!--
 -->
@@ -198,7 +203,12 @@
   </div>
   <div class="overlay-sep" aria-hidden="true"></div>
   <div class="overlay-scroll">
-    <div class="view" id="notesView"><ul id="notes"></ul></div>
+    <div class="view" id="notesView">
+      <ul id="notes"></ul>
+      <div class="notes-copy-link-wrap">
+        <button id="copyNotesLinkBtn" class="notes-copy-link-btn" type="button">Copy link</button>
+      </div>
+    </div>
   </div>
 </div>
 <div id="overlay-mybooks" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="My Books">
