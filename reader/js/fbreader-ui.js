@@ -1639,6 +1639,7 @@
       ensureVisibleTimer: null,
       firstMatchConfirmToken: 0,
       firstMatchConfirmTimer: null,
+      safariSearchRepaintTimer: null,
       preUiHidden: true
     };
 
@@ -1768,8 +1769,7 @@
       try { syncBarHeights(); } catch (e) {}
       setDesktopNavVisible(false);
       setMobileNavVisible(false);
-      clearHighlight();
-      clearLegacyTextHighlightsEverywhere();
+      forceClearSearchHighlightArtifacts();
       state.searchActive = false;
       state.searching = false;
       state.queryLower = "";
@@ -1801,6 +1801,7 @@
       setCountText("0/0");
       try { if (els.mobileInput) els.mobileInput.value = ""; } catch(e){}
       try { if (els.deskInput) els.deskInput.value = ""; } catch(e){}
+      forceSafariSearchVisualReset();
       if (isTouchSearchUi()) {
         try {
           // Closing floating search on touch must keep bars hidden.
@@ -1841,8 +1842,8 @@
       try { if (els.mobileInput) els.mobileInput.value = ""; } catch(e){}
       try { if (els.deskInput) els.deskInput.value = ""; } catch(e){}
       showClearButtons();
-      clearHighlight();
-      clearLegacyTextHighlightsEverywhere();
+      forceClearSearchHighlightArtifacts();
+      forceSafariSearchVisualReset();
       state.index = -1;
       state.searching = false;
       setCountText("0/0");
@@ -1874,6 +1875,139 @@
           }
         }
       } catch (e) {}
+    }
+
+    function clearCssSearchHighlightInDoc(doc) {
+      try {
+        if (!doc) return;
+        var win = doc.defaultView || null;
+        var hs = win && win.CSS && win.CSS.highlights;
+        if (!hs) return;
+        try { hs.delete("fb-search"); } catch (e0) {}
+        // Safari can keep paint artifacts after delete(); clear map as fallback.
+        try { if (hs.has && hs.has("fb-search") && hs.clear) hs.clear(); } catch (e1) {}
+      } catch (e) {}
+    }
+
+    function clearCssSearchHighlightsEverywhere() {
+      try { clearCssSearchHighlightInDoc(document); } catch (e0) {}
+      try {
+        var contents = reader.rendition.getContents ? reader.rendition.getContents() : [];
+        for (var i = 0; i < contents.length; i++) {
+          if (contents[i] && contents[i].document) {
+            clearCssSearchHighlightInDoc(contents[i].document);
+          }
+        }
+      } catch (e1) {}
+    }
+
+    function clearSearchAnnotationsEverywhere() {
+      try {
+        var seen = Object.create(null);
+        var removeOne = function (cfi) {
+          if (!cfi || seen[cfi]) return;
+          seen[cfi] = true;
+          try { reader.rendition.annotations.remove(cfi, "highlight"); } catch (e0) {}
+        };
+        try { removeOne(state.pendingHighlightCfi); } catch (e1) {}
+        try {
+          if (state.lastHighlight) {
+            removeOne(state.lastHighlight.cfi || state.lastHighlight);
+          }
+        } catch (e2) {}
+        try {
+          var list = state.matchList || [];
+          for (var i = 0; i < list.length; i++) {
+            if (list[i] && list[i].cfi) removeOne(list[i].cfi);
+          }
+        } catch (e3) {}
+      } catch (e) {}
+    }
+
+    function clearPaneHighlightsEverywhere() {
+      try {
+        var views = reader.rendition && reader.rendition.views ? reader.rendition.views() : [];
+        if (!views || !views.length) return;
+        for (var i = 0; i < views.length; i++) {
+          var v = views[i];
+          if (!v) continue;
+          try {
+            if (v.highlights) {
+              var keys = Object.keys(v.highlights);
+              for (var k = 0; k < keys.length; k++) {
+                try { v.unhighlight(keys[k]); } catch (e0) {}
+              }
+            }
+          } catch (e1) {}
+          try {
+            if (v.pane && v.pane.marks && v.pane.removeMark) {
+              var marks = v.pane.marks.slice();
+              for (var m = 0; m < marks.length; m++) {
+                try { v.pane.removeMark(marks[m]); } catch (e2) {}
+              }
+            }
+          } catch (e3) {}
+        }
+      } catch (e) {}
+      // Fallback: remove any remaining highlight marks from DOM.
+      try {
+        var leftovers = document.querySelectorAll('[ref="epubjs-hl"]');
+        for (var j = 0; j < leftovers.length; j++) {
+          var el = leftovers[j];
+          if (el && el.parentNode) el.parentNode.removeChild(el);
+        }
+      } catch (e4) {}
+    }
+
+    function forceSearchHighlightRepaint() {
+      try {
+        // Main document repaint
+        document.body && document.body.offsetHeight;
+      } catch (e0) {}
+      try {
+        var views = reader.rendition && reader.rendition.views ? reader.rendition.views() : [];
+        for (var i = 0; i < views.length; i++) {
+          var v = views[i];
+          if (!v) continue;
+          try {
+            if (v.element && v.element.style) {
+              var prev = v.element.style.webkitTransform;
+              v.element.style.webkitTransform = "translateZ(0)";
+              v.element.offsetHeight;
+              v.element.style.webkitTransform = prev;
+            }
+          } catch (e1) {}
+          try {
+            var doc = v.document || (v.contents && v.contents.document) || null;
+            var root = doc && doc.documentElement;
+            if (root && root.style) {
+              var prevRoot = root.style.webkitTransform;
+              root.style.webkitTransform = "translateZ(0)";
+              root.offsetHeight;
+              root.style.webkitTransform = prevRoot;
+            }
+          } catch (e2) {}
+        }
+      } catch (e3) {}
+    }
+
+    function forceClearSearchHighlightArtifacts() {
+      clearHighlight();
+      clearSearchAnnotationsEverywhere();
+      clearPaneHighlightsEverywhere();
+      clearLegacyTextHighlightsEverywhere();
+      clearCssSearchHighlightsEverywhere();
+      forceSearchHighlightRepaint();
+      if (isSafariFirefoxDesktop()) {
+        // One more pass after a short delay to handle delayed WebKit repaint/composition.
+        setTimeout(function () {
+          clearSearchAnnotationsEverywhere();
+          clearPaneHighlightsEverywhere();
+          clearLegacyTextHighlightsEverywhere();
+          clearCssSearchHighlightsEverywhere();
+          forceSearchHighlightRepaint();
+        }, 60);
+      }
     }
 
     function cancelFirstMatchConfirm() {
@@ -1922,6 +2056,39 @@
         if (window.matchMedia && window.matchMedia("(pointer: fine)").matches) return true;
       } catch (e) {}
       return false;
+    }
+
+    function isSafariDesktopOnly() {
+      try {
+        var ua = navigator.userAgent || "";
+        var isSafari = /Safari/i.test(ua) && !/(Chrome|CriOS|Edg|OPR|FxiOS|Firefox)/i.test(ua);
+        if (!isSafari) return false;
+        if (window.matchMedia && window.matchMedia("(pointer: fine)").matches) return true;
+      } catch (e) {}
+      return false;
+    }
+
+    function forceSafariSearchVisualReset() {
+      if (!isSafariDesktopOnly()) return;
+      if (isTouchSearchUi()) return;
+      if (state.safariSearchRepaintTimer) {
+        try { clearTimeout(state.safariSearchRepaintTimer); } catch (e0) {}
+        state.safariSearchRepaintTimer = null;
+      }
+      state.safariSearchRepaintTimer = setTimeout(function () {
+        var targetCfi = null;
+        var targetHref = null;
+        try {
+          var loc = reader.rendition.currentLocation && reader.rendition.currentLocation();
+          targetCfi = loc && loc.start && loc.start.cfi;
+          targetHref = loc && loc.start && loc.start.href;
+        } catch (e1) {}
+        if (!targetCfi && !targetHref) return;
+        try {
+          var p = reader.rendition.display(targetCfi || targetHref);
+          if (p && p.catch) p.catch(function () {});
+        } catch (e2) {}
+      }, 0);
     }
 
     function getTextNodesInRange(range) {
@@ -2805,6 +2972,7 @@
           clearInput();
           state.searchStartCfi = null;
           state.searchStartHref = null;
+          forceSafariSearchVisualReset();
           syncDesktopAction();
           refreshSearchUiVisibility();
           return;
