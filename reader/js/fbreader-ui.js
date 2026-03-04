@@ -32,6 +32,16 @@
     return false;
   })();
   try { document.documentElement.classList.toggle("is-ios", !!__fb_isIOS); } catch (e) {}
+  var __fb_isIPhone = (function () {
+    try {
+      var ua = navigator.userAgent || "";
+      return /iPhone/i.test(ua);
+    } catch (e) {}
+    return false;
+  })();
+  try {
+    if (window.__fbSuppressIosViewportReflow == null) window.__fbSuppressIosViewportReflow = false;
+  } catch (e) {}
 
   function _screenMin() {
     try {
@@ -112,6 +122,7 @@
   syncTabletClass();
   function syncViewportVars() {
     try {
+      if (__fb_isIPhone && window.__fbSuppressIosViewportReflow) return;
       var vv = window.visualViewport;
       var h = (vv && vv.height) ? vv.height : (window.innerHeight || 0);
       var w = (vv && vv.width) ? vv.width : (window.innerWidth || 0);
@@ -122,6 +133,7 @@
 
   function forceRenditionResize() {
     try {
+      if (__fb_isIPhone && window.__fbSuppressIosViewportReflow) return;
       if (window.reader) {
         if (window.reader.rendition && window.reader.rendition.resize) window.reader.rendition.resize();
         if (window.reader.renditionPrev && window.reader.renditionPrev.resize) window.reader.renditionPrev.resize();
@@ -132,6 +144,10 @@
 
   function scheduleLayoutSync() {
     try {
+      if (__fb_isIPhone && window.__fbSuppressIosViewportReflow) {
+        syncBarHeights(false);
+        return;
+      }
       syncViewportVars();
       syncBarHeights();
       forceRenditionResize();
@@ -239,6 +255,7 @@
         vs.style.top = (topH || 0) + "px";
         vs.style.bottom = (bottomH || 0) + "px";
       }
+      if (__fb_isIPhone && window.__fbSuppressIosViewportReflow) withResize = false;
       if (withResize !== false) {
         try {
           if (window.reader) {
@@ -1640,6 +1657,8 @@
       firstMatchConfirmToken: 0,
       firstMatchConfirmTimer: null,
       safariSearchRepaintTimer: null,
+      iosSearchSubmitTimer: null,
+      iosKeyboardUnlockTimer: null,
       preUiHidden: true
     };
 
@@ -1648,6 +1667,28 @@
         return isTabletViewport() || isMobileViewport();
       } catch (e) {}
       return false;
+    }
+
+    function lockIphoneViewportReflow() {
+      try {
+        if (__fb_isIPhone) window.__fbSuppressIosViewportReflow = true;
+      } catch (e) {}
+    }
+
+    function unlockIphoneViewportReflow(delayMs) {
+      try {
+        if (!__fb_isIPhone) return;
+        if (state.iosKeyboardUnlockTimer) {
+          try { clearTimeout(state.iosKeyboardUnlockTimer); } catch (e0) {}
+          state.iosKeyboardUnlockTimer = null;
+        }
+        state.iosKeyboardUnlockTimer = setTimeout(function () {
+          window.__fbSuppressIosViewportReflow = false;
+          try {
+            if (typeof window.__fbScheduleLayoutSync === "function") window.__fbScheduleLayoutSync();
+          } catch (e1) {}
+        }, (delayMs == null) ? 260 : delayMs);
+      } catch (e) {}
     }
 
     function setCountText(txt) {
@@ -1794,6 +1835,10 @@
         try { clearTimeout(state.highlightRetryTimer); } catch (e) {}
         state.highlightRetryTimer = null;
       }
+      if (state.iosSearchSubmitTimer) {
+        try { clearTimeout(state.iosSearchSubmitTimer); } catch (e0) {}
+        state.iosSearchSubmitTimer = null;
+      }
       state.highlightRetryCount = 0;
       state.index = -1;
       state.query = "";
@@ -1801,6 +1846,7 @@
       setCountText("0/0");
       try { if (els.mobileInput) els.mobileInput.value = ""; } catch(e){}
       try { if (els.deskInput) els.deskInput.value = ""; } catch(e){}
+      unlockIphoneViewportReflow(0);
       forceSafariSearchVisualReset();
       if (isTouchSearchUi()) {
         try {
@@ -1837,6 +1883,10 @@
       if (state.highlightRetryTimer) {
         try { clearTimeout(state.highlightRetryTimer); } catch (e) {}
         state.highlightRetryTimer = null;
+      }
+      if (state.iosSearchSubmitTimer) {
+        try { clearTimeout(state.iosSearchSubmitTimer); } catch (e0) {}
+        state.iosSearchSubmitTimer = null;
       }
       state.highlightRetryCount = 0;
       try { if (els.mobileInput) els.mobileInput.value = ""; } catch(e){}
@@ -3059,12 +3109,38 @@
           // Run search ONLY on Enter (no search while typing).
           var q = (els.mobileInput.value || "").trim();
           state.excludeFootnotes = true;
-          runSearch(q);
-          // Hide keyboard after submitting.
+          // Hide keyboard first; on iPhone wait for keyboard-close relayout to settle.
           try { els.mobileInput.blur(); } catch (err) {}
+          if (!q) {
+            clearInput();
+            unlockIphoneViewportReflow(0);
+            return;
+          }
+          if (__fb_isIPhone) {
+            lockIphoneViewportReflow();
+            if (state.iosSearchSubmitTimer) {
+              try { clearTimeout(state.iosSearchSubmitTimer); } catch (e0) {}
+            }
+            state.iosSearchSubmitTimer = setTimeout(function () {
+              state.iosSearchSubmitTimer = null;
+              try {
+                if (typeof window.__fbScheduleLayoutSync === "function") window.__fbScheduleLayoutSync();
+              } catch (e1) {}
+              runSearch(q);
+              unlockIphoneViewportReflow(420);
+            }, 280);
+          } else {
+            runSearch(q);
+          }
           return;
         }
         if (e.key === "Escape") closeSearch();
+      });
+      els.mobileInput.addEventListener("focus", function () {
+        lockIphoneViewportReflow();
+      });
+      els.mobileInput.addEventListener("blur", function () {
+        unlockIphoneViewportReflow(320);
       });
     }
     if (els.deskInput) {

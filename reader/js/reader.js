@@ -3500,6 +3500,12 @@ function applyThemeToIframes(themeName) {
 	// -----------------------------
 	// NOTE: The book content is rendered inside an iframe. To style it (dark theme,
 	// justify, footnote superscripts, etc.) we must use rendition.themes.
+	var __readerIsIPhone = (function () {
+		try { return /iPhone/i.test(navigator.userAgent || ""); } catch (e) {}
+		return false;
+	})();
+	var __readerMediaMaxH = __readerIsIPhone ? "100% !important" : "80vh !important";
+	var __readerImgMaxH = __readerIsIPhone ? "100% !important" : "90vh !important";
 	var lightThemeCss = {
 		"html, body": {
 			"background": "#ffffff",
@@ -3536,7 +3542,7 @@ function applyThemeToIframes(themeName) {
 		"img, svg, video, figure, picture": {
 			"max-width": "100% !important",
 			"width": "100% !important",
-			"max-height": "80vh !important",
+			"max-height": __readerMediaMaxH,
 			"height": "auto !important",
 			"object-fit": "contain",
 			"display": "block",
@@ -3562,13 +3568,13 @@ function applyThemeToIframes(themeName) {
 		"img": {
 			"max-width": "100% !important",
 			"height": "auto !important",
-			"max-height": "90vh !important",
+			"max-height": __readerImgMaxH,
 			"object-fit": "contain"
 		},
 		"svg": {
 			"max-width": "100% !important",
 			"height": "auto !important",
-			"max-height": "90vh !important"
+			"max-height": __readerImgMaxH
 		},
 		"aside[epub\\:type~='footnote'], aside[epub\\|type~='footnote'], [role~='doc-footnote'], [role~='doc-endnote'], [role~='doc-endnotes'], ol.footnotes, .footnotes, div.footnotes": {
 			"display": "none !important"
@@ -3612,7 +3618,7 @@ function applyThemeToIframes(themeName) {
 		"img, svg, video, figure, picture": {
 			"max-width": "100% !important",
 			"width": "100% !important",
-			"max-height": "80vh !important",
+			"max-height": __readerMediaMaxH,
 			"height": "auto !important",
 			"object-fit": "contain",
 			"display": "block",
@@ -3642,13 +3648,13 @@ function applyThemeToIframes(themeName) {
 		"img": {
 			"max-width": "100% !important",
 			"height": "auto !important",
-			"max-height": "90vh !important",
+			"max-height": __readerImgMaxH,
 			"object-fit": "contain"
 		},
 		"svg": {
 			"max-width": "100% !important",
 			"height": "auto !important",
-			"max-height": "90vh !important"
+			"max-height": __readerImgMaxH
 		},
 		"ol, ul, li": {
 			"border-left": "none !important"
@@ -6338,6 +6344,26 @@ if (doc) {
 		return false;
 	}
 
+	function isIphoneSearchKeyboardResizeNoise(reason) {
+		try {
+			if (reason !== "resize" && reason !== "visual-viewport-resize" && reason !== "viewer-resize-observer") {
+				return false;
+			}
+			var ua = navigator.userAgent || "";
+			if (!/iPhone/i.test(ua)) return false;
+			var topWin = (window && window.top) ? window.top : window;
+			var suppress = false;
+			try { suppress = !!topWin.__fbSuppressIosViewportReflow; } catch (e0) {}
+			if (!suppress) {
+				try { suppress = !!window.__fbSuppressIosViewportReflow; } catch (e1) {}
+			}
+			if (suppress) return true;
+			var body = document.body || null;
+			if (body && body.classList && body.classList.contains("search-open")) return true;
+		} catch (e) {}
+		return false;
+	}
+
 	function isPassiveResizeReason(reason) {
 		if (reason === "visual-viewport-resize") return true;
 		if (reason === "viewer-resize-observer") return isIosResizeNoiseContext();
@@ -6347,6 +6373,9 @@ if (doc) {
 
 	function scheduleLayoutReflowAndPageRebuild(reason, forceRebuild) {
 		if (isUiToggleResizeNoise(reason)) {
+			return;
+		}
+		if (isIphoneSearchKeyboardResizeNoise(reason)) {
 			return;
 		}
 		var passiveResize = isPassiveResizeReason(reason);
