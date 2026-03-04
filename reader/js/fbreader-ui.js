@@ -2750,8 +2750,15 @@
           }
           refreshSearchUiVisibility();
           // Start at the first match.
+          // Keep counter stable even if first-match render/highlight is delayed in some browsers.
+          setCountText("1/" + state.totalMatches);
           state.matchIndex = 0;
-          showMatchByIndex(0);
+          try {
+            showMatchByIndex(0);
+          } catch (eShow) {
+            // Never leave the counter stuck on the initial "…".
+            setCountText("1/" + state.totalMatches);
+          }
           return;
         }
         var section = spine[i];
@@ -2794,7 +2801,12 @@
       els.deskAction.addEventListener("click", function(e){
         if (e) e.preventDefault();
         if (state.searchActive) {
-          goBackToLastSearchStart();
+          // Desktop clear ("x"): close/clear search but keep current reading position.
+          clearInput();
+          state.searchStartCfi = null;
+          state.searchStartHref = null;
+          syncDesktopAction();
+          refreshSearchUiVisibility();
           return;
         }
         var q = "";

@@ -364,18 +364,82 @@ html.is-desktop #openBookmarks {
 
 #titlebar a:hover {
   opacity: .8;
-  border: 1px rgba(0,0,0,.2) solid;
-  padding: 3px;
+  border: 0;
+  padding: 0;
 }
 
 #titlebar a:active {
   opacity: 1;
   color: rgba(0,0,0,.6);
-  /* margin: 1px -1px -1px 1px; */
-  -moz-box-shadow:    inset 0 0 6px rgba(155,155,155,.8);
-  -webkit-box-shadow: inset 0 0 6px rgba(155,155,155,.8);
-  -ms-box-shadow: inset 0 0 6px rgba(155,155,155,.8);
-  box-shadow: inset 0 0 6px rgba(155,155,155,.8);
+  padding: 0;
+  border: 0;
+  -moz-box-shadow: none;
+  -webkit-box-shadow: none;
+  -ms-box-shadow: none;
+  box-shadow: none;
+}
+
+/* Top-bar control buttons must keep fixed geometry on hover/active (no layout shift). */
+#titlebar #title-controls a:hover,
+#titlebar #title-controls a:active,
+#titlebar #slider:hover,
+#titlebar #slider:active {
+  border: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Fontello icons in topbar must not add extra inline margin that changes occupied width. */
+#titlebar #title-controls [class^="icon-"]::before,
+#titlebar #title-controls [class*=" icon-"]::before {
+  margin-right: 0 !important;
+}
+
+/* Bookmark icon must keep a fixed slot width on hover/active to avoid shifting neighboring controls. */
+#titlebar #bookmark,
+#titlebar #openBookmarks {
+  flex: 0 0 var(--title-icon-size);
+  width: var(--title-icon-size);
+  min-width: var(--title-icon-size);
+  max-width: var(--title-icon-size);
+  box-sizing: border-box;
+  overflow: hidden;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+#titlebar #bookmark::before,
+#titlebar #openBookmarks::before {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-right: 0 !important;
+  font-size: calc(var(--title-icon-glyph-size) * 1.05);
+  line-height: 1 !important;
+}
+#titlebar #bookmark:hover,
+#titlebar #bookmark:active,
+#titlebar #openBookmarks:hover,
+#titlebar #openBookmarks:active {
+  width: var(--title-icon-size) !important;
+  min-width: var(--title-icon-size) !important;
+  max-width: var(--title-icon-size) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+/* Keep desktop "A" controls in fixed slots so neighboring icon hover cannot shift them. */
+#titlebar #title-controls #fontDec,
+#titlebar #title-controls #fontInc {
+  flex: 0 0 12px;
+  width: 12px;
+  min-width: 12px;
+  max-width: 12px;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* Hamburger must use only SVG (no icon-font / hover box artifacts). */
@@ -2001,6 +2065,7 @@ html.is-desktop .selection-toolbar .sel-share{ display: none; }
 
 #title-controls .font-size-inc{ font-size: calc(var(--title-icon-size) * 0.95); }
 #title-controls .font-size-dec{ font-size: calc(var(--title-icon-size) * 0.80); }
+html.is-desktop #title-controls .font-size-dec{ font-size: calc(var(--title-icon-size) * 0.64); }
 
 /* Prevent hover/active jitter for font size buttons */
 #title-controls .font-size-btn:hover,
