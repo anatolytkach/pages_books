@@ -5525,7 +5525,15 @@ if (doc) {
 				if (currentText && currentText !== "…/…") {
 					reader._lastStablePageCounterText = currentText;
 				}
-				renderPageCountLabel("…/…");
+				var locPending = getCurrentLocationSafe();
+				var pendingGlobal = getGlobalPageFromLocationsFallback(locPending);
+				if (pendingGlobal && pendingGlobal.total) {
+					var pendingPageLabel = String(pendingGlobal.page) + "/" + String(pendingGlobal.total);
+					var pendingTocTitle = getTocTitleForLocation(locPending);
+					renderPageCountLabel(buildFittedPageCounterLabel(pendingPageLabel, pendingTocTitle));
+				} else {
+					renderPageCountLabel("…/…");
+				}
 			}
 			// Fail-open timeout is needed only on touch/iOS (resize-noise contexts).
 			// On desktop it causes a visible rollback to old numbers while recount is still running.
@@ -5836,6 +5844,31 @@ if (doc) {
 			if (globalPage < 1) globalPage = 1;
 			if (globalPage > map.totalPages) globalPage = map.totalPages;
 			return { page: globalPage, total: map.totalPages };
+		} catch (e) {
+			return null;
+		}
+	}
+
+	function getGlobalPageFromLocationsFallback(loc) {
+		try {
+			if (!reader || !reader.book || !reader.book.locations) return null;
+			var locations = reader.book.locations;
+			var total = parseInt(locations.total || 0, 10);
+			if (!total || isNaN(total) || total < 1) return null;
+			var cfi = "";
+			try {
+				cfi = (loc && loc.start && loc.start.cfi) ? String(loc.start.cfi) : "";
+			} catch (eCfi) {}
+			if (!cfi) return null;
+			if (typeof locations.percentageFromCfi !== "function") return null;
+			var pctF = locations.percentageFromCfi(cfi);
+			if (typeof pctF !== "number" || isNaN(pctF)) return null;
+			if (pctF < 0) pctF = 0;
+			if (pctF > 1) pctF = 1;
+			var page = Math.round(pctF * (total - 1)) + 1;
+			if (!page || isNaN(page) || page < 1) page = 1;
+			if (page > total) page = total;
+			return { page: page, total: total };
 		} catch (e) {
 			return null;
 		}
@@ -6416,13 +6449,23 @@ if (doc) {
 				} catch (ePendingGuard) {}
 			}
 			if (reader._pageCounterPending) {
-				renderPageCountLabel("…/…");
+				var pendingFallback = getGlobalPageFromLocationsFallback(loc);
+				if (pendingFallback && pendingFallback.total) {
+					var pendingLabel = String(pendingFallback.page) + "/" + String(pendingFallback.total);
+					var pendingTitle = getTocTitleForLocation(loc);
+					renderPageCountLabel(buildFittedPageCounterLabel(pendingLabel, pendingTitle));
+				} else {
+					renderPageCountLabel("…/…");
+				}
 				return;
 			}
 			var p = getGlobalPageFromLocation(loc);
 			if (!p || !p.total) {
-				renderPageCountLabel("…/…");
-				return;
+				p = getGlobalPageFromLocationsFallback(loc);
+				if (!p || !p.total) {
+					renderPageCountLabel("…/…");
+					return;
+				}
 			}
 			if (loc && loc.atEnd) p.page = p.total;
 			if (loc && loc.atStart) p.page = 1;
