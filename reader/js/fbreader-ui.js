@@ -5247,12 +5247,20 @@
       var li = document.createElement("li");
       li.className = "list_item";
       if (note && note.cfi) li.setAttribute("data-cfi", note.cfi);
+      li.style.display = "flex";
+      li.style.alignItems = "flex-start";
+      li.style.gap = "10px";
+      li.style.width = "100%";
+      li.style.boxSizing = "border-box";
 
       var wrap = document.createElement("div");
-      wrap.className = "note-text";
+      wrap.className = "bookmark-text";
+      wrap.style.flex = "1 1 auto";
+      wrap.style.minWidth = "0";
+      wrap.style.width = "100%";
 
       var link = document.createElement("a");
-      link.className = "note_link";
+      link.className = "bookmark_link";
       link.href = note && note.cfi ? note.cfi : "#";
       link.textContent = normalizeQuote(note && note.quote);
       link.addEventListener("click", function (event) {
@@ -5263,15 +5271,29 @@
       wrap.appendChild(link);
       if (note && note.comment) {
         var comment = document.createElement("div");
-        comment.className = "note-comment";
+        comment.className = "bookmark-comment";
         comment.textContent = note.comment;
         wrap.appendChild(comment);
       }
       li.appendChild(wrap);
       var btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "note-delete";
+      btn.className = "bookmark-delete";
       btn.setAttribute("aria-label", "Delete note");
+      btn.style.position = "static";
+      btn.style.left = "auto";
+      btn.style.right = "auto";
+      btn.style.top = "auto";
+      btn.style.flex = "0 0 32px";
+      btn.style.width = "32px";
+      btn.style.minWidth = "32px";
+      btn.style.maxWidth = "32px";
+      btn.style.height = "32px";
+      btn.style.margin = "0";
+      btn.style.padding = "0";
+      btn.style.display = "inline-flex";
+      btn.style.alignItems = "center";
+      btn.style.justifyContent = "center";
       if (note && note.id) btn.setAttribute("data-id", note.id);
       btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
         + '<path d="M4 7h16" />'

@@ -1375,11 +1375,11 @@ input:-ms-placeholder {
   overflow-y: scroll;
 }
 
-#notes {
+#sidebar #notes {
  padding: 0 0 0 34px;
 }
 
-#notes li {
+#sidebar #notes li {
   color: #eee;
   font-size: 12px;
   width: 240px;
@@ -1388,17 +1388,17 @@ input:-ms-placeholder {
   margin-bottom: 6px;
 }
 
-#notes li a {
+#sidebar #notes li a {
   color: #fff;
   display: inline-block;
   margin-left: 6px;
 }
 
-#notes li a:hover {
+#sidebar #notes li a:hover {
   text-decoration: underline;
 }
 
-#notes li img {
+#sidebar #notes li img {
   max-width: 240px;
 }
 
@@ -2786,8 +2786,11 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 }
 
 #overlay-notes .overlay-scroll{
-  overflow: hidden;
-  padding: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 16px calc(22px + env(safe-area-inset-bottom)) 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 .overlay-head{
@@ -2828,28 +2831,31 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 
 #overlay-notes #notesView{
   height: 100%;
-  min-height: 0;
+  min-height: 100%;
   padding-top: 0 !important;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 #overlay-notes #notes{
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 10px 16px 0 !important;
-  overflow-y: auto;
-  overflow-x: hidden;
+  padding: 0 !important;
+  overflow-y: visible;
+  overflow-x: visible;
   overscroll-behavior: contain;
 }
 
 #overlay-notes #notesView .notes-copy-link-wrap{
-  position: relative;
+  position: sticky;
+  bottom: 0;
   z-index: 3;
   margin-top: auto;
+  margin-left: -16px;
+  margin-right: -16px;
   padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--fbbar-border);
   background: var(--fbbar-bg);
@@ -2896,6 +2902,13 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   border-bottom: 1px solid var(--fbbar-border);
 }
 #overlay-notes #notesView li{
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
   border-bottom: 1px solid var(--fbbar-border);
 }
 #overlay-notes #notesView li:first-child{
@@ -3081,7 +3094,8 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   cursor: pointer;
 }
 #overlay-bookmarks #bookmarksView .bookmark-text,
-#overlay-mybooks #mybooksView .bookmark-text{
+#overlay-mybooks #mybooksView .bookmark-text,
+#overlay-notes #notesView .bookmark-text{
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -3093,18 +3107,9 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#overlay-notes #notesView .note-text{
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  width: 100%;
-}
-#overlay-notes #notesView .note_link{
-  font-size: calc(var(--bottom-font-size, 14px) * 1.2);
-}
 #overlay-bookmarks #bookmarksView .bookmark-comment,
-#overlay-mybooks #mybooksView .bookmark-comment{
+#overlay-mybooks #mybooksView .bookmark-comment,
+#overlay-notes #notesView .bookmark-comment{
   margin: 4px 6px 8px;
   padding: 0;
   border: 0;
@@ -3151,25 +3156,9 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   opacity: 0.65;
   cursor: default;
 }
-#overlay-notes #notesView .note-comment{
-  margin: 4px 6px 8px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  font-size: 12px;
-  line-height: 1.4;
-  max-height: calc(1.4em * 4);
-  overflow-y: auto;
-  white-space: normal;
-  word-break: break-word;
-  width: 100%;
-  box-sizing: border-box;
-}
-
 #overlay-bookmarks #bookmarksView .bookmark-delete,
-#overlay-mybooks #mybooksView .bookmark-delete{
+#overlay-mybooks #mybooksView .bookmark-delete,
+#overlay-notes #notesView .bookmark-delete{
   flex: 0 0 32px;
   width: 32px;
   height: 32px;
@@ -3178,34 +3167,18 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   justify-content: center;
   border: 0;
   background: transparent;
+  position: static;
+  left: auto;
+  right: auto;
+  top: auto;
   color: inherit;
   cursor: pointer;
   padding: 0;
+  margin: 0;
 }
 #overlay-bookmarks #bookmarksView .bookmark-delete svg,
-#overlay-mybooks #mybooksView .bookmark-delete svg{
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-#overlay-notes #notesView .note-delete{
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  padding: 0;
-}
-#overlay-notes #notesView .note-delete svg{
+#overlay-mybooks #mybooksView .bookmark-delete svg,
+#overlay-notes #notesView .bookmark-delete svg{
   width: 18px;
   height: 18px;
   stroke: currentColor;
@@ -3946,4 +3919,30 @@ html.is-phone #mobileMoreToggle::before,
 html.is-tablet #mobileMoreToggle::before {
   content: none !important;
   display: none !important;
+}
+
+/* Notes rows: force same geometry as My Books delete controls (without !important). */
+#overlay-notes #notesView #notes > li.list_item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+#overlay-notes #notesView #notes > li.list_item > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#overlay-notes #notesView #notes > li.list_item > button,
+#overlay-notes #notesView #notes > li.list_item > button.bookmark-delete {
+  position: static;
+  inset: auto;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  float: none;
+  transform: none;
 }
