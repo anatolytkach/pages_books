@@ -4621,10 +4621,6 @@
         pushCandidate("/books/api/translate");
         pushCandidate("/api/translate");
       }
-      // reader.pub may be routed via another worker; fallback to the Pages alias where
-      // translate endpoint is guaranteed to exist.
-      pushCandidate("https://master.reader-books.pages.dev/books/api/translate");
-      pushCandidate("https://master.reader-books.pages.dev/api/translate");
 
       function parseTranslateResponse(res) {
         return res.text().then(function (raw) {
@@ -5105,11 +5101,20 @@
     }
 
     function getNotesShareCreateEndpoints() {
-      var endpoints = ["/books/api/notes-share", "/api/notes-share"];
+      var endpoints = ["/books/api/ns", "/api/ns", "/books/api/notes-share", "/api/notes-share"];
       try {
         var host = String(window.location.hostname || "").toLowerCase();
         if (host === "reader.pub" || host === "www.reader.pub") {
-          endpoints.push("https://master.reader-books.pages.dev/books/api/notes-share");
+          // reader.pub /books/api/* may be handled outside the reader worker.
+          // Use the reader-worker path first, then keep local fallbacks.
+          endpoints = [
+            "/books/reader/api/ns",
+            "/books/api/ns",
+            "/api/ns",
+            "/books/reader/api/notes-share",
+            "/books/api/notes-share",
+            "/api/notes-share"
+          ];
         }
       } catch (e0) {}
       return endpoints;
@@ -5118,13 +5123,24 @@
     function getNotesShareReadEndpoints(shareId) {
       var id = encodeURIComponent(String(shareId || ""));
       var endpoints = [
+        "/books/api/ns/" + id,
+        "/api/ns/" + id,
         "/books/api/notes-share/" + id,
         "/api/notes-share/" + id
       ];
       try {
         var host = String(window.location.hostname || "").toLowerCase();
         if (host === "reader.pub" || host === "www.reader.pub") {
-          endpoints.push("https://master.reader-books.pages.dev/books/api/notes-share/" + id);
+          // reader.pub /books/api/* may be handled outside the reader worker.
+          // Use the reader-worker path first, then keep local fallbacks.
+          endpoints = [
+            "/books/reader/api/ns/" + id,
+            "/books/api/ns/" + id,
+            "/api/ns/" + id,
+            "/books/reader/api/notes-share/" + id,
+            "/books/api/notes-share/" + id,
+            "/api/notes-share/" + id
+          ];
         }
       } catch (e0) {}
       return endpoints;
@@ -5381,12 +5397,41 @@
     function importSharedNotesFromUrl() {
       try {
         var u = new URL(window.location.href || "", window.location.origin);
+        var applyImportedNotes = function (imported) {
+          if (!imported || !imported.length) return false;
+          reader.settings.notes = imported;
+          render();
+          return true;
+        };
+        var tryLegacyToken = function () {
+          var token = u.searchParams.get("notes");
+          if (!token) return;
+          var imported = decodeNotesFromUrl(token);
+          applyImportedNotes(imported);
+        };
+        var tryUrlPayloadFallback = function () {
+          var compressed = String(u.searchParams.get("notesz") || "").trim();
+          if (compressed) {
+            decodeNotesCompressed(compressed).then(function (raw) {
+              var importedZ = normalizeImportedNotes(raw);
+              if (applyImportedNotes(importedZ)) return;
+              tryLegacyToken();
+            }).catch(function () {
+              tryLegacyToken();
+            });
+            return;
+          }
+          tryLegacyToken();
+        };
         var shareId = String(u.searchParams.get("n") || u.searchParams.get("notesShare") || "").trim();
         if (shareId) {
           var endpoints = getNotesShareReadEndpoints(shareId);
           var i = 0;
           var tryLoad = function () {
-            if (i >= endpoints.length) return;
+            if (i >= endpoints.length) {
+              tryUrlPayloadFallback();
+              return;
+            }
             fetch(endpoints[i++], { method: "GET", credentials: "same-origin" })
               .then(function (resp) {
                 if (!resp || !resp.ok) throw new Error("share load failed");
@@ -5394,9 +5439,7 @@
               })
               .then(function (data) {
                 var imported = normalizeImportedNotes(data && data.notes);
-                if (!imported.length) return;
-                reader.settings.notes = imported;
-                render();
+                if (!applyImportedNotes(imported)) throw new Error("share empty");
               })
               .catch(function () {
                 tryLoad();
@@ -5405,21 +5448,7 @@
           tryLoad();
           return;
         }
-        var compressed = String(u.searchParams.get("notesz") || "").trim();
-        if (compressed) {
-          decodeNotesCompressed(compressed).then(function (raw) {
-            var importedZ = normalizeImportedNotes(raw);
-            if (!importedZ.length) return;
-            reader.settings.notes = importedZ;
-            render();
-          }).catch(function () {});
-          return;
-        }
-        var token = u.searchParams.get("notes");
-        if (!token) return;
-        var imported = decodeNotesFromUrl(token);
-        if (!imported.length) return;
-        reader.settings.notes = imported;
+        tryUrlPayloadFallback();
       } catch (e) {}
     }
 

@@ -97,8 +97,16 @@ export default {
     if (
       normalizedPath === "/books/api/notes-share" ||
       normalizedPath === "/api/notes-share" ||
+      normalizedPath === "/books/reader/api/notes-share" ||
+      normalizedPath === "/books/api/ns" ||
+      normalizedPath === "/api/ns" ||
+      normalizedPath === "/books/reader/api/ns" ||
       normalizedPath.startsWith("/books/api/notes-share/") ||
-      normalizedPath.startsWith("/api/notes-share/")
+      normalizedPath.startsWith("/api/notes-share/") ||
+      normalizedPath.startsWith("/books/reader/api/notes-share/") ||
+      normalizedPath.startsWith("/books/api/ns/") ||
+      normalizedPath.startsWith("/api/ns/") ||
+      normalizedPath.startsWith("/books/reader/api/ns/")
     ) {
       if (request.method === "OPTIONS") {
         const headers = new Headers(notesShareCorsHeaders());
@@ -106,7 +114,14 @@ export default {
         headers.set("x-reader-route", "notes-share-options");
         return new Response(null, { status: 204, headers });
       }
-      if (normalizedPath === "/books/api/notes-share" || normalizedPath === "/api/notes-share") {
+      if (
+        normalizedPath === "/books/api/notes-share" ||
+        normalizedPath === "/api/notes-share" ||
+        normalizedPath === "/books/reader/api/notes-share" ||
+        normalizedPath === "/books/api/ns" ||
+        normalizedPath === "/api/ns" ||
+        normalizedPath === "/books/reader/api/ns"
+      ) {
         if (request.method !== "POST") {
           const headers = new Headers(notesShareCorsHeaders());
           headers.set("content-type", "application/json; charset=utf-8");
@@ -191,7 +206,7 @@ export default {
         return jsonResponse({ error: "Method not allowed" }, 405, notesShareCorsHeaders());
       }
       try {
-        const idMatch = normalizedPath.match(/\/notes-share\/([A-Za-z0-9_-]+)$/);
+        const idMatch = normalizedPath.match(/\/(?:notes-share|ns)\/([A-Za-z0-9_-]+)$/);
         const shareId = idMatch ? String(idMatch[1]) : "";
         if (!shareId) {
           return jsonResponse({ error: "Missing share id" }, 400, notesShareCorsHeaders());

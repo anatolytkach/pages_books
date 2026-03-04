@@ -1,0 +1,17 @@
+name = "readerpub-notes-share-proxy"
+main = "notes-share-proxy-worker.js"
+compatibility_date = "2026-03-04"
+
+kv_namespaces = [
+  { binding = "READERPUB_NOTES_SHARE_KV", id = "bd1784667f4042bd89ae7387c0c51e4c" }
+]
+
+routes = [
+  { pattern = "reader.pub/books/api/notes-share*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/api/notes-share*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/books/reader/api/notes-share*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/books/api/ns*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/api/ns*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/books/reader/api/ns*", zone_name = "reader.pub" }
+]
+
