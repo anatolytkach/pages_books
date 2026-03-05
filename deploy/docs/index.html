@@ -58,12 +58,12 @@
       }
       pre {
         margin: 10px 0 0;
-        background: #0f172a;
-        color: #e2e8f0;
+        background: #f8fafc;
+        color: #0f172a;
         border-radius: 10px;
         padding: 12px 14px;
         overflow: auto;
-        border: 1px solid #1e293b;
+        border: 1px solid #d8e0e8;
       }
       .meta {
         font-size: 14px;
@@ -186,6 +186,15 @@ cd pages_books</code></pre>
         <p>Сборка EPUB:</p>
         <pre><code>cd books/content
 ./make_epub_from_docx.sh /path/to/book.docx</code></pre>
+
+        <p>PDF - EPUB (reflowable):</p>
+        <pre><code>cd books/content
+./make_epub_from_pdf.sh /absolute/path/to/book.pdf</code></pre>
+        <ul>
+          <li><code>make_epub_from_pdf.sh</code> использует <code>pdftohtml + pandoc</code> и чистит PDF-артефакты (headers/footers/page numbers).</li>
+          <li>По умолчанию включена защита от дублирования страниц картинками: <code>STRIP_SYNTHETIC_PAGE_IMAGES=1</code>.</li>
+          <li>Обложка берется из <code>books/content/cover.jpg</code> или переменной <code>COVER_IMAGE</code>.</li>
+        </ul>
 
         <p>Ingest/деплой:</p>
         <pre><code>cd books/content
