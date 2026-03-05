@@ -196,6 +196,47 @@ Bucket: `reader-books` (по умолчанию).
 - нормализация OPF/TOC/lang/footnotes;
 - выходной файл `<name>.epub`.
 
+### 7.1.1 PDF -> EPUB
+
+Скрипт: `books/content/make_epub_from_pdf.sh`
+
+Назначение:
+- конвертация PDF (с текстовым слоем) в reflowable EPUB3;
+- очистка служебных PDF-артефактов (headers/footers/page numbers);
+- сохранение обложки из `books/content/cover.jpg` (или `$COVER_IMAGE`);
+- защита от дублирования страниц картинками (page-layer bitmaps).
+
+Базовый запуск:
+
+```bash
+cd /Volumes/2T/se_ingest/pages_books/books/content
+./make_epub_from_pdf.sh "/absolute/path/to/book.pdf"
+```
+
+Если аргумент не передан, скрипт ожидает ровно один `*.pdf` в `books/content/`.
+
+Выход:
+- рядом с исходным PDF создается одноименный `*.epub`.
+
+Зависимости:
+- `pdftohtml`
+- `pandoc`
+- `python3`
+- `perl`
+- `zip`, `unzip`
+
+Поддерживаемые env-параметры:
+- `AUTHOR` (default: `Unknown`)
+- `BOOK_LANG` (default: `ru-RU`)
+- `NAV_TITLE` (default: `Contents`)
+- `COVER_IMAGE` (default: `books/content/cover.jpg`)
+- `STRIP_SYNTHETIC_PAGE_IMAGES` (default: `1`)
+
+Важно по изображениям:
+- в OCR-PDF часто присутствует большой фоновый image-layer страницы;
+- при `STRIP_SYNTHETIC_PAGE_IMAGES=1` скрипт удаляет только массовый паттерн таких page-layer картинок, чтобы не получить дубли: «текст + та же страница как картинка»;
+- если в PDF реальные иллюстрации не выделены как отдельные объекты (а «запечены» в page-layer), они не могут быть надежно извлечены отдельно без риска вернуть page-duplicates.
+
 ### 7.2 Ingest/Upload/Deploy
 
 Скрипт: `books/content/epub_ingest.sh`
