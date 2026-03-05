@@ -5184,11 +5184,6 @@
 
     function getCopyNotesUrl() {
       try {
-        if (typeof window.__fbBuildNotesShareLink === "function") {
-          return Promise.resolve(window.__fbBuildNotesShareLink(reader));
-        }
-      } catch (e0) {}
-      try {
         var notesPayload = extractShareableNotes();
         if (notesPayload.length) {
           return createShortNotesShare(notesPayload).catch(function () {
@@ -5469,9 +5464,19 @@
         var btn = copyBtn;
         clearCopyState(btn);
         var oldText = btn.textContent || "Copy link";
+        var generatedUrl = "";
         getCopyNotesUrl()
-          .then(function (url) { return copyText(url); })
+          .then(function (url) {
+            generatedUrl = String(url || "");
+            return copyText(generatedUrl);
+          })
           .then(function () {
+            try {
+              if (generatedUrl) {
+                var next = new URL(generatedUrl, window.location.origin);
+                history.replaceState(null, "", next.pathname + next.search + (next.hash || ""));
+              }
+            } catch (e0) {}
             btn.classList.add("is-copied");
             btn.textContent = "Copied";
             setTimeout(function () {

@@ -1,0 +1,114 @@
+body.cover {
+	margin: 0px;
+	oeb-column-number: 1;
+	padding: 0px;
+}
+
+svg.cover-svg {
+	height: 100%;
+	width: 100%;
+}
+
+.z {
+	font-family: 'Times New Roman', serif;
+	margin-right: 8pt;
+}
+
+.title {
+	font-size: 2.2em;
+	font-weight: bold;
+	margin: 1em 0px 0.5em 0px;
+	page-break-after: avoid;
+	page-break-inside: avoid;
+	text-align: center;
+}
+
+.p {
+	margin: 0px 0px 0.5em 0px;
+	text-align: inherit;
+	text-indent: 0px;
+}
+
+.empty-line {
+	height: 1em;
+	margin: 0px;
+}
+
+.p1 {
+	margin: 0px;
+	text-align: justify;
+	text-indent: 1.5em;
+}
+
+.title1 {
+	font-size: 1.8em;
+	font-weight: bold;
+	margin: 1em 0px 0.5em 0px;
+	page-break-after: avoid;
+	page-break-inside: avoid;
+	text-align: center;
+}
+
+.image {
+	padding: 3px;
+	text-align: center;
+}
+
+.z1 {
+	max-width: 95%;
+}
+
+.title2 {
+	font-size: 1.5em;
+	font-weight: bold;
+	margin: 1em 0px 0.5em 1.563em;
+	page-break-after: avoid;
+	page-break-inside: avoid;
+	text-align: left;
+}
+
+.title3 {
+	font-size: 1.3em;
+	font-weight: bold;
+	margin: 1em 0px 0.5em 1.923em;
+	page-break-after: avoid;
+	page-break-inside: avoid;
+	text-align: left;
+}
+
+.poem {
+	margin: 0.5em 0px 0.5em 2em;
+}
+
+.stanza {
+	margin: 0.5em 0px;
+	page-break-inside: avoid;
+}
+
+.v {
+	margin: 0px;
+	padding-left: 1em;
+	text-indent: -1em;
+}
+
+@font-face {
+	font-family: 'Times New Roman';
+	font-style: italic;
+	font-weight: normal;
+	src: url(fonts/Times-New-Roman-400-Italic-d375cc36-8f9d-4e59-88e8-e4a21b414e1e.otf);
+}
+
+@font-face {
+	font-family: 'Times New Roman';
+	font-style: normal;
+	font-weight: normal;
+	src: url(fonts/Times-New-Roman-400-d375cc36-8f9d-4e59-88e8-e4a21b414e1e.otf);
+}
+
+@font-face {
+	font-family: 'Times New Roman';
+	font-style: normal;
+	font-weight: bold;
+	src: url(fonts/Times-New-Roman-700-d375cc36-8f9d-4e59-88e8-e4a21b414e1e.otf);
+}
+

@@ -303,6 +303,9 @@ def build_language_indexes(lang: str, authors: list, output_root: str, max_prefi
         write_json(os.path.join(lang_root, "p", f"{letter_key}.json"), {"prefixes": prefixes})
 
     for prefix, keys in prefix_authors.items():
+        # Do not build one-letter prefix nodes (keep p/<letter>.json as letter node only).
+        if len(prefix) < 2:
+            continue
         author_keys = sorted(keys)
         prefix_node = {
             "authorCount": len(author_keys),

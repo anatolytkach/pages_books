@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid" xmlns:opf="http://www.idpf.org/2007/opf" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<metadata>
+<dc:title>Орфография</dc:title>
+<dc:creator>Дмитрий Львович Быков</dc:creator>
+<dc:language>ru</dc:language>
+<dc:description>Дмитрий Быков снова удивляет читателей: он написал авантюрный роман, взяв за основу событие, казалось бы, «академическое» — реформу русской орфографии в 1918 году. Роман весь пронизан литературной игрой и одновременно очень серьезен; в нем кипят страсти и ставятся «проклятые вопросы»; действие происходит то в Петрограде, то в Крыму сразу после революции или… сейчас? Словом, «Орфография» — веселое и грустное повествование о злоключениях русской интеллигенции в XX столетии… Номинант шорт-листа Российской национальной литературной премии «Национальный Бестселлер» 2003 года. </dc:description>
+<meta name="FB2.book-info.date" content=""/>
+<meta name="FB2.document-info.program-used" content="FB Tools, FB Editor v2.0"/>
+<meta name="FB2.document-info.history" content="1.0 — создание документа, 27.03.2007 by Black Jack 1.1 — «генеральная уборка», чистка скриптами, 06.08.2008 by golma1 "/>
+<meta name="FB2.document-info.id" content="D06F39FD-1B2A-49D6-B923-0D92B29E39A6"/>
+<meta name="FB2.document-info.version" content="1.1"/>
+<meta name="FB2.document-info.date" content=""/>
+<dc:identifier id="bookid">urn:uuid:d06f39fd-1b2a-49d6-b923-0d92b29e39a6</dc:identifier>
+<dc:publisher>Вагриус</dc:publisher>
+<meta name="FB2.publish-info.book-name" content="Быков Д. Орфография"/>
+<meta name="FB2.publish-info.city" content="М."/>
+<meta name="FB2.publish-info.year" content="2003"/>
+<dc:date>2003</dc:date>
+<dc:identifier id="bookid1">isbn:5-264-00741-1</dc:identifier>
+<meta name="FB2EPUB.version" content="0.5.0"/>
+<meta name="FB2EPUB.conversionDate" content="2022-09-08T19:36:52+00:00"/>
+<meta name="cover" content="id1"/>
+</metadata>
+<manifest>
+<item href="ch1-33.xhtml" media-type="application/xhtml+xml" id="id2"/>
+<item href="fonts/Times-New-Roman-700-Italic-d06f39fd-1b2a-49d6-b923-0d92b29e39a6.otf" media-type="application/vnd.ms-opentype" id="id3"/>
+<item href="fonts/Times-New-Roman-400-Italic-d06f39fd-1b2a-49d6-b923-0d92b29e39a6.otf" media-type="application/vnd.ms-opentype" id="id4"/>
+<item href="toc.ncx" media-type="application/x-dtbncx+xml" id="id5"/>
+<item href="fonts/Times-New-Roman-400-d06f39fd-1b2a-49d6-b923-0d92b29e39a6.otf" media-type="application/vnd.ms-opentype" id="id6"/>
+<item href="cover.xhtml" media-type="application/xhtml+xml" id="id7"/>
+<item href="ch1.xhtml" media-type="application/xhtml+xml" id="id8"/>
+<item href="style.css" media-type="text/css" id="id9"/>
+<item href="fonts/Times-New-Roman-700-d06f39fd-1b2a-49d6-b923-0d92b29e39a6.otf" media-type="application/vnd.ms-opentype" id="id10"/>
+<item href="images/cover.jpg" media-type="image/jpeg" id="id1"/>
+<item href="ch1-14.xhtml" media-type="application/xhtml+xml" id="id11"/>
+<item href="ch1-11.xhtml" media-type="application/xhtml+xml" id="id12"/>
+<item href="ch1-16.xhtml" media-type="application/xhtml+xml" id="id13"/>
+<item href="ch1-13.xhtml" media-type="application/xhtml+xml" id="id14"/>
+<item href="ch1-10.xhtml" media-type="application/xhtml+xml" id="id15"/>
+<item href="ch1-19.xhtml" media-type="application/xhtml+xml" id="id16"/>
+<item href="ch1-15.xhtml" media-type="application/xhtml+xml" id="id17"/>
+<item href="ch1-12.xhtml" media-type="application/xhtml+xml" id="id18"/>
+<item href="ch1-18.xhtml" media-type="application/xhtml+xml" id="id19"/>
+<item href="ch1-17.xhtml" media-type="application/xhtml+xml" id="id20"/>
+<item href="ch1-22.xhtml" media-type="application/xhtml+xml" id="id21"/>
+<item href="ch1-24.xhtml" media-type="application/xhtml+xml" id="id22"/>
+<item href="ch1-21.xhtml" media-type="application/xhtml+xml" id="id23"/>
+<item href="ch1-27.xhtml" media-type="application/xhtml+xml" id="id24"/>
+<item href="ch1-23.xhtml" media-type="application/xhtml+xml" id="id25"/>
+<item href="ch1-20.xhtml" media-type="application/xhtml+xml" id="id26"/>
+<item href="ch1-29.xhtml" media-type="application/xhtml+xml" id="id27"/>
+<item href="ch1-26.xhtml" media-type="application/xhtml+xml" id="id28"/>
+<item href="ch1-28.xhtml" media-type="application/xhtml+xml" id="id29"/>
+<item href="ch1-25.xhtml" media-type="application/xhtml+xml" id="id30"/>
+<item href="ch1-1.xhtml" media-type="application/xhtml+xml" id="id31"/>
+<item href="ch1-3.xhtml" media-type="application/xhtml+xml" id="id32"/>
+<item href="ch1-30.xhtml" media-type="application/xhtml+xml" id="id33"/>
+<item href="ch1-8.xhtml" media-type="application/xhtml+xml" id="id34"/>
+<item href="ch1-5.xhtml" media-type="application/xhtml+xml" id="id35"/>
+<item href="ch1-2.xhtml" media-type="application/xhtml+xml" id="id36"/>
+<item href="ch1-32.xhtml" media-type="application/xhtml+xml" id="id37"/>
+<item href="ch1-7.xhtml" media-type="application/xhtml+xml" id="id38"/>
+<item href="ch1-4.xhtml" media-type="application/xhtml+xml" id="id39"/>
+<item href="ch1-34.xhtml" media-type="application/xhtml+xml" id="id40"/>
+<item href="ch1-31.xhtml" media-type="application/xhtml+xml" id="id41"/>
+<item href="ch1-6.xhtml" media-type="application/xhtml+xml" id="id42"/>
+<item href="ch1-9.xhtml" media-type="application/xhtml+xml" id="id43"/>
+</manifest>
+<spine toc="id5">
+<itemref idref="id7"/>
+<itemref idref="id8"/>
+<itemref idref="id31"/>
+<itemref idref="id36"/>
+<itemref idref="id32"/>
+<itemref idref="id39"/>
+<itemref idref="id35"/>
+<itemref idref="id42"/>
+<itemref idref="id38"/>
+<itemref idref="id34"/>
+<itemref idref="id43"/>
+<itemref idref="id15"/>
+<itemref idref="id12"/>
+<itemref idref="id18"/>
+<itemref idref="id14"/>
+<itemref idref="id11"/>
+<itemref idref="id17"/>
+<itemref idref="id13"/>
+<itemref idref="id20"/>
+<itemref idref="id19"/>
+<itemref idref="id16"/>
+<itemref idref="id26"/>
+<itemref idref="id23"/>
+<itemref idref="id21"/>
+<itemref idref="id25"/>
+<itemref idref="id22"/>
+<itemref idref="id30"/>
+<itemref idref="id28"/>
+<itemref idref="id24"/>
+<itemref idref="id29"/>
+<itemref idref="id27"/>
+<itemref idref="id33"/>
+<itemref idref="id41"/>
+<itemref idref="id37"/>
+<itemref idref="id2"/>
+<itemref idref="id40"/>
+</spine>
+<guide><reference href="images/cover.jpg" type="cover" title="cover"/>
+</guide></package>

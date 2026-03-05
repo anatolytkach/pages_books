@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="IE=edge,chrome=1" http-equiv="X-UA-Compatible"/>
-<title>Вопрос. Тони Вивер</title>
+<title>ReaderPub</title>
 <meta content="" name="description"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
@@ -109,6 +109,28 @@
 
   // Run Reader
   window.reader = ePubReader(bookPath, opts);
+
+  // Keep document title dynamic per opened book.
+  (function(){
+    try {
+      if (!window.reader || !window.reader.book || !window.reader.book.loaded) return;
+      const loadedMeta = window.reader.book.loaded.metadata;
+      if (!loadedMeta || typeof loadedMeta.then !== "function") return;
+      loadedMeta.then(function(meta){
+        try {
+          const rawTitle = (meta && (meta.bookTitle || meta.title)) ? String(meta.bookTitle || meta.title).trim() : "";
+          const rawAuthor = (meta && meta.creator) ? String(meta.creator).trim() : "";
+          document.title = rawTitle ? (rawAuthor ? `${rawTitle} — ${rawAuthor}` : rawTitle) : "ReaderPub";
+        } catch (e0) {
+          document.title = "ReaderPub";
+        }
+      }).catch(function(){
+        document.title = "ReaderPub";
+      });
+    } catch (e) {
+      document.title = "ReaderPub";
+    }
+  })();
 
   // Restore last position for this book (independent of EPUB.js internal restore)
   (function(){

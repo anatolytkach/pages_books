@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid" xmlns:opf="http://www.idpf.org/2007/opf" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<metadata>
+<dc:title>Война и мир в отдельно взятой школе (роман-буриме)</dc:title>
+<dc:creator>Булат Альфредович Ханов</dc:creator>
+<dc:creator>Сергей Васильевич Лукьяненко</dc:creator>
+<dc:creator>Анастасия Игоревна Строкина</dc:creator>
+<dc:creator>Владимир Сергеевич Березин</dc:creator>
+<dc:creator>Евгений Валерьевич Сулес</dc:creator>
+<dc:creator>Елена Вячеславовна Нестерина</dc:creator>
+<dc:creator>Денис Викторович Драгунский</dc:creator>
+<dc:creator>Александр Евгеньевич Григоренко</dc:creator>
+<dc:creator>Николай Караев</dc:creator>
+<dc:creator>Мария Алексеевна Ботева</dc:creator>
+<dc:creator>Антон Владимирович Соя</dc:creator>
+<dc:creator>Нина Сергеевна Дашевская</dc:creator>
+<dc:creator>Артем Владимирович Ляхович</dc:creator>
+<dc:creator>Валерий Борисович Бочков</dc:creator>
+<dc:creator>Григорий Михайлович Служитель</dc:creator>
+<dc:creator>Ильгар Сафат</dc:creator>
+<dc:creator>Игорь Александрович Малышев</dc:creator>
+<dc:creator>Эдуард Николаевич Веркин</dc:creator>
+<dc:creator>Александр А. Феденко</dc:creator>
+<dc:creator>Серафима Юрьевна Орлова</dc:creator>
+<dc:creator>Антонина Книппер</dc:creator>
+<dc:creator>Дарья Леонидовна Бобылёва</dc:creator>
+<dc:creator>Алексей Борисович Сальников</dc:creator>
+<dc:creator>Дмитрий Львович Быков</dc:creator>
+<dc:creator>Павел Валерьевич Басинский</dc:creator>
+<dc:language>ru</dc:language>
+<dc:description>Перед вами игра, эксперимент, литературное хулиганство, из которого получился актуальный роман о сегодняшней России на 24 писательских голоса. Авторы — известные и начинающие, мастера разных жанров и направлений, разных поколений и убеждений — написали роман-буриме. Денис Драгунский запустил интригу, Сергей Лукьяненко, Григорий Служитель, Алексей Сальников и многие другие развивали сюжет, а Дмитрий Быков в эпилоге подвел итоги — и все перевернул с ног на голову. Начинаясь как роман «young adult» с героями-десятиклассниками, история превращается в фантасмагорию, абсурд, кривое, не по-детски страшное зеркало нашей реальности. </dc:description>
+<meta name="FB2.book-info.date" content="2021"/>
+<dc:date>2021</dc:date>
+<meta name="FB2.book-info.sequence" content="Антология современной прозы; number=2021"/>
+<meta name="FB2.document-info.program-used" content="ePub_to_FB2, FictionBook Editor Release 2.6.7"/>
+<meta name="FB2.document-info.src-url" content="https://www.litres.ru/book/sergey-lukyanenko/voyna-i-mir-v-otdelno-vzyatoy-shkole-65543316/"/>
+<meta name="FB2.document-info.history" content="ver 1.1 — создание fb2 из epub, скрипты (Sergius). "/>
+<meta name="FB2.document-info.id" content="07719A6E-13B9-4E30-9118-A3C175E8EB9C"/>
+<meta name="FB2.document-info.version" content="1.1"/>
+<meta name="FB2.document-info.date" content="2021"/>
+<dc:identifier id="bookid">urn:uuid:07719a6e-13b9-4e30-9118-a3c175e8eb9c</dc:identifier>
+<dc:publisher>АСТ: Редакция Елены Шубиной</dc:publisher>
+<meta name="FB2.publish-info.book-name" content="Война и мир в отдельно взятой школе: роман-буриме "/>
+<meta name="FB2.publish-info.city" content="Москва"/>
+<meta name="FB2.publish-info.year" content="2021"/>
+<dc:identifier id="bookid1">isbn:978-5-17-136227-0</dc:identifier>
+<meta name="FB2EPUB.version" content="0.5.0"/>
+<meta name="FB2EPUB.conversionDate" content="2024-04-02T12:35:29+00:00"/>
+<meta name="cover" content="id1"/>
+</metadata>
+<manifest>
+<item href="toc.ncx" media-type="application/x-dtbncx+xml" id="id2"/>
+<item href="fonts/Times-New-Roman-700-07719a6e-13b9-4e30-9118-a3c175e8eb9c.otf" media-type="application/vnd.ms-opentype" id="id3"/>
+<item href="ch2.xhtml" media-type="application/xhtml+xml" id="id4"/>
+<item href="cover.xhtml" media-type="application/xhtml+xml" id="id5"/>
+<item href="ch1.xhtml" media-type="application/xhtml+xml" id="id6"/>
+<item href="style.css" media-type="text/css" id="id7"/>
+<item href="fonts/Times-New-Roman-700-Italic-07719a6e-13b9-4e30-9118-a3c175e8eb9c.otf" media-type="application/vnd.ms-opentype" id="id8"/>
+<item href="fonts/Times-New-Roman-400-Italic-07719a6e-13b9-4e30-9118-a3c175e8eb9c.otf" media-type="application/vnd.ms-opentype" id="id9"/>
+<item href="images/cover.jpg" media-type="image/jpeg" id="id1"/>
+<item href="ch1-14.xhtml" media-type="application/xhtml+xml" id="id10"/>
+<item href="ch1-11.xhtml" media-type="application/xhtml+xml" id="id11"/>
+<item href="ch1-16.xhtml" media-type="application/xhtml+xml" id="id12"/>
+<item href="ch1-13.xhtml" media-type="application/xhtml+xml" id="id13"/>
+<item href="ch1-10.xhtml" media-type="application/xhtml+xml" id="id14"/>
+<item href="ch1-19.xhtml" media-type="application/xhtml+xml" id="id15"/>
+<item href="ch1-15.xhtml" media-type="application/xhtml+xml" id="id16"/>
+<item href="ch1-12.xhtml" media-type="application/xhtml+xml" id="id17"/>
+<item href="ch1-18.xhtml" media-type="application/xhtml+xml" id="id18"/>
+<item href="ch1-17.xhtml" media-type="application/xhtml+xml" id="id19"/>
+<item href="ch1-22.xhtml" media-type="application/xhtml+xml" id="id20"/>
+<item href="ch1-24.xhtml" media-type="application/xhtml+xml" id="id21"/>
+<item href="ch1-21.xhtml" media-type="application/xhtml+xml" id="id22"/>
+<item href="ch1-27.xhtml" media-type="application/xhtml+xml" id="id23"/>
+<item href="ch1-23.xhtml" media-type="application/xhtml+xml" id="id24"/>
+<item href="ch1-20.xhtml" media-type="application/xhtml+xml" id="id25"/>
+<item href="ch1-26.xhtml" media-type="application/xhtml+xml" id="id26"/>
+<item href="ch1-25.xhtml" media-type="application/xhtml+xml" id="id27"/>
+<item href="fonts/Times-New-Roman-400-07719a6e-13b9-4e30-9118-a3c175e8eb9c.otf" media-type="application/vnd.ms-opentype" id="id28"/>
+<item href="ch1-1.xhtml" media-type="application/xhtml+xml" id="id29"/>
+<item href="ch1-3.xhtml" media-type="application/xhtml+xml" id="id30"/>
+<item href="ch1-8.xhtml" media-type="application/xhtml+xml" id="id31"/>
+<item href="ch1-5.xhtml" media-type="application/xhtml+xml" id="id32"/>
+<item href="ch1-2.xhtml" media-type="application/xhtml+xml" id="id33"/>
+<item href="ch1-7.xhtml" media-type="application/xhtml+xml" id="id34"/>
+<item href="ch1-4.xhtml" media-type="application/xhtml+xml" id="id35"/>
+<item href="ch1-6.xhtml" media-type="application/xhtml+xml" id="id36"/>
+<item href="ch1-9.xhtml" media-type="application/xhtml+xml" id="id37"/>
+</manifest>
+<spine toc="id2">
+<itemref idref="id5"/>
+<itemref idref="id6"/>
+<itemref idref="id29"/>
+<itemref idref="id33"/>
+<itemref idref="id30"/>
+<itemref idref="id35"/>
+<itemref idref="id32"/>
+<itemref idref="id36"/>
+<itemref idref="id34"/>
+<itemref idref="id31"/>
+<itemref idref="id37"/>
+<itemref idref="id14"/>
+<itemref idref="id11"/>
+<itemref idref="id17"/>
+<itemref idref="id13"/>
+<itemref idref="id10"/>
+<itemref idref="id16"/>
+<itemref idref="id12"/>
+<itemref idref="id19"/>
+<itemref idref="id18"/>
+<itemref idref="id15"/>
+<itemref idref="id25"/>
+<itemref idref="id22"/>
+<itemref idref="id20"/>
+<itemref idref="id24"/>
+<itemref idref="id21"/>
+<itemref idref="id27"/>
+<itemref idref="id26"/>
+<itemref idref="id23"/>
+<itemref idref="id4"/>
+</spine>
+<guide><reference href="images/cover.jpg" type="cover" title="cover"/>
+</guide></package>

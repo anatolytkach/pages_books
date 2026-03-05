@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid" xmlns:opf="http://www.idpf.org/2007/opf" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<metadata>
+<dc:title>Дуга</dc:title>
+<dc:creator>Дмитрий Быков</dc:creator>
+<dc:language>ru</dc:language>
+<dc:description>Перед вами — продолжение знаменитой повести братьев Стругацких «Далекая Радуга». Впрочем, «продолжить» «Радугу» в каком-то смысле и невозможно, поскольку сюжет этой книжки самодостаточен и логически завершен. Автор, по большому счету, продолжать и не пытался, просто написал «альтернативную историю» планеты Радуга. И получилось весьма неожиданно и нестандартно. «Дуга» в правильной пропорции совмещает отвращение, отчаяние, умиление и надежду. И читается с большим интересом. (Андрей Стругацкий) </dc:description>
+<meta name="FB2.document-info.program-used" content="calibre 5.12.0"/>
+<meta name="FB2.document-info.id" content="187ceef9-f75d-48a1-bd7a-d90a50a88fb6"/>
+<meta name="FB2.document-info.version" content="1.0"/>
+<dc:identifier id="bookid">urn:uuid:187ceef9-f75d-48a1-bd7a-d90a50a88fb6</dc:identifier>
+<dc:publisher>Freedom Letters</dc:publisher>
+<meta name="FB2.publish-info.year" content="2025"/>
+<dc:date>2025</dc:date>
+<meta name="FB2EPUB.version" content="0.5.0"/>
+<meta name="FB2EPUB.conversionDate" content="2025-05-07T13:39:30+00:00"/>
+<meta name="cover" content="id1"/>
+</metadata>
+<manifest>
+<item href="style.css" media-type="text/css" id="id2"/>
+<item href="cover.xhtml" media-type="application/xhtml+xml" id="id3"/>
+<item href="ch1-11.xhtml" media-type="application/xhtml+xml" id="id4"/>
+<item href="ch1-3.xhtml" media-type="application/xhtml+xml" id="id5"/>
+<item href="images/img_1" media-type="image/png" id="id6"/>
+<item href="ch1-2.xhtml" media-type="application/xhtml+xml" id="id7"/>
+<item href="ch1-10.xhtml" media-type="application/xhtml+xml" id="id8"/>
+<item href="images/img_0" media-type="image/jpeg" id="id1"/>
+<item href="ch1-9.xhtml" media-type="application/xhtml+xml" id="id9"/>
+<item href="fonts/Times-New-Roman-400-187ceef9-f75d-48a1-bd7a-d90a50a88fb6.otf" media-type="application/vnd.ms-opentype" id="id10"/>
+<item href="ch1-5.xhtml" media-type="application/xhtml+xml" id="id11"/>
+<item href="ch1-12.xhtml" media-type="application/xhtml+xml" id="id12"/>
+<item href="ch1-4.xhtml" media-type="application/xhtml+xml" id="id13"/>
+<item href="ch1.xhtml" media-type="application/xhtml+xml" id="id14"/>
+<item href="toc.ncx" media-type="application/x-dtbncx+xml" id="id15"/>
+<item href="ch1-1.xhtml" media-type="application/xhtml+xml" id="id16"/>
+<item href="ch1-8.xhtml" media-type="application/xhtml+xml" id="id17"/>
+<item href="ch1-7.xhtml" media-type="application/xhtml+xml" id="id18"/>
+<item href="fonts/Times-New-Roman-700-187ceef9-f75d-48a1-bd7a-d90a50a88fb6.otf" media-type="application/vnd.ms-opentype" id="id19"/>
+<item href="ch1-6.xhtml" media-type="application/xhtml+xml" id="id20"/>
+<item href="fonts/Times-New-Roman-400-Italic-187ceef9-f75d-48a1-bd7a-d90a50a88fb6.otf" media-type="application/vnd.ms-opentype" id="id21"/>
+</manifest>
+<spine toc="id15">
+<itemref idref="id3"/>
+<itemref idref="id14"/>
+<itemref idref="id16"/>
+<itemref idref="id7"/>
+<itemref idref="id5"/>
+<itemref idref="id13"/>
+<itemref idref="id11"/>
+<itemref idref="id20"/>
+<itemref idref="id18"/>
+<itemref idref="id17"/>
+<itemref idref="id9"/>
+<itemref idref="id8"/>
+<itemref idref="id4"/>
+<itemref idref="id12"/>
+</spine>
+<guide><reference href="images/img_0" type="cover" title="cover"/>
+</guide></package>
