@@ -2883,12 +2883,74 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   color: #ffb1b1;
 }
 
+#overlay-menu #menuView{
+  height: 100%;
+  min-height: 100%;
+  padding-top: 0 !important;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+#overlay-menu #menuList{
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0 !important;
+  overflow-y: visible;
+  overflow-x: visible;
+  overscroll-behavior: contain;
+}
+
+#overlay-menu #menuView .menu-share-link-wrap{
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin-top: auto;
+  margin-left: -16px;
+  margin-right: -16px;
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--fbbar-border);
+  background: var(--fbbar-bg);
+}
+
+#overlay-menu #menuView .menu-share-link-btn{
+  width: 100%;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fbbar-fg);
+  font: inherit;
+  padding: 0;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+#overlay-menu #menuView .menu-share-link-btn.is-copied{
+  color: var(--fbbar-fg-strong);
+}
+
+#overlay-menu #menuView .menu-share-link-btn.is-failed{
+  color: #ffb1b1;
+}
+
 @media (hover: hover) and (pointer: fine) {
   #overlay-notes #notesView .notes-copy-link-btn:hover{
     background: rgba(255,255,255,0.08);
   }
   #overlay-notes #notesView .notes-copy-link-btn:active,
   #overlay-notes #notesView .notes-copy-link-btn.is-pressed{
+    background: rgba(255,255,255,0.16);
+    color: var(--fbbar-fg-strong);
+  }
+  #overlay-menu #menuView .menu-share-link-btn:hover{
+    background: rgba(255,255,255,0.08);
+  }
+  #overlay-menu #menuView .menu-share-link-btn:active,
+  #overlay-menu #menuView .menu-share-link-btn.is-pressed{
     background: rgba(255,255,255,0.16);
     color: var(--fbbar-fg-strong);
   }

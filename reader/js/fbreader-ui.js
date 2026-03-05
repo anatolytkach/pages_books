@@ -1033,10 +1033,145 @@
     var overlayVoice = document.getElementById("overlay-voice");
     var overlayMenu = document.getElementById("overlay-menu");
     var menuView = document.getElementById("menuView");
+    var copyBookLinkBtn = document.getElementById("copyBookLinkBtn");
     var btnToc = document.getElementById("slider");
     var btnNotes = document.getElementById("openNotes");
     var btnBookmarks = document.getElementById("openBookmarks");
     var closeBtns = Array.prototype.slice.call(document.querySelectorAll(".overlay-close"));
+
+    function isTouchShareDevice() {
+      try {
+        var coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+        var touchPoints = !!(navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+        if (coarse) return true;
+        if (touchPoints && !window.__fb_isDesktop) return true;
+      } catch (e) {}
+      return false;
+    }
+
+    function getCurrentBookId() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        var id = u.searchParams.get("id") || u.searchParams.get("i");
+        if (id) return String(id);
+      } catch (e) {}
+      return "";
+    }
+
+    function getCleanBookUrl() {
+      var id = getCurrentBookId();
+      var u = new URL(window.location.href || "", window.location.origin);
+      u.hash = "";
+      u.search = "";
+      if (id) u.searchParams.set("id", id);
+      return u.toString();
+    }
+
+    function copyText(value) {
+      var txt = String(value || "");
+      if (!txt) return Promise.reject(new Error("No text to copy"));
+      var fallbackCopy = function () {
+        return new Promise(function (resolve, reject) {
+          try {
+            var ta = document.createElement("textarea");
+            ta.value = txt;
+            ta.setAttribute("readonly", "readonly");
+            ta.style.position = "fixed";
+            ta.style.top = "-9999px";
+            ta.style.left = "-9999px";
+            document.body.appendChild(ta);
+            ta.select();
+            var ok = false;
+            try { ok = document.execCommand("copy"); } catch (e1) { ok = false; }
+            document.body.removeChild(ta);
+            if (ok) resolve();
+            else reject(new Error("Copy command failed"));
+          } catch (e2) {
+            reject(e2);
+          }
+        });
+      };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(txt).catch(function () {
+            return fallbackCopy();
+          });
+        }
+      } catch (e0) {}
+      return fallbackCopy();
+    }
+
+    if (copyBookLinkBtn && !copyBookLinkBtn.__fbBound) {
+      copyBookLinkBtn.__fbBound = true;
+
+      var clearCopyState = function (btn) {
+        btn.classList.remove("is-pressed");
+        btn.classList.remove("is-copied");
+        btn.classList.remove("is-failed");
+      };
+
+      var updateBookShareLabel = function () {
+        try {
+          copyBookLinkBtn.textContent = isTouchShareDevice() ? "Share book" : "Copy book link";
+        } catch (e) {}
+      };
+
+      copyBookLinkBtn.addEventListener("mousedown", function () { copyBookLinkBtn.classList.add("is-pressed"); });
+      copyBookLinkBtn.addEventListener("mouseup", function () { copyBookLinkBtn.classList.remove("is-pressed"); });
+      copyBookLinkBtn.addEventListener("mouseleave", function () { copyBookLinkBtn.classList.remove("is-pressed"); });
+
+      copyBookLinkBtn.addEventListener("click", function (event) {
+        if (event) event.preventDefault();
+        var btn = copyBookLinkBtn;
+        clearCopyState(btn);
+        updateBookShareLabel();
+        var oldText = btn.textContent || "Copy book link";
+        var cleanUrl = getCleanBookUrl();
+        if (!cleanUrl) {
+          btn.classList.add("is-failed");
+          btn.textContent = "Action failed";
+          setTimeout(function () {
+            updateBookShareLabel();
+            clearCopyState(btn);
+          }, 1200);
+          return;
+        }
+        if (isTouchShareDevice()) {
+          try {
+            if (navigator.share) {
+              navigator.share({ url: cleanUrl }).catch(function () {});
+              return;
+            }
+          } catch (e0) {}
+          btn.classList.add("is-failed");
+          btn.textContent = "Share unavailable";
+          setTimeout(function () {
+            updateBookShareLabel();
+            clearCopyState(btn);
+          }, 1200);
+          return;
+        }
+        copyText(cleanUrl).then(function () {
+          btn.classList.add("is-copied");
+          btn.textContent = "Copied";
+          setTimeout(function () {
+            btn.textContent = oldText;
+            clearCopyState(btn);
+          }, 1200);
+        }).catch(function () {
+          btn.classList.add("is-failed");
+          btn.textContent = "Copy failed";
+          setTimeout(function () {
+            btn.textContent = oldText;
+            clearCopyState(btn);
+          }, 1200);
+        });
+      });
+
+      updateBookShareLabel();
+      window.addEventListener("resize", updateBookShareLabel, { passive: true });
+      window.addEventListener("orientationchange", updateBookShareLabel, { passive: true });
+    }
 
     function closeAll() {
       if (overlayToc) overlayToc.classList.add("hidden");
@@ -5463,7 +5598,7 @@
         if (event) event.preventDefault();
         var btn = copyBtn;
         clearCopyState(btn);
-        var oldText = btn.textContent || "Copy link";
+        var oldText = btn.textContent || "Copy book link with Notes";
         var generatedUrl = "";
         getCopyNotesUrl()
           .then(function (url) {
