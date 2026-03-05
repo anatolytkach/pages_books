@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ReaderPub: Документация проекта</title>
+    <style>
+      :root {
+        --bg: #f7f8fb;
+        --card: #ffffff;
+        --ink: #17202a;
+        --muted: #4f5b66;
+        --line: #dbe2ea;
+        --accent: #0a7a72;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(180deg, #f7f8fb 0%, #edf2f7 100%);
+        color: var(--ink);
+      }
+      .wrap {
+        max-width: 1220px;
+        margin: 0 auto;
+        padding: 28px 18px 42px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 22px 20px;
+        box-shadow: 0 8px 24px rgba(16, 24, 40, 0.05);
+      }
+      .sidebar {
+        position: sticky;
+        top: 18px;
+      }
+      .sidebar h2 {
+        margin-top: 0;
+      }
+      h1, h2 { margin: 0 0 12px; }
+      h1 { color: var(--accent); font-size: 28px; }
+      h2 { font-size: 20px; margin-top: 20px; }
+      p, li { color: var(--muted); line-height: 1.55; }
+      code {
+        background: #f1f5f9;
+        border: 1px solid #d8e0e8;
+        border-radius: 6px;
+        padding: 1px 6px;
+        color: #0f172a;
+      }
+      pre {
+        margin: 10px 0 0;
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        overflow: auto;
+        border: 1px solid #1e293b;
+      }
+      .meta {
+        font-size: 14px;
+        margin-bottom: 12px;
+      }
+      .toc a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .toc a:hover { text-decoration: underline; }
+      .toc {
+        margin: 0;
+        padding-left: 18px;
+      }
+      @media (max-width: 980px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .sidebar {
+          position: static;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <div class="layout">
+      <aside class="card sidebar">
+        <h2>Содержание</h2>
+        <ul class="toc">
+          <li><a href="#scope">1. Назначение и границы</a></li>
+          <li><a href="#workers">2. Все worker'ы Cloudflare</a></li>
+          <li><a href="#storage">3. Структура хранения в R2</a></li>
+          <li><a href="#indexes">4. Форматы индексов каталога</a></li>
+          <li><a href="#ingest">5. Конвейер DOCX -> EPUB -> R2 -> индексы -> Pages</a></li>
+          <li><a href="#ops">6. Операционные сценарии и rollback</a></li>
+          <li><a href="#secrets">7. Секреты и переменные окружения</a></li>
+          <li><a href="#reader-arch">8. Устройство читалки</a></li>
+          <li><a href="#docsauth">9. Защита документации</a></li>
+          <li><a href="#checks">10. Проверки после релиза</a></li>
+        </ul>
+      </aside>
+
+      <section class="card">
+        <h1>ReaderPub: передача проекта</h1>
+        <p class="meta">Документация на русском языке. Актуально на 2026-03-05.</p>
+        <p class="meta"><strong>Версия страницы:</strong> docs-live-2026-03-05-09:49-ET-reader</p>
+
+        <h2 id="scope">1. Назначение и границы</h2>
+        <p>
+          Проект публикует каталог и читалку EPUB: <code>/books/</code> и <code>/books/reader/</code>.
+          Контент книг хранится в R2 как распакованные EPUB-папки, а поиск/навигация строятся по
+          JSON-индексам, которые генерируются локально и загружаются в R2.
+        </p>
+        <p>
+          Репозиторий проекта для разработчика:
+          <code>https://github.com/anatolytkach/pages_books.git</code>
+        </p>
+        <pre><code>git clone https://github.com/anatolytkach/pages_books.git
+cd pages_books</code></pre>
+
+        <h2 id="workers">2. Все worker'ы Cloudflare</h2>
+        <p><strong>Worker A (основной):</strong> <code>_worker.js</code> (Pages worker проекта <code>reader-books</code>).</p>
+        <ul>
+          <li><code>/books/api/*</code> -> чтение индексов из R2 binding <code>READER_BOOKS</code>.</li>
+          <li><code>/books/api/translate</code>, <code>/api/translate</code> -> Google Translate API.</li>
+          <li><code>/books/api/notes-share*</code>, <code>/api/notes-share*</code>, <code>/books/api/ns*</code>, <code>/api/ns*</code>.</li>
+          <li><code>/books/ping</code>, redirect <code>/books/&lt;id&gt; -> /books/reader/#&lt;id&gt;</code>.</li>
+        </ul>
+
+        <p><strong>Worker B (служебный notes proxy):</strong> <code>tools/notes-share-proxy-worker.js</code>.</p>
+        <ul>
+          <li>KV storage заметок: ключи <code>ns:&lt;shareId&gt;</code> в <code>READERPUB_NOTES_SHARE_KV</code>.</li>
+          <li>Routes: <code>/books/api/notes-share*</code>, <code>/api/notes-share*</code>, алиасы <code>/ns*</code>.</li>
+        </ul>
+
+        <p><strong>Worker C (docs gateway):</strong> <code>tools/docs-route-worker.js</code>, deployed как <code>readerpub-docs-route</code>.</p>
+        <ul>
+          <li>Routes: <code>reader.pub/docs</code>, <code>reader.pub/docs/*</code>.</li>
+          <li>Назначение: Basic Auth + проксирование docs на <code>master.reader-books.pages.dev/docs/*</code>.</li>
+        </ul>
+
+        <h2 id="storage">3. Структура хранения в R2</h2>
+        <ul>
+          <li>Книги: <code>content/&lt;book_id&gt;/...</code> (распакованный EPUB, включая <code>META-INF/container.xml</code>).</li>
+          <li>Индексы: <code>api/...json</code>.</li>
+          <li>Основные файлы: <code>api/letters.json</code>, <code>api/languages.json</code>.</li>
+          <li>Навигация по авторам: <code>api/p/*.json</code>, <code>api/a/*.json</code>.</li>
+          <li>Поиск: <code>api/search/&lt;token2&gt;.json</code>.</li>
+          <li>Языковые ветки: <code>api/lang/&lt;lang&gt;/...</code>.</li>
+        </ul>
+
+        <h2 id="indexes">4. Форматы индексов каталога</h2>
+        <p>Источник: <code>tools/build_lang_indexes.py</code>.</p>
+        <ul>
+          <li><code>letters.json</code>: список букв/ключей и количества авторов.</li>
+          <li><code>p/&lt;node&gt;.json</code>: prefix-tree. Либо <code>authors</code>, либо <code>prefixes</code>, плюс <code>authorCount</code>.</li>
+          <li><code>a/&lt;author_key&gt;.json</code>: автор и массив его книг (<code>id/title/cover</code>).</li>
+          <li><code>search/&lt;token2&gt;.json</code>: mixed items по токену:
+            авторы (<code>t:"a",k,n,c</code>) и книги (<code>id,title,a,k,cover</code>).</li>
+          <li><code>languages.json</code>: список языков и количества книг.</li>
+        </ul>
+
+        <p>Ограничения и правила:</p>
+        <ul>
+          <li><code>max_prefix</code> по умолчанию <code>5</code>;</li>
+          <li><code>threshold</code> по умолчанию <code>50</code> (решает, когда хранить <code>authors</code>, а когда дробить на <code>prefixes</code>);</li>
+          <li>поиск bucket'изируется по первым 2 символам нормализованной строки.</li>
+        </ul>
+
+        <h2 id="ingest">5. Конвейер DOCX - EPUB - R2 - индексы - Pages</h2>
+        <p>Скрипты:</p>
+        <ul>
+          <li><code>books/content/make_epub_from_docx.sh</code> — сборка EPUB из DOCX + нормализация.</li>
+          <li><code>books/content/gen_epub_css_from_docx.py</code> — извлечение heading-стилей Word в CSS.</li>
+          <li><code>books/content/epub_ingest.sh</code> — распаковка/загрузка/переиндексация/деплой.</li>
+          <li><code>tools/build_lang_indexes.py</code> — генератор индексов.</li>
+        </ul>
+
+        <p>Сборка EPUB:</p>
+        <pre><code>cd books/content
+./make_epub_from_docx.sh /path/to/book.docx</code></pre>
+
+        <p>Ingest/деплой:</p>
+        <pre><code>cd books/content
+./epub_ingest.sh import-all
+./epub_ingest.sh replace 77752
+./epub_ingest.sh upload-ids 77752 77753
+./epub_ingest.sh reindex-ids 77752</code></pre>
+
+        <p>Dry-run:</p>
+        <pre><code>./epub_ingest.sh import-all --dry-run</code></pre>
+
+        <h2 id="ops">6. Операционные сценарии и rollback</h2>
+        <p><strong>replace &lt;id&gt;</strong> — безопасный способ исправить одну книгу.</p>
+        <ul>
+          <li>Кладете ровно один EPUB в <code>books/content/</code>.</li>
+          <li>Запускаете <code>./epub_ingest.sh replace &lt;id&gt;</code>.</li>
+          <li>Скрипт зальет <code>content/&lt;id&gt;</code>, пересоберет и дозальет индексы, сделает Pages deploy.</li>
+        </ul>
+        <p><strong>Rollback</strong>:</p>
+        <ul>
+          <li>повторный <code>replace &lt;id&gt;</code> предыдущим EPUB;</li>
+          <li>или <code>upload-ids</code> для восстановления папки книги + <code>reindex-ids</code>.</li>
+        </ul>
+
+        <h2 id="secrets">7. Секреты и переменные окружения</h2>
+        <ul>
+          <li><code>EPUB_INGEST_R2_BUCKET</code>, <code>EPUB_INGEST_PAGES_PROJECT</code>, <code>EPUB_INGEST_PAGES_BRANCH</code></li>
+          <li><code>READER_BOOKS</code> (R2 binding)</li>
+          <li><code>READERPUB_GOOGLE_TRANSLATE_API_KEY</code></li>
+          <li><code>READERPUB_GOOGLE_CLIENT_ID</code></li>
+          <li><code>READERPUB_NOTES_SHARE_KV</code> (для notes proxy)</li>
+          <li><code>DOCS_AUTH_USER</code>, <code>DOCS_AUTH_PASS</code></li>
+        </ul>
+
+        <h2 id="reader-arch">8. Устройство читалки</h2>
+        <p><strong>Ключевые файлы:</strong> <code>reader/index.html</code>, <code>reader/js/reader.js</code>, <code>reader/js/fbreader-ui.js</code>, <code>books/shared/drive-sync.js</code>.</p>
+        <p><strong>Поток запуска:</strong></p>
+        <ul>
+          <li>Берется <code>book_id</code> из <code>?id</code> или hash.</li>
+          <li>Открывается путь <code>/books/content/&lt;id&gt;/</code> как directory EPUB.</li>
+          <li>Запускается <code>ePubReader(bookPath, opts)</code>.</li>
+          <li>Восстанавливается позиция (CFI) из localStorage.</li>
+          <li>Инициализируется UI (панели, overlays, TOC/bookmarks, mobile/desktop).</li>
+        </ul>
+        <p><strong>Слои:</strong></p>
+        <ul>
+          <li><code>epub.js</code> — рендер-движок EPUB.</li>
+          <li><code>reader.js</code> — оркестрация рендеров, page map, счетчик страниц.</li>
+          <li><code>fbreader-ui.js</code> — UI-обвязка, жесты/кнопки, TTS.</li>
+          <li><code>drive-sync.js</code> — синхронизация пользовательского состояния в Google Drive.</li>
+        </ul>
+        <p><strong>Функциональные блоки:</strong></p>
+        <ul>
+          <li>TOC/навигация по CFI/секциям.</li>
+          <li>Global page map + fallback guards (стабильность page counter).</li>
+          <li>TTS (speech synthesis, resume/stop, подсветка слова).</li>
+          <li>Shared notes через worker API: <code>/books/api/notes-share*</code> и алиасы <code>/api/ns*</code>.</li>
+          <li>Перевод через worker API: <code>/books/api/translate</code>.</li>
+        </ul>
+        <p><strong>Критичные зависимости для reader:</strong></p>
+        <ul>
+          <li>Наличие валидной структуры книги в <code>content/&lt;id&gt;</code>.</li>
+          <li>Доступность worker endpoint'ов translate/notes.</li>
+          <li>Синхронность версий <code>reader.js</code>, <code>fbreader-ui.js</code>, CSS.</li>
+        </ul>
+
+        <h2 id="docsauth">9. Защита документации</h2>
+        <p>
+          URL: <code>https://reader.pub/docs/</code>. Маршруты защищены Basic Auth через
+          worker <code>readerpub-docs-route</code>.
+        </p>
+        <ul>
+          <li>без auth: <code>401</code> + <code>WWW-Authenticate</code>;</li>
+          <li>с валидным auth: <code>200</code>;</li>
+          <li>публичный fallback отключен.</li>
+        </ul>
+
+        <h2 id="checks">10. Проверки после релиза</h2>
+        <ul>
+          <li><code>/docs/</code> -> 401 без auth, 200 с auth.</li>
+          <li><code>/books/</code> и <code>/books/reader/?id=&lt;id&gt;</code> без регрессий.</li>
+          <li><code>/books/api/search/a.json</code> и другие index endpoint'ы отдают актуальные JSON.</li>
+          <li>Новая/обновленная книга ищется по названию и по автору.</li>
+        </ul>
+      </section>
+      </div>
+    </main>
+  </body>
+</html>

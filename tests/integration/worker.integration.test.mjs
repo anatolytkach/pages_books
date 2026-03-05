@@ -203,3 +203,74 @@ test("Integration: html response skips HTMLRewriter when drive client id is empt
   assert.equal(response.status, 200);
   assert.equal(HTMLRewriterMock.lastInstance(), null);
 });
+
+test("Integration: /docs requires auth and returns 401 without credentials", async () => {
+  // Arrange
+  const assets = createAssetsMock({
+    body: "<html><body>docs</body></html>",
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+  const env = createEnv({
+    ASSETS: assets,
+    DOCS_AUTH_USER: "docs",
+    DOCS_AUTH_PASS: "secret",
+  });
+
+  // Act
+  const response = await callWorker({
+    url: "https://reader.pub/docs/",
+    env,
+  });
+
+  // Assert
+  assert.equal(response.status, 401);
+  assert.equal(response.headers.get("x-reader-route"), "docs-auth");
+  assert.match(String(response.headers.get("www-authenticate") || ""), /Basic/i);
+  assert.equal(assets.calls.length, 0);
+});
+
+test("Integration: /docs returns 503 when auth is not configured", async () => {
+  // Arrange
+  const assets = createAssetsMock({
+    body: "<html><body>docs</body></html>",
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+  const env = createEnv({ ASSETS: assets });
+
+  // Act
+  const response = await callWorker({
+    url: "https://reader.pub/docs/",
+    env,
+  });
+
+  // Assert
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("x-reader-route"), "docs-auth-config");
+  assert.equal(assets.calls.length, 0);
+});
+
+test("Integration: /docs passes through when valid basic auth is provided", async () => {
+  // Arrange
+  const assets = createAssetsMock({
+    body: "<html><body>docs</body></html>",
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+  const env = createEnv({
+    ASSETS: assets,
+    DOCS_AUTH_USER: "docs",
+    DOCS_AUTH_PASS: "secret",
+  });
+  const auth = `Basic ${Buffer.from("docs:secret", "utf8").toString("base64")}`;
+
+  // Act
+  const response = await callWorker({
+    url: "https://reader.pub/docs/",
+    env,
+    headers: { authorization: auth },
+  });
+
+  // Assert
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-reader-route"), "docs");
+  assert.equal(assets.calls.length, 1);
+});

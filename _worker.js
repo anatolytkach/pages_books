@@ -83,12 +83,54 @@ function normalizeNotes(raw) {
   return out;
 }
 
+function decodeBase64Utf8(value) {
+  const source = String(value || "");
+  try {
+    if (typeof atob === "function") {
+      const binary = atob(source);
+      const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    }
+  } catch (e) {}
+  try {
+    if (typeof Buffer !== "undefined") {
+      return Buffer.from(source, "base64").toString("utf8");
+    }
+  } catch (e2) {}
+  return "";
+}
+
+function parseBasicAuthCredentials(authorizationHeader) {
+  const header = String(authorizationHeader || "").trim();
+  const match = header.match(/^Basic\s+([A-Za-z0-9+/=]+)$/i);
+  if (!match) return null;
+  const decoded = decodeBase64Utf8(match[1]);
+  const idx = decoded.indexOf(":");
+  if (idx < 0) return null;
+  return {
+    user: decoded.slice(0, idx),
+    pass: decoded.slice(idx + 1),
+  };
+}
+
+function docsAuthUnauthorizedResponse(route) {
+  const headers = new Headers({
+    "content-type": "text/plain; charset=utf-8",
+    "cache-control": "no-store",
+    "www-authenticate": 'Basic realm="ReaderPub Docs", charset="UTF-8"',
+  });
+  headers.set("x-reader-worker", "1");
+  headers.set("x-reader-route", route || "docs-auth");
+  return new Response("Authentication required", { status: 401, headers });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
     const decodedPath = decodeURIComponent(path);
     const normalizedPath = decodedPath.replace(/\/+$/, "") || "/";
+    const isPagesDevHost = url.hostname.endsWith(".pages.dev");
     const driveClientId = String(
       env.READERPUB_GOOGLE_CLIENT_ID || env.GOOGLE_DRIVE_CLIENT_ID || ""
     ).trim();
@@ -522,6 +564,37 @@ export default {
       return new Response("pong\n", { status: 200, headers });
     }
 
+    if (path === "/docs") {
+      const headers = new Headers({ location: "/docs/" });
+      headers.set("x-reader-worker", "1");
+      headers.set("x-reader-route", "docs-slash-redirect");
+      return new Response(null, { status: 302, headers });
+    }
+
+    if (decodedPath.startsWith("/docs/") && !isPagesDevHost) {
+      const docsUser = String(env.DOCS_AUTH_USER || "").trim();
+      const docsPass = String(env.DOCS_AUTH_PASS || "");
+      if (!docsUser || !docsPass) {
+        const headers = new Headers({
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+        });
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "docs-auth-config");
+        return new Response("Docs auth is not configured", { status: 503, headers });
+      }
+      const credentials = parseBasicAuthCredentials(
+        request.headers.get("authorization")
+      );
+      if (
+        !credentials ||
+        credentials.user !== docsUser ||
+        credentials.pass !== docsPass
+      ) {
+        return docsAuthUnauthorizedResponse("docs-auth");
+      }
+    }
+
     // Normalize reader/catalog roots to trailing-slash form to avoid 404 on some routes.
     if (path === "/books/reader" || path === "/books/catalog") {
       const headers = new Headers({ location: `${path}/` });
@@ -552,13 +625,27 @@ export default {
       path.startsWith("/books/reader/js/") ||
       path.startsWith("/books/reader/icons/") ||
       path.startsWith("/books/reader/fonts/");
+    const isDocsPath = path === "/docs/" || path.startsWith("/docs/");
     const contentType = String(headers.get("content-type") || "").toLowerCase();
     const isHtml = contentType.includes("text/html");
 
     headers.set("x-reader-worker", "1");
-    headers.set("x-reader-route", isCatalogHtml ? "catalog" : "assets");
+    if (isCatalogHtml) {
+      headers.set("x-reader-route", "catalog");
+    } else if (isDocsPath) {
+      headers.set("x-reader-route", "docs");
+    } else {
+      headers.set("x-reader-route", "assets");
+    }
     if (isCatalogHtml) {
       headers.set("cache-control", "no-store");
+    }
+    if (isDocsPath) {
+      headers.set("cache-control", "no-store, no-cache, must-revalidate, max-age=0");
+      headers.set("pragma", "no-cache");
+      headers.set("expires", "0");
+      headers.set("cdn-cache-control", "no-store");
+      headers.set("cloudflare-cdn-cache-control", "no-store");
     }
     if (isReaderPath) {
       headers.set("cache-control", "no-store, no-cache, must-revalidate, max-age=0");

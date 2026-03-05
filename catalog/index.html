@@ -1043,7 +1043,18 @@
             }
             return item;
           });
-          mapped.forEach((item, idx) => {
+          const compact = [];
+          const keyOf = (value) =>
+            String(value || "")
+              .trim()
+              .toLocaleLowerCase();
+          mapped.forEach((item) => {
+            if (!item) return;
+            const prev = compact.length ? compact[compact.length - 1] : null;
+            if (prev && keyOf(prev.label) === keyOf(item.label)) return;
+            compact.push(item);
+          });
+          compact.forEach((item, idx) => {
             if (idx > 0) {
               els.breadcrumbs.appendChild(el("span", null, "›"));
             }
@@ -1336,14 +1347,23 @@
         function resolveLetterToken(letter) {
           const token = String(letter || "").trim();
           if (!Array.isArray(cache.letters)) return token;
+          const norm = token.toLocaleLowerCase();
           const match = cache.letters.find((item) => {
             if (!item || typeof item !== "object") return false;
-            return String(item.label || "").trim() === token || String(item.key || "").trim() === token;
+            const label = String(item.label || "").trim();
+            const key = String(item.key || "").trim();
+            return (
+              label === token ||
+              key === token ||
+              label.toLocaleLowerCase() === norm ||
+              key.toLocaleLowerCase() === norm
+            );
           });
           if (match && (match.key || match.label)) {
             return String(match.key || match.label).trim();
           }
-          return token;
+          if (token === "#" || token.toLowerCase() === "num") return token;
+          return norm;
         }
 
         function normalizePrefixEntries(source) {
