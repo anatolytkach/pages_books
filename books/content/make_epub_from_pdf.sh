@@ -6,8 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_CSS="${BASE_CSS:-$SCRIPT_DIR/epub.base.css}"
 COVER_IMAGE="${COVER_IMAGE:-$SCRIPT_DIR/cover.jpg}"
 TMP_ROOT="${TMP_ROOT:-$SCRIPT_DIR/.epub_build_tmp}"
-BOOK_LANG="${BOOK_LANG:-ru-RU}"
+BOOK_LANG="${BOOK_LANG:-ru}"
 AUTHOR="${AUTHOR:-Unknown}"
+TITLE="${TITLE:-}"
 NAV_TITLE="${NAV_TITLE:-Contents}"
 STRIP_SYNTHETIC_PAGE_IMAGES="${STRIP_SYNTHETIC_PAGE_IMAGES:-1}"
 
@@ -17,24 +18,36 @@ need_file() { [[ -f "$1" ]] || { echo "ERROR: file not found: $1" >&2; exit 1; }
 usage() {
   cat <<USAGE
 Usage:
-  $(basename "$0") [path/to/book.pdf]
-
-If pdf path is omitted, script expects exactly one .pdf in:
-  $SCRIPT_DIR
+  $(basename "$0") <lang2> "<book_title>" "<author_name>"
+  Example: $(basename "$0") en "Gray's Anatomy" "Henry Gray"
 
 Input requirements:
-  - .pdf file (with text layer)
+  - exactly one .pdf file (with text layer) in: $SCRIPT_DIR
   - cover image at: $COVER_IMAGE
 
 Output:
   - same-name .epub рядом с исходным .pdf
+  - source .pdf and cover.jpg are deleted after successful run
 
 Optional env vars:
-  AUTHOR="Author Name"           (default: Unknown)
-  BOOK_LANG="ru-RU"              (default: ru-RU)
   NAV_TITLE="Contents"           (default: Contents)
   STRIP_SYNTHETIC_PAGE_IMAGES=1  (default: 1; removes only mass duplicated page-layer images)
 USAGE
+}
+
+normalize_book_lang() {
+  local raw="${1:-}"
+  raw="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]' | tr '_' '-')"
+  if [[ "$raw" =~ ^[a-z]{2}$ ]]; then
+    printf '%s' "$raw"
+    return 0
+  fi
+  if [[ "$raw" =~ ^([a-z]{2})-[a-z]{2}$ ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  echo "ERROR: language must be a two-letter code (e.g. ru, en, de)" >&2
+  exit 1
 }
 
 resolve_input_pdf() {
@@ -82,6 +95,17 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
+[[ $# -eq 3 ]] || {
+  usage
+  exit 2
+}
+
+BOOK_LANG="$(normalize_book_lang "$1")"
+TITLE="$2"
+AUTHOR="$3"
+[[ -n "$TITLE" ]] || { echo "ERROR: book title must not be empty" >&2; exit 2; }
+[[ -n "$AUTHOR" ]] || { echo "ERROR: author name must not be empty" >&2; exit 2; }
+
 need_cmd pdftohtml
 need_cmd pandoc
 need_cmd python3
@@ -89,7 +113,7 @@ need_cmd perl
 need_cmd zip
 need_cmd unzip
 
-INPUT_PDF="$(resolve_input_pdf "$@")"
+INPUT_PDF="$(resolve_input_pdf)"
 need_file "$INPUT_PDF"
 need_file "$BASE_CSS"
 need_file "$COVER_IMAGE"
@@ -97,7 +121,6 @@ need_file "$COVER_IMAGE"
 PDF_DIR="$(cd "$(dirname "$INPUT_PDF")" && pwd)"
 PDF_FILE="$(basename "$INPUT_PDF")"
 BASENAME="${PDF_FILE%.*}"
-TITLE="${TITLE:-$BASENAME}"
 OUTPUT_EPUB="$PDF_DIR/$BASENAME.epub"
 
 WORK_DIR="$TMP_ROOT/$BASENAME.$$"

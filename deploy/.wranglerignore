@@ -1,9 +1,3 @@
-node_modules
-.git
-.wrangler
-.DS_Store
-reader_lang_indexes
-reader_lang_indexes/**
 books/content/*.sh
 books/content/*.py
 books/content/terminal.txt

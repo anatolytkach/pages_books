@@ -7,8 +7,9 @@ BASE_CSS="${BASE_CSS:-$SCRIPT_DIR/epub.base.css}"
 GEN_SCRIPT="${GEN_SCRIPT:-$SCRIPT_DIR/gen_epub_css_from_docx.py}"
 COVER_IMAGE="${COVER_IMAGE:-$SCRIPT_DIR/cover.jpg}"
 TMP_ROOT="${TMP_ROOT:-$SCRIPT_DIR/.epub_build_tmp}"
-BOOK_LANG="${BOOK_LANG:-ru-RU}"
+BOOK_LANG="${BOOK_LANG:-ru}"
 AUTHOR="${AUTHOR:-Unknown}"
+TITLE="${TITLE:-}"
 NAV_TITLE="${NAV_TITLE:-Contents}"
 NOTES_TITLE="${NOTES_TITLE:-Notes}"
 
@@ -18,32 +19,39 @@ need_file() { [[ -f "$1" ]] || { echo "ERROR: file not found: $1" >&2; exit 1; }
 usage() {
   cat <<USAGE
 Usage:
-  $(basename "$0") [path/to/book.docx]
-
-If docx path is omitted, script expects exactly one .docx in:
-  $SCRIPT_DIR
+  $(basename "$0") <lang2> "<book_title>" "<author_name>"
+  Example: $(basename "$0") ru "Вопрос" "Тони Вивер"
 
 Input requirements:
-  - .docx file
+  - exactly one .docx file in: $SCRIPT_DIR
   - cover image at: $COVER_IMAGE
 
 Output:
   - same-name .epub рядом с исходным .docx
+  - source .docx and cover.jpg are deleted after successful run
 
 Optional env vars:
-  AUTHOR="Author Name"           (default: Unknown)
-  BOOK_LANG="ru-RU"              (default: ru-RU)
   NAV_TITLE="Contents"            (default: Contents)
   NOTES_TITLE="Notes"             (default: Notes)
 USAGE
 }
 
-resolve_input_docx() {
-  if [[ $# -ge 1 ]]; then
-    printf '%s' "$1"
+normalize_book_lang() {
+  local raw="${1:-}"
+  raw="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]' | tr '_' '-')"
+  if [[ "$raw" =~ ^[a-z]{2}$ ]]; then
+    printf '%s' "$raw"
     return 0
   fi
+  if [[ "$raw" =~ ^([a-z]{2})-[a-z]{2}$ ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  echo "ERROR: BOOK_LANG must be a two-letter code (e.g. ru, en, de)" >&2
+  exit 1
+}
 
+resolve_input_docx() {
   local -a found=()
   shopt -s nullglob nocaseglob
   found=("$SCRIPT_DIR"/*.docx)
@@ -57,7 +65,7 @@ resolve_input_docx() {
   if [[ ${#found[@]} -eq 0 ]]; then
     echo "ERROR: no .docx files found in $SCRIPT_DIR" >&2
   else
-    echo "ERROR: multiple .docx files found in $SCRIPT_DIR, pass the file explicitly" >&2
+    echo "ERROR: expected exactly one .docx in $SCRIPT_DIR (found: ${#found[@]})" >&2
     printf '  - %s\n' "${found[@]}" >&2
   fi
   exit 1
@@ -95,65 +103,80 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-INPUT_DOCX="$(resolve_input_docx "$@")"
-need_file "$INPUT_DOCX"
+[[ $# -eq 3 ]] || {
+  usage
+  exit 2
+}
+
+BOOK_LANG="$(normalize_book_lang "$1")"
+TITLE="$2"
+AUTHOR="$3"
+[[ -n "$TITLE" ]] || { echo "ERROR: book title must not be empty" >&2; exit 2; }
+[[ -n "$AUTHOR" ]] || { echo "ERROR: author name must not be empty" >&2; exit 2; }
+
 need_file "$BASE_CSS"
 need_file "$GEN_SCRIPT"
 need_file "$COVER_IMAGE"
 
-DOCX_DIR="$(cd "$(dirname "$INPUT_DOCX")" && pwd)"
-DOCX_FILE="$(basename "$INPUT_DOCX")"
-BASENAME="${DOCX_FILE%.*}"
-TITLE="${TITLE:-$BASENAME}"
-OUTPUT_EPUB="$DOCX_DIR/$BASENAME.epub"
+process_one_docx() {
+local input_docx="$1"
+local docx_dir docx_file basename title output_epub
+local work_dir auto_css css_file raw_epub unpack_dir
+local epub_dir opf_file ncx_file nav_file text_dir
 
-WORK_DIR="$TMP_ROOT/$BASENAME.$$"
-AUTO_CSS="$WORK_DIR/epub.headings.auto.css"
-CSS_FILE="$WORK_DIR/epub.css"
-RAW_EPUB="$WORK_DIR/raw.epub"
-UNPACK_DIR="$WORK_DIR/unpack"
+docx_dir="$(cd "$(dirname "$input_docx")" && pwd)"
+docx_file="$(basename "$input_docx")"
+basename="${docx_file%.*}"
+title="$TITLE"
+output_epub="$docx_dir/$basename.epub"
 
-mkdir -p "$WORK_DIR"
-trap 'rm -rf "$WORK_DIR"' EXIT
+work_dir="$TMP_ROOT/$basename.$$"
+auto_css="$work_dir/epub.headings.auto.css"
+css_file="$work_dir/epub.css"
+raw_epub="$work_dir/raw.epub"
+unpack_dir="$work_dir/unpack"
 
-echo "[1/6] Generate heading CSS: $AUTO_CSS"
-python3 "$GEN_SCRIPT" "$INPUT_DOCX" "$AUTO_CSS" --force-no-bold
+mkdir -p "$work_dir"
+trap 'rm -rf "$work_dir"' RETURN
 
-echo "[2/6] Build merged CSS"
+echo "[1/6] Generate heading CSS for $docx_file"
+python3 "$GEN_SCRIPT" "$input_docx" "$auto_css" --force-no-bold
+
+echo "[2/6] Build merged CSS for $docx_file"
 {
   echo "/* AUTO-BUILT: DO NOT EDIT */"
   cat "$BASE_CSS"
   echo
-  cat "$AUTO_CSS"
-} > "$CSS_FILE"
+  cat "$auto_css"
+} > "$css_file"
 
-echo "[3/6] Build raw EPUB via pandoc"
-pandoc "$INPUT_DOCX" \
+echo "[3/6] Build raw EPUB via pandoc for $docx_file"
+pandoc "$input_docx" \
   --from=docx \
   --to=epub3 \
-  -o "$RAW_EPUB" \
-  --css="$CSS_FILE" \
+  -o "$raw_epub" \
+  --css="$css_file" \
   --toc \
   --toc-depth=1 \
-  --metadata title="$TITLE" \
+  --metadata title="$title" \
   --metadata author="$AUTHOR" \
   --metadata lang="$BOOK_LANG" \
   --metadata language="$BOOK_LANG" \
   --metadata dc.language="$BOOK_LANG" \
   --epub-cover-image="$COVER_IMAGE"
 
-echo "[4/6] Unpack and normalize EPUB internals"
-unzip -q "$RAW_EPUB" -d "$UNPACK_DIR"
+echo "[4/6] Unpack and normalize EPUB internals for $docx_file"
+unzip -q "$raw_epub" -d "$unpack_dir"
 
-EPUB_DIR="$UNPACK_DIR/EPUB"
-OPF_FILE="$EPUB_DIR/content.opf"
-NCX_FILE="$EPUB_DIR/toc.ncx"
-NAV_FILE="$EPUB_DIR/nav.xhtml"
-TEXT_DIR="$EPUB_DIR/text"
+epub_dir="$unpack_dir/EPUB"
+opf_file="$epub_dir/content.opf"
+ncx_file="$epub_dir/toc.ncx"
+nav_file="$epub_dir/nav.xhtml"
+text_dir="$epub_dir/text"
 
-[[ -d "$TEXT_DIR" ]] || { echo "ERROR: missing dir: $TEXT_DIR" >&2; exit 1; }
+[[ -d "$text_dir" ]] || { echo "ERROR: missing dir: $text_dir" >&2; exit 1; }
 
-perl -0777 -i -pe 's{(<dc:language>).*?(</dc:language>)}{$1'"$BOOK_LANG"'$2}si;' "$OPF_FILE"
+perl -0777 -i -pe 's{(<dc:language>).*?(</dc:language>)}{$1'"$BOOK_LANG"'$2}si;' "$opf_file"
 
 BOOK_LANG="$BOOK_LANG" perl -0777 -i -pe '
   my $lang = $ENV{BOOK_LANG} // "ru-RU";
@@ -167,39 +190,39 @@ BOOK_LANG="$BOOK_LANG" perl -0777 -i -pe '
   }
   s/<html\b([^>]*)>/fix_tag("html",$1)/ige;
   s/<body\b([^>]*)>/fix_tag("body",$1)/ige;
-' "$NAV_FILE" "$TEXT_DIR"/*.xhtml
+' "$nav_file" "$text_dir"/*.xhtml
 
-echo "[5/6] Remove extra first-page TOC links and normalize TOC labels"
+echo "[5/6] Remove extra first-page TOC links and normalize TOC labels for $docx_file"
 perl -0777 -i -pe '
   s/\s*<itemref\b[^>]*\bidref="nav"[^>]*\/>\s*//g;
   s/\s*<itemref\b[^>]*\bidref="title_page_xhtml"[^>]*\/>\s*//g;
   s/\s*<itemref\b[^>]*\bidref="ch001"[^>]*\/>\s*//g;
   s/<guide>.*?<\/guide>//s;
-' "$OPF_FILE"
+' "$opf_file"
 
-if [[ -f "$NCX_FILE" ]]; then
+if [[ -f "$ncx_file" ]]; then
   perl -0777 -i -pe '
-    s/<docTitle>.*?<\/docTitle>/<docTitle><text>'"$TITLE"'<\/text><\/docTitle>/s;
+    s/<docTitle>.*?<\/docTitle>/<docTitle><text>'"$title"'<\/text><\/docTitle>/s;
     s/<docAuthor>.*?<\/docAuthor>/<docAuthor><text>'"$AUTHOR"'<\/text><\/docAuthor>/s;
     s/<navPoint[^>]*>\s*<navLabel>\s*<text>\s*<\/text>\s*<\/navLabel>.*?<\/navPoint>//sg;
-  ' "$NCX_FILE"
+  ' "$ncx_file"
 fi
-if [[ -f "$NAV_FILE" ]]; then
-  perl -0777 -i -pe 's/<h1>.*?<\/h1>/<h1>'"$NAV_TITLE"'<\/h1>/s;' "$NAV_FILE"
+if [[ -f "$nav_file" ]]; then
+  perl -0777 -i -pe 's/<h1>.*?<\/h1>/<h1>'"$NAV_TITLE"'<\/h1>/s;' "$nav_file"
 fi
 
-echo "[5.1/6] Move end footnotes into notes-*.xhtml and rewrite links"
-for ch in "$TEXT_DIR"/ch*.xhtml; do
+echo "[5.1/6] Move end footnotes into notes-*.xhtml and rewrite links for $docx_file"
+for ch in "$text_dir"/ch*.xhtml; do
   [[ -f "$ch" ]] || continue
 
   base="$(basename "$ch")"
   stem="${base%.xhtml}"
   notes_file="notes-${stem}.xhtml"
-  notes_path="$TEXT_DIR/$notes_file"
+  notes_path="$text_dir/$notes_file"
   notes_id="notes_${stem}"
 
   set +e
-  perl - "$ch" "$notes_path" "$base" "$notes_file" "$notes_id" "$OPF_FILE" "$BOOK_LANG" "$NOTES_TITLE" <<'PERL'
+  perl - "$ch" "$notes_path" "$base" "$notes_file" "$notes_id" "$opf_file" "$BOOK_LANG" "$NOTES_TITLE" <<'PERL'
 use strict;
 use warnings;
 use utf8;
@@ -284,10 +307,14 @@ PERL
   if [[ $rc -eq 0 || $rc -eq 2 ]]; then :; else echo "ERROR: $base (code $rc)" >&2; exit 1; fi
 done
 
-echo "[6/6] Repack final EPUB: $OUTPUT_EPUB"
-repack_epub "$UNPACK_DIR" "$OUTPUT_EPUB"
+echo "[6/6] Repack final EPUB: $output_epub"
+repack_epub "$unpack_dir" "$output_epub"
 
-echo "[6.1/6] Remove source files: $(basename "$INPUT_DOCX"), $(basename "$COVER_IMAGE")"
-rm -f "$INPUT_DOCX" "$COVER_IMAGE"
+echo "Done: $output_epub"
+}
 
-echo "Done: $OUTPUT_EPUB"
+DOCX_FILE="$(resolve_input_docx)"
+process_one_docx "$DOCX_FILE"
+
+echo "[cleanup] Remove source files: $(basename "$DOCX_FILE") and $(basename "$COVER_IMAGE")"
+rm -f "$DOCX_FILE" "$COVER_IMAGE"
