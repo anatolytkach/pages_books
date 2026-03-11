@@ -1910,7 +1910,7 @@
             authorKey: authorKey || authorName || "",
             authorName: authorName || authorKey || "",
             bookView: (current.bookView || "list"),
-            language: current.language || "all",
+            language: "all",
           };
           updateHash(next, false);
 
@@ -1919,6 +1919,7 @@
           try {
             await loadConfig(nonce);
             if (nonce !== REQ_NONCE) return;
+            setActiveLanguage("all");
             showLoading("Loading author books...");
             const payload = await getAuthorBooks(next.authorKey, nonce);
             if (nonce !== REQ_NONCE) return;
