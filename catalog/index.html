@@ -1504,10 +1504,13 @@
           return `/books/${encodeURIComponent(id)}/`;
         }
 
-        function openReaderUrl(id) {
+        function openReaderUrl(id, cover) {
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
           const base = isPagesDev ? "/reader/" : "/books/reader/";
-          return `${base}?id=${encodeURIComponent(id)}`;
+          let url = `${base}?id=${encodeURIComponent(id)}`;
+          const coverHint = String(cover || "").trim();
+          if (coverHint) url += `&cover=${encodeURIComponent(coverHint)}`;
+          return url;
         }
 
         function updateSearchIcon() {
@@ -1690,7 +1693,7 @@
           if (!token) return [];
           if (cache.searchIndex.has(token)) return cache.searchIndex.get(token) || [];
           const searchPath = (config && config.searchPath) || "/search/{token}.json";
-          const url = buildUrl(searchPath, { token });
+          const url = buildUrl(searchPath, { token }, { ignoreLang: true });
           const res = await fetch(url, { cache: "no-store" });
           if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${url}`);
           const data = await res.json();
@@ -2227,7 +2230,7 @@
                 card.addEventListener("click", (event) => {
                   const t = event.target;
                   if (t && t.closest && t.closest("a, input, button, label")) return;
-                  const url = openReaderUrl(bookId);
+                  const url = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
                   window.location.href = url;
                 });
 
@@ -2262,7 +2265,7 @@
                 }
                 const titleWrap = el("div", "cardTitle");
                 const titleLink = el("a", null, book.title || `Book ${bookId}`);
-                titleLink.href = openReaderUrl(bookId);
+                titleLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
                 titleWrap.appendChild(titleLink);
                 const meta = el("div", "cardMeta", book.author || "");
 
@@ -2296,7 +2299,7 @@
 
               const bookCell = el("td");
               const titleLink = el("a", null, book.title || `Book ${bookId}`);
-              titleLink.href = openReaderUrl(bookId);
+              titleLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
               bookCell.appendChild(titleLink);
               if (book.author) {
                 bookCell.appendChild(el("div", "mybooks-meta", book.author));
@@ -2304,7 +2307,7 @@
 
               const openCell = el("td", "count");
               const openLink = el("a", "mybooks-open", "Open");
-              openLink.href = openReaderUrl(bookId);
+              openLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
               openCell.appendChild(openLink);
 
               row.appendChild(selectCell);

@@ -1698,7 +1698,7 @@
           if (!token) return [];
           if (cache.searchIndex.has(token)) return cache.searchIndex.get(token) || [];
           const searchPath = (config && config.searchPath) || "/search/{token}.json";
-          const url = buildUrl(searchPath, { token });
+          const url = buildUrl(searchPath, { token }, { ignoreLang: true });
           const res = await fetch(url, { cache: "no-store" });
           if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${url}`);
           const data = await res.json();
