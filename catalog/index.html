@@ -2360,6 +2360,11 @@
           try {
             showLoading("Loading My Books from Google Drive...");
             myBooksState.loading = true;
+            if (typeof sync.flushPendingReaderStateSync === "function") {
+              try {
+                await sync.flushPendingReaderStateSync({ interactive: false });
+              } catch (flushErr) {}
+            }
             snapshot = await sync.pullSnapshot({ interactive: false });
             if (renderNonce !== REQ_NONCE) return;
           } catch (error) {

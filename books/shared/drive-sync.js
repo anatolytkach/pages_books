@@ -10,6 +10,7 @@
   var TOKEN_EXP_KEY = "readerpub:drive:access_token_exp";
   var FILE_ID_KEY = "readerpub:drive:file_id";
   var MYBOOKS_LOCAL_KEY = "readerpub:mybooks:" + window.location.host;
+  var PENDING_READER_SYNC_KEY = "readerpub:drive:pending_reader_sync:" + window.location.host;
   var TTS_LANG_LOCAL_KEY = "fbreader:tts:voiceLang";
 
   function nowTs() {
@@ -60,6 +61,46 @@
   function getSessionStorage() {
     try { return window.sessionStorage || null; } catch (e) {}
     return null;
+  }
+
+  function loadPendingReaderSync() {
+    var storage = getStorage();
+    if (!storage) return null;
+    try {
+      var raw = storage.getItem(PENDING_READER_SYNC_KEY);
+      if (!raw) return null;
+      var parsed = safeParseJson(raw, null);
+      if (!parsed || typeof parsed !== "object") return null;
+      if (!parsed.id) return null;
+      parsed.id = String(parsed.id);
+      return parsed;
+    } catch (e0) {}
+    return null;
+  }
+
+  function savePendingReaderSync(payload) {
+    var storage = getStorage();
+    if (!storage || !payload || !payload.id) return false;
+    try {
+      storage.setItem(PENDING_READER_SYNC_KEY, JSON.stringify({
+        id: String(payload.id),
+        title: String(payload.title || ""),
+        author: String(payload.author || ""),
+        cover: String(payload.cover || payload.coverUrl || payload.cover_url || ""),
+        cfi: String(payload.cfi || ""),
+        bookmarks: Array.isArray(payload.bookmarks) ? payload.bookmarks : [],
+        notes: Array.isArray(payload.notes) ? payload.notes : [],
+        queuedAt: nowTs()
+      }));
+      return true;
+    } catch (e0) {}
+    return false;
+  }
+
+  function clearPendingReaderSync() {
+    var storage = getStorage();
+    if (!storage) return;
+    try { storage.removeItem(PENDING_READER_SYNC_KEY); } catch (e0) {}
   }
 
   var state = {
@@ -664,8 +705,21 @@
       snapshot.notes[id] = Array.isArray(payload.notes) ? payload.notes : [];
       return saveSnapshot(snapshot, { interactive: !!opts.interactive }).then(function (saved) {
         applySnapshotToLocalReader(saved);
+        clearPendingReaderSync();
         return true;
       });
+    }).catch(function () {
+      savePendingReaderSync(payload);
+      return false;
+    });
+  }
+
+  function flushPendingReaderStateSync(options) {
+    var pending = loadPendingReaderSync();
+    if (!pending || !pending.id) return Promise.resolve(false);
+    return syncCurrentReaderState(null, pending, options || {}).then(function (ok) {
+      if (ok) clearPendingReaderSync();
+      return !!ok;
     }).catch(function () {
       return false;
     });
@@ -698,7 +752,8 @@
     getLastDetectedTtsLanguage: getLastDetectedTtsLanguage,
     setLastDetectedTtsLanguage: setLastDetectedTtsLanguage,
     syncCurrentReaderState: syncCurrentReaderState,
-    scheduleCurrentReaderStateSync: scheduleCurrentReaderStateSync
+    scheduleCurrentReaderStateSync: scheduleCurrentReaderStateSync,
+    flushPendingReaderStateSync: flushPendingReaderStateSync
   };
 
   // Preload GIS and token client so sign-in starts from a direct user gesture click.
@@ -707,6 +762,9 @@
       loadGis().then(function () {
         return ensureTokenClient();
       }).catch(function () {});
+      setTimeout(function () {
+        try { flushPendingReaderStateSync({ interactive: false }); } catch (e1) {}
+      }, 1200);
     }
   } catch (e0) {}
 })();
