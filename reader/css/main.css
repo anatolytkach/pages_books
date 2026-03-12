@@ -545,11 +545,16 @@ html.fb-swipe-margins #main::after {
   bottom: 0;
   width: var(--viewer-side);
   background: rgba(0,0,0,0.22);
+  opacity: 0;
   pointer-events: none;
   z-index: 1;
 }
 html.fb-swipe-margins #main::before { left: 0; }
 html.fb-swipe-margins #main::after { right: 0; }
+html.fb-swipe-underlay-left #main::before,
+html.fb-swipe-underlay-right #main::after {
+  opacity: 1;
+}
 
 /* Dim the revealed underlay during swipe (overlay, no filter) */
 #viewer-prev::after,
@@ -669,6 +674,17 @@ html.fb-swipe-margins #main::after { right: 0; }
   -webkit-backface-visibility: hidden;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
+}
+
+/* Desktop: let the container dimmer overlay sit above prerendered underlay iframes during swipe. */
+@media (hover: hover) and (pointer: fine) {
+  #viewerStack.swiping #viewer-prev iframe,
+  #viewerStack.swiping #viewer-next iframe {
+    transform: none !important;
+    -webkit-transform: none !important;
+    backface-visibility: visible !important;
+    -webkit-backface-visibility: visible !important;
+  }
 }
 
 

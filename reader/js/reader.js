@@ -4673,6 +4673,10 @@ function attachSwipeToDoc(doc) {
 							}
 							try { doc.documentElement.classList.add("fb-swipe-active"); } catch(eCss2) {}
 							try { document.documentElement.classList.add("fb-swipe-margins"); } catch(eCss3) {}
+							try {
+								document.documentElement.classList.remove("fb-swipe-underlay-left", "fb-swipe-underlay-right");
+								document.documentElement.classList.add(dir > 0 ? "fb-swipe-underlay-left" : "fb-swipe-underlay-right");
+							} catch(eCss4) {}
 					} catch (e) {}
 					setShadow(dx);
 				}
@@ -4681,6 +4685,7 @@ function attachSwipeToDoc(doc) {
 					try {
 						stack.classList.remove("swiping", "swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right");
 						if (shadow) { shadow.style.left = ""; }
+						state.lastDir = 0;
 					} catch (e) {}
 				}
 
@@ -4724,7 +4729,7 @@ function attachSwipeToDoc(doc) {
 							if (vn2) vn2.style.zIndex = "";
 						} catch (eZ3) {}
 						try { doc.documentElement.classList.remove("fb-swipe-active"); } catch(eCss3) {}
-						try { document.documentElement.classList.remove("fb-swipe-margins"); } catch(eCss4) {}
+						try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
 					} catch (e) {}
 					clearReveal();
 					state.appliedDx = 1e9;
@@ -4780,25 +4785,41 @@ function attachSwipeToDoc(doc) {
 					}
 				}
 
-					function commitTapTurn(isNext) {
+				function commitTapTurn(isNext) {
 						if (state.lock) return;
-						state.lock = true;
 						try { resetTransform(); } catch (e0) {}
 						try {
-							var rtl = isRtlReadingOrderSafe();
-							var goNext = isNext;
-							if (rtl) goNext = !goNext;
-							if (goNext) rendition.next(); else rendition.prev();
-						} catch (e1) {}
-						try {
-							setTimeout(function(){
-								try { resetTransform(); } catch (e2) {}
-								state.lock = false;
-							}, 240);
+							try { ensureNeighborsReady().catch(function(){}); } catch (eWarm) {}
+							try { commitTurn(isNext); } catch (e1) {
+								try {
+									var rtl = isRtlReadingOrderSafe();
+									var goNext = isNext;
+									if (rtl) goNext = !goNext;
+									if (goNext) rendition.next(); else rendition.prev();
+								} catch (e2) {}
+							}
 						} catch (e3) {
-							state.lock = false;
+							try {
+								var rtl2 = isRtlReadingOrderSafe();
+								var goNext2 = isNext;
+								if (rtl2) goNext2 = !goNext2;
+								if (goNext2) rendition.next(); else rendition.prev();
+							} catch (e4) {}
 						}
 					}
+
+				try {
+					doc.__fbQuickSwipeTurn = function(isNext){
+						try { commitTapTurn(!!isNext); } catch (e0) {
+							try {
+								var rtl = isRtlReadingOrderSafe();
+								var goNext = !!isNext;
+								if (rtl) goNext = !goNext;
+								if (goNext) rendition.next(); else rendition.prev();
+							} catch (e1) {}
+						}
+					};
+				} catch (eExposeQuickTurn) {}
 
 					function onStart(x, y, target) {
 					if (state.lock) return;
@@ -7780,20 +7801,47 @@ EPUBJS.reader.ReaderController = function(book) {
 		return false;
 	}
 
-	function goNextByUi() {
+	function getActiveSwipeDoc() {
+		try {
+			var iframe = document.querySelector("#viewer iframe");
+			if (iframe && iframe.contentDocument && iframe.contentDocument.__fbQuickSwipeTurn) return iframe.contentDocument;
+		} catch (e0) {}
+		try {
+			var views = rendition && rendition.manager && rendition.manager.views ? rendition.manager.views() : null;
+			if (views && views.length) {
+				for (var i = 0; i < views.length; i++) {
+					var view = views[i];
+					var doc = view && view.document ? view.document : null;
+					if (doc && doc.__fbQuickSwipeTurn) return doc;
+				}
+			}
+		} catch (e1) {}
+		return null;
+	}
+
+	function runQuickSwipeByUi(isNext) {
+		var activeDoc = getActiveSwipeDoc();
+		if (activeDoc && typeof activeDoc.__fbQuickSwipeTurn === "function") {
+			try {
+				activeDoc.__fbQuickSwipeTurn(!!isNext);
+				return;
+			} catch (e0) {}
+		}
 		if (isRtlReadingOrderSafe()) {
-			rendition.prev();
+			if (isNext) rendition.prev();
+			else rendition.next();
 		} else {
-			rendition.next();
+			if (isNext) rendition.next();
+			else rendition.prev();
 		}
 	}
 
+	function goNextByUi() {
+		runQuickSwipeByUi(true);
+	}
+
 	function goPrevByUi() {
-		if (isRtlReadingOrderSafe()) {
-			rendition.next();
-		} else {
-			rendition.prev();
-		}
+		runQuickSwipeByUi(false);
 	}
 
 	try {
@@ -7804,11 +7852,7 @@ EPUBJS.reader.ReaderController = function(book) {
 	var arrowKeys = function(e) {
 		if(e.keyCode == 37) {
 
-			if (isRtlReadingOrderSafe()) {
-				rendition.next();
-			} else {
-				rendition.prev();
-			}
+			goPrevByUi();
 
 			$prev.addClass("active");
 
@@ -7822,11 +7866,7 @@ EPUBJS.reader.ReaderController = function(book) {
 		}
 		if(e.keyCode == 39) {
 
-			if (isRtlReadingOrderSafe()) {
-				rendition.prev();
-			} else {
-				rendition.next();
-			}
+			goNextByUi();
 
 			$next.addClass("active");
 
