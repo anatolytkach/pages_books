@@ -4730,7 +4730,7 @@ function attachSwipeToDoc(doc) {
 				function clearReveal() {
 					try {
 						stack.classList.remove("swiping", "swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right");
-						if (shadow) { shadow.style.left = ""; }
+						if (shadow) { shadow.style.left = ""; shadow.style.transition = ""; }
 						state.lastDir = 0;
 					} catch (e) {}
 				}
@@ -4738,7 +4738,7 @@ function attachSwipeToDoc(doc) {
 				function clearRevealOverlayOnly() {
 					try {
 						stack.classList.remove("swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right");
-						if (shadow) { shadow.style.left = ""; }
+						if (shadow) { shadow.style.left = ""; shadow.style.transition = ""; }
 						try { doc.documentElement.classList.remove("fb-swipe-active"); } catch(eCss3) {}
 						try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
 					} catch (e) {}
@@ -4860,16 +4860,30 @@ function attachSwipeToDoc(doc) {
 						if (!canRevealUnderlay) {
 							try { canRevealUnderlay = hasRenderableNeighborLayer(!!isNext); } catch (eReadyDom) {}
 						}
-						layerCurrent.style.transition = "transform " + turnDurationMs + "ms ease-out";
-						layerCurrent.style.transform = "translate3d(" + off + "px,0,0)";
 						if (canRevealUnderlay) {
-							setReveal(off);
+							setReveal(isNext ? -1 : 1);
+							try {
+								if (shadow) {
+									var sw = state.shadowW || (shadow.getBoundingClientRect().width || 6) || 6;
+									shadow.style.transition = "left " + turnDurationMs + "ms ease-out";
+									shadow.style.left = isNext ? (Math.max(0, w - sw) + "px") : "0px";
+								}
+							} catch (eShadowInit) {}
 						} else {
 							try {
 								stack.classList.add("swiping");
 								setShadow(off);
 							} catch (eRevealFallback) {}
 						}
+						layerCurrent.style.transition = "transform " + turnDurationMs + "ms ease-out";
+						layerCurrent.style.transform = "translate3d(0px,0,0)";
+						var rafMove = (win && win.requestAnimationFrame) ? win.requestAnimationFrame.bind(win) : function(cb){ return setTimeout(cb, 16); };
+						rafMove(function(){
+							layerCurrent.style.transform = "translate3d(" + off + "px,0,0)";
+							if (canRevealUnderlay) {
+								try { setShadow(off); } catch (eShadowMove) {}
+							}
+						});
 						setTimeout(function(){
 								try { clearRevealOverlayOnly(); } catch (eDim) {}
 								try {

@@ -544,7 +544,7 @@ html.fb-swipe-margins #main::after {
   top: 0;
   bottom: 0;
   width: var(--viewer-side);
-  background: rgba(0,0,0,0.22);
+  background: rgba(0,0,0,0.10);
   opacity: 0;
   pointer-events: none;
   z-index: 1;
@@ -562,16 +562,16 @@ html.fb-swipe-underlay-right #main::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.22);
+  background: rgba(0,0,0,0.10);
   opacity: 0;
   pointer-events: none;
   z-index: 5;
 }
 #viewerStack.swipe-reveal-prev #viewer-prev::after {
-  background: linear-gradient(to left, rgba(0,0,0,0) 0, rgba(0,0,0,0.22) 14px, rgba(0,0,0,0.22) 100%);
+  background: linear-gradient(to left, rgba(0,0,0,0) 0, rgba(0,0,0,0.10) 14px, rgba(0,0,0,0.10) 100%);
 }
 #viewerStack.swipe-reveal-next #viewer-next::after {
-  background: linear-gradient(to right, rgba(0,0,0,0) 0, rgba(0,0,0,0.22) 14px, rgba(0,0,0,0.22) 100%);
+  background: linear-gradient(to right, rgba(0,0,0,0) 0, rgba(0,0,0,0.10) 14px, rgba(0,0,0,0.10) 100%);
 }
 #viewerStack.swipe-reveal-prev #viewer-prev::after,
 #viewerStack.swipe-reveal-next #viewer-next::after {
