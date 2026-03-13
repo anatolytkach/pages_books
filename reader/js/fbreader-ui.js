@@ -336,6 +336,10 @@
     document.body.classList.add("ui-hidden");
     syncBarHeights(false);
   }
+  try {
+    window.__fbShowUi = showUi;
+    window.__fbHideUi = hideUi;
+  } catch (eExposeUi) {}
   function toggleUi() {
     if (window.__fbSelectionActive) return;
     try {
@@ -365,10 +369,11 @@
     var fontDec = document.getElementById("fontDec");
     var fontInc = document.getElementById("fontInc");
     if (!toggle || !panel) return;
-    // Keep the panel in the root stacking context. On iOS, fixed overlays nested
-    // inside transformed containers can lose hit-testing priority to backdrops.
+    // Keep the panel inside the fullscreen root. Android fullscreen will not
+    // paint or hit-test fixed elements that live outside the fullscreen element.
     try {
-      if (panel.parentNode !== document.body) document.body.appendChild(panel);
+      var panelHost = document.getElementById("container") || document.body;
+      if (panel.parentNode !== panelHost) panelHost.appendChild(panel);
     } catch (ePanelMove) {}
     var backdrop = document.getElementById("mobileMoreBackdrop");
     if (!backdrop) {
@@ -376,8 +381,13 @@
         backdrop = document.createElement("div");
         backdrop.id = "mobileMoreBackdrop";
         backdrop.className = "mobile-more-backdrop hidden";
-        document.body.appendChild(backdrop);
+        (document.getElementById("container") || document.body).appendChild(backdrop);
       } catch (eCreateBackdrop) {}
+    } else {
+      try {
+        var backdropHost = document.getElementById("container") || document.body;
+        if (backdrop.parentNode !== backdropHost) backdropHost.appendChild(backdrop);
+      } catch (eBackdropMove) {}
     }
 
     function nodeInside(target, root) {

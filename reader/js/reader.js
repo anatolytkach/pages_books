@@ -7543,8 +7543,19 @@ if ($addressBarToggle && $addressBarToggle.length) {
 // Update icon on native fullscreen changes
 ["fullscreenchange","webkitfullscreenchange","mozfullscreenchange","MSFullscreenChange"].forEach(function(evt){
 	document.addEventListener(evt, function(){
+		var inFs = _nativeIsFullscreen();
+		try {
+			if (inFs) {
+				if (typeof window.__fb_closeMobileMore === "function") window.__fb_closeMobileMore();
+				if (typeof window.__fbHideUi === "function") window.__fbHideUi();
+				else if (document.body && document.body.classList) document.body.classList.add("ui-hidden");
+			} else {
+				if (typeof window.__fbShowUi === "function") window.__fbShowUi();
+				else if (document.body && document.body.classList) document.body.classList.remove("ui-hidden");
+			}
+		} catch (eUiFs) {}
 		if(isPseudoFullscreen) return;
-		_updateFsIcon(_nativeIsFullscreen());
+		_updateFsIcon(inFs);
 	});
 });
 
