@@ -578,6 +578,11 @@ html.fb-swipe-underlay-right #main::after {
   opacity: 1;
 }
 
+#viewerStack.swipe-undim #viewer-prev::after,
+#viewerStack.swipe-undim #viewer-next::after {
+  opacity: 0 !important;
+}
+
 /* Mobile stability: never show the prerendered neighbor layers during drag.
    This removes the "double page" / shimmering artifact on slow swipes. */
 @media (hover: none) and (pointer: coarse) {

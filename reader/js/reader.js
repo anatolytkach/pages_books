@@ -4729,7 +4729,7 @@ function attachSwipeToDoc(doc) {
 
 				function clearReveal() {
 					try {
-						stack.classList.remove("swiping", "swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right");
+						stack.classList.remove("swiping", "swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right", "swipe-undim");
 						if (shadow) { shadow.style.left = ""; shadow.style.transition = ""; }
 						state.lastDir = 0;
 					} catch (e) {}
@@ -4737,7 +4737,8 @@ function attachSwipeToDoc(doc) {
 
 				function clearRevealOverlayOnly() {
 					try {
-						stack.classList.remove("swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right");
+						stack.classList.remove("shadow-left", "shadow-right");
+						stack.classList.add("swipe-undim");
 						if (shadow) { shadow.style.left = ""; shadow.style.transition = ""; }
 						try { doc.documentElement.classList.remove("fb-swipe-active"); } catch(eCss3) {}
 						try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
