@@ -642,7 +642,7 @@ html.fb-swipe-underlay-right #main::after {
 }
 
 #viewerStack.swiping #swipe-shadow {
-  opacity: 1;
+  opacity: 0;
 }
 
 /* Default gradients (direction is updated by JS by toggling classes) */
@@ -652,6 +652,18 @@ html.fb-swipe-underlay-right #main::after {
 
 #viewerStack.shadow-right #swipe-shadow {
   background: linear-gradient(to right, rgba(0,0,0,0.40), rgba(0,0,0,0));
+}
+
+/* Draw the moving-page edge shadow on the current layer itself.
+   This keeps the shadow locked to the page and avoids a lagging tail. */
+#viewerStack.swiping #viewer {
+  box-shadow: none;
+}
+#viewerStack.swiping.shadow-left #viewer {
+  box-shadow: -6px 0 10px rgba(0,0,0,0.28);
+}
+#viewerStack.swiping.shadow-right #viewer {
+  box-shadow: 6px 0 10px rgba(0,0,0,0.28);
 }
 
 /* Iframes */
