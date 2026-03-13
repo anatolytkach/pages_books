@@ -4752,6 +4752,32 @@ function attachSwipeToDoc(doc) {
 					} catch (e) {}
 				}
 
+				function canRevealForDx(dx) {
+					try {
+						if (!dx) return false;
+						var isNextTurn = dx < 0;
+						var loc = reader && reader._lastRelocated
+							? reader._lastRelocated
+							: (rendition && rendition.currentLocation && rendition.currentLocation());
+						return !!(
+							reader &&
+							reader.__neighborReadyForTurn &&
+							reader.__neighborReadyForTurn(loc, isNextTurn)
+						);
+					} catch (e) {}
+					return false;
+				}
+
+				function clearRevealWhileDragging() {
+					try {
+						stack.classList.add("swiping");
+						stack.classList.remove("swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right", "swipe-undim");
+						if (shadow) { shadow.style.left = ""; shadow.style.transition = ""; }
+						try { doc.documentElement.classList.remove("fb-swipe-active"); } catch(eCss3) {}
+						try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
+					} catch (e) {}
+				}
+
 					function scheduleDx(dx) {
 							// Smoother + more stable drag: avoid low-pass drift/jitter, but still throttle to RAF.
 							var raw = dx;
@@ -4768,7 +4794,11 @@ function attachSwipeToDoc(doc) {
 								if (d === state.appliedDx) return;
 								state.appliedDx = d;
 								applyDx(d);
-								setReveal(d);
+								if (canRevealForDx(d)) {
+									setReveal(d);
+								} else {
+									clearRevealWhileDragging();
+								}
 							});
 						}
 
@@ -5008,19 +5038,31 @@ function attachSwipeToDoc(doc) {
 						if (doc.body) doc.body.style.touchAction = "pan-y";
 					} catch (e) {}
 
-						// Guarantee neighbors before swipe; on tablets allow drag immediately (phone-like).
+						// Guarantee neighbors before swipe, but only block if they are actually not ready yet.
 						try {
-							state.waitingNeighbors = !isTabletMode();
-							ensureNeighborsReady().then(function(){
-								state.waitingNeighbors = false;
-								// If the finger is still down and we already decided it's a horizontal gesture,
-								// apply the current dx immediately.
-								try {
-									if (state.tracking && state.horizontal && !state.startedOnInteractive) {
-										scheduleDx(state.lastX - state.startX);
-									}
-								} catch(e1){}
-							});
+							var neighborsReadyNow = false;
+							try {
+								neighborsReadyNow = !!(
+									reader &&
+									reader.__neighborsReadyForLocation &&
+									reader.__neighborsReadyForLocation(
+										reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation())
+									)
+								);
+							} catch (eReadyNow) {}
+							state.waitingNeighbors = !isTabletMode() && !neighborsReadyNow;
+							if (state.waitingNeighbors) {
+								ensureNeighborsReady().then(function(){
+									state.waitingNeighbors = false;
+									// If the finger is still down and we already decided it's a horizontal gesture,
+									// apply the current dx immediately.
+									try {
+										if (state.tracking && state.horizontal && !state.startedOnInteractive) {
+											scheduleDx(state.lastX - state.startX);
+										}
+									} catch(e1){}
+								});
+							}
 						} catch(e0) { state.waitingNeighbors = false; }
 				}
 
@@ -5035,21 +5077,14 @@ function attachSwipeToDoc(doc) {
 					state.lastX = abs.x; state.lastY = abs.y;
 					var dx = abs.x - state.startX;
 					var dy = abs.y - state.startY;
-					var elapsed = Date.now() - (state.downTs || Date.now());
-					if (state.startPhoneEdge && isPhoneTouchMode() && elapsed < 280) {
-						var edgeTapSlopX = Math.max(120, (state.viewW || window.innerWidth || 0) * 0.20);
-						if (Math.abs(dx) < edgeTapSlopX && Math.abs(dy) < 90) return;
-					}
 						// Do not quantize/ignore small deltas here.
 						// Ignoring micro-deltas causes visible "stutter" when the finger moves slowly.
 						state.lastRawDx = dx;
 						state.lastMoveTs = Date.now();
 					if (!state.horizontal) {
 						// Mobile browsers often report small jitter even for a simple tap.
-						// Use a larger threshold so center-taps don't get mis-classified as swipes.
-						var horizontalThreshold = (state.startPhoneEdge && isPhoneTouchMode())
-							? Math.max(120, (state.viewW || window.innerWidth || 0) * 0.20)
-							: 14;
+						// Use the same low threshold for edge-start drags so the page follows immediately.
+						var horizontalThreshold = 14;
 						if (Math.abs(dx) > horizontalThreshold && Math.abs(dx) > Math.abs(dy) * 1.15) {
 							state.horizontal = true;
 							try {
@@ -5062,8 +5097,6 @@ function attachSwipeToDoc(doc) {
 					// Allow footnote taps/links to behave normally
 					if (state.startedOnInteractive) return;
 					try { ev.preventDefault(); ev.stopPropagation(); } catch (e) {}
-							// Wait until neighbor pages have rendered (pre-render) before applying transforms.
-							if (state.waitingNeighbors) return;
 							scheduleDx(dx);
 				}
 
