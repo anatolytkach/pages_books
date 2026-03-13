@@ -179,49 +179,54 @@ cd pages_books</code></pre>
         <ul>
           <li><code>books/content/make_epub_from_docx.sh</code> — сборка EPUB из DOCX + нормализация.</li>
           <li><code>books/content/gen_epub_css_from_docx.py</code> — извлечение heading-стилей Word в CSS.</li>
-          <li><code>books/content/epub_ingest.sh</code> — распаковка/загрузка/переиндексация/деплой.</li>
+          <li><code>books/content/epub_unpack.sh</code> — распаковка EPUB в папки книг (новые id или replace).</li>
+          <li><code>books/content/epub_publish.sh</code> — upload в R2 + переиндексация + Pages deploy.</li>
           <li><code>tools/build_lang_indexes.py</code> — генератор индексов.</li>
         </ul>
 
         <p>Сборка EPUB:</p>
         <pre><code>cd books/content
-./make_epub_from_docx.sh /path/to/book.docx</code></pre>
+./make_epub_from_docx.sh ru "Название книги" "Имя Автора"</code></pre>
 
         <p>PDF - EPUB (reflowable):</p>
         <pre><code>cd books/content
-./make_epub_from_pdf.sh /absolute/path/to/book.pdf</code></pre>
+./make_epub_from_pdf.sh en "Book Title" "Author Name"</code></pre>
         <ul>
           <li><code>make_epub_from_pdf.sh</code> использует <code>pdftohtml + pandoc</code> и чистит PDF-артефакты (headers/footers/page numbers).</li>
           <li>По умолчанию включена защита от дублирования страниц картинками: <code>STRIP_SYNTHETIC_PAGE_IMAGES=1</code>.</li>
           <li>Обложка берется из <code>books/content/cover.jpg</code> или переменной <code>COVER_IMAGE</code>.</li>
         </ul>
 
-        <p>Ingest/деплой:</p>
+        <p>Распаковка EPUB:</p>
         <pre><code>cd books/content
-./epub_ingest.sh import-all
-./epub_ingest.sh replace 77752
-./epub_ingest.sh upload-ids 77752 77753
-./epub_ingest.sh reindex-ids 77752</code></pre>
+./epub_unpack.sh import-all
+./epub_unpack.sh replace 77752 /path/to/book.epub</code></pre>
 
-        <p>Dry-run:</p>
-        <pre><code>./epub_ingest.sh import-all --dry-run</code></pre>
+        <p>Публикация в R2 и каталог:</p>
+        <pre><code>cd books/content
+./epub_publish.sh upload-ids 77752 77753
+./epub_publish.sh upload-ids 77752 77753 --no-image-upload
+./epub_publish.sh reindex-ids 77752</code></pre>
+        <ul>
+          <li><code>--no-image-upload</code> — не перезаливает изображения книги в R2; старые картинки остаются как есть, обновляются текст/структура и каталог.</li>
+        </ul>
 
         <h2 id="ops">6. Операционные сценарии и rollback</h2>
         <p><strong>replace &lt;id&gt;</strong> — безопасный способ исправить одну книгу.</p>
         <ul>
           <li>Кладете ровно один EPUB в <code>books/content/</code>.</li>
-          <li>Запускаете <code>./epub_ingest.sh replace &lt;id&gt;</code>.</li>
-          <li>Скрипт зальет <code>content/&lt;id&gt;</code>, пересоберет и дозальет индексы, сделает Pages deploy.</li>
+          <li>Запускаете <code>./epub_unpack.sh replace &lt;id&gt;</code>.</li>
+          <li>Затем <code>./epub_publish.sh upload-ids &lt;id&gt;</code>.</li>
         </ul>
         <p><strong>Rollback</strong>:</p>
         <ul>
           <li>повторный <code>replace &lt;id&gt;</code> предыдущим EPUB;</li>
-          <li>или <code>upload-ids</code> для восстановления папки книги + <code>reindex-ids</code>.</li>
+          <li>или <code>upload-ids</code> для восстановления папки книги + <code>reindex-ids</code> через <code>epub_publish.sh</code>.</li>
         </ul>
 
         <h2 id="secrets">7. Секреты и переменные окружения</h2>
         <ul>
-          <li><code>EPUB_INGEST_R2_BUCKET</code>, <code>EPUB_INGEST_PAGES_PROJECT</code>, <code>EPUB_INGEST_PAGES_BRANCH</code></li>
+          <li><code>EPUB_PUBLISH_R2_BUCKET</code>, <code>EPUB_PUBLISH_PAGES_PROJECT</code>, <code>EPUB_PUBLISH_PAGES_BRANCH</code></li>
           <li><code>READER_BOOKS</code> (R2 binding)</li>
           <li><code>READERPUB_GOOGLE_TRANSLATE_API_KEY</code></li>
           <li><code>READERPUB_GOOGLE_CLIENT_ID</code></li>

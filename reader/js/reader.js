@@ -3428,11 +3428,48 @@ function applyThemeToIframes(themeName) {
 	this._neighborNextExpected = 0;
 	this._neighborPrevReady = false;
 	this._neighborNextReady = false;
+	this._neighborBaseKeyExpected = "";
+	this._neighborPrevReadyKey = "";
+	this._neighborNextReadyKey = "";
 	this._neighborWaiters = [];
+	this.__neighborBaseKeyForLocation = function(location){
+		try {
+			if (location && location.start && location.start.cfi) return String(location.start.cfi);
+		} catch(e0){}
+		try {
+			var loc = this._lastRelocated || (this.rendition && this.rendition.currentLocation ? this.rendition.currentLocation() : null);
+			if (loc && loc.start && loc.start.cfi) return String(loc.start.cfi);
+		} catch(e1){}
+		return "";
+	};
+	this.__neighborsReadyForLocation = function(location){
+		try {
+			var baseKey = this.__neighborBaseKeyForLocation(location);
+			if (!baseKey) return false;
+			return !!(
+				this._neighborPrevReady &&
+				this._neighborNextReady &&
+				this._neighborPrevReadyKey === baseKey &&
+				this._neighborNextReadyKey === baseKey
+			);
+		} catch(e0){}
+		return false;
+	};
+	this.__neighborReadyForTurn = function(location, isNext){
+		try {
+			var baseKey = this.__neighborBaseKeyForLocation(location);
+			if (!baseKey) return false;
+			if (isNext) {
+				return !!(this._neighborNextReady && this._neighborNextReadyKey === baseKey);
+			}
+			return !!(this._neighborPrevReady && this._neighborPrevReadyKey === baseKey);
+		} catch(e0){}
+		return false;
+	};
 	this.__notifyNeighborWaiters = function(){
 		try {
 			if (!this._neighborWaiters || !this._neighborWaiters.length) return;
-			if (this._neighborPrevReady && this._neighborNextReady) {
+			if (this.__neighborsReadyForLocation(this._lastRelocated)) {
 				var w = this._neighborWaiters.slice();
 				this._neighborWaiters.length = 0;
 				w.forEach(function(fn){ try { fn(); } catch(e){} });
@@ -3443,7 +3480,7 @@ function applyThemeToIframes(themeName) {
 		var self = this;
 		return new Promise(function(resolve){
 			try {
-				if (self._neighborPrevReady && self._neighborNextReady) return resolve();
+				if (self.__neighborsReadyForLocation(self._lastRelocated)) return resolve();
 				self._neighborWaiters.push(resolve);
 				setTimeout(function(){
 					// fail-open: never block swipe forever
@@ -3452,22 +3489,31 @@ function applyThemeToIframes(themeName) {
 			} catch(e) { resolve(); }
 		});
 	};
+	this.__markNeighborReady = function(side, token, baseKey){
+		try {
+			var key = baseKey || "";
+			if (side === "prev") {
+				if (this._neighborPrevExpected !== token) return;
+				this._neighborPrevReady = true;
+				this._neighborPrevReadyKey = key;
+			} else if (side === "next") {
+				if (this._neighborNextExpected !== token) return;
+				this._neighborNextReady = true;
+				this._neighborNextReadyKey = key;
+			}
+			this.__notifyNeighborWaiters();
+		} catch(e){}
+	};
 	try {
 		var self = this;
 		this.renditionPrev.on("rendered", function(section, view){
 			try {
-				if (self._neighborPrevExpected !== self._neighborPrevToken) return;
-				self._neighborPrevReady = !!(view && (view.document || (view.contents && view.contents.document)));
-					try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
-				self.__notifyNeighborWaiters();
+				try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
 			} catch(e){}
 		});
 		this.renditionNext.on("rendered", function(section, view){
 			try {
-				if (self._neighborNextExpected !== self._neighborNextToken) return;
-				self._neighborNextReady = !!(view && (view.document || (view.contents && view.contents.document)));
-					try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
-				self.__notifyNeighborWaiters();
+				try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
 			} catch(e){}
 		});
 	} catch(e) {}
@@ -4733,6 +4779,33 @@ function attachSwipeToDoc(doc) {
 					} catch (e) {}
 					clearReveal();
 					state.appliedDx = 1e9;
+					try {
+						if (reader) {
+							reader._swipeAnimating = false;
+							if (reader._pendingSwipeNeighborLocation && reader.__updateSwipeNeighbors) {
+								var pendingLoc = reader._pendingSwipeNeighborLocation;
+								reader._pendingSwipeNeighborLocation = null;
+								reader.__updateSwipeNeighbors(pendingLoc);
+							}
+						}
+					} catch (eFlush) {}
+				}
+
+				function hasRenderableNeighborLayer(isNext) {
+					try {
+						var layerId = isNext ? "viewer-next" : "viewer-prev";
+						var layer = document.getElementById(layerId);
+						if (!layer) return false;
+						var iframe = layer.querySelector("iframe");
+						if (!iframe) return false;
+						var doc2 = iframe.contentDocument || null;
+						if (!doc2) return false;
+						var body = doc2.body || null;
+						if (!body) return false;
+						if (body.children && body.children.length > 0) return true;
+						if ((body.textContent || "").trim()) return true;
+					} catch (e0) {}
+					return false;
 				}
 
 					function isRtlReadingOrderSafe() {
@@ -4749,9 +4822,15 @@ function attachSwipeToDoc(doc) {
 						return false;
 					}
 
-					function commitTurn(isNext) {
+				function commitTurn(isNext) {
 					if (state.lock) return;
 					state.lock = true;
+					try {
+						if (reader) {
+							reader._swipeAnimating = true;
+							reader._pendingSwipeNeighborLocation = null;
+						}
+					} catch (eSwipeFlag) {}
 					// Watchdog: epub.js can sometimes take longer to relocate on mobile;
 					// never leave the swipe state locked.
 					var unlockTimer = null;
@@ -4760,9 +4839,26 @@ function attachSwipeToDoc(doc) {
 						var rect = stack.getBoundingClientRect();
 						var w = rect.width || window.innerWidth || 0;
 						var off = isNext ? -w : w;
+						var canRevealUnderlay = false;
+						try {
+							canRevealUnderlay = !!(reader && reader.__neighborReadyForTurn && reader.__neighborReadyForTurn(
+								reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation()),
+								!!isNext
+							));
+						} catch (eReady) {}
+						if (!canRevealUnderlay) {
+							try { canRevealUnderlay = hasRenderableNeighborLayer(!!isNext); } catch (eReadyDom) {}
+						}
 						layerCurrent.style.transition = "transform 170ms ease-out";
 						layerCurrent.style.transform = "translate3d(" + off + "px,0,0)";
-						setReveal(off);
+						if (canRevealUnderlay) {
+							setReveal(off);
+						} else {
+							try {
+								stack.classList.add("swiping");
+								setShadow(off);
+							} catch (eRevealFallback) {}
+						}
 						setTimeout(function(){
 								try {
 									var rtl = isRtlReadingOrderSafe();
@@ -5234,10 +5330,13 @@ function attachSwipeToDoc(doc) {
 					} catch(e1) {}
 				}
 				if (!curCfi) return;
+				reader._neighborBaseKeyExpected = String(curCfi);
 
 				// Tokenize to avoid races when fast-swiping.
 				reader._neighborPrevReady = false;
 				reader._neighborNextReady = false;
+				reader._neighborPrevReadyKey = "";
+				reader._neighborNextReadyKey = "";
 				reader._neighborPrevToken = (reader._neighborPrevToken || 0) + 1;
 				reader._neighborNextToken = (reader._neighborNextToken || 0) + 1;
 				reader._neighborPrevExpected = reader._neighborPrevToken;
@@ -5245,11 +5344,17 @@ function attachSwipeToDoc(doc) {
 
 				var tokPrev = reader._neighborPrevExpected;
 				var tokNext = reader._neighborNextExpected;
+				var baseKey = String(curCfi);
 
 				Promise.resolve(reader.renditionPrev.display(curCfi))
 					.then(function(){
 						if (reader._neighborPrevExpected !== tokPrev) return;
 						return reader.renditionPrev.prev();
+					})
+					.then(function(){
+						try {
+							if (reader.__markNeighborReady) reader.__markNeighborReady("prev", tokPrev, baseKey);
+						} catch(e2) {}
 					})
 					.catch(function(){});
 
@@ -5257,6 +5362,11 @@ function attachSwipeToDoc(doc) {
 					.then(function(){
 						if (reader._neighborNextExpected !== tokNext) return;
 						return reader.renditionNext.next();
+					})
+					.then(function(){
+						try {
+							if (reader.__markNeighborReady) reader.__markNeighborReady("next", tokNext, baseKey);
+						} catch(e3) {}
 					})
 					.catch(function(){});
 			} catch (e) {}
@@ -5501,6 +5611,8 @@ if (doc) {
 	this._tocMap = null;
 	this._tocList = null;
 	this._lastRelocated = null;
+	this._swipeAnimating = false;
+	this._pendingSwipeNeighborLocation = null;
 	this._spineHrefToIndex = Object.create(null);
 	this._globalPageMap = {
 		ready: false,
@@ -6587,7 +6699,13 @@ if (doc) {
 		try { reader._navInProgressUntil = 0; } catch (eNavDone) {}
 		updatePageCount(location);
 		schedulePageCounterRecovery("relocated");
-		try { if (reader.__updateSwipeNeighbors) reader.__updateSwipeNeighbors(location); } catch (e2) {}
+		try {
+			if (reader._swipeAnimating) {
+				reader._pendingSwipeNeighborLocation = location;
+			} else if (reader.__updateSwipeNeighbors) {
+				reader.__updateSwipeNeighbors(location);
+			}
+		} catch (e2) {}
 		scheduleSaveLocation();
 	});
 

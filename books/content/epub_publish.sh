@@ -15,12 +15,13 @@ PAGES_PROJECT="${EPUB_PUBLISH_PAGES_PROJECT:-reader-books}"
 PAGES_BRANCH="${EPUB_PUBLISH_PAGES_BRANCH:-}"
 
 DRY_RUN=0
+SKIP_IMAGE_UPLOAD=0
 
 usage() {
   cat <<USAGE
 Usage:
-  $(basename "$0") upload-ids <id1> [id2 ...] [--dry-run]
-  $(basename "$0") upload-ids <id1,id2,id3> [--dry-run]
+  $(basename "$0") upload-ids <id1> [id2 ...] [--no-image-upload] [--dry-run]
+  $(basename "$0") upload-ids <id1,id2,id3> [--no-image-upload] [--dry-run]
   $(basename "$0") reindex-ids <id1> [id2 ...] [--dry-run]
   $(basename "$0") reindex-ids <id1,id2,id3> [--dry-run]
 
@@ -41,6 +42,8 @@ What it does:
 Notes:
   - If content/<id>/... already exists on R2, it is replaced in-place.
   - Catalog update is incremental via tools/build_lang_indexes.py --book-id <id>.
+  - Option --no-image-upload skips uploading image files from books.
+    Existing images in R2 remain unchanged.
 USAGE
 }
 
@@ -100,6 +103,20 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
 }
 
+is_image_file() {
+  local file="$1"
+  local lower
+  lower="$(printf '%s' "${file##*/}" | tr '[:upper:]' '[:lower:]')"
+  case "$lower" in
+    *.jpg|*.jpeg|*.png|*.gif|*.webp|*.bmp|*.svg|*.tif|*.tiff|*.avif)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 upload_dir_to_r2_prefix() {
   local local_dir="$1"
   local r2_prefix="$2"
@@ -108,6 +125,9 @@ upload_dir_to_r2_prefix() {
   [[ -d "$local_dir" ]] || die "Directory not found: $local_dir"
 
   while IFS= read -r -d '' file; do
+    if [[ "$SKIP_IMAGE_UPLOAD" -eq 1 ]] && is_image_file "$file"; then
+      continue
+    fi
     rel="${file#"$local_dir"/}"
     key="$r2_prefix/$rel"
     wrangler_r2_put_with_retry "$R2_BUCKET/$key" "$file"
@@ -257,6 +277,10 @@ main() {
         DRY_RUN=1
         shift
         ;;
+      --no-image-upload)
+        SKIP_IMAGE_UPLOAD=1
+        shift
+        ;;
       -h|--help)
         usage
         exit 0
@@ -304,6 +328,9 @@ main() {
   done
 
   if [[ "$only_reindex" -eq 0 ]]; then
+    if [[ "$SKIP_IMAGE_UPLOAD" -eq 1 ]]; then
+      log "Image upload is disabled (--no-image-upload). Existing R2 images will be kept."
+    fi
     for id in "${ids[@]}"; do
       log "Uploading book $id to R2"
       upload_dir_to_r2_prefix "$CONTENT_DIR/$id" "content/$id"

@@ -146,6 +146,19 @@ echo "[2/6] Build merged CSS for $docx_file"
 {
   echo "/* AUTO-BUILT: DO NOT EDIT */"
   cat "$BASE_CSS"
+  cat <<'CSS'
+
+/* Inline avatar fix: keep tiny speaker icons on the same line with the name. */
+img.inline-avatar {
+  display: inline-block !important;
+  margin: 0 0.35em 0 0 !important;
+  vertical-align: middle !important;
+  max-width: none !important;
+  max-height: 1em !important;
+  height: 1em !important;
+  width: auto !important;
+}
+CSS
   echo
   cat "$auto_css"
 } > "$css_file"
@@ -191,6 +204,61 @@ BOOK_LANG="$BOOK_LANG" perl -0777 -i -pe '
   s/<html\b([^>]*)>/fix_tag("html",$1)/ige;
   s/<body\b([^>]*)>/fix_tag("body",$1)/ige;
 ' "$nav_file" "$text_dir"/*.xhtml
+
+echo "[4.1/6] Mark tiny inline avatars for $docx_file"
+python3 - "$text_dir" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+text_dir = Path(sys.argv[1])
+
+img_re = re.compile(r"<img\b[^>]*>", re.I)
+class_re = re.compile(r'\bclass\s*=\s*"([^"]*)"', re.I)
+style_re = re.compile(r'\bstyle\s*=\s*"([^"]*)"', re.I)
+width_css_re = re.compile(r'width\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*(in|px)\b', re.I)
+
+def is_tiny_avatar_tag(tag: str) -> bool:
+    sm = style_re.search(tag or "")
+    if not sm:
+        return False
+    style = sm.group(1)
+    wm = width_css_re.search(style)
+    if not wm:
+        return False
+    w = float(wm.group(1))
+    unit = wm.group(2).lower()
+    if unit == "in":
+        return w <= 0.35
+    if unit == "px":
+        return w <= 36.0
+    return False
+
+def add_class(tag: str, cls: str) -> str:
+    cm = class_re.search(tag)
+    if cm:
+        cur = cm.group(1).strip()
+        parts = [p for p in cur.split() if p]
+        if cls not in parts:
+            parts.append(cls)
+        return tag[:cm.start(1)] + " ".join(parts) + tag[cm.end(1):]
+    return re.sub(r"<img\b", f'<img class="{cls}"', tag, count=1, flags=re.I)
+
+for xhtml in sorted(text_dir.glob("*.xhtml")):
+    src = xhtml.read_text(encoding="utf-8", errors="ignore")
+    changed = [False]
+
+    def repl(m):
+        tag = m.group(0)
+        if is_tiny_avatar_tag(tag):
+            changed[0] = True
+            return add_class(tag, "inline-avatar")
+        return tag
+
+    out = img_re.sub(repl, src)
+    if changed[0] and out != src:
+        xhtml.write_text(out, encoding="utf-8")
+PY
 
 echo "[5/6] Remove extra first-page TOC links and normalize TOC labels for $docx_file"
 perl -0777 -i -pe '

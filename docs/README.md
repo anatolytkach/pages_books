@@ -196,6 +196,16 @@ Bucket: `reader-books` (по умолчанию).
 - нормализация OPF/TOC/lang/footnotes;
 - выходной файл `<name>.epub`.
 
+Запуск:
+```bash
+cd /Volumes/2T/se_ingest/pages_books/books/content
+./make_epub_from_docx.sh ru "Название книги" "Имя Автора"
+```
+
+Примечание:
+- скрипт ожидает ровно один `.docx` в `books/content`;
+- после успеха удаляет исходный `.docx` и `cover.jpg`.
+
 ### 7.1.1 PDF -> EPUB
 
 Скрипт: `books/content/make_epub_from_pdf.sh`
@@ -210,10 +220,8 @@ Bucket: `reader-books` (по умолчанию).
 
 ```bash
 cd /Volumes/2T/se_ingest/pages_books/books/content
-./make_epub_from_pdf.sh "/absolute/path/to/book.pdf"
+./make_epub_from_pdf.sh en "Book Title" "Author Name"
 ```
-
-Если аргумент не передан, скрипт ожидает ровно один `*.pdf` в `books/content/`.
 
 Выход:
 - рядом с исходным PDF создается одноименный `*.epub`.
@@ -226,11 +234,13 @@ cd /Volumes/2T/se_ingest/pages_books/books/content
 - `zip`, `unzip`
 
 Поддерживаемые env-параметры:
-- `AUTHOR` (default: `Unknown`)
-- `BOOK_LANG` (default: `ru-RU`)
 - `NAV_TITLE` (default: `Contents`)
 - `COVER_IMAGE` (default: `books/content/cover.jpg`)
 - `STRIP_SYNTHETIC_PAGE_IMAGES` (default: `1`)
+
+Примечание:
+- скрипт ожидает ровно один `.pdf` в `books/content`;
+- после успеха удаляет исходный `.pdf` и `cover.jpg`.
 
 Важно по изображениям:
 - в OCR-PDF часто присутствует большой фоновый image-layer страницы;
@@ -239,26 +249,29 @@ cd /Volumes/2T/se_ingest/pages_books/books/content
 
 ### 7.2 Ingest/Upload/Deploy
 
-Скрипт: `books/content/epub_ingest.sh`
+Скрипты:
+- `books/content/epub_unpack.sh`
+- `books/content/epub_publish.sh`
 
-Режимы:
-- `import-all`: взять все `*.epub`, назначить новые numeric id.
-- `replace <id>`: заменить существующую книгу этим EPUB.
-- `upload-ids <id...>`: залить существующие распакованные книги.
-- `reindex-ids <id...>`: только переиндексация + upload индексов.
+Режимы `epub_unpack.sh`:
+- `import-all`: взять все `*.epub`, распаковать в новые numeric id, удалить исходные `.epub`.
+- `replace <id> [epub_file]`: заменить существующую папку книги `<id>` из EPUB.
+
+Режимы `epub_publish.sh`:
+- `upload-ids <id...>`: залить существующие распакованные книги в `content/<id>/...`, обновить индексы, задеплоить Pages.
+- `upload-ids <id...> --no-image-upload`: не перезаливать картинки книги в R2; существующие картинки оставить как есть.
+- `reindex-ids <id...>`: только переиндексация + upload индексов + Pages deploy.
 
 Ключевые шаги:
-1. `unzip` EPUB в `books/content/<id>/`.
-2. Upload `content/<id>/...` в R2 (retry).
-3. Snapshot hashes индексов.
-4. `build_lang_indexes.py --book-id <id>` для каждого id.
-5. Определение hash-changed файлов.
-6. Формирование selective списка upload в `api/...`.
-7. `wrangler pages deploy deploy --project-name reader-books`.
+1. `epub_unpack.sh`: распаковка EPUB в `books/content/<id>/` (новый id или replace).
+2. `epub_publish.sh`: upload `content/<id>/...` в R2 (retry).
+3. `build_lang_indexes.py --book-id <id>` для каждого id.
+4. Формирование selective списка upload в `api/...`.
+5. `wrangler pages deploy deploy --project-name reader-books`.
 
 ## 8. Детали selective upload индексов (важно)
 
-`epub_ingest.sh` загружает не весь `reader_lang_indexes`, а минимум нужного:
+`epub_publish.sh` загружает не весь `reader_lang_indexes`, а минимум нужного:
 - всегда: `letters.json`, `languages.json`;
 - файлы `a/*`, `search/*`, `lang/*`, где найден нужный `book_id`;
 - связанные `p/*` для author keys (включая языковые ветки);
