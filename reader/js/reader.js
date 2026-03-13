@@ -4735,6 +4735,15 @@ function attachSwipeToDoc(doc) {
 					} catch (e) {}
 				}
 
+				function clearRevealOverlayOnly() {
+					try {
+						stack.classList.remove("swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right");
+						if (shadow) { shadow.style.left = ""; }
+						try { doc.documentElement.classList.remove("fb-swipe-active"); } catch(eCss3) {}
+						try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
+					} catch (e) {}
+				}
+
 				function applyDx(dx) {
 					try {
 						layerCurrent.style.transition = "none";
@@ -4836,6 +4845,8 @@ function attachSwipeToDoc(doc) {
 					var unlockTimer = null;
 					try { unlockTimer = setTimeout(function(){ try { resetTransform(); } catch(e){} state.lock = false; }, 900); } catch(e0) {}
 					try {
+						var turnDurationMs = 280;
+						var settleAfterRelocateMs = 90;
 						var rect = stack.getBoundingClientRect();
 						var w = rect.width || window.innerWidth || 0;
 						var off = isNext ? -w : w;
@@ -4849,7 +4860,7 @@ function attachSwipeToDoc(doc) {
 						if (!canRevealUnderlay) {
 							try { canRevealUnderlay = hasRenderableNeighborLayer(!!isNext); } catch (eReadyDom) {}
 						}
-						layerCurrent.style.transition = "transform 170ms ease-out";
+						layerCurrent.style.transition = "transform " + turnDurationMs + "ms ease-out";
 						layerCurrent.style.transform = "translate3d(" + off + "px,0,0)";
 						if (canRevealUnderlay) {
 							setReveal(off);
@@ -4860,6 +4871,7 @@ function attachSwipeToDoc(doc) {
 							} catch (eRevealFallback) {}
 						}
 						setTimeout(function(){
+								try { clearRevealOverlayOnly(); } catch (eDim) {}
 								try {
 									var rtl = isRtlReadingOrderSafe();
 									var goNext = isNext;
@@ -4871,8 +4883,8 @@ function attachSwipeToDoc(doc) {
 								try { if (unlockTimer) clearTimeout(unlockTimer); } catch(e0){}
 								resetTransform();
 								state.lock = false;
-							}, 320);
-						}, 170);
+							}, settleAfterRelocateMs);
+						}, turnDurationMs);
 					} catch (e2) {
 						try { if (isNext) rendition.next(); else rendition.prev(); } catch(e3) {}
 						try { if (unlockTimer) clearTimeout(unlockTimer); } catch(e0){}
@@ -4886,13 +4898,25 @@ function attachSwipeToDoc(doc) {
 						try { resetTransform(); } catch (e0) {}
 						try {
 							try { ensureNeighborsReady().catch(function(){}); } catch (eWarm) {}
-							try { commitTurn(isNext); } catch (e1) {
-								try {
-									var rtl = isRtlReadingOrderSafe();
-									var goNext = isNext;
-									if (rtl) goNext = !goNext;
-									if (goNext) rendition.next(); else rendition.prev();
-								} catch (e2) {}
+							var runCommit = function(){
+								try { commitTurn(isNext); } catch (e1) {
+									try {
+										var rtl = isRtlReadingOrderSafe();
+										var goNext = isNext;
+										if (rtl) goNext = !goNext;
+										if (goNext) rendition.next(); else rendition.prev();
+									} catch (e2) {}
+								}
+							};
+							try {
+								var isIosLike = /iPad|iPhone|iPod/i.test((navigator && navigator.userAgent) || "");
+								if (isIosLike && win && typeof win.requestAnimationFrame === "function") {
+									win.requestAnimationFrame(function(){ runCommit(); });
+								} else {
+									runCommit();
+								}
+							} catch (eRun) {
+								runCommit();
 							}
 						} catch (e3) {
 							try {
