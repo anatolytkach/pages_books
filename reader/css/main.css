@@ -26,6 +26,8 @@ body {
 :root {
   --viewer-side: clamp(8px, 2.2vw, 28px);
   --arrow-gap: clamp(4px, 1.2vw, 14px);
+  --swipe-overlay-max: 0.10;
+  --swipe-overlay-alpha: 0;
   /* Must match actual desktop #titlebar height (see #titlebar rule below) */
   --titlebar-h: 32px;
   --bottombar-h: 32px;
@@ -78,6 +80,7 @@ html, body {
    ============================ */
 body.dark-ui {
   --reader-bg: #000000;
+  --swipe-overlay-max: 0.40;
   background: #000 !important;
   color: #fff !important;
 }
@@ -544,7 +547,7 @@ html.fb-swipe-margins #main::after {
   top: 0;
   bottom: 0;
   width: var(--viewer-side);
-  background: rgba(0,0,0,0.10);
+  background: rgba(0,0,0,var(--swipe-overlay-alpha));
   opacity: 0;
   pointer-events: none;
   z-index: 1;
@@ -562,16 +565,16 @@ html.fb-swipe-underlay-right #main::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.10);
+  background: rgba(0,0,0,var(--swipe-overlay-alpha));
   opacity: 0;
   pointer-events: none;
   z-index: 5;
 }
 #viewerStack.swipe-reveal-prev #viewer-prev::after {
-  background: linear-gradient(to left, rgba(0,0,0,0) 0, rgba(0,0,0,0.10) 14px, rgba(0,0,0,0.10) 100%);
+  background: linear-gradient(to left, rgba(0,0,0,0) 0, rgba(0,0,0,var(--swipe-overlay-alpha)) 14px, rgba(0,0,0,var(--swipe-overlay-alpha)) 100%);
 }
 #viewerStack.swipe-reveal-next #viewer-next::after {
-  background: linear-gradient(to right, rgba(0,0,0,0) 0, rgba(0,0,0,0.10) 14px, rgba(0,0,0,0.10) 100%);
+  background: linear-gradient(to right, rgba(0,0,0,0) 0, rgba(0,0,0,var(--swipe-overlay-alpha)) 14px, rgba(0,0,0,var(--swipe-overlay-alpha)) 100%);
 }
 #viewerStack.swipe-reveal-prev #viewer-prev::after,
 #viewerStack.swipe-reveal-next #viewer-next::after {

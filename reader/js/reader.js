@@ -4576,12 +4576,14 @@ function attachSwipeToDoc(doc) {
 				var state = {
 						tracking: false,
 						horizontal: false,
+						selectionUnlocked: false,
 						startedOnInteractive: false,
 						startPhoneEdge: false,
 						startPhoneZone: "none",
 						waitingNeighbors: false,
 						pointerActive: false,
 						pointerId: null,
+						selectionTimer: 0,
 					downTs: 0,
 					startX: 0,
 					startY: 0,
@@ -4599,11 +4601,96 @@ function attachSwipeToDoc(doc) {
 					lock: false
 				};
 
+				function clearSelectionTimer() {
+					try {
+						if (state.selectionTimer) {
+							clearTimeout(state.selectionTimer);
+							state.selectionTimer = 0;
+						}
+					} catch (e) {}
+				}
+
+				function lockSwipeSelection() {
+					try {
+						doc.documentElement.style.userSelect = "none";
+						doc.documentElement.style.webkitUserSelect = "none";
+						doc.documentElement.style.touchAction = "pan-y";
+						if (doc.body) {
+							doc.body.style.userSelect = "none";
+							doc.body.style.webkitUserSelect = "none";
+							doc.body.style.touchAction = "pan-y";
+						}
+					} catch (e) {}
+				}
+
+				function unlockSwipeSelection() {
+					try {
+						doc.documentElement.style.userSelect = "";
+						doc.documentElement.style.webkitUserSelect = "";
+						doc.documentElement.style.touchAction = "";
+						if (doc.body) {
+							doc.body.style.userSelect = "";
+							doc.body.style.webkitUserSelect = "";
+							doc.body.style.touchAction = "";
+						}
+					} catch (e) {}
+				}
+
+				function armSelectionUnlock() {
+					clearSelectionTimer();
+					try {
+						state.selectionTimer = setTimeout(function(){
+							state.selectionTimer = 0;
+							if (!state.tracking || state.horizontal || state.startedOnInteractive) return;
+							state.selectionUnlocked = true;
+							unlockSwipeSelection();
+						}, 700);
+					} catch (e) {}
+				}
+
 				function usesTouchFullBleedLayout() {
 					try {
 						return !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
 					} catch (e) {}
 					return false;
+				}
+
+				function getSwipeOverlayMax() {
+					try {
+						var css = window.getComputedStyle(document.body || document.documentElement);
+						var raw = parseFloat(css.getPropertyValue("--swipe-overlay-max"));
+						if (isFinite(raw) && raw >= 0) return raw;
+					} catch (e) {}
+					return 0.10;
+				}
+
+				function setSwipeOverlayAlpha(alpha) {
+					try {
+						var value = alpha;
+						if (!isFinite(value)) value = 0;
+						if (value < 0) value = 0;
+						document.documentElement.style.setProperty("--swipe-overlay-alpha", value.toFixed(3));
+					} catch (e) {}
+				}
+
+				function updateSwipeOverlayAlpha(dx) {
+					try {
+						var w = state.viewW || (stack.getBoundingClientRect().width || window.innerWidth || 0);
+						if (!w) {
+							setSwipeOverlayAlpha(0);
+							return;
+						}
+						var half = w * 0.5;
+						var traveled = Math.abs(dx);
+						var fadeProgress = 0;
+						if (traveled > half) {
+							fadeProgress = Math.min(1, Math.max(0, (traveled - half) / half));
+						}
+						var alpha = getSwipeOverlayMax() * (1 - fadeProgress);
+						setSwipeOverlayAlpha(alpha);
+					} catch (e) {
+						setSwipeOverlayAlpha(0);
+					}
 				}
 
 					function syncNeighborTextScale() {
@@ -4733,6 +4820,7 @@ function attachSwipeToDoc(doc) {
 								} catch(eCss4) {}
 							}
 					} catch (e) {}
+					updateSwipeOverlayAlpha(dx);
 					setShadow(dx);
 				}
 
@@ -4742,6 +4830,7 @@ function attachSwipeToDoc(doc) {
 						if (shadow) { shadow.style.left = ""; shadow.style.transition = ""; }
 						state.lastDir = 0;
 					} catch (e) {}
+					setSwipeOverlayAlpha(0);
 				}
 
 				function clearRevealOverlayOnly() {
@@ -4754,6 +4843,7 @@ function attachSwipeToDoc(doc) {
 							try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
 						}
 					} catch (e) {}
+					setSwipeOverlayAlpha(0);
 				}
 
 				function applyDx(dx) {
@@ -4789,6 +4879,7 @@ function attachSwipeToDoc(doc) {
 							try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
 						}
 					} catch (e) {}
+					setSwipeOverlayAlpha(0);
 				}
 
 					function scheduleDx(dx) {
@@ -4832,6 +4923,7 @@ function attachSwipeToDoc(doc) {
 							try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
 						}
 					} catch (e) {}
+					setSwipeOverlayAlpha(0);
 					clearReveal();
 					state.appliedDx = 1e9;
 					try {
@@ -4896,6 +4988,7 @@ function attachSwipeToDoc(doc) {
 						var rect = stack.getBoundingClientRect();
 						var w = rect.width || window.innerWidth || 0;
 						var off = isNext ? -w : w;
+						var startDx = (isFinite(state.appliedDx) && state.appliedDx !== 1e9) ? state.appliedDx : 0;
 						var canRevealUnderlay = false;
 						try {
 							canRevealUnderlay = !!(reader && reader.__neighborReadyForTurn && reader.__neighborReadyForTurn(
@@ -4907,7 +5000,7 @@ function attachSwipeToDoc(doc) {
 							try { canRevealUnderlay = hasRenderableNeighborLayer(!!isNext); } catch (eReadyDom) {}
 						}
 						if (canRevealUnderlay) {
-							setReveal(isNext ? -1 : 1);
+							setReveal(startDx || (isNext ? -1 : 1));
 							try {
 								if (shadow) {
 									var sw = state.shadowW || (shadow.getBoundingClientRect().width || 6) || 6;
@@ -4919,18 +5012,49 @@ function attachSwipeToDoc(doc) {
 							try {
 								stack.classList.add("swiping");
 								setShadow(off);
+								setSwipeOverlayAlpha(0);
 							} catch (eRevealFallback) {}
 						}
 						layerCurrent.style.transition = "transform " + turnDurationMs + "ms ease-out";
-						layerCurrent.style.transform = "translate3d(0px,0,0)";
+						layerCurrent.style.transform = "translate3d(" + startDx + "px,0,0)";
 						var rafMove = (win && win.requestAnimationFrame) ? win.requestAnimationFrame.bind(win) : function(cb){ return setTimeout(cb, 16); };
+						var overlayRaf = 0;
+						function stopOverlayAnim() {
+							try {
+								if (overlayRaf) {
+									(win.cancelAnimationFrame || clearTimeout)(overlayRaf);
+									overlayRaf = 0;
+								}
+							} catch (eCancelOverlay) {}
+						}
+						function animateOverlay(fromDx, toDx) {
+							if (!canRevealUnderlay) return;
+							stopOverlayAnim();
+							var startedAt = null;
+							var rafFn = (win && win.requestAnimationFrame) ? win.requestAnimationFrame.bind(win) : function(cb){ return setTimeout(function(){ cb(Date.now()); }, 16); };
+							function step(ts) {
+								if (startedAt === null) startedAt = ts;
+								var p = Math.min(1, Math.max(0, (ts - startedAt) / turnDurationMs));
+								var curDx = fromDx + ((toDx - fromDx) * p);
+								updateSwipeOverlayAlpha(curDx);
+								if (p < 1) {
+									overlayRaf = rafFn(step);
+								} else {
+									overlayRaf = 0;
+									updateSwipeOverlayAlpha(toDx);
+								}
+							}
+							overlayRaf = rafFn(step);
+						}
 						rafMove(function(){
 							layerCurrent.style.transform = "translate3d(" + off + "px,0,0)";
 							if (canRevealUnderlay) {
 								try { setShadow(off); } catch (eShadowMove) {}
+								animateOverlay(startDx, off);
 							}
 						});
 						setTimeout(function(){
+								try { stopOverlayAnim(); } catch (eStopOverlay) {}
 								try { clearRevealOverlayOnly(); } catch (eDim) {}
 								try {
 									var rtl = isRtlReadingOrderSafe();
@@ -5015,6 +5139,7 @@ function attachSwipeToDoc(doc) {
 					var abs = toAbsXY(x, y);
 					state.tracking = true;
 					state.horizontal = false;
+					state.selectionUnlocked = false;
 					state.startedOnInteractive = isInteractive(target);
 					state.startPhoneEdge = false;
 						state.waitingNeighbors = false;
@@ -5046,12 +5171,10 @@ function attachSwipeToDoc(doc) {
 							if (vp) vp.style.zIndex = "1";
 							if (vn) vn.style.zIndex = "1";
 						} catch (eZ2) {}
-						// Reduce selection/gesture interference
-						doc.documentElement.style.userSelect = "none";
-						doc.documentElement.style.webkitUserSelect = "none";
-						doc.documentElement.style.touchAction = "pan-y";
-						if (doc.body) doc.body.style.touchAction = "pan-y";
+						// Block text selection immediately, then allow it after a long press.
+						lockSwipeSelection();
 					} catch (e) {}
+					armSelectionUnlock();
 
 						// Guarantee neighbors before swipe, but only block if they are actually not ready yet.
 						try {
@@ -5083,8 +5206,12 @@ function attachSwipeToDoc(doc) {
 
 				function onMove(ev, x, y) {
 					if (!state.tracking || state.lock) return;
+					if (state.selectionUnlocked) return;
 					if (isSelectionActive()) {
 						state.tracking = false;
+						clearSelectionTimer();
+						state.selectionUnlocked = false;
+						unlockSwipeSelection();
 						resetTransform();
 						return;
 					}
@@ -5101,6 +5228,7 @@ function attachSwipeToDoc(doc) {
 						// Use the same low threshold for edge-start drags so the page follows immediately.
 						var horizontalThreshold = 14;
 						if (Math.abs(dx) > horizontalThreshold && Math.abs(dx) > Math.abs(dy) * 1.15) {
+							clearSelectionTimer();
 							state.horizontal = true;
 							try {
 								doc.documentElement.style.touchAction = "none";
@@ -5117,18 +5245,21 @@ function attachSwipeToDoc(doc) {
 
 				function onEnd(ev, x, y) {
 					if (!state.tracking) return;
+					clearSelectionTimer();
 					if (isSelectionActive()) {
 						state.tracking = false;
+						state.selectionUnlocked = false;
+						unlockSwipeSelection();
 						resetTransform();
 						return;
 					}
 					state.tracking = false;
-					try {
-						doc.documentElement.style.userSelect = "";
-						doc.documentElement.style.webkitUserSelect = "";
-						doc.documentElement.style.touchAction = "";
-						if (doc.body) doc.body.style.touchAction = "";
-					} catch (e) {}
+					unlockSwipeSelection();
+					if (state.selectionUnlocked) {
+						state.selectionUnlocked = false;
+						resetTransform();
+						return;
+					}
 
 					// If this gesture never became horizontal, treat it as a TAP candidate.
 					// IMPORTANT: We implement the UI toggle HERE (inside the same swipe handler)
@@ -5356,7 +5487,14 @@ function attachSwipeToDoc(doc) {
 				doc.addEventListener("touchmove", _onTouchMove, { passive: false, capture: true });
 				// passive:false so we can reliably preventDefault on iOS/Android when committing the swipe
 				doc.addEventListener("touchend", _onTouchEnd, { passive: false, capture: true });
-				doc.addEventListener("touchcancel", function(){ try { resetTransform(); } catch(e){} }, { passive: true, capture: true });
+				doc.addEventListener("touchcancel", function(){
+					try {
+						clearSelectionTimer();
+						state.selectionUnlocked = false;
+						unlockSwipeSelection();
+						resetTransform();
+					} catch(e){}
+				}, { passive: true, capture: true });
 				// Pointer events fallback (some tablets only dispatch pointer events)
 				if (win && win.PointerEvent) {
 					doc.addEventListener("pointerdown", function(ev){
@@ -5387,6 +5525,11 @@ function attachSwipeToDoc(doc) {
 							state.pointerActive = false;
 							state.pointerId = null;
 						} catch (e) {}
+						try {
+							clearSelectionTimer();
+							state.selectionUnlocked = false;
+							unlockSwipeSelection();
+						} catch (e1) {}
 						try { resetTransform(); } catch(e2){}
 					}, { passive: true, capture: true });
 				}
