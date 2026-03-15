@@ -4573,7 +4573,7 @@ function attachSwipeToDoc(doc) {
 				if (!stack || !layerCurrent) return;
 
 				// Shared swipe state (per-iframe doc, but uses stable outer layers)
-					var state = {
+				var state = {
 						tracking: false,
 						horizontal: false,
 						startedOnInteractive: false,
@@ -4598,6 +4598,13 @@ function attachSwipeToDoc(doc) {
 					raf: 0,
 					lock: false
 				};
+
+				function usesTouchFullBleedLayout() {
+					try {
+						return !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+					} catch (e) {}
+					return false;
+				}
 
 					function syncNeighborTextScale() {
 						try {
@@ -4718,11 +4725,13 @@ function attachSwipeToDoc(doc) {
 								}
 							}
 							try { doc.documentElement.classList.add("fb-swipe-active"); } catch(eCss2) {}
-							try { document.documentElement.classList.add("fb-swipe-margins"); } catch(eCss3) {}
-							try {
-								document.documentElement.classList.remove("fb-swipe-underlay-left", "fb-swipe-underlay-right");
-								document.documentElement.classList.add(dir > 0 ? "fb-swipe-underlay-left" : "fb-swipe-underlay-right");
-							} catch(eCss4) {}
+							if (!usesTouchFullBleedLayout()) {
+								try { document.documentElement.classList.add("fb-swipe-margins"); } catch(eCss3) {}
+								try {
+									document.documentElement.classList.remove("fb-swipe-underlay-left", "fb-swipe-underlay-right");
+									document.documentElement.classList.add(dir > 0 ? "fb-swipe-underlay-left" : "fb-swipe-underlay-right");
+								} catch(eCss4) {}
+							}
 					} catch (e) {}
 					setShadow(dx);
 				}
@@ -4741,7 +4750,9 @@ function attachSwipeToDoc(doc) {
 						stack.classList.add("swipe-undim");
 						if (shadow) { shadow.style.left = ""; shadow.style.transition = ""; }
 						try { doc.documentElement.classList.remove("fb-swipe-active"); } catch(eCss3) {}
-						try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
+						if (!usesTouchFullBleedLayout()) {
+							try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
+						}
 					} catch (e) {}
 				}
 
@@ -4774,7 +4785,9 @@ function attachSwipeToDoc(doc) {
 						stack.classList.remove("swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right", "swipe-undim");
 						if (shadow) { shadow.style.left = ""; shadow.style.transition = ""; }
 						try { doc.documentElement.classList.remove("fb-swipe-active"); } catch(eCss3) {}
-						try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
+						if (!usesTouchFullBleedLayout()) {
+							try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
+						}
 					} catch (e) {}
 				}
 
@@ -4815,7 +4828,9 @@ function attachSwipeToDoc(doc) {
 							if (vn2) vn2.style.zIndex = "";
 						} catch (eZ3) {}
 						try { doc.documentElement.classList.remove("fb-swipe-active"); } catch(eCss3) {}
-						try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
+						if (!usesTouchFullBleedLayout()) {
+							try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
+						}
 					} catch (e) {}
 					clearReveal();
 					state.appliedDx = 1e9;

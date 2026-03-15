@@ -2611,6 +2611,13 @@ body.ui-hidden #viewerStack{
   #viewerStack {
     top: 0 !important;
     bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
+
+  html.fb-swipe-margins #main::before,
+  html.fb-swipe-margins #main::after {
+    display: none !important;
   }
 }
 
