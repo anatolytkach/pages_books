@@ -1671,6 +1671,10 @@
           const url = buildUrl(searchPath, { token }, { ignoreLang: true });
           const res = await fetch(url, { cache: "no-store" });
           if (nonce !== SEARCH_NONCE) return null;
+          if (res.status === 404) {
+            cache.searchIndex.set(token, []);
+            return [];
+          }
           if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${url}`);
           let data = null;
           try {
@@ -1702,6 +1706,10 @@
           const searchPath = (config && config.searchPath) || "/search/{token}.json";
           const url = buildUrl(searchPath, { token }, { ignoreLang: true });
           const res = await fetch(url, { cache: "no-store" });
+          if (res.status === 404) {
+            cache.searchIndex.set(token, []);
+            return [];
+          }
           if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${url}`);
           const data = await res.json();
           const items = (data && (data.items || data.list)) || [];

@@ -149,6 +149,93 @@ rebuild_catalog_indexes_for_ids() {
   done
 }
 
+json_get_author_tokens() {
+  local author_file="$1"
+  "$PYTHON_BIN" - "$author_file" <<'PY'
+import json, re, sys, unicodedata
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+def clean_text(value: str) -> str:
+    return " ".join(str(value or "").split())
+
+def strip_diacritics(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    return "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+
+def normalize_search_match(value: str) -> str:
+    return strip_diacritics(clean_text(value)).lower()
+
+def normalize_search_token(value: str) -> str:
+    base = normalize_search_match(value)
+    base = re.sub(r"[^\w]+", "", base, flags=re.UNICODE).replace("_", "")
+    return base[:2] if len(base) >= 2 else ""
+
+name = str(data.get("name") or "").strip()
+books = data.get("books") or []
+tokens = set()
+token = normalize_search_token(name)
+if token:
+    tokens.add(token)
+for book in books:
+    token = normalize_search_token(book.get("title") or "")
+    if token:
+        tokens.add(token)
+for token in sorted(tokens):
+    print(token)
+PY
+}
+
+verify_selective_index_consistency() {
+  local list_file="$1"
+  shift
+  local -a ids=("$@")
+  local tmp_authors tmp_listed author_file lang key search_file
+  local file rel
+
+  [[ -f "$list_file" ]] || die "Selective list not found: $list_file"
+
+  tmp_authors="$(mktemp)"
+  tmp_listed="$(mktemp)"
+  : > "$tmp_authors"
+  sort -u "$list_file" > "$tmp_listed"
+  trap 'rm -f "${selective_list_file:-}" "${tmp_authors:-}" "${tmp_listed:-}"' EXIT
+
+  for id in "${ids[@]}"; do
+    rg -l "\"id\"\\s*:\\s*\"$id\"" "$INDEX_DIR/a" "$INDEX_DIR/lang" -S 2>/dev/null >> "$tmp_authors" || true
+  done
+
+  sort -u "$tmp_authors" | while IFS= read -r author_file; do
+    [[ -n "$author_file" ]] || continue
+    if [[ "$author_file" =~ ^$INDEX_DIR/a/([^/]+)\.json$ ]]; then
+      lang="all"
+      key="${BASH_REMATCH[1]}"
+    elif [[ "$author_file" =~ ^$INDEX_DIR/lang/([^/]+)/a/([^/]+)\.json$ ]]; then
+      lang="${BASH_REMATCH[1]}"
+      key="${BASH_REMATCH[2]}"
+    else
+      continue
+    fi
+
+    if ! rg -Fxq -- "$author_file" "$tmp_listed"; then
+      die "Selective publish list missed author file: $author_file"
+    fi
+
+    while IFS= read -r token; do
+      [[ -n "$token" ]] || continue
+      if [[ "$lang" == "all" ]]; then
+        search_file="$INDEX_DIR/search/$token.json"
+      else
+        search_file="$INDEX_DIR/lang/$lang/search/$token.json"
+      fi
+      [[ -f "$search_file" ]] || die "Missing search index file for author '$key': $search_file"
+      rg -Fxq -- "$search_file" "$tmp_listed" || die "Selective publish list missed search file for author '$key': $search_file"
+    done < <(json_get_author_tokens "$author_file")
+  done
+}
+
 build_selective_index_upload_list() {
   local out_file="$1"
   shift
@@ -195,19 +282,25 @@ build_selective_index_upload_list() {
       fi
     done
 
-    if [[ ${#key} -ge 2 ]]; then
-      token="${key:0:2}"
+    while IFS= read -r token; do
+      [[ -n "$token" ]] || continue
       if [[ "$lang" == "all" ]]; then
         [[ -f "$INDEX_DIR/search/$token.json" ]] && echo "$INDEX_DIR/search/$token.json" >> "$tmp_files"
       else
         [[ -f "$INDEX_DIR/lang/$lang/search/$token.json" ]] && echo "$INDEX_DIR/lang/$lang/search/$token.json" >> "$tmp_files"
       fi
-    fi
+    done < <(
+      if [[ "$lang" == "all" ]]; then
+        json_get_author_tokens "$INDEX_DIR/a/$key.json"
+      else
+        json_get_author_tokens "$INDEX_DIR/lang/$lang/a/$key.json"
+      fi
+    )
 
     if [[ "$lang" == "all" ]]; then
-      rg -l "\"key\"\\s*:\\s*\"$key\"" "$INDEX_DIR/p" "$INDEX_DIR/search" -S 2>/dev/null >> "$tmp_files" || true
+      rg -l "\"key\"\\s*:\\s*\"$key\"|\"k\"\\s*:\\s*\"$key\"" "$INDEX_DIR/p" "$INDEX_DIR/search" -S 2>/dev/null >> "$tmp_files" || true
     else
-      rg -l "\"key\"\\s*:\\s*\"$key\"" "$INDEX_DIR/lang/$lang/p" "$INDEX_DIR/lang/$lang/search" -S 2>/dev/null >> "$tmp_files" || true
+      rg -l "\"key\"\\s*:\\s*\"$key\"|\"k\"\\s*:\\s*\"$key\"" "$INDEX_DIR/lang/$lang/p" "$INDEX_DIR/lang/$lang/search" -S 2>/dev/null >> "$tmp_files" || true
     fi
 
     if [[ "$lang" != "all" ]]; then
@@ -345,6 +438,7 @@ main() {
   selective_list_file="$(mktemp)"
   trap 'rm -f "${selective_list_file:-}"' EXIT
   build_selective_index_upload_list "$selective_list_file" "${ids[@]}"
+  verify_selective_index_consistency "$selective_list_file" "${ids[@]}"
   selective_count="$(wc -l < "$selective_list_file" | tr -d '[:space:]')"
   log "Selective catalog index files for processed ids: $selective_count"
 

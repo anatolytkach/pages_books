@@ -276,6 +276,7 @@ cd /Volumes/2T/se_ingest/pages_books/books/content
 - файлы `a/*`, `search/*`, `lang/*`, где найден нужный `book_id`;
 - связанные `p/*` для author keys (включая языковые ветки);
 - `lang/<lang>/letters.json` для затронутых языков.
+- перед upload выполняется проверка консистентности: каждый затронутый author-файл обязан иметь в selective publish list все соответствующие `search/<token>.json` и `lang/<lang>/search/<token>.json`, рассчитанные из фамилии автора, author key и названий его книг.
 
 Это уменьшает время деплоя и риск лишних изменений.
 
