@@ -260,6 +260,175 @@ for xhtml in sorted(text_dir.glob("*.xhtml")):
         xhtml.write_text(out, encoding="utf-8")
 PY
 
+echo "[4.2/6] Keep paragraph lead-in with the next standalone image for $docx_file"
+python3 - "$text_dir" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+import re
+
+text_dir = Path(sys.argv[1])
+XHTML_NS = "http://www.w3.org/1999/xhtml"
+EPUB_NS = "http://www.idpf.org/2007/ops"
+ET.register_namespace("", XHTML_NS)
+ET.register_namespace("epub", EPUB_NS)
+SIZE_RE = re.compile(r"(width|height)\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*(in|px)\b", re.I)
+STYLE_PROP_RE = re.compile(r"\s*([a-zA-Z-]+)\s*:\s*([^;]+)\s*")
+
+def qn(tag: str) -> str:
+    return f"{{{XHTML_NS}}}{tag}"
+
+def local_name(tag: str) -> str:
+    if not isinstance(tag, str):
+        return ""
+    return tag.split("}", 1)[-1]
+
+def is_inline_avatar(img: ET.Element) -> bool:
+    cls = (img.get("class") or "").split()
+    return "inline-avatar" in cls
+
+def is_standalone_image_block(el: ET.Element) -> bool:
+    if local_name(el.tag) != "p":
+        return False
+    children = list(el)
+    if len(children) != 1:
+        return False
+    img = children[0]
+    if local_name(img.tag) != "img":
+        return False
+    if is_inline_avatar(img):
+        return False
+    text = (el.text or "").strip()
+    tail = (img.tail or "").strip()
+    return not text and not tail
+
+def is_text_paragraph(el: ET.Element) -> bool:
+    if local_name(el.tag) != "p":
+        return False
+    if is_standalone_image_block(el):
+        return False
+    text_parts = []
+    if el.text:
+        text_parts.append(el.text)
+    for child in el:
+        if child.tail:
+            text_parts.append(child.tail)
+    if "".join(text_parts).strip():
+        return True
+    # Text can also live inside inline descendants.
+    return bool("".join(el.itertext()).strip())
+
+def append_class(el: ET.Element, cls: str) -> None:
+    cur = (el.get("class") or "").split()
+    if cls not in cur:
+        cur.append(cls)
+    el.set("class", " ".join(cur).strip())
+
+def merge_style(el: ET.Element, extra: dict[str, str]) -> None:
+    cur = {}
+    raw = el.get("style") or ""
+    for part in raw.split(";"):
+        part = part.strip()
+        if not part:
+            continue
+        m = STYLE_PROP_RE.fullmatch(part)
+        if not m:
+            continue
+        cur[m.group(1).lower()] = m.group(2).strip()
+    for k, v in extra.items():
+        cur[k.lower()] = v
+    el.set("style", ";".join(f"{k}:{v}" for k, v in cur.items()))
+
+def image_size_in(img: ET.Element):
+    style = img.get("style") or ""
+    dims = {}
+    for kind, value, unit in SIZE_RE.findall(style):
+        v = float(value)
+        u = unit.lower()
+        if u == "px":
+            v = v / 96.0
+        dims[kind.lower()] = v
+    return dims.get("width", 0.0), dims.get("height", 0.0)
+
+def is_large_standalone_image_block(el: ET.Element) -> bool:
+    if not is_standalone_image_block(el):
+        return False
+    img = list(el)[0]
+    width_in, height_in = image_size_in(img)
+    return height_in >= 3.0 or width_in >= 4.5
+
+def estimate_lead_lines(el: ET.Element) -> int:
+    text = " ".join("".join(el.itertext()).split())
+    if not text:
+        return 1
+    chars_per_line = 32.0
+    weighted_len = 0.0
+    for ch in text:
+        if ch.isspace():
+            weighted_len += 0.35
+        elif ch.isupper():
+            weighted_len += 1.05
+        else:
+            weighted_len += 1.0
+    lines = int((weighted_len / chars_per_line) + 0.999)
+    return max(1, lines)
+
+def apply_pair_image_fit(lead: ET.Element, image_block: ET.Element) -> None:
+    if not is_standalone_image_block(image_block):
+        return
+    img = list(image_block)[0]
+    lead_lines = estimate_lead_lines(lead)
+    total_column_lines = 18.5
+    lead_gap_lines = 1.1
+    remaining_lines = max(8.0, total_column_lines - lead_lines - lead_gap_lines)
+    max_height_em = remaining_lines * 1.35
+    merge_style(img, {
+        "max-height": f"{max_height_em:.2f}em",
+        "height": "auto",
+        "width": "auto",
+    })
+
+def process_parent(parent: ET.Element) -> bool:
+    changed = False
+    children = list(parent)
+    i = 0
+    while i < len(children) - 1:
+        current = children[i]
+        nxt = children[i + 1]
+        if is_text_paragraph(current) and is_standalone_image_block(nxt):
+            wrapper = ET.Element(qn("table"), {"class": "figure-block figure-pair"})
+            if is_large_standalone_image_block(nxt):
+                append_class(wrapper, "figure-break-before")
+            row = ET.SubElement(wrapper, qn("tr"))
+            cell = ET.SubElement(row, qn("td"))
+            parent.insert(i, wrapper)
+            parent.remove(current)
+            parent.remove(nxt)
+            append_class(current, "figure-lead")
+            cell.append(current)
+            append_class(nxt, "image-block")
+            apply_pair_image_fit(current, nxt)
+            cell.append(nxt)
+            changed = True
+            children = list(parent)
+            i += 1
+            continue
+        process_parent(current)
+        i += 1
+    if children:
+        process_parent(children[-1])
+    return changed
+
+for xhtml in sorted(text_dir.glob("*.xhtml")):
+    tree = ET.parse(xhtml)
+    root = tree.getroot()
+    before = ET.tostring(root, encoding="unicode")
+    process_parent(root)
+    after = ET.tostring(root, encoding="unicode")
+    if after != before:
+        tree.write(xhtml, encoding="utf-8", xml_declaration=True)
+PY
+
 echo "[5/6] Remove extra first-page TOC links and normalize TOC labels for $docx_file"
 perl -0777 -i -pe '
   s/\s*<itemref\b[^>]*\bidref="nav"[^>]*\/>\s*//g;

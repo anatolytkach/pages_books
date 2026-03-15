@@ -42,6 +42,73 @@ p {
   text-justify: inter-word;
 }
 
+.figure-block {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  break-inside: avoid;
+  break-inside: avoid-column;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  -moz-column-break-inside: avoid;
+  column-break-inside: avoid;
+  page-break-before: auto;
+  page-break-after: avoid;
+  margin: 0;
+  padding: 0;
+}
+
+.figure-block.figure-break-before {
+  break-before: page;
+  page-break-before: always;
+}
+
+.figure-block tr,
+.figure-block td {
+  break-inside: avoid;
+  break-inside: avoid-column;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  -moz-column-break-inside: avoid;
+  column-break-inside: avoid;
+  margin: 0;
+  padding: 0;
+}
+
+.figure-block td > p.figure-lead {
+  margin-bottom: 0.5em;
+  break-after: avoid;
+  page-break-after: avoid;
+  -webkit-column-break-after: avoid;
+  -moz-column-break-after: avoid;
+  column-break-after: avoid;
+  orphans: 3;
+  widows: 3;
+}
+
+.figure-block td > p.image-block {
+  display: block;
+  text-indent: 0;
+  margin: 0;
+  break-before: avoid;
+  page-break-before: avoid;
+  -webkit-column-break-before: avoid;
+  -moz-column-break-before: avoid;
+  column-break-before: avoid;
+}
+
+.figure-block td > p.image-block img {
+  break-before: avoid;
+  page-break-before: avoid;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.figure-block > p.image-block + p.image-block {
+  margin-top: 0.6em;
+}
+
 /* Заголовки — только технические правила */
 h1, h2, h3, h4, h5, h6 {
   text-indent: 0;
