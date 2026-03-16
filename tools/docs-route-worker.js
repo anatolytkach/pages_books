@@ -1,51 +1,22 @@
-function decodeBase64Utf8(value) {
-  const source = String(value || "");
-  try {
-    if (typeof atob === "function") {
-      const binary = atob(source);
-      const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
-      return new TextDecoder().decode(bytes);
-    }
-  } catch (e) {}
-  try {
-    if (typeof Buffer !== "undefined") {
-      return Buffer.from(source, "base64").toString("utf8");
-    }
-  } catch (e2) {}
-  return "";
-}
-
-function parseBasicAuthCredentials(authorizationHeader) {
-  const header = String(authorizationHeader || "").trim();
-  const match = header.match(/^Basic\s+([A-Za-z0-9+/=]+)$/i);
-  if (!match) return null;
-  const decoded = decodeBase64Utf8(match[1]);
-  const idx = decoded.indexOf(":");
-  if (idx < 0) return null;
-  return {
-    user: decoded.slice(0, idx),
-    pass: decoded.slice(idx + 1),
-  };
-}
-
-function unauthorized() {
-  return new Response("Authentication required", {
-    status: 401,
-    headers: {
-      "content-type": "text/plain; charset=utf-8",
-      "cache-control": "no-store",
-      "www-authenticate": 'Basic realm="ReaderPub Docs", charset="UTF-8"',
-      "x-reader-route": "docs-auth",
-      "x-reader-worker": "1",
-    },
-  });
-}
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const host = String(url.hostname || "").toLowerCase();
     const path = String(url.pathname || "");
+    const isPrimaryHost = host === "reader.pub" || host === "www.reader.pub";
+    const isStagingHost = host === "staging.reader.pub";
     if (path === "/docs") {
+      if (isPrimaryHost) {
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: "https://staging.reader.pub/docs/",
+            "cache-control": "no-store",
+            "x-reader-route": "docs-staging-redirect",
+            "x-reader-worker": "1",
+          },
+        });
+      }
       return new Response(null, {
         status: 302,
         headers: {
@@ -68,29 +39,31 @@ export default {
       });
     }
 
-    const docsUser = String(env.DOCS_AUTH_USER || "").trim();
-    const docsPass = String(env.DOCS_AUTH_PASS || "");
-    if (!docsUser || !docsPass) {
-      return new Response("Docs auth is not configured", {
-        status: 503,
+    if (!isPrimaryHost && !isStagingHost) {
+      return new Response("Docs host is not configured", {
+        status: 404,
         headers: {
           "content-type": "text/plain; charset=utf-8",
           "cache-control": "no-store",
-          "x-reader-route": "docs-auth-config",
+          "x-reader-route": "docs-host-not-found",
           "x-reader-worker": "1",
         },
       });
     }
 
-    const credentials = parseBasicAuthCredentials(
-      request.headers.get("authorization")
-    );
-    if (
-      !credentials ||
-      credentials.user !== docsUser ||
-      credentials.pass !== docsPass
-    ) {
-      return unauthorized();
+    if (isPrimaryHost) {
+      const redirect = new URL("https://staging.reader.pub/docs/");
+      redirect.search = url.search;
+      redirect.hash = url.hash;
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: redirect.toString(),
+          "cache-control": "no-store",
+          "x-reader-route": "docs-staging-redirect",
+          "x-reader-worker": "1",
+        },
+      });
     }
 
     const upstream = new URL(request.url);

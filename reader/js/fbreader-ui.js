@@ -2566,6 +2566,24 @@
             state.matchList[state.matchIndex].cfi = fixed;
           }
         } catch (e1) {}
+        if (!shouldUseTouchSearchFlow()) {
+          if (highlightCfi(fixed)) return true;
+          try {
+            var p = reader.rendition.display(fixed);
+            if (p && p.then) {
+              p.then(function () {
+                if (!highlightCfi(fixed)) scheduleHighlightRetry(fixed);
+              }).catch(function () {
+                if (!highlightCfi(fixed)) scheduleHighlightRetry(fixed);
+              });
+            } else {
+              if (!highlightCfi(fixed)) scheduleHighlightRetry(fixed);
+            }
+          } catch (eDesk) {
+            if (!highlightCfi(fixed)) scheduleHighlightRetry(fixed);
+          }
+          return true;
+        }
         try {
           var p = reader.rendition.display(fixed);
           if (p && p.then) {
@@ -2593,6 +2611,10 @@
         if (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0) return true;
       } catch (e1) {}
       return false;
+    }
+
+    function shouldUseTouchSearchFlow() {
+      return !!(__fb_isIOS || isTouchDeviceForSearchHighlight());
     }
 
     function scheduleHighlightRetry(cfi) {
@@ -2718,12 +2740,13 @@
 
       var doDisplay = function (targetCfi) {
         if (!targetCfi) return;
+        var touchFlow = shouldUseTouchSearchFlow();
         // Clear previous highlight BEFORE display so CFIs resolve on the original DOM.
         clearHighlight();
         state.pendingHighlightCfi = null;
         try {
           reader.rendition.display(targetCfi).then(function () {
-            var firstTouchMatch = (safeIdx === 0) && isTouchDeviceForSearchHighlight();
+            var firstTouchMatch = touchFlow && (safeIdx === 0);
             if (firstTouchMatch) {
               confirmFirstMatchHighlight(targetCfi, item, function (ok) {
                 if (!ok) scheduleHighlightRetry(targetCfi);
@@ -2735,9 +2758,9 @@
               scheduleHighlightRetry(targetCfi);
               return;
             }
-            scheduleEnsureVisible(item);
+            if (touchFlow) scheduleEnsureVisible(item);
           }).catch(function () {
-            var firstTouchMatch = (safeIdx === 0) && isTouchDeviceForSearchHighlight();
+            var firstTouchMatch = touchFlow && (safeIdx === 0);
             if (firstTouchMatch) {
               confirmFirstMatchHighlight(targetCfi, item, function (ok) {
                 if (!ok) scheduleHighlightRetry(targetCfi);
@@ -2749,10 +2772,10 @@
               scheduleHighlightRetry(targetCfi);
               return;
             }
-            scheduleEnsureVisible(item);
+            if (touchFlow) scheduleEnsureVisible(item);
           });
         } catch (e) {
-          var firstTouchMatch = (safeIdx === 0) && isTouchDeviceForSearchHighlight();
+          var firstTouchMatch = touchFlow && (safeIdx === 0);
           if (firstTouchMatch) {
             confirmFirstMatchHighlight(targetCfi, item, function (ok) {
               if (!ok) scheduleHighlightRetry(targetCfi);
@@ -2764,12 +2787,12 @@
             scheduleHighlightRetry(targetCfi);
             return;
           }
-          scheduleEnsureVisible(item);
+          if (touchFlow) scheduleEnsureVisible(item);
         }
       };
 
       var contents = getContentsForSectionIndex(item.sectionIndex);
-      if (!contents && sectionHref) {
+      if (shouldUseTouchSearchFlow() && !contents && sectionHref) {
         try {
           reader.rendition.display(sectionHref).then(function () {
             var fixed = getCorrectedCfiForItem(item) || item.cfi;
