@@ -67,6 +67,9 @@ cd pages_books
   - проксирование на `https://master.reader-books.pages.dev/docs/...`.
 - Причина выделения:
   - production `reader.pub/docs/*` изначально не попадал в основной `/books*` worker.
+- Правило публикации docs:
+  - изменения в `docs/README.md` нужно сразу отражать в `deploy/docs/index.html`;
+  - после этого нужно сразу делать deploy Pages-проекта `reader-books` на ветку `master`, потому что `staging.reader.pub/docs/` читает docs именно с `master.reader-books.pages.dev/docs/`.
 
 ## 3. Секреты, bindings, переменные
 
@@ -356,7 +359,36 @@ Reader (`reader/index.html` + `reader/js/*`) требует:
 - Согласованность версий `reader.js`/`fbreader-ui.js`/CSS.
 - Доступность worker API (translate/notes) и корректные CORS headers.
 
-## 10. Проверки после обновления контента
+## 10. Статистика / PostHog
+
+Для `reader.pub/books/` и `reader.pub/books/reader/` подключен PostHog Cloud.
+
+Важно:
+- боевой route `reader.pub/books*` обслуживается отдельным worker `reader-books-router`;
+- одного деплоя Pages-проекта `reader-books` недостаточно, если изменения должны сразу появиться на production URL `reader.pub/books/`;
+- при изменениях, влияющих на боевой `reader.pub/books*`, нужно учитывать production worker/router слой.
+
+Что считается:
+- pageview каталога `/books/`;
+- pageview reader `/books/reader/`;
+- autocapture кликов в каталоге и в reader;
+- событие `book_open` при открытии книги.
+
+Где смотреть:
+- `Web analytics` -> путь `/books/` для роста каталога;
+- `Web analytics` -> путь `/books/reader/` для роста просмотров страниц книг;
+- `Activity` -> autocaptured click events для кликов;
+- `Activity` или `Insights` -> `book_open` для факта открытия книги.
+
+Переменные окружения:
+- `READERPUB_POSTHOG_ENABLED`
+- `READERPUB_POSTHOG_KEY`
+- `READERPUB_POSTHOG_HOST`
+
+Подробная инструкция:
+- `docs/posthog-catalog.md`
+
+## 11. Проверки после обновления контента
 
 Минимальный smoke:
 1. `https://reader.pub/books/` — книга видна в каталоге.
@@ -365,7 +397,7 @@ Reader (`reader/index.html` + `reader/js/*`) требует:
 4. Авторская страница открывает `a/<author_key>.json`.
 5. Языковой фильтр работает для языка книги.
 
-## 11. Проверки docs/security
+## 12. Проверки docs/security
 
 `https://reader.pub/docs/`:
 - без auth: `401` + `WWW-Authenticate`.
@@ -373,7 +405,7 @@ Reader (`reader/index.html` + `reader/js/*`) требует:
 
 Текущий production docs route обслуживается `readerpub-docs-route`.
 
-## 12. Тестирование
+## 13. Тестирование
 
 - unit: `tests/unit/*.mjs`
 - integration: `tests/integration/*.mjs`

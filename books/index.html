@@ -4,8 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="google-drive-client-id" content="" />
+    <meta name="posthog-enabled" content="" />
+    <meta name="posthog-key" content="" />
+    <meta name="posthog-host" content="" />
     <title>reader.pub books</title>
     <link rel="icon" type="image/svg+xml" href="/books/assets/logo.svg" />
+    <script src="/books/shared/posthog.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap");
 
@@ -927,6 +931,18 @@
           bookCoverById: new Map(),
           languages: null,
         };
+
+        try {
+          if (window.ReaderPubAnalytics && typeof window.ReaderPubAnalytics.boot === "function") {
+            window.ReaderPubAnalytics.boot();
+            window.ReaderPubAnalytics.captureCatalogPageview({
+              path: window.location.pathname || "",
+              hash: window.location.hash || "",
+            });
+          }
+        } catch (error) {
+          // ignore analytics boot failures
+        }
 
         const LANGUAGE_NAMES = {
           af: "Afrikaans",

@@ -8,10 +8,14 @@
 <meta content="" name="description"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="" name="posthog-enabled"/>
+<meta content="" name="posthog-key"/>
+<meta content="" name="posthog-host"/>
 <link rel="icon" type="image/svg+xml" href="/books/assets/logo-flip.svg?v=20260218-1" />
 <link href="css/normalize.css" rel="stylesheet"/>
 <link href="css/main.css?v=20260315-swipe-select-hold-1" rel="stylesheet"/>
 <link href="css/popup.css" rel="stylesheet"/>
+<script src="/books/shared/posthog.js"></script>
 <script src="js/libs/jquery.min.js"></script>
 <script src="js/libs/zip.min.js"></script>
 <script>
@@ -109,6 +113,67 @@
 
   // Run Reader
   window.reader = ePubReader(bookPath, opts);
+
+  try {
+    if (window.ReaderPubAnalytics && typeof window.ReaderPubAnalytics.boot === "function") {
+      window.ReaderPubAnalytics.boot();
+      if (typeof window.ReaderPubAnalytics.captureReaderPageview === "function") {
+        window.ReaderPubAnalytics.captureReaderPageview({
+          path: window.location.pathname || "",
+          search: window.location.search || "",
+        });
+      }
+    }
+  } catch (ePageview) {}
+
+  (function(){
+    function buildBookOpenPayload(meta) {
+      const rawTitle = meta && (meta.bookTitle || meta.title) ? String(meta.bookTitle || meta.title).trim() : "";
+      const queryTitle = getQueryParam("title");
+      const title = rawTitle || queryTitle || "";
+      const querySlug = getQueryParam("slug");
+      const slug =
+        querySlug ||
+        (
+          window.ReaderPubAnalytics &&
+          typeof window.ReaderPubAnalytics.slugify === "function"
+            ? window.ReaderPubAnalytics.slugify(title)
+            : ""
+        );
+
+      return {
+        book_id: id,
+        slug: slug,
+        title: title,
+        url: window.location.href,
+        referrer: document.referrer || "",
+      };
+    }
+
+    function sendBookOpen(meta) {
+      try {
+        if (!window.ReaderPubAnalytics || typeof window.ReaderPubAnalytics.captureBookOpen !== "function") return;
+        window.ReaderPubAnalytics.boot();
+        window.ReaderPubAnalytics.captureBookOpen(buildBookOpenPayload(meta));
+      } catch (e0) {}
+    }
+
+    try {
+      if (window.reader && window.reader.book && window.reader.book.loaded && window.reader.book.loaded.metadata) {
+        const loadedMeta = window.reader.book.loaded.metadata;
+        if (loadedMeta && typeof loadedMeta.then === "function") {
+          loadedMeta.then(function(meta){
+            sendBookOpen(meta);
+          }).catch(function(){
+            sendBookOpen(null);
+          });
+          return;
+        }
+      }
+    } catch (e1) {}
+
+    sendBookOpen(null);
+  })();
 
   // Keep document title dynamic per opened book.
   (function(){

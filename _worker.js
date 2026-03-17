@@ -134,6 +134,17 @@ export default {
     const driveClientId = String(
       env.READERPUB_GOOGLE_CLIENT_ID || env.GOOGLE_DRIVE_CLIENT_ID || ""
     ).trim();
+    const posthogKey = String(
+      env.READERPUB_POSTHOG_KEY || env.POSTHOG_KEY || ""
+    ).trim();
+    const posthogHost = String(
+      env.READERPUB_POSTHOG_HOST || env.POSTHOG_HOST || ""
+    ).trim();
+    const rawPosthogEnabled = String(
+      env.READERPUB_POSTHOG_ENABLED || env.POSTHOG_ENABLED || ""
+    ).trim();
+    const posthogEnabled =
+      /^(1|true|yes|on)$/i.test(rawPosthogEnabled) && !!posthogKey && !!posthogHost;
     const notesSharePrefix = "api/notes_shares/";
 
     if (
@@ -655,11 +666,26 @@ export default {
       headers.set("cloudflare-cdn-cache-control", "no-store");
     }
 
-    if (isHtml && driveClientId) {
+    if (isHtml && (driveClientId || posthogKey || posthogHost || rawPosthogEnabled)) {
       const rewritten = new HTMLRewriter()
         .on('meta[name="google-drive-client-id"]', {
           element(element) {
             element.setAttribute("content", driveClientId);
+          },
+        })
+        .on('meta[name="posthog-enabled"]', {
+          element(element) {
+            element.setAttribute("content", posthogEnabled ? "true" : "false");
+          },
+        })
+        .on('meta[name="posthog-key"]', {
+          element(element) {
+            element.setAttribute("content", posthogKey);
+          },
+        })
+        .on('meta[name="posthog-host"]', {
+          element(element) {
+            element.setAttribute("content", posthogHost);
           },
         })
         .transform(
