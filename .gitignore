@@ -13,3 +13,5 @@ npm-debug.log*
 /dist
 /build
 /out
+/reader_seo_indexes
+/tools/__pycache__

@@ -4,6 +4,12 @@ compatibility_date = "2026-02-04"
 
 routes = [
   { pattern = "reader.pub/books*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/book*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/author*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/category*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/sitemap.xml*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/sitemaps/*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/robots.txt*", zone_name = "reader.pub" },
 ]
 
 [[r2_buckets]]

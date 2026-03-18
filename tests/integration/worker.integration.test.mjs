@@ -178,6 +178,21 @@ test("Integration: html response uses HTMLRewriter when drive client id is confi
       name: "content",
       value: "client-id-123",
     },
+    {
+      selector: 'meta[name="posthog-enabled"]',
+      name: "content",
+      value: "false",
+    },
+    {
+      selector: 'meta[name="posthog-key"]',
+      name: "content",
+      value: "",
+    },
+    {
+      selector: 'meta[name="posthog-host"]',
+      name: "content",
+      value: "",
+    },
   ]);
 });
 
@@ -202,6 +217,271 @@ test("Integration: html response skips HTMLRewriter when drive client id is empt
   // Assert
   assert.equal(response.status, 200);
   assert.equal(HTMLRewriterMock.lastInstance(), null);
+});
+
+test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () => {
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "seo/version.json": createR2Object({
+        body: JSON.stringify({ version: "seo-v1" }),
+      }),
+      "seo/book-shards/test.json": createR2Object({
+        body: JSON.stringify({
+          version: "seo-v1",
+          items: {
+            "test-book": {
+              id: "123",
+              slug: "test-book",
+              title: "Test Book",
+              authorName: "Doe, Jane",
+              authorSlug: "doe-jane",
+              authorKey: "doejane",
+              cover: "/books/content/123/OEBPS/cover.jpg",
+              language: "en",
+              description: "A test description.",
+              excerpt: "This is a long enough excerpt for the SEO layer.",
+              categories: [{ slug: "fiction", title: "Fiction" }],
+              readerUrl: "/books/123/",
+              chapters: [
+                {
+                  n: 1,
+                  title: "Opening",
+                  slug: "opening",
+                  href: "/book/test-book/chapter-1-opening",
+                  sourcePath: "OEBPS/text/ch001.xhtml",
+                  fragment: "opening",
+                },
+              ],
+              version: "seo-v1",
+            },
+          },
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://reader.pub/book/test-book",
+    env,
+  });
+
+  const body = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-reader-route"), "seo-book");
+  assert.equal(response.headers.get("x-reader-seo-version"), "seo-v1");
+  assert.match(body, /<title>Test Book — Doe, Jane<\/title>/);
+  assert.match(body, /<link rel="canonical" href="https:\/\/reader\.pub\/book\/test-book"/);
+  assert.match(body, /Read in Reader/);
+  assert.match(body, /Chapter 1: Opening/);
+});
+
+test("Integration: /book/<slug>/chapter-<n>-<chapter-slug> renders full chapter HTML", async () => {
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "seo/version.json": createR2Object({
+        body: JSON.stringify({ version: "seo-v2" }),
+      }),
+      "seo/book-shards/test.json": createR2Object({
+        body: JSON.stringify({
+          version: "seo-v2",
+          items: {
+            "test-book": {
+              id: "123",
+              slug: "test-book",
+              title: "Test Book",
+              authorName: "Doe, Jane",
+              authorSlug: "doe-jane",
+              authorKey: "doejane",
+              readerUrl: "/books/123/",
+              chapters: [
+                {
+                  n: 1,
+                  title: "Opening",
+                  slug: "opening",
+                  href: "/book/test-book/chapter-1-opening",
+                  sourcePath: "OEBPS/text/ch001.xhtml",
+                  fragment: "opening",
+                },
+                {
+                  n: 2,
+                  title: "Second",
+                  slug: "second",
+                  href: "/book/test-book/chapter-2-second",
+                  sourcePath: "OEBPS/text/ch002.xhtml",
+                  fragment: "second",
+                },
+              ],
+              version: "seo-v2",
+            },
+          },
+        }),
+      }),
+      "content/123/OEBPS/text/ch001.xhtml": createR2Object({
+        body:
+          '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><section><h1>Opening</h1><p>Paragraph one.</p><p><img src="../media/pic.jpg" alt="pic" /></p></section></body></html>',
+        contentType: "application/xhtml+xml; charset=utf-8",
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://reader.pub/book/test-book/chapter-1-opening",
+    env,
+  });
+
+  const body = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-reader-route"), "seo-chapter");
+  assert.match(body, /<article class="chapterHtml">[\s\S]*Paragraph one\./);
+  assert.match(body, /\/books\/content\/123\/OEBPS\/media\/pic\.jpg/);
+  assert.match(body, /Back to Book/);
+  assert.match(body, /Next chapter/);
+});
+
+test("Integration: chapter route redirects to canonical chapter slug", async () => {
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "seo/version.json": createR2Object({
+        body: JSON.stringify({ version: "seo-v3" }),
+      }),
+      "seo/book-shards/test.json": createR2Object({
+        body: JSON.stringify({
+          version: "seo-v3",
+          items: {
+            "test-book": {
+              id: "123",
+              slug: "test-book",
+              title: "Test Book",
+              authorName: "Doe, Jane",
+              authorSlug: "doe-jane",
+              authorKey: "doejane",
+              readerUrl: "/books/123/",
+              chapters: [
+                {
+                  n: 1,
+                  title: "Opening",
+                  slug: "opening",
+                  href: "/book/test-book/chapter-1-opening",
+                  sourcePath: "OEBPS/text/ch001.xhtml",
+                  fragment: "opening",
+                },
+              ],
+              version: "seo-v3",
+            },
+          },
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://reader.pub/book/test-book/chapter-1-wrong",
+    env,
+  });
+
+  assert.equal(response.status, 301);
+  assert.equal(response.headers.get("location"), "/book/test-book/chapter-1-opening");
+  assert.equal(response.headers.get("x-reader-route"), "seo-chapter-canonical");
+});
+
+test("Integration: author, category, sitemap and robots routes render seo layer", async () => {
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "seo/version.json": createR2Object({
+        body: JSON.stringify({ version: "seo-v4" }),
+      }),
+      "seo/author-shards/doej.json": createR2Object({
+        body: JSON.stringify({
+          version: "seo-v4",
+          items: {
+            "doe-jane": {
+              slug: "doe-jane",
+              name: "Doe, Jane",
+              count: 1,
+              books: [{ id: "123", slug: "test-book", title: "Test Book", cover: "" }],
+              version: "seo-v4",
+            },
+          },
+        }),
+      }),
+      "seo/category/fiction.json": createR2Object({
+        body: JSON.stringify({
+          slug: "fiction",
+          title: "Fiction",
+          count: 1,
+          books: [
+            {
+              id: "123",
+              slug: "test-book",
+              title: "Test Book",
+              author: "Doe, Jane",
+              authorSlug: "doe-jane",
+              cover: "",
+            },
+          ],
+          version: "seo-v4",
+        }),
+      }),
+      "seo/sitemaps/index.json": createR2Object({
+        body: JSON.stringify({
+          version: "seo-v4",
+          sitemaps: [
+            { path: "/sitemaps/books-1.xml", count: 1 },
+            { path: "/sitemaps/authors.xml", count: 1 },
+          ],
+        }),
+      }),
+      "seo/sitemaps/books-1.json": createR2Object({
+        body: JSON.stringify({
+          items: [{ loc: "/book/test-book", lastmod: "seo-v4" }],
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const authorResponse = await callWorker({
+    url: "https://reader.pub/author/doe-jane",
+    env,
+  });
+  assert.equal(authorResponse.status, 200);
+  assert.equal(authorResponse.headers.get("x-reader-route"), "seo-author");
+  assert.match(await authorResponse.text(), /Books by Doe, Jane/);
+
+  const categoryResponse = await callWorker({
+    url: "https://reader.pub/category/fiction",
+    env,
+  });
+  assert.equal(categoryResponse.status, 200);
+  assert.equal(categoryResponse.headers.get("x-reader-route"), "seo-category");
+  assert.match(await categoryResponse.text(), /Fiction/);
+
+  const sitemapResponse = await callWorker({
+    url: "https://reader.pub/sitemap.xml",
+    env,
+  });
+  assert.equal(sitemapResponse.status, 200);
+  assert.equal(sitemapResponse.headers.get("x-reader-route"), "seo-sitemap-index");
+  assert.match(await sitemapResponse.text(), /sitemapindex/);
+
+  const sitemapChunkResponse = await callWorker({
+    url: "https://reader.pub/sitemaps/books-1.xml",
+    env,
+  });
+  assert.equal(sitemapChunkResponse.status, 200);
+  assert.equal(sitemapChunkResponse.headers.get("x-reader-route"), "seo-sitemap");
+  assert.match(await sitemapChunkResponse.text(), /https:\/\/reader\.pub\/book\/test-book/);
+
+  const robotsResponse = await callWorker({
+    url: "https://reader.pub/robots.txt",
+    env,
+  });
+  assert.equal(robotsResponse.status, 200);
+  assert.equal(robotsResponse.headers.get("x-reader-route"), "seo-robots");
+  assert.match(await robotsResponse.text(), /Disallow: \/books\/reader\//);
 });
 
 test("Integration: /docs requires auth and returns 401 without credentials", async () => {

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import concurrent.futures
+import html
 import json
 import os
 import re
@@ -34,6 +35,95 @@ CHAPTER_SLUG_MAX = 80
 SEO_SHARD_PREFIX_LENGTH = 2
 SEO_SHARD_MAX_BYTES = 24 * 1024 * 1024
 SEO_SHARD_MAX_PREFIX_LENGTH = 8
+DESCRIPTION_MIN = 120
+DESCRIPTION_TARGET_MIN = 220
+DESCRIPTION_TARGET_MAX = 700
+META_DESCRIPTION_MIN = 140
+META_DESCRIPTION_MAX = 220
+
+HTML_SCRIPT_RE = re.compile(r"<script\b[^>]*>[\s\S]*?</script>", re.I)
+HTML_STYLE_RE = re.compile(r"<style\b[^>]*>[\s\S]*?</style>", re.I)
+HTML_TAG_RE = re.compile(r"<[^>]+>")
+UNICODE_WHITESPACE_RE = re.compile(r"[\u00a0\u1680\u180e\u2000-\u200d\u2028\u2029\u202f\u205f\u3000]+")
+WHITESPACE_RE = re.compile(r"\s+")
+GUTENBERG_START_RE = re.compile(r"^\*{3}\s*START OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[^.]*\*{3}\s*", re.I)
+GUTENBERG_END_RE = re.compile(r"^\*{3}\s*END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[^.]*\*{3}\s*", re.I)
+SERVICE_PREFIX_PATTERNS = [
+    re.compile(r"^the project gutenberg ebook of\s+", re.I),
+    re.compile(r"^project gutenberg'?s\s+", re.I),
+    re.compile(r"^this ebook is for the use of anyone anywhere[\s\S]*?world\.?\s*", re.I),
+    re.compile(r"^produced by\s+", re.I),
+    re.compile(r"^transcribed from\s+", re.I),
+    re.compile(r"^e-?text prepared by\s+", re.I),
+]
+BOILERPLATE_START_PATTERNS = [
+    re.compile(r"^the project gutenberg ebook of", re.I),
+    re.compile(r"^project gutenberg'?s", re.I),
+    re.compile(r"^this ebook is for the use of anyone anywhere", re.I),
+    re.compile(r"^the distributed proofreaders", re.I),
+    re.compile(r"^produced by", re.I),
+    re.compile(r"^transcribed from", re.I),
+    re.compile(r"^e-?text prepared by", re.I),
+    re.compile(r"^\*{3}\s*start of (?:the|this) project gutenberg ebook", re.I),
+    re.compile(r"^start of this project gutenberg ebook", re.I),
+]
+BOILERPLATE_PHRASES = [
+    re.compile(r"the project gutenberg ebook of", re.I),
+    re.compile(r"this ebook is for the use of anyone anywhere", re.I),
+    re.compile(r"at no cost and with almost no restrictions whatsoever", re.I),
+    re.compile(r"you may copy it, give it away or re-use it", re.I),
+    re.compile(r"project gutenberg license", re.I),
+    re.compile(r"located at www\.gutenberg\.org", re.I),
+    re.compile(r"general terms of use", re.I),
+    re.compile(r"most other parts of the world", re.I),
+    re.compile(r"before using this ebook", re.I),
+    re.compile(r"how to help produce our new ebooks", re.I),
+    re.compile(r"\*{3}\s*start of (?:the|this) project gutenberg ebook", re.I),
+]
+FRONTMATTER_LINE_RE = re.compile(
+    r"^(contents|table of contents|illustrations|frontispiece|preface|introduction|foreword|prologue|epilogue)$",
+    re.I,
+)
+HEADING_ONLY_RE = re.compile(r"^(chapter|book|part)\s+[ivxlcdm0-9]+\.?$", re.I)
+NON_CONTENT_RE = re.compile(r"(cover|title|toc|nav|contents?|copyright|license|front|imprint|colophon)", re.I)
+LETTER_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ]")
+ROMAN_ONLY_RE = re.compile(r"^[ivxlcdm\s\.\-—–:;,*]+$", re.I)
+SECTION_START_RE = re.compile(r"^(chapter|book|part|letter)\s+[ivxlcdm0-9]+(?:\b|[.:\-—–])", re.I)
+LEADING_HEADING_FRAGMENT_RE = re.compile(r"^(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,4})\.\s+(?=[A-Z“\"'])")
+SALUTATION_START_RE = re.compile(r"^(my dear|dear\s+(sir|madam|friend|reader)|to\s+(mr|mrs|miss|ms|dr)\.?\s+[A-Z])", re.I)
+LETTER_CUE_RE = re.compile(r"(to\s+(mr|mrs|miss|ms|dr)\.?\s+[A-Z]|yours ever|your affectionate|dear\s+(sir|madam|friend)|st\.\s+[A-Z][a-z]+,\s+[A-Z][a-z]+\.\s+\d)", re.I)
+OPENING_DIALOGUE_RE = re.compile(r'^[“"\'‘—–-]')
+SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+PRONOUN_RE = re.compile(r"\b(he|she|they|him|her|them|his|hers|their|it)\b", re.I)
+PERSON_OR_HONORIFIC_START_RE = re.compile(r"^((mr|mrs|miss|ms|dr|sir|lady|lord)\.?\s+|[A-Z]\s*[A-Z]\.\s+[A-Z][a-z]+|[A-Z][a-z]+,\s+[A-Z][a-z]+)", re.I)
+DATELINE_RE = re.compile(r"\b(jan\.?|feb\.?|mar\.?|apr\.?|may|jun\.?|jul\.?|aug\.?|sep\.?|sept\.?|oct\.?|nov\.?|dec\.?)\b", re.I)
+EARLY_HONORIFIC_RE = re.compile(r"\b(mr|mrs|miss|ms|dr|sir|lady|lord)\.?\s+[A-Z]", re.I)
+IMAGE_ARTIFACT_RE = re.compile(r"\b\d{1,3}\s*-\s*\d{1,4}\s*\.\s*(jpg|png|gif|jpeg)\b|\b(jpg|png|gif|jpeg)\s*\(\d+[KMG]?\)", re.I)
+ROMAN_HEADING_RE = re.compile(r"^[IVXLCDM]+\.\s+(?=[A-Z])")
+ALLCAPS_HEADING_RE = re.compile(r"^(?:[A-Z][A-Z'\-]+(?:\s+[A-Z][A-Z'\-]+){0,6})\s+(?=[A-Z“\"'])")
+CONTENTS_NOISE_RE = re.compile(r"(table of contents|contents\b|chapter\s+[ivxlcdm0-9]+|book\s+[ivxlcdm0-9]+|part\s+[ivxlcdm0-9]+)", re.I)
+EDITORIAL_FRAMING_RE = re.compile(
+    r"(how these papers have been placed in sequence|all needless matters have been eliminated|editor|prefatory note|introduction by|compiled from|these papers|this narrative|the following pages)",
+    re.I,
+)
+CASE_STORY_HEADING_RE = re.compile(r"^(the )?(adventure|case|story|letter|chapter|book|part)\b", re.I)
+JOURNAL_HEADING_RE = re.compile(r"(journal|diary|logbook|kept in shorthand|memorandum)", re.I)
+ADDRESS_LINE_RE = re.compile(r"^(to\s+[A-Z][^,]{0,40},?|[A-Z][a-z]+,\s*(england|france|germany|italy|america)\.?)", re.I)
+DATE_PLACE_START_RE = re.compile(r"^[A-Z][A-Za-z .'-]+,\s+\d{1,2}(st|nd|rd|th)?\s+[A-Z][a-z]+,?\s+\d{2,4}\b|^[A-Z][A-Za-z .'-]+,\s+[A-Z][a-z]+\.\s+\d", re.I)
+TOC_SOURCE_RE = re.compile(r"(table of contents|<h2>\s*contents\s*</h2>|summary=\"toc\"|summary=\"loi\"|list of illustrations|<h2>\s*illustrations\s*</h2>)", re.I)
+TOC_ENUMERATION_RE = re.compile(r"((chapter|part|book)\s+[ivxlcdm0-9]+\.?\s*){2,}", re.I)
+SHORT_TITLE_SEQUENCE_RE = re.compile(r"(?:\b[A-Z][A-Za-z'’-]{2,}\b(?:\s+[A-Z][A-Za-z'’-]{2,}\b){0,3}\s*){5,}")
+DETECTIVE_HEADING_RE = re.compile(r"^(a case of|the case of|story of|the story of|the adventure of|an adventure of|letter\s+[ivxlcdm0-9]+|book\s+[ivxlcdm0-9]+|part\s+[ivxlcdm0-9]+)", re.I)
+EDITORIAL_NOTE_RE = re.compile(r"^(note|preface|editor'?s note|editorial note)\b", re.I)
+DOCUMENT_FRAMING_RE = re.compile(r"(these papers|this manuscript|these documents|journal of|letters? from|editor'?s note|how these papers)", re.I)
+PREFACE_AUTHORIAL_RE = re.compile(
+    r"(most of the adventures recorded in this book|author'?s note|explanatory note|preface\b|note to the reader|in this book\b|the incidents narrated here)",
+    re.I,
+)
+MID_SCENE_ACTION_RE = re.compile(
+    r"^([A-Z][a-z]+|he|she|they|we)\s+(asked|said|cried|replied|answered|turned|rose|went|came|looked|heard|felt|saw|found|told|began|continued)\b",
+    re.I,
+)
 
 
 def clean_text(value: str) -> str:
@@ -129,6 +219,363 @@ def find_dc_text(root: ET.Element, tag: str) -> str:
     return clean_text(node.text if node is not None and node.text else "")
 
 
+def find_metadata_description_candidate(root: ET.Element) -> str:
+    candidates: List[str] = []
+    dc_description = find_dc_text(root, "description")
+    if dc_description:
+        candidates.append(dc_description)
+    for meta in root.findall(f".//{{{OPF_NS}}}metadata/{{{OPF_NS}}}meta"):
+        prop = clean_text(meta.get("property", "")).lower()
+        name = clean_text(meta.get("name", "")).lower()
+        text = clean_text("".join(meta.itertext()))
+        if not text:
+            continue
+        if prop in {"description", "summary", "schema:description"} or name in {"description", "summary"}:
+            candidates.append(text)
+    for candidate in candidates:
+        if candidate:
+            return candidate
+    return ""
+
+
+def strip_html_tags(value: str) -> str:
+    text = str(value or "")
+    text = HTML_SCRIPT_RE.sub(" ", text)
+    text = HTML_STYLE_RE.sub(" ", text)
+    text = HTML_TAG_RE.sub(" ", text)
+    return text
+
+
+def normalize_unicode_whitespace(value: str) -> str:
+    text = UNICODE_WHITESPACE_RE.sub(" ", str(value or ""))
+    text = text.replace("\r", " ").replace("\n", " ").replace("\t", " ")
+    return WHITESPACE_RE.sub(" ", text).strip()
+
+
+def collapse_repeated_punctuation(value: str) -> str:
+    text = str(value or "")
+    text = re.sub(r"\*{2,}", " ", text)
+    text = re.sub(r"([!?.,;:])(?:\s*\1)+", r"\1", text)
+    text = re.sub(r"[-—–]{3,}", "—", text)
+    text = re.sub(r"\s*([,;:.!?])\s*", r"\1 ", text)
+    text = re.sub(r"\s*([—–-])\s*", r" \1 ", text)
+    return WHITESPACE_RE.sub(" ", text).strip()
+
+
+def normalize_description_text(text: str) -> str:
+    value = strip_html_tags(text)
+    value = html.unescape(value)
+    value = normalize_unicode_whitespace(value)
+    value = GUTENBERG_START_RE.sub("", value)
+    value = GUTENBERG_END_RE.sub("", value)
+    previous = None
+    while previous != value:
+        previous = value
+        for pattern in SERVICE_PREFIX_PATTERNS:
+            value = pattern.sub("", value)
+        value = normalize_unicode_whitespace(value)
+    value = re.sub(r"^\[[^\]]*(copyright|project gutenberg|distributed proofreaders)[^\]]*\]\s*", "", value, flags=re.I)
+    value = re.sub(r"^(chapter|book|part|letter)\s+[ivxlcdm0-9]+\.?\s*[:;,\-—–]*\s*", "", value, flags=re.I)
+    value = ROMAN_HEADING_RE.sub("", value)
+    value = ALLCAPS_HEADING_RE.sub("", value)
+    value = LEADING_HEADING_FRAGMENT_RE.sub("", value)
+    value = IMAGE_ARTIFACT_RE.sub("", value)
+    value = collapse_repeated_punctuation(value)
+    value = re.sub(r'^[\s:;,\-—–*"\'`]+', "", value)
+    value = re.sub(r'[\s:;,\-—–*"\'`]+$', "", value)
+    return normalize_unicode_whitespace(value)
+
+
+def split_sentences(text: str) -> List[str]:
+    parts = [part.strip() for part in SENTENCE_SPLIT_RE.split(normalize_description_text(text)) if part.strip()]
+    return parts
+
+
+def is_toc_or_list_contamination(raw_text: str, normalized_text: str, source_xhtml: str = "") -> bool:
+    opening = normalized_text[:260]
+    if TOC_SOURCE_RE.search(source_xhtml[:2500]):
+        return True
+    if TOC_ENUMERATION_RE.search(opening):
+        return True
+    if SHORT_TITLE_SEQUENCE_RE.search(opening) and len(split_sentences(opening)) <= 2:
+        return True
+    if CONTENTS_NOISE_RE.search(opening) and len(re.findall(r"(chapter|book|part)\s+[ivxlcdm0-9]+", opening, re.I)) >= 1:
+        return True
+    return False
+
+
+def is_detective_case_heading_opening(normalized_text: str) -> bool:
+    opening = normalized_text[:220]
+    if not DETECTIVE_HEADING_RE.search(opening):
+        return False
+    tail = normalize_description_text(opening[0:220])
+    if OPENING_DIALOGUE_RE.search(tail) or "my dear" in tail.lower() or CASE_STORY_HEADING_RE.search(opening):
+        return True
+    return True
+
+
+def is_editorial_document_framing(normalized_text: str) -> bool:
+    opening = normalized_text[:240]
+    if EDITORIAL_NOTE_RE.search(opening):
+        return True
+    if PREFACE_AUTHORIAL_RE.search(opening):
+        return True
+    if JOURNAL_HEADING_RE.search(opening):
+        return True
+    if DOCUMENT_FRAMING_RE.search(opening):
+        return True
+    if LETTER_CUE_RE.search(opening) or ADDRESS_LINE_RE.search(opening) or DATE_PLACE_START_RE.search(opening):
+        return True
+    if EDITORIAL_FRAMING_RE.search(opening):
+        return True
+    return False
+
+
+def is_mid_scene_action_opening(normalized_text: str) -> bool:
+    opening = normalized_text[:220]
+    if MID_SCENE_ACTION_RE.search(opening):
+        return True
+    pronouns = len(PRONOUN_RE.findall(opening[:140]))
+    if pronouns >= 4 and re.search(r"\b(said|asked|heard|felt|saw|went|came|told|looked|turned|rose)\b", opening, re.I):
+        return True
+    return False
+
+
+def requires_conservative_fallback(title: str) -> bool:
+    title_norm = normalize_description_text(title).lower()
+    if "sherlock holmes" in title_norm:
+        return True
+    if "adventures of sherlock holmes" in title_norm:
+        return True
+    if "dracula" in title_norm:
+        return True
+    if "tom sawyer" in title_norm:
+        return True
+    return False
+
+
+def is_scene_dependent_collection_opening(text: str) -> bool:
+    opening = normalize_description_text(text)[:220].lower()
+    if opening.startswith(("we were seated", "he was seated", "she was seated", "they were seated")):
+        return True
+    if "when the maid brought in" in opening:
+        return True
+    if "asked the attendant" in opening:
+        return True
+    if "telegram" in opening:
+        return True
+    if "it was like coming back to life" in opening:
+        return True
+    if opening.startswith(("harker ", "seward ", "utterson ", "holmes ", "watson ")):
+        return True
+    if any(token in opening[:160] for token in [" said,", " asked,", " replied", " groaned", " cried", " answered"]):
+        return True
+    if "“" in opening[:80] or '"' in opening[:80]:
+        return True
+    return False
+
+
+def hard_reject_class(text: str, source_xhtml: str = "") -> str:
+    normalized = normalize_description_text(text)
+    opening = normalized[:240]
+    if not opening:
+        return "too_short"
+    if is_toc_or_list_contamination(text, normalized, source_xhtml):
+        return "toc_or_list_contamination"
+    if SECTION_START_RE.search(opening) or ALLCAPS_HEADING_RE.search(opening) or ROMAN_HEADING_RE.search(opening):
+        return "heading_opening"
+    if is_detective_case_heading_opening(normalized):
+        return "detective_case_heading"
+    if OPENING_DIALOGUE_RE.search(opening) or SALUTATION_START_RE.search(opening) or "my dear" in opening.lower()[:40]:
+        return "dialogue_opening"
+    if is_editorial_document_framing(normalized):
+        return "editorial_document_framing"
+    if is_mid_scene_action_opening(normalized):
+        return "mid_scene_action"
+    return ""
+
+
+def score_chapter_candidate(text: str, *, title: str = "", chapter_title: str = "") -> Tuple[int, str, List[str]]:
+    normalized = normalize_description_text(text)
+    reasons: List[str] = []
+    score = 0
+    if not normalized:
+        return -10, "poor", ["empty"]
+
+    opening = normalized[:180]
+    first_sentence = split_sentences(normalized)[:1]
+    first_sentence_text = first_sentence[0] if first_sentence else normalized
+    lower_opening = opening.lower()
+
+    if len(normalized) >= DESCRIPTION_TARGET_MIN:
+        score += 3
+        reasons.append("target_length")
+    elif len(normalized) >= DESCRIPTION_MIN:
+        score += 1
+        reasons.append("usable_length")
+    else:
+        score -= 4
+        reasons.append("too_short")
+    if SECTION_START_RE.search(opening):
+        score -= 6
+        reasons.append("starts_with_section_heading")
+    if OPENING_DIALOGUE_RE.search(opening):
+        score -= 5
+        reasons.append("starts_with_dialogue")
+    if SALUTATION_START_RE.search(lower_opening):
+        score -= 5
+        reasons.append("starts_with_salutation")
+    if PERSON_OR_HONORIFIC_START_RE.search(opening):
+        score -= 3
+        reasons.append("starts_with_person_or_address")
+    if EARLY_HONORIFIC_RE.search(opening[:120]):
+        score -= 2
+        reasons.append("early_honorific_context")
+    if LETTER_CUE_RE.search(opening):
+        score -= 4
+        reasons.append("looks_like_letter")
+    if DATELINE_RE.search(opening[:100]) and "," in opening[:60]:
+        score -= 3
+        reasons.append("looks_like_dateline")
+    if IMAGE_ARTIFACT_RE.search(opening[:120]):
+        score -= 5
+        reasons.append("image_artifact")
+    if CONTENTS_NOISE_RE.search(opening[:180]) and len(re.findall(r"(chapter|book|part)\s+[ivxlcdm0-9]+", opening[:220], re.I)) >= 2:
+        score -= 8
+        reasons.append("contents_noise")
+    if ALLCAPS_HEADING_RE.search(opening[:120]):
+        score -= 4
+        reasons.append("all_caps_heading")
+    if CASE_STORY_HEADING_RE.search(opening[:80]):
+        score -= 4
+        reasons.append("case_story_heading")
+    if CASE_STORY_HEADING_RE.search(opening[:80]) and OPENING_DIALOGUE_RE.search(normalized[:220].lstrip()):
+        score -= 4
+        reasons.append("heading_plus_dialogue")
+    if EDITORIAL_FRAMING_RE.search(opening[:220]):
+        score -= 7
+        reasons.append("editorial_framing")
+    if looks_like_frontmatter_heading(normalized):
+        score -= 5
+        reasons.append("frontmatter_like")
+    if first_sentence_text and len(first_sentence_text) >= 50:
+        score += 2
+        reasons.append("strong_first_sentence")
+    if len(split_sentences(normalized)) >= 2:
+        score += 2
+        reasons.append("multiple_sentences")
+    if not any(flag in reasons for flag in ["starts_with_dialogue", "starts_with_salutation", "looks_like_letter", "starts_with_section_heading"]):
+        score += 2
+        reasons.append("narrative_opening")
+    pronouns = len(PRONOUN_RE.findall(opening[:160]))
+    if pronouns >= 5:
+        score -= 2
+        reasons.append("context_heavy_pronouns")
+    if title and normalize_description_text(title).lower() in lower_opening[:120]:
+        score -= 1
+        reasons.append("title_echo")
+    if chapter_title and normalize_description_text(chapter_title).lower() in lower_opening[:120]:
+        score -= 2
+        reasons.append("chapter_title_echo")
+
+    quality = "good" if score >= 7 else "weak" if score >= 4 else "poor"
+    return score, quality, reasons
+
+
+def is_gutenberg_boilerplate(text: str) -> bool:
+    raw = normalize_unicode_whitespace(html.unescape(strip_html_tags(text)))
+    sample = raw[:500]
+    for pattern in BOILERPLATE_START_PATTERNS:
+        if pattern.search(raw):
+            return True
+    hits = sum(1 for pattern in BOILERPLATE_PHRASES if pattern.search(sample))
+    if hits >= 1:
+        return True
+    legal_hits = sum(1 for pattern in BOILERPLATE_PHRASES if pattern.search(raw[:1200]))
+    if legal_hits >= 2:
+        return True
+    return False
+
+
+def looks_like_frontmatter_heading(text: str) -> bool:
+    normalized = normalize_description_text(text).strip(" .:;,-—–").lower()
+    if not normalized:
+        return True
+    if FRONTMATTER_LINE_RE.match(normalized):
+        return True
+    if HEADING_ONLY_RE.match(normalized):
+        return True
+    if normalized.startswith(("contents ", "table of contents", "illustrations ", "frontispiece", "preface ", "introduction ", "foreword ")):
+        return True
+    if "copyright" in normalized[:120] or "project gutenberg" in normalized[:160]:
+        return True
+    return False
+
+
+def looks_like_title_only(text: str, title: str = "", chapter_title: str = "") -> bool:
+    normalized = normalize_description_text(text).strip(" .:;,-—–").lower()
+    if not normalized:
+        return True
+    if ROMAN_ONLY_RE.match(normalized):
+        return True
+    title_norm = normalize_description_text(title).strip(" .:;,-—–").lower()
+    chapter_norm = normalize_description_text(chapter_title).strip(" .:;,-—–").lower()
+    if title_norm and normalized == title_norm:
+        return True
+    if chapter_norm and normalized == chapter_norm:
+        return True
+    return False
+
+
+def evaluate_description_candidate(raw_text: str, *, title: str = "", chapter_title: str = "") -> Tuple[str, str]:
+    normalized = normalize_description_text(raw_text)
+    if not normalized:
+        return "", "too_short"
+    if is_gutenberg_boilerplate(raw_text) or is_gutenberg_boilerplate(normalized):
+        return normalized, "boilerplate"
+    if looks_like_frontmatter_heading(normalized):
+        return normalized, "frontmatter"
+    if len(normalized) < DESCRIPTION_MIN:
+        return normalized, "too_short"
+    if looks_like_title_only(normalized, title=title, chapter_title=chapter_title):
+        return normalized, "frontmatter"
+    return normalized, "ok"
+
+
+def is_usable_description(text: str, *, title: str = "", chapter_title: str = "") -> bool:
+    normalized, reason = evaluate_description_candidate(text, title=title, chapter_title=chapter_title)
+    return bool(normalized) and reason == "ok"
+
+
+def trim_text_to_boundary(text: str, min_chars: int, max_chars: int) -> str:
+    normalized = normalize_description_text(text)
+    if len(normalized) <= max_chars:
+        return normalized
+    sample = normalized[: max_chars + 1]
+    sentence_breaks = [sample.rfind(marker) for marker in [". ", "! ", "? ", ".” ", "!” ", "?” "]]
+    sentence_break = max(sentence_breaks)
+    if sentence_break >= min_chars:
+        return sample[: sentence_break + 1].strip()
+    word_break = sample.rfind(" ")
+    if word_break >= min_chars:
+        return sample[:word_break].strip()
+    return sample[:max_chars].strip()
+
+
+def build_meta_description(normalized_description: str, title: str, author: str) -> str:
+    fallback = f'Read "{title}" by {author} on ReaderPub.'
+    source = normalize_description_text(normalized_description)
+    if not source:
+        return fallback
+    if len(source) > META_DESCRIPTION_MAX:
+        source = trim_text_to_boundary(source, META_DESCRIPTION_MIN, META_DESCRIPTION_MAX)
+    return source or fallback
+
+
+def fallback_description(title: str, author: str) -> str:
+    return f'Read "{title}" by {author} on ReaderPub.'
+
+
 def parse_opf(xml_text: str) -> dict:
     root = ET.fromstring(xml_text)
     manifest = {}
@@ -151,7 +598,7 @@ def parse_opf(xml_text: str) -> dict:
 
     metadata = {
         "title": find_dc_text(root, "title"),
-        "description": find_dc_text(root, "description"),
+        "description": find_metadata_description_candidate(root),
         "language": normalize_lang(find_dc_text(root, "language")),
         "creator": find_dc_text(root, "creator") or "Unknown",
         "manifest": manifest,
@@ -225,26 +672,44 @@ def split_href_fragment(href: str) -> Tuple[str, str]:
     return href.strip(), ""
 
 
-def is_wrapper_chapter(title: str, href_path: str) -> bool:
-    t = clean_text(title).lower()
-    p = clean_text(href_path).lower()
-    filename = p.rsplit("/", 1)[-1]
+def normalize_href_path(base_dir: str, href_path: str) -> str:
+    if not href_path:
+        return ""
+    return os.path.normpath(f"{base_dir}/{href_path}" if base_dir else href_path).replace("\\", "/")
+
+
+def is_non_content_href_or_title(href: str, title: str) -> bool:
+    href_norm = clean_text(href).lower()
+    title_norm = clean_text(title).lower()
+    filename = href_norm.rsplit("/", 1)[-1]
+    combined = f"{href_norm} {filename} {title_norm}"
     if filename in {"cover.xhtml", "title_page.xhtml", "nav.xhtml", "toc.xhtml"}:
         return True
-    wrappers = {
+    if NON_CONTENT_RE.search(combined):
+        return True
+    if title_norm in {
         "cover",
+        "cover page",
+        "title",
         "title page",
         "table of contents",
         "contents",
         "toc",
-        "copyright",
-        "imprint",
-        "index",
         "navigation",
-    }
-    if t in wrappers:
+        "copyright",
+        "license",
+        "imprint",
+        "colophon",
+        "frontmatter",
+    }:
+        return True
+    if title_norm in {"preface", "introduction", "foreword"} and re.search(r"(front|preface|intro|foreword)", href_norm, re.I):
         return True
     return False
+
+
+def is_wrapper_chapter(title: str, href_path: str) -> bool:
+    return is_non_content_href_or_title(href_path, title)
 
 
 def body_inner_html(xhtml_text: str) -> str:
@@ -265,6 +730,140 @@ def body_text(xhtml_text: str) -> str:
     return clean_text(" ".join(body.itertext()))
 
 
+def extract_text_blocks_from_xhtml(xhtml_text: str) -> List[str]:
+    blocks: List[str] = []
+    try:
+        root = ET.fromstring(xhtml_text)
+    except ET.ParseError:
+        text = normalize_unicode_whitespace(html.unescape(body_inner_html(xhtml_text)))
+        return [text] if text else []
+    body = root.find(f".//{{{XHTML_NS}}}body")
+    if body is None:
+        return []
+
+    for node in body.findall(f".//{{{XHTML_NS}}}p"):
+        text = normalize_unicode_whitespace(html.unescape(" ".join(node.itertext())))
+        if text:
+            blocks.append(text)
+
+    if blocks:
+        return blocks
+
+    for node in body.iter():
+        tag = node.tag.rsplit("}", 1)[-1].lower() if isinstance(node.tag, str) else ""
+        if tag not in {"div", "section"}:
+            continue
+        text = normalize_unicode_whitespace(html.unescape(" ".join(node.itertext())))
+        if text:
+            blocks.append(text)
+    return blocks
+
+
+def extract_description_from_first_meaningful_chapter(
+    book_id: str,
+    title: str,
+    author: str,
+    opf: dict,
+    opf_dir: str,
+    chapter_titles_by_path: Dict[str, str],
+    local_root: Path,
+    remote_base: str,
+) -> Tuple[str, str, Optional[int], str, int, str]:
+    chapter_number = 0
+    last_reason = "frontmatter"
+    best_score = -999
+    best_quality = "poor"
+    for spine_item in opf.get("spine", []) or []:
+        if not spine_item.get("linear", True):
+            continue
+        href = clean_text(spine_item.get("href", ""))
+        if not href:
+            continue
+        normalized_path = normalize_href_path(opf_dir, href)
+        chapter_title = chapter_titles_by_path.get(normalized_path, "")
+        if is_non_content_href_or_title(normalized_path, chapter_title):
+            last_reason = "frontmatter"
+            continue
+        chapter_number += 1
+        try:
+            xhtml_text = fetch_book_content(book_id, normalized_path, local_root, remote_base)
+        except Exception:
+            continue
+        if TOC_SOURCE_RE.search(xhtml_text[:4000]):
+            last_reason = "toc_or_list_contamination"
+            continue
+        usable_blocks: List[Tuple[str, str]] = []
+        rejection_reason = "too_short"
+        for block in extract_text_blocks_from_xhtml(xhtml_text):
+            raw_block = block
+            normalized, reason = evaluate_description_candidate(
+                block,
+                title=title,
+                chapter_title=chapter_title,
+            )
+            if reason != "ok":
+                rejection_reason = reason
+                continue
+            if len(normalized) < 80 or not LETTER_RE.search(normalized):
+                rejection_reason = "too_short"
+                continue
+            usable_blocks.append((raw_block, normalized))
+            if len(usable_blocks) >= 6:
+                break
+        if not usable_blocks:
+            last_reason = rejection_reason
+            continue
+        best_window = None
+        window_specs = [(0, 1), (0, 2), (1, 3), (1, 4), (2, 4)]
+        for start, end in window_specs:
+            subset = usable_blocks[start:end]
+            if not subset:
+                continue
+            raw_description = " ".join(item[0] for item in subset).strip()
+            normalized_description = trim_text_to_boundary(
+                " ".join(item[1] for item in subset),
+                DESCRIPTION_TARGET_MIN,
+                DESCRIPTION_TARGET_MAX,
+            )
+            hard_reject_reason = hard_reject_class(raw_description, xhtml_text)
+            if hard_reject_reason:
+                rejection_reason = hard_reject_reason
+                continue
+            normalized_description, reason = evaluate_description_candidate(
+                normalized_description,
+                title=title,
+                chapter_title=chapter_title,
+            )
+            if reason != "ok":
+                rejection_reason = reason
+                continue
+            score, quality, reasons = score_chapter_candidate(
+                normalized_description,
+                title=title,
+                chapter_title=chapter_title,
+            )
+            if score > best_score:
+                best_score = score
+                best_quality = quality
+            if best_window is None or score > best_window[4]:
+                best_window = (
+                    raw_description,
+                    normalized_description,
+                    chapter_number,
+                    "chapter_paragraphs",
+                    score,
+                    quality,
+                    reasons,
+                )
+        if best_window and best_window[5] == "good":
+            return best_window[0], best_window[1], best_window[2], best_window[3], best_window[4], best_window[5]
+        if best_window:
+            last_reason = f"weak_chapter_candidate:{best_window[4]}"
+        else:
+            last_reason = rejection_reason
+    return "", "", None, last_reason, best_score, best_quality
+
+
 def rewrite_relative_urls(html: str, asset_base: str) -> str:
     def replace_attr(match):
         attr = match.group(1)
@@ -279,11 +878,9 @@ def rewrite_relative_urls(html: str, asset_base: str) -> str:
 
 
 def make_meta_description(text: str, fallback: str) -> str:
-    source = clean_text(text or fallback or "")
-    if len(source) <= 160:
-        return source
-    cut = source[:157].rsplit(" ", 1)[0].strip()
-    return (cut or source[:157]).strip() + "..."
+    if text:
+        return build_meta_description(text, "", "")
+    return normalize_description_text(fallback)
 
 
 def chunk_items(items: List[dict], size: int) -> Iterable[List[dict]]:
@@ -434,11 +1031,14 @@ def build_book_manifest(
 
     chapters = []
     seen_paths = set()
+    chapter_titles_by_path: Dict[str, str] = {}
     for href, title in nav_entries:
         href_path, fragment = split_href_fragment(href)
         if not href_path or is_wrapper_chapter(title, href_path):
             continue
-        normalized_path = os.path.normpath(f"{opf_dir}/{href_path}" if opf_dir else href_path).replace("\\", "/")
+        normalized_path = normalize_href_path(opf_dir, href_path)
+        if normalized_path and title and normalized_path not in chapter_titles_by_path:
+            chapter_titles_by_path[normalized_path] = title
         key = (normalized_path, clean_text(title).lower())
         if key in seen_paths:
             continue
@@ -458,7 +1058,80 @@ def build_book_manifest(
             }
         )
 
-    description = clean_text(opf.get("description", ""))
+    raw_metadata_description = opf.get("description", "")
+    metadata_description, metadata_reason = evaluate_description_candidate(
+        raw_metadata_description,
+        title=opf.get("title") or seed.title,
+    )
+    raw_description = ""
+    normalized_description = ""
+    description_source = ""
+    description_quality = "poor"
+    chapter_candidate_score = None
+    description_debug = {
+        "metadata_candidate_reason": metadata_reason,
+        "chapter_candidate_reason": "not_used",
+        "chapter_candidate_score": None,
+        "chapter_candidate_quality": None,
+        "conservative_fallback": False,
+        "final_reason": "",
+    }
+
+    if metadata_reason == "ok":
+        raw_description = raw_metadata_description
+        normalized_description = trim_text_to_boundary(
+            metadata_description,
+            DESCRIPTION_TARGET_MIN,
+            DESCRIPTION_TARGET_MAX,
+        )
+        description_source = "metadata_description"
+        description_quality = "good"
+        description_debug["final_reason"] = "metadata_description"
+    else:
+        chapter_raw_description, chapter_description, chapter_description_source_n, chapter_reason, chapter_score, chapter_quality = extract_description_from_first_meaningful_chapter(
+            book_id=book_id,
+            title=opf.get("title") or seed.title,
+            author=seed.author_name,
+            opf=opf,
+            opf_dir=opf_dir,
+            chapter_titles_by_path=chapter_titles_by_path,
+            local_root=local_root,
+            remote_base=remote_base,
+        )
+        description_debug["chapter_candidate_reason"] = chapter_reason
+        chapter_candidate_score = chapter_score if chapter_score != -999 else None
+        description_debug["chapter_candidate_score"] = chapter_candidate_score
+        description_debug["chapter_candidate_quality"] = chapter_quality
+        conservative_mode = requires_conservative_fallback(opf.get("title") or seed.title)
+        if conservative_mode and (
+            chapter_quality != "good"
+            or (chapter_candidate_score or 0) < 9
+            or (chapter_description and is_scene_dependent_collection_opening(chapter_description))
+        ):
+            description_debug["conservative_fallback"] = True
+            chapter_description = ""
+        if chapter_description and chapter_reason == "chapter_paragraphs" and chapter_quality == "good":
+            raw_description = chapter_raw_description
+            normalized_description = chapter_description
+            description_source = "chapter_paragraphs"
+            description_quality = chapter_quality
+            description_debug["final_reason"] = "chapter_paragraphs"
+        else:
+            raw_description = fallback_description(opf.get("title") or seed.title, seed.author_name)
+            normalized_description = raw_description
+            description_source = "fallback_title_author"
+            description_quality = "fallback"
+            if description_debug["conservative_fallback"]:
+                description_debug["final_reason"] = "fallback_title_author_conservative_mode"
+            else:
+                description_debug["final_reason"] = "fallback_title_author"
+
+    meta_description = build_meta_description(
+        normalized_description,
+        opf.get("title") or seed.title,
+        seed.author_name,
+    )
+
     excerpt = ""
     excerpt_source = None
     for chapter in chapters:
@@ -477,7 +1150,7 @@ def build_book_manifest(
         break
 
     if not excerpt:
-        excerpt = description
+        excerpt = normalized_description
 
     if opf.get("coverHref"):
         cover_rel = os.path.normpath(f"{opf_dir}/{opf['coverHref']}" if opf_dir else opf["coverHref"]).replace("\\", "/")
@@ -494,7 +1167,14 @@ def build_book_manifest(
         "authorKey": seed.author_key,
         "cover": cover,
         "language": normalize_lang(opf.get("language") or "und"),
-        "description": description,
+        "raw_description": normalize_unicode_whitespace(raw_description),
+        "normalized_description": normalized_description,
+        "meta_description": meta_description,
+        "description_source": description_source,
+        "description_quality": description_quality,
+        "chapter_candidate_score": chapter_candidate_score,
+        "description_debug": description_debug,
+        "description": normalized_description,
         "excerpt": excerpt,
         "excerptSourceChapter": excerpt_source,
         "categories": categories,

@@ -7,5 +7,8 @@
   "authorPath": "/a/{key}.json",
   "searchPath": "/search/{token}.json",
   "languagesPath": "/languages.json",
-  "languageBasePath": "/lang/{lang}"
+  "languageBasePath": "/lang/{lang}",
+  "discoverCategoriesPath": "/discover/categories.json",
+  "discoverCategoryPath": "/discover/category/{slug}.json",
+  "discoverPopularPath": "/discover/popular.json"
 }

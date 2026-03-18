@@ -32,8 +32,7 @@ if [[ -d reader_lang_indexes ]]; then
   git add -A -- reader_lang_indexes
 fi
 
-# Config/entry points for catalog/books shells
-git add -A -- catalog/index.html catalog/catalog.config.json
+# Config/entry points for books shell
 git add -A -- books/index.html books/catalog.config.json
 
 # Root UI assets used by app shell
@@ -44,7 +43,7 @@ if [[ -d tools ]]; then
   while IFS= read -r -d '' f; do
     git add -A -- "$f"
   done < <(find tools -maxdepth 1 -type f \
-    \( -name "*.py" -o -name "*.js" -o -name "*.sh" -o -name "*.toml" \) -print0)
+    \( -name "*.py" -o -name "*.js" -o -name "*.mjs" -o -name "*.sh" -o -name "*.toml" \) -print0)
 fi
 
 # Explicitly keep data artifacts out of this commit even if staged before.
