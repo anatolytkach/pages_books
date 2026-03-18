@@ -2695,6 +2695,15 @@ export default {
       return new Response(null, { status: 302, headers });
     }
 
+    // Rewrite /books/reader/* to /reader/* so it works without the router
+    if (path.startsWith("/books/reader/")) {
+      const rewrittenPath = path.replace(/^\/books\/reader/, "/reader");
+      const rewrittenUrl = new URL(url);
+      rewrittenUrl.pathname = rewrittenPath;
+      const rewrittenRequest = new Request(rewrittenUrl.toString(), request);
+      return env.ASSETS.fetch(rewrittenRequest);
+    }
+
     const idMatch = path.match(/^\/books\/(\d+)(\/)?$/);
     if (idMatch) {
       const id = idMatch[1];
