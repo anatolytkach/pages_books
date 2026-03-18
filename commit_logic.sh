@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Canonical project commit workflow.
+# All requested commits must go through this script.
+# It stages code/index/runtime changes, excludes content payloads,
+# commits, and pushes to remote.
+
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "[commit-logic] Not inside a git repository" >&2
   exit 1
@@ -26,6 +31,9 @@ echo "[commit-logic] Staging code, indexes, and render/runtime files"
 # Core logic and app sources
 git add -A -- reader tests docs _worker.js .gitignore .wranglerignore
 git add -A -- commit_logic.sh
+
+# Docs are published from deploy/docs/index.html, so docs commits must include it.
+git add -A -- deploy/docs/index.html
 
 # Catalog/search/discovery indexes that drive Pages and R2 behavior
 if [[ -d reader_lang_indexes ]]; then
@@ -53,6 +61,10 @@ git reset -q -- \
   tools/__pycache__ \
   .wrangler \
   deploy
+
+# deploy/ is generally generated and must stay out of commits,
+# except for deploy/docs/index.html, which is the versioned docs publish source.
+git add -A -- deploy/docs/index.html
 
 if git diff --cached --quiet; then
   echo "[commit-logic] No staged logic changes to commit"
