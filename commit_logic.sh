@@ -21,14 +21,18 @@ if [[ "$BRANCH" == "HEAD" ]]; then
   exit 1
 fi
 
-echo "[commit-logic] Staging only project logic files"
+echo "[commit-logic] Staging code, indexes, and render/runtime files"
 
 # Core logic and app sources
 git add -A -- reader tests docs _worker.js .gitignore .wranglerignore
 git add -A -- commit_logic.sh
 
-# Config/entry points for catalog/books shells
-git add -A -- catalog/index.html catalog/catalog.config.json
+# Catalog/search/discovery indexes that drive Pages and R2 behavior
+if [[ -d reader_lang_indexes ]]; then
+  git add -A -- reader_lang_indexes
+fi
+
+# Config/entry points for books shell
 git add -A -- books/index.html books/catalog.config.json
 
 # Root UI assets used by app shell
@@ -39,14 +43,13 @@ if [[ -d tools ]]; then
   while IFS= read -r -d '' f; do
     git add -A -- "$f"
   done < <(find tools -maxdepth 1 -type f \
-    \( -name "*.py" -o -name "*.js" -o -name "*.sh" -o -name "*.toml" \) -print0)
+    \( -name "*.py" -o -name "*.js" -o -name "*.mjs" -o -name "*.sh" -o -name "*.toml" \) -print0)
 fi
 
 # Explicitly keep data artifacts out of this commit even if staged before.
 git reset -q -- \
   books/content \
   content \
-  reader_lang_indexes \
   tools/__pycache__ \
   .wrangler \
   deploy
@@ -59,7 +62,12 @@ fi
 echo "[commit-logic] Committing"
 git commit -m "$MSG"
 
-echo "[commit-logic] Pushing to origin/$BRANCH"
-git push origin "$BRANCH"
+if git rev-parse --verify --quiet "@{upstream}" >/dev/null; then
+  echo "[commit-logic] Pushing to upstream for $BRANCH"
+  git push
+else
+  echo "[commit-logic] Pushing to origin/$BRANCH and setting upstream"
+  git push --set-upstream origin "$BRANCH"
+fi
 
 echo "[commit-logic] Done"

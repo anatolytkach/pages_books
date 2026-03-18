@@ -103,14 +103,15 @@
           <li><a href="#secrets">7. Секреты и переменные окружения</a></li>
           <li><a href="#reader-arch">8. Устройство читалки</a></li>
           <li><a href="#docsauth">9. Защита документации</a></li>
-          <li><a href="#checks">10. Проверки после релиза</a></li>
+          <li><a href="#stats">10. Статистика / PostHog</a></li>
+          <li><a href="#checks">11. Проверки после релиза</a></li>
         </ul>
       </aside>
 
       <section class="card">
         <h1>ReaderPub: передача проекта</h1>
         <p class="meta">Документация на русском языке. Актуально на 2026-03-05.</p>
-        <p class="meta"><strong>Версия страницы:</strong> docs-live-2026-03-05-09:49-ET-reader</p>
+        <p class="meta"><strong>Версия страницы:</strong> docs-live-2026-03-17-05:30-ET-reader-posthog</p>
 
         <h2 id="scope">1. Назначение и границы</h2>
         <p>
@@ -144,6 +145,7 @@ cd pages_books</code></pre>
         <ul>
           <li>Routes: <code>reader.pub/docs</code>, <code>reader.pub/docs/*</code>.</li>
           <li>Назначение: Basic Auth + проксирование docs на <code>master.reader-books.pages.dev/docs/*</code>.</li>
+          <li>Правило публикации: изменения в <code>docs/README.md</code> нужно сразу переносить в <code>deploy/docs/index.html</code> и сразу выкатывать Pages-проект <code>reader-books</code> на ветку <code>master</code>, потому что <code>staging.reader.pub/docs/</code> читает docs именно оттуда.</li>
         </ul>
 
         <h2 id="storage">3. Структура хранения в R2</h2>
@@ -277,7 +279,32 @@ cd pages_books</code></pre>
           <li>публичный fallback отключен.</li>
         </ul>
 
-        <h2 id="checks">10. Проверки после релиза</h2>
+        <h2 id="stats">10. Статистика / PostHog</h2>
+        <p>Для <code>reader.pub/books/</code> и <code>reader.pub/books/reader/</code> подключен PostHog Cloud.</p>
+        <p><strong>Важно:</strong></p>
+        <ul>
+          <li>боевой route <code>reader.pub/books*</code> обслуживается отдельным worker <code>reader-books-router</code>;</li>
+          <li>одного деплоя Pages-проекта <code>reader-books</code> недостаточно, если изменения должны сразу появиться на production URL <code>reader.pub/books/</code>;</li>
+          <li>при изменениях, влияющих на боевой <code>reader.pub/books*</code>, нужно учитывать production worker/router слой.</li>
+        </ul>
+        <p><strong>Что считается:</strong></p>
+        <ul>
+          <li>pageview каталога <code>/books/</code>;</li>
+          <li>pageview reader <code>/books/reader/</code>;</li>
+          <li>autocapture кликов в каталоге и в reader;</li>
+          <li>событие <code>book_open</code> при открытии книги.</li>
+        </ul>
+        <p><strong>Где смотреть:</strong></p>
+        <ul>
+          <li><code>Web analytics</code> -> путь <code>/books/</code> для роста каталога;</li>
+          <li><code>Web analytics</code> -> путь <code>/books/reader/</code> для роста просмотров страниц книг;</li>
+          <li><code>Activity</code> -> autocaptured click events для кликов;</li>
+          <li><code>Activity</code> или <code>Insights</code> -> <code>book_open</code> для факта открытия книги.</li>
+        </ul>
+        <p><strong>Переменные окружения:</strong> <code>READERPUB_POSTHOG_ENABLED</code>, <code>READERPUB_POSTHOG_KEY</code>, <code>READERPUB_POSTHOG_HOST</code>.</p>
+        <p>Подробная инструкция: <code>docs/posthog-catalog.md</code>.</p>
+
+        <h2 id="checks">11. Проверки после релиза</h2>
         <ul>
           <li><code>/docs/</code> -> 401 без auth, 200 с auth.</li>
           <li><code>/books/</code> и <code>/books/reader/?id=&lt;id&gt;</code> без регрессий.</li>

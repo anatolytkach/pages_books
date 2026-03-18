@@ -4,8 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="google-drive-client-id" content="" />
+    <meta name="posthog-enabled" content="" />
+    <meta name="posthog-key" content="" />
+    <meta name="posthog-host" content="" />
     <title>reader.pub books</title>
     <link rel="icon" type="image/svg+xml" href="/books/assets/logo.svg" />
+    <script src="/books/shared/posthog.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap");
 
@@ -521,6 +525,95 @@
         gap: 14px;
       }
 
+      .catalogSections {
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+      }
+
+      .landingSection {
+        border: 1px solid var(--border);
+        background: var(--rect-bg);
+        border-radius: var(--radius-lg);
+        padding: 18px;
+      }
+
+      .sectionHead {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+
+      .sectionTitle {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 26px;
+        line-height: 1.1;
+        color: var(--ink);
+      }
+
+      .sectionMeta {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .categoryChips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .categoryChip {
+        border: 1px solid var(--border);
+        background: #fffdfa;
+        border-radius: 999px;
+        color: var(--ink);
+        padding: 9px 12px;
+        font-size: 14px;
+        line-height: 1.2;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .categoryChip:hover {
+        background: rgba(45, 111, 107, 0.08);
+      }
+
+      .categoryCount {
+        color: var(--muted);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .sectionMoreBtn {
+        margin-top: 14px;
+      }
+
+      .collectionHead {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
+
+      .collectionTitle {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 28px;
+        line-height: 1.1;
+        color: var(--ink);
+      }
+
+      .collectionMeta {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
       .letterBtn {
         border: 1px solid var(--border);
         background: var(--rect-bg);
@@ -874,6 +967,7 @@
           view: "letters",
           letter: "",
           prefix: "",
+          category: "",
           authorKey: "",
           authorName: "",
           language: "en",
@@ -927,7 +1021,22 @@
           searchIndex: new Map(),
           bookCoverById: new Map(),
           languages: null,
+          categories: new Map(),
+          categoryDetails: new Map(),
+          popular: new Map(),
         };
+
+        try {
+          if (window.ReaderPubAnalytics && typeof window.ReaderPubAnalytics.boot === "function") {
+            window.ReaderPubAnalytics.boot();
+            window.ReaderPubAnalytics.captureCatalogPageview({
+              path: window.location.pathname || "",
+              hash: window.location.hash || "",
+            });
+          }
+        } catch (error) {
+          // ignore analytics boot failures
+        }
 
         const LANGUAGE_NAMES = {
           af: "Afrikaans",
@@ -1119,7 +1228,7 @@
         function setToolbar(view, bookView) {
           els.toolbar.innerHTML = "";
           if (searchState && searchState.query) return;
-          if (view !== "author" && view !== "mybooks") return;
+          if (view !== "author" && view !== "mybooks" && view !== "category") return;
 
           const listBtn = el("button", "toggleBtn", "List");
           const gridBtn = el("button", "toggleBtn", "Grid");
@@ -1461,6 +1570,62 @@
               };
             })
             .filter(Boolean);
+        }
+
+        function normalizeCategoryEntries(source) {
+          if (!source) return [];
+          let list = [];
+          if (Array.isArray(source)) list = source;
+          else if (Array.isArray(source.categories)) list = source.categories;
+          else if (Array.isArray(source.items)) list = source.items;
+          else if (Array.isArray(source.list)) list = source.list;
+          else if (typeof source === "object") list = Object.values(source);
+
+          return list
+            .map((item) => {
+              if (!item || typeof item !== "object") return null;
+              const slug = String(item.slug || item.id || item.key || "").trim();
+              const title = String(item.title || item.name || item.label || "").trim();
+              const count = parseNumber(item.count ?? item.total ?? item.n ?? item.books);
+              if (!slug || !title) return null;
+              return { slug, title, count: count !== null ? count : 0 };
+            })
+            .filter(Boolean)
+            .sort((a, b) => (b.count - a.count) || a.title.localeCompare(b.title));
+        }
+
+        function normalizeCategoryDetail(data) {
+          if (!data || typeof data !== "object") return null;
+          const books = normalizeBooks(data.books || data.items || data.list || []);
+          const slug = String(data.slug || data.id || "").trim();
+          const title = String(data.title || data.name || data.label || "").trim();
+          if (!slug || !title) return null;
+          return {
+            slug,
+            title,
+            count: parseNumber(data.count ?? data.total ?? books.length) ?? books.length,
+            books,
+          };
+        }
+
+        function normalizePopularPayload(data) {
+          if (!data || typeof data !== "object") {
+            return { defaultList: "last30days", lists: {} };
+          }
+          const rawLists = data.lists && typeof data.lists === "object" ? data.lists : data;
+          const lists = {};
+          ["yesterday", "last7days", "last30days"].forEach((key) => {
+            const raw = rawLists[key] || {};
+            const books = normalizeBooks(raw.books || raw.items || raw.list || raw);
+            lists[key] = {
+              count: parseNumber(raw.count ?? raw.total ?? books.length) ?? books.length,
+              books,
+            };
+          });
+          return {
+            defaultList: String(data.defaultList || "last30days"),
+            lists,
+          };
         }
 
         function parseNumber(value) {
@@ -1928,6 +2093,7 @@
           params.set("view", state.view || "letters");
           if (state.letter) params.set("letter", state.letter);
           if (state.prefix) params.set("prefix", state.prefix);
+          if (state.category) params.set("category", state.category);
           if (state.authorKey) params.set("authorKey", state.authorKey);
           if (state.authorName) params.set("authorName", state.authorName);
           if (state.language && state.language !== DEFAULT_STATE.language) params.set("lang", state.language);
@@ -1947,6 +2113,7 @@
           if (params.get("view")) state.view = params.get("view");
           if (params.get("letter")) state.letter = params.get("letter");
           if (params.get("prefix")) state.prefix = params.get("prefix");
+          if (params.get("category")) state.category = params.get("category");
           if (params.get("authorKey")) state.authorKey = params.get("authorKey");
           if (params.get("authorName")) state.authorName = params.get("authorName");
           if (params.get("lang")) state.language = params.get("lang");
@@ -2060,14 +2227,15 @@
             });
         }
 
-        function renderLetters(letters) {
-          els.content.innerHTML = "";
+        function createSectionHeader(title, meta) {
+          const head = el("div", "sectionHead");
+          head.appendChild(el("div", "sectionTitle", title));
+          if (meta) head.appendChild(el("div", "sectionMeta", meta));
+          return head;
+        }
+
+        function createLettersGrid(letters) {
           const grid = el("div", "lettersGrid");
-          if (!letters.length) {
-            const empty = el("div", "loading", "No letters available.");
-            els.content.appendChild(empty);
-            return;
-          }
           const mapped = letters
             .map((letter) => {
               const label =
@@ -2086,22 +2254,159 @@
           mapped.forEach((item) => {
             const btn = el("button", "letterBtn", item.label);
             if (!isEnglishAlphabetCard(item.label)) btn.classList.add("letterBtnNonEnglish");
-            btn.addEventListener("click", () => navigate({ view: "prefixes", letter: item.label }));
+            btn.addEventListener("click", () => navigate({ view: "prefixes", letter: item.label, category: "" }));
             grid.appendChild(btn);
           });
-          els.content.appendChild(grid);
+          return grid;
+        }
+
+        function renderPopularPreview(popular) {
+          const section = el("section", "landingSection");
+          const listKey = popular.defaultList && popular.lists[popular.defaultList] ? popular.defaultList : "last30days";
+          const list = popular.lists[listKey] || { books: [], count: 0 };
+          const previewBooks = list.books.slice(0, 12);
+          section.appendChild(createSectionHeader("Popular Titles", "Matched from the last 30 days"));
+          if (!previewBooks.length) {
+            section.appendChild(el("div", "loading", "Popular books are not available yet."));
+            return section;
+          }
+          const grid = el("div", "grid");
+          previewBooks.forEach((book) => {
+            const card = el("a", "card");
+            card.href = openBookUrl(book.id);
+
+            const coverUrl = resolveCoverUrl(book.cover);
+            const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
+            if (coverUrl) {
+              const img = new Image();
+              img.loading = "lazy";
+              img.decoding = "async";
+              img.alt = `${book.title} cover`;
+              img.src = coverUrl;
+              img.onerror = () => {
+                cover.classList.add("coverEmpty");
+                cover.textContent = "No cover";
+              };
+              cover.appendChild(img);
+            } else {
+              cover.textContent = "No cover";
+            }
+
+            card.appendChild(cover);
+            card.appendChild(el("div", "cardTitle", book.title));
+            card.appendChild(el("div", "cardMeta", book.author || ""));
+            grid.appendChild(card);
+          });
+          section.appendChild(grid);
+          return section;
+        }
+
+        function renderCategoriesSection(categories) {
+          const section = el("section", "landingSection");
+          section.appendChild(createSectionHeader("Browse by Category"));
+          if (!categories.length) {
+            section.appendChild(el("div", "loading", "Categories are not available yet."));
+            return section;
+          }
+          const chips = el("div", "categoryChips");
+          const initialCount = 24;
+          let expanded = false;
+
+          const paint = () => {
+            chips.innerHTML = "";
+            const visible = expanded ? categories : categories.slice(0, initialCount);
+            visible.forEach((category) => {
+              const btn = el("button", "categoryChip");
+              btn.type = "button";
+              btn.appendChild(el("span", null, category.title));
+              btn.appendChild(el("span", "categoryCount", `${category.count}`));
+              btn.addEventListener("click", () =>
+                navigate({
+                  view: "category",
+                  category: category.slug,
+                  letter: "",
+                  prefix: "",
+                  authorKey: "",
+                  authorName: "",
+                })
+              );
+              chips.appendChild(btn);
+            });
+          };
+
+          paint();
+          section.appendChild(chips);
+          if (categories.length > initialCount) {
+            const moreBtn = el("button", "toggleBtn sectionMoreBtn", "Show all categories");
+            moreBtn.addEventListener("click", () => {
+              expanded = !expanded;
+              moreBtn.textContent = expanded ? "Show fewer categories" : "Show all categories";
+              paint();
+            });
+            section.appendChild(moreBtn);
+          }
+          return section;
+        }
+
+        function renderLanding(letters, popular, categories) {
+          els.content.innerHTML = "";
+          const wrap = el("div", "catalogSections");
+          const lettersSection = el("section", "landingSection");
+          lettersSection.appendChild(createSectionHeader("Browse by Author"));
+          if (!letters.length) {
+            lettersSection.appendChild(el("div", "loading", "No letters available."));
+          } else {
+            lettersSection.appendChild(createLettersGrid(letters));
+          }
+          wrap.appendChild(lettersSection);
+          wrap.appendChild(renderPopularPreview(popular || { defaultList: "last30days", lists: {} }));
+          wrap.appendChild(renderCategoriesSection(categories || []));
+          els.content.appendChild(wrap);
+        }
+
+        function renderLetters(letters) {
+          els.content.innerHTML = "";
+          if (!letters.length) {
+            const empty = el("div", "loading", "No letters available.");
+            els.content.appendChild(empty);
+            return;
+          }
+          els.content.appendChild(createLettersGrid(letters));
         }
 
         function renderPrefixes(prefixes, letter) {
           els.content.innerHTML = "";
+          const basePrefix = (() => {
+            const state = parseState();
+            if (state.view === "prefix" && state.prefix) return String(state.prefix);
+            return "";
+          })();
+          const targetLength = basePrefix ? basePrefix.length + 1 : 2;
+
           const filtered = prefixes.filter((item) => {
             if (!item) return false;
             if (!(item.count === null || item.count > 0)) return false;
             const deadKey = prefixStateKey(letter, item.prefix);
             if (deadKey && hiddenEmptyPrefixes.has(deadKey)) return false;
+            const token = String(item.prefix || "");
+            if (basePrefix) {
+              if (!token.startsWith(basePrefix)) return false;
+              if (token.length !== targetLength) return false;
+            } else if (token.length !== targetLength) {
+              return false;
+            }
             return true;
           });
-          if (!filtered.length) {
+          const visible = filtered.length
+            ? filtered
+            : prefixes.filter((item) => {
+                if (!item) return false;
+                if (!(item.count === null || item.count > 0)) return false;
+                const deadKey = prefixStateKey(letter, item.prefix);
+                if (deadKey && hiddenEmptyPrefixes.has(deadKey)) return false;
+                return true;
+              });
+          if (!visible.length) {
             const empty = el("div", "loading", "No prefixes found.");
             els.content.appendChild(empty);
             return;
@@ -2110,7 +2415,7 @@
           const table = el("table", "list");
           const tbody = el("tbody");
 
-          filtered.forEach((item) => {
+          visible.forEach((item) => {
             const row = el("tr", "rowLink");
             row.addEventListener("click", () => navigate({ view: "prefix", letter, prefix: item.prefix }));
             row.appendChild(el("td", "prefixLabel", item.prefix));
@@ -2240,6 +2545,75 @@
 
             table.appendChild(tbody);
             els.content.appendChild(table);
+          }
+        }
+
+        function renderCategoryBooks(detail, viewMode, visibleLimit) {
+          const books = Array.isArray(detail && detail.books) ? detail.books : [];
+          els.content.innerHTML = "";
+          if (!books.length) {
+            els.content.appendChild(el("div", "loading", "No books found in this category."));
+            return;
+          }
+
+          const head = el("div", "collectionHead");
+          head.appendChild(el("div", "collectionTitle", detail.title));
+          head.appendChild(el("div", "collectionMeta", `${detail.count} books`));
+          els.content.appendChild(head);
+
+          const pageSize = 60;
+          const visible = Math.min(visibleLimit || pageSize, books.length);
+          const listBooks = books.slice(0, visible);
+          let body;
+          if (viewMode === "grid") {
+            body = el("div", "grid");
+            listBooks.forEach((book) => {
+              const card = el("a", "card");
+              card.href = openBookUrl(book.id);
+              const coverUrl = resolveCoverUrl(book.cover);
+              const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
+              if (coverUrl) {
+                const img = new Image();
+                img.loading = "lazy";
+                img.decoding = "async";
+                img.alt = `${book.title} cover`;
+                img.src = coverUrl;
+                img.onerror = () => {
+                  cover.classList.add("coverEmpty");
+                  cover.textContent = "No cover";
+                };
+                cover.appendChild(img);
+              } else {
+                cover.textContent = "No cover";
+              }
+              card.appendChild(cover);
+              card.appendChild(el("div", "cardTitle", book.title));
+              card.appendChild(el("div", "cardMeta", book.author || ""));
+              body.appendChild(card);
+            });
+          } else {
+            body = el("table", "list");
+            const tbody = el("tbody");
+            listBooks.forEach((book) => {
+              const row = el("tr", null);
+              const titleCell = el("td");
+              const link = el("a", null, book.title);
+              link.href = openBookUrl(book.id);
+              titleCell.appendChild(link);
+              if (book.author) titleCell.appendChild(el("div", "mybooks-meta", book.author));
+              row.appendChild(titleCell);
+              tbody.appendChild(row);
+            });
+            body.appendChild(tbody);
+          }
+
+          els.content.appendChild(body);
+          if (visible < books.length) {
+            const moreBtn = el("button", "toggleBtn sectionMoreBtn", `Show more (${books.length - visible} remaining)`);
+            moreBtn.addEventListener("click", () => {
+              renderCategoryBooks(detail, viewMode, visible + pageSize);
+            });
+            els.content.appendChild(moreBtn);
           }
         }
 
@@ -2548,6 +2922,7 @@
             author: vars.key || vars.author || "",
             id: vars.key || vars.id || "",
             token: vars.token || "",
+            slug: vars.slug || "",
           };
 
           Object.keys(replaceMap).forEach((key) => {
@@ -2571,6 +2946,27 @@
           }
           const res = await fetch(finalUrl, { cache: "no-store" });
           if (nonce !== REQ_NONCE) return null;
+          if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${finalUrl}`);
+          try {
+            return await res.json();
+          } catch (error) {
+            throw new Error(`Invalid JSON from ${finalUrl}: ${error.message}`);
+          }
+        }
+
+        async function fetchJsonMaybe(url, nonce) {
+          let finalUrl = url;
+          try {
+            if (!/\\bv=/.test(String(url))) {
+              const joiner = String(url).includes("?") ? "&" : "?";
+              finalUrl = `${url}${joiner}v=${encodeURIComponent(BUILD_STAMP)}`;
+            }
+          } catch (error) {
+            finalUrl = url;
+          }
+          const res = await fetch(finalUrl, { cache: "no-store" });
+          if (nonce !== REQ_NONCE) return null;
+          if (res.status === 404) return null;
           if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${finalUrl}`);
           try {
             return await res.json();
@@ -2700,6 +3096,9 @@
           cache.prefixNodes.clear();
           cache.authorBooks.clear();
           cache.searchIndex.clear();
+          cache.categories.clear();
+          cache.categoryDetails.clear();
+          cache.popular.clear();
           hiddenEmptyPrefixes.clear();
         }
 
@@ -2727,6 +3126,43 @@
           }
           cache.letters = letters;
           return letters;
+        }
+
+        async function getCategories(nonce) {
+          const cacheKey = "global";
+          if (cache.categories.has(cacheKey)) return cache.categories.get(cacheKey);
+          const pattern = config.discoverCategoriesPath;
+          if (!pattern) return [];
+          const data = await fetchJsonMaybe(buildUrl(pattern, {}, { ignoreLang: true }), nonce);
+          const categories = normalizeCategoryEntries(data);
+          cache.categories.set(cacheKey, categories);
+          return categories;
+        }
+
+        async function getCategoryDetail(slug, nonce) {
+          const cacheKey = `global:${slug}`;
+          if (cache.categoryDetails.has(cacheKey)) return cache.categoryDetails.get(cacheKey);
+          const pattern = config.discoverCategoryPath;
+          if (!pattern) throw new Error("catalog.config.json missing discoverCategoryPath");
+          const data = await fetchJsonMaybe(buildUrl(pattern, { slug }, { ignoreLang: true }), nonce);
+          const detail = normalizeCategoryDetail(data);
+          if (!detail) throw new Error("Category JSON missing expected books list.");
+          cache.categoryDetails.set(cacheKey, detail);
+          return detail;
+        }
+
+        async function getPopular(nonce) {
+          const cacheKey = activeLanguage || "all";
+          if (cache.popular.has(cacheKey)) return cache.popular.get(cacheKey);
+          const pattern = config.discoverPopularPath;
+          if (!pattern) return { defaultList: "last30days", lists: {} };
+          let data = await fetchJsonMaybe(buildUrl(pattern, {}), nonce);
+          if (!data && cacheKey !== "all") {
+            data = await fetchJsonMaybe(buildUrl(pattern, {}, { ignoreLang: true }), nonce);
+          }
+          const payload = normalizePopularPayload(data);
+          cache.popular.set(cacheKey, payload);
+          return payload;
         }
 
         function mergePrefixLists(lists) {
@@ -2960,10 +3396,20 @@
               showLoading("Loading letters...");
               const letters = await getLetters(nonce);
               if (nonce !== REQ_NONCE) return;
+              let popular = { defaultList: "last30days", lists: {} };
+              let categories = [];
+              try {
+                popular = await getPopular(nonce);
+              } catch (error) {}
+              if (nonce !== REQ_NONCE) return;
+              try {
+                categories = await getCategories(nonce);
+              } catch (error) {}
+              if (nonce !== REQ_NONCE) return;
               setBreadcrumbs([{ label: "Letters" }]);
               setToolbar("letters");
-              currentView = { renderer: () => renderLetters(letters), data: letters };
-              renderLetters(letters);
+              currentView = { renderer: () => renderLanding(letters, popular, categories), data: letters };
+              renderLanding(letters, popular, categories);
               renderSearchResults();
               return;
             }
@@ -3121,6 +3567,33 @@
                 data: payload.books,
               };
               renderAuthorBooks(author, payload.books, viewMode);
+              renderSearchResults();
+              return;
+            }
+
+            if (state.view === "category") {
+              if (!state.category) {
+                updateHash({ view: "letters" }, true);
+                return renderState(parseState());
+              }
+              const viewMode = state.bookView || "grid";
+              if (viewMode === "grid") {
+                els.content.classList.add("noPanel");
+              }
+              showLoading("Loading category...");
+              const detail = await getCategoryDetail(state.category, nonce);
+              if (nonce !== REQ_NONCE) return;
+              setBreadcrumbs([
+                { label: "Letters", onClick: () => navigate({ view: "letters", category: "", letter: "", prefix: "", authorKey: "", authorName: "" }) },
+                { label: "Categories", onClick: () => navigate({ view: "letters", category: "", letter: "", prefix: "", authorKey: "", authorName: "" }) },
+                { label: detail.title },
+              ]);
+              setToolbar("category", viewMode);
+              currentView = {
+                renderer: () => renderCategoryBooks(detail, viewMode),
+                data: detail.books,
+              };
+              renderCategoryBooks(detail, viewMode);
               renderSearchResults();
               return;
             }
