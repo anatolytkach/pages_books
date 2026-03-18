@@ -274,34 +274,126 @@ pages_books/
 | 1.6 | Auth client library | Done |
 | 1.7 | Auth UI | Done |
 | 1.8 | Worker auth middleware | Done |
-| 1.9 | Publisher console UI | **Next** |
-| 1.10 | Upload API endpoint | Not started |
-| 1.11 | EPUB validation & processing | Not started |
-| 1.12 | Metadata completion API | Not started |
-| 1.13 | Book offers API | Not started |
+| 1.9 | Publisher console UI | Done |
+| 1.10 | Upload API endpoint | Done |
+| 1.11 | EPUB validation & processing | Done |
+| 1.12 | Metadata completion API | Done (including catalog index integration) |
+| 1.13 | Book offers API | **Next** |
 | 1.14 | Stripe setup | Not started |
 | 1.15 | Checkout flow | Not started |
-| 1.16 | Entitlement check API | Not started |
+| 1.16 | Entitlement check API | Done (basic — in Task 1.8) |
 | 1.17 | WeRead entitlement gate | Not started |
 | 1.18 | Book detail page | Not started |
 | 1.19 | My Account page | Not started |
-| 1.20 | Tenant creation | Not started |
-| 1.21 | Environment config | Partially done (Supabase vars set) |
+| 1.20 | Tenant creation | Done (basic — POST /v1/tenants in Task 1.8) |
+| 1.21 | Environment config | Done (staging + production) |
 | 1.22 | Integration testing | Not started |
-| 1.23 | Deploy to production | Partially done (deploying incrementally) |
+| 1.23 | Deploy to production | Not started (staging validated) |
+
+---
+
+## Session 2 (2026-03-18): Environment Setup, Publisher Console, Catalog Index
+
+### Environment & Version Control Setup
+
+- Created `develop` branch for development, `master` remains production
+- All Phase 1 work committed and pushed to `origin/develop`
+- Staging environment configured:
+  - Pages project: `readerpub-website-staging` (production branch changed to `develop`)
+  - Domain: `staging.reader.pub` (CNAME direct to Pages, no router)
+  - R2 binding `READER_BOOKS` → bucket `reader-books` (shared with production)
+  - Supabase env vars set (shared DB with production)
+  - Cloudflare Access protection on staging domain
+- Deploy scripts created: `scripts/deploy-staging.sh`, `scripts/deploy-production.sh`, `scripts/setup-deploy-symlinks.sh`
+- `catalog/index.html` removed (Anatoly deleted it from master; `books/index.html` is the live catalog)
+- Merged Anatoly's master changes (SEO rendering, PostHog, category routing) into develop
+- Router worker (`reader-books-router`) updated to proxy `/books/auth/` and `/books/api/v1/` paths
+
+### Task 1.9 — Publisher Console UI
+**Status: Complete**
+
+Created `books/publish/index.html`:
+- Auth-gated page (redirects to `/books/auth/` if not signed in)
+- "My Books" list showing all books published by the current user
+- Upload flow with drag-and-drop, file picker (.epub only for Phase 1), progress bar
+- Metadata editor: title, author, genre (dropdown from DB), year, ISBN, language, annotation
+- Status badges (draft, processing, ready, published, failed)
+- Validation error display
+- Save metadata and Publish buttons
+- Polling for processing completion after upload
+
+### Task 1.10 — Upload API Endpoint
+**Status: Complete**
+
+Added `POST /v1/publish/upload` to Worker:
+- Accepts multipart form upload with EPUB file
+- Stores source file in R2 at `uploads/<uuid>/<filename>`
+- Gets next `content_id` from Supabase sequence (starts at 200000)
+- Creates `books` row (status: processing) and `source_assets` row
+- Triggers inline EPUB processing
+
+### Task 1.11 — EPUB Validation & Processing
+**Status: Complete**
+
+Added inline EPUB processor to Worker (`processEpub` function):
+- Custom ZIP parser using Web Crypto `DecompressionStream("deflate-raw")`
+- Validates `META-INF/container.xml` exists
+- Checks for DRM encryption (rejects encrypted EPUBs)
+- Parses OPF to extract title, author, language, cover image path
+- Unpacks all EPUB files to R2 at `content/<contentId>/`
+- Updates book metadata and status in Supabase
+- On failure: marks book as `failed` with validation errors
+
+### Task 1.12 — Metadata Completion API + Catalog Index Integration
+**Status: Complete**
+
+Added Worker API routes:
+- `GET /v1/publish/books` — list user's books
+- `GET /v1/publish/books/:id` — get book draft with source asset info
+- `PATCH /v1/publish/books/:id/metadata` — update metadata fields
+- `POST /v1/publish/books/:id/publish` — transition to published status
+
+**Catalog index integration** — when a book is published, incrementally updates R2 catalog indexes:
+- Author detail file (`a/<authorKey>.json`)
+- Prefix browse tree (`p/<prefix>.json`) — walks existing tree depth dynamically
+- Search tokens (`search/<token>.json`) — 2 and 3 char prefixes from title and author words
+- Letters index (`letters.json`)
+- **Critical finding:** The catalog UI reads from language-specific indexes (`api/lang/en/`), not the root `api/` path. The index updater now writes to BOTH the root and the language-specific path based on the book's language.
+
+### Key Technical Findings
+
+1. **JWT algorithm**: Supabase now signs JWTs with ES256 (ECDSA), not HS256. Changed `verifySupabaseJwt` to validate tokens by calling Supabase's `/auth/v1/user` endpoint instead of local HMAC verification.
+
+2. **Catalog index naming**: Author keys use first+last format (`rexhurst` for "Hurst, Rex"), but the prefix browse tree uses last+first index key (`hurstrex`). This matches the Python indexer's `parse_author_name` which builds `index_name = "{last} {rest}"`.
+
+3. **Prefix tree depth varies**: The tree is not fixed at 3 levels. Common prefixes go deeper (e.g., `s` → `sc` → `sco` → `scot` → `scott`). The index updater walks the existing tree dynamically to find the correct leaf node.
+
+4. **Language-specific indexes**: The catalog defaults to English view which reads from `api/lang/en/`. The root `api/` index is used for "All languages" view. Both must be updated when publishing.
+
+5. **Staging has no router**: Unlike production (`reader.pub`) which uses `reader-books-router` to serve R2 content, staging (`staging.reader.pub`) is a direct CNAME to the Pages project. The Pages worker needed a `/books/content/` R2 handler added to serve book content on staging.
+
+6. **catalog.config.json uses relative URLs**: Changed `baseUrl` from `https://reader.pub/books/api` to `/books/api` so the catalog works on both staging and production without CORS issues.
+
+7. **Cloudflare Access blocks API calls**: On staging, Cloudflare Access intercepts fetch() requests to `/books/api/v1/` paths. Testing should use the `.pages.dev` URL directly, or the Access policy should bypass API paths.
 
 ---
 
 ## Known Issues & Notes
 
-1. **Two catalog files**: `books/index.html` is the live catalog, `catalog/index.html` is an older copy. Both were updated with user-menu but only `books/index.html` is served in production.
+1. **Router updates required for new pages**: Any new page directory (e.g., `/books/account/`) must be added to the `reader-books-router` worker's proxy allowlist via the Cloudflare dashboard. Currently proxied: `/books/`, `/books/assets/`, `/books/shared/`, `/books/auth/`, `/books/api/v1/`.
 
-2. **Router updates required for new pages**: Any new page directory (e.g., `/books/publish/`, `/books/account/`) must be added to the `reader-books-router` worker's proxy allowlist via the Cloudflare dashboard.
+2. **Google OAuth not configured**: Auth UI has the button commented out. Requires Google Workspace or Cloud Console project with OAuth credentials.
 
-3. **Google OAuth not configured**: Requires either a Google Workspace account or Google Cloud Console project with OAuth credentials. The auth UI has the Google button ready — it just needs the provider configured in Supabase.
+3. **Supabase URL Configuration**: Site URL and redirect URLs should be verified in Supabase dashboard → Authentication → URL Configuration.
 
-4. **Supabase URL Configuration**: Site URL and redirect URLs should be verified in Supabase dashboard → Authentication → URL Configuration.
+4. **R2 binding names differ**: Pages worker uses `READER_BOOKS`, router worker uses `BOOKS`. Same bucket `reader-books`.
 
-5. **R2 binding name mismatch**: The Pages worker uses `READER_BOOKS` for the R2 binding, while the router worker uses `BOOKS`. Both point to the same R2 bucket but through different bindings.
+5. **Deploy symlinks**: `deploy/` directory uses Windows symlinks. Recreate with `scripts/setup-deploy-symlinks.sh` on new machines. `deploy/catalog` symlink removed (catalog/index.html deleted).
 
-6. **Deploy symlinks**: The `deploy/` directory uses Windows symlinks (not Git symlinks). If cloning on a new machine, these must be recreated with `cmd /c "mklink /D ..."`. Git config has `core.symlinks=false`.
+6. **Content ID sequence gaps**: Failed upload attempts consume sequence numbers. Current sequence may have gaps (e.g., 200000 and 200001 were failed attempts, 200002 was first successful book).
+
+7. **Reader shows EPUB metadata, not Supabase metadata**: The reader loads title/author from the EPUB's OPF file, not from the Supabase `books` table. Metadata edits in the publish console don't affect what the reader displays. Will be addressed in Task 1.17.
+
+8. **RLS infinite recursion**: The `tenant_memberships` table has overlapping SELECT policies that cause infinite recursion when querying with the anon key. Service role key works fine. Need to fix the RLS policies.
+
+9. **Anatoly deploys independently**: Anatoly deploys to production from his own machine. Coordinate via git — always pull latest master before deploying to production. His deploy script is `commit_logic.sh` which only stages specific files (doesn't include `books/shared/`, `books/auth/`, `supabase/`, `scripts/`).
