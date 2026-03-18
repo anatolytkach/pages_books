@@ -233,11 +233,12 @@ async function updateCatalogIndexes(env, book) {
     httpMetadata: { contentType: "application/json; charset=utf-8" },
   });
 
-  // 2. Update prefix tree: api/p/<prefix>.json at each level
-  // Prefix tree is organized by index key (last name first), e.g., "hurstrex"
-  const prefixLevels = buildPrefixLevels(indexKey);
-  for (let i = 0; i < prefixLevels.length; i++) {
-    const prefix = prefixLevels[i];
+  // 2. Update prefix tree: walk the existing tree from 1-char prefix down
+  // until we find a leaf node (has "authors" array), then insert there.
+  // If no existing node, create a leaf at the deepest level we walk to.
+  let inserted = false;
+  for (let depth = 1; depth <= indexKey.length && !inserted; depth++) {
+    const prefix = indexKey.slice(0, depth);
     const r2Key = `api/p/${prefix}.json`;
     let prefixData;
     try {
@@ -245,42 +246,56 @@ async function updateCatalogIndexes(env, book) {
       prefixData = obj ? await obj.json() : null;
     } catch { prefixData = null; }
 
-    const isLeaf = i === prefixLevels.length - 1;
-
     if (!prefixData) {
-      prefixData = { authorCount: 0 };
-      if (isLeaf) {
-        prefixData.authors = [];
-      } else {
-        prefixData.prefixes = [];
+      // No node at this level — we need to walk parent chain to add child pointer
+      // But first check if parent exists and is a branch
+      if (depth === 1) {
+        // Create new leaf at single letter
+        prefixData = { authorCount: 1, authors: [{ key: authorKey, name: authorDisplay, count: authorData.books.length }] };
+        await env.READER_BOOKS.put(r2Key, JSON.stringify(prefixData), {
+          httpMetadata: { contentType: "application/json; charset=utf-8" },
+        });
+        inserted = true;
       }
+      // For deeper levels, the parent should create a child pointer — skip
+      continue;
     }
 
-    if (isLeaf && prefixData.authors) {
-      // Leaf node: add author if not present
+    if (prefixData.authors) {
+      // Leaf node: add author here
       if (!prefixData.authors.some(a => a.key === authorKey)) {
         prefixData.authors.push({ key: authorKey, name: authorDisplay, count: authorData.books.length });
         prefixData.authors.sort((a, b) => a.name.localeCompare(b.name));
         prefixData.authorCount = prefixData.authors.length;
       } else {
-        // Update count
         const existing = prefixData.authors.find(a => a.key === authorKey);
         if (existing) existing.count = authorData.books.length;
       }
-    } else if (!isLeaf && prefixData.prefixes) {
-      // Branch node: ensure child prefix exists
-      const childPrefix = prefixLevels[i + 1];
-      if (!prefixData.prefixes.some(p => p.prefix === childPrefix)) {
+      await env.READER_BOOKS.put(r2Key, JSON.stringify(prefixData), {
+        httpMetadata: { contentType: "application/json; charset=utf-8" },
+      });
+      inserted = true;
+    } else if (prefixData.prefixes) {
+      // Branch node: ensure child prefix exists, then continue walking down
+      const childPrefix = indexKey.slice(0, depth + 1);
+      const existing = prefixData.prefixes.find(p => p.prefix === childPrefix);
+      if (!existing) {
         prefixData.prefixes.push({ prefix: childPrefix, count: 1 });
         prefixData.prefixes.sort((a, b) => a.prefix.localeCompare(b.prefix));
+        prefixData.authorCount = prefixData.prefixes.reduce((sum, p) => sum + p.count, 0);
+        await env.READER_BOOKS.put(r2Key, JSON.stringify(prefixData), {
+          httpMetadata: { contentType: "application/json; charset=utf-8" },
+        });
+        // Create leaf at child level
+        const childR2Key = `api/p/${childPrefix}.json`;
+        const childData = { authorCount: 1, authors: [{ key: authorKey, name: authorDisplay, count: authorData.books.length }] };
+        await env.READER_BOOKS.put(childR2Key, JSON.stringify(childData), {
+          httpMetadata: { contentType: "application/json; charset=utf-8" },
+        });
+        inserted = true;
       }
-      // Recount
-      prefixData.authorCount = prefixData.prefixes.reduce((sum, p) => sum + p.count, 0);
+      // If child exists, continue walking deeper
     }
-
-    await env.READER_BOOKS.put(r2Key, JSON.stringify(prefixData), {
-      httpMetadata: { contentType: "application/json; charset=utf-8" },
-    });
   }
 
   // 3. Update search tokens
