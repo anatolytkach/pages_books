@@ -2257,6 +2257,85 @@ export default {
         return jsonResponse(tenant, 201, apiCorsHeaders);
       }
 
+      // ── GET /v1/tenants/:slug — tenant info ──
+      const tenantSlugMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])$/);
+      if (tenantSlugMatch && request.method === "GET") {
+        const slug = tenantSlugMatch[1];
+        const { data: tenant } = await sbFetch("tenants", {
+          params: `slug=eq.${slug}&is_active=eq.true&select=*`,
+          single: true,
+        });
+        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
+        return jsonResponse(tenant, 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/tenants/:slug/members — list members (admin only) ──
+      const tenantMembersMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/members$/);
+      if (tenantMembersMatch && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const slug = tenantMembersMatch[1];
+        const { data: tenant } = await sbFetch("tenants", {
+          params: `slug=eq.${slug}&select=id`,
+          single: true,
+        });
+        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
+
+        // Check user is admin/owner
+        const { data: membership } = await sbFetch("tenant_memberships", {
+          params: `tenant_id=eq.${tenant.id}&user_id=eq.${user.sub}&is_active=eq.true&select=role`,
+          single: true,
+        });
+        if (!membership || !["owner", "admin"].includes(membership.role)) {
+          return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
+        }
+
+        const { data: members } = await sbFetch("tenant_memberships", {
+          params: `tenant_id=eq.${tenant.id}&is_active=eq.true&select=id,role,department,user_id,user_profiles:user_id(display_name,avatar_url)`,
+        });
+        return jsonResponse(members || [], 200, apiCorsHeaders);
+      }
+
+      // ── POST /v1/tenants/:slug/invite — invite by email ──
+      const tenantInviteMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/invite$/);
+      if (tenantInviteMatch && request.method === "POST") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const slug = tenantInviteMatch[1];
+        const body = await request.json().catch(() => null);
+        if (!body || !body.email || !body.role) {
+          return jsonResponse({ error: "email and role are required" }, 400, apiCorsHeaders);
+        }
+
+        const { data: tenant } = await sbFetch("tenants", {
+          params: `slug=eq.${slug}&select=id`,
+          single: true,
+        });
+        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
+
+        // Check user is admin/owner
+        const { data: membership } = await sbFetch("tenant_memberships", {
+          params: `tenant_id=eq.${tenant.id}&user_id=eq.${user.sub}&is_active=eq.true&select=role`,
+          single: true,
+        });
+        if (!membership || !["owner", "admin"].includes(membership.role)) {
+          return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
+        }
+
+        const { data: invite, error: invErr } = await sbFetch("tenant_invitations", {
+          method: "POST",
+          body: {
+            tenant_id: tenant.id,
+            email: body.email,
+            role: body.role,
+            invited_by: user.sub,
+          },
+          single: true,
+        });
+        if (invErr) return jsonResponse({ error: invErr }, 400, apiCorsHeaders);
+        return jsonResponse(invite, 201, apiCorsHeaders);
+      }
+
       // ── GET /v1/publish/books — list user's books ──
       if (apiPath === "/publish/books" && request.method === "GET") {
         const authErr = requireAuth();

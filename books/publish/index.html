@@ -388,9 +388,12 @@
 
       <!-- ── My Books view ──────────────── -->
       <div id="view-list" class="view active">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:8px;">
           <h2 style="margin:0;">My Books</h2>
-          <button class="btn" id="uploadBtn">+ Upload Book</button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary" id="showTenantBtn">Organization</button>
+            <button class="btn" id="uploadBtn">+ Upload Book</button>
+          </div>
         </div>
         <div id="bookList" class="book-list">
           <div class="empty-state">
@@ -418,6 +421,15 @@
           </div>
         </div>
         <button class="btn btn-secondary" id="backToList">&larr; Back to My Books</button>
+      </div>
+
+      <!-- ── Tenant view ───────────────── -->
+      <div id="view-tenant" class="view">
+        <h2>Organization</h2>
+        <div id="tenantContent">
+          <!-- Loaded dynamically -->
+        </div>
+        <button class="btn btn-secondary" id="backFromTenant" style="margin-top:16px;">&larr; Back to My Books</button>
       </div>
 
       <!-- ── Edit metadata view ─────────── -->
@@ -858,6 +870,145 @@
           btn.textContent = 'Publish';
         }
       });
+
+      // ── Tenant management ─────────────────
+      document.getElementById('showTenantBtn').addEventListener('click', () => {
+        showView('tenant');
+        loadTenantView();
+      });
+
+      document.getElementById('backFromTenant').addEventListener('click', () => {
+        showView('list');
+      });
+
+      async function loadTenantView() {
+        const $content = document.getElementById('tenantContent');
+        $content.innerHTML = '<div class="empty-state"><span class="spinner dark"></span> Loading...</div>';
+
+        try {
+          const memberships = await apiFetch('GET', '/me/tenants');
+          if (!memberships.length) {
+            // No tenant — show create form
+            $content.innerHTML = `
+              <div class="panel">
+                <p style="color:var(--muted); margin:0 0 16px;">You don't have an organization yet. Create one to manage your publishing team.</p>
+                <div class="form-group">
+                  <label for="tenant-name">Organization Name</label>
+                  <input type="text" id="tenant-name" placeholder="My Publishing House" />
+                </div>
+                <div class="form-group">
+                  <label for="tenant-slug">URL Slug (lowercase, letters and hyphens)</label>
+                  <input type="text" id="tenant-slug" placeholder="my-publishing-house" pattern="[a-z0-9][a-z0-9-]{1,48}[a-z0-9]" />
+                </div>
+                <div class="form-group">
+                  <label for="tenant-type">Type</label>
+                  <select id="tenant-type">
+                    <option value="individual_author">Individual Author</option>
+                    <option value="publisher">Publisher</option>
+                    <option value="library">Library</option>
+                    <option value="university">University</option>
+                    <option value="distributor">Distributor</option>
+                  </select>
+                </div>
+                <button class="btn" id="createTenantBtn">Create Organization</button>
+              </div>`;
+
+            // Auto-generate slug from name
+            document.getElementById('tenant-name').addEventListener('input', (e) => {
+              const slug = e.target.value.trim().toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+              document.getElementById('tenant-slug').value = slug;
+            });
+
+            document.getElementById('createTenantBtn').addEventListener('click', async () => {
+              const name = document.getElementById('tenant-name').value.trim();
+              const slug = document.getElementById('tenant-slug').value.trim();
+              const type = document.getElementById('tenant-type').value;
+              if (!name || !slug) { showAlert($alert, 'Name and slug are required.'); return; }
+              const btn = document.getElementById('createTenantBtn');
+              btn.disabled = true;
+              btn.innerHTML = '<span class="spinner"></span>';
+              try {
+                await apiFetch('POST', '/tenants', { body: { name, slug, tenant_type: type } });
+                await loadTenantView();
+              } catch (err) {
+                showAlert($alert, err.message);
+                btn.disabled = false;
+                btn.textContent = 'Create Organization';
+              }
+            });
+          } else {
+            // Show tenant info + members + invite form
+            const m = memberships[0];
+            const tenant = m.tenants || m.tenant || m;
+            const slug = tenant.slug;
+
+            let membersHtml = '';
+            let members = [];
+            try {
+              members = await apiFetch('GET', `/tenants/${slug}/members`);
+              membersHtml = members.map(mem => {
+                const profile = mem.user_profiles || {};
+                return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);">
+                  <div>
+                    <strong>${esc(profile.display_name || 'User')}</strong>
+                    <span style="color:var(--muted); font-size:13px; margin-left:8px;">${esc(mem.role)}</span>
+                  </div>
+                </div>`;
+              }).join('');
+            } catch { membersHtml = '<div style="color:var(--muted); font-size:14px;">Could not load members.</div>'; }
+
+            $content.innerHTML = `
+              <div class="panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                  <div>
+                    <h3 style="font-family:'Playfair Display',serif; margin:0;">${esc(tenant.name)}</h3>
+                    <div style="color:var(--muted); font-size:13px;">${esc(tenant.tenant_type)} &middot; ${esc(slug)}</div>
+                  </div>
+                  <span class="status-badge ready">${esc(m.role)}</span>
+                </div>
+
+                <h4 style="margin:20px 0 12px; font-size:15px; color:var(--muted);">Members (${members.length})</h4>
+                ${membersHtml}
+
+                <h4 style="margin:20px 0 12px; font-size:15px; color:var(--muted);">Invite Collaborator</h4>
+                <div class="form-row">
+                  <div class="form-group">
+                    <input type="email" id="invite-email" placeholder="colleague@email.com" />
+                  </div>
+                  <div class="form-group">
+                    <select id="invite-role">
+                      <option value="publisher">Publisher</option>
+                      <option value="editor">Editor</option>
+                      <option value="admin">Admin</option>
+                      <option value="member">Member</option>
+                    </select>
+                  </div>
+                </div>
+                <button class="btn" id="inviteBtn">Send Invite</button>
+              </div>`;
+
+            document.getElementById('inviteBtn').addEventListener('click', async () => {
+              const email = document.getElementById('invite-email').value.trim();
+              const role = document.getElementById('invite-role').value;
+              if (!email) { showAlert($alert, 'Enter an email address.'); return; }
+              const btn = document.getElementById('inviteBtn');
+              btn.disabled = true;
+              try {
+                await apiFetch('POST', `/tenants/${slug}/invite`, { body: { email, role } });
+                document.getElementById('invite-email').value = '';
+                showAlert($alert, 'Invitation sent!', 'success');
+              } catch (err) {
+                showAlert($alert, err.message);
+              } finally {
+                btn.disabled = false;
+              }
+            });
+          }
+        } catch (err) {
+          $content.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
+        }
+      }
 
       // ── Delete ────────────────────────────
       document.getElementById('deleteBtn').addEventListener('click', async () => {
