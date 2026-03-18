@@ -21,11 +21,16 @@ if [[ "$BRANCH" == "HEAD" ]]; then
   exit 1
 fi
 
-echo "[commit-logic] Staging only project logic files"
+echo "[commit-logic] Staging code, indexes, and render/runtime files"
 
 # Core logic and app sources
 git add -A -- reader tests docs _worker.js .gitignore .wranglerignore
 git add -A -- commit_logic.sh
+
+# Catalog/search/discovery indexes that drive Pages and R2 behavior
+if [[ -d reader_lang_indexes ]]; then
+  git add -A -- reader_lang_indexes
+fi
 
 # Config/entry points for catalog/books shells
 git add -A -- catalog/index.html catalog/catalog.config.json
@@ -46,7 +51,6 @@ fi
 git reset -q -- \
   books/content \
   content \
-  reader_lang_indexes \
   tools/__pycache__ \
   .wrangler \
   deploy
