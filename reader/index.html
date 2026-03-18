@@ -54,6 +54,8 @@
               if (document.readyState == "complete") {
 
 // ── Entitlement gate for platform books ──
+// Sets window.__entitlementPending = Promise that resolves when check is done.
+// The reader init waits for this before loading the book.
 (function(){
   const PLATFORM_ID_START = 200000;
   const params = new URLSearchParams(location.search);
@@ -64,14 +66,11 @@
   const viewer = document.getElementById("viewer");
   if (!viewer) return;
 
-  // Show loading state
-  viewer.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:60vh;color:#6c645a;font-family:Source Sans 3,system-ui,sans-serif">Checking access...</div>';
-
   // Check entitlement via Worker API (avoids Supabase RLS issues)
   const apiBase = '/books/api/v1';
 
-  // Look up book by content_id via Worker API
-  fetch(`${apiBase}/books/by-content/${id}`)
+  // Block reader init until entitlement check completes
+  window.__entitlementPending = fetch(`${apiBase}/books/by-content/${id}`)
   .then(r => r.ok ? r.json() : null)
   .then(book => {
     if (!book) { viewer.innerHTML = ''; return; } // Not in DB — let reader handle it
@@ -183,9 +182,19 @@
 
   try { localStorage && localStorage.setItem("readerpub:lastid", id); } catch (e2) {}
 
-  // Check if entitlement gate blocked this book
+  // Wait for entitlement gate if it's running
+  if (window.__entitlementPending) {
+    window.__entitlementPending.then(function() {
+      if (window.__entitlementBlocked) return;
+      initReader(id);
+    });
+    return;
+  }
   if (window.__entitlementBlocked) return;
+  initReader(id);
+})();
 
+function initReader(id) {
   // Our catalog stores each book as an unpacked EPUB directory:
   // /books/content/<id>/META-INF/container.xml, /OEBPS/content.opf, ...
   const bookPath = `/books/content/${id}/`;
@@ -320,7 +329,7 @@
       }
     } catch (e) {}
   });
-})();
+}
               }
             };
 
