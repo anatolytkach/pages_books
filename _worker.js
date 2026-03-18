@@ -124,6 +124,914 @@ function docsAuthUnauthorizedResponse(route) {
   return new Response("Authentication required", { status: 401, headers });
 }
 
+function textResponse(body, status = 200, extraHeaders = {}) {
+  const headers = new Headers({
+    "content-type": "text/plain; charset=utf-8",
+    ...extraHeaders,
+  });
+  headers.set("x-reader-worker", "1");
+  return new Response(body, { status, headers });
+}
+
+function xmlResponse(body, status = 200, extraHeaders = {}) {
+  const headers = new Headers({
+    "content-type": "application/xml; charset=utf-8",
+    ...extraHeaders,
+  });
+  headers.set("x-reader-worker", "1");
+  return new Response(body, { status, headers });
+}
+
+function htmlResponse(body, status = 200, extraHeaders = {}) {
+  const headers = new Headers({
+    "content-type": "text/html; charset=utf-8",
+    ...extraHeaders,
+  });
+  headers.set("x-reader-worker", "1");
+  return new Response(body, { status, headers });
+}
+
+function stripTrailingSlash(path) {
+  if (!path || path === "/") return "/";
+  return path.replace(/\/+$/, "") || "/";
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeXml(value) {
+  return escapeHtml(value);
+}
+
+function sanitizeMetaDescription(value) {
+  const source = String(value || "").replace(/\s+/g, " ").trim();
+  if (source.length <= 160) return source;
+  const cut = source.slice(0, 157).replace(/\s+\S*$/, "");
+  return `${cut || source.slice(0, 157)}...`;
+}
+
+async function readBucketObject(env, key) {
+  if (!env.READER_BOOKS) return null;
+  return await env.READER_BOOKS.get(key);
+}
+
+async function readBucketText(env, key) {
+  const object = await readBucketObject(env, key);
+  if (!object) return null;
+  if (typeof object.text === "function") return await object.text();
+  if (typeof object.body === "string") return object.body;
+  if (object.body instanceof Uint8Array) return new TextDecoder().decode(object.body);
+  if (object.body) return await new Response(object.body).text();
+  return "";
+}
+
+async function readBucketJson(env, key) {
+  const text = await readBucketText(env, key);
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function readSeoText(env, key) {
+  return await readBucketText(env, `seo/${key}`);
+}
+
+async function readSeoJson(env, key) {
+  const text = await readBucketText(env, `seo/${key}`);
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
+}
+
+const SEO_SHARD_PREFIX_LENGTH = 2;
+const SEO_SHARD_MAX_PREFIX_LENGTH = 8;
+
+function seoShardPrefix(slug, prefixLength = SEO_SHARD_PREFIX_LENGTH) {
+  const normalized = String(slug || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+  if (!normalized) return "_".repeat(prefixLength);
+  if (normalized.length >= prefixLength) {
+    return normalized.slice(0, prefixLength);
+  }
+  return normalized + "_".repeat(prefixLength - normalized.length);
+}
+
+async function readSeoShardedJson(env, folder, slug) {
+  for (let prefixLength = SEO_SHARD_PREFIX_LENGTH; prefixLength <= SEO_SHARD_MAX_PREFIX_LENGTH; prefixLength += 1) {
+    const prefix = seoShardPrefix(String(slug || "").slice(0), prefixLength);
+    const payload = await readSeoJson(env, `${folder}/${prefix}.json`);
+    if (!payload || !payload.items || typeof payload.items !== "object") continue;
+    if (payload.items[slug]) return payload.items[slug];
+  }
+  return null;
+}
+
+async function fetchTextAbsolute(url) {
+  try {
+    const response = await fetch(url, { method: "GET" });
+    if (!response || !response.ok) return null;
+    return await response.text();
+  } catch (e) {
+    return null;
+  }
+}
+
+function buildSeoCacheHeaders(version) {
+  return {
+    "cache-control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+    "x-reader-seo-version": String(version || ""),
+    "x-reader-seo-render": "5",
+  };
+}
+
+function buildSitemapCacheHeaders(version) {
+  return {
+    "cache-control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400",
+    "x-reader-seo-version": String(version || ""),
+    "x-reader-seo-render": "5",
+  };
+}
+
+function buildSeoCacheKey(url, version, variant = "") {
+  const cacheUrl = new URL(url.toString());
+  cacheUrl.hash = "";
+  cacheUrl.search = "";
+  cacheUrl.searchParams.set("__seo_v", String(version || "0"));
+  cacheUrl.searchParams.set("__seo_render", "5");
+  if (variant) cacheUrl.searchParams.set("__seo_variant", String(variant));
+  return new Request(cacheUrl.toString(), { method: "GET" });
+}
+
+async function withSeoCache(request, version, variant, buildResponse) {
+  const cache = typeof caches !== "undefined" && caches.default ? caches.default : null;
+  const cacheKey = buildSeoCacheKey(request.url, version, variant);
+  if (cache) {
+    try {
+      const hit = await cache.match(cacheKey);
+      if (hit) return hit;
+    } catch (e) {}
+  }
+  const response = await buildResponse();
+  if (cache && response && response.ok && request.method === "GET") {
+    try {
+      await cache.put(cacheKey, response.clone());
+    } catch (e) {}
+  }
+  return response;
+}
+
+function seoCanonical(origin, path) {
+  return `${origin}${stripTrailingSlash(path)}`;
+}
+
+function renderSeoLayout({
+  title,
+  description,
+  canonical,
+  bodyHtml,
+  structuredData,
+}) {
+  const metaDescription = sanitizeMetaDescription(description || "");
+  const structuredDataHtml = structuredData
+    ? `<script type="application/ld+json">${JSON.stringify(structuredData)}</script>`
+    : "";
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(title)}</title>
+    <meta name="description" content="${escapeHtml(metaDescription)}" />
+    <link rel="canonical" href="${escapeHtml(canonical)}" />
+    ${structuredDataHtml}
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap");
+
+      :root {
+        color-scheme: light;
+        --bg: #ffffff;
+        --ink: #1f1b16;
+        --muted: #6c645a;
+        --accent: #028f80;
+        --accent-2: #016b61;
+        --border: #d8dee8;
+        --panel: #ffffff;
+        --rect-bg: linear-gradient(90deg, #fcfaf8 0%, #ffffff 100%);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Source Sans 3", "Helvetica Neue", sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        color: var(--ink);
+        background: var(--bg);
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: none; }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 28px 24px 24px;
+      }
+      .crumbs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0 0 22px;
+        align-items: center;
+      }
+      .crumbs a {
+        color: var(--accent);
+      }
+      .crumbs a:hover {
+        color: var(--accent-2);
+      }
+      .crumbs .sep {
+        color: var(--muted);
+        opacity: 0.7;
+      }
+      .panel {
+        background: var(--rect-bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px;
+      }
+      .hero {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 6px;
+      }
+      .hero.withCover {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .heroText {
+        min-width: 0;
+      }
+      h1,h2,h3 { line-height: 1.15; margin: 0 0 12px; }
+      h1,h2,h3 {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-weight: 700;
+      }
+      h1 { font-size: 32px; letter-spacing: 0.2px; }
+      h2 { font-size: 26px; margin-top: 28px; }
+      h3 { font-size: 22px; }
+      .meta {
+        color: var(--muted);
+        margin-bottom: 16px;
+        font-size: 14px;
+      }
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0 24px; }
+      .section {
+        margin-top: 26px;
+      }
+      .sectionHead {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+      .sectionTitle {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 26px;
+        line-height: 1.1;
+        color: var(--ink);
+        margin: 0;
+      }
+      .sectionMeta {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff;
+        border-radius: 999px;
+        padding: 10px 16px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: background-color 0.08s ease, border-color 0.08s ease, color 0.08s ease;
+      }
+      .btn:hover {
+        background: var(--accent-2);
+        border-color: var(--accent-2);
+        color: #fff;
+      }
+      .btn.secondary {
+        background: transparent;
+        color: var(--accent);
+      }
+      .btn.secondary:hover {
+        background: rgba(2, 143, 128, 0.08);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .list {
+        display: grid;
+        gap: 12px;
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .list li {
+        border-top: 1px solid var(--border);
+        padding: 12px 0 0;
+        line-height: 1.45;
+      }
+      .list:first-child,
+      .section > .list {
+        margin-top: 0;
+      }
+      .list .submeta,
+      .submeta {
+        display: inline;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 400;
+      }
+      .excerpt, .chapterHtml {
+        line-height: 1.62;
+        font-size: 16px;
+      }
+      .excerpt p, .chapterHtml p { margin: 0 0 16px; }
+      .cover {
+        display: block;
+        max-width: 200px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        margin: 0 0 20px;
+      }
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 16px 0 0;
+      }
+      .tag {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 8px 12px;
+        color: var(--muted);
+        font-size: 14px;
+        background: #fffdfa;
+      }
+      .tag:hover {
+        background: rgba(2, 143, 128, 0.08);
+        color: var(--ink);
+      }
+      .chapterNav {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        margin: 24px 0;
+        padding: 12px 0;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      }
+      .chapterNav a {
+        color: var(--accent-2);
+        font-weight: 600;
+      }
+      .chapterHtml img { max-width: 100%; height: auto; }
+      .chapterHtml h1,
+      .chapterHtml h2,
+      .chapterHtml h3,
+      .chapterHtml h4,
+      .chapterHtml h5,
+      .chapterHtml h6 {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        line-height: 1.2;
+        margin: 24px 0 12px;
+      }
+      .list a {
+        color: var(--accent-2);
+        font-weight: 600;
+      }
+      @media (max-width: 720px) {
+        .wrap {
+          padding: 20px 16px 20px;
+        }
+        .panel {
+          padding: 16px;
+        }
+        .hero {
+          gap: 14px;
+        }
+        h1 {
+          font-size: 28px;
+        }
+        h2 {
+          font-size: 24px;
+        }
+        h3 {
+          font-size: 20px;
+        }
+        .actions {
+          gap: 10px;
+          margin: 16px 0 20px;
+        }
+        .btn {
+          width: 100%;
+        }
+        .chapterNav {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .sectionTitle {
+          font-size: 24px;
+        }
+        .excerpt,
+        .chapterHtml {
+          font-size: 15px;
+          line-height: 1.58;
+        }
+        .chapterHtml p {
+          margin: 0 0 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      ${bodyHtml}
+    </div>
+  </body>
+</html>`;
+}
+
+function buildBreadcrumbs(items) {
+  return `<nav class="crumbs" aria-label="Breadcrumbs">${items
+    .map((item) =>
+      item.href
+        ? `<a href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a>`
+        : `<span>${escapeHtml(item.label)}</span>`
+    )
+    .join('<span class="sep">›</span>')}</nav>`;
+}
+
+function buildBookJsonLd(origin, book) {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    name: book.title,
+    url: `${origin}/book/${book.slug}`,
+    author: {
+      "@type": "Person",
+      name: book.authorName,
+      url: `${origin}/author/${book.authorSlug}`,
+    },
+    inLanguage: book.language || "und",
+  };
+  if (book.cover) data.image = `${origin}${book.cover}`;
+  if (book.description) data.description = book.description;
+  return data;
+}
+
+function contentDirForChapter(bookId, chapter) {
+  const raw = String((chapter && chapter.sourcePath) || "").trim();
+  const dir = raw.includes("/") ? raw.slice(0, raw.lastIndexOf("/") + 1) : "";
+  return `/books/content/${bookId}/${dir}`;
+}
+
+function rewriteRelativeChapterHtml(html, assetBase) {
+  return String(html || "").replace(
+    /(src|href)=("|\')([^"\']+)("|\')/g,
+    (match, attr, quote, value) => {
+      if (!value || value.startsWith("http://") || value.startsWith("https://") || value.startsWith("#") || value.startsWith("mailto:") || value.startsWith("data:")) {
+        return match;
+      }
+      const absolute = new URL(value, `https://reader.pub${assetBase}`).pathname;
+      return `${attr}=${quote}${absolute}${quote}`;
+    }
+  );
+}
+
+function extractBodyInnerHtml(xhtmlText) {
+  const match = String(xhtmlText || "").match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
+  return match ? match[1].trim() : "";
+}
+
+function renderBookPage(origin, book) {
+  const coverHtml = book.cover
+    ? `<img class="cover" src="${escapeHtml(book.cover)}" alt="${escapeHtml(book.title)} cover" />`
+    : "";
+  const categoryHtml = Array.isArray(book.categories) && book.categories.length
+    ? `<div class="tags">${book.categories
+        .map(
+          (item) =>
+            `<a class="tag" href="/category/${encodeURIComponent(item.slug)}">${escapeHtml(item.title)}</a>`
+        )
+        .join("")}</div>`
+    : "";
+  const chaptersHtml = Array.isArray(book.chapters) && book.chapters.length
+    ? `<ol class="list">${book.chapters
+        .map(
+          (chapter) =>
+            `<li><a href="${escapeHtml(chapter.href)}">Chapter ${chapter.n}: ${escapeHtml(chapter.title)}</a></li>`
+        )
+        .join("")}</ol>`
+    : `<div class="meta">No chapter map available.</div>`;
+  const excerptHtml = book.excerpt
+    ? `<div class="excerpt"><p>${escapeHtml(book.excerpt)}</p></div>`
+    : `<div class="meta">Excerpt is not available.</div>`;
+  const heroClass = coverHtml ? "hero withCover" : "hero";
+  const bodyHtml = `
+    ${buildBreadcrumbs([
+      { label: "Books", href: "/books/" },
+      { label: book.authorName, href: `/author/${book.authorSlug}` },
+      { label: book.title },
+    ])}
+    <main class="panel">
+      <div class="${heroClass}">
+        ${coverHtml}
+        <div class="heroText">
+          <h1>${escapeHtml(book.title)}</h1>
+          <div class="meta">By <a href="/author/${encodeURIComponent(book.authorSlug)}">${escapeHtml(book.authorName)}</a></div>
+          <div class="actions">
+            <a class="btn" href="${escapeHtml(book.readerUrl)}">Open in WeRead</a>
+            <a class="btn secondary" href="/books/">All Books</a>
+          </div>
+          ${categoryHtml}
+        </div>
+      </div>
+      <section class="section">
+        <div class="sectionHead">
+          <h2 class="sectionTitle">About This Book</h2>
+        </div>
+        ${excerptHtml}
+      </section>
+      <section class="section">
+        <div class="sectionHead">
+          <h2 class="sectionTitle">Chapters</h2>
+          <div class="sectionMeta">${Array.isArray(book.chapters) ? book.chapters.length : 0} chapters</div>
+        </div>
+        ${chaptersHtml}
+      </section>
+    </main>`;
+  return renderSeoLayout({
+    title: `${book.title} — ${book.authorName}`,
+    description: book.description || book.excerpt || `${book.title} by ${book.authorName}`,
+    canonical: seoCanonical(origin, `/book/${book.slug}`),
+    structuredData: buildBookJsonLd(origin, book),
+    bodyHtml,
+  });
+}
+
+function renderChapterPage(origin, book, chapter, chapterHtml) {
+  const idx = (book.chapters || []).findIndex((item) => item.n === chapter.n);
+  const prev = idx > 0 ? book.chapters[idx - 1] : null;
+  const next = idx >= 0 && idx < book.chapters.length - 1 ? book.chapters[idx + 1] : null;
+  const navHtml = `<div class="chapterNav">
+      <div>${prev ? `<a href="${escapeHtml(prev.href)}">← Previous chapter</a>` : ""}</div>
+      <div>${next ? `<a href="${escapeHtml(next.href)}">Next chapter →</a>` : ""}</div>
+    </div>`;
+  const bodyHtml = `
+    ${buildBreadcrumbs([
+      { label: "Books", href: "/books/" },
+      { label: book.authorName, href: `/author/${book.authorSlug}` },
+      { label: book.title, href: `/book/${book.slug}` },
+      { label: chapter.title },
+    ])}
+    <main class="panel">
+      <div class="hero">
+        <div class="heroText">
+          <h1>${escapeHtml(book.title)}</h1>
+          <div class="meta">Chapter ${chapter.n}: ${escapeHtml(chapter.title)}</div>
+          <div class="actions">
+            <a class="btn" href="${escapeHtml(book.readerUrl)}">Open in WeRead</a>
+            <a class="btn secondary" href="/book/${encodeURIComponent(book.slug)}">Back to Book</a>
+          </div>
+        </div>
+      </div>
+      ${navHtml}
+      <article class="chapterHtml">${chapterHtml}</article>
+      ${navHtml}
+    </main>`;
+  return renderSeoLayout({
+    title: `${book.title} — Chapter ${chapter.n}`,
+    description: `${book.title}, chapter ${chapter.n}: ${chapter.title}`,
+    canonical: seoCanonical(origin, chapter.href),
+    bodyHtml,
+  });
+}
+
+function renderAuthorPage(origin, author) {
+  const booksHtml = Array.isArray(author.books) && author.books.length
+    ? `<ol class="list">${author.books
+        .map(
+          (book) =>
+            `<li><a href="/book/${encodeURIComponent(book.slug)}">${escapeHtml(book.title)}</a></li>`
+        )
+        .join("")}</ol>`
+    : `<div class="meta">No books are indexed for this author yet.</div>`;
+  const bodyHtml = `
+    ${buildBreadcrumbs([
+      { label: "Books", href: "/books/" },
+      { label: author.name },
+    ])}
+    <main class="panel">
+      <div class="hero">
+        <div class="heroText">
+          <h1>${escapeHtml(author.name)}</h1>
+          <div class="meta">${author.count || 0} books</div>
+        </div>
+      </div>
+      <section class="section">
+        <div class="sectionHead">
+          <h2 class="sectionTitle">Books by This Author</h2>
+          <div class="sectionMeta">${author.count || 0} titles</div>
+        </div>
+        ${booksHtml}
+      </section>
+    </main>`;
+  return renderSeoLayout({
+    title: `Books by ${author.name}`,
+    description: `${author.count || 0} books by ${author.name} on ReaderPub.`,
+    canonical: seoCanonical(origin, `/author/${author.slug}`),
+    bodyHtml,
+  });
+}
+
+function renderCategoryPage(origin, category) {
+  const booksHtml = Array.isArray(category.books) && category.books.length
+    ? `<ol class="list">${category.books
+        .map(
+          (book) =>
+            `<li><a href="/book/${encodeURIComponent(book.slug)}">${escapeHtml(book.title)}</a> <span class="submeta">by <a href="/author/${encodeURIComponent(book.authorSlug)}">${escapeHtml(book.author)}</a></span></li>`
+        )
+        .join("")}</ol>`
+    : `<div class="meta">No books are indexed in this category yet.</div>`;
+  const bodyHtml = `
+    ${buildBreadcrumbs([
+      { label: "Books", href: "/books/" },
+      { label: "Categories", href: "/books/" },
+      { label: category.title },
+    ])}
+    <main class="panel">
+      <div class="hero">
+        <div class="heroText">
+          <h1>${escapeHtml(category.title)}</h1>
+          <div class="meta">${category.count || 0} books</div>
+          <div class="actions">
+            <a class="btn secondary" href="/books/">All Books</a>
+          </div>
+        </div>
+      </div>
+      <section class="section">
+        <div class="sectionHead">
+          <h2 class="sectionTitle">Books in This Category</h2>
+          <div class="sectionMeta">${category.count || 0} titles</div>
+        </div>
+        ${booksHtml}
+      </section>
+    </main>`;
+  return renderSeoLayout({
+    title: `${category.title} Books`,
+    description: `${category.count || 0} books in the ${category.title} category on ReaderPub.`,
+    canonical: seoCanonical(origin, `/category/${category.slug}`),
+    bodyHtml,
+  });
+}
+
+function buildSitemapXml(origin, items) {
+  const body = (items || [])
+    .map(
+      (item) =>
+        `<url><loc>${escapeXml(`${origin}${item.loc}`)}</loc>${
+          item.lastmod ? `<lastmod>${escapeXml(String(item.lastmod))}</lastmod>` : ""
+        }</url>`
+    )
+    .join("");
+  return `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`;
+}
+
+function buildSitemapIndexXml(origin, sitemaps) {
+  const body = (sitemaps || [])
+    .map(
+      (item) =>
+        `<sitemap><loc>${escapeXml(`${origin}${item.path}`)}</loc></sitemap>`
+    )
+    .join("");
+  return `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</sitemapindex>`;
+}
+
+async function renderSeoRoute(request, env, url, path) {
+  const assetOrigin = url.origin;
+  const forwardedOrigin = String(request.headers.get("x-reader-canonical-origin") || "").trim();
+  const canonicalOrigin =
+    /^https?:\/\/[a-z0-9.-]+$/i.test(forwardedOrigin) ? forwardedOrigin.replace(/\/+$/, "") : assetOrigin;
+  const cacheVariant = canonicalOrigin;
+  const publicContentOrigin =
+    canonicalOrigin.includes(".pages.dev") ? "https://reader.pub" : canonicalOrigin;
+  const versionMeta = await readSeoJson(env, "version.json");
+  const globalVersion = versionMeta && versionMeta.version ? String(versionMeta.version) : "0";
+
+  if (path === "/robots.txt") {
+    return await withSeoCache(request, globalVersion, cacheVariant, async () => {
+      const body = [
+        "User-agent: *",
+        "Allow: /book/",
+        "Allow: /author/",
+        "Allow: /category/",
+        "Allow: /sitemap.xml",
+        "Allow: /sitemaps/",
+        "Disallow: /books/reader/",
+        "Disallow: /books/api/",
+        "",
+        `Sitemap: ${canonicalOrigin}/sitemap.xml`,
+      ].join("\n");
+      const response = textResponse(body, 200, {
+        "cache-control": "public, max-age=3600, s-maxage=86400",
+        "x-reader-route": "seo-robots",
+        "x-reader-seo-version": globalVersion,
+      });
+      return response;
+    });
+  }
+
+  if (path === "/sitemap.xml") {
+    const sitemapIndex = await readSeoJson(env, "sitemaps/index.json");
+    if (!sitemapIndex) {
+      return textResponse("Sitemap index not found", 404, {
+        "cache-control": "no-store",
+        "x-reader-route": "seo-sitemap-miss",
+      });
+    }
+    return await withSeoCache(request, sitemapIndex.version || globalVersion, cacheVariant, async () => {
+      const response = xmlResponse(buildSitemapIndexXml(canonicalOrigin, sitemapIndex.sitemaps || []), 200, {
+        ...buildSitemapCacheHeaders(sitemapIndex.version || globalVersion),
+        "x-reader-route": "seo-sitemap-index",
+      });
+      return response;
+    });
+  }
+
+  const sitemapMatch = path.match(/^\/sitemaps\/(books-\d+|chapters-\d+|authors|categories)\.xml$/);
+  if (sitemapMatch) {
+    const slug = `${sitemapMatch[1]}.json`;
+    const payload = await readSeoJson(env, `sitemaps/${slug}`);
+    if (!payload) {
+      return textResponse("Sitemap not found", 404, {
+        "cache-control": "no-store",
+        "x-reader-route": "seo-sitemap-miss",
+      });
+    }
+    return await withSeoCache(request, globalVersion, cacheVariant, async () => {
+      const response = xmlResponse(buildSitemapXml(canonicalOrigin, payload.items || []), 200, {
+        ...buildSitemapCacheHeaders(globalVersion),
+        "x-reader-route": "seo-sitemap",
+      });
+      return response;
+    });
+  }
+
+  const authorMatch = path.match(/^\/author\/([^/]+)\/?$/);
+  if (authorMatch) {
+    const slug = authorMatch[1];
+    const author = await readSeoShardedJson(env, "author-shards", slug);
+    if (!author) {
+      return textResponse("Author not found", 404, {
+        "cache-control": "no-store",
+        "x-reader-route": "seo-author-miss",
+      });
+    }
+    const canonicalPath = `/author/${author.slug}`;
+    if (stripTrailingSlash(path) !== canonicalPath) {
+      const headers = new Headers({ location: canonicalPath });
+      headers.set("x-reader-worker", "1");
+      headers.set("x-reader-route", "seo-author-canonical");
+      return new Response(null, { status: 301, headers });
+    }
+    return await withSeoCache(request, author.version || globalVersion, cacheVariant, async () => {
+      const response = htmlResponse(renderAuthorPage(canonicalOrigin, author), 200, {
+        ...buildSeoCacheHeaders(author.version || globalVersion),
+        "x-reader-route": "seo-author",
+      });
+      return response;
+    });
+  }
+
+  const categoryMatch = path.match(/^\/category\/([^/]+)\/?$/);
+  if (categoryMatch) {
+    const slug = categoryMatch[1];
+    const category = await readSeoJson(env, `category/${slug}.json`);
+    if (!category) {
+      return textResponse("Category not found", 404, {
+        "cache-control": "no-store",
+        "x-reader-route": "seo-category-miss",
+      });
+    }
+    const canonicalPath = `/category/${category.slug}`;
+    if (stripTrailingSlash(path) !== canonicalPath) {
+      const headers = new Headers({ location: canonicalPath });
+      headers.set("x-reader-worker", "1");
+      headers.set("x-reader-route", "seo-category-canonical");
+      return new Response(null, { status: 301, headers });
+    }
+    return await withSeoCache(request, category.version || globalVersion, cacheVariant, async () => {
+      const response = htmlResponse(renderCategoryPage(canonicalOrigin, category), 200, {
+        ...buildSeoCacheHeaders(category.version || globalVersion),
+        "x-reader-route": "seo-category",
+      });
+      return response;
+    });
+  }
+
+  const bookMatch = path.match(/^\/book\/([^/]+?)(?:\/chapter-(\d+)(?:-([^/]+))?)?\/?$/);
+  if (bookMatch) {
+    const slug = bookMatch[1];
+    const chapterNumber = bookMatch[2] ? parseInt(bookMatch[2], 10) : 0;
+    const chapterSlug = bookMatch[3] || "";
+    const book = await readSeoShardedJson(env, "book-shards", slug);
+    if (!book) {
+      return textResponse("Book not found", 404, {
+        "cache-control": "no-store",
+        "x-reader-route": "seo-book-miss",
+      });
+    }
+    if (!chapterNumber) {
+      const canonicalPath = `/book/${book.slug}`;
+      if (stripTrailingSlash(path) !== canonicalPath) {
+        const headers = new Headers({ location: canonicalPath });
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "seo-book-canonical");
+        return new Response(null, { status: 301, headers });
+      }
+      return await withSeoCache(request, book.version || globalVersion, cacheVariant, async () => {
+        const response = htmlResponse(renderBookPage(canonicalOrigin, book), 200, {
+          ...buildSeoCacheHeaders(book.version || globalVersion),
+          "x-reader-route": "seo-book",
+        });
+        return response;
+      });
+    }
+
+    const chapter = Array.isArray(book.chapters)
+      ? book.chapters.find((item) => Number(item.n) === chapterNumber)
+      : null;
+    if (!chapter) {
+      return textResponse("Chapter not found", 404, {
+        "cache-control": "no-store",
+        "x-reader-route": "seo-chapter-miss",
+      });
+    }
+    const canonicalChapterPath = chapter.href || `/book/${book.slug}/chapter-${chapter.n}${chapter.slug ? `-${chapter.slug}` : ""}`;
+    const requestedPath = stripTrailingSlash(path);
+    if (requestedPath !== canonicalChapterPath || (chapter.slug && chapterSlug && chapterSlug !== chapter.slug)) {
+      const headers = new Headers({ location: canonicalChapterPath });
+      headers.set("x-reader-worker", "1");
+      headers.set("x-reader-route", "seo-chapter-canonical");
+      return new Response(null, { status: 301, headers });
+    }
+    return await withSeoCache(request, book.version || globalVersion, cacheVariant, async () => {
+      const sourceKey = `content/${book.id}/${chapter.sourcePath}`;
+      let xhtmlText = await readBucketText(env, sourceKey);
+      if (!xhtmlText) {
+        xhtmlText = await fetchTextAbsolute(
+          `${publicContentOrigin}/books/content/${book.id}/${chapter.sourcePath}`
+        );
+      }
+      if (!xhtmlText) {
+        return textResponse("Chapter source not found", 404, {
+          "cache-control": "no-store",
+          "x-reader-route": "seo-chapter-source-miss",
+        });
+      }
+      const assetBase = contentDirForChapter(book.id, chapter);
+      const chapterInner = rewriteRelativeChapterHtml(extractBodyInnerHtml(xhtmlText), assetBase);
+      const response = htmlResponse(renderChapterPage(canonicalOrigin, book, chapter, chapterInner), 200, {
+        ...buildSeoCacheHeaders(book.version || globalVersion),
+        "x-reader-route": "seo-chapter",
+      });
+      return response;
+    });
+  }
+
+  return null;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -146,6 +1054,24 @@ export default {
     const posthogEnabled =
       /^(1|true|yes|on)$/i.test(rawPosthogEnabled) && !!posthogKey && !!posthogHost;
     const notesSharePrefix = "api/notes_shares/";
+
+    if (
+      path === "/robots.txt" ||
+      path === "/sitemap.xml" ||
+      path.startsWith("/sitemaps/") ||
+      path.startsWith("/book/") ||
+      path.startsWith("/author/") ||
+      path.startsWith("/category/")
+    ) {
+      if (!env.READER_BOOKS && !env.ASSETS) {
+        return textResponse("SEO storage missing", 500, {
+          "cache-control": "no-store",
+          "x-reader-route": "seo-storage-missing",
+        });
+      }
+      const seoResponse = await renderSeoRoute(request, env, url, stripTrailingSlash(path));
+      if (seoResponse) return seoResponse;
+    }
 
     if (
       normalizedPath === "/books/api/notes-share" ||
