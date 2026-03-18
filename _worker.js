@@ -211,9 +211,7 @@ async function updateCatalogIndexes(env, book) {
   const coverUrl = book.cover_url || "";
   if (!authorName || !title || !contentId) return;
 
-  // Generate author key: "Last, First" → "firstlast", "First Last" → "firstlast"
-  const authorKey = slugifyAuthor(authorName);
-  const authorDisplay = formatAuthorDisplay(authorName);
+  const { authorKey, indexKey, display: authorDisplay } = parseAuthorForIndex(authorName);
 
   // 1. Update author file: api/a/<authorKey>.json
   const authorR2Key = `api/a/${authorKey}.json`;
@@ -236,7 +234,8 @@ async function updateCatalogIndexes(env, book) {
   });
 
   // 2. Update prefix tree: api/p/<prefix>.json at each level
-  const prefixLevels = buildPrefixLevels(authorKey);
+  // Prefix tree is organized by index key (last name first), e.g., "hurstrex"
+  const prefixLevels = buildPrefixLevels(indexKey);
   for (let i = 0; i < prefixLevels.length; i++) {
     const prefix = prefixLevels[i];
     const r2Key = `api/p/${prefix}.json`;
@@ -315,8 +314,8 @@ async function updateCatalogIndexes(env, book) {
     });
   }
 
-  // 4. Update letters.json
-  const firstLetter = getFirstLetter(authorKey);
+  // 4. Update letters.json (based on index key = last name first)
+  const firstLetter = getFirstLetter(indexKey);
   const lettersR2Key = "api/letters.json";
   let lettersData;
   try {
@@ -341,31 +340,47 @@ async function updateCatalogIndexes(env, book) {
   });
 }
 
-function slugifyAuthor(name) {
-  // Handle "Last, First" format
-  const parts = name.includes(",")
-    ? name.split(",").reverse().map(s => s.trim())
-    : name.split(/\s+/);
-  return parts.join("").toLowerCase()
+/**
+ * Parse author name following the same convention as build_lang_indexes.py:
+ * - Author key: first+last (e.g., "rexhurst" for "Hurst, Rex")
+ * - Index key: last+first (e.g., "hurstrex") — used for prefix tree browsing
+ * - Display: "Last, First" (e.g., "Hurst, Rex")
+ */
+function parseAuthorForIndex(name) {
+  const raw = name.trim();
+  let last, rest;
+  if (raw.includes(",")) {
+    [last, rest] = raw.split(",", 2).map(s => s.trim());
+  } else {
+    const parts = raw.split(/\s+/);
+    if (parts.length <= 1) {
+      last = raw;
+      rest = "";
+    } else {
+      last = parts[parts.length - 1];
+      rest = parts.slice(0, -1).join(" ");
+    }
+  }
+  if (!last) last = raw;
+  const display = rest ? `${last}, ${rest}` : last;
+  const indexName = `${last} ${rest}`.trim();  // "Hurst Rex"
+
+  const slugify = (s) => s.toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/g, "");
+
+  const authorKey = slugify(rest ? `${rest}${last}` : last);  // "rexhurst"
+  const indexKey = slugify(indexName);                          // "hurstrex"
+
+  return { authorKey, indexKey, display };
 }
 
-function formatAuthorDisplay(name) {
-  // If already "Last, First" keep it; otherwise convert "First Last" → "Last, First"
-  if (name.includes(",")) return name;
-  const parts = name.trim().split(/\s+/);
-  if (parts.length <= 1) return name;
-  const last = parts.pop();
-  return `${last}, ${parts.join(" ")}`;
-}
-
-function buildPrefixLevels(authorKey) {
-  // Build prefix hierarchy: e.g. "dhlawrence" → ["d", "dh", "dhl"]
-  // Stop at 3 chars or when we reach a leaf level
+function buildPrefixLevels(indexKey) {
+  // Build prefix hierarchy from index key (last name first)
+  // e.g., "hurstrex" → ["h", "hu", "hur"]
   const levels = [];
-  for (let i = 1; i <= Math.min(3, authorKey.length); i++) {
-    levels.push(authorKey.slice(0, i));
+  for (let i = 1; i <= Math.min(3, indexKey.length); i++) {
+    levels.push(indexKey.slice(0, i));
   }
   return levels;
 }
