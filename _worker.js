@@ -166,13 +166,18 @@ async function processEpub(env, fileBytes, bookId, contentId) {
   let coverUrl = null;
   const coverMeta = opfXml.match(/name="cover"\s+content="([^"]+)"/);
   const coverProp = opfXml.match(/properties="cover-image"[^>]*href="([^"]+)"/);
+  const coverProp2 = opfXml.match(/href="([^"]+)"[^>]*properties="cover-image"/);
   let coverHref = null;
   if (coverMeta) {
     const coverId = coverMeta[1];
-    const itemMatch = opfXml.match(new RegExp(`id="${coverId}"[^>]*href="([^"]+)"`));
+    // Match <item> with this id — href may appear before or after id
+    const itemMatch = opfXml.match(new RegExp(`id="${coverId}"[^>]*href="([^"]+)"`))
+      || opfXml.match(new RegExp(`href="([^"]+)"[^>]*id="${coverId}"`));
     if (itemMatch) coverHref = itemMatch[1];
   } else if (coverProp) {
     coverHref = coverProp[1];
+  } else if (coverProp2) {
+    coverHref = coverProp2[1];
   }
 
   // Upload all files to R2 at content/<contentId>/
