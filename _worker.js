@@ -230,7 +230,7 @@ function seoShardPrefix(slug, prefixLength = SEO_SHARD_PREFIX_LENGTH) {
 }
 
 async function readSeoShardedJson(env, folder, slug) {
-  for (let prefixLength = SEO_SHARD_PREFIX_LENGTH; prefixLength <= SEO_SHARD_MAX_PREFIX_LENGTH; prefixLength += 1) {
+  for (let prefixLength = SEO_SHARD_MAX_PREFIX_LENGTH; prefixLength >= SEO_SHARD_PREFIX_LENGTH; prefixLength -= 1) {
     const prefix = seoShardPrefix(String(slug || "").slice(0), prefixLength);
     const payload = await readSeoJson(env, `${folder}/${prefix}.json`);
     if (!payload || !payload.items || typeof payload.items !== "object") continue;
@@ -253,7 +253,7 @@ function buildSeoCacheHeaders(version) {
   return {
     "cache-control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
     "x-reader-seo-version": String(version || ""),
-    "x-reader-seo-render": "6",
+    "x-reader-seo-render": "9",
   };
 }
 
@@ -261,7 +261,7 @@ function buildSitemapCacheHeaders(version) {
   return {
     "cache-control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400",
     "x-reader-seo-version": String(version || ""),
-    "x-reader-seo-render": "6",
+    "x-reader-seo-render": "9",
   };
 }
 
@@ -270,7 +270,7 @@ function buildSeoCacheKey(url, version, variant = "") {
   cacheUrl.hash = "";
   cacheUrl.search = "";
   cacheUrl.searchParams.set("__seo_v", String(version || "0"));
-  cacheUrl.searchParams.set("__seo_render", "6");
+  cacheUrl.searchParams.set("__seo_render", "9");
   if (variant) cacheUrl.searchParams.set("__seo_variant", String(variant));
   return new Request(cacheUrl.toString(), { method: "GET" });
 }
@@ -591,7 +591,7 @@ function buildBreadcrumbs(items) {
 
 function buildBookJsonLd(origin, book) {
   const description = sanitizeMetaDescription(
-    book.description || book.excerpt || `${book.title} by ${book.authorName}`
+    book.description || book.meta_description || `${book.title} by ${book.authorName}`
   );
   const data = {
     "@context": "https://schema.org",
@@ -634,6 +634,13 @@ function extractBodyInnerHtml(xhtmlText) {
   return match ? match[1].trim() : "";
 }
 
+function buildCatalogCategoryHref(slug) {
+  const params = new URLSearchParams();
+  params.set("view", "category");
+  params.set("category", String(slug || ""));
+  return `/books/#${params.toString()}`;
+}
+
 function renderBookPage(origin, book) {
   const coverHtml = book.cover
     ? `<img class="cover" src="${escapeHtml(book.cover)}" alt="${escapeHtml(book.title)} cover" />`
@@ -642,7 +649,7 @@ function renderBookPage(origin, book) {
     ? `<div class="tags">${book.categories
         .map(
           (item) =>
-            `<a class="tag" href="/category/${encodeURIComponent(item.slug)}">${escapeHtml(item.title)}</a>`
+            `<a class="tag" href="${escapeHtml(buildCatalogCategoryHref(item.slug))}">${escapeHtml(item.title)}</a>`
         )
         .join("")}</div>`
     : "";
@@ -654,8 +661,9 @@ function renderBookPage(origin, book) {
         )
         .join("")}</ol>`
     : `<div class="meta">No chapter map available.</div>`;
-  const excerptHtml = book.excerpt
-    ? `<div class="excerpt"><p>${escapeHtml(book.excerpt)}</p></div>`
+  const aboutText = book.description || book.excerpt || "";
+  const excerptHtml = aboutText
+    ? `<div class="excerpt"><p>${escapeHtml(aboutText)}</p></div>`
     : `<div class="meta">Excerpt is not available.</div>`;
   const heroClass = coverHtml ? "hero withCover" : "hero";
   const bodyHtml = `
@@ -693,7 +701,7 @@ function renderBookPage(origin, book) {
     </main>`;
   return renderSeoLayout({
     title: `${book.title} — ${book.authorName}`,
-    description: book.description || book.excerpt || `${book.title} by ${book.authorName}`,
+    description: book.meta_description || book.description || `${book.title} by ${book.authorName}`,
     canonical: seoCanonical(origin, `/book/${book.slug}`),
     structuredData: buildBookJsonLd(origin, book),
     bodyHtml,
@@ -776,6 +784,7 @@ function renderAuthorPage(origin, author) {
 }
 
 function renderCategoryPage(origin, category) {
+  const catalogHref = buildCatalogCategoryHref(category.slug);
   const booksHtml = Array.isArray(category.books) && category.books.length
     ? `<ol class="list">${category.books
         .map(
@@ -796,6 +805,7 @@ function renderCategoryPage(origin, category) {
           <h1>${escapeHtml(category.title)}</h1>
           <div class="meta">${category.count || 0} books</div>
           <div class="actions">
+            <a class="btn" href="${escapeHtml(catalogHref)}">Open in Catalog</a>
             <a class="btn secondary" href="/books/">All Books</a>
           </div>
         </div>
