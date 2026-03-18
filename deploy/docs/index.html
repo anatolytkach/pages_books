@@ -147,7 +147,7 @@ cd pages_books</code></pre>
         <ul>
           <li>Routes: <code>reader.pub/docs</code>, <code>reader.pub/docs/*</code>.</li>
           <li>Назначение: Basic Auth + проксирование docs на <code>master.reader-books.pages.dev/docs/*</code>.</li>
-          <li>Правило публикации: изменения в <code>docs/README.md</code> нужно сразу переносить в <code>deploy/docs/index.html</code> и сразу выкатывать Pages-проект <code>reader-books</code> на ветку <code>master</code>, потому что <code>staging.reader.pub/docs/</code> читает docs именно оттуда.</li>
+          <li>Правило публикации: изменения в <code>docs/README.md</code> нужно сразу переносить в <code>deploy/docs/index.html</code> и публиковать через <code>tools/deploy_docs.sh</code>; этот скрипт всегда выкатывает docs в ветку <code>master</code>, потому что <code>staging.reader.pub/docs/</code> читает docs именно оттуда.</li>
         </ul>
 
         <p><strong>Worker D (production router):</strong> <code>tools/reader-books-router.js</code>.</p>

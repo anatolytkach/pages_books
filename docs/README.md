@@ -77,7 +77,8 @@ cd pages_books
   - production `reader.pub/docs/*` изначально не попадал в основной `/books*` worker.
 - Правило публикации docs:
   - изменения в `docs/README.md` нужно сразу отражать в `deploy/docs/index.html`;
-  - после этого нужно сразу делать deploy Pages-проекта `reader-books` на ветку `master`, потому что `staging.reader.pub/docs/` читает docs именно с `master.reader-books.pages.dev/docs/`.
+  - после этого нужно запускать `tools/deploy_docs.sh`;
+  - скрипт всегда выкатывает docs в Pages-проект `reader-books` на ветку `master`, потому что `staging.reader.pub/docs/` читает docs именно с `master.reader-books.pages.dev/docs/`.
 
 ### Worker D: production router для root-routes и R2-backed SEO
 
@@ -400,7 +401,7 @@ cd /Volumes/2T/se_ingest/pages_books/books/content
 2. `epub_publish.sh`: upload `content/<id>/...` в R2 (retry).
 3. `build_lang_indexes.py --book-id <id>` для каждого id.
 4. Формирование selective списка upload в `api/...`.
-5. `wrangler pages deploy deploy --project-name reader-books`.
+5. `tools/deploy_docs.sh` для публикации документации на `staging.reader.pub/docs/`.
 
 ## 8. Детали selective upload индексов (важно)
 
