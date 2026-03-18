@@ -83,6 +83,64 @@ function normalizeNotes(raw) {
   return out;
 }
 
+/**
+ * Verify a Supabase JWT using the JWT secret from env.
+ * Returns the decoded payload { sub, email, role, ... } or null.
+ */
+async function verifySupabaseJwt(token, env) {
+  try {
+    const jwtSecret = String(env.SUPABASE_JWT_SECRET || "").trim();
+    if (!jwtSecret) return null;
+
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+
+    const header = JSON.parse(base64UrlDecode(parts[0]));
+    const payload = JSON.parse(base64UrlDecode(parts[1]));
+
+    // Check expiry
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+
+    // Verify HMAC-SHA256 signature
+    if (header.alg !== "HS256") return null;
+
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(jwtSecret);
+    const key = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    const signatureBytes = base64UrlDecodeBytes(parts[2]);
+    const dataBytes = encoder.encode(`${parts[0]}.${parts[1]}`);
+
+    const valid = await crypto.subtle.verify("HMAC", key, signatureBytes, dataBytes);
+    if (!valid) return null;
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function base64UrlDecode(str) {
+  let s = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  const binary = atob(s);
+  const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function base64UrlDecodeBytes(str) {
+  let s = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  const binary = atob(s);
+  return Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+}
+
 function decodeBase64Utf8(value) {
   const source = String(value || "");
   try {
@@ -519,6 +577,240 @@ export default {
       }
     }
 
+    // ── Platform API (v1) ──────────────────────────────────
+    if (
+      normalizedPath.startsWith("/books/api/v1/") ||
+      normalizedPath.startsWith("/api/v1/")
+    ) {
+      // CORS preflight for all platform API routes
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "access-control-allow-origin": "*",
+            "access-control-allow-methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
+            "access-control-allow-headers": "content-type, authorization",
+            "access-control-max-age": "86400",
+            "x-reader-worker": "1",
+          },
+        });
+      }
+
+      const apiPath = normalizedPath.startsWith("/books/api/v1/")
+        ? normalizedPath.slice("/books/api/v1".length)
+        : normalizedPath.slice("/api/v1".length);
+
+      // Parse JWT if present (does not reject — some routes are public)
+      let user = null;
+      const authHeader = request.headers.get("authorization") || "";
+      if (authHeader.startsWith("Bearer ")) {
+        const token = authHeader.slice(7);
+        user = await verifySupabaseJwt(token, env);
+      }
+
+      // Route definitions with auth requirements
+      const apiCorsHeaders = {
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+      };
+
+      // Helper: require auth
+      const requireAuth = () => {
+        if (!user) {
+          return jsonResponse(
+            { error: "Authentication required" },
+            401,
+            apiCorsHeaders
+          );
+        }
+        return null;
+      };
+
+      // Helper: create Supabase admin client (service role)
+      const supabaseAdmin = () => {
+        const url = String(env.SUPABASE_URL || "").trim();
+        const key = String(env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+        if (!url || !key) return null;
+        return { url, key };
+      };
+
+      // Helper: fetch from Supabase REST API
+      const sbFetch = async (table, { method = "GET", params = "", body, key, single = false } = {}) => {
+        const sb = supabaseAdmin();
+        if (!sb) return { data: null, error: "Supabase not configured" };
+        const fetchUrl = `${sb.url}/rest/v1/${table}${params ? "?" + params : ""}`;
+        const headers = {
+          "apikey": sb.key,
+          "authorization": `Bearer ${sb.key}`,
+          "content-type": "application/json",
+        };
+        if (single) headers["accept"] = "application/vnd.pgrst.object+json";
+        if (method === "POST") headers["prefer"] = "return=representation";
+        if (method === "PATCH") headers["prefer"] = "return=representation";
+        const opts = { method, headers };
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(fetchUrl, opts);
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          return { data: null, error: detail || `HTTP ${res.status}` };
+        }
+        const data = await res.json().catch(() => null);
+        return { data, error: null };
+      };
+
+      // Helper: call Supabase RPC
+      const sbRpc = async (fn, args = {}) => {
+        const sb = supabaseAdmin();
+        if (!sb) return { data: null, error: "Supabase not configured" };
+        const res = await fetch(`${sb.url}/rest/v1/rpc/${fn}`, {
+          method: "POST",
+          headers: {
+            "apikey": sb.key,
+            "authorization": `Bearer ${sb.key}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(args),
+        });
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          return { data: null, error: detail || `HTTP ${res.status}` };
+        }
+        const data = await res.json().catch(() => null);
+        return { data, error: null };
+      };
+
+      // ── GET /v1/me — current user profile ──
+      if (apiPath === "/me" && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const { data, error } = await sbFetch("user_profiles", {
+          params: `id=eq.${user.sub}&select=*`,
+          single: true,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data || {}, 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/me/entitlements — user's entitlements ──
+      if (apiPath === "/me/entitlements" && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const { data, error } = await sbFetch("entitlements", {
+          params: `user_id=eq.${user.sub}&is_active=eq.true&select=*,books:book_id(id,title,author,cover_url,content_id)`,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/me/tenants — user's tenant memberships ──
+      if (apiPath === "/me/tenants" && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const { data, error } = await sbFetch("tenant_memberships", {
+          params: `user_id=eq.${user.sub}&is_active=eq.true&select=id,role,department,tenants:tenant_id(id,slug,name,tenant_type,logo_url)`,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/genres — list genres ──
+      if (apiPath === "/genres" && request.method === "GET") {
+        const { data, error } = await sbFetch("genres", {
+          params: "select=*&order=display_order",
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/books/:id/entitlement — check access ──
+      const entitlementMatch = apiPath.match(/^\/books\/([0-9a-f-]+)\/entitlement$/);
+      if (entitlementMatch && request.method === "GET") {
+        const bookId = entitlementMatch[1];
+
+        // Check if book is free
+        const { data: book } = await sbFetch("books", {
+          params: `id=eq.${bookId}&select=id,is_free,status`,
+          single: true,
+        });
+        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+        if (book.is_free) {
+          return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
+        }
+
+        // If not authenticated, check for offers
+        if (!user) {
+          const { data: offers } = await sbFetch("book_offers", {
+            params: `book_id=eq.${bookId}&is_active=eq.true&select=*`,
+          });
+          return jsonResponse({ access: "none", offers: offers || [] }, 200, apiCorsHeaders);
+        }
+
+        // Check purchase entitlement
+        const { data: entitlements } = await sbFetch("entitlements", {
+          params: `user_id=eq.${user.sub}&book_id=eq.${bookId}&is_active=eq.true&select=*&order=created_at.desc`,
+        });
+        if (entitlements && entitlements.length > 0) {
+          for (const ent of entitlements) {
+            if (ent.entitlement_type === "purchase") {
+              return jsonResponse({ access: "full", type: "purchase" }, 200, apiCorsHeaders);
+            }
+            if (ent.entitlement_type === "rental") {
+              if (!ent.expires_at || new Date(ent.expires_at) > new Date()) {
+                return jsonResponse({
+                  access: "full",
+                  type: "rental",
+                  expires_at: ent.expires_at,
+                }, 200, apiCorsHeaders);
+              }
+            }
+          }
+        }
+
+        // No entitlement — return offers
+        const { data: offers } = await sbFetch("book_offers", {
+          params: `book_id=eq.${bookId}&is_active=eq.true&select=*`,
+        });
+        return jsonResponse({ access: "none", offers: offers || [] }, 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/books/:id/offers — list offers ──
+      const offersMatch = apiPath.match(/^\/books\/([0-9a-f-]+)\/offers$/);
+      if (offersMatch && request.method === "GET") {
+        const bookId = offersMatch[1];
+        const { data, error } = await sbFetch("book_offers", {
+          params: `book_id=eq.${bookId}&is_active=eq.true&select=*`,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      // ── POST /v1/tenants — create tenant ──
+      if (apiPath === "/tenants" && request.method === "POST") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const body = await request.json().catch(() => null);
+        if (!body || !body.name || !body.slug || !body.tenant_type) {
+          return jsonResponse({ error: "name, slug, and tenant_type are required" }, 400, apiCorsHeaders);
+        }
+        // Create tenant
+        const { data: tenant, error: tenantErr } = await sbFetch("tenants", {
+          method: "POST",
+          body: { name: body.name, slug: body.slug, tenant_type: body.tenant_type },
+          single: true,
+        });
+        if (tenantErr) return jsonResponse({ error: tenantErr }, 400, apiCorsHeaders);
+        // Add creator as owner
+        await sbFetch("tenant_memberships", {
+          method: "POST",
+          body: { tenant_id: tenant.id, user_id: user.sub, role: "owner" },
+        });
+        return jsonResponse(tenant, 201, apiCorsHeaders);
+      }
+
+      // ── Fallback: route not found ──
+      return jsonResponse({ error: "Not found" }, 404, apiCorsHeaders);
+    }
+
     if (decodedPath.startsWith("/books/api/")) {
       const decodedKey = `api/${decodedPath.slice("/books/api/".length)}`;
       const rawKey = `api/${path.slice("/books/api/".length)}`;
@@ -625,6 +917,8 @@ export default {
       path.startsWith("/books/reader/js/") ||
       path.startsWith("/books/reader/icons/") ||
       path.startsWith("/books/reader/fonts/");
+    const isAuthPath =
+      path.startsWith("/books/auth/");
     const isDocsPath = path === "/docs/" || path.startsWith("/docs/");
     const contentType = String(headers.get("content-type") || "").toLowerCase();
     const isHtml = contentType.includes("text/html");
@@ -653,6 +947,10 @@ export default {
       headers.set("expires", "0");
       headers.set("cdn-cache-control", "no-store");
       headers.set("cloudflare-cdn-cache-control", "no-store");
+    }
+    if (isAuthPath) {
+      headers.set("cache-control", "no-store, no-cache, must-revalidate, max-age=0");
+      headers.set("pragma", "no-cache");
     }
 
     if (isHtml && driveClientId) {

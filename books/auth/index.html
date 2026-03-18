@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign In — reader.pub</title>
+    <link rel="icon" type="image/svg+xml" href="/books/assets/logo.svg" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap");
+
+      :root {
+        --bg: #ffffff;
+        --ink: #1f1b16;
+        --muted: #6c645a;
+        --accent: #028f80;
+        --accent-2: #016b61;
+        --border: #d8dee8;
+        --border-active: #028f80;
+        --radius-lg: 14px;
+        --radius-md: 10px;
+        --radius-sm: 8px;
+        --rect-bg: linear-gradient(90deg, #fcfaf8 0%, #ffffff 100%);
+        --error: #c0392b;
+        --success: #028f80;
+      }
+
+      * { box-sizing: border-box; }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        font-size: 16px;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--bg);
+        font-family: "Source Sans 3", "Helvetica Neue", sans-serif;
+        min-height: 100vh;
+        background-image: url("/books/assets/background.png");
+        background-size: 100% auto;
+        background-position: center bottom;
+        background-repeat: no-repeat;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 80px;
+      }
+
+      .auth-container {
+        width: 100%;
+        max-width: 420px;
+        padding: 0 24px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: center;
+        margin-bottom: 36px;
+        text-decoration: none;
+      }
+
+      .brand img {
+        width: 36px;
+        height: 36px;
+      }
+
+      .brand .title {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .auth-card {
+        background: var(--rect-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 32px 28px;
+      }
+
+      .tab-row {
+        display: flex;
+        gap: 0;
+        margin-bottom: 24px;
+        border-bottom: 2px solid var(--border);
+      }
+
+      .tab-btn {
+        flex: 1;
+        background: none;
+        border: none;
+        padding: 10px 0;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--muted);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: color 0.15s, border-color 0.15s;
+      }
+
+      .tab-btn.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+
+      .tab-btn:hover:not(.active) {
+        color: var(--ink);
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      .form-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .form-group input {
+        width: 100%;
+        height: 44px;
+        padding: 10px 14px;
+        font-family: inherit;
+        font-size: 15px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: #fff;
+        color: var(--ink);
+        outline: none;
+        transition: border-color 0.15s;
+      }
+
+      .form-group input:focus {
+        border-color: var(--border-active);
+      }
+
+      .submit-btn {
+        width: 100%;
+        height: 44px;
+        margin-top: 8px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-md);
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+
+      .submit-btn:hover {
+        background: var(--accent-2);
+      }
+
+      .submit-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 20px 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .divider::before,
+      .divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      .social-btn {
+        width: 100%;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--ink);
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+        margin-bottom: 10px;
+      }
+
+      .social-btn:hover {
+        border-color: var(--border-active);
+        background: #fcfaf8;
+      }
+
+      .social-btn svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .magic-link-btn {
+        width: 100%;
+        background: none;
+        border: none;
+        color: var(--accent);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 8px 0;
+        margin-top: 4px;
+      }
+
+      .magic-link-btn:hover {
+        text-decoration: underline;
+      }
+
+      .alert {
+        padding: 10px 14px;
+        border-radius: var(--radius-sm);
+        font-size: 14px;
+        margin-bottom: 16px;
+        display: none;
+      }
+
+      .alert.error {
+        background: #fdf0ef;
+        color: var(--error);
+        border: 1px solid #f5c6cb;
+      }
+
+      .alert.success {
+        background: #e8f8f5;
+        color: var(--success);
+        border: 1px solid #a3d9d0;
+      }
+
+      .alert.visible {
+        display: block;
+      }
+
+      /* Magic link form */
+      #magic-link-form {
+        display: none;
+      }
+
+      #magic-link-form.visible {
+        display: block;
+      }
+
+      .back-link {
+        display: inline-block;
+        color: var(--accent);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-bottom: 16px;
+        background: none;
+        border: none;
+        padding: 0;
+        font-family: inherit;
+      }
+
+      .back-link:hover {
+        text-decoration: underline;
+      }
+
+      .footer-text {
+        text-align: center;
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 20px;
+      }
+
+      .footer-text a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .footer-text a:hover {
+        text-decoration: underline;
+      }
+
+      /* Spinner */
+      .spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      @media (max-width: 480px) {
+        body { padding-top: 40px; }
+        .auth-card { padding: 24px 20px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth-container">
+      <a class="brand" href="/books/">
+        <img src="/books/assets/logo.svg" alt="" />
+        <span class="title">reader.pub</span>
+      </a>
+
+      <div class="auth-card">
+        <div id="alert" class="alert"></div>
+
+        <!-- Tab toggle: Sign In / Sign Up -->
+        <div class="tab-row" id="tab-row">
+          <button class="tab-btn active" data-tab="signin">Sign In</button>
+          <button class="tab-btn" data-tab="signup">Sign Up</button>
+        </div>
+
+        <!-- Sign In Form -->
+        <form id="signin-form">
+          <div class="form-group">
+            <label for="signin-email">Email</label>
+            <input type="email" id="signin-email" autocomplete="email" required />
+          </div>
+          <div class="form-group">
+            <label for="signin-password">Password</label>
+            <input type="password" id="signin-password" autocomplete="current-password" required />
+          </div>
+          <button type="submit" class="submit-btn" id="signin-btn">Sign In</button>
+          <button type="button" class="magic-link-btn" id="show-magic-link">Sign in with magic link instead</button>
+        </form>
+
+        <!-- Sign Up Form -->
+        <form id="signup-form" style="display:none">
+          <div class="form-group">
+            <label for="signup-name">Display Name</label>
+            <input type="text" id="signup-name" autocomplete="name" required />
+          </div>
+          <div class="form-group">
+            <label for="signup-email">Email</label>
+            <input type="email" id="signup-email" autocomplete="email" required />
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password (min 6 characters)</label>
+            <input type="password" id="signup-password" autocomplete="new-password" minlength="6" required />
+          </div>
+          <button type="submit" class="submit-btn" id="signup-btn">Create Account</button>
+        </form>
+
+        <!-- Magic Link Form -->
+        <div id="magic-link-form">
+          <button type="button" class="back-link" id="back-to-password">&larr; Back to password sign in</button>
+          <form id="magic-form">
+            <div class="form-group">
+              <label for="magic-email">Email</label>
+              <input type="email" id="magic-email" autocomplete="email" required />
+            </div>
+            <button type="submit" class="submit-btn" id="magic-btn">Send Magic Link</button>
+          </form>
+        </div>
+
+        <div class="divider">or</div>
+
+        <button class="social-btn" id="google-btn">
+          <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Continue with Google
+        </button>
+      </div>
+
+      <p class="footer-text">
+        <a href="/books/">Back to catalog</a>
+      </p>
+    </div>
+
+    <script type="module">
+      import config from '../shared/config.js';
+
+      // ── Supabase client ────────────────────────────
+      const sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+      // ── DOM refs ───────────────────────────────────
+      const alert = document.getElementById('alert');
+      const tabRow = document.getElementById('tab-row');
+      const signinForm = document.getElementById('signin-form');
+      const signupForm = document.getElementById('signup-form');
+      const magicLinkForm = document.getElementById('magic-link-form');
+
+      // ── Helpers ────────────────────────────────────
+      function showAlert(msg, type = 'error') {
+        alert.textContent = msg;
+        alert.className = `alert ${type} visible`;
+      }
+
+      function hideAlert() {
+        alert.className = 'alert';
+      }
+
+      function setLoading(btn, loading) {
+        if (loading) {
+          btn.dataset.origText = btn.textContent;
+          btn.innerHTML = '<span class="spinner"></span>';
+          btn.disabled = true;
+        } else {
+          btn.textContent = btn.dataset.origText;
+          btn.disabled = false;
+        }
+      }
+
+      /** After successful auth, redirect to the page the user came from, or catalog. */
+      function redirectAfterAuth() {
+        const params = new URLSearchParams(window.location.search);
+        const returnTo = params.get('returnTo');
+        if (returnTo && returnTo.startsWith('/')) {
+          window.location.href = returnTo;
+        } else {
+          window.location.href = '/books/';
+        }
+      }
+
+      // ── Check if already signed in ─────────────────
+      (async () => {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) redirectAfterAuth();
+      })();
+
+      // ── Tab switching ──────────────────────────────
+      tabRow.addEventListener('click', (e) => {
+        const btn = e.target.closest('.tab-btn');
+        if (!btn) return;
+        hideAlert();
+
+        tabRow.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const tab = btn.dataset.tab;
+        signinForm.style.display = tab === 'signin' ? '' : 'none';
+        signupForm.style.display = tab === 'signup' ? '' : 'none';
+        magicLinkForm.classList.remove('visible');
+      });
+
+      // ── Magic link toggle ──────────────────────────
+      document.getElementById('show-magic-link').addEventListener('click', () => {
+        hideAlert();
+        signinForm.style.display = 'none';
+        magicLinkForm.classList.add('visible');
+      });
+
+      document.getElementById('back-to-password').addEventListener('click', () => {
+        hideAlert();
+        magicLinkForm.classList.remove('visible');
+        signinForm.style.display = '';
+      });
+
+      // ── Sign In ────────────────────────────────────
+      signinForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideAlert();
+        const btn = document.getElementById('signin-btn');
+        setLoading(btn, true);
+
+        const email = document.getElementById('signin-email').value.trim();
+        const password = document.getElementById('signin-password').value;
+
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        setLoading(btn, false);
+
+        if (error) {
+          showAlert(error.message);
+        } else {
+          redirectAfterAuth();
+        }
+      });
+
+      // ── Sign Up ────────────────────────────────────
+      signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideAlert();
+        const btn = document.getElementById('signup-btn');
+        setLoading(btn, true);
+
+        const displayName = document.getElementById('signup-name').value.trim();
+        const email = document.getElementById('signup-email').value.trim();
+        const password = document.getElementById('signup-password').value;
+
+        const { data, error } = await sb.auth.signUp({
+          email,
+          password,
+          options: { data: { display_name: displayName } },
+        });
+        setLoading(btn, false);
+
+        if (error) {
+          showAlert(error.message);
+        } else if (data.user && !data.session) {
+          // Email confirmation required
+          showAlert('Check your email for a confirmation link.', 'success');
+        } else {
+          redirectAfterAuth();
+        }
+      });
+
+      // ── Magic Link ─────────────────────────────────
+      document.getElementById('magic-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideAlert();
+        const btn = document.getElementById('magic-btn');
+        setLoading(btn, true);
+
+        const email = document.getElementById('magic-email').value.trim();
+        const { error } = await sb.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: window.location.origin + '/books/auth/callback',
+          },
+        });
+        setLoading(btn, false);
+
+        if (error) {
+          showAlert(error.message);
+        } else {
+          showAlert('Check your email for a sign-in link.', 'success');
+        }
+      });
+
+      // ── Google OAuth ───────────────────────────────
+      document.getElementById('google-btn').addEventListener('click', async () => {
+        hideAlert();
+        const { error } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin + '/books/auth/callback',
+          },
+        });
+        if (error) showAlert(error.message);
+      });
+    </script>
+  </body>
+</html>

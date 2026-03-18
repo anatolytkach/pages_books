@@ -13,3 +13,18 @@ npm-debug.log*
 /dist
 /build
 /out
+
+# Claude Code
+.claude/
+
+# Supabase local
+supabase/.temp/
+
+# Draft files
+_worker.new.js
+
+# Deploy symlinks (recreated locally, not portable across machines)
+deploy/books
+deploy/reader
+deploy/catalog
+deploy/_worker.js

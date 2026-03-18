@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Signing in... — reader.pub</title>
+    <link rel="icon" type="image/svg+xml" href="/books/assets/logo.svg" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&display=swap");
+      body {
+        margin: 0;
+        font-family: "Source Sans 3", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: #1f1b16;
+      }
+      .msg { text-align: center; font-size: 16px; color: #6c645a; }
+      .msg a { color: #028f80; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="msg" id="msg">Completing sign in...</div>
+    <script type="module">
+      import config from '../shared/config.js';
+
+      const sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+      // Supabase client automatically picks up tokens from the URL hash/params.
+      // We just need to wait for the session to be established.
+      const { data: { session }, error } = await sb.auth.getSession();
+
+      if (error) {
+        document.getElementById('msg').innerHTML =
+          `Sign in failed: ${error.message}<br><a href="/books/auth/">Try again</a>`;
+      } else if (session) {
+        // Check for a returnTo param stored before OAuth redirect
+        const returnTo = sessionStorage.getItem('authReturnTo');
+        sessionStorage.removeItem('authReturnTo');
+        window.location.href = returnTo || '/books/';
+      } else {
+        // No session yet — might still be processing. Listen for change.
+        sb.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            const returnTo = sessionStorage.getItem('authReturnTo');
+            sessionStorage.removeItem('authReturnTo');
+            window.location.href = returnTo || '/books/';
+          }
+        });
+        // Timeout fallback
+        setTimeout(() => {
+          document.getElementById('msg').innerHTML =
+            'Taking too long? <a href="/books/auth/">Go back to sign in</a>';
+        }, 10000);
+      }
+    </script>
+  </body>
+</html>
