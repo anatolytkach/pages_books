@@ -62,7 +62,12 @@ fi
 echo "[commit-logic] Committing"
 git commit -m "$MSG"
 
-echo "[commit-logic] Pushing to origin/$BRANCH"
-git push origin "$BRANCH"
+if git rev-parse --verify --quiet "@{upstream}" >/dev/null; then
+  echo "[commit-logic] Pushing to upstream for $BRANCH"
+  git push
+else
+  echo "[commit-logic] Pushing to origin/$BRANCH and setting upstream"
+  git push --set-upstream origin "$BRANCH"
+fi
 
 echo "[commit-logic] Done"
