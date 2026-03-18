@@ -467,6 +467,7 @@
               <button type="button" class="btn" id="saveMetaBtn">Save</button>
               <button type="button" class="btn" id="publishBtn" disabled>Publish</button>
               <button type="button" class="btn btn-secondary" id="backFromEdit">&larr; Back</button>
+              <button type="button" class="btn" id="deleteBtn" style="display:none;background:var(--error);border-color:var(--error);margin-left:auto;">Delete</button>
             </div>
           </form>
         </div>
@@ -639,6 +640,10 @@
 
           const $publishBtn = document.getElementById('publishBtn');
           $publishBtn.disabled = (book.status !== 'ready');
+
+          // Show delete button for draft/failed books
+          const $deleteBtn = document.getElementById('deleteBtn');
+          $deleteBtn.style.display = (book.status === 'draft' || book.status === 'failed' || book.status === 'processing') ? '' : 'none';
 
           // Show validation errors if any
           const $valErr = document.getElementById('validationErrors');
@@ -851,6 +856,22 @@
           showAlert($editAlert, err.message);
           btn.disabled = false;
           btn.textContent = 'Publish';
+        }
+      });
+
+      // ── Delete ────────────────────────────
+      document.getElementById('deleteBtn').addEventListener('click', async () => {
+        if (!confirm('Delete this book? This cannot be undone.')) return;
+        hideAlert($editAlert);
+        const btn = document.getElementById('deleteBtn');
+        btn.disabled = true;
+        try {
+          await apiFetch('DELETE', `/publish/books/${editingBookId}`);
+          showView('list');
+          await loadMyBooks();
+        } catch (err) {
+          showAlert($editAlert, err.message);
+          btn.disabled = false;
         }
       });
 

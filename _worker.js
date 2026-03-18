@@ -2315,6 +2315,35 @@ export default {
         return jsonResponse(data, 200, apiCorsHeaders);
       }
 
+      // ── DELETE /v1/publish/books/:id — delete a draft/failed book ──
+      if (publishBookMatch && request.method === "DELETE") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const bookId = publishBookMatch[1];
+
+        // Only allow deleting draft or failed books
+        const { data: book } = await sbFetch("books", {
+          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=id,status`,
+          single: true,
+        });
+        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+        if (book.status === "published") {
+          return jsonResponse({ error: "Cannot delete a published book. Unpublish it first." }, 400, apiCorsHeaders);
+        }
+
+        // Delete source assets first
+        await sbFetch("source_assets", {
+          method: "DELETE",
+          params: `book_id=eq.${bookId}`,
+        });
+        // Delete the book
+        await sbFetch("books", {
+          method: "DELETE",
+          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}`,
+        });
+        return jsonResponse({ deleted: true }, 200, apiCorsHeaders);
+      }
+
       // ── POST /v1/publish/books/:id/publish — publish a book ──
       const pubMatch = apiPath.match(/^\/publish\/books\/([0-9a-f-]+)\/publish$/);
       if (pubMatch && request.method === "POST") {
