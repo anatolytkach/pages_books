@@ -2104,11 +2104,65 @@ export default {
       if (byContentMatch && request.method === "GET") {
         const contentId = byContentMatch[1];
         const { data: book } = await sbFetch("books", {
-          params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free`,
+          params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free,published_by_user_id`,
           single: true,
         });
         if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
         return jsonResponse(book, 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/books/by-content/:contentId/access — combined lookup + entitlement check ──
+      const byContentAccessMatch = apiPath.match(/^\/books\/by-content\/(\d+)\/access$/);
+      if (byContentAccessMatch && request.method === "GET") {
+        const contentId = byContentAccessMatch[1];
+        const { data: book } = await sbFetch("books", {
+          params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free,published_by_user_id`,
+          single: true,
+        });
+
+        // Not in DB — grant access (Gutenberg or unknown)
+        if (!book) return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
+
+        // Free books — grant access
+        if (book.is_free) return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
+
+        // Not published — grant access (draft/processing)
+        if (book.status !== "published") return jsonResponse({ access: "full", type: "unpublished" }, 200, apiCorsHeaders);
+
+        // Publisher always has access to their own books
+        if (user && book.published_by_user_id === user.sub) {
+          return jsonResponse({ access: "full", type: "publisher" }, 200, apiCorsHeaders);
+        }
+
+        // Check for purchase/rental entitlements
+        if (user) {
+          const { data: entitlements } = await sbFetch("entitlements", {
+            params: `user_id=eq.${user.sub}&book_id=eq.${book.id}&is_active=eq.true&select=*&order=created_at.desc`,
+          });
+          if (entitlements && entitlements.length > 0) {
+            for (const ent of entitlements) {
+              if (ent.entitlement_type === "purchase") {
+                return jsonResponse({ access: "full", type: "purchase" }, 200, apiCorsHeaders);
+              }
+              if (ent.entitlement_type === "rental") {
+                if (!ent.expires_at || new Date(ent.expires_at) > new Date()) {
+                  return jsonResponse({ access: "full", type: "rental", expires_at: ent.expires_at }, 200, apiCorsHeaders);
+                }
+              }
+            }
+          }
+        }
+
+        // Check if book has offers — if none, treat as free
+        const { data: offers } = await sbFetch("book_offers", {
+          params: `book_id=eq.${book.id}&is_active=eq.true&select=*`,
+        });
+        if (!offers || !offers.length) {
+          return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
+        }
+
+        // Access denied — return book info and offers
+        return jsonResponse({ access: "none", book, offers }, 200, apiCorsHeaders);
       }
 
       // ── GET /v1/books/:id/entitlement — check access ──
