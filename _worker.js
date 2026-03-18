@@ -2296,7 +2296,7 @@ export default {
         const body = await request.json().catch(() => null);
         if (!body) return jsonResponse({ error: "Invalid JSON" }, 400, apiCorsHeaders);
 
-        const allowed = ["title", "author", "genre_id", "year_written", "isbn", "language", "annotation"];
+        const allowed = ["title", "author", "genre_id", "year_written", "isbn", "language", "annotation", "cover_url"];
         const updates = {};
         for (const key of allowed) {
           if (body[key] !== undefined) updates[key] = body[key];
