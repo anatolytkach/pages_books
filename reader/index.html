@@ -78,9 +78,9 @@
   })
   .then(r => r.ok ? r.json() : [])
   .then(books => {
-    if (!books.length) return; // Not in DB — probably Gutenberg, let reader handle it
+    if (!books.length) { viewer.innerHTML = ''; return; } // Not in DB — let reader handle it
     const book = books[0];
-    if (book.is_free || book.status !== 'published') return; // Free or not published — let reader load
+    if (book.is_free || book.status !== 'published') { viewer.innerHTML = ''; return; } // Free or not published — let reader load
 
     // Get auth token if available
     let token = null;

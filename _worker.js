@@ -2143,11 +2143,17 @@ export default {
           }
         }
 
-        // No entitlement — return offers
+        // No entitlement — check if there are any offers
         const { data: offers } = await sbFetch("book_offers", {
           params: `book_id=eq.${bookId}&is_active=eq.true&select=*`,
         });
-        return jsonResponse({ access: "none", offers: offers || [] }, 200, apiCorsHeaders);
+
+        // If no offers exist, treat the book as publicly accessible
+        if (!offers || !offers.length) {
+          return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
+        }
+
+        return jsonResponse({ access: "none", offers }, 200, apiCorsHeaders);
       }
 
       // ── GET /v1/books/:id/offers — list offers ──
