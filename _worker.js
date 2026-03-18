@@ -253,7 +253,7 @@ function buildSeoCacheHeaders(version) {
   return {
     "cache-control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
     "x-reader-seo-version": String(version || ""),
-    "x-reader-seo-render": "5",
+    "x-reader-seo-render": "6",
   };
 }
 
@@ -261,7 +261,7 @@ function buildSitemapCacheHeaders(version) {
   return {
     "cache-control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400",
     "x-reader-seo-version": String(version || ""),
-    "x-reader-seo-render": "5",
+    "x-reader-seo-render": "6",
   };
 }
 
@@ -270,7 +270,7 @@ function buildSeoCacheKey(url, version, variant = "") {
   cacheUrl.hash = "";
   cacheUrl.search = "";
   cacheUrl.searchParams.set("__seo_v", String(version || "0"));
-  cacheUrl.searchParams.set("__seo_render", "5");
+  cacheUrl.searchParams.set("__seo_render", "6");
   if (variant) cacheUrl.searchParams.set("__seo_variant", String(variant));
   return new Request(cacheUrl.toString(), { method: "GET" });
 }
@@ -590,6 +590,9 @@ function buildBreadcrumbs(items) {
 }
 
 function buildBookJsonLd(origin, book) {
+  const description = sanitizeMetaDescription(
+    book.description || book.excerpt || `${book.title} by ${book.authorName}`
+  );
   const data = {
     "@context": "https://schema.org",
     "@type": "Book",
@@ -603,7 +606,7 @@ function buildBookJsonLd(origin, book) {
     inLanguage: book.language || "und",
   };
   if (book.cover) data.image = `${origin}${book.cover}`;
-  if (book.description) data.description = book.description;
+  if (description) data.description = description;
   return data;
 }
 
