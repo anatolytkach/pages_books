@@ -102,6 +102,22 @@ async function serveR2Object(env, key, route) {
   });
 }
 
+function decodePathSegment(value) {
+  try {
+    return decodeURIComponent(String(value || ""));
+  } catch (error) {
+    return String(value || "");
+  }
+}
+
+async function serveR2ObjectWithFallback(env, primaryKey, fallbackKey, route) {
+  const primary = await serveR2Object(env, primaryKey, route);
+  if (primary.status !== 404 || !fallbackKey || fallbackKey === primaryKey) {
+    return primary;
+  }
+  return serveR2Object(env, fallbackKey, route);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -129,13 +145,25 @@ export default {
     }
 
     if (path.startsWith("/books/api/")) {
-      const key = `api/${path.slice("/books/api/".length)}`;
-      return serveR2Object(env, key, "r2-api");
+      const rawSuffix = path.slice("/books/api/".length);
+      const decodedSuffix = decodePathSegment(rawSuffix);
+      return serveR2ObjectWithFallback(
+        env,
+        `api/${decodedSuffix}`,
+        `api/${rawSuffix}`,
+        "r2-api",
+      );
     }
 
     if (path.startsWith("/books/content/")) {
-      const key = `content/${path.slice("/books/content/".length)}`;
-      return serveR2Object(env, key, "r2-content");
+      const rawSuffix = path.slice("/books/content/".length);
+      const decodedSuffix = decodePathSegment(rawSuffix);
+      return serveR2ObjectWithFallback(
+        env,
+        `content/${decodedSuffix}`,
+        `content/${rawSuffix}`,
+        "r2-content",
+      );
     }
 
     if (path.startsWith("/books/reader/api/")) {
