@@ -209,12 +209,28 @@ async function updateCatalogIndexes(env, book) {
   const title = String(book.title || "").trim();
   const contentId = String(book.content_id || "");
   const coverUrl = book.cover_url || "";
+  const language = String(book.language || "en").trim();
   if (!authorName || !title || !contentId) return;
 
   const { authorKey, indexKey, display: authorDisplay } = parseAuthorForIndex(authorName);
 
-  // 1. Update author file: api/a/<authorKey>.json
-  const authorR2Key = `api/a/${authorKey}.json`;
+  // Update both root index and language-specific index
+  const prefixes = ["api"];
+  if (language && language !== "und") {
+    prefixes.push(`api/lang/${language}`);
+  }
+
+  for (const apiPrefix of prefixes) {
+    await updateCatalogIndexesForPrefix(env, apiPrefix, {
+      authorKey, indexKey, authorDisplay, title, contentId, coverUrl,
+    });
+  }
+}
+
+async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexKey, authorDisplay, title, contentId, coverUrl }) {
+
+  // 1. Update author file: <apiPrefix>/a/<authorKey>.json
+  const authorR2Key = `${apiPrefix}/a/${authorKey}.json`;
   let authorData;
   try {
     const obj = await env.READER_BOOKS.get(authorR2Key);
@@ -239,7 +255,7 @@ async function updateCatalogIndexes(env, book) {
   let inserted = false;
   for (let depth = 1; depth <= indexKey.length && !inserted; depth++) {
     const prefix = indexKey.slice(0, depth);
-    const r2Key = `api/p/${prefix}.json`;
+    const r2Key = `${apiPrefix}/p/${prefix}.json`;
     let prefixData;
     try {
       const obj = await env.READER_BOOKS.get(r2Key);
@@ -287,7 +303,7 @@ async function updateCatalogIndexes(env, book) {
           httpMetadata: { contentType: "application/json; charset=utf-8" },
         });
         // Create leaf at child level
-        const childR2Key = `api/p/${childPrefix}.json`;
+        const childR2Key = `${apiPrefix}/p/${childPrefix}.json`;
         const childData = { authorCount: 1, authors: [{ key: authorKey, name: authorDisplay, count: authorData.books.length }] };
         await env.READER_BOOKS.put(childR2Key, JSON.stringify(childData), {
           httpMetadata: { contentType: "application/json; charset=utf-8" },
@@ -301,7 +317,7 @@ async function updateCatalogIndexes(env, book) {
   // 3. Update search tokens
   const tokens = buildSearchTokens(title, authorName);
   for (const token of tokens) {
-    const r2Key = `api/search/${token}.json`;
+    const r2Key = `${apiPrefix}/search/${token}.json`;
     let searchData;
     try {
       const obj = await env.READER_BOOKS.get(r2Key);
@@ -331,7 +347,7 @@ async function updateCatalogIndexes(env, book) {
 
   // 4. Update letters.json (based on index key = last name first)
   const firstLetter = getFirstLetter(indexKey);
-  const lettersR2Key = "api/letters.json";
+  const lettersR2Key = `${apiPrefix}/letters.json`;
   let lettersData;
   try {
     const obj = await env.READER_BOOKS.get(lettersR2Key);
