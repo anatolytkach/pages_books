@@ -67,19 +67,14 @@
   // Show loading state
   viewer.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:60vh;color:#6c645a;font-family:Source Sans 3,system-ui,sans-serif">Checking access...</div>';
 
-  // Check entitlement via API
+  // Check entitlement via Worker API (avoids Supabase RLS issues)
   const apiBase = '/books/api/v1';
-  const supabaseUrl = 'https://kalbegycglkhxulhatpx.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbGJlZ3ljZ2xraHh1bGhhdHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzkyODIsImV4cCI6MjA4OTM1NTI4Mn0.T1VqDg2ZK87RfnABKMHUwDLpT7bVOckr40Pv-aIppKs';
 
-  // Find the Supabase book ID by content_id
-  fetch(`${supabaseUrl}/rest/v1/books?content_id=eq.${id}&select=id,title,author,annotation,cover_url,status,is_free&limit=1`, {
-    headers: { 'apikey': supabaseKey }
-  })
-  .then(r => r.ok ? r.json() : [])
-  .then(books => {
-    if (!books.length) { viewer.innerHTML = ''; return; } // Not in DB — let reader handle it
-    const book = books[0];
+  // Look up book by content_id via Worker API
+  fetch(`${apiBase}/books/by-content/${id}`)
+  .then(r => r.ok ? r.json() : null)
+  .then(book => {
+    if (!book) { viewer.innerHTML = ''; return; } // Not in DB — let reader handle it
     if (book.is_free || book.status !== 'published') { viewer.innerHTML = ''; return; } // Free or not published — let reader load
 
     // Get auth token if available

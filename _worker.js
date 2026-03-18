@@ -2099,6 +2099,18 @@ export default {
         return jsonResponse(data || [], 200, apiCorsHeaders);
       }
 
+      // ── GET /v1/books/by-content/:contentId — look up book by content_id ──
+      const byContentMatch = apiPath.match(/^\/books\/by-content\/(\d+)$/);
+      if (byContentMatch && request.method === "GET") {
+        const contentId = byContentMatch[1];
+        const { data: book } = await sbFetch("books", {
+          params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free`,
+          single: true,
+        });
+        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+        return jsonResponse(book, 200, apiCorsHeaders);
+      }
+
       // ── GET /v1/books/:id/entitlement — check access ──
       const entitlementMatch = apiPath.match(/^\/books\/([0-9a-f-]+)\/entitlement$/);
       if (entitlementMatch && request.method === "GET") {
