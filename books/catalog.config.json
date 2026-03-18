@@ -1,6 +1,6 @@
 {
-  "baseUrl": "https://reader.pub/books/api",
-  "assetBaseUrl": "https://reader.pub",
+  "baseUrl": "/books/api",
+  "assetBaseUrl": "",
   "lettersIndexPath": "/letters.json",
   "letterPrefixesPath": "/p/{letter}.json",
   "prefixNodePath": "/p/{prefix}.json",

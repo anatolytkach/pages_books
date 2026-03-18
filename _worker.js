@@ -1795,6 +1795,36 @@ export default {
       return new Response(object.body, { headers });
     }
 
+    if (decodedPath.startsWith("/books/content/")) {
+      const key = `content/${decodedPath.slice("/books/content/".length)}`;
+      if (!env.READER_BOOKS) {
+        const headers = new Headers({
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+        });
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "r2-content-missing");
+        return new Response("R2 binding missing", { status: 500, headers });
+      }
+      const object = await env.READER_BOOKS.get(key);
+      if (!object) {
+        const headers = new Headers({
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+        });
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "r2-content-miss");
+        return new Response("Not found", { status: 404, headers });
+      }
+      const headers = new Headers();
+      object.writeHttpMetadata(headers);
+      headers.set("etag", object.httpEtag);
+      headers.set("cache-control", "public, max-age=3600");
+      headers.set("x-reader-worker", "1");
+      headers.set("x-reader-route", "r2-content");
+      return new Response(object.body, { headers });
+    }
+
     if (path === "/books/ping") {
       const headers = new Headers({
         "content-type": "text/plain; charset=utf-8",
