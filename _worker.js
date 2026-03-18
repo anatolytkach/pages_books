@@ -198,6 +198,200 @@ async function processEpub(env, fileBytes, bookId, contentId) {
   return { title, author, language, coverUrl };
 }
 
+/**
+ * Update R2 catalog indexes when a book is published.
+ * Performs incremental updates to: author file, prefix tree, search tokens, letters.
+ */
+async function updateCatalogIndexes(env, book) {
+  if (!env.READER_BOOKS) return;
+
+  const authorName = String(book.author || "").trim();
+  const title = String(book.title || "").trim();
+  const contentId = String(book.content_id || "");
+  const coverUrl = book.cover_url || "";
+  if (!authorName || !title || !contentId) return;
+
+  // Generate author key: "Last, First" → "firstlast", "First Last" → "firstlast"
+  const authorKey = slugifyAuthor(authorName);
+  const authorDisplay = formatAuthorDisplay(authorName);
+
+  // 1. Update author file: api/a/<authorKey>.json
+  const authorR2Key = `api/a/${authorKey}.json`;
+  let authorData;
+  try {
+    const obj = await env.READER_BOOKS.get(authorR2Key);
+    authorData = obj ? await obj.json() : null;
+  } catch { authorData = null; }
+
+  if (!authorData) {
+    authorData = { key: authorKey, name: authorDisplay, books: [] };
+  }
+  // Avoid duplicates
+  if (!authorData.books.some(b => b.id === contentId)) {
+    authorData.books.push({ id: contentId, title, cover: coverUrl });
+    authorData.books.sort((a, b) => a.title.localeCompare(b.title));
+  }
+  await env.READER_BOOKS.put(authorR2Key, JSON.stringify(authorData), {
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+  });
+
+  // 2. Update prefix tree: api/p/<prefix>.json at each level
+  const prefixLevels = buildPrefixLevels(authorKey);
+  for (let i = 0; i < prefixLevels.length; i++) {
+    const prefix = prefixLevels[i];
+    const r2Key = `api/p/${prefix}.json`;
+    let prefixData;
+    try {
+      const obj = await env.READER_BOOKS.get(r2Key);
+      prefixData = obj ? await obj.json() : null;
+    } catch { prefixData = null; }
+
+    const isLeaf = i === prefixLevels.length - 1;
+
+    if (!prefixData) {
+      prefixData = { authorCount: 0 };
+      if (isLeaf) {
+        prefixData.authors = [];
+      } else {
+        prefixData.prefixes = [];
+      }
+    }
+
+    if (isLeaf && prefixData.authors) {
+      // Leaf node: add author if not present
+      if (!prefixData.authors.some(a => a.key === authorKey)) {
+        prefixData.authors.push({ key: authorKey, name: authorDisplay, count: authorData.books.length });
+        prefixData.authors.sort((a, b) => a.name.localeCompare(b.name));
+        prefixData.authorCount = prefixData.authors.length;
+      } else {
+        // Update count
+        const existing = prefixData.authors.find(a => a.key === authorKey);
+        if (existing) existing.count = authorData.books.length;
+      }
+    } else if (!isLeaf && prefixData.prefixes) {
+      // Branch node: ensure child prefix exists
+      const childPrefix = prefixLevels[i + 1];
+      if (!prefixData.prefixes.some(p => p.prefix === childPrefix)) {
+        prefixData.prefixes.push({ prefix: childPrefix, count: 1 });
+        prefixData.prefixes.sort((a, b) => a.prefix.localeCompare(b.prefix));
+      }
+      // Recount
+      prefixData.authorCount = prefixData.prefixes.reduce((sum, p) => sum + p.count, 0);
+    }
+
+    await env.READER_BOOKS.put(r2Key, JSON.stringify(prefixData), {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    });
+  }
+
+  // 3. Update search tokens
+  const tokens = buildSearchTokens(title, authorName);
+  for (const token of tokens) {
+    const r2Key = `api/search/${token}.json`;
+    let searchData;
+    try {
+      const obj = await env.READER_BOOKS.get(r2Key);
+      searchData = obj ? await obj.json() : null;
+    } catch { searchData = null; }
+
+    if (!searchData) searchData = { items: [] };
+
+    // Add author entry if not present
+    const authorEntry = searchData.items.find(i => i.t === "a" && i.k === authorKey);
+    if (!authorEntry) {
+      searchData.items.push({ t: "a", k: authorKey, n: authorDisplay, c: authorData.books.length });
+    } else {
+      authorEntry.c = authorData.books.length;
+    }
+
+    // Add title entry
+    const titleEntry = searchData.items.find(i => i.t === "b" && i.k === contentId);
+    if (!titleEntry) {
+      searchData.items.push({ t: "b", k: contentId, n: title, a: authorDisplay });
+    }
+
+    await env.READER_BOOKS.put(r2Key, JSON.stringify(searchData), {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    });
+  }
+
+  // 4. Update letters.json
+  const firstLetter = getFirstLetter(authorKey);
+  const lettersR2Key = "api/letters.json";
+  let lettersData;
+  try {
+    const obj = await env.READER_BOOKS.get(lettersR2Key);
+    lettersData = obj ? await obj.json() : null;
+  } catch { lettersData = null; }
+
+  if (!lettersData) lettersData = { letters: [] };
+
+  const letterEntry = lettersData.letters.find(l => l.key === firstLetter);
+  if (letterEntry) {
+    // Don't increment here — count represents unique authors, which is complex.
+    // Just ensure the letter exists. Full recount would require reading all prefix files.
+  } else {
+    const displayLetter = firstLetter === "num" ? "#" : firstLetter.toUpperCase();
+    lettersData.letters.push({ letter: displayLetter, key: firstLetter, count: 1 });
+    lettersData.letters.sort((a, b) => a.letter.localeCompare(b.letter));
+  }
+
+  await env.READER_BOOKS.put(lettersR2Key, JSON.stringify(lettersData), {
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+  });
+}
+
+function slugifyAuthor(name) {
+  // Handle "Last, First" format
+  const parts = name.includes(",")
+    ? name.split(",").reverse().map(s => s.trim())
+    : name.split(/\s+/);
+  return parts.join("").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function formatAuthorDisplay(name) {
+  // If already "Last, First" keep it; otherwise convert "First Last" → "Last, First"
+  if (name.includes(",")) return name;
+  const parts = name.trim().split(/\s+/);
+  if (parts.length <= 1) return name;
+  const last = parts.pop();
+  return `${last}, ${parts.join(" ")}`;
+}
+
+function buildPrefixLevels(authorKey) {
+  // Build prefix hierarchy: e.g. "dhlawrence" → ["d", "dh", "dhl"]
+  // Stop at 3 chars or when we reach a leaf level
+  const levels = [];
+  for (let i = 1; i <= Math.min(3, authorKey.length); i++) {
+    levels.push(authorKey.slice(0, i));
+  }
+  return levels;
+}
+
+function buildSearchTokens(title, author) {
+  const tokens = new Set();
+  const words = `${title} ${author}`.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "")
+    .split(/\s+/)
+    .filter(w => w.length >= 2);
+
+  for (const word of words) {
+    // Add 2-char and 3-char prefixes
+    if (word.length >= 2) tokens.add(word.slice(0, 2));
+    if (word.length >= 3) tokens.add(word.slice(0, 3));
+  }
+  return [...tokens];
+}
+
+function getFirstLetter(authorKey) {
+  const ch = authorKey.charAt(0);
+  if (ch >= "0" && ch <= "9") return "num";
+  return ch;
+}
+
 function extractXmlTag(xml, tag) {
   const re = new RegExp(`<${tag}[^>]*>([^<]+)</${tag}>`, "i");
   const m = xml.match(re);
@@ -2026,6 +2220,14 @@ export default {
           single: true,
         });
         if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+
+        // Update catalog indexes so the book appears in browse/search
+        try {
+          await updateCatalogIndexes(env, data);
+        } catch (indexErr) {
+          // Non-fatal: book is published even if index update fails
+        }
+
         return jsonResponse(data, 200, apiCorsHeaders);
       }
 
