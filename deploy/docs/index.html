@@ -97,21 +97,22 @@
           <li><a href="#scope">1. Назначение и границы</a></li>
           <li><a href="#workers">2. Все worker'ы Cloudflare</a></li>
           <li><a href="#storage">3. Структура хранения в R2</a></li>
-          <li><a href="#indexes">4. Форматы индексов каталога</a></li>
-          <li><a href="#ingest">5. Конвейер DOCX -> EPUB -> R2 -> индексы -> Pages</a></li>
-          <li><a href="#ops">6. Операционные сценарии и rollback</a></li>
-          <li><a href="#secrets">7. Секреты и переменные окружения</a></li>
-          <li><a href="#reader-arch">8. Устройство читалки</a></li>
-          <li><a href="#docsauth">9. Защита документации</a></li>
-          <li><a href="#stats">10. Статистика / PostHog</a></li>
-          <li><a href="#checks">11. Проверки после релиза</a></li>
+          <li><a href="#seo-layer">4. SEO-layer: архитектура и runtime</a></li>
+          <li><a href="#indexes">5. Форматы индексов каталога</a></li>
+          <li><a href="#ingest">6. Конвейер DOCX -> EPUB -> R2 -> индексы -> Pages</a></li>
+          <li><a href="#ops">7. Операционные сценарии и rollback</a></li>
+          <li><a href="#secrets">8. Секреты и переменные окружения</a></li>
+          <li><a href="#reader-arch">9. Устройство читалки</a></li>
+          <li><a href="#docsauth">10. Защита документации</a></li>
+          <li><a href="#stats">11. Статистика / PostHog</a></li>
+          <li><a href="#checks">12. Проверки после релиза</a></li>
         </ul>
       </aside>
 
       <section class="card">
         <h1>ReaderPub: передача проекта</h1>
-        <p class="meta">Документация на русском языке. Актуально на 2026-03-05.</p>
-        <p class="meta"><strong>Версия страницы:</strong> docs-live-2026-03-17-05:30-ET-reader-posthog</p>
+        <p class="meta">Документация на русском языке. Актуально на 2026-03-18.</p>
+        <p class="meta"><strong>Версия страницы:</strong> docs-live-2026-03-18-SEO-layer</p>
 
         <h2 id="scope">1. Назначение и границы</h2>
         <p>
@@ -127,12 +128,13 @@
 cd pages_books</code></pre>
 
         <h2 id="workers">2. Все worker'ы Cloudflare</h2>
-        <p><strong>Worker A (основной):</strong> <code>_worker.js</code> (Pages worker проекта <code>reader-books</code>).</p>
+        <p><strong>Worker A (Pages worker):</strong> <code>_worker.js</code> (Pages worker проекта <code>reader-books</code>).</p>
         <ul>
           <li><code>/books/api/*</code> -> чтение индексов из R2 binding <code>READER_BOOKS</code>.</li>
           <li><code>/books/api/translate</code>, <code>/api/translate</code> -> Google Translate API.</li>
           <li><code>/books/api/notes-share*</code>, <code>/api/notes-share*</code>, <code>/books/api/ns*</code>, <code>/api/ns*</code>.</li>
           <li><code>/books/ping</code>, redirect <code>/books/&lt;id&gt; -> /books/reader/#&lt;id&gt;</code>.</li>
+          <li>SSR/edge-rendering SEO pages: <code>/book/*</code>, <code>/author/*</code>, <code>/category/*</code>, <code>/sitemap.xml</code>, <code>/sitemaps/*</code>, <code>/robots.txt</code>.</li>
         </ul>
 
         <p><strong>Worker B (служебный notes proxy):</strong> <code>tools/notes-share-proxy-worker.js</code>.</p>
@@ -148,6 +150,13 @@ cd pages_books</code></pre>
           <li>Правило публикации: изменения в <code>docs/README.md</code> нужно сразу переносить в <code>deploy/docs/index.html</code> и сразу выкатывать Pages-проект <code>reader-books</code> на ветку <code>master</code>, потому что <code>staging.reader.pub/docs/</code> читает docs именно оттуда.</li>
         </ul>
 
+        <p><strong>Worker D (production router):</strong> <code>tools/reader-books-router.js</code>.</p>
+        <ul>
+          <li>Routes: <code>/books*</code>, <code>/book*</code>, <code>/author*</code>, <code>/category*</code>, <code>/sitemap.xml*</code>, <code>/sitemaps/*</code>, <code>/robots.txt*</code>.</li>
+          <li>Читает R2 binding <code>BOOKS</code> напрямую для <code>api/*</code>, <code>content/*</code> и <code>seo/*</code>.</li>
+          <li>На production именно этот router связывает root SEO routes с runtime logic Pages worker.</li>
+        </ul>
+
         <h2 id="storage">3. Структура хранения в R2</h2>
         <ul>
           <li>Книги: <code>content/&lt;book_id&gt;/...</code> (распакованный EPUB, включая <code>META-INF/container.xml</code>).</li>
@@ -156,9 +165,65 @@ cd pages_books</code></pre>
           <li>Навигация по авторам: <code>api/p/*.json</code>, <code>api/a/*.json</code>.</li>
           <li>Поиск: <code>api/search/&lt;token2&gt;.json</code>.</li>
           <li>Языковые ветки: <code>api/lang/&lt;lang&gt;/...</code>.</li>
+          <li>SEO data layer: <code>seo/book-shards/*.json</code>, <code>seo/author-shards/*.json</code>, <code>seo/category/*.json</code>, <code>seo/sitemaps/*.json</code>, <code>seo/version.json</code>.</li>
         </ul>
 
-        <h2 id="indexes">4. Форматы индексов каталога</h2>
+        <h2 id="seo-layer">4. SEO-layer: архитектура и runtime</h2>
+        <p>
+          SEO-layer добавлен поверх существующего каталога и веб-читалки. Он не переписывает
+          <code>/books/</code> и не заменяет reader, а даёт отдельные индексируемые URL и
+          серверный HTML для поисковиков.
+        </p>
+        <p><strong>Публичные SEO routes:</strong></p>
+        <ul>
+          <li><code>/book/&lt;slug&gt;</code></li>
+          <li><code>/book/&lt;slug&gt;/chapter-&lt;n&gt;-&lt;chapter-slug&gt;</code></li>
+          <li><code>/author/&lt;slug&gt;</code></li>
+          <li><code>/category/&lt;slug&gt;</code></li>
+          <li><code>/sitemap.xml</code>, <code>/sitemaps/*</code>, <code>/robots.txt</code></li>
+        </ul>
+        <p><strong>Как это работает:</strong></p>
+        <ul>
+          <li>HTML SEO pages не предгенерируются в Pages.</li>
+          <li>Book/chapter/author/category pages рендерятся on demand в <code>_worker.js</code>.</li>
+          <li>Source data для SEO pages читаются из R2, а не из Pages assets.</li>
+          <li>Pages bundle содержит только код и frontend assets; SEO manifests вынесены в R2.</li>
+        </ul>
+        <p><strong>Source of truth:</strong></p>
+        <ul>
+          <li><code>content/&lt;book_id&gt;/...</code> — XHTML/OPF/обложки книг.</li>
+          <li><code>api/*</code> — индексы каталога <code>/books/</code>.</li>
+          <li><code>seo/*</code> — manifests для SEO routes и sitemap chunks.</li>
+        </ul>
+        <p><strong>Book manifest хранит:</strong></p>
+        <ul>
+          <li><code>id</code>, <code>slug</code>, <code>title</code></li>
+          <li><code>authorName</code>, <code>authorSlug</code></li>
+          <li><code>categories[]</code>, <code>chapters[]</code></li>
+          <li><code>description</code>, <code>meta_description</code></li>
+          <li><code>raw_description</code>, <code>normalized_description</code>, <code>description_source</code></li>
+        </ul>
+        <p><strong>Description pipeline:</strong></p>
+        <ul>
+          <li>Сначала пробуется metadata description из EPUB.</li>
+          <li>Потом — осмысленный fragment из первой нормальной линейной главы.</li>
+          <li>Если хороший snippet не найден, используется безопасный fallback вида <code>Read "Title" by Author on ReaderPub.</code></li>
+          <li>Нормализация удаляет Gutenberg boilerplate, frontmatter, TOC noise и служебные opening fragments.</li>
+        </ul>
+        <p><strong>Внутренние ссылки и UX:</strong></p>
+        <ul>
+          <li><code>Open in WeRead</code> ведёт в существующий flow <code>/books/&lt;id&gt;/</code>.</li>
+          <li>Category chips на SEO book page ведут в каталог: <code>/books/#view=category&amp;category=&lt;slug&gt;</code>.</li>
+          <li>SEO category page <code>/category/&lt;slug&gt;</code> остаётся отдельной индексируемой страницей и дополнительно содержит CTA <code>Open in Catalog</code>.</li>
+        </ul>
+        <p><strong>Sitemap и cache:</strong></p>
+        <ul>
+          <li><code>/sitemap.xml</code> собирается из <code>seo/sitemaps/index.json</code>.</li>
+          <li>SEO pages отдают <code>x-reader-seo-version</code>; cache key включает version из <code>seo/version.json</code>.</li>
+          <li>При rebuild manifests новая version автоматически создаёт новый namespace edge cache.</li>
+        </ul>
+
+        <h2 id="indexes">5. Форматы индексов каталога</h2>
         <p>Источник: <code>tools/build_lang_indexes.py</code>.</p>
         <ul>
           <li><code>letters.json</code>: список букв/ключей и количества авторов.</li>
@@ -176,7 +241,7 @@ cd pages_books</code></pre>
           <li>поиск bucket'изируется по первым 2 символам нормализованной строки.</li>
         </ul>
 
-        <h2 id="ingest">5. Конвейер DOCX - EPUB - R2 - индексы - Pages</h2>
+        <h2 id="ingest">6. Конвейер DOCX - EPUB - R2 - индексы - Pages</h2>
         <p>Скрипты:</p>
         <ul>
           <li><code>books/content/make_epub_from_docx.sh</code> — сборка EPUB из DOCX + нормализация.</li>
@@ -213,7 +278,7 @@ cd pages_books</code></pre>
           <li><code>--no-image-upload</code> — не перезаливает изображения книги в R2; старые картинки остаются как есть, обновляются текст/структура и каталог.</li>
         </ul>
 
-        <h2 id="ops">6. Операционные сценарии и rollback</h2>
+        <h2 id="ops">7. Операционные сценарии и rollback</h2>
         <p><strong>replace &lt;id&gt;</strong> — безопасный способ исправить одну книгу.</p>
         <ul>
           <li>Кладете ровно один EPUB в <code>books/content/</code>.</li>
@@ -226,17 +291,18 @@ cd pages_books</code></pre>
           <li>или <code>upload-ids</code> для восстановления папки книги + <code>reindex-ids</code> через <code>epub_publish.sh</code>.</li>
         </ul>
 
-        <h2 id="secrets">7. Секреты и переменные окружения</h2>
+        <h2 id="secrets">8. Секреты и переменные окружения</h2>
         <ul>
           <li><code>EPUB_PUBLISH_R2_BUCKET</code>, <code>EPUB_PUBLISH_PAGES_PROJECT</code>, <code>EPUB_PUBLISH_PAGES_BRANCH</code></li>
           <li><code>READER_BOOKS</code> (R2 binding)</li>
+          <li><code>BOOKS</code> (R2 binding для production router worker)</li>
           <li><code>READERPUB_GOOGLE_TRANSLATE_API_KEY</code></li>
           <li><code>READERPUB_GOOGLE_CLIENT_ID</code></li>
           <li><code>READERPUB_NOTES_SHARE_KV</code> (для notes proxy)</li>
           <li><code>DOCS_AUTH_USER</code>, <code>DOCS_AUTH_PASS</code></li>
         </ul>
 
-        <h2 id="reader-arch">8. Устройство читалки</h2>
+        <h2 id="reader-arch">9. Устройство читалки</h2>
         <p><strong>Ключевые файлы:</strong> <code>reader/index.html</code>, <code>reader/js/reader.js</code>, <code>reader/js/fbreader-ui.js</code>, <code>books/shared/drive-sync.js</code>.</p>
         <p><strong>Поток запуска:</strong></p>
         <ul>
@@ -268,7 +334,7 @@ cd pages_books</code></pre>
           <li>Синхронность версий <code>reader.js</code>, <code>fbreader-ui.js</code>, CSS.</li>
         </ul>
 
-        <h2 id="docsauth">9. Защита документации</h2>
+        <h2 id="docsauth">10. Защита документации</h2>
         <p>
           URL: <code>https://reader.pub/docs/</code>. Маршруты защищены Basic Auth через
           worker <code>readerpub-docs-route</code>.
@@ -279,7 +345,7 @@ cd pages_books</code></pre>
           <li>публичный fallback отключен.</li>
         </ul>
 
-        <h2 id="stats">10. Статистика / PostHog</h2>
+        <h2 id="stats">11. Статистика / PostHog</h2>
         <p>Для <code>reader.pub/books/</code> и <code>reader.pub/books/reader/</code> подключен PostHog Cloud.</p>
         <p><strong>Важно:</strong></p>
         <ul>
@@ -304,10 +370,12 @@ cd pages_books</code></pre>
         <p><strong>Переменные окружения:</strong> <code>READERPUB_POSTHOG_ENABLED</code>, <code>READERPUB_POSTHOG_KEY</code>, <code>READERPUB_POSTHOG_HOST</code>.</p>
         <p>Подробная инструкция: <code>docs/posthog-catalog.md</code>.</p>
 
-        <h2 id="checks">11. Проверки после релиза</h2>
+        <h2 id="checks">12. Проверки после релиза</h2>
         <ul>
           <li><code>/docs/</code> -> 401 без auth, 200 с auth.</li>
           <li><code>/books/</code> и <code>/books/reader/?id=&lt;id&gt;</code> без регрессий.</li>
+          <li><code>/book/&lt;slug&gt;</code>, <code>/author/&lt;slug&gt;</code>, <code>/category/&lt;slug&gt;</code> рендерятся как SSR HTML.</li>
+          <li><code>/sitemap.xml</code> и child sitemaps открываются.</li>
           <li><code>/books/api/search/a.json</code> и другие index endpoint'ы отдают актуальные JSON.</li>
           <li>Новая/обновленная книга ищется по названию и по автору.</li>
         </ul>

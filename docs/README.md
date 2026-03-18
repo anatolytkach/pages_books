@@ -1,6 +1,6 @@
 # Документация проекта reader.pub (handover)
 
-Дата актуальности: 2026-03-05
+Дата актуальности: 2026-03-18
 
 ## 1. Назначение проекта
 
@@ -24,14 +24,15 @@ cd pages_books
 
 ## 2. Полная карта Cloudflare Worker'ов
 
-### Worker A: основной сайт/каталог/reader API
+### Worker A: Pages worker проекта `reader-books`
 
 - Исходник: `_worker.js` (деплоится как Pages Functions worker для проекта `reader-books`).
 - Назначение:
   - API индексов из R2 (`/books/api/*`);
   - translate API;
   - notes share API;
-  - роутинг `/books/*` к статике catalog/reader;
+  - SSR/edge-рендеринг SEO-страниц;
+  - роутинг `/books/*` к статике каталога и reader;
   - `ping` и redirect по `book_id`.
 - Ключевые routes:
   - `/books/api/*`
@@ -40,6 +41,13 @@ cd pages_books
   - `/books/api/ns*`, `/api/ns*`
   - `/books/ping`
   - `/books/<id>`
+  - `/book/<slug>`
+  - `/book/<slug>/chapter-<n>-<chapter-slug>`
+  - `/author/<slug>`
+  - `/category/<slug>`
+  - `/sitemap.xml`
+  - `/sitemaps/*`
+  - `/robots.txt`
 
 ### Worker B: notes-share proxy (внешний/служебный)
 
@@ -70,6 +78,19 @@ cd pages_books
 - Правило публикации docs:
   - изменения в `docs/README.md` нужно сразу отражать в `deploy/docs/index.html`;
   - после этого нужно сразу делать deploy Pages-проекта `reader-books` на ветку `master`, потому что `staging.reader.pub/docs/` читает docs именно с `master.reader-books.pages.dev/docs/`.
+
+### Worker D: production router для root-routes и R2-backed SEO
+
+- Исходник: `tools/reader-books-router.js`
+- Назначение:
+  - production-router для `reader.pub`;
+  - проксирование `/books/*`, `/book/*`, `/author/*`, `/category/*`, `/sitemap.xml`, `/sitemaps/*`, `/robots.txt`;
+  - прямое чтение R2 binding `BOOKS` для `api/*`, `content/*` и SEO manifests;
+  - защита от расхождений между Pages assets и R2 runtime.
+- Ключевая идея:
+  - Pages bundle содержит только код и frontend assets;
+  - SEO data layer живёт в R2;
+  - HTML SEO-страниц рендерится on demand в worker и кэшируется на edge.
 
 ## 3. Секреты, bindings, переменные
 
@@ -120,6 +141,115 @@ Bucket: `reader-books` (по умолчанию).
 
 - В `_worker.js`: `api/notes_shares/<share_id>.json` в R2.
 - В `notes-share-proxy-worker`: KV `ns:<share_id>`.
+
+### SEO data layer
+
+- Префикс: `seo/...`
+- Структура:
+  - `seo/book-shards/*.json`
+  - `seo/author-shards/*.json`
+  - `seo/category/*.json`
+  - `seo/sitemaps/*.json`
+  - `seo/version.json`
+- Назначение:
+  - source-of-truth для SEO-страниц книг, глав, авторов и категорий;
+  - sitemap source data;
+  - versioned cache namespace для edge caching.
+
+## 4.1 SEO-проект: как устроен SEO-layer
+
+### Цели
+
+SEO-layer добавлен поверх существующего каталога и reader без переписывания `/books/` и без отдельной базы данных.
+
+Он решает две задачи:
+1. даёт чистые индексируемые URL для поисковиков;
+2. приводит пользователя либо на SEO page, либо дальше в каталог/reader.
+
+### Публичные SEO URL
+
+- Книга: `/book/<slug>`
+- Глава: `/book/<slug>/chapter-<n>-<chapter-slug>`
+- Автор: `/author/<slug>`
+- Категория: `/category/<slug>`
+- Sitemap index: `/sitemap.xml`
+- Child sitemaps: `/sitemaps/*.xml`
+- Robots: `/robots.txt`
+
+### Что рендерится и где
+
+- SEO HTML не предгенерируется в Pages.
+- Book, chapter, author и category pages рендерятся on demand в `_worker.js`.
+- На production root-routes идут через `tools/reader-books-router.js`, который прокидывает R2 binding в Pages worker logic.
+
+### Откуда берутся данные
+
+- Контент книги и XHTML глав: `content/<book_id>/...` в R2.
+- Каталожные индексы: `api/...` в R2.
+- SEO manifests: `seo/...` в R2.
+
+Книга и глава не читают данные из Pages assets:
+- manifest lookup идёт по `seo/book-shards/*.json`;
+- source XHTML главы читается из `content/<book_id>/...`.
+
+### Как устроены manifests
+
+Book manifest хранит минимум данных, достаточных для SSR:
+- `id`, `slug`, `title`
+- `authorName`, `authorSlug`
+- `categories[]`
+- `chapters[]`
+- `cover`, `language`
+- `description`, `meta_description`
+- `raw_description`, `normalized_description`, `description_source`
+
+Category/author manifests хранят облегчённые списки книг, достаточные для SSR списков и внутренних ссылок.
+
+### Description pipeline
+
+Во время SEO build для книги вычисляются:
+- `raw_description`
+- `normalized_description`
+- `meta_description`
+- `description_source`
+
+Приоритет источников:
+1. metadata description из EPUB;
+2. нормализованный fragment из первой осмысленной линейной главы;
+3. безопасный fallback `Read "<title>" by <author> on ReaderPub.`
+
+Нормализация удаляет Gutenberg boilerplate, HTML noise, frontmatter и служебные opening fragments.
+
+### Внутренние ссылки и UX
+
+- На SEO book pages ссылка `Open in WeRead` ведёт в существующий flow `/books/<id>/`.
+- Category chips на SEO book page ведут не на `/category/<slug>`, а в каталог:
+  - `/books/#view=category&category=<slug>`
+- При этом SEO category pages `/category/<slug>` остаются отдельными индексируемыми страницами.
+- На SEO category page дополнительно есть CTA `Open in Catalog`.
+
+### Sitemap и robots
+
+- `/sitemap.xml` собирается из `seo/sitemaps/index.json`
+- child sitemaps берутся из `seo/sitemaps/*.json`
+- `robots.txt` разрешает `/book/`, `/author/`, `/category/`, `/sitemaps/`
+- `robots.txt` запрещает `/books/reader/` и `/books/api/`
+
+### Cache strategy
+
+- SEO pages отдают `x-reader-seo-version`
+- cache key включает version из `seo/version.json`
+- при rebuild manifests новый version автоматически создаёт новый namespace edge cache
+- HTML остаётся on-demand, но повторные хиты идут через `caches.default`
+
+### Что нельзя ломать при доработках
+
+- `/books/`
+- `/books/<id>/`
+- `/books/reader/`
+- `/category/<slug>` как SEO page
+- canonical на SEO routes
+- sitemap presence SEO routes
 
 ## 5. Структура индексации (форматы файлов)
 
