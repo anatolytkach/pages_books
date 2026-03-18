@@ -272,7 +272,7 @@ test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () =>
   assert.equal(response.headers.get("x-reader-seo-version"), "seo-v1");
   assert.match(body, /<title>Test Book — Doe, Jane<\/title>/);
   assert.match(body, /<link rel="canonical" href="https:\/\/reader\.pub\/book\/test-book"/);
-  assert.match(body, /Read in Reader/);
+  assert.match(body, /Open in WeRead/);
   assert.match(body, /Chapter 1: Opening/);
 });
 
@@ -336,6 +336,8 @@ test("Integration: /book/<slug>/chapter-<n>-<chapter-slug> renders full chapter 
   assert.equal(response.headers.get("x-reader-route"), "seo-chapter");
   assert.match(body, /<article class="chapterHtml">[\s\S]*Paragraph one\./);
   assert.match(body, /\/books\/content\/123\/OEBPS\/media\/pic\.jpg/);
+  assert.match(body, /\.chapterHtml img,[\s\S]*height: auto !important;/);
+  assert.match(body, /@media \(pointer: coarse\) and \(orientation: portrait\)/);
   assert.match(body, /Back to Book/);
   assert.match(body, /Next chapter/);
 });

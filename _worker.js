@@ -176,6 +176,93 @@ function sanitizeMetaDescription(value) {
   return `${cut || source.slice(0, 157)}...`;
 }
 
+function serializeJsonForScript(value) {
+  return JSON.stringify(value || {})
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+function normalizePosthogHost(host) {
+  const value = String(host || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value.replace(/\/$/, "");
+  return `https://${value.replace(/\/$/, "")}`;
+}
+
+function getPosthogPublicConfig(env) {
+  const key = String(env.READERPUB_POSTHOG_KEY || env.POSTHOG_KEY || "").trim();
+  const host = normalizePosthogHost(
+    String(env.READERPUB_POSTHOG_HOST || env.POSTHOG_HOST || "").trim()
+  );
+  const rawEnabled = String(env.READERPUB_POSTHOG_ENABLED || env.POSTHOG_ENABLED || "").trim();
+  const enabled = /^(1|true|yes|on)$/i.test(rawEnabled) && !!key && !!host;
+  return { enabled, key, host };
+}
+
+function buildSeoAnalyticsHtml(posthogConfig, pageData) {
+  const config = posthogConfig || {};
+  const pagePayload = pageData || {};
+  return `
+    <meta name="posthog-enabled" content="${config.enabled ? "true" : "false"}" />
+    <meta name="posthog-key" content="${escapeHtml(config.key || "")}" />
+    <meta name="posthog-host" content="${escapeHtml(config.host || "")}" />
+    <script src="/books/shared/posthog.js"></script>
+    <script>
+      (function () {
+        if (window.__readerpubSeoAnalyticsBooted) return;
+        window.__readerpubSeoAnalyticsBooted = true;
+        var pageData = ${serializeJsonForScript(pagePayload)};
+
+        function buildClickPayload(anchor) {
+          var href = String(anchor.getAttribute("href") || "");
+          var destinationPath = "";
+          var destinationHash = "";
+          try {
+            var url = new URL(href, window.location.href);
+            destinationPath = url.pathname || "";
+            destinationHash = url.hash || "";
+          } catch (error) {}
+          return Object.assign({}, pageData, {
+            destination_path: destinationPath,
+            destination_hash: destinationHash,
+            cta_type: String(anchor.getAttribute("data-seo-cta-type") || "").trim(),
+            link_text: String(anchor.getAttribute("data-seo-link-text") || anchor.textContent || "").trim(),
+          });
+        }
+
+        try {
+          if (window.ReaderPubAnalytics && typeof window.ReaderPubAnalytics.boot === "function") {
+            window.ReaderPubAnalytics.boot();
+            if (typeof window.ReaderPubAnalytics.captureSeoPageview === "function") {
+              window.ReaderPubAnalytics.captureSeoPageview(pageData);
+            }
+          }
+        } catch (error) {}
+
+        document.addEventListener("click", function (event) {
+          var target = event.target;
+          if (!target || typeof target.closest !== "function") return;
+          var anchor = target.closest("a[data-seo-track]");
+          if (!anchor) return;
+          try {
+            if (!window.ReaderPubAnalytics || typeof window.ReaderPubAnalytics.boot !== "function") return;
+            window.ReaderPubAnalytics.boot();
+            var mode = String(anchor.getAttribute("data-seo-track") || "").trim();
+            var payload = buildClickPayload(anchor);
+            if (mode === "catalog" && typeof window.ReaderPubAnalytics.captureSeoToCatalog === "function") {
+              window.ReaderPubAnalytics.captureSeoToCatalog(payload);
+            } else if (mode === "reader" && typeof window.ReaderPubAnalytics.captureSeoToReader === "function") {
+              window.ReaderPubAnalytics.captureSeoToReader(payload);
+            }
+          } catch (error) {}
+        }, { capture: true });
+      })();
+    </script>`;
+}
+
 async function readBucketObject(env, key) {
   if (!env.READER_BOOKS) return null;
   return await env.READER_BOOKS.get(key);
@@ -253,7 +340,7 @@ function buildSeoCacheHeaders(version) {
   return {
     "cache-control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
     "x-reader-seo-version": String(version || ""),
-    "x-reader-seo-render": "10",
+    "x-reader-seo-render": "12",
   };
 }
 
@@ -261,7 +348,7 @@ function buildSitemapCacheHeaders(version) {
   return {
     "cache-control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400",
     "x-reader-seo-version": String(version || ""),
-    "x-reader-seo-render": "10",
+    "x-reader-seo-render": "12",
   };
 }
 
@@ -270,7 +357,7 @@ function buildSeoCacheKey(url, version, variant = "") {
   cacheUrl.hash = "";
   cacheUrl.search = "";
   cacheUrl.searchParams.set("__seo_v", String(version || "0"));
-  cacheUrl.searchParams.set("__seo_render", "10");
+  cacheUrl.searchParams.set("__seo_render", "12");
   if (variant) cacheUrl.searchParams.set("__seo_variant", String(variant));
   return new Request(cacheUrl.toString(), { method: "GET" });
 }
@@ -303,6 +390,7 @@ function renderSeoLayout({
   canonical,
   bodyHtml,
   structuredData,
+  analyticsHtml,
 }) {
   const metaDescription = sanitizeMetaDescription(description || "");
   const structuredDataHtml = structuredData
@@ -317,6 +405,7 @@ function renderSeoLayout({
     <meta name="description" content="${escapeHtml(metaDescription)}" />
     <link rel="canonical" href="${escapeHtml(canonical)}" />
     <link rel="icon" type="image/svg+xml" href="/books/assets/logo.svg" />
+    ${analyticsHtml || ""}
     ${structuredDataHtml}
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap");
@@ -513,7 +602,23 @@ function renderSeoLayout({
         color: var(--accent-2);
         font-weight: 600;
       }
-      .chapterHtml img { max-width: 100%; height: auto; }
+      .chapterHtml img,
+      .chapterHtml svg,
+      .chapterHtml canvas,
+      .chapterHtml video,
+      .chapterHtml iframe {
+        display: block;
+        max-width: 100% !important;
+        width: auto !important;
+        height: auto !important;
+        max-height: none !important;
+        object-fit: contain;
+      }
+      .chapterHtml figure,
+      .chapterHtml .figure,
+      .chapterHtml .image {
+        max-width: 100%;
+      }
       .chapterHtml h1,
       .chapterHtml h2,
       .chapterHtml h3,
@@ -568,6 +673,20 @@ function renderSeoLayout({
         }
         .chapterHtml p {
           margin: 0 0 14px;
+        }
+      }
+      @media (pointer: coarse) and (orientation: portrait) {
+        .chapterHtml img,
+        .chapterHtml svg,
+        .chapterHtml canvas,
+        .chapterHtml video,
+        .chapterHtml iframe {
+          margin-left: auto;
+          margin-right: auto;
+          max-width: 100% !important;
+          width: auto !important;
+          height: auto !important;
+          max-height: 78vh !important;
         }
       }
     </style>
@@ -642,7 +761,7 @@ function buildCatalogCategoryHref(slug) {
   return `/books/#${params.toString()}`;
 }
 
-function renderBookPage(origin, book) {
+function renderBookPage(origin, book, posthogConfig) {
   const coverHtml = book.cover
     ? `<img class="cover" src="${escapeHtml(book.cover)}" alt="${escapeHtml(book.title)} cover" />`
     : "";
@@ -650,7 +769,7 @@ function renderBookPage(origin, book) {
     ? `<div class="tags">${book.categories
         .map(
           (item) =>
-            `<a class="tag" href="${escapeHtml(buildCatalogCategoryHref(item.slug))}">${escapeHtml(item.title)}</a>`
+            `<a class="tag" href="${escapeHtml(buildCatalogCategoryHref(item.slug))}" data-seo-track="catalog" data-seo-cta-type="category_tag" data-seo-link-text="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
         )
         .join("")}</div>`
     : "";
@@ -680,8 +799,8 @@ function renderBookPage(origin, book) {
           <h1>${escapeHtml(book.title)}</h1>
           <div class="meta">By <a href="/author/${encodeURIComponent(book.authorSlug)}">${escapeHtml(book.authorName)}</a></div>
           <div class="actions">
-            <a class="btn" href="${escapeHtml(book.readerUrl)}">Open in WeRead</a>
-            <a class="btn secondary" href="/books/">All Books</a>
+            <a class="btn" href="${escapeHtml(book.readerUrl)}" data-seo-track="reader" data-seo-cta-type="open_in_weread" data-seo-link-text="Open in WeRead">Open in WeRead</a>
+            <a class="btn secondary" href="/books/" data-seo-track="catalog" data-seo-cta-type="all_books" data-seo-link-text="All Books">All Books</a>
           </div>
           ${categoryHtml}
         </div>
@@ -705,11 +824,21 @@ function renderBookPage(origin, book) {
     description: book.meta_description || book.description || `${book.title} by ${book.authorName}`,
     canonical: seoCanonical(origin, `/book/${book.slug}`),
     structuredData: buildBookJsonLd(origin, book),
+    analyticsHtml: buildSeoAnalyticsHtml(posthogConfig, {
+      page_type: "book",
+      pathname: `/book/${book.slug}`,
+      slug: book.slug,
+      book_id: String(book.id || ""),
+      book_slug: book.slug,
+      author_slug: book.authorSlug || "",
+      category_slug: "",
+      language: book.language || "",
+    }),
     bodyHtml,
   });
 }
 
-function renderChapterPage(origin, book, chapter, chapterHtml) {
+function renderChapterPage(origin, book, chapter, chapterHtml, posthogConfig) {
   const idx = (book.chapters || []).findIndex((item) => item.n === chapter.n);
   const prev = idx > 0 ? book.chapters[idx - 1] : null;
   const next = idx >= 0 && idx < book.chapters.length - 1 ? book.chapters[idx + 1] : null;
@@ -730,7 +859,7 @@ function renderChapterPage(origin, book, chapter, chapterHtml) {
           <h1>${escapeHtml(book.title)}</h1>
           <div class="meta">Chapter ${chapter.n}: ${escapeHtml(chapter.title)}</div>
           <div class="actions">
-            <a class="btn" href="${escapeHtml(book.readerUrl)}">Open in WeRead</a>
+            <a class="btn" href="${escapeHtml(book.readerUrl)}" data-seo-track="reader" data-seo-cta-type="open_in_weread" data-seo-link-text="Open in WeRead">Open in WeRead</a>
             <a class="btn secondary" href="/book/${encodeURIComponent(book.slug)}">Back to Book</a>
           </div>
         </div>
@@ -743,11 +872,21 @@ function renderChapterPage(origin, book, chapter, chapterHtml) {
     title: `${book.title} — Chapter ${chapter.n}`,
     description: `${book.title}, chapter ${chapter.n}: ${chapter.title}`,
     canonical: seoCanonical(origin, chapter.href),
+    analyticsHtml: buildSeoAnalyticsHtml(posthogConfig, {
+      page_type: "chapter",
+      pathname: chapter.href,
+      slug: chapter.slug || `chapter-${chapter.n}`,
+      book_id: String(book.id || ""),
+      book_slug: book.slug,
+      author_slug: book.authorSlug || "",
+      category_slug: "",
+      language: book.language || "",
+    }),
     bodyHtml,
   });
 }
 
-function renderAuthorPage(origin, author) {
+function renderAuthorPage(origin, author, posthogConfig) {
   const booksHtml = Array.isArray(author.books) && author.books.length
     ? `<ol class="list">${author.books
         .map(
@@ -780,11 +919,21 @@ function renderAuthorPage(origin, author) {
     title: `Books by ${author.name}`,
     description: `${author.count || 0} books by ${author.name} on ReaderPub.`,
     canonical: seoCanonical(origin, `/author/${author.slug}`),
+    analyticsHtml: buildSeoAnalyticsHtml(posthogConfig, {
+      page_type: "author",
+      pathname: `/author/${author.slug}`,
+      slug: author.slug,
+      book_id: "",
+      book_slug: "",
+      author_slug: author.slug,
+      category_slug: "",
+      language: "",
+    }),
     bodyHtml,
   });
 }
 
-function renderCategoryPage(origin, category) {
+function renderCategoryPage(origin, category, posthogConfig) {
   const catalogHref = buildCatalogCategoryHref(category.slug);
   const booksHtml = Array.isArray(category.books) && category.books.length
     ? `<ol class="list">${category.books
@@ -806,8 +955,8 @@ function renderCategoryPage(origin, category) {
           <h1>${escapeHtml(category.title)}</h1>
           <div class="meta">${category.count || 0} books</div>
           <div class="actions">
-            <a class="btn" href="${escapeHtml(catalogHref)}">Open in Catalog</a>
-            <a class="btn secondary" href="/books/">All Books</a>
+            <a class="btn" href="${escapeHtml(catalogHref)}" data-seo-track="catalog" data-seo-cta-type="open_in_catalog" data-seo-link-text="Open in Catalog">Open in Catalog</a>
+            <a class="btn secondary" href="/books/" data-seo-track="catalog" data-seo-cta-type="all_books" data-seo-link-text="All Books">All Books</a>
           </div>
         </div>
       </div>
@@ -823,6 +972,16 @@ function renderCategoryPage(origin, category) {
     title: `${category.title} Books`,
     description: `${category.count || 0} books in the ${category.title} category on ReaderPub.`,
     canonical: seoCanonical(origin, `/category/${category.slug}`),
+    analyticsHtml: buildSeoAnalyticsHtml(posthogConfig, {
+      page_type: "category",
+      pathname: `/category/${category.slug}`,
+      slug: category.slug,
+      book_id: "",
+      book_slug: "",
+      author_slug: "",
+      category_slug: category.slug,
+      language: "",
+    }),
     bodyHtml,
   });
 }
@@ -853,6 +1012,7 @@ function buildSitemapIndexXml(origin, sitemaps) {
 
 async function renderSeoRoute(request, env, url, path) {
   const assetOrigin = url.origin;
+  const posthogConfig = getPosthogPublicConfig(env);
   const forwardedOrigin = String(request.headers.get("x-reader-canonical-origin") || "").trim();
   const canonicalOrigin =
     /^https?:\/\/[a-z0-9.-]+$/i.test(forwardedOrigin) ? forwardedOrigin.replace(/\/+$/, "") : assetOrigin;
@@ -939,7 +1099,7 @@ async function renderSeoRoute(request, env, url, path) {
       return new Response(null, { status: 301, headers });
     }
     return await withSeoCache(request, author.version || globalVersion, cacheVariant, async () => {
-      const response = htmlResponse(renderAuthorPage(canonicalOrigin, author), 200, {
+      const response = htmlResponse(renderAuthorPage(canonicalOrigin, author, posthogConfig), 200, {
         ...buildSeoCacheHeaders(author.version || globalVersion),
         "x-reader-route": "seo-author",
       });
@@ -965,7 +1125,7 @@ async function renderSeoRoute(request, env, url, path) {
       return new Response(null, { status: 301, headers });
     }
     return await withSeoCache(request, category.version || globalVersion, cacheVariant, async () => {
-      const response = htmlResponse(renderCategoryPage(canonicalOrigin, category), 200, {
+      const response = htmlResponse(renderCategoryPage(canonicalOrigin, category, posthogConfig), 200, {
         ...buildSeoCacheHeaders(category.version || globalVersion),
         "x-reader-route": "seo-category",
       });
@@ -994,7 +1154,7 @@ async function renderSeoRoute(request, env, url, path) {
         return new Response(null, { status: 301, headers });
       }
       return await withSeoCache(request, book.version || globalVersion, cacheVariant, async () => {
-        const response = htmlResponse(renderBookPage(canonicalOrigin, book), 200, {
+        const response = htmlResponse(renderBookPage(canonicalOrigin, book, posthogConfig), 200, {
           ...buildSeoCacheHeaders(book.version || globalVersion),
           "x-reader-route": "seo-book",
         });
@@ -1035,7 +1195,7 @@ async function renderSeoRoute(request, env, url, path) {
       }
       const assetBase = contentDirForChapter(book.id, chapter);
       const chapterInner = rewriteRelativeChapterHtml(extractBodyInnerHtml(xhtmlText), assetBase);
-      const response = htmlResponse(renderChapterPage(canonicalOrigin, book, chapter, chapterInner), 200, {
+      const response = htmlResponse(renderChapterPage(canonicalOrigin, book, chapter, chapterInner, posthogConfig), 200, {
         ...buildSeoCacheHeaders(book.version || globalVersion),
         "x-reader-route": "seo-chapter",
       });

@@ -118,6 +118,31 @@ async function serveR2ObjectWithFallback(env, primaryKey, fallbackKey, route) {
   return serveR2Object(env, fallbackKey, route);
 }
 
+async function fetchPosthogPublicConfig(host) {
+  try {
+    const response = await fetch(`${host}/books/`, { method: "GET" });
+    if (!response || !response.ok) return null;
+    const html = await response.text();
+    const readMeta = (name) => {
+      const match = html.match(
+        new RegExp(`<meta[^>]+name=["']${name}["'][^>]+content=["']([^"']*)["']`, "i")
+      );
+      return match ? String(match[1] || "").trim() : "";
+    };
+    const enabled = readMeta("posthog-enabled");
+    const key = readMeta("posthog-key");
+    const hostValue = readMeta("posthog-host");
+    if (!enabled && !key && !hostValue) return null;
+    return {
+      READERPUB_POSTHOG_ENABLED: enabled,
+      READERPUB_POSTHOG_KEY: key,
+      READERPUB_POSTHOG_HOST: hostValue,
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -194,6 +219,7 @@ export default {
       }
       const headers = new Headers(request.headers);
       headers.set("x-reader-canonical-origin", `${url.protocol}//${url.host}`);
+      const posthogConfig = await fetchPosthogPublicConfig(host);
       return readerBooksPagesWorker.fetch(
         new Request(request.url, {
           method: request.method,
@@ -203,6 +229,7 @@ export default {
         }),
         {
           ...env,
+          ...(posthogConfig || {}),
           READER_BOOKS: env.BOOKS,
         },
       );
