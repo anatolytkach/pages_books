@@ -84,42 +84,40 @@ function normalizeNotes(raw) {
 }
 
 /**
- * Verify a Supabase JWT using the JWT secret from env.
+ * Verify a Supabase JWT by calling Supabase's auth API.
+ * Supports both HS256 and ES256 tokens.
  * Returns the decoded payload { sub, email, role, ... } or null.
  */
 async function verifySupabaseJwt(token, env) {
   try {
-    const jwtSecret = String(env.SUPABASE_JWT_SECRET || "").trim();
-    if (!jwtSecret) return null;
+    const supabaseUrl = String(env.SUPABASE_URL || "").trim();
+    const supabaseKey = String(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY || "").trim();
+    if (!supabaseUrl) return null;
 
+    // Decode payload to get basic claims (sub, exp)
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-
-    const header = JSON.parse(base64UrlDecode(parts[0]));
     const payload = JSON.parse(base64UrlDecode(parts[1]));
 
-    // Check expiry
+    // Check expiry locally first (avoid network call for expired tokens)
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
 
-    // Verify HMAC-SHA256 signature
-    if (header.alg !== "HS256") return null;
+    // Verify token by calling Supabase auth — this validates the signature server-side
+    const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        "authorization": `Bearer ${token}`,
+        "apikey": supabaseKey,
+      },
+    });
 
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(jwtSecret);
-    const key = await crypto.subtle.importKey(
-      "raw",
-      keyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["verify"]
-    );
+    if (!res.ok) return null;
 
-    const signatureBytes = base64UrlDecodeBytes(parts[2]);
-    const dataBytes = encoder.encode(`${parts[0]}.${parts[1]}`);
+    const user = await res.json();
+    if (!user || !user.id) return null;
 
-    const valid = await crypto.subtle.verify("HMAC", key, signatureBytes, dataBytes);
-    if (!valid) return null;
-
+    // Return payload enriched with verified user id
+    payload.sub = user.id;
+    payload.email = user.email;
     return payload;
   } catch {
     return null;
