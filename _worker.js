@@ -253,7 +253,7 @@ function buildSeoCacheHeaders(version) {
   return {
     "cache-control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
     "x-reader-seo-version": String(version || ""),
-    "x-reader-seo-render": "9",
+    "x-reader-seo-render": "10",
   };
 }
 
@@ -261,7 +261,7 @@ function buildSitemapCacheHeaders(version) {
   return {
     "cache-control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400",
     "x-reader-seo-version": String(version || ""),
-    "x-reader-seo-render": "9",
+    "x-reader-seo-render": "10",
   };
 }
 
@@ -270,7 +270,7 @@ function buildSeoCacheKey(url, version, variant = "") {
   cacheUrl.hash = "";
   cacheUrl.search = "";
   cacheUrl.searchParams.set("__seo_v", String(version || "0"));
-  cacheUrl.searchParams.set("__seo_render", "9");
+  cacheUrl.searchParams.set("__seo_render", "10");
   if (variant) cacheUrl.searchParams.set("__seo_variant", String(variant));
   return new Request(cacheUrl.toString(), { method: "GET" });
 }
@@ -316,6 +316,7 @@ function renderSeoLayout({
     <title>${escapeHtml(title)}</title>
     <meta name="description" content="${escapeHtml(metaDescription)}" />
     <link rel="canonical" href="${escapeHtml(canonical)}" />
+    <link rel="icon" type="image/svg+xml" href="/books/assets/logo.svg" />
     ${structuredDataHtml}
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap");
