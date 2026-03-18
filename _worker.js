@@ -1286,7 +1286,7 @@ async function renderSeoRoute(request, env, url, path) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
     const decodedPath = decodeURIComponent(path);
@@ -2099,7 +2099,7 @@ export default {
             },
           });
 
-          // Process EPUB inline (validate + unpack)
+          // Process EPUB: validate, extract metadata, unpack to R2
           try {
             const epubResult = await processEpub(env, fileBytes, book.id, String(contentId));
 
@@ -2116,14 +2116,12 @@ export default {
               body: metaUpdates,
             });
 
-            // Update source asset
             await sbFetch("source_assets", {
               method: "PATCH",
               params: `book_id=eq.${book.id}`,
               body: { validation_status: "valid" },
             });
           } catch (procErr) {
-            // Mark as failed
             await sbFetch("books", {
               method: "PATCH",
               params: `id=eq.${book.id}`,
