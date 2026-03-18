@@ -126,6 +126,190 @@ async function verifySupabaseJwt(token, env) {
   }
 }
 
+/**
+ * Process an EPUB file: validate, extract metadata, unpack to R2.
+ * Runs inline in the Worker (no external service needed for Phase 1).
+ * Uses the Web-standard DecompressionStream for ZIP handling.
+ */
+async function processEpub(env, fileBytes, bookId, contentId) {
+  const zipEntries = await parseZipEntries(new Uint8Array(fileBytes));
+
+  // Validate: must have META-INF/container.xml
+  const containerEntry = zipEntries.find(e => e.filename === "META-INF/container.xml");
+  if (!containerEntry) {
+    throw new Error("Invalid EPUB: missing META-INF/container.xml");
+  }
+
+  // Check for DRM
+  const encEntry = zipEntries.find(e => e.filename === "META-INF/encryption.xml");
+  if (encEntry) {
+    const encText = new TextDecoder().decode(encEntry.data);
+    if (encText.includes("EncryptedData") && !encText.includes("algorithm=\"http://www.idpf.org/2008/embedding\"")) {
+      throw new Error("EPUB contains DRM encryption and cannot be processed");
+    }
+  }
+
+  // Parse container.xml to find OPF path
+  const containerXml = new TextDecoder().decode(containerEntry.data);
+  const opfPathMatch = containerXml.match(/full-path="([^"]+)"/);
+  if (!opfPathMatch) throw new Error("Cannot find OPF path in container.xml");
+  const opfPath = opfPathMatch[1];
+
+  // Parse OPF for metadata
+  const opfEntry = zipEntries.find(e => e.filename === opfPath);
+  if (!opfEntry) throw new Error(`OPF file not found: ${opfPath}`);
+  const opfXml = new TextDecoder().decode(opfEntry.data);
+
+  const title = extractXmlTag(opfXml, "dc:title") || extractXmlTag(opfXml, "title");
+  const author = extractXmlTag(opfXml, "dc:creator") || extractXmlTag(opfXml, "creator");
+  const language = extractXmlTag(opfXml, "dc:language") || extractXmlTag(opfXml, "language") || "und";
+
+  // Find cover image
+  let coverUrl = null;
+  const coverMeta = opfXml.match(/name="cover"\s+content="([^"]+)"/);
+  const coverProp = opfXml.match(/properties="cover-image"[^>]*href="([^"]+)"/);
+  let coverHref = null;
+  if (coverMeta) {
+    const coverId = coverMeta[1];
+    const itemMatch = opfXml.match(new RegExp(`id="${coverId}"[^>]*href="([^"]+)"`));
+    if (itemMatch) coverHref = itemMatch[1];
+  } else if (coverProp) {
+    coverHref = coverProp[1];
+  }
+
+  // Upload all files to R2 at content/<contentId>/
+  const opfDir = opfPath.includes("/") ? opfPath.slice(0, opfPath.lastIndexOf("/") + 1) : "";
+
+  for (const entry of zipEntries) {
+    if (entry.filename.endsWith("/")) continue; // skip directories
+    const r2Key = `content/${contentId}/${entry.filename}`;
+    const contentType = guessContentType(entry.filename);
+    await env.READER_BOOKS.put(r2Key, entry.data, {
+      httpMetadata: { contentType },
+    });
+  }
+
+  // Resolve cover URL
+  if (coverHref) {
+    const resolvedCover = coverHref.startsWith("/")
+      ? coverHref.slice(1)
+      : opfDir + coverHref;
+    coverUrl = `/books/content/${contentId}/${resolvedCover}`;
+  }
+
+  return { title, author, language, coverUrl };
+}
+
+function extractXmlTag(xml, tag) {
+  const re = new RegExp(`<${tag}[^>]*>([^<]+)</${tag}>`, "i");
+  const m = xml.match(re);
+  return m ? m[1].trim() : null;
+}
+
+function guessContentType(filename) {
+  const ext = filename.split(".").pop().toLowerCase();
+  const map = {
+    xml: "application/xml", opf: "application/oebps-package+xml",
+    xhtml: "application/xhtml+xml", html: "text/html", htm: "text/html",
+    css: "text/css", js: "application/javascript",
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+    gif: "image/gif", svg: "image/svg+xml", webp: "image/webp",
+    woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf",
+    ncx: "application/x-dtbncx+xml", json: "application/json",
+  };
+  return map[ext] || "application/octet-stream";
+}
+
+/**
+ * Minimal ZIP parser for EPUB files.
+ * EPUBs are standard ZIP archives. This parses the central directory
+ * and extracts all entries using DecompressionStream (Deflate).
+ */
+async function parseZipEntries(zipBytes) {
+  const view = new DataView(zipBytes.buffer, zipBytes.byteOffset, zipBytes.byteLength);
+  const entries = [];
+
+  // Find End of Central Directory record (scan backwards)
+  let eocdOffset = -1;
+  for (let i = zipBytes.length - 22; i >= 0 && i >= zipBytes.length - 65558; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) {
+      eocdOffset = i;
+      break;
+    }
+  }
+  if (eocdOffset < 0) throw new Error("Not a valid ZIP file");
+
+  const cdOffset = view.getUint32(eocdOffset + 16, true);
+  const cdEntries = view.getUint16(eocdOffset + 10, true);
+
+  let offset = cdOffset;
+  for (let i = 0; i < cdEntries; i++) {
+    if (view.getUint32(offset, true) !== 0x02014b50) break;
+
+    const compression = view.getUint16(offset + 10, true);
+    const compSize = view.getUint32(offset + 20, true);
+    const uncompSize = view.getUint32(offset + 24, true);
+    const nameLen = view.getUint16(offset + 28, true);
+    const extraLen = view.getUint16(offset + 30, true);
+    const commentLen = view.getUint16(offset + 32, true);
+    const localHeaderOffset = view.getUint32(offset + 42, true);
+
+    const filename = new TextDecoder().decode(zipBytes.slice(offset + 46, offset + 46 + nameLen));
+
+    // Read local header to find actual data offset
+    const localNameLen = view.getUint16(localHeaderOffset + 26, true);
+    const localExtraLen = view.getUint16(localHeaderOffset + 28, true);
+    const dataOffset = localHeaderOffset + 30 + localNameLen + localExtraLen;
+
+    const compressedData = zipBytes.slice(dataOffset, dataOffset + compSize);
+
+    let data;
+    if (compression === 0) {
+      // Stored (no compression)
+      data = compressedData;
+    } else if (compression === 8) {
+      // Deflate
+      data = await inflateData(compressedData);
+    } else {
+      // Skip unsupported compression
+      offset += 46 + nameLen + extraLen + commentLen;
+      continue;
+    }
+
+    entries.push({ filename, data });
+    offset += 46 + nameLen + extraLen + commentLen;
+  }
+
+  return entries;
+}
+
+async function inflateData(compressedBytes) {
+  // Use DecompressionStream (raw deflate)
+  const ds = new DecompressionStream("raw");
+  const writer = ds.writable.getWriter();
+  const reader = ds.readable.getReader();
+
+  writer.write(compressedBytes);
+  writer.close();
+
+  const chunks = [];
+  let totalLen = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalLen += value.length;
+  }
+
+  const result = new Uint8Array(totalLen);
+  let pos = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, pos);
+    pos += chunk.length;
+  }
+  return result;
+}
+
 function base64UrlDecode(str) {
   let s = str.replace(/-/g, "+").replace(/_/g, "/");
   while (s.length % 4) s += "=";
@@ -1755,6 +1939,212 @@ export default {
           body: { tenant_id: tenant.id, user_id: user.sub, role: "owner" },
         });
         return jsonResponse(tenant, 201, apiCorsHeaders);
+      }
+
+      // ── GET /v1/publish/books — list user's books ──
+      if (apiPath === "/publish/books" && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const { data, error } = await sbFetch("books", {
+          params: `published_by_user_id=eq.${user.sub}&select=*&order=created_at.desc`,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/publish/books/:id — get book draft ──
+      const publishBookMatch = apiPath.match(/^\/publish\/books\/([0-9a-f-]+)$/);
+      if (publishBookMatch && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const bookId = publishBookMatch[1];
+        const { data: book } = await sbFetch("books", {
+          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*`,
+          single: true,
+        });
+        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+        // Attach source asset info
+        const { data: assets } = await sbFetch("source_assets", {
+          params: `book_id=eq.${bookId}&select=*&order=created_at.desc&limit=1`,
+        });
+        if (assets && assets.length) book.source_asset = assets[0];
+        return jsonResponse(book, 200, apiCorsHeaders);
+      }
+
+      // ── PATCH /v1/publish/books/:id/metadata — update metadata ──
+      const metaMatch = apiPath.match(/^\/publish\/books\/([0-9a-f-]+)\/metadata$/);
+      if (metaMatch && request.method === "PATCH") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const bookId = metaMatch[1];
+        const body = await request.json().catch(() => null);
+        if (!body) return jsonResponse({ error: "Invalid JSON" }, 400, apiCorsHeaders);
+
+        const allowed = ["title", "author", "genre_id", "year_written", "isbn", "language", "annotation"];
+        const updates = {};
+        for (const key of allowed) {
+          if (body[key] !== undefined) updates[key] = body[key];
+        }
+        if (!Object.keys(updates).length) {
+          return jsonResponse({ error: "No fields to update" }, 400, apiCorsHeaders);
+        }
+
+        const { data, error } = await sbFetch("books", {
+          method: "PATCH",
+          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*`,
+          body: updates,
+          single: true,
+        });
+        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
+        return jsonResponse(data, 200, apiCorsHeaders);
+      }
+
+      // ── POST /v1/publish/books/:id/publish — publish a book ──
+      const pubMatch = apiPath.match(/^\/publish\/books\/([0-9a-f-]+)\/publish$/);
+      if (pubMatch && request.method === "POST") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const bookId = pubMatch[1];
+        const body = await request.json().catch(() => ({}));
+        const visibility = body.visibility || "public";
+
+        // Verify book is ready and belongs to user
+        const { data: book } = await sbFetch("books", {
+          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*`,
+          single: true,
+        });
+        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+        if (book.status !== "ready") {
+          return jsonResponse({ error: `Book status is '${book.status}', must be 'ready' to publish` }, 400, apiCorsHeaders);
+        }
+        if (!book.title || !book.author || !book.genre_id || !book.annotation) {
+          return jsonResponse({ error: "Complete all required metadata before publishing" }, 400, apiCorsHeaders);
+        }
+
+        const { data, error } = await sbFetch("books", {
+          method: "PATCH",
+          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*`,
+          body: { status: "published", visibility },
+          single: true,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data, 200, apiCorsHeaders);
+      }
+
+      // ── POST /v1/publish/upload — upload EPUB file ──
+      if (apiPath === "/publish/upload" && request.method === "POST") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+
+        if (!env.READER_BOOKS) {
+          return jsonResponse({ error: "Storage not configured" }, 500, apiCorsHeaders);
+        }
+
+        try {
+          const formData = await request.formData();
+          const file = formData.get("file");
+          if (!file || !file.name) {
+            return jsonResponse({ error: "No file provided" }, 400, apiCorsHeaders);
+          }
+
+          const filename = file.name;
+          const lower = filename.toLowerCase();
+
+          if (!lower.endsWith(".epub")) {
+            return jsonResponse({ error: "Only .epub files are supported at this time" }, 400, apiCorsHeaders);
+          }
+
+          if (file.size > 100 * 1024 * 1024) {
+            return jsonResponse({ error: "File too large (max 100 MB)" }, 400, apiCorsHeaders);
+          }
+
+          const format = "epub";
+          const uploadId = crypto.randomUUID();
+          const r2Key = `uploads/${uploadId}/${filename}`;
+
+          // Store file in R2
+          const fileBytes = await file.arrayBuffer();
+          await env.READER_BOOKS.put(r2Key, fileBytes, {
+            httpMetadata: { contentType: file.type || "application/epub+zip" },
+          });
+
+          // Get next content_id
+          const { data: contentId } = await sbRpc("nextval_content_id");
+
+          // Create book row
+          const { data: book, error: bookErr } = await sbFetch("books", {
+            method: "POST",
+            body: {
+              title: filename.replace(/\.epub$/i, "").replace(/[_-]/g, " "),
+              author: "Unknown",
+              genre_id: "fiction",
+              annotation: "",
+              content_id: String(contentId),
+              published_by_user_id: user.sub,
+              status: "processing",
+            },
+            single: true,
+          });
+          if (bookErr) return jsonResponse({ error: bookErr }, 500, apiCorsHeaders);
+
+          // Create source_assets row
+          await sbFetch("source_assets", {
+            method: "POST",
+            body: {
+              book_id: book.id,
+              filename,
+              format,
+              r2_key: r2Key,
+              file_size_bytes: file.size,
+              validation_status: "validating",
+              uploaded_by: user.sub,
+            },
+          });
+
+          // Process EPUB inline (validate + unpack)
+          try {
+            const epubResult = await processEpub(env, fileBytes, book.id, String(contentId));
+
+            // Update book with extracted metadata
+            const metaUpdates = { status: "ready" };
+            if (epubResult.title) metaUpdates.title = epubResult.title;
+            if (epubResult.author) metaUpdates.author = epubResult.author;
+            if (epubResult.language) metaUpdates.language = epubResult.language;
+            if (epubResult.coverUrl) metaUpdates.cover_url = epubResult.coverUrl;
+
+            await sbFetch("books", {
+              method: "PATCH",
+              params: `id=eq.${book.id}`,
+              body: metaUpdates,
+            });
+
+            // Update source asset
+            await sbFetch("source_assets", {
+              method: "PATCH",
+              params: `book_id=eq.${book.id}`,
+              body: { validation_status: "valid" },
+            });
+          } catch (procErr) {
+            // Mark as failed
+            await sbFetch("books", {
+              method: "PATCH",
+              params: `id=eq.${book.id}`,
+              body: { status: "failed" },
+            });
+            await sbFetch("source_assets", {
+              method: "PATCH",
+              params: `book_id=eq.${book.id}`,
+              body: {
+                validation_status: "invalid",
+                validation_errors: [{ message: procErr.message || String(procErr) }],
+              },
+            });
+          }
+
+          return jsonResponse({ bookId: book.id, contentId: String(contentId) }, 201, apiCorsHeaders);
+        } catch (err) {
+          return jsonResponse({ error: err.message || "Upload failed" }, 500, apiCorsHeaders);
+        }
       }
 
       // ── Fallback: route not found ──
