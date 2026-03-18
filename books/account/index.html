@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Account — reader.pub</title>
+    <link rel="icon" type="image/svg+xml" href="/books/assets/logo.svg" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap");
+
+      :root {
+        --bg: #ffffff;
+        --ink: #1f1b16;
+        --muted: #6c645a;
+        --accent: #028f80;
+        --accent-2: #016b61;
+        --border: #d8dee8;
+        --border-active: #028f80;
+        --radius-lg: 14px;
+        --radius-md: 10px;
+        --radius-sm: 8px;
+        --rect-bg: linear-gradient(90deg, #fcfaf8 0%, #ffffff 100%);
+        --error: #c0392b;
+        --success: #028f80;
+      }
+
+      * { box-sizing: border-box; }
+      html { font-size: 16px; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--bg);
+        font-family: "Source Sans 3", "Helvetica Neue", sans-serif;
+        min-height: 100vh;
+      }
+
+      #app {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 28px 24px 40px;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 28px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+      }
+
+      .brand img { width: 36px; height: 36px; }
+
+      .brand .title {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      h2 {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--ink);
+        margin: 0 0 20px;
+      }
+
+      h3 {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 20px;
+        font-weight: 700;
+        margin: 0 0 16px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 40px;
+        padding: 0 18px;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff;
+        border-radius: var(--radius-md);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+        text-decoration: none;
+      }
+
+      .btn:hover { background: var(--accent-2); }
+
+      .btn-secondary {
+        background: #fff;
+        color: var(--accent);
+        border-color: var(--border);
+      }
+
+      .btn-secondary:hover {
+        border-color: var(--accent);
+        background: #fcfaf8;
+      }
+
+      .btn-danger {
+        background: #fff;
+        color: var(--error);
+        border-color: var(--error);
+      }
+
+      .btn-danger:hover {
+        background: #fdf0ef;
+      }
+
+      .panel {
+        background: var(--rect-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+
+      .profile-row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .profile-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #fff;
+        font-size: 24px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+      }
+
+      .profile-info { flex: 1; min-width: 0; }
+
+      .profile-name {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+
+      .profile-email {
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      .book-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 16px;
+      }
+
+      .book-card {
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.15s;
+      }
+
+      .book-card:hover { transform: translateY(-2px); }
+
+      .book-card-cover {
+        aspect-ratio: 5/8;
+        background: #f3eee6;
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        margin-bottom: 8px;
+      }
+
+      .book-card-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .book-card-title {
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.3;
+        margin: 0 0 2px;
+      }
+
+      .book-card-meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 32px 20px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .tab-row {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid var(--border);
+        margin-bottom: 20px;
+      }
+
+      .tab-btn {
+        background: none;
+        border: none;
+        padding: 10px 16px;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--muted);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: color 0.15s;
+      }
+
+      .tab-btn.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+
+      .tab-btn:hover:not(.active) { color: var(--ink); }
+
+      .tab-content { display: none; }
+      .tab-content.active { display: block; }
+
+      .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(0,0,0,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      @media (max-width: 600px) {
+        .profile-row { flex-direction: column; text-align: center; }
+        .book-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <a class="brand" href="/books/">
+          <img src="/books/assets/logo.svg" alt="" />
+          <span class="title">My Account</span>
+        </a>
+        <div class="header-right">
+          <a href="/books/" class="btn btn-secondary">Catalog</a>
+          <user-menu></user-menu>
+        </div>
+      </header>
+
+      <!-- Profile -->
+      <div class="panel" id="profilePanel">
+        <div class="profile-row">
+          <div class="profile-avatar" id="avatar"></div>
+          <div class="profile-info">
+            <div class="profile-name" id="profileName"><span class="spinner"></span></div>
+            <div class="profile-email" id="profileEmail"></div>
+          </div>
+          <button class="btn btn-danger" id="signOutBtn">Sign Out</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tab-row" id="tabRow">
+        <button class="tab-btn active" data-tab="books">My Books</button>
+        <button class="tab-btn" data-tab="tenants">My Tenants</button>
+      </div>
+
+      <!-- My Books -->
+      <div class="tab-content active" id="tab-books">
+        <div id="booksList" class="empty-state"><span class="spinner"></span> Loading...</div>
+      </div>
+
+      <!-- My Tenants -->
+      <div class="tab-content" id="tab-tenants">
+        <div id="tenantsList" class="empty-state"><span class="spinner"></span> Loading...</div>
+      </div>
+    </div>
+
+    <script type="module">
+      import config from '../shared/config.js';
+      import '../shared/user-menu.js';
+
+      const sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+      const API = config.apiBase;
+
+      // Auth gate
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) {
+        window.location.href = `/books/auth/?returnTo=${encodeURIComponent(window.location.pathname + window.location.hash)}`;
+      }
+
+      async function apiFetch(method, path) {
+        const { data: { session: s } } = await sb.auth.getSession();
+        const headers = {};
+        if (s) headers['Authorization'] = `Bearer ${s.access_token}`;
+        const res = await fetch(`${API}${path}`, { method, headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      }
+
+      function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+      // Profile
+      const user = session.user;
+      const profile = await apiFetch('GET', '/me').catch(() => null);
+      const name = profile?.display_name || user.user_metadata?.display_name || user.email?.split('@')[0] || 'User';
+      const email = user.email || '';
+      const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url;
+
+      document.getElementById('profileName').textContent = name;
+      document.getElementById('profileEmail').textContent = email;
+      const $avatar = document.getElementById('avatar');
+      if (avatarUrl) {
+        $avatar.innerHTML = `<img src="${esc(avatarUrl)}" alt="" />`;
+      } else {
+        const parts = name.split(/\s+/);
+        const initials = parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
+        $avatar.textContent = initials;
+      }
+
+      // Sign out
+      document.getElementById('signOutBtn').addEventListener('click', async () => {
+        await sb.auth.signOut();
+        window.location.href = '/books/';
+      });
+
+      // Tabs
+      const hash = window.location.hash.replace('#', '');
+      document.getElementById('tabRow').addEventListener('click', (e) => {
+        const btn = e.target.closest('.tab-btn');
+        if (!btn) return;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+        window.location.hash = btn.dataset.tab;
+      });
+
+      if (hash === 'tenants') {
+        document.querySelector('[data-tab="tenants"]').click();
+      }
+
+      // My Books (entitlements + published)
+      const $books = document.getElementById('booksList');
+      try {
+        const [entitlements, published] = await Promise.all([
+          apiFetch('GET', '/me/entitlements').catch(() => []),
+          apiFetch('GET', '/publish/books').catch(() => []),
+        ]);
+
+        const allBooks = [];
+
+        for (const ent of entitlements) {
+          const book = ent.books || ent;
+          allBooks.push({
+            id: book.content_id || book.id,
+            title: book.title,
+            author: book.author,
+            cover: book.cover_url,
+            type: ent.entitlement_type,
+            expires: ent.expires_at,
+          });
+        }
+
+        for (const book of published) {
+          if (!allBooks.some(b => b.id === book.content_id)) {
+            allBooks.push({
+              id: book.content_id,
+              title: book.title,
+              author: book.author,
+              cover: book.cover_url,
+              type: 'published',
+            });
+          }
+        }
+
+        if (!allBooks.length) {
+          $books.innerHTML = '<div class="empty-state">No books yet. <a href="/books/">Browse the catalog</a> or <a href="/books/publish/">publish one</a>.</div>';
+        } else {
+          $books.innerHTML = `<div class="book-grid">${allBooks.map(b => `
+            <a class="book-card" href="/books/reader/#${esc(b.id)}">
+              <div class="book-card-cover">
+                ${b.cover ? `<img src="${esc(b.cover)}" alt="" />` : ''}
+              </div>
+              <div class="book-card-title">${esc(b.title)}</div>
+              <div class="book-card-meta">${esc(b.author || '')}${b.type === 'rental' && b.expires ? ` — expires ${new Date(b.expires).toLocaleDateString()}` : ''}${b.type === 'published' ? ' (published by you)' : ''}</div>
+            </a>
+          `).join('')}</div>`;
+        }
+      } catch (err) {
+        $books.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
+      }
+
+      // My Tenants
+      const $tenants = document.getElementById('tenantsList');
+      try {
+        const memberships = await apiFetch('GET', '/me/tenants');
+        if (!memberships.length) {
+          $tenants.innerHTML = '<div class="empty-state">You are not a member of any organizations. <a href="/books/publish/">Create a publisher account</a>.</div>';
+        } else {
+          $tenants.innerHTML = memberships.map(m => {
+            const t = m.tenants || m.tenant || m;
+            return `
+              <div class="panel" style="margin-bottom:12px;">
+                <strong>${esc(t.name)}</strong>
+                <span style="color:var(--muted); font-size:13px; margin-left:8px;">${esc(m.role)} — ${esc(t.tenant_type)}</span>
+              </div>`;
+          }).join('');
+        }
+      } catch (err) {
+        $tenants.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
+      }
+    </script>
+  </body>
+</html>

@@ -52,6 +52,92 @@
 
             document.onreadystatechange = function () {
               if (document.readyState == "complete") {
+
+// ── Entitlement gate for platform books ──
+(function(){
+  const PLATFORM_ID_START = 200000;
+  const params = new URLSearchParams(location.search);
+  const rawHash = (location.hash || "").replace(/^#/, "");
+  const id = (params.get("id") || params.get("i") || (/^\d+$/.test(rawHash) ? rawHash : "")).trim();
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) < PLATFORM_ID_START) return; // Gutenberg — skip gate
+
+  const viewer = document.getElementById("viewer");
+  if (!viewer) return;
+
+  // Show loading state
+  viewer.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:60vh;color:#6c645a;font-family:Source Sans 3,system-ui,sans-serif">Checking access...</div>';
+
+  // Check entitlement via API
+  const apiBase = '/books/api/v1';
+  const supabaseUrl = 'https://kalbegycglkhxulhatpx.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbGJlZ3ljZ2xraHh1bGhhdHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzkyODIsImV4cCI6MjA4OTM1NTI4Mn0.T1VqDg2ZK87RfnABKMHUwDLpT7bVOckr40Pv-aIppKs';
+
+  // Find the Supabase book ID by content_id
+  fetch(`${supabaseUrl}/rest/v1/books?content_id=eq.${id}&select=id,title,author,annotation,cover_url,status,is_free&limit=1`, {
+    headers: { 'apikey': supabaseKey }
+  })
+  .then(r => r.ok ? r.json() : [])
+  .then(books => {
+    if (!books.length) return; // Not in DB — probably Gutenberg, let reader handle it
+    const book = books[0];
+    if (book.is_free || book.status !== 'published') return; // Free or not published — let reader load
+
+    // Get auth token if available
+    let token = null;
+    try {
+      const stored = localStorage.getItem('sb-kalbegycglkhxulhatpx-auth-token');
+      if (stored) token = JSON.parse(stored).access_token;
+    } catch {}
+
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    return fetch(`${apiBase}/books/${book.id}/entitlement`, { headers })
+      .then(r => r.json())
+      .then(ent => {
+        if (ent.access === 'full') {
+          // Access granted — clear gate and let reader load
+          viewer.innerHTML = '';
+          return;
+        }
+
+        // Access denied — show book info + offers
+        const offers = ent.offers || [];
+        const offersHtml = offers.length
+          ? offers.map(o => {
+              const price = '$' + (o.price_cents / 100).toFixed(2);
+              const label = o.offer_type === 'rental'
+                ? `Rent for ${o.rental_days} days — ${price}`
+                : `Buy — ${price}`;
+              return `<button style="display:block;width:100%;margin:8px 0;padding:12px 18px;background:#028f80;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;" onclick="alert('Payments coming soon')">${label}</button>`;
+            }).join('')
+          : '<div style="color:#6c645a;font-size:14px;">This book is not yet available for purchase.</div>';
+
+        const signInHtml = !token
+          ? `<a href="/books/auth/?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}" style="display:block;margin-top:12px;color:#028f80;font-weight:600;text-decoration:none;">Sign in to access</a>`
+          : '';
+
+        viewer.innerHTML = `
+          <div style="max-width:480px;margin:40px auto;padding:24px;font-family:Source Sans 3,system-ui,sans-serif;text-align:center;">
+            ${book.cover_url ? `<img src="${book.cover_url}" style="max-width:200px;border-radius:12px;border:1px solid #d8dee8;margin-bottom:20px;" alt="" />` : ''}
+            <h2 style="font-family:Playfair Display,serif;font-size:24px;margin:0 0 8px;">${book.title || 'Untitled'}</h2>
+            <div style="color:#6c645a;margin-bottom:16px;">${book.author || ''}</div>
+            ${book.annotation ? `<p style="font-size:14px;line-height:1.5;color:#1f1b16;margin-bottom:20px;">${book.annotation}</p>` : ''}
+            <div style="margin:20px 0;">${offersHtml}</div>
+            ${signInHtml}
+            <a href="/books/" style="display:block;margin-top:16px;color:#028f80;text-decoration:none;font-size:14px;">Browse catalog</a>
+          </div>`;
+
+        // Prevent the reader from loading
+        window.__entitlementBlocked = true;
+      });
+  })
+  .catch(() => {
+    // On error, let the reader load normally
+    viewer.innerHTML = '';
+  });
+})();
+
                 // Book source: ONLY from catalog (exploded EPUB directories on R2).
 // Expect book id in either ?id=75586 or #75586 (hash).
 (function(){
@@ -101,6 +187,9 @@
   } catch (e1) {}
 
   try { localStorage && localStorage.setItem("readerpub:lastid", id); } catch (e2) {}
+
+  // Check if entitlement gate blocked this book
+  if (window.__entitlementBlocked) return;
 
   // Our catalog stores each book as an unpacked EPUB directory:
   // /books/content/<id>/META-INF/container.xml, /OEBPS/content.opf, ...
