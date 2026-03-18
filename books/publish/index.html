@@ -471,6 +471,33 @@
           </form>
         </div>
         <div id="validationErrors"></div>
+
+        <!-- Offers section (visible for published/ready books) -->
+        <div id="offersSection" class="panel" style="display:none">
+          <h3 style="font-family:'Playfair Display',serif; margin:0 0 16px;">Pricing</h3>
+          <div id="offersList"></div>
+          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
+            <strong style="font-size:14px; color:var(--muted);">Add Offer</strong>
+            <div class="form-row" style="margin-top:8px;">
+              <div class="form-group">
+                <label for="offer-type">Type</label>
+                <select id="offer-type">
+                  <option value="purchase">Purchase</option>
+                  <option value="rental">Rental</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="offer-price">Price (USD)</label>
+                <input type="number" id="offer-price" min="0" step="0.01" placeholder="9.99" />
+              </div>
+            </div>
+            <div class="form-group" id="rentalDaysGroup" style="display:none;">
+              <label for="offer-rental-days">Rental Days</label>
+              <input type="number" id="offer-rental-days" min="1" value="14" />
+            </div>
+            <button type="button" class="btn" id="addOfferBtn">Add Offer</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -624,6 +651,13 @@
               </div>`;
           } else {
             $valErr.innerHTML = '';
+          }
+
+          // Load offers for published/ready books
+          if (book.status === 'published' || book.status === 'ready') {
+            await loadOffers(bookId);
+          } else {
+            document.getElementById('offersSection').style.display = 'none';
           }
         } catch (err) {
           showAlert($editAlert, err.message);
@@ -817,6 +851,75 @@
           showAlert($editAlert, err.message);
           btn.disabled = false;
           btn.textContent = 'Publish';
+        }
+      });
+
+      // ── Offers ────────────────────────────
+      document.getElementById('offer-type').addEventListener('change', (e) => {
+        document.getElementById('rentalDaysGroup').style.display =
+          e.target.value === 'rental' ? '' : 'none';
+      });
+
+      async function loadOffers(bookId) {
+        const section = document.getElementById('offersSection');
+        const list = document.getElementById('offersList');
+        try {
+          const offers = await apiFetch('GET', `/books/${bookId}/offers`);
+          if (!offers.length) {
+            list.innerHTML = '<div style="color:var(--muted); font-size:14px;">No offers yet. Add a purchase or rental price below.</div>';
+          } else {
+            list.innerHTML = offers.map(o => `
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);">
+                <div>
+                  <strong>${esc(o.offer_type)}</strong>
+                  — $${(o.price_cents / 100).toFixed(2)} ${o.currency}
+                  ${o.rental_days ? `(${o.rental_days} days)` : ''}
+                </div>
+                <button class="btn btn-secondary" style="height:32px; padding:0 12px; font-size:13px;"
+                  onclick="window._deactivateOffer('${o.id}')">Remove</button>
+              </div>
+            `).join('');
+          }
+          section.style.display = '';
+        } catch { section.style.display = 'none'; }
+      }
+
+      window._deactivateOffer = async (offerId) => {
+        try {
+          await apiFetch('PATCH', `/offers/${offerId}`, { body: { is_active: false } });
+          await loadOffers(editingBookId);
+        } catch (err) {
+          showAlert($editAlert, err.message);
+        }
+      };
+
+      document.getElementById('addOfferBtn').addEventListener('click', async () => {
+        hideAlert($editAlert);
+        const offerType = document.getElementById('offer-type').value;
+        const priceStr = document.getElementById('offer-price').value;
+        const price = parseFloat(priceStr);
+        if (isNaN(price) || price < 0) {
+          showAlert($editAlert, 'Enter a valid price.');
+          return;
+        }
+        const body = {
+          offer_type: offerType,
+          price_cents: Math.round(price * 100),
+          currency: 'USD',
+        };
+        if (offerType === 'rental') {
+          body.rental_days = parseInt(document.getElementById('offer-rental-days').value) || 14;
+        }
+        const btn = document.getElementById('addOfferBtn');
+        btn.disabled = true;
+        try {
+          await apiFetch('POST', `/books/${editingBookId}/offers`, { body });
+          document.getElementById('offer-price').value = '';
+          await loadOffers(editingBookId);
+        } catch (err) {
+          showAlert($editAlert, err.message);
+        } finally {
+          btn.disabled = false;
         }
       });
 
