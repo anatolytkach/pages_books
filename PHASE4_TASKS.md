@@ -138,16 +138,46 @@ Migrate the notes system from localStorage-only to Supabase-backed storage with 
   - Opens dialog: select which notes to share, set title
   - Creates package via API
   - Shows share link with copy button
+  - Social share buttons: Twitter/X, Facebook, LinkedIn, WhatsApp, Telegram
+  - Native Web Share API on mobile (single share button → OS share sheet)
 - [ ] Update existing "Copy book link with Notes" button:
   - For authenticated users with platform books: create Supabase package instead of R2 share
   - For Gutenberg books or unauthenticated: keep current R2 share behavior
-- [ ] Share link format: `https://reader.pub/books/reader/?id=<contentId>&n=<shareToken>`
+- [ ] Share link format: `https://reader.pub/notes/<shareToken>`
+  - Clean, memorable URL (not embedded in reader query params)
+  - Reader link with notes still works: `?id=<contentId>&n=<shareToken>`
 
 **Deliverable:** Users can create and share note packages from the reader.
 
 ---
 
-## Task 4.7 — Notes Migration from localStorage
+## Task 4.7 — Social Share Landing Page
+**Time: 3–4 hours**
+
+- [ ] Create `/notes/<shareToken>` route (served by Worker)
+  - Server-rendered HTML page (not SPA) for proper social media previews
+  - Open Graph meta tags for rich social cards:
+    - `og:title` — "Notes on [Book Title] by [Sharer Name]"
+    - `og:description` — first quote/comment from the package
+    - `og:image` — book cover URL
+    - `og:url` — canonical URL
+    - `twitter:card` — summary card
+  - Page content:
+    - Book cover, title, author
+    - Sharer's name and note count
+    - List of notes: quote excerpts + comments with attribution
+    - "Open in Reader" button → links to reader with `?n=<token>`
+    - "Get this book" button (if book has offers and user not entitled)
+    - "Sign in" prompt for unauthenticated users
+  - Social re-share buttons on the page itself
+- [ ] Add route to `reader-books-router` proxy allowlist
+- [ ] Cache rendered pages for performance (Worker Cache API)
+
+**Deliverable:** Share links show rich previews on social media and a readable notes page for anyone.
+
+---
+
+## Task 4.8 — Notes Migration from localStorage
 **Time: 2–3 hours**
 
 - [ ] On first authenticated load of a platform book:
@@ -177,8 +207,9 @@ Migrate the notes system from localStorage-only to Supabase-backed storage with 
 | 4.4 | Note packages API | 2–3h | 4.1, 4.2 |
 | 4.5 | Shared notes display | 3–4h | 4.4 |
 | 4.6 | Share UI in reader | 2–3h | 4.4, 4.5 |
-| 4.7 | Notes migration | 2–3h | 4.3 |
-| | **Total** | **~16–24h** | |
+| 4.7 | Social share landing page | 3–4h | 4.4 |
+| 4.8 | Notes migration | 2–3h | 4.3 |
+| | **Total** | **~20–28h** | |
 
 ---
 
