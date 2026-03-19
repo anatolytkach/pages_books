@@ -326,33 +326,68 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
   }
 
   // 3. Update search tokens
-  const tokens = buildSearchTokens(title, authorDisplay);
-  for (const token of tokens) {
+  // Python generates: one author token (from index name) + one book token (from title)
+  // Author entry format: { t: "a", k: authorKey, n: authorDisplay, c: bookCount }
+  // Book entry format: { id: contentId, title, a: authorDisplay, k: authorKey, cover }
+
+  // Helper: update a single search token file
+  async function updateSearchToken(token, entry, dedupeKey, dedupeField) {
     const r2Key = `${apiPrefix}/search/${token}.json`;
     let searchData;
     try {
       const obj = await env.READER_BOOKS.get(r2Key);
       searchData = obj ? await obj.json() : null;
     } catch { searchData = null; }
-
     if (!searchData) searchData = { items: [] };
 
-    // Add book/title entry matching Python indexer format:
-    // { id: "200005", title: "Trial by Sorcery", a: "Fierce, Richard", k: "richardfierce", cover: "/books/content/..." }
-    const titleEntry = searchData.items.find(i => i.id === contentId);
-    if (!titleEntry) {
-      searchData.items.push({
-        id: contentId,
-        title: title,
-        a: authorDisplay,
-        k: authorKey,
-        cover: coverUrl || "",
-      });
+    const existing = searchData.items.find(i => i[dedupeField] === dedupeKey);
+    if (!existing) {
+      searchData.items.push(entry);
+    } else {
+      // Update existing entry
+      Object.assign(existing, entry);
     }
 
     await env.READER_BOOKS.put(r2Key, JSON.stringify(searchData), {
       httpMetadata: { contentType: "application/json; charset=utf-8" },
     });
+  }
+
+  // Author search token: first 2 chars of normalized index name (matches Python normalize_search_token)
+  const authorToken = indexKey.length >= 2 ? indexKey.slice(0, 2) : "";
+  if (authorToken) {
+    await updateSearchToken(authorToken, {
+      t: "a",
+      k: authorKey,
+      n: authorDisplay,
+      c: authorData.books.length,
+    }, authorKey, "k");
+  }
+
+  // Book/title search token: first 2 chars of normalized title
+  const titleNorm = normalizeIndex(title);
+  const titleToken = titleNorm.length >= 2 ? titleNorm.slice(0, 2) : "";
+  if (titleToken) {
+    await updateSearchToken(titleToken, {
+      id: contentId,
+      title: title,
+      a: authorDisplay,
+      k: authorKey,
+      cover: coverUrl || "",
+    }, contentId, "id");
+  }
+
+  // Also add tokens from individual title words (for multi-word search)
+  const titleWords = buildSearchTokens(title, "");
+  for (const token of titleWords) {
+    if (token === titleToken) continue; // already handled
+    await updateSearchToken(token, {
+      id: contentId,
+      title: title,
+      a: authorDisplay,
+      k: authorKey,
+      cover: coverUrl || "",
+    }, contentId, "id");
   }
 
   // 4. Update letters.json (based on index key = last name first)
