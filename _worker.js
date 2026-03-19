@@ -2089,23 +2089,6 @@ export default {
         return jsonResponse(data || [], 200, apiCorsHeaders);
       }
 
-      // ── GET /v1/debug/reindex/:contentId — temporary debug endpoint ──
-      const debugReindexMatch = apiPath.match(/^\/debug\/reindex\/(\d+)$/);
-      if (debugReindexMatch && request.method === "GET") {
-        const contentId = debugReindexMatch[1];
-        const { data: book } = await sbFetch("books", {
-          params: `content_id=eq.${contentId}&select=*`,
-          single: true,
-        });
-        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-        try {
-          await updateCatalogIndexes(env, book);
-          return jsonResponse({ ok: true, book: { id: book.id, content_id: book.content_id, title: book.title, author: book.author, language: book.language, cover_url: book.cover_url } }, 200, apiCorsHeaders);
-        } catch (err) {
-          return jsonResponse({ error: err.message, stack: err.stack }, 500, apiCorsHeaders);
-        }
-      }
-
       // ── GET /v1/genres — list genres ──
       if (apiPath === "/genres" && request.method === "GET") {
         const { data, error } = await sbFetch("genres", {
@@ -2542,16 +2525,13 @@ export default {
         if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
 
         // Update catalog indexes so the book appears in browse/search
-        let indexError = null;
         try {
           await updateCatalogIndexes(env, data);
         } catch (indexErr) {
-          indexError = indexErr.message || String(indexErr);
+          // Non-fatal: book is published even if index update fails
         }
 
-        const result = { ...data };
-        if (indexError) result._indexError = indexError;
-        return jsonResponse(result, 200, apiCorsHeaders);
+        return jsonResponse(data, 200, apiCorsHeaders);
       }
 
       // ── POST /v1/publish/upload — upload EPUB file ──
