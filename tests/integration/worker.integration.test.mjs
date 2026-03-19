@@ -257,6 +257,61 @@ test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () =>
           },
         }),
       }),
+      "seo/category/fiction.json": createR2Object({
+        body: JSON.stringify({
+          slug: "fiction",
+          title: "Fiction",
+          count: 2,
+          books: [
+            {
+              id: "999",
+              slug: "other-book",
+              title: "Other Book",
+              author: "Roe, John",
+              authorSlug: "roe-john",
+              cover: "/books/content/999/OEBPS/cover.jpg",
+            },
+            {
+              id: "123",
+              slug: "test-book",
+              title: "Test Book",
+              author: "Doe, Jane",
+              authorSlug: "doe-jane",
+              cover: "/books/content/123/OEBPS/cover.jpg",
+            },
+          ],
+        }),
+      }),
+      "seo/author-shards/doej.json": createR2Object({
+        body: JSON.stringify({
+          version: "seo-v1",
+          items: {
+            "doe-jane": {
+              slug: "doe-jane",
+              name: "Doe, Jane",
+              count: 2,
+              books: [
+                {
+                  id: "777",
+                  slug: "author-book",
+                  title: "Author Book",
+                  author: "Doe, Jane",
+                  authorSlug: "doe-jane",
+                  cover: "/books/content/777/OEBPS/cover.jpg",
+                },
+                {
+                  id: "123",
+                  slug: "test-book",
+                  title: "Test Book",
+                  author: "Doe, Jane",
+                  authorSlug: "doe-jane",
+                  cover: "/books/content/123/OEBPS/cover.jpg",
+                },
+              ],
+            },
+          },
+        }),
+      }),
     },
   });
   const env = createEnv({ READER_BOOKS: bucket });
@@ -270,9 +325,18 @@ test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () =>
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("x-reader-route"), "seo-book");
   assert.equal(response.headers.get("x-reader-seo-version"), "seo-v1");
-  assert.match(body, /<title>Test Book — Doe, Jane<\/title>/);
+  assert.match(body, /<title>Test Book — Jane Doe<\/title>/);
   assert.match(body, /<link rel="canonical" href="https:\/\/reader\.pub\/book\/test-book"/);
   assert.match(body, /Open in WeRead/);
+  assert.match(body, /Explore More Books Like This/);
+  assert.match(body, /data-seo-cta-type="primary_explore_cta"/);
+  assert.match(body, /href="\/books\/#view=category&amp;category=fiction"/);
+  assert.match(body, /You May Also Like/);
+  assert.match(body, /More Books by This Author/);
+  assert.match(body, /class="recCard" href="\/books\/999\/"/);
+  assert.match(body, /data-seo-cta-type="recommendation_card"/);
+  assert.doesNotMatch(body, /Explore the catalog to discover more books like this/);
+  assert.doesNotMatch(body, />Catalog</);
   assert.match(body, /Chapter 1: Opening/);
 });
 
@@ -451,7 +515,7 @@ test("Integration: author, category, sitemap and robots routes render seo layer"
   });
   assert.equal(authorResponse.status, 200);
   assert.equal(authorResponse.headers.get("x-reader-route"), "seo-author");
-  assert.match(await authorResponse.text(), /Books by Doe, Jane/);
+  assert.match(await authorResponse.text(), /Books by Jane Doe/);
 
   const categoryResponse = await callWorker({
     url: "https://reader.pub/category/fiction",

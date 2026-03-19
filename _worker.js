@@ -176,6 +176,48 @@ function sanitizeMetaDescription(value) {
   return `${cut || source.slice(0, 157)}...`;
 }
 
+function formatAuthorDisplayName(value) {
+  const source = String(value || "").trim();
+  if (!source.includes(",")) return source;
+  const parts = source
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return source;
+  return `${parts.slice(1).join(" ")} ${parts[0]}`.replace(/\s+/g, " ").trim();
+}
+
+function buildReaderFallbackDescription(title, authorName) {
+  const author = formatAuthorDisplayName(authorName) || String(authorName || "").trim();
+  return `Read "${String(title || "").trim()}" by ${author} on ReaderPub.`;
+}
+
+function getRenderableBookDescription(book) {
+  const title = String(book?.title || "").trim();
+  const authorName = String(book?.authorName || "").trim();
+  const description = String(book?.description || "").trim();
+  const metaDescription = String(book?.meta_description || "").trim();
+  const fallback = buildReaderFallbackDescription(title, authorName);
+  const selected = description || metaDescription;
+  if (!selected) return fallback;
+  if (String(book?.description_source || "").trim() === "fallback_title_author") {
+    return fallback;
+  }
+  if (/^(Read|Explore)\s+"[^"]+"\s+by\s+.+\s+on ReaderPub\.$/i.test(selected)) {
+    return fallback;
+  }
+  return selected;
+}
+
+function normalizeComparableTitle(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\u0400-\u04ff]+/g, " ")
+    .trim();
+}
+
 function serializeJsonForScript(value) {
   return JSON.stringify(value || {})
     .replace(/</g, "\\u003c")
@@ -340,7 +382,7 @@ function buildSeoCacheHeaders(version) {
   return {
     "cache-control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
     "x-reader-seo-version": String(version || ""),
-    "x-reader-seo-render": "12",
+    "x-reader-seo-render": "14",
   };
 }
 
@@ -348,7 +390,7 @@ function buildSitemapCacheHeaders(version) {
   return {
     "cache-control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400",
     "x-reader-seo-version": String(version || ""),
-    "x-reader-seo-render": "12",
+    "x-reader-seo-render": "14",
   };
 }
 
@@ -357,7 +399,7 @@ function buildSeoCacheKey(url, version, variant = "") {
   cacheUrl.hash = "";
   cacheUrl.search = "";
   cacheUrl.searchParams.set("__seo_v", String(version || "0"));
-  cacheUrl.searchParams.set("__seo_render", "12");
+  cacheUrl.searchParams.set("__seo_render", "14");
   if (variant) cacheUrl.searchParams.set("__seo_variant", String(variant));
   return new Request(cacheUrl.toString(), { method: "GET" });
 }
@@ -589,6 +631,49 @@ function renderSeoLayout({
         background: rgba(2, 143, 128, 0.08);
         color: var(--ink);
       }
+      .recGrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 14px;
+      }
+      .recCard {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+        background: #fffdfa;
+        color: var(--ink);
+      }
+      .recCard:hover {
+        background: rgba(2, 143, 128, 0.06);
+      }
+      .recCover {
+        width: 100%;
+        aspect-ratio: 3 / 4;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #f8f5f1;
+      }
+      .recCoverPlaceholder {
+        display: block;
+      }
+      .recBody {
+        display: grid;
+        gap: 4px;
+      }
+      .recTitle {
+        font-weight: 600;
+        line-height: 1.35;
+        color: var(--accent-2);
+      }
+      .recMeta {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+      }
       .chapterNav {
         display: flex;
         justify-content: space-between;
@@ -663,6 +748,10 @@ function renderSeoLayout({
           flex-direction: column;
           align-items: flex-start;
         }
+        .recGrid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
         .sectionTitle {
           font-size: 24px;
         }
@@ -710,9 +799,8 @@ function buildBreadcrumbs(items) {
 }
 
 function buildBookJsonLd(origin, book) {
-  const description = sanitizeMetaDescription(
-    book.description || book.meta_description || `${book.title} by ${book.authorName}`
-  );
+  const authorDisplayName = formatAuthorDisplayName(book.authorName);
+  const description = sanitizeMetaDescription(getRenderableBookDescription(book));
   const data = {
     "@context": "https://schema.org",
     "@type": "Book",
@@ -720,7 +808,7 @@ function buildBookJsonLd(origin, book) {
     url: `${origin}/book/${book.slug}`,
     author: {
       "@type": "Person",
-      name: book.authorName,
+      name: authorDisplayName,
       url: `${origin}/author/${book.authorSlug}`,
     },
     inLanguage: book.language || "und",
@@ -761,10 +849,106 @@ function buildCatalogCategoryHref(slug) {
   return `/books/#${params.toString()}`;
 }
 
-function renderBookPage(origin, book, posthogConfig) {
+function buildPrimaryExploreHref(book) {
+  const categories = Array.isArray(book?.categories) ? book.categories : [];
+  const primaryCategory = categories.find((item) => item && item.slug);
+  return primaryCategory ? buildCatalogCategoryHref(primaryCategory.slug) : "/books/";
+}
+
+function buildReaderHrefForRecommendation(item) {
+  const explicit = String(item?.readerUrl || "").trim();
+  if (explicit) return explicit;
+  const id = String(item?.id || "").trim();
+  if (id) return `/books/${encodeURIComponent(id)}/`;
+  return "";
+}
+
+async function findSiblingEditionBook(env, book) {
+  if (!book?.authorSlug || !book?.title) return null;
+  const author = await readSeoShardedJson(env, "author-shards", book.authorSlug);
+  const authorBooks = Array.isArray(author?.books) ? author.books : [];
+  const targetTitle = normalizeComparableTitle(book.title);
+  if (!targetTitle) return null;
+  for (const item of authorBooks) {
+    if (!item || !item.slug || item.slug === book.slug) continue;
+    if (normalizeComparableTitle(item.title) !== targetTitle) continue;
+    const sibling = await readSeoShardedJson(env, "book-shards", item.slug);
+    if (!sibling) continue;
+    if (sibling.cover || (Array.isArray(sibling.categories) && sibling.categories.length)) {
+      return sibling;
+    }
+  }
+  return null;
+}
+
+async function enrichBookForDisplay(env, book) {
+  const enriched = { ...(book || {}) };
+  const needsSibling = !enriched.cover || !Array.isArray(enriched.categories) || !enriched.categories.length;
+  if (!needsSibling) return enriched;
+  const sibling = await findSiblingEditionBook(env, enriched);
+  if (!sibling) return enriched;
+  if (!enriched.cover && sibling.cover) enriched.cover = sibling.cover;
+  if ((!Array.isArray(enriched.categories) || !enriched.categories.length) && Array.isArray(sibling.categories) && sibling.categories.length) {
+    enriched.categories = sibling.categories;
+  }
+  return enriched;
+}
+
+async function buildBookRecommendationSections(env, book) {
+  const sections = [];
+  const currentSlug = String(book?.slug || "");
+  const categories = Array.isArray(book?.categories) ? book.categories : [];
+  const primaryCategory = categories.find((item) => item && item.slug);
+  if (primaryCategory) {
+    const category = await readSeoJson(env, `category/${primaryCategory.slug}.json`);
+    const categoryBooks = Array.isArray(category?.books) ? category.books : [];
+    const items = categoryBooks
+      .filter((item) => item && item.slug && item.slug !== currentSlug)
+      .slice(0, 6)
+      .map((item) => ({
+        id: item.id || "",
+        slug: item.slug,
+        title: item.title,
+        author: item.author || item.authorName || "",
+        authorSlug: item.authorSlug || "",
+        cover: item.cover || "",
+        readerUrl: buildReaderHrefForRecommendation(item),
+      }));
+    if (items.length) {
+      sections.push({ title: "You May Also Like", items, source: "category" });
+    }
+  }
+
+  if (book?.authorSlug) {
+    const author = await readSeoShardedJson(env, "author-shards", book.authorSlug);
+    const authorBooks = Array.isArray(author?.books) ? author.books : [];
+    const items = authorBooks
+      .filter((item) => item && item.slug && item.slug !== currentSlug)
+      .slice(0, 6)
+      .map((item) => ({
+        id: item.id || "",
+        slug: item.slug,
+        title: item.title,
+        author: book.authorName || author.name || "",
+        authorSlug: book.authorSlug || author.slug || "",
+        cover: item.cover || "",
+        readerUrl: buildReaderHrefForRecommendation(item),
+      }));
+    if (items.length) {
+      sections.push({ title: "More Books by This Author", items, source: "author" });
+    }
+  }
+
+  return sections;
+}
+
+function renderBookPage(origin, book, posthogConfig, recommendationSections) {
+  const authorDisplayName = formatAuthorDisplayName(book.authorName);
+  const aboutText = getRenderableBookDescription(book) || book.excerpt || "";
   const coverHtml = book.cover
     ? `<img class="cover" src="${escapeHtml(book.cover)}" alt="${escapeHtml(book.title)} cover" />`
     : "";
+  const primaryExploreHref = buildPrimaryExploreHref(book);
   const categoryHtml = Array.isArray(book.categories) && book.categories.length
     ? `<div class="tags">${book.categories
         .map(
@@ -773,6 +957,33 @@ function renderBookPage(origin, book, posthogConfig) {
         )
         .join("")}</div>`
     : "";
+  const sections = Array.isArray(recommendationSections) ? recommendationSections.filter((item) => item && Array.isArray(item.items) && item.items.length) : [];
+  const recommendationsHtml = sections
+    .map((section) => {
+      const cardsHtml = section.items
+        .filter((item) => item && item.readerUrl)
+        .map(
+          (item) => `
+            <a class="recCard" href="${escapeHtml(item.readerUrl)}" data-seo-track="reader" data-seo-cta-type="recommendation_card" data-seo-link-text="${escapeHtml(item.title)}">
+              ${item.cover ? `<img class="recCover" src="${escapeHtml(item.cover)}" alt="${escapeHtml(item.title)} cover" />` : `<span class="recCover recCoverPlaceholder" aria-hidden="true"></span>`}
+              <span class="recBody">
+                <span class="recTitle">${escapeHtml(item.title)}</span>
+                ${item.author ? `<span class="recMeta">by ${escapeHtml(formatAuthorDisplayName(item.author))}</span>` : ""}
+              </span>
+            </a>`
+        )
+        .join("");
+      if (!cardsHtml) return "";
+      return `
+      <section class="section">
+        <div class="sectionHead">
+          <h2 class="sectionTitle">${escapeHtml(section.title)}</h2>
+          <div class="sectionMeta">${section.items.length} picks</div>
+        </div>
+        <div class="recGrid">${cardsHtml}</div>
+      </section>`;
+    })
+    .join("");
   const chaptersHtml = Array.isArray(book.chapters) && book.chapters.length
     ? `<ol class="list">${book.chapters
         .map(
@@ -781,7 +992,6 @@ function renderBookPage(origin, book, posthogConfig) {
         )
         .join("")}</ol>`
     : `<div class="meta">No chapter map available.</div>`;
-  const aboutText = book.description || book.excerpt || "";
   const excerptHtml = aboutText
     ? `<div class="excerpt"><p>${escapeHtml(aboutText)}</p></div>`
     : `<div class="meta">Excerpt is not available.</div>`;
@@ -789,7 +999,7 @@ function renderBookPage(origin, book, posthogConfig) {
   const bodyHtml = `
     ${buildBreadcrumbs([
       { label: "Books", href: "/books/" },
-      { label: book.authorName, href: `/author/${book.authorSlug}` },
+      { label: authorDisplayName, href: `/author/${book.authorSlug}` },
       { label: book.title },
     ])}
     <main class="panel">
@@ -797,10 +1007,10 @@ function renderBookPage(origin, book, posthogConfig) {
         ${coverHtml}
         <div class="heroText">
           <h1>${escapeHtml(book.title)}</h1>
-          <div class="meta">By <a href="/author/${encodeURIComponent(book.authorSlug)}">${escapeHtml(book.authorName)}</a></div>
+          <div class="meta">By <a href="/author/${encodeURIComponent(book.authorSlug)}">${escapeHtml(authorDisplayName)}</a></div>
           <div class="actions">
-            <a class="btn" href="${escapeHtml(book.readerUrl)}" data-seo-track="reader" data-seo-cta-type="open_in_weread" data-seo-link-text="Open in WeRead">Open in WeRead</a>
-            <a class="btn secondary" href="/books/" data-seo-track="catalog" data-seo-cta-type="all_books" data-seo-link-text="All Books">All Books</a>
+            <a class="btn secondary" href="${escapeHtml(book.readerUrl)}" data-seo-track="reader" data-seo-cta-type="open_in_weread" data-seo-link-text="Open in WeRead">Open in WeRead</a>
+            <a class="btn" href="${escapeHtml(primaryExploreHref)}" data-seo-track="catalog" data-seo-cta-type="primary_explore_cta" data-seo-link-text="Explore More Books Like This">Explore More Books Like This</a>
           </div>
           ${categoryHtml}
         </div>
@@ -811,6 +1021,7 @@ function renderBookPage(origin, book, posthogConfig) {
         </div>
         ${excerptHtml}
       </section>
+      ${recommendationsHtml}
       <section class="section">
         <div class="sectionHead">
           <h2 class="sectionTitle">Chapters</h2>
@@ -820,8 +1031,8 @@ function renderBookPage(origin, book, posthogConfig) {
       </section>
     </main>`;
   return renderSeoLayout({
-    title: `${book.title} — ${book.authorName}`,
-    description: book.meta_description || book.description || `${book.title} by ${book.authorName}`,
+    title: `${book.title} — ${authorDisplayName}`,
+    description: sanitizeMetaDescription(aboutText),
     canonical: seoCanonical(origin, `/book/${book.slug}`),
     structuredData: buildBookJsonLd(origin, book),
     analyticsHtml: buildSeoAnalyticsHtml(posthogConfig, {
@@ -839,6 +1050,7 @@ function renderBookPage(origin, book, posthogConfig) {
 }
 
 function renderChapterPage(origin, book, chapter, chapterHtml, posthogConfig) {
+  const authorDisplayName = formatAuthorDisplayName(book.authorName);
   const idx = (book.chapters || []).findIndex((item) => item.n === chapter.n);
   const prev = idx > 0 ? book.chapters[idx - 1] : null;
   const next = idx >= 0 && idx < book.chapters.length - 1 ? book.chapters[idx + 1] : null;
@@ -849,7 +1061,7 @@ function renderChapterPage(origin, book, chapter, chapterHtml, posthogConfig) {
   const bodyHtml = `
     ${buildBreadcrumbs([
       { label: "Books", href: "/books/" },
-      { label: book.authorName, href: `/author/${book.authorSlug}` },
+      { label: authorDisplayName, href: `/author/${book.authorSlug}` },
       { label: book.title, href: `/book/${book.slug}` },
       { label: chapter.title },
     ])}
@@ -887,6 +1099,7 @@ function renderChapterPage(origin, book, chapter, chapterHtml, posthogConfig) {
 }
 
 function renderAuthorPage(origin, author, posthogConfig) {
+  const authorDisplayName = formatAuthorDisplayName(author.name);
   const booksHtml = Array.isArray(author.books) && author.books.length
     ? `<ol class="list">${author.books
         .map(
@@ -898,12 +1111,12 @@ function renderAuthorPage(origin, author, posthogConfig) {
   const bodyHtml = `
     ${buildBreadcrumbs([
       { label: "Books", href: "/books/" },
-      { label: author.name },
+      { label: authorDisplayName },
     ])}
     <main class="panel">
       <div class="hero">
         <div class="heroText">
-          <h1>${escapeHtml(author.name)}</h1>
+          <h1>${escapeHtml(authorDisplayName)}</h1>
           <div class="meta">${author.count || 0} books</div>
         </div>
       </div>
@@ -916,8 +1129,8 @@ function renderAuthorPage(origin, author, posthogConfig) {
       </section>
     </main>`;
   return renderSeoLayout({
-    title: `Books by ${author.name}`,
-    description: `${author.count || 0} books by ${author.name} on ReaderPub.`,
+    title: `Books by ${authorDisplayName}`,
+    description: `${author.count || 0} books by ${authorDisplayName} on ReaderPub.`,
     canonical: seoCanonical(origin, `/author/${author.slug}`),
     analyticsHtml: buildSeoAnalyticsHtml(posthogConfig, {
       page_type: "author",
@@ -939,7 +1152,7 @@ function renderCategoryPage(origin, category, posthogConfig) {
     ? `<ol class="list">${category.books
         .map(
           (book) =>
-            `<li><a href="/book/${encodeURIComponent(book.slug)}">${escapeHtml(book.title)}</a> <span class="submeta">by <a href="/author/${encodeURIComponent(book.authorSlug)}">${escapeHtml(book.author)}</a></span></li>`
+            `<li><a href="/book/${encodeURIComponent(book.slug)}">${escapeHtml(book.title)}</a> <span class="submeta">by <a href="/author/${encodeURIComponent(book.authorSlug)}">${escapeHtml(formatAuthorDisplayName(book.author))}</a></span></li>`
         )
         .join("")}</ol>`
     : `<div class="meta">No books are indexed in this category yet.</div>`;
@@ -1153,8 +1366,10 @@ async function renderSeoRoute(request, env, url, path) {
         headers.set("x-reader-route", "seo-book-canonical");
         return new Response(null, { status: 301, headers });
       }
+      const displayBook = await enrichBookForDisplay(env, book);
+      const recommendations = await buildBookRecommendationSections(env, displayBook);
       return await withSeoCache(request, book.version || globalVersion, cacheVariant, async () => {
-        const response = htmlResponse(renderBookPage(canonicalOrigin, book, posthogConfig), 200, {
+        const response = htmlResponse(renderBookPage(canonicalOrigin, displayBook, posthogConfig, recommendations), 200, {
           ...buildSeoCacheHeaders(book.version || globalVersion),
           "x-reader-route": "seo-book",
         });
