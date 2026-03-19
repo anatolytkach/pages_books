@@ -309,6 +309,22 @@ cd pages_books</code></pre>
           <li>не деплоить из корня репозитория без проверки состава файлов.</li>
         </ul>
 
+        <h3>6.2 Workflow: git commit и push</h3>
+        <p>Правило для работы в этом проекте:</p>
+        <ul>
+          <li>команда пользователя <code>сделай коммит</code> означает только локальный git commit;</li>
+          <li>команда пользователя <code>пушни</code>, <code>залей в remote</code> или явная просьба отправить изменения в GitHub означает обязательный <code>git push</code> в <code>origin</code>;</li>
+          <li>после <code>git push</code> нужно проверить, что локальная ветка больше не <code>ahead</code> относительно upstream.</li>
+        </ul>
+        <p>Проверка:</p>
+        <pre><code>git status --short --branch
+git push origin &lt;branch&gt;
+git status --short --branch</code></pre>
+        <p>Ожидаемый результат после успешного push:</p>
+        <ul>
+          <li>ветка не должна оставаться в состоянии <code>ahead N</code>.</li>
+        </ul>
+
         <h2 id="ops">7. Операционные сценарии и rollback</h2>
         <p><strong>replace &lt;id&gt;</strong> — безопасный способ исправить одну книгу.</p>
         <ul>

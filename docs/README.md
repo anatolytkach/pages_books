@@ -443,6 +443,24 @@ wrangler pages deploy /tmp/readerpub_deploy \
 - не считать, что текущая git-ветка репозитория совпадает с production branch в Cloudflare Pages;
 - не деплоить из корня репозитория без проверки состава файлов.
 
+### 7.4 Workflow: git commit и push
+
+Правило для работы в этом проекте:
+- команда пользователя `сделай коммит` означает только локальный git commit;
+- команда пользователя `пушни`, `залей в remote` или явная просьба отправить изменения в GitHub означает обязательный `git push` в `origin`;
+- после `git push` нужно проверить, что локальная ветка больше не `ahead` относительно upstream.
+
+Проверка:
+
+```bash
+git status --short --branch
+git push origin <branch>
+git status --short --branch
+```
+
+Ожидаемый результат после успешного push:
+- ветка не должна оставаться в состоянии `ahead N`.
+
 ## 8. Детали selective upload индексов (важно)
 
 `epub_publish.sh` загружает не весь `reader_lang_indexes`, а минимум нужного:
