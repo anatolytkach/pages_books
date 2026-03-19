@@ -2525,13 +2525,16 @@ export default {
         if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
 
         // Update catalog indexes so the book appears in browse/search
+        let indexError = null;
         try {
           await updateCatalogIndexes(env, data);
         } catch (indexErr) {
-          // Non-fatal: book is published even if index update fails
+          indexError = indexErr.message || String(indexErr);
         }
 
-        return jsonResponse(data, 200, apiCorsHeaders);
+        const result = { ...data };
+        if (indexError) result._indexError = indexError;
+        return jsonResponse(result, 200, apiCorsHeaders);
       }
 
       // ── POST /v1/publish/upload — upload EPUB file ──
