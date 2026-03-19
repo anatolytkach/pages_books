@@ -217,17 +217,23 @@ async function updateCatalogIndexes(env, book) {
   const language = String(book.language || "en").trim();
   if (!authorName || !title || !contentId) return;
 
-  const { authorKey, indexKey, display: authorDisplay } = parseAuthorForIndex(authorName);
+  const { authorKey, indexKey, indexKeyAscii, display: authorDisplay } = parseAuthorForIndex(authorName);
 
-  // Update both root index and language-specific index
-  const prefixes = ["api"];
+  // Update both root index (Unicode keys) and language-specific index
+  // English uses ASCII-only keys; other languages use Unicode-aware keys
+  const updates = [
+    { apiPrefix: "api", useIndexKey: indexKey },
+  ];
   if (language && language !== "und") {
-    prefixes.push(`api/lang/${language}`);
+    updates.push({
+      apiPrefix: `api/lang/${language}`,
+      useIndexKey: language === "en" ? indexKeyAscii : indexKey,
+    });
   }
 
-  for (const apiPrefix of prefixes) {
+  for (const { apiPrefix, useIndexKey } of updates) {
     await updateCatalogIndexesForPrefix(env, apiPrefix, {
-      authorKey, indexKey, authorDisplay, title, contentId, coverUrl,
+      authorKey, indexKey: useIndexKey, authorDisplay, title, contentId, coverUrl,
     });
   }
 }
@@ -375,69 +381,111 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
   });
 }
 
+// ── Catalog index helpers (ported from build_lang_indexes.py) ──
+
 /**
- * Parse author name following the same convention as build_lang_indexes.py:
- * - Author key: first+last (e.g., "rexhurst" for "Hurst, Rex")
- * - Index key: last+first (e.g., "hurstrex") — used for prefix tree browsing
- * - Display: "Last, First" (e.g., "Hurst, Rex")
+ * Strip diacritics: "Fiévée" → "Fievee"
+ */
+function stripDiacritics(value) {
+  return String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
+ * Normalize to Unicode-aware index key (keeps Cyrillic, CJK, etc.)
+ * Matches Python's normalize_index()
+ */
+function normalizeIndex(value) {
+  const base = stripDiacritics(String(value || "").replace(/\s+/g, " ").trim()).toLowerCase();
+  return base.replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/**
+ * Normalize to ASCII-only index key (for English language index)
+ * Matches Python's normalize_index_ascii()
+ */
+function normalizeIndexAscii(value) {
+  const base = stripDiacritics(String(value || "").replace(/\s+/g, " ").trim()).toLowerCase();
+  return base.replace(/[^a-z0-9]+/g, "");
+}
+
+/**
+ * Parse author name following build_lang_indexes.py parse_author_name().
+ * Handles suffixes (Jr., Sr., II, III), particles (van, von, de, la, etc.),
+ * and "Last, First" vs "First Last" formats.
+ *
+ * Returns { authorKey, indexKey, indexKeyAscii, display }
  */
 function parseAuthorForIndex(name) {
-  const raw = name.trim();
+  const raw = String(name || "").replace(/\s+/g, " ").trim();
+  if (!raw) return { authorKey: "", indexKey: "", indexKeyAscii: "", display: "" };
+
   let last, rest;
   if (raw.includes(",")) {
-    [last, rest] = raw.split(",", 2).map(s => s.trim());
+    const commaIdx = raw.indexOf(",");
+    last = raw.slice(0, commaIdx).trim();
+    rest = raw.slice(commaIdx + 1).trim();
   } else {
-    const parts = raw.split(/\s+/);
-    if (parts.length <= 1) {
+    const parts = raw.split(" ");
+    if (parts.length === 1) {
       last = raw;
       rest = "";
     } else {
-      last = parts[parts.length - 1];
-      rest = parts.slice(0, -1).join(" ");
+      const suffixes = new Set(["jr.", "jr", "sr.", "sr", "ii", "iii", "iv", "v"]);
+      const particles = new Set([
+        "da", "de", "del", "der", "di", "du", "la", "le",
+        "van", "von", "st", "st.", "saint", "san",
+        "den", "ter", "ten", "dos", "das",
+        "della", "dell", "dall", "d'", "l'"
+      ]);
+      const lastToken = parts[parts.length - 1].toLowerCase();
+      if (suffixes.has(lastToken) && parts.length >= 3) {
+        last = parts.slice(-2).join(" ");
+        rest = parts.slice(0, -2).join(" ");
+      } else if (parts.length >= 3 && particles.has(parts[parts.length - 2].toLowerCase())) {
+        last = parts.slice(-2).join(" ");
+        rest = parts.slice(0, -2).join(" ");
+      } else {
+        last = parts[parts.length - 1];
+        rest = parts.slice(0, -1).join(" ");
+      }
     }
   }
+
   if (!last) last = raw;
   const display = rest ? `${last}, ${rest}` : last;
-  const indexName = `${last} ${rest}`.trim();  // "Hurst Rex"
+  const indexName = `${last} ${rest}`.trim();
 
-  const slugify = (s) => s.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
+  const authorKey = normalizeIndex(rest ? `${rest}${last}` : last);
+  const indexKey = normalizeIndex(indexName);
+  const indexKeyAscii = normalizeIndexAscii(indexName);
 
-  const authorKey = slugify(rest ? `${rest}${last}` : last);  // "rexhurst"
-  const indexKey = slugify(indexName);                          // "hurstrex"
-
-  return { authorKey, indexKey, display };
+  return { authorKey, indexKey, indexKeyAscii, display };
 }
 
-function buildPrefixLevels(indexKey) {
-  // Build prefix hierarchy from index key (last name first)
-  // e.g., "hurstrex" → ["h", "hu", "hur"]
-  const levels = [];
-  for (let i = 1; i <= Math.min(3, indexKey.length); i++) {
-    levels.push(indexKey.slice(0, i));
-  }
-  return levels;
-}
-
+/**
+ * Build search tokens from title and author.
+ * Matches Python's normalize_search_token(): first 2 chars of each normalized word.
+ * For non-English, uses Unicode-aware normalization.
+ */
 function buildSearchTokens(title, author) {
   const tokens = new Set();
-  const words = `${title} ${author}`.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, "")
-    .split(/\s+/)
+  const combined = `${title || ""} ${author || ""}`;
+
+  // Unicode-aware: split on non-letter/non-number, normalize, take first 2 chars
+  const words = stripDiacritics(combined).toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
     .filter(w => w.length >= 2);
 
   for (const word of words) {
-    // Add 2-char and 3-char prefixes
-    if (word.length >= 2) tokens.add(word.slice(0, 2));
-    if (word.length >= 3) tokens.add(word.slice(0, 3));
+    // Matching Python: normalize_search_token returns base[:2]
+    const normalized = word.replace(/[^\p{L}\p{N}]+/gu, "");
+    if (normalized.length >= 2) tokens.add(normalized.slice(0, 2));
   }
   return [...tokens];
 }
 
-function getFirstLetter(authorKey) {
-  const ch = authorKey.charAt(0);
+function getFirstLetter(indexKey) {
+  const ch = indexKey.charAt(0);
   if (ch >= "0" && ch <= "9") return "num";
   return ch;
 }
