@@ -2089,6 +2089,23 @@ export default {
         return jsonResponse(data || [], 200, apiCorsHeaders);
       }
 
+      // ── GET /v1/debug/reindex/:contentId — temporary debug endpoint ──
+      const debugReindexMatch = apiPath.match(/^\/debug\/reindex\/(\d+)$/);
+      if (debugReindexMatch && request.method === "GET") {
+        const contentId = debugReindexMatch[1];
+        const { data: book } = await sbFetch("books", {
+          params: `content_id=eq.${contentId}&select=*`,
+          single: true,
+        });
+        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+        try {
+          await updateCatalogIndexes(env, book);
+          return jsonResponse({ ok: true, book: { id: book.id, content_id: book.content_id, title: book.title, author: book.author, language: book.language, cover_url: book.cover_url } }, 200, apiCorsHeaders);
+        } catch (err) {
+          return jsonResponse({ error: err.message, stack: err.stack }, 500, apiCorsHeaders);
+        }
+      }
+
       // ── GET /v1/genres — list genres ──
       if (apiPath === "/genres" && request.method === "GET") {
         const { data, error } = await sbFetch("genres", {
