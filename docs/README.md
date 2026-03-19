@@ -403,6 +403,46 @@ cd /Volumes/2T/se_ingest/pages_books/books/content
 4. Формирование selective списка upload в `api/...`.
 5. `tools/deploy_docs.sh` для публикации документации на `staging.reader.pub/docs/`.
 
+### 7.3 Workflow: безопасный production deploy каталога и читалки
+
+Для изменений только в UI каталога/читалки (`books/`, `reader/`, `_worker.js`) production deploy нужно делать отдельно от контентного конвейера.
+
+Критично:
+- production branch у Cloudflare Pages проекта `reader-books` называется `production`, а не `master`;
+- ветка `master` в этом проекте создает только preview deploy (`master.reader-books.pages.dev`) и не обновляет `reader.pub/books/*`;
+- production router `tools/reader-books-router.js` проксирует `reader.pub/books/reader/*` в `https://reader-books.pages.dev/reader/*`, поэтому для боевого обновления должен обновиться именно production alias `reader-books.pages.dev`.
+
+Правильный порядок:
+1. Собрать минимальный deploy bundle, а не деплоить весь корень репозитория.
+2. В bundle включать только:
+   - `_worker.js`
+   - `books/` без `books/content/`
+   - `reader/`
+3. Не включать тяжелые артефакты вроде `reader_seo_indexes/`, иначе Pages может отклонить deploy из-за лимита `25 MiB` на файл.
+4. Деплоить Pages project `reader-books` в branch `production`.
+
+Рабочая команда:
+
+```bash
+wrangler pages deploy /tmp/readerpub_deploy \
+  --project-name reader-books \
+  --branch production \
+  --commit-dirty=true
+```
+
+Проверка после deploy:
+1. `wrangler pages deployment list --project-name reader-books`
+   - новый deploy должен появиться как `Environment = Production`, `Branch = production`
+2. Проверить upstream alias:
+   - `https://reader-books.pages.dev/reader/`
+3. Проверить боевой URL:
+   - `https://reader.pub/books/reader/`
+
+Чего не делать:
+- не деплоить UI-изменения в branch `master`, если нужен production;
+- не считать, что текущая git-ветка репозитория совпадает с production branch в Cloudflare Pages;
+- не деплоить из корня репозитория без проверки состава файлов.
+
 ## 8. Детали selective upload индексов (важно)
 
 `epub_publish.sh` загружает не весь `reader_lang_indexes`, а минимум нужного:
