@@ -159,7 +159,10 @@ async function processEpub(env, fileBytes, bookId, contentId) {
   const opfXml = new TextDecoder().decode(opfEntry.data);
 
   const title = extractXmlTag(opfXml, "dc:title") || extractXmlTag(opfXml, "title");
-  const author = extractXmlTag(opfXml, "dc:creator") || extractXmlTag(opfXml, "creator");
+  // Extract all creators (multiple dc:creator elements)
+  const creators = extractAllXmlTags(opfXml, "dc:creator");
+  if (!creators.length) creators.push(...extractAllXmlTags(opfXml, "creator"));
+  const author = creators.join(", ") || null;
   const language = extractXmlTag(opfXml, "dc:language") || extractXmlTag(opfXml, "language") || "und";
 
   // Find cover image
@@ -234,6 +237,30 @@ async function updateCatalogIndexes(env, book) {
   for (const { apiPrefix, useIndexKey } of updates) {
     await updateCatalogIndexesForPrefix(env, apiPrefix, {
       authorKey, indexKey: useIndexKey, authorDisplay, title, contentId, coverUrl,
+    });
+  }
+
+  // 5. Update languages.json — ensure the book's language is listed
+  if (language && language !== "und") {
+    const langR2Key = "api/languages.json";
+    let langData;
+    try {
+      const obj = await env.READER_BOOKS.get(langR2Key);
+      langData = obj ? await obj.json() : null;
+    } catch { langData = null; }
+
+    if (!langData) langData = { languages: [] };
+
+    const langEntry = langData.languages.find(l => l.code === language);
+    if (langEntry) {
+      langEntry.count = (langEntry.count || 0) + 1;
+    } else {
+      langData.languages.push({ code: language, count: 1 });
+      langData.languages.sort((a, b) => (b.count || 0) - (a.count || 0));
+    }
+
+    await env.READER_BOOKS.put(langR2Key, JSON.stringify(langData), {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
     });
   }
 }
@@ -529,6 +556,17 @@ function extractXmlTag(xml, tag) {
   const re = new RegExp(`<${tag}[^>]*>([^<]+)</${tag}>`, "i");
   const m = xml.match(re);
   return m ? m[1].trim() : null;
+}
+
+function extractAllXmlTags(xml, tag) {
+  const re = new RegExp(`<${tag}[^>]*>([^<]+)</${tag}>`, "gi");
+  const results = [];
+  let m;
+  while ((m = re.exec(xml)) !== null) {
+    const val = m[1].trim();
+    if (val) results.push(val);
+  }
+  return results;
 }
 
 function guessContentType(filename) {
