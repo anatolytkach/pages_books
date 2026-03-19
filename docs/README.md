@@ -446,15 +446,18 @@ wrangler pages deploy /tmp/readerpub_deploy \
 ### 7.4 Workflow: git commit и push
 
 Правило для работы в этом проекте:
-- команда пользователя `сделай коммит` означает только локальный git commit;
-- команда пользователя `пушни`, `залей в remote` или явная просьба отправить изменения в GitHub означает обязательный `git push` в `origin`;
-- после `git push` нужно проверить, что локальная ветка больше не `ahead` относительно upstream.
+- все пользовательские команды на коммит нужно выполнять по логике `./commit_logic.sh`;
+- `commit_logic.sh` обязан:
+  - стадить и код проекта, и документацию, если в ней есть изменения;
+  - делать `git commit`;
+  - сразу делать `git push` в remote;
+- поэтому команда пользователя `комит`/`сделай коммит` для этого проекта означает не только локальный commit, но и отправку коммита в remote;
+- если меняется логика коммитов, source-of-truth находится в `commit_logic.sh`, и workflow нужно выравнивать под него, а не наоборот.
 
 Проверка:
 
 ```bash
-git status --short --branch
-git push origin <branch>
+./commit_logic.sh "commit message"
 git status --short --branch
 ```
 

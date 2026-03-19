@@ -312,13 +312,13 @@ cd pages_books</code></pre>
         <h3>6.2 Workflow: git commit и push</h3>
         <p>Правило для работы в этом проекте:</p>
         <ul>
-          <li>команда пользователя <code>сделай коммит</code> означает только локальный git commit;</li>
-          <li>команда пользователя <code>пушни</code>, <code>залей в remote</code> или явная просьба отправить изменения в GitHub означает обязательный <code>git push</code> в <code>origin</code>;</li>
-          <li>после <code>git push</code> нужно проверить, что локальная ветка больше не <code>ahead</code> относительно upstream.</li>
+          <li>все пользовательские команды на коммит нужно выполнять по логике <code>./commit_logic.sh</code>;</li>
+          <li><code>commit_logic.sh</code> обязан стадить и код проекта, и документацию, если в ней есть изменения, затем делать <code>git commit</code> и сразу <code>git push</code> в remote;</li>
+          <li>поэтому команда пользователя <code>комит</code> / <code>сделай коммит</code> для этого проекта означает не только локальный commit, но и отправку коммита в remote;</li>
+          <li>если меняется логика коммитов, source-of-truth находится в <code>commit_logic.sh</code>, и workflow нужно выравнивать под него, а не наоборот.</li>
         </ul>
         <p>Проверка:</p>
-        <pre><code>git status --short --branch
-git push origin &lt;branch&gt;
+        <pre><code>./commit_logic.sh "commit message"
 git status --short --branch</code></pre>
         <p>Ожидаемый результат после успешного push:</p>
         <ul>
