@@ -413,13 +413,14 @@ cd /Volumes/2T/se_ingest/pages_books/books/content
 - production router `tools/reader-books-router.js` проксирует `reader.pub/books/reader/*` в `https://reader-books.pages.dev/reader/*`, поэтому для боевого обновления должен обновиться именно production alias `reader-books.pages.dev`.
 
 Правильный порядок:
-1. Собрать минимальный deploy bundle, а не деплоить весь корень репозитория.
-2. В bundle включать только:
+1. Все изменения сначала проверять на локальном сайте; не выкатывать их сразу на production без явного подтверждения пользователя после локальной проверки.
+2. Собрать минимальный deploy bundle, а не деплоить весь корень репозитория.
+3. В bundle включать только:
    - `_worker.js`
    - `books/` без `books/content/`
    - `reader/`
-3. Не включать тяжелые артефакты вроде `reader_seo_indexes/`, иначе Pages может отклонить deploy из-за лимита `25 MiB` на файл.
-4. Деплоить Pages project `reader-books` в branch `production`.
+4. Не включать тяжелые артефакты вроде `reader_seo_indexes/`, иначе Pages может отклонить deploy из-за лимита `25 MiB` на файл.
+5. Деплоить Pages project `reader-books` в branch `production` только после явной команды пользователя на production deploy.
 
 Рабочая команда:
 
@@ -439,6 +440,7 @@ wrangler pages deploy /tmp/readerpub_deploy \
    - `https://reader.pub/books/reader/`
 
 Чего не делать:
+- не выкатывать изменения на production автоматически сразу после правок;
 - не деплоить UI-изменения в branch `master`, если нужен production;
 - не считать, что текущая git-ветка репозитория совпадает с production branch в Cloudflare Pages;
 - не деплоить из корня репозитория без проверки состава файлов.

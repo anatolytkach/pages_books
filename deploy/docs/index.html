@@ -287,10 +287,11 @@ cd pages_books</code></pre>
         </ul>
         <p>Правильный порядок:</p>
         <ol>
+          <li>Все изменения сначала проверять на локальном сайте; не выкатывать их сразу на production без явного подтверждения пользователя после локальной проверки.</li>
           <li>Собрать минимальный deploy bundle, а не деплоить весь корень репозитория.</li>
           <li>Включать в bundle только <code>_worker.js</code>, <code>books/</code> без <code>books/content/</code> и <code>reader/</code>.</li>
           <li>Не включать тяжелые артефакты вроде <code>reader_seo_indexes/</code>, иначе Pages может отклонить deploy из-за лимита <code>25 MiB</code> на файл.</li>
-          <li>Деплоить Pages project <code>reader-books</code> в branch <code>production</code>.</li>
+          <li>Деплоить Pages project <code>reader-books</code> в branch <code>production</code> только после явной команды пользователя на production deploy.</li>
         </ol>
         <pre><code>wrangler pages deploy /tmp/readerpub_deploy \
   --project-name reader-books \
@@ -304,6 +305,7 @@ cd pages_books</code></pre>
         </ol>
         <p>Чего не делать:</p>
         <ul>
+          <li>не выкатывать изменения на production автоматически сразу после правок;</li>
           <li>не деплоить UI-изменения в branch <code>master</code>, если нужен production;</li>
           <li>не считать, что текущая git-ветка репозитория совпадает с production branch в Cloudflare Pages;</li>
           <li>не деплоить из корня репозитория без проверки состава файлов.</li>
