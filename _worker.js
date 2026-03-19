@@ -331,18 +331,17 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
 
     if (!searchData) searchData = { items: [] };
 
-    // Add author entry if not present
-    const authorEntry = searchData.items.find(i => i.t === "a" && i.k === authorKey);
-    if (!authorEntry) {
-      searchData.items.push({ t: "a", k: authorKey, n: authorDisplay, c: authorData.books.length });
-    } else {
-      authorEntry.c = authorData.books.length;
-    }
-
-    // Add title entry
-    const titleEntry = searchData.items.find(i => i.t === "b" && i.k === contentId);
+    // Add book/title entry matching Python indexer format:
+    // { id: "200005", title: "Trial by Sorcery", a: "Fierce, Richard", k: "richardfierce", cover: "/books/content/..." }
+    const titleEntry = searchData.items.find(i => i.id === contentId);
     if (!titleEntry) {
-      searchData.items.push({ t: "b", k: contentId, n: title, a: authorDisplay });
+      searchData.items.push({
+        id: contentId,
+        title: title,
+        a: authorDisplay,
+        k: authorKey,
+        cover: coverUrl || "",
+      });
     }
 
     await env.READER_BOOKS.put(r2Key, JSON.stringify(searchData), {
