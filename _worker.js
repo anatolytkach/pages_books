@@ -320,7 +320,7 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
   }
 
   // 3. Update search tokens
-  const tokens = buildSearchTokens(title, authorName);
+  const tokens = buildSearchTokens(title, authorDisplay);
   for (const token of tokens) {
     const r2Key = `${apiPrefix}/search/${token}.json`;
     let searchData;
