@@ -2769,6 +2769,168 @@ export default {
         }
       }
 
+      // ── GET /v1/books/:bookId/notes — get user's notes for a book ──
+      const bookNotesMatch = apiPath.match(/^\/books\/([0-9a-f-]+)\/notes$/);
+      if (bookNotesMatch && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const bookId = bookNotesMatch[1];
+        const { data, error } = await sbFetch("notes", {
+          params: `book_id=eq.${bookId}&author_user_id=eq.${user.sub}&select=*&order=created_at`,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      // ── POST /v1/books/:bookId/notes — create a note ──
+      if (bookNotesMatch && request.method === "POST") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const bookId = bookNotesMatch[1];
+        const body = await request.json().catch(() => null);
+        if (!body || !body.cfi) {
+          return jsonResponse({ error: "cfi is required" }, 400, apiCorsHeaders);
+        }
+
+        // Get user's display name
+        const { data: profile } = await sbFetch("user_profiles", {
+          params: `id=eq.${user.sub}&select=display_name`,
+          single: true,
+        });
+        const displayName = profile?.display_name || user.email || "Anonymous";
+
+        const { data, error } = await sbFetch("notes", {
+          method: "POST",
+          body: {
+            book_id: bookId,
+            author_user_id: user.sub,
+            author_display_name: displayName,
+            anchor_cfi: body.cfi,
+            anchor_href: body.href || null,
+            quote: body.quote || "",
+            note_text: body.comment || body.note_text || "",
+            visibility: body.visibility || "private",
+          },
+          single: true,
+        });
+        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
+        return jsonResponse(data, 201, apiCorsHeaders);
+      }
+
+      // ── PATCH /v1/notes/:id — update a note ──
+      const noteMatch = apiPath.match(/^\/notes\/([0-9a-f-]+)$/);
+      if (noteMatch && request.method === "PATCH") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const noteId = noteMatch[1];
+        const body = await request.json().catch(() => null);
+        if (!body) return jsonResponse({ error: "Invalid JSON" }, 400, apiCorsHeaders);
+
+        const allowed = ["note_text", "quote", "visibility"];
+        const updates = {};
+        for (const key of allowed) {
+          if (body[key] !== undefined) updates[key] = body[key];
+        }
+        // Also accept "comment" as alias for note_text
+        if (body.comment !== undefined && !updates.note_text) updates.note_text = body.comment;
+
+        if (!Object.keys(updates).length) {
+          return jsonResponse({ error: "No fields to update" }, 400, apiCorsHeaders);
+        }
+
+        const { data, error } = await sbFetch("notes", {
+          method: "PATCH",
+          params: `id=eq.${noteId}&author_user_id=eq.${user.sub}&select=*`,
+          body: updates,
+          single: true,
+        });
+        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
+        if (!data) return jsonResponse({ error: "Note not found" }, 404, apiCorsHeaders);
+        return jsonResponse(data, 200, apiCorsHeaders);
+      }
+
+      // ── DELETE /v1/notes/:id — delete a note ──
+      if (noteMatch && request.method === "DELETE") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const noteId = noteMatch[1];
+        await sbFetch("notes", {
+          method: "DELETE",
+          params: `id=eq.${noteId}&author_user_id=eq.${user.sub}`,
+        });
+        return jsonResponse({ deleted: true }, 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/me/notes — all notes by current user ──
+      if (apiPath === "/me/notes" && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const { data, error } = await sbFetch("notes", {
+          params: `author_user_id=eq.${user.sub}&select=*,books:book_id(id,title,author,content_id,cover_url)&order=created_at.desc`,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/books/by-content/:contentId/notes — get notes by content_id ──
+      const contentNotesMatch = apiPath.match(/^\/books\/by-content\/(\d+)\/notes$/);
+      if (contentNotesMatch && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const contentId = contentNotesMatch[1];
+        // Look up book UUID from content_id
+        const { data: book } = await sbFetch("books", {
+          params: `content_id=eq.${contentId}&select=id`,
+          single: true,
+        });
+        if (!book) return jsonResponse([], 200, apiCorsHeaders);
+        const { data, error } = await sbFetch("notes", {
+          params: `book_id=eq.${book.id}&author_user_id=eq.${user.sub}&select=*&order=created_at`,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      // ── POST /v1/books/by-content/:contentId/notes — create note by content_id ──
+      if (contentNotesMatch && request.method === "POST") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const contentId = contentNotesMatch[1];
+        const { data: book } = await sbFetch("books", {
+          params: `content_id=eq.${contentId}&select=id`,
+          single: true,
+        });
+        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+
+        const body = await request.json().catch(() => null);
+        if (!body || !body.cfi) {
+          return jsonResponse({ error: "cfi is required" }, 400, apiCorsHeaders);
+        }
+
+        const { data: profile } = await sbFetch("user_profiles", {
+          params: `id=eq.${user.sub}&select=display_name`,
+          single: true,
+        });
+        const displayName = profile?.display_name || user.email || "Anonymous";
+
+        const { data, error } = await sbFetch("notes", {
+          method: "POST",
+          body: {
+            book_id: book.id,
+            author_user_id: user.sub,
+            author_display_name: displayName,
+            anchor_cfi: body.cfi,
+            anchor_href: body.href || null,
+            quote: body.quote || "",
+            note_text: body.comment || body.note_text || "",
+            visibility: body.visibility || "private",
+          },
+          single: true,
+        });
+        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
+        return jsonResponse(data, 201, apiCorsHeaders);
+      }
+
       // ── Fallback: route not found ──
       return jsonResponse({ error: "Not found" }, 404, apiCorsHeaders);
     }
