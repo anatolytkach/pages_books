@@ -234,6 +234,25 @@
     }
   }
 
+  function isTouchUi() {
+    try { return isTabletViewport() || isMobileViewport(); } catch (e) { return false; }
+  }
+
+  function isTouchShareDevice() {
+    try {
+      var coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+      var noHover = !!(window.matchMedia && window.matchMedia("(hover: none)").matches);
+      var touchPoints = !!(navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+      var touchEvent = ("ontouchstart" in window);
+      if (coarse) return true;
+      if (noHover && touchPoints) return true;
+      if (touchEvent && touchPoints) return true;
+      if (isTouchUi()) return true;
+      if (touchPoints && !window.__fb_isDesktop) return true;
+    } catch (e) {}
+    return false;
+  }
+
   // -------- UI bars --------
   function applyViewerInsets(topH, bottomH, withResize) {
     try {
@@ -401,10 +420,6 @@
         }
       } catch (e) {}
       return false;
-    }
-
-    function isTouchUi() {
-      try { return isTabletViewport() || isMobileViewport(); } catch (e) { return false; }
     }
 
     function isOpen() {
@@ -1048,16 +1063,6 @@
     var btnNotes = document.getElementById("openNotes");
     var btnBookmarks = document.getElementById("openBookmarks");
     var closeBtns = Array.prototype.slice.call(document.querySelectorAll(".overlay-close"));
-
-    function isTouchShareDevice() {
-      try {
-        var coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
-        var touchPoints = !!(navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-        if (coarse) return true;
-        if (touchPoints && !window.__fb_isDesktop) return true;
-      } catch (e) {}
-      return false;
-    }
 
     function getCurrentBookId() {
       try {
@@ -5535,13 +5540,18 @@
       return li;
     }
 
-    function render() {
-      while (list.firstChild) list.removeChild(list.firstChild);
-      var notes = reader.settings.notes || [];
-      for (var i = 0; i < notes.length; i++) {
-        list.appendChild(createItem(notes[i]));
-      }
-    }
+	    function render() {
+	      while (list.firstChild) list.removeChild(list.firstChild);
+	      var notes = reader.settings.notes || [];
+	      for (var i = 0; i < notes.length; i++) {
+	        list.appendChild(createItem(notes[i]));
+	      }
+	      try {
+	        if (copyBtn && typeof copyBtn.__fbUpdateState === "function") {
+	          copyBtn.__fbUpdateState();
+	        }
+	      } catch (e) {}
+	    }
 
     function addNote(payload) {
       if (!payload || !payload.cfi) return;
@@ -5617,53 +5627,91 @@
 
     window.__fbAddNote = addNote;
     importSharedNotesFromUrl();
-    if (copyBtn && !copyBtn.__fbBound) {
-      copyBtn.__fbBound = true;
-      var clearCopyState = function (btn) {
-        btn.classList.remove("is-pressed");
-        btn.classList.remove("is-copied");
-        btn.classList.remove("is-failed");
-      };
-      copyBtn.addEventListener("mousedown", function () { copyBtn.classList.add("is-pressed"); });
-      copyBtn.addEventListener("mouseup", function () { copyBtn.classList.remove("is-pressed"); });
-      copyBtn.addEventListener("mouseleave", function () { copyBtn.classList.remove("is-pressed"); });
-      copyBtn.addEventListener("click", function (event) {
-        if (event) event.preventDefault();
-        var btn = copyBtn;
-        clearCopyState(btn);
-        var oldText = btn.textContent || "Copy book link with Notes";
-        var generatedUrl = "";
-        getCopyNotesUrl()
-          .then(function (url) {
-            generatedUrl = String(url || "");
-            return copyText(generatedUrl);
-          })
-          .then(function () {
-            try {
-              if (generatedUrl) {
-                var next = new URL(generatedUrl, window.location.origin);
-                history.replaceState(null, "", next.pathname + next.search + (next.hash || ""));
-              }
-            } catch (e0) {}
-            btn.classList.add("is-copied");
-            btn.textContent = "Copied";
-            setTimeout(function () {
-              btn.textContent = oldText;
-              clearCopyState(btn);
-            }, 1200);
-          })
-          .catch(function () {
-            btn.classList.add("is-failed");
-            btn.textContent = "Copy failed";
-            setTimeout(function () {
-              btn.textContent = oldText;
-              clearCopyState(btn);
-            }, 1500);
-          });
-      });
-    }
-    render();
-  }
+	    if (copyBtn && !copyBtn.__fbBound) {
+	      copyBtn.__fbBound = true;
+	      var clearCopyState = function (btn) {
+	        btn.classList.remove("is-pressed");
+	        btn.classList.remove("is-copied");
+	        btn.classList.remove("is-failed");
+	      };
+	      var getNotesShareLabel = function () {
+	        return isTouchShareDevice() ? "Share book with Notes" : "Copy book link with Notes";
+	      };
+	      var hasShareableNotes = function () {
+	        try {
+	          return extractShareableNotes().length > 0;
+	        } catch (e) {}
+	        return false;
+	      };
+	      var updateNotesShareButtonState = function () {
+	        var enabled = hasShareableNotes();
+	        copyBtn.textContent = getNotesShareLabel();
+	        copyBtn.disabled = !enabled;
+	        copyBtn.setAttribute("aria-disabled", enabled ? "false" : "true");
+	        copyBtn.classList.toggle("is-disabled", !enabled);
+	      };
+	      copyBtn.addEventListener("mousedown", function () { copyBtn.classList.add("is-pressed"); });
+	      copyBtn.addEventListener("mouseup", function () { copyBtn.classList.remove("is-pressed"); });
+	      copyBtn.addEventListener("mouseleave", function () { copyBtn.classList.remove("is-pressed"); });
+	      copyBtn.addEventListener("click", function (event) {
+	        if (event) event.preventDefault();
+	        if (copyBtn.disabled || !hasShareableNotes()) return;
+	        var btn = copyBtn;
+	        clearCopyState(btn);
+	        updateNotesShareButtonState();
+	        var oldText = btn.textContent || getNotesShareLabel();
+	        var generatedUrl = "";
+	        getCopyNotesUrl()
+	          .then(function (url) {
+	            generatedUrl = String(url || "");
+	            if (!generatedUrl) throw new Error("No notes share url");
+	            if (isTouchShareDevice()) {
+	              try {
+	                if (navigator.share) {
+	                  return navigator.share({ url: generatedUrl }).catch(function (err) {
+	                    if (err && err.name === "AbortError") return;
+	                    throw err;
+	                  });
+	                }
+	              } catch (e0) {}
+	              throw new Error("Share unavailable");
+	            }
+	            return copyText(generatedUrl);
+	          })
+	          .then(function () {
+	            try {
+	              if (generatedUrl) {
+	                var next = new URL(generatedUrl, window.location.origin);
+	                history.replaceState(null, "", next.pathname + next.search + (next.hash || ""));
+	              }
+	            } catch (e0) {}
+	            if (!isTouchShareDevice()) {
+	              btn.classList.add("is-copied");
+	              btn.textContent = "Copied";
+	            }
+	            setTimeout(function () {
+	              updateNotesShareButtonState();
+	              if (!btn.disabled) btn.textContent = oldText;
+	              clearCopyState(btn);
+	            }, 1200);
+	          })
+	          .catch(function () {
+	            btn.classList.add("is-failed");
+	            btn.textContent = isTouchShareDevice() ? "Share unavailable" : "Copy failed";
+	            setTimeout(function () {
+	              updateNotesShareButtonState();
+	              if (!btn.disabled) btn.textContent = oldText;
+	              clearCopyState(btn);
+	            }, 1500);
+	          });
+	      });
+	      window.addEventListener("resize", updateNotesShareButtonState, { passive: true });
+	      window.addEventListener("orientationchange", updateNotesShareButtonState, { passive: true });
+	      copyBtn.__fbUpdateState = updateNotesShareButtonState;
+	      updateNotesShareButtonState();
+	    }
+	    render();
+	  }
 
   // -------- text-to-speech (Web Speech API) --------
   function setupSpeech(reader) {

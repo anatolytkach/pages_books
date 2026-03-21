@@ -2918,6 +2918,14 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
 }
 
+#overlay-notes #notesView .notes-copy-link-btn:disabled,
+#overlay-notes #notesView .notes-copy-link-btn.is-disabled{
+  color: rgba(255,255,255,0.34);
+  cursor: default;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 #overlay-notes #notesView .notes-copy-link-btn.is-copied{
   color: var(--fbbar-fg-strong);
 }
@@ -2934,6 +2942,76 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   display: flex;
   flex-direction: column;
   overflow: visible;
+}
+
+#overlay-menu #menuView .menu-book-card{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 0 18px;
+  border-bottom: 1px solid var(--fbbar-border);
+  margin-bottom: 2px;
+}
+
+#overlay-menu #menuView .menu-book-cover-wrap{
+  width: 104px;
+  height: 148px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 0 0 104px;
+}
+
+#overlay-menu #menuView .menu-book-cover,
+#overlay-menu #menuView .menu-book-cover-placeholder{
+  width: 100%;
+  height: 100%;
+}
+
+#overlay-menu #menuView .menu-book-cover{
+  display: block;
+  object-fit: contain;
+  object-position: left center;
+}
+
+#overlay-menu #menuView .menu-book-cover.hidden{
+  display: none;
+}
+
+#overlay-menu #menuView .menu-book-cover-placeholder{
+  background: transparent;
+  border: 0;
+}
+
+#overlay-menu #menuView .menu-book-cover-placeholder.hidden{
+  display: none;
+}
+
+#overlay-menu #menuView .menu-book-title,
+#overlay-menu #menuView .menu-book-author{
+  width: auto;
+  text-align: left;
+  line-height: 1.35;
+  color: var(--fbbar-fg);
+}
+
+#overlay-menu #menuView .menu-book-title{
+  font-size: 18px;
+  font-weight: 600;
+}
+
+#overlay-menu #menuView .menu-book-author{
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+#overlay-menu #menuView .menu-book-meta{
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
 }
 
 #overlay-menu #menuList{
@@ -2983,6 +3061,10 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 @media (hover: hover) and (pointer: fine) {
   #overlay-notes #notesView .notes-copy-link-btn:hover{
     background: rgba(255,255,255,0.08);
+  }
+  #overlay-notes #notesView .notes-copy-link-btn:disabled:hover,
+  #overlay-notes #notesView .notes-copy-link-btn.is-disabled:hover{
+    background: transparent;
   }
   #overlay-notes #notesView .notes-copy-link-btn:active,
   #overlay-notes #notesView .notes-copy-link-btn.is-pressed{

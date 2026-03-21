@@ -7789,6 +7789,33 @@ EPUBJS.reader.MetaController = function(meta) {
 				window.__fbMyBooks.addFromMeta(title, author);
 			}
 		} catch (e) {}
+
+		try {
+			if (window.__fbUpdateMenuBookMeta) {
+				window.__fbUpdateMenuBookMeta({
+					title: title || "",
+					author: author || ""
+				});
+			}
+		} catch (e2) {}
+
+		try {
+			var activeReader = window.reader;
+			var activeBook = activeReader && activeReader.book ? activeReader.book : null;
+			if (activeBook && typeof activeBook.coverUrl === "function") {
+				activeBook.coverUrl().then(function (coverUrl) {
+					try {
+						if (window.__fbUpdateMenuBookMeta && coverUrl) {
+							window.__fbUpdateMenuBookMeta({
+								title: title || "",
+								author: author || "",
+								cover: coverUrl
+							});
+						}
+					} catch (e3) {}
+				}).catch(function () {});
+			}
+		} catch (e4) {}
 };
 
 EPUBJS.reader.NotesController = function() {
@@ -8583,6 +8610,44 @@ return {
 		return "";
 	}
 
+	function setMenuBookMeta(data) {
+		try {
+			var titleEl = document.getElementById("menuBookTitle");
+			var authorEl = document.getElementById("menuBookAuthor");
+			var coverEl = document.getElementById("menuBookCover");
+			var placeholderEl = document.getElementById("menuBookCoverPlaceholder");
+			var title = String((data && data.title) || "").trim();
+			var author = String((data && data.author) || "").trim();
+			var cover = String((data && data.cover) || "").trim();
+			if (titleEl) titleEl.textContent = title;
+			if (authorEl) authorEl.textContent = author;
+			if (coverEl) {
+				if (cover) {
+					coverEl.src = cover;
+					coverEl.alt = title ? (title + " cover") : "Book cover";
+					coverEl.classList.remove("hidden");
+					if (placeholderEl) placeholderEl.classList.add("hidden");
+				} else {
+					coverEl.removeAttribute("src");
+					coverEl.classList.add("hidden");
+					if (placeholderEl) placeholderEl.classList.remove("hidden");
+				}
+			}
+		} catch (e) {}
+	}
+
+	function syncMenuBookMetaFromDom() {
+		try {
+			var titleEl = document.getElementById("book-title");
+			var authorEl = document.getElementById("chapter-title");
+			setMenuBookMeta({
+				title: titleEl ? titleEl.textContent : "",
+				author: authorEl ? authorEl.textContent : "",
+				cover: getBookCoverHint()
+			});
+		} catch (e) {}
+	}
+
 	function readerHrefFromBook(item) {
 		var id = String((item && item.id) || "");
 		if (!id) return "?id=";
@@ -8749,6 +8814,7 @@ return {
 			id: entry.id,
 			title: entry.title || (existingIndex >= 0 ? (list[existingIndex].title || "") : ""),
 			author: entry.author || (existingIndex >= 0 ? (list[existingIndex].author || "") : ""),
+			cover: entry.cover || entry.coverUrl || entry.cover_url || (existingIndex >= 0 ? (list[existingIndex].cover || "") : ""),
 			openedAt: now
 		};
 		if (existingIndex >= 0) list.splice(existingIndex, 1);
@@ -8819,17 +8885,28 @@ return {
 		ensureCurrentBook: ensureCurrentBook
 	};
 
+	window.__fbUpdateMenuBookMeta = function (payload) {
+		var next = payload && typeof payload === "object" ? payload : {};
+		setMenuBookMeta({
+			title: next.title || "",
+			author: next.author || "",
+			cover: next.cover || getBookCoverHint()
+		});
+	};
+
 	if (document.readyState === "loading") {
 		document.addEventListener("DOMContentLoaded", function () {
 			render();
 			hydrateFromDriveSilent();
 			ensureCurrentBook();
+			syncMenuBookMetaFromDom();
 			setTimeout(syncFromDom, 600);
 		});
 	} else {
 		render();
 		hydrateFromDriveSilent();
 		ensureCurrentBook();
+		syncMenuBookMetaFromDom();
 		setTimeout(syncFromDom, 600);
 	}
 })();

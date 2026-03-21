@@ -1,4 +1,5 @@
 import readerBooksPagesWorker from "../_worker.js";
+import { runScheduledPublisherTaskGeneration } from "../publisher_tasks/service.mjs";
 
 function withTraceHeaders(headers, route) {
   headers.set("x-reader-worker", "1");
@@ -110,6 +111,11 @@ function decodePathSegment(value) {
   }
 }
 
+function stripTrailingSlash(path) {
+  if (!path || path === "/") return "/";
+  return path.replace(/\/+$/, "") || "/";
+}
+
 async function serveR2ObjectWithFallback(env, primaryKey, fallbackKey, route) {
   const primary = await serveR2Object(env, primaryKey, route);
   if (primary.status !== 404 || !fallbackKey || fallbackKey === primaryKey) {
@@ -118,10 +124,36 @@ async function serveR2ObjectWithFallback(env, primaryKey, fallbackKey, route) {
   return serveR2Object(env, fallbackKey, route);
 }
 
+async function fetchPosthogPublicConfig(host) {
+  try {
+    const response = await fetch(`${host}/books/`, { method: "GET" });
+    if (!response || !response.ok) return null;
+    const html = await response.text();
+    const readMeta = (name) => {
+      const match = html.match(
+        new RegExp(`<meta[^>]+name=["']${name}["'][^>]+content=["']([^"']*)["']`, "i")
+      );
+      return match ? String(match[1] || "").trim() : "";
+    };
+    const enabled = readMeta("posthog-enabled");
+    const key = readMeta("posthog-key");
+    const hostValue = readMeta("posthog-host");
+    if (!enabled && !key && !hostValue) return null;
+    return {
+      READERPUB_POSTHOG_ENABLED: enabled,
+      READERPUB_POSTHOG_KEY: key,
+      READERPUB_POSTHOG_HOST: hostValue,
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
+    const normalizedPath = stripTrailingSlash(path);
     const host = "https://reader-books.pages.dev";
 
     if (path === "/books") {
@@ -139,13 +171,41 @@ export default {
       });
     }
 
+    if (
+      normalizedPath === "/get-tasks" ||
+      normalizedPath === "/run-daily" ||
+      normalizedPath === "/report-outcome" ||
+      normalizedPath.startsWith("/api/")
+    ) {
+      const response = await readerBooksPagesWorker.fetch(request, env);
+      const headers = withTraceHeaders(new Headers(response.headers), "publisher-tasks-direct");
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    }
+
     const idMatch = path.match(/^\/books\/(\d+)(\/)?$/);
     if (idMatch) {
       return redirect(`/books/reader/#${idMatch[1]}`, "redirect");
     }
 
-    if (path.startsWith("/books/api/")) {
-      const rawSuffix = path.slice("/books/api/".length);
+    if (normalizedPath.startsWith("/books/api/")) {
+      if (
+        normalizedPath === "/books/api/get-tasks" ||
+        normalizedPath === "/books/api/run-daily" ||
+        normalizedPath === "/books/api/report-outcome"
+      ) {
+        const response = await readerBooksPagesWorker.fetch(request, env);
+        const headers = withTraceHeaders(new Headers(response.headers), "publisher-books-api-direct");
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        });
+      }
+      const rawSuffix = normalizedPath.slice("/books/api/".length);
       const decodedSuffix = decodePathSegment(rawSuffix);
       return serveR2ObjectWithFallback(
         env,
@@ -194,6 +254,7 @@ export default {
       }
       const headers = new Headers(request.headers);
       headers.set("x-reader-canonical-origin", `${url.protocol}//${url.host}`);
+      const posthogConfig = await fetchPosthogPublicConfig(host);
       return readerBooksPagesWorker.fetch(
         new Request(request.url, {
           method: request.method,
@@ -203,6 +264,7 @@ export default {
         }),
         {
           ...env,
+          ...(posthogConfig || {}),
           READER_BOOKS: env.BOOKS,
         },
       );
@@ -231,5 +293,9 @@ export default {
       status: 404,
       headers: withTraceHeaders(new Headers({ "cache-control": "no-store" }), "not-found"),
     });
+  },
+
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(runScheduledPublisherTaskGeneration(env, new Date(controller.scheduledTime)));
   },
 };

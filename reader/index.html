@@ -423,6 +423,16 @@ function initReader(id) {
   <div class="overlay-sep" aria-hidden="true"></div>
   <div class="overlay-scroll">
     <div class="view" id="menuView">
+      <div class="menu-book-card" id="menuBookCard">
+        <div class="menu-book-cover-wrap">
+          <img id="menuBookCover" class="menu-book-cover hidden" alt="Book cover" />
+          <div id="menuBookCoverPlaceholder" class="menu-book-cover-placeholder" aria-hidden="true"></div>
+        </div>
+        <div class="menu-book-meta">
+          <div id="menuBookTitle" class="menu-book-title"></div>
+          <div id="menuBookAuthor" class="menu-book-author"></div>
+        </div>
+      </div>
       <ul id="menuList">
         <li>
           <button class="menu-item" type="button" data-menu="toc" aria-label="Table of contents">
@@ -463,17 +473,6 @@ function initReader(id) {
           </button>
         </li>
         <li>
-          <button class="menu-item" type="button" data-menu="mybooks" aria-label="My Books">
-            <span class="menu-icon menu-icon-user" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="8" r="3.5"></circle>
-                <path d="M4.5 19.5c1.9-3.7 5-5.5 7.5-5.5s5.6 1.8 7.5 5.5"></path>
-              </svg>
-            </span>
-            <span class="menu-label">My Books</span>
-          </button>
-        </li>
-        <li>
           <button class="menu-item" type="button" data-menu="voice" aria-label="Choose Voice">
             <span class="menu-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24">
@@ -483,6 +482,17 @@ function initReader(id) {
               </svg>
             </span>
             <span class="menu-label">Choose Voice</span>
+          </button>
+        </li>
+        <li>
+          <button class="menu-item" type="button" data-menu="mybooks" aria-label="My Books">
+            <span class="menu-icon menu-icon-user" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="8" r="3.5"></circle>
+                <path d="M4.5 19.5c1.9-3.7 5-5.5 7.5-5.5s5.6 1.8 7.5 5.5"></path>
+              </svg>
+            </span>
+            <span class="menu-label">My Books</span>
           </button>
         </li>
         <li>
