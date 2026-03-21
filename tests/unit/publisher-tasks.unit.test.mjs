@@ -132,6 +132,23 @@ function buildSingleQuoraMockCandidates() {
   });
 }
 
+function buildRemovedRedditMockCandidates() {
+  const items = buildMockCandidates();
+  return items.map((item, index) => {
+    if (index !== 0 || item.platform !== "Reddit") return item;
+    return {
+      ...item,
+      source_url: "https://www.reddit.com/r/books/comments/removed123/removed_by_moderator/",
+      title: "[ Removed by moderator ]",
+      raw_payload: {
+        ...(item.raw_payload || {}),
+        mock: true,
+        removed_by_category: "moderator",
+      },
+    };
+  });
+}
+
 test("publisher tasks: /run-daily generates 10 balanced tasks in safe mode", async () => {
   const env = {
     PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildMockCandidates()),
@@ -338,6 +355,22 @@ test("publisher tasks: Quora fallback guarantees two tasks when live pool is emp
       .filter((task) => task.platform === "Quora")
       .every((task) => /^https:\/\/www\.quora\.com\//.test(task.source_url))
   );
+});
+
+test("publisher tasks: removed Reddit posts are excluded from task output", async () => {
+  const env = {
+    PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildRemovedRedditMockCandidates()),
+  };
+
+  const response = await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-03-31",
+    env,
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.tasks.length, 10);
+  assert.ok(payload.tasks.every((task) => task.source_url !== "https://www.reddit.com/r/books/comments/removed123/removed_by_moderator/"));
 });
 
 test("publisher tasks: missing Quora tasks are replaced by Reddit to keep 10 total", async () => {
