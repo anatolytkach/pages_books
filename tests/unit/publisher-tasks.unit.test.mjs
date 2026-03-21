@@ -51,9 +51,9 @@ function buildMockCandidates() {
     },
     {
       platform: "Quora",
-      url: "https://www.quora.com/How-do-you-focus-better-on-your-phone",
-      title: "How do you focus better on your phone when you want to read long-form things?",
-      excerpt: "Mostly looking for realistic habits rather than perfect systems.",
+      url: "https://www.quora.com/What-is-the-best-way-to-read-any-book-on-a-phone",
+      title: "What is the best way to read any book on a phone?",
+      excerpt: "Looking for practical habits that make phone reading less distracting.",
       topic_type: "general",
       task_type: "presence",
       intent: "general_reading",
@@ -64,8 +64,8 @@ function buildMockCandidates() {
     },
     {
       platform: "Quora",
-      url: "https://www.quora.com/Where-can-I-read-classic-novels-online-legally",
-      title: "Where can I read classic novels online legally?",
+      url: "https://www.quora.com/What-websites-apps-can-I-use-to-read-books-for-free",
+      title: "What websites or apps can I use to read books for free?",
       excerpt: "Looking for a reliable source that works well on a phone.",
       topic_type: "book",
       task_type: "qualified_disclosure",
@@ -286,7 +286,6 @@ test("publisher tasks: /get-tasks without date returns date index", async () => 
 test("publisher tasks: empty daily run still saves date snapshot", async () => {
   const env = {
     PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify([]),
-    PUBLISHER_ENABLE_QUORA_FALLBACK: "false",
   };
 
   const runResponse = await callWorker({
@@ -333,30 +332,6 @@ test("publisher tasks: expands Reddit freshness windows until batch reaches 10 t
   assert.equal(payload.tasks.filter((task) => task.platform === "Quora").length, 2);
 });
 
-test("publisher tasks: Quora fallback guarantees two tasks when live pool is empty", async () => {
-  const env = {
-    PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildRedditOnlyMockCandidates()),
-    PUBLISHER_REDDIT_AGE_EXPANSION_HOURS_JSON: JSON.stringify([48, 336]),
-    PUBLISHER_QUORA_QUERY_EXPANSION_LEVELS_JSON: JSON.stringify([0]),
-  };
-
-  const response = await callWorker({
-    url: "https://reader.pub/run-daily?date=2026-03-27",
-    env,
-  });
-  const payload = await readJson(response);
-
-  assert.equal(response.status, 200);
-  assert.equal(payload.tasks.length, 10);
-  assert.equal(payload.tasks.filter((task) => task.platform === "Reddit").length, 8);
-  assert.equal(payload.tasks.filter((task) => task.platform === "Quora").length, 2);
-  assert.ok(
-    payload.tasks
-      .filter((task) => task.platform === "Quora")
-      .every((task) => /^https:\/\/www\.quora\.com\//.test(task.source_url))
-  );
-});
-
 test("publisher tasks: removed Reddit posts are excluded from task output", async () => {
   const env = {
     PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildRemovedRedditMockCandidates()),
@@ -376,7 +351,6 @@ test("publisher tasks: removed Reddit posts are excluded from task output", asyn
 test("publisher tasks: missing Quora tasks are replaced by Reddit to keep 10 total", async () => {
   const env = {
     PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildRedditOnlyMockCandidates()),
-    PUBLISHER_ENABLE_QUORA_FALLBACK: "false",
     PUBLISHER_REDDIT_AGE_EXPANSION_HOURS_JSON: JSON.stringify([48, 336]),
     PUBLISHER_QUORA_QUERY_EXPANSION_LEVELS_JSON: JSON.stringify([0]),
   };
@@ -396,7 +370,6 @@ test("publisher tasks: missing Quora tasks are replaced by Reddit to keep 10 tot
 test("publisher tasks: one missing Quora task is replaced by Reddit to keep 10 total", async () => {
   const env = {
     PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildSingleQuoraMockCandidates()),
-    PUBLISHER_ENABLE_QUORA_FALLBACK: "false",
     PUBLISHER_REDDIT_AGE_EXPANSION_HOURS_JSON: JSON.stringify([48, 336]),
     PUBLISHER_QUORA_QUERY_EXPANSION_LEVELS_JSON: JSON.stringify([0]),
   };
@@ -437,6 +410,78 @@ test("publisher tasks: daily run reuses saved snapshot for the same date", async
   assert.deepEqual(
     secondPayload.tasks.map((task) => task.id),
     firstPayload.tasks.map((task) => task.id)
+  );
+});
+
+test("publisher tasks: force=1 rebuilds an existing snapshot", async () => {
+  const firstEnv = {
+    PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildMockCandidates()),
+  };
+  const secondEnv = {
+    PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildRedditOnlyMockCandidates()),
+  };
+
+  const firstResponse = await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-03-23",
+    env: firstEnv,
+  });
+  const firstPayload = await readJson(firstResponse);
+
+  const forcedResponse = await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-03-23&force=1",
+    env: secondEnv,
+  });
+  const forcedPayload = await readJson(forcedResponse);
+
+  assert.equal(firstPayload.reused, false);
+  assert.equal(forcedPayload.reused, false);
+  assert.equal(forcedPayload.tasks.length, 10);
+  assert.equal(forcedPayload.tasks.filter((task) => task.platform === "Quora").length, 0);
+  assert.equal(forcedPayload.tasks.filter((task) => task.platform === "Reddit").length, 10);
+});
+
+test("publisher tasks: repair=quora-links rewrites known broken Quora URLs", async () => {
+  const brokenSnapshotCandidates = buildMockCandidates().map((item) => {
+    if (item.platform !== "Quora") return item;
+    if (item.task_type === "qualified_disclosure") {
+      return {
+        ...item,
+        source_url: "https://www.quora.com/Where-can-I-read-classic-novels-online-legally",
+        title: "Where can I read classic novels online legally?",
+      };
+    }
+    return {
+      ...item,
+      source_url: "https://www.quora.com/How-do-you-focus-better-on-your-phone",
+      title: "How do you focus better on your phone when you want to read long-form things?",
+    };
+  });
+  const env = {
+    PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(brokenSnapshotCandidates),
+  };
+
+  await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-03-24",
+    env,
+  });
+
+  const repairResponse = await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-03-24&repair=quora-links",
+    env,
+  });
+  const repairPayload = await readJson(repairResponse);
+
+  assert.equal(repairResponse.status, 200);
+  assert.equal(repairPayload.repaired, true);
+  assert.ok(
+    repairPayload.tasks.some(
+      (task) => task.source_url === "https://www.quora.com/What-is-the-best-way-to-read-any-book-on-a-phone"
+    )
+  );
+  assert.ok(
+    repairPayload.tasks.some(
+      (task) => task.source_url === "https://www.quora.com/What-websites-apps-can-I-use-to-read-books-for-free"
+    )
   );
 });
 
