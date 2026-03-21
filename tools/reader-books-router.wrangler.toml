@@ -7,6 +7,10 @@ routes = [
   { pattern = "reader.pub/book*", zone_name = "reader.pub" },
   { pattern = "reader.pub/author*", zone_name = "reader.pub" },
   { pattern = "reader.pub/category*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/get-tasks*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/run-daily*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/report-outcome*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/api/*", zone_name = "reader.pub" },
   { pattern = "reader.pub/sitemap.xml*", zone_name = "reader.pub" },
   { pattern = "reader.pub/sitemaps/*", zone_name = "reader.pub" },
   { pattern = "reader.pub/robots.txt*", zone_name = "reader.pub" },
@@ -15,3 +19,15 @@ routes = [
 [[r2_buckets]]
 binding = "BOOKS"
 bucket_name = "reader-books"
+
+[[d1_databases]]
+binding = "PUBLISHER_DB"
+database_name = "reader-publisher-tasks"
+database_id = "7bbeb8c4-d58f-4eeb-b294-656cda98f6c0"
+
+[[kv_namespaces]]
+binding = "PUBLISHER_TASK_CACHE"
+id = "73547361358549f5a33bfb0793d5a7d4"
+
+[triggers]
+crons = ["0 * * * *"]

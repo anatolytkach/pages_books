@@ -1,3 +1,5 @@
+import { handlePublisherTaskRequest } from "./publisher_tasks/service.mjs";
+
 function jsonResponse(payload, status = 200, extraHeaders = {}) {
   const headers = new Headers({
     "content-type": "application/json; charset=utf-8",
@@ -1427,6 +1429,28 @@ export default {
     const path = url.pathname;
     const decodedPath = decodeURIComponent(path);
     const normalizedPath = decodedPath.replace(/\/+$/, "") || "/";
+    if (
+      normalizedPath === "/run-daily" ||
+      normalizedPath === "/get-tasks" ||
+      normalizedPath === "/report-outcome" ||
+      normalizedPath === "/books/api/run-daily" ||
+      normalizedPath === "/books/api/get-tasks" ||
+      normalizedPath === "/books/api/report-outcome" ||
+      normalizedPath === "/api/run-daily" ||
+      normalizedPath === "/api/get-tasks" ||
+      normalizedPath === "/api/report-outcome"
+    ) {
+      const publisherResponse = await handlePublisherTaskRequest(request, env);
+      if (publisherResponse) {
+        const headers = new Headers(publisherResponse.headers);
+        headers.set("x-reader-worker", "1");
+        return new Response(publisherResponse.body, {
+          status: publisherResponse.status,
+          statusText: publisherResponse.statusText,
+          headers,
+        });
+      }
+    }
     const isPagesDevHost = url.hostname.endsWith(".pages.dev");
     const driveClientId = String(
       env.READERPUB_GOOGLE_CLIENT_ID || env.GOOGLE_DRIVE_CLIENT_ID || ""
