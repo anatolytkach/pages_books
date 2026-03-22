@@ -157,11 +157,14 @@
   }
 
   // Always keep ?id in URL (for reload/share). Preserve CFI hash if present.
+  // Strip cover param — it's a catalog hint, not needed by the reader.
   try {
-    if (!qid || qid !== id) {
-      const nextParams = new URLSearchParams(location.search || "");
+    const nextParams = new URLSearchParams(location.search || "");
+    const needsUpdate = !qid || qid !== id || nextParams.has("cover");
+    if (needsUpdate) {
       nextParams.set("id", id);
       nextParams.delete("i");
+      nextParams.delete("cover");
       const newSearch = `?${nextParams.toString()}`;
       const keepHash = hashIsCfi ? rawHash : "";
       history.replaceState(null, "", `${location.pathname}${newSearch}${keepHash}`);

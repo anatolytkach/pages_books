@@ -48,6 +48,8 @@
 
 18. **Containerized ingestion worker** (Phase 2) — Deploy Python processing on Fly.io/Cloud Run for DOCX validation, virus scanning, and heavy processing.
 
-19. **Self-host Supabase JS library** — Currently loaded from `cdn.jsdelivr.net` which triggers tracking prevention warnings in Edge/Brave/Firefox strict mode. Should bundle or serve from same origin to avoid third-party storage blocks.
+19. **Self-host Supabase JS library** — DONE. Moved to `/books/shared/supabase.min.js`.
 
 20. **Remove Google Drive sync** — Once Supabase notes sync is proven stable, remove Drive sync code and the Google Drive auth prompt. Reading history should use Supabase for authenticated users.
+
+21. **Reading History cover parameter causes blank reader** — The `openReaderUrl()` in catalog adds `&cover=` param to reader URL. This intermittently causes blank page in the reader after login/logout. Direct `?id=` URLs work fine. Investigate interaction between cover param and reader init.
