@@ -149,6 +149,47 @@ function buildRemovedRedditMockCandidates() {
   });
 }
 
+function buildPendingReviewRedditMockCandidates() {
+  const items = buildMockCandidates();
+  return items.map((item, index) => {
+    if (index !== 0 || item.platform !== "Reddit") return item;
+    return {
+      ...item,
+      source_url: "https://www.reddit.com/r/books/comments/pending123/post_under_review/",
+      title: "Post under review",
+      raw_payload: {
+        ...(item.raw_payload || {}),
+        mock: true,
+        pending_moderation_review: true,
+        comments: [
+          {
+            author: "books-ModTeam",
+            distinguished: "moderator",
+            body: "Hi there. Your post is currently awaiting moderator approval and is under review.",
+          },
+        ],
+      },
+    };
+  });
+}
+
+function normalizedWords(text) {
+  return String(text || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter((token) => token.length >= 3);
+}
+
+function sharesLongPhrase(source, text, size = 4) {
+  const sourceTokens = normalizedWords(source);
+  const textJoined = normalizedWords(text).join(" ");
+  for (let i = 0; i + size <= sourceTokens.length; i++) {
+    const phrase = sourceTokens.slice(i, i + size).join(" ");
+    if (phrase && textJoined.includes(phrase)) return true;
+  }
+  return false;
+}
+
 test("publisher tasks: /run-daily generates 10 balanced tasks in safe mode", async () => {
   const env = {
     PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildMockCandidates()),
@@ -178,6 +219,12 @@ test("publisher tasks: /run-daily generates 10 balanced tasks in safe mode", asy
   );
   assert.ok(payload.tasks.every((task) => !/^(i had the same issue|i usually keep a few|what helped me was)/i.test(task.text)));
   assert.ok(new Set(payload.tasks.map((task) => task.text)).size >= 8);
+  for (const task of payload.tasks) {
+    const source = buildMockCandidates().find((item) => item.source_url === task.source_url);
+    if (!source) continue;
+    assert.equal(sharesLongPhrase(source.title, task.text), false);
+    assert.equal(sharesLongPhrase(source.excerpt, task.text), false);
+  }
   const redditTasks = payload.tasks.filter((task) => task.platform === "Reddit");
   const redditPublisherSegments = new Map();
   let previousEmail = null;
@@ -341,6 +388,22 @@ test("publisher tasks: removed Reddit posts are excluded from task output", asyn
   assert.equal(response.status, 200);
   assert.equal(payload.tasks.length, 10);
   assert.ok(payload.tasks.every((task) => task.source_url !== "https://www.reddit.com/r/books/comments/removed123/removed_by_moderator/"));
+});
+
+test("publisher tasks: Reddit posts awaiting moderator review are excluded from task output", async () => {
+  const env = {
+    PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildPendingReviewRedditMockCandidates()),
+  };
+
+  const response = await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-04-01",
+    env,
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.tasks.length, 10);
+  assert.ok(payload.tasks.every((task) => task.source_url !== "https://www.reddit.com/r/books/comments/pending123/post_under_review/"));
 });
 
 test("publisher tasks: missing Quora tasks are replaced by Reddit to keep 10 total", async () => {
