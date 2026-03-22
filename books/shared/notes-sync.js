@@ -63,6 +63,14 @@
     });
   }
 
+  /** Public API fetch — no auth required */
+  function publicApiFetch(path) {
+    return fetch(API_BASE + path).then(function (res) {
+      if (!res.ok) return null;
+      return res.json();
+    });
+  }
+
   // ── Format conversion ─────────────────
 
   // localStorage format: { id, cfi, href, quote, comment }
@@ -89,12 +97,18 @@
     };
   }
 
-  // ── Main sync logic ───────────────────
+  // ── Shared package loading (works without auth) ──────────
 
   var contentId = getBookContentId();
-  if (!isPlatformBook(contentId)) return; // Gutenberg — no sync
+  if (!isPlatformBook(contentId)) return; // Gutenberg — skip entirely
+
+  // Always try to load shared packages (public, no auth needed)
+  loadSharedPackage();
+
+  // ── Auth-gated sync logic ──────────────
+
   var token = getAuthToken();
-  if (!token) return; // Not authenticated — no sync
+  if (!token) return; // Not authenticated — skip sync but shared packages still load above
 
   var syncReady = false;
   var pendingAdds = [];
@@ -333,7 +347,7 @@
       // Only try Supabase for hex tokens (24 chars from our gen_random_bytes(12))
       if (!/^[a-f0-9]{24}$/.test(shareToken)) return;
 
-      apiFetch("GET", "/note-packages/" + shareToken)
+      publicApiFetch("/note-packages/" + shareToken)
         .then(function (pkg) {
           if (!pkg || !pkg.notes || !pkg.notes.length) return;
 
@@ -402,8 +416,6 @@
       viewer.parentElement.insertBefore(banner, viewer);
     } catch (e) {}
   }
-
-  loadSharedPackage();
 
   // ── Enhance notes display with author attribution ──
   // After the notes panel renders, add author badges to shared notes
