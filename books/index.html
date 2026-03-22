@@ -2803,9 +2803,18 @@
           }
 
           if (!sync || typeof sync.isConfigured !== "function" || !sync.isConfigured()) {
-            renderAuthCard(
-              "Google Drive integration is not configured for this build. Add a Google client id to enable Reading History sync."
-            );
+            // Drive not configured — show local reading history instead of auth prompt
+            const localItems = loadLocalMyBooksFallback();
+            const hydratedLocalItems = await hydrateMyBooksCovers(localItems, renderNonce);
+            if (renderNonce !== REQ_NONCE) return;
+            if (hydratedLocalItems.length) {
+              myBooksState.items = hydratedLocalItems;
+              myBooksState.loaded = true;
+              renderItems(hydratedLocalItems);
+              return;
+            }
+            const empty = el("div", "mybooks-empty", "No reading history yet. Open a book to start.");
+            els.content.appendChild(empty);
             return;
           }
 
