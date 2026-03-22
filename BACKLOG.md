@@ -47,3 +47,7 @@
 17. **Content ID sequence gaps** — Failed upload attempts consume sequence numbers (200000, 200001 were failures). Not harmful but untidy.
 
 18. **Containerized ingestion worker** (Phase 2) — Deploy Python processing on Fly.io/Cloud Run for DOCX validation, virus scanning, and heavy processing.
+
+19. **Self-host Supabase JS library** — Currently loaded from `cdn.jsdelivr.net` which triggers tracking prevention warnings in Edge/Brave/Firefox strict mode. Should bundle or serve from same origin to avoid third-party storage blocks.
+
+20. **Remove Google Drive sync** — Once Supabase notes sync is proven stable, remove Drive sync code and the Google Drive auth prompt. Reading history should use Supabase for authenticated users.
