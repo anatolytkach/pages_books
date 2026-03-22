@@ -386,34 +386,12 @@
 
             if (added > 0) {
               reader.settings.notes = existing;
-              try { if (typeof reader.saveSettings === "function") reader.saveSettings(); } catch (e) {}
+              // Don't call saveSettings here — it can interfere with reader rendering
               window.dispatchEvent(new CustomEvent("readerpub:notes-updated"));
             }
-
-            // Show shared notes banner
-            showSharedBanner(pkg);
           });
         })
         .catch(function () {}); // Not a Supabase package, let R2 fallback handle it
-    } catch (e) {}
-  }
-
-  function showSharedBanner(pkg) {
-    try {
-      var viewer = document.getElementById("viewer");
-      if (!viewer) return;
-      var existing = document.getElementById("shared-notes-banner");
-      if (existing) existing.remove();
-
-      var creatorName = (pkg.creator && pkg.creator.displayName) || "Someone";
-      var noteCount = (pkg.notes && pkg.notes.length) || 0;
-
-      var banner = document.createElement("div");
-      banner.id = "shared-notes-banner";
-      banner.style.cssText = "position:fixed;top:36px;left:0;right:0;z-index:100;background:#028f80;color:#fff;padding:8px 16px;font-size:13px;font-family:Source Sans 3,system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;";
-      banner.innerHTML = '<span>Shared notes from <strong>' + creatorName + '</strong> (' + noteCount + ' notes)</span>'
-        + '<button style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;" onclick="this.parentElement.remove()">✕</button>';
-      viewer.parentElement.insertBefore(banner, viewer);
     } catch (e) {}
   }
 
