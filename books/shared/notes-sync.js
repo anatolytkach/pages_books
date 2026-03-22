@@ -311,16 +311,39 @@
       });
     },
 
-    /** Create a package from ALL current notes */
+    /** Create a package from ALL current notes, syncing unsynced ones first */
     createPackageFromAll: function (title) {
+      var self = this;
       var notes = (window.reader && window.reader.settings && window.reader.settings.notes) || [];
-      var ids = [];
+      if (!notes.length) return Promise.reject(new Error("No notes to share"));
+
+      // Find unsynced notes and upload them first
+      var uploads = [];
       for (var i = 0; i < notes.length; i++) {
-        if (notes[i] && notes[i]._supabaseId) ids.push(notes[i]._supabaseId);
-        else if (notes[i] && /^[0-9a-f]{8}-/.test(notes[i].id)) ids.push(notes[i].id);
+        var note = notes[i];
+        if (!note || !note.cfi) continue;
+        var hasSbId = note._supabaseId || /^[0-9a-f]{8}-/.test(note.id);
+        if (!hasSbId) {
+          uploads.push((function (n) {
+            return apiFetch("POST", "/books/by-content/" + contentId + "/notes", localToSupabaseBody(n))
+              .then(function (created) {
+                n._supabaseId = created.id;
+                n.id = created.id;
+              })
+              .catch(function () {}); // Non-fatal
+          })(note));
+        }
       }
-      if (!ids.length) return Promise.reject(new Error("No synced notes to share"));
-      return this.createPackage(title, ids);
+
+      return Promise.all(uploads).then(function () {
+        var ids = [];
+        for (var j = 0; j < notes.length; j++) {
+          if (notes[j] && notes[j]._supabaseId) ids.push(notes[j]._supabaseId);
+          else if (notes[j] && /^[0-9a-f]{8}-/.test(notes[j].id)) ids.push(notes[j].id);
+        }
+        if (!ids.length) return Promise.reject(new Error("Failed to sync notes"));
+        return self.createPackage(title, ids);
+      });
     },
 
     /** Fetch a shared package by token */
@@ -353,12 +376,7 @@
       if (!isPlatformBook(contentId) || !getAuthToken()) return;
 
       var notes = (window.reader && window.reader.settings && window.reader.settings.notes) || [];
-      var ids = [];
-      for (var i = 0; i < notes.length; i++) {
-        if (notes[i] && notes[i]._supabaseId) ids.push(notes[i]._supabaseId);
-        else if (notes[i] && /^[0-9a-f]{8}-/.test(notes[i].id)) ids.push(notes[i].id);
-      }
-      if (!ids.length) return; // No synced notes — let R2 fallback handle it
+      if (!notes.length) return;
 
       // Prevent the original handler from running
       event.stopImmediatePropagation();
@@ -369,7 +387,8 @@
       btn.textContent = "Creating share...";
       btn.disabled = true;
 
-      window.__notesSync.createPackage(null, ids)
+      // createPackageFromAll syncs unsynced notes before creating the package
+      window.__notesSync.createPackageFromAll(null)
         .then(function (result) {
           var shareUrl = window.location.origin + result.shareUrl;
 
