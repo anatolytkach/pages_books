@@ -105,10 +105,15 @@
   // Always try to load shared packages (public, no auth needed)
   loadSharedPackage();
 
+  // Always expose __notesSync and button intercept for platform books
+  // (they check auth internally before making API calls)
+  setupNotesSync();
+  setupShareButton();
+
   // ── Auth-gated sync logic ──────────────
 
   var token = getAuthToken();
-  if (!token) return; // Not authenticated — skip sync but shared packages still load above
+  if (!token) return; // Not authenticated — skip sync but shared packages + button still work
 
   var syncReady = false;
   var pendingAdds = [];
@@ -285,11 +290,7 @@
 
   // ── Shared notes: create Supabase packages instead of R2 shares ──
 
-  /**
-   * Hook into the share flow. For authenticated users on platform books,
-   * create a Supabase note package instead of using the R2 share endpoint.
-   * Exposes window.__notesSync for the share UI to use.
-   */
+  function setupNotesSync() {
   window.__notesSync = {
     /** Is Supabase sync active for this book? */
     isActive: function () {
@@ -336,7 +337,10 @@
     },
   };
 
+  } // end setupNotesSync
+
   // ── Intercept "Copy book link with Notes" button ──
+  function setupShareButton() {
   // Replace R2 sharing with Supabase package for authenticated platform book users.
 
   waitForReader(function () {
@@ -395,6 +399,8 @@
         });
     }, true); // true = capturing phase, runs before fbreader-ui.js
   });
+
+  } // end setupShareButton
 
   // ── Load shared notes from Supabase package if ?n= param present ──
 
