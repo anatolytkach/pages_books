@@ -268,4 +268,195 @@
     apiFetch("DELETE", "/notes/" + noteId)
       .catch(function () {}); // Non-fatal
   }
+
+  // ── Shared notes: create Supabase packages instead of R2 shares ──
+
+  /**
+   * Hook into the share flow. For authenticated users on platform books,
+   * create a Supabase note package instead of using the R2 share endpoint.
+   * Exposes window.__notesSync for the share UI to use.
+   */
+  window.__notesSync = {
+    /** Is Supabase sync active for this book? */
+    isActive: function () {
+      return isPlatformBook(contentId) && !!getAuthToken();
+    },
+
+    /** Get content ID of current book */
+    getContentId: function () {
+      return contentId;
+    },
+
+    /** Create a Supabase note package from selected note IDs */
+    createPackage: function (title, noteIds) {
+      if (!noteIds || !noteIds.length) return Promise.reject(new Error("No notes selected"));
+      return apiFetch("POST", "/note-packages", {
+        title: title || null,
+        note_ids: noteIds,
+      });
+    },
+
+    /** Create a package from ALL current notes */
+    createPackageFromAll: function (title) {
+      var notes = (window.reader && window.reader.settings && window.reader.settings.notes) || [];
+      var ids = [];
+      for (var i = 0; i < notes.length; i++) {
+        if (notes[i] && notes[i]._supabaseId) ids.push(notes[i]._supabaseId);
+        else if (notes[i] && /^[0-9a-f]{8}-/.test(notes[i].id)) ids.push(notes[i].id);
+      }
+      if (!ids.length) return Promise.reject(new Error("No synced notes to share"));
+      return this.createPackage(title, ids);
+    },
+
+    /** Fetch a shared package by token */
+    fetchPackage: function (shareToken) {
+      return apiFetch("GET", "/note-packages/" + shareToken).catch(function () {
+        // Not a Supabase package — return null so caller can fall back to R2
+        return null;
+      });
+    },
+
+    /** List user's created packages */
+    listPackages: function () {
+      return apiFetch("GET", "/me/note-packages");
+    },
+  };
+
+  // ── Load shared notes from Supabase package if ?n= param present ──
+
+  function loadSharedPackage() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var shareToken = (params.get("n") || params.get("notesShare") || "").trim();
+      if (!shareToken) return;
+
+      // Only try Supabase for hex tokens (24 chars from our gen_random_bytes(12))
+      if (!/^[a-f0-9]{24}$/.test(shareToken)) return;
+
+      apiFetch("GET", "/note-packages/" + shareToken)
+        .then(function (pkg) {
+          if (!pkg || !pkg.notes || !pkg.notes.length) return;
+
+          waitForReader(function () {
+            var reader = window.reader;
+            if (!reader || !reader.settings) return;
+
+            // Convert package notes to local format with author attribution
+            var sharedNotes = pkg.notes.map(function (n) {
+              return {
+                id: "shared-" + (n.id || Math.random().toString(36).slice(2)),
+                cfi: n.anchor_cfi,
+                href: n.anchor_href || null,
+                quote: n.quote || "",
+                comment: n.note_text || "",
+                _shared: true,
+                _author: n.author_display_name || "",
+                _readOnly: true,
+              };
+            });
+
+            // Merge shared notes with existing notes (don't duplicate by CFI)
+            var existing = reader.settings.notes || [];
+            var existingCfis = {};
+            for (var i = 0; i < existing.length; i++) {
+              if (existing[i] && existing[i].cfi) existingCfis[existing[i].cfi] = true;
+            }
+
+            var added = 0;
+            for (var j = 0; j < sharedNotes.length; j++) {
+              if (!existingCfis[sharedNotes[j].cfi]) {
+                existing.push(sharedNotes[j]);
+                added++;
+              }
+            }
+
+            if (added > 0) {
+              reader.settings.notes = existing;
+              try { if (typeof reader.saveSettings === "function") reader.saveSettings(); } catch (e) {}
+              window.dispatchEvent(new CustomEvent("readerpub:notes-updated"));
+            }
+
+            // Show shared notes banner
+            showSharedBanner(pkg);
+          });
+        })
+        .catch(function () {}); // Not a Supabase package, let R2 fallback handle it
+    } catch (e) {}
+  }
+
+  function showSharedBanner(pkg) {
+    try {
+      var viewer = document.getElementById("viewer");
+      if (!viewer) return;
+      var existing = document.getElementById("shared-notes-banner");
+      if (existing) existing.remove();
+
+      var creatorName = (pkg.creator && pkg.creator.displayName) || "Someone";
+      var noteCount = (pkg.notes && pkg.notes.length) || 0;
+
+      var banner = document.createElement("div");
+      banner.id = "shared-notes-banner";
+      banner.style.cssText = "position:fixed;top:36px;left:0;right:0;z-index:100;background:#028f80;color:#fff;padding:8px 16px;font-size:13px;font-family:Source Sans 3,system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;";
+      banner.innerHTML = '<span>Shared notes from <strong>' + creatorName + '</strong> (' + noteCount + ' notes)</span>'
+        + '<button style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;" onclick="this.parentElement.remove()">✕</button>';
+      viewer.parentElement.insertBefore(banner, viewer);
+    } catch (e) {}
+  }
+
+  loadSharedPackage();
+
+  // ── Enhance notes display with author attribution ──
+  // After the notes panel renders, add author badges to shared notes
+  // and hide delete buttons for read-only shared notes.
+
+  function enhanceNotesDisplay() {
+    try {
+      var notesList = document.getElementById("notes");
+      if (!notesList) return;
+      var items = notesList.querySelectorAll("li.list_item");
+      var notes = (window.reader && window.reader.settings && window.reader.settings.notes) || [];
+
+      for (var i = 0; i < items.length && i < notes.length; i++) {
+        var note = notes[i];
+        if (!note) continue;
+
+        // Add author badge for shared notes
+        if (note._shared && note._author) {
+          var existing = items[i].querySelector(".note-author-badge");
+          if (!existing) {
+            var badge = document.createElement("div");
+            badge.className = "note-author-badge";
+            badge.style.cssText = "font-size:11px;color:#028f80;font-weight:600;margin-top:2px;";
+            badge.textContent = "Note by " + note._author;
+            var wrap = items[i].querySelector(".bookmark-text");
+            if (wrap) wrap.appendChild(badge);
+          }
+        }
+
+        // Hide delete button for read-only shared notes
+        if (note._readOnly) {
+          var delBtn = items[i].querySelector(".bookmark-delete");
+          if (delBtn) delBtn.style.display = "none";
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Run after initial render and on updates
+  waitForReader(function () {
+    setTimeout(enhanceNotesDisplay, 500);
+    window.addEventListener("readerpub:notes-updated", function () {
+      setTimeout(enhanceNotesDisplay, 100);
+    });
+    // Also observe the notes list for DOM changes
+    try {
+      var notesList = document.getElementById("notes");
+      if (notesList) {
+        var observer = new MutationObserver(function () {
+          setTimeout(enhanceNotesDisplay, 50);
+        });
+        observer.observe(notesList, { childList: true });
+      }
+    } catch (e) {}
+  });
 })();
