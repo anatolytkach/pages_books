@@ -482,12 +482,81 @@
 
             if (added > 0) {
               reader.settings.notes = existing;
-              // Don't call saveSettings here — it can interfere with reader rendering
+              // Rebuild the notes list DOM directly since fbreader-ui render() is inaccessible
+              rebuildNotesList(existing);
               window.dispatchEvent(new CustomEvent("readerpub:notes-updated"));
             }
           });
         })
         .catch(function () {}); // Not a Supabase package, let R2 fallback handle it
+    } catch (e) {}
+  }
+
+  // ── Rebuild notes list DOM when shared notes are loaded ──
+  function rebuildNotesList(notes) {
+    try {
+      var list = document.getElementById("notes");
+      if (!list) return;
+      while (list.firstChild) list.removeChild(list.firstChild);
+
+      for (var i = 0; i < notes.length; i++) {
+        var note = notes[i];
+        if (!note || !note.cfi) continue;
+
+        var li = document.createElement("li");
+        li.className = "list_item";
+        li.setAttribute("data-cfi", note.cfi);
+        li.style.cssText = "display:flex;align-items:flex-start;gap:10px;width:100%;box-sizing:border-box;";
+
+        var wrap = document.createElement("div");
+        wrap.className = "bookmark-text";
+        wrap.style.cssText = "flex:1 1 auto;min-width:0;width:100%;";
+
+        var link = document.createElement("a");
+        link.className = "bookmark_link";
+        link.href = note.cfi;
+        link.textContent = note.quote || "...";
+        link.addEventListener("click", (function (cfi) {
+          return function (e) {
+            e.preventDefault();
+            try {
+              if (window.reader && window.reader.rendition) {
+                window.reader.rendition.display(cfi);
+              }
+              if (window.__fbCloseOverlays) window.__fbCloseOverlays();
+            } catch (err) {}
+          };
+        })(note.cfi));
+        wrap.appendChild(link);
+
+        if (note.comment) {
+          var comment = document.createElement("div");
+          comment.className = "bookmark-comment";
+          comment.textContent = note.comment;
+          wrap.appendChild(comment);
+        }
+
+        if (note._shared && note._author) {
+          var badge = document.createElement("div");
+          badge.style.cssText = "font-size:11px;color:#028f80;font-weight:600;margin-top:2px;";
+          badge.textContent = "Note by " + note._author;
+          wrap.appendChild(badge);
+        }
+
+        li.appendChild(wrap);
+
+        if (!note._readOnly) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "bookmark-delete";
+          btn.setAttribute("aria-label", "Delete note");
+          btn.style.cssText = "position:static;flex:0 0 32px;";
+          btn.textContent = "×";
+          li.appendChild(btn);
+        }
+
+        list.appendChild(li);
+      }
     } catch (e) {}
   }
 
