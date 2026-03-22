@@ -336,6 +336,65 @@
     },
   };
 
+  // ── Intercept "Copy book link with Notes" button ──
+  // Replace R2 sharing with Supabase package for authenticated platform book users.
+
+  waitForReader(function () {
+    var copyBtn = document.getElementById("copyNotesLinkBtn");
+    if (!copyBtn) return;
+
+    // Add a capturing listener that runs BEFORE fbreader-ui.js's handler
+    copyBtn.addEventListener("click", function (event) {
+      // Only intercept for authenticated platform book users
+      if (!isPlatformBook(contentId) || !getAuthToken()) return;
+
+      var notes = (window.reader && window.reader.settings && window.reader.settings.notes) || [];
+      var ids = [];
+      for (var i = 0; i < notes.length; i++) {
+        if (notes[i] && notes[i]._supabaseId) ids.push(notes[i]._supabaseId);
+        else if (notes[i] && /^[0-9a-f]{8}-/.test(notes[i].id)) ids.push(notes[i].id);
+      }
+      if (!ids.length) return; // No synced notes — let R2 fallback handle it
+
+      // Prevent the original handler from running
+      event.stopImmediatePropagation();
+      event.preventDefault();
+
+      var btn = copyBtn;
+      var oldText = btn.textContent;
+      btn.textContent = "Creating share...";
+      btn.disabled = true;
+
+      window.__notesSync.createPackage(null, ids)
+        .then(function (result) {
+          var shareUrl = window.location.origin + result.shareUrl;
+
+          if (navigator.share) {
+            return navigator.share({ url: shareUrl }).catch(function (err) {
+              if (err && err.name === "AbortError") return;
+              // Fallback to clipboard
+              return navigator.clipboard.writeText(shareUrl);
+            });
+          }
+          return navigator.clipboard.writeText(shareUrl);
+        })
+        .then(function () {
+          btn.textContent = "Link copied!";
+          setTimeout(function () {
+            btn.textContent = oldText;
+            btn.disabled = false;
+          }, 2000);
+        })
+        .catch(function (err) {
+          btn.textContent = "Share failed";
+          setTimeout(function () {
+            btn.textContent = oldText;
+            btn.disabled = false;
+          }, 2000);
+        });
+    }, true); // true = capturing phase, runs before fbreader-ui.js
+  });
+
   // ── Load shared notes from Supabase package if ?n= param present ──
 
   function loadSharedPackage() {
