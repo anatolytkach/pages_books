@@ -3331,6 +3331,145 @@ export default {
         return jsonResponse(data, 201, apiCorsHeaders);
       }
 
+      // ── POST /v1/note-packages — create a note package ──
+      if (apiPath === "/note-packages" && request.method === "POST") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const body = await request.json().catch(() => null);
+        if (!body || !Array.isArray(body.note_ids) || !body.note_ids.length) {
+          return jsonResponse({ error: "note_ids array is required" }, 400, apiCorsHeaders);
+        }
+
+        // Verify all notes belong to the user
+        const noteIdList = body.note_ids.map(id => `"${id}"`).join(",");
+        const { data: notes } = await sbFetch("notes", {
+          params: `id=in.(${noteIdList})&author_user_id=eq.${user.sub}&select=id,book_id`,
+        });
+        if (!notes || notes.length !== body.note_ids.length) {
+          return jsonResponse({ error: "Some notes not found or not owned by you" }, 400, apiCorsHeaders);
+        }
+
+        // Determine book_id (single book if all notes are from same book)
+        const bookIds = [...new Set(notes.map(n => n.book_id))];
+        const packageType = bookIds.length === 1 ? "single_book" : "multi_book";
+        const bookId = bookIds.length === 1 ? bookIds[0] : null;
+
+        // Create package
+        const { data: pkg, error: pkgErr } = await sbFetch("note_packages", {
+          method: "POST",
+          body: {
+            created_by: user.sub,
+            title: body.title || null,
+            book_id: bookId,
+            package_type: packageType,
+            audience_scope: body.audience_scope || "anyone",
+          },
+          single: true,
+        });
+        if (pkgErr) return jsonResponse({ error: pkgErr }, 400, apiCorsHeaders);
+
+        // Add items to package
+        for (let i = 0; i < body.note_ids.length; i++) {
+          await sbFetch("note_package_items", {
+            method: "POST",
+            body: { package_id: pkg.id, note_id: body.note_ids[i], display_order: i },
+          });
+        }
+
+        // Update note visibility to 'package'
+        for (const noteId of body.note_ids) {
+          await sbFetch("notes", {
+            method: "PATCH",
+            params: `id=eq.${noteId}&author_user_id=eq.${user.sub}`,
+            body: { visibility: "package" },
+          });
+        }
+
+        return jsonResponse({
+          packageId: pkg.id,
+          shareToken: pkg.share_token,
+          shareUrl: `/notes/${pkg.share_token}`,
+        }, 201, apiCorsHeaders);
+      }
+
+      // ── GET /v1/note-packages/:token — get package by share token (public) ──
+      const pkgTokenMatch = apiPath.match(/^\/note-packages\/([a-f0-9]+)$/);
+      if (pkgTokenMatch && request.method === "GET") {
+        const token = pkgTokenMatch[1];
+        const { data: pkg } = await sbFetch("note_packages", {
+          params: `share_token=eq.${token}&select=*`,
+          single: true,
+        });
+        if (!pkg) return jsonResponse({ error: "Package not found" }, 404, apiCorsHeaders);
+
+        // Check expiry
+        if (pkg.share_link_expires_at && new Date(pkg.share_link_expires_at) < new Date()) {
+          return jsonResponse({ error: "Share link has expired" }, 410, apiCorsHeaders);
+        }
+
+        // Fetch package items with notes
+        const { data: items } = await sbFetch("note_package_items", {
+          params: `package_id=eq.${pkg.id}&select=display_order,notes:note_id(id,anchor_cfi,anchor_href,quote,note_text,author_display_name,author_user_id,created_at)&order=display_order`,
+        });
+
+        // Fetch book info if single-book package
+        let book = null;
+        if (pkg.book_id) {
+          const { data: bookData } = await sbFetch("books", {
+            params: `id=eq.${pkg.book_id}&select=id,title,author,cover_url,content_id,annotation`,
+            single: true,
+          });
+          book = bookData;
+        }
+
+        // Fetch creator info
+        const { data: creator } = await sbFetch("user_profiles", {
+          params: `id=eq.${pkg.created_by}&select=display_name,avatar_url`,
+          single: true,
+        });
+
+        // Track recipient if authenticated
+        if (user && user.sub !== pkg.created_by) {
+          await sbFetch("note_package_recipients", {
+            method: "POST",
+            body: { package_id: pkg.id, recipient_user_id: user.sub },
+          }).catch(() => {}); // Ignore duplicate
+        }
+
+        return jsonResponse({
+          id: pkg.id,
+          title: pkg.title,
+          shareToken: pkg.share_token,
+          packageType: pkg.package_type,
+          createdAt: pkg.created_at,
+          creator: creator ? { displayName: creator.display_name, avatarUrl: creator.avatar_url } : null,
+          book,
+          notes: (items || []).map(item => item.notes).filter(Boolean),
+        }, 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/me/note-packages — list user's packages ──
+      if (apiPath === "/me/note-packages" && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const { data, error } = await sbFetch("note_packages", {
+          params: `created_by=eq.${user.sub}&select=*&order=created_at.desc`,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+        return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      // ── DELETE /v1/note-packages/:id — delete package ──
+      if (pkgTokenMatch && request.method === "DELETE") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const pkgId = pkgTokenMatch[1];
+        await sbFetch("note_package_items", { method: "DELETE", params: `package_id=eq.${pkgId}` });
+        await sbFetch("note_package_recipients", { method: "DELETE", params: `package_id=eq.${pkgId}` });
+        await sbFetch("note_packages", { method: "DELETE", params: `id=eq.${pkgId}&created_by=eq.${user.sub}` });
+        return jsonResponse({ deleted: true }, 200, apiCorsHeaders);
+      }
+
       // ── Fallback: route not found ──
       return jsonResponse({ error: "Not found" }, 404, apiCorsHeaders);
     }
