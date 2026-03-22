@@ -6957,9 +6957,15 @@ if (doc) {
 	// Apply initial font size right after the first render.
 	// (Settings store it, but it won't take effect until setStyle is called.)
 	this.displayed.then(function () {
-		if (reader.settings && reader.settings.styles && reader.settings.styles.fontSize) {
-			reader.book.setStyle("fontSize", reader.settings.styles.fontSize);
-		}
+		try {
+			if (reader.settings && reader.settings.styles && reader.settings.styles.fontSize) {
+				if (typeof reader.book.setStyle === "function") {
+					reader.book.setStyle("fontSize", reader.settings.styles.fontSize);
+				} else if (reader.rendition && typeof reader.rendition.themes === "object") {
+					reader.rendition.themes.fontSize(reader.settings.styles.fontSize);
+				}
+			}
+		} catch (e) {}
 	});
 
 	book.ready.then(function () {
