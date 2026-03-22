@@ -2025,6 +2025,147 @@ async function renderSeoRoute(request, env, url, path) {
     });
   }
 
+  // ── /notes/<token> — shared notes landing page ──
+  const notesMatch = path.match(/^\/notes\/([a-f0-9]+)$/);
+  if (notesMatch) {
+    const shareToken = notesMatch[1];
+
+    // Fetch package from Supabase via service role
+    const sbUrl = String(env.SUPABASE_URL || "").trim();
+    const sbKey = String(env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+    if (!sbUrl || !sbKey) {
+      return textResponse("Service not configured", 500, { "x-reader-route": "notes-share-config" });
+    }
+
+    // Fetch package
+    const pkgRes = await fetch(`${sbUrl}/rest/v1/note_packages?share_token=eq.${shareToken}&select=*`, {
+      headers: { apikey: sbKey, authorization: `Bearer ${sbKey}`, accept: "application/vnd.pgrst.object+json" },
+    });
+    if (!pkgRes.ok) {
+      return textResponse("Notes not found", 404, { "cache-control": "no-store", "x-reader-route": "notes-share-miss" });
+    }
+    const pkg = await pkgRes.json();
+    if (!pkg || !pkg.id) {
+      return textResponse("Notes not found", 404, { "cache-control": "no-store", "x-reader-route": "notes-share-miss" });
+    }
+
+    // Fetch notes via package items
+    const itemsRes = await fetch(
+      `${sbUrl}/rest/v1/note_package_items?package_id=eq.${pkg.id}&select=display_order,notes:note_id(id,anchor_cfi,quote,note_text,author_display_name)&order=display_order`,
+      { headers: { apikey: sbKey, authorization: `Bearer ${sbKey}` } }
+    );
+    const items = itemsRes.ok ? await itemsRes.json() : [];
+    const notes = items.map(i => i.notes).filter(Boolean);
+
+    // Fetch book info
+    let book = null;
+    if (pkg.book_id) {
+      const bookRes = await fetch(
+        `${sbUrl}/rest/v1/books?id=eq.${pkg.book_id}&select=id,title,author,cover_url,content_id,annotation`,
+        { headers: { apikey: sbKey, authorization: `Bearer ${sbKey}`, accept: "application/vnd.pgrst.object+json" } }
+      );
+      if (bookRes.ok) book = await bookRes.json();
+    }
+
+    // Fetch creator
+    let creatorName = "Someone";
+    if (pkg.created_by) {
+      const creatorRes = await fetch(
+        `${sbUrl}/rest/v1/user_profiles?id=eq.${pkg.created_by}&select=display_name`,
+        { headers: { apikey: sbKey, authorization: `Bearer ${sbKey}`, accept: "application/vnd.pgrst.object+json" } }
+      );
+      if (creatorRes.ok) {
+        const creator = await creatorRes.json();
+        if (creator && creator.display_name) creatorName = creator.display_name;
+      }
+    }
+
+    // Build OG meta description
+    const firstQuote = notes.length > 0 ? (notes[0].quote || "").slice(0, 150) : "";
+    const ogTitle = book
+      ? `Notes on "${book.title}" by ${creatorName}`
+      : (pkg.title || `Shared notes by ${creatorName}`);
+    const ogDescription = firstQuote
+      ? `"${firstQuote}${firstQuote.length >= 150 ? '...' : ''}" — and ${Math.max(0, notes.length - 1)} more notes`
+      : `${notes.length} shared notes by ${creatorName}`;
+    const ogImage = book && book.cover_url
+      ? (book.cover_url.startsWith("http") ? book.cover_url : `${canonicalOrigin}${book.cover_url}`)
+      : "";
+    const readerUrl = book && book.content_id
+      ? `${canonicalOrigin}/books/reader/?id=${book.content_id}&n=${shareToken}`
+      : "";
+
+    // Render notes list HTML
+    const notesHtml = notes.map(n => `
+      <div style="border-left:3px solid #028f80;padding:8px 0 8px 16px;margin-bottom:16px;">
+        ${n.quote ? `<div style="font-style:italic;color:#1f1b16;margin-bottom:6px;">"${escapeHtml(n.quote)}"</div>` : ''}
+        ${n.note_text ? `<div style="color:#6c645a;font-size:14px;">${escapeHtml(n.note_text)}</div>` : ''}
+        <div style="color:#028f80;font-size:12px;font-weight:600;margin-top:4px;">— ${escapeHtml(n.author_display_name || 'Anonymous')}</div>
+      </div>
+    `).join('');
+
+    // Social share URLs
+    const pageUrl = `${canonicalOrigin}/notes/${shareToken}`;
+    const encodedUrl = encodeURIComponent(pageUrl);
+    const encodedTitle = encodeURIComponent(ogTitle);
+
+    const socialHtml = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+        <a href="https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}" target="_blank" rel="noopener"
+           style="padding:8px 14px;background:#1DA1F2;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">Twitter/X</a>
+        <a href="https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}" target="_blank" rel="noopener"
+           style="padding:8px 14px;background:#1877F2;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">Facebook</a>
+        <a href="https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}" target="_blank" rel="noopener"
+           style="padding:8px 14px;background:#0A66C2;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">LinkedIn</a>
+        <a href="https://api.whatsapp.com/send?text=${encodedTitle}%20${encodedUrl}" target="_blank" rel="noopener"
+           style="padding:8px 14px;background:#25D366;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">WhatsApp</a>
+        <a href="https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}" target="_blank" rel="noopener"
+           style="padding:8px 14px;background:#0088cc;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">Telegram</a>
+      </div>
+    `;
+
+    const bodyHtml = `
+      <main style="max-width:680px;margin:0 auto;">
+        ${book && book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" style="max-width:160px;border-radius:12px;border:1px solid #d8dee8;margin-bottom:20px;" alt="" />` : ''}
+        <h1 style="font-family:'Playfair Display',serif;font-size:28px;margin:0 0 8px;">${escapeHtml(ogTitle)}</h1>
+        ${book ? `<div style="color:#6c645a;margin-bottom:8px;">from <strong>${escapeHtml(book.title)}</strong> by ${escapeHtml(book.author || '')}</div>` : ''}
+        <div style="color:#6c645a;font-size:14px;margin-bottom:20px;">${notes.length} note${notes.length !== 1 ? 's' : ''} shared by ${escapeHtml(creatorName)}</div>
+        ${readerUrl ? `<a href="${escapeHtml(readerUrl)}" style="display:inline-block;padding:10px 20px;background:#028f80;color:#fff;border-radius:10px;font-weight:600;text-decoration:none;margin-bottom:24px;">Open in Reader</a>` : ''}
+        <div style="margin-top:24px;">${notesHtml}</div>
+        ${socialHtml}
+        <div style="margin-top:24px;padding-top:16px;border-top:1px solid #d8dee8;">
+          <a href="/books/" style="color:#028f80;text-decoration:none;font-size:14px;">Browse catalog</a>
+        </div>
+      </main>
+    `;
+
+    const html = renderSeoLayout({
+      title: ogTitle,
+      description: ogDescription,
+      canonical: pageUrl,
+      bodyHtml,
+    });
+
+    // Add OG tags manually (renderSeoLayout doesn't include them all)
+    const ogTags = `
+    <meta property="og:title" content="${escapeHtml(ogTitle)}" />
+    <meta property="og:description" content="${escapeHtml(ogDescription)}" />
+    <meta property="og:url" content="${escapeHtml(pageUrl)}" />
+    <meta property="og:type" content="article" />
+    ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}" />` : ''}
+    <meta name="twitter:card" content="${ogImage ? 'summary_large_image' : 'summary'}" />
+    <meta name="twitter:title" content="${escapeHtml(ogTitle)}" />
+    <meta name="twitter:description" content="${escapeHtml(ogDescription)}" />
+    ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : ''}
+    `;
+    const finalHtml = html.replace('</head>', ogTags + '</head>');
+
+    return htmlResponse(finalHtml, 200, {
+      "cache-control": "public, max-age=300, s-maxage=600",
+      "x-reader-route": "notes-share-page",
+    });
+  }
+
   return null;
 }
 
@@ -2079,7 +2220,8 @@ export default {
       path.startsWith("/sitemaps/") ||
       path.startsWith("/book/") ||
       path.startsWith("/author/") ||
-      path.startsWith("/category/")
+      path.startsWith("/category/") ||
+      path.startsWith("/notes/")
     ) {
       if (!env.READER_BOOKS && !env.ASSETS) {
         return textResponse("SEO storage missing", 500, {
