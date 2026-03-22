@@ -219,6 +219,12 @@ test("publisher tasks: /run-daily generates 10 balanced tasks in safe mode", asy
   );
   assert.ok(payload.tasks.every((task) => !/^(i had the same issue|i usually keep a few|what helped me was)/i.test(task.text)));
   assert.ok(new Set(payload.tasks.map((task) => task.text)).size >= 8);
+  const quoraTasks = payload.tasks.filter((task) => task.platform === "Quora");
+  assert.ok(quoraTasks.every((task) => task.target_url));
+  assert.ok(quoraTasks.every((task) => task.why_this_link));
+  assert.equal(new Set(quoraTasks.map((task) => task.target_url)).size, quoraTasks.length);
+  assert.ok(quoraTasks.every((task) => !String(task.text || "").includes(String(task.target_url || ""))));
+  assert.ok(quoraTasks.every((task) => !String(task.target_url || "").includes("https://reader.pub/book/")));
   for (const task of payload.tasks) {
     const source = buildMockCandidates().find((item) => item.source_url === task.source_url);
     if (!source) continue;
