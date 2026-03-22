@@ -1196,7 +1196,7 @@
           if (myBooksState.deleting) return;
           const ids = Array.from(myBooksState.selected || []);
           if (!ids.length) return;
-          const ok = window.confirm(`Delete ${ids.length} selected book(s) from My Books and remove their position, bookmarks and notes?`);
+          const ok = window.confirm(`Delete ${ids.length} selected book(s) from Reading History and remove their position, bookmarks and notes?`);
           if (!ok) return;
           const sync = window.ReaderPubDriveSync || null;
           if (!sync) return;
@@ -2633,7 +2633,7 @@
           function renderAuthCard(message, actionLabel, action) {
             els.content.innerHTML = "";
             const box = el("div", "mybooks-auth");
-            box.appendChild(el("div", "mybooks-auth-title", "My Books in Google Drive"));
+            box.appendChild(el("div", "mybooks-auth-title", "Reading History in Google Drive"));
             box.appendChild(
               el(
                 "div",
@@ -2694,7 +2694,7 @@
             setToolbar("mybooks", viewMode);
 
             if (!items.length) {
-              const empty = el("div", "mybooks-empty", "My Books is empty in Google Drive.");
+              const empty = el("div", "mybooks-empty", "Reading History is empty in Google Drive.");
               els.content.appendChild(empty);
               return;
             }
@@ -2804,7 +2804,7 @@
 
           if (!sync || typeof sync.isConfigured !== "function" || !sync.isConfigured()) {
             renderAuthCard(
-              "Google Drive integration is not configured for this build. Add a Google client id to enable My Books sync."
+              "Google Drive integration is not configured for this build. Add a Google client id to enable Reading History sync."
             );
             return;
           }
@@ -2827,7 +2827,7 @@
               myBooksState.items = hydratedLocalItems;
               myBooksState.loaded = true;
               myBooksState.lastLoadAt = Date.now();
-              setStatus("Showing locally saved My Books. Authorize Google Drive to refresh from cloud.");
+              setStatus("Showing locally saved Reading History. Authorize Google Drive to refresh from cloud.");
               renderItems(hydratedLocalItems);
               return;
             }
@@ -2843,7 +2843,7 @@
 
           let snapshot = null;
           try {
-            showLoading("Loading My Books from Google Drive...");
+            showLoading("Loading Reading History from Google Drive...");
             myBooksState.loading = true;
             if (typeof sync.flushPendingReaderStateSync === "function") {
               try {
@@ -2854,7 +2854,7 @@
             if (renderNonce !== REQ_NONCE) return;
           } catch (error) {
             if (renderNonce !== REQ_NONCE) return;
-            const msg = error && error.message ? error.message : "Failed to load My Books from Google Drive";
+            const msg = error && error.message ? error.message : "Failed to load Reading History from Google Drive";
             if (/authoriz|popup/i.test(msg)) {
               renderAuthCard(
                 "Authorize Google Drive in this browser/device to see books from your cloud library.",
@@ -2865,7 +2865,7 @@
               );
               return;
             }
-            showError("My Books error", msg);
+            showError("Reading History error", msg);
             return;
           } finally {
             myBooksState.loading = false;
