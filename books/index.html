@@ -944,7 +944,7 @@
       <main id="main">
         <div id="breadcrumbsRow" class="breadcrumbs-row">
           <div id="breadcrumbs"></div>
-          <a id="myBooksLink" class="my-books-link" href="#view=mybooks">My Books</a>
+          <a id="myBooksLink" class="my-books-link" href="#view=mybooks">Reading History</a>
         </div>
         <div id="toolbar"></div>
         <div id="searchResults"></div>
@@ -3605,7 +3605,7 @@
               }
               setBreadcrumbs([
                 { label: "Letters", onClick: () => navigate({ view: "letters" }) },
-                { label: "My Books" },
+                { label: "Reading History" },
               ]);
               setToolbar("mybooks", viewMode);
               currentView = { renderer: () => renderMyBooks(viewMode, REQ_NONCE), data: myBooksState.items };
