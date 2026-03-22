@@ -432,6 +432,17 @@
       // Only try Supabase for hex tokens (24 chars from our gen_random_bytes(12))
       if (!/^[a-f0-9]{24}$/.test(shareToken)) return;
 
+      // Strip the n= param from URL so fbreader-ui.js R2 import doesn't see it
+      // (our Supabase token would cause R2 404s and interfere with the reader)
+      try {
+        var cleanParams = new URLSearchParams(window.location.search);
+        cleanParams.delete("n");
+        cleanParams.delete("notesShare");
+        var cleanSearch = cleanParams.toString();
+        var cleanUrl = window.location.pathname + (cleanSearch ? "?" + cleanSearch : "") + window.location.hash;
+        history.replaceState(null, "", cleanUrl);
+      } catch (e) {}
+
       publicApiFetch("/note-packages/" + shareToken)
         .then(function (pkg) {
           if (!pkg || !pkg.notes || !pkg.notes.length) return;
