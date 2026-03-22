@@ -369,10 +369,11 @@
         .then(function (result) {
           var shareUrl = window.location.origin + result.shareUrl;
 
-          if (navigator.share) {
+          // Use clipboard on desktop, native share on mobile only
+          var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+          if (isMobile && navigator.share) {
             return navigator.share({ url: shareUrl }).catch(function (err) {
               if (err && err.name === "AbortError") return;
-              // Fallback to clipboard
               return navigator.clipboard.writeText(shareUrl);
             });
           }
