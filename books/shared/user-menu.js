@@ -228,7 +228,8 @@ class UserMenu extends HTMLElement {
             <small>${email}</small>
           </div>
           <a href="/books/account/">My Account</a>
-          <a href="/books/account/#books">My Books</a>
+          <a href="/books/account/#library">My Library</a>
+          <a href="/books/account/#publications">My Publications</a>
           <a href="/books/publish/">Publish</a>
           <button class="signout-btn" id="signout">Sign Out</button>
         </div>

@@ -294,16 +294,22 @@
 
       <!-- Tabs -->
       <div class="tab-row" id="tabRow">
-        <button class="tab-btn active" data-tab="books">My Books</button>
-        <button class="tab-btn" data-tab="tenants">My Tenants</button>
+        <button class="tab-btn active" data-tab="library">My Library</button>
+        <button class="tab-btn" data-tab="publications">My Publications</button>
+        <button class="tab-btn" data-tab="tenants">Organizations</button>
       </div>
 
-      <!-- My Books -->
-      <div class="tab-content active" id="tab-books">
-        <div id="booksList" class="empty-state"><span class="spinner"></span> Loading...</div>
+      <!-- My Library (purchased/rented/entitled books) -->
+      <div class="tab-content active" id="tab-library">
+        <div id="libraryList" class="empty-state"><span class="spinner"></span> Loading...</div>
       </div>
 
-      <!-- My Tenants -->
+      <!-- My Publications (books I published) -->
+      <div class="tab-content" id="tab-publications">
+        <div id="publicationsList" class="empty-state"><span class="spinner"></span> Loading...</div>
+      </div>
+
+      <!-- Organizations -->
       <div class="tab-content" id="tab-tenants">
         <div id="tenantsList" class="empty-state"><span class="spinner"></span> Loading...</div>
       </div>
@@ -369,59 +375,61 @@
         window.location.hash = btn.dataset.tab;
       });
 
-      if (hash === 'tenants') {
-        document.querySelector('[data-tab="tenants"]').click();
+      if (hash === 'tenants' || hash === 'publications' || hash === 'library') {
+        const tabBtn = document.querySelector(`[data-tab="${hash}"]`);
+        if (tabBtn) tabBtn.click();
       }
 
-      // My Books (entitlements + published)
-      const $books = document.getElementById('booksList');
+      // My Library (purchased/rented books)
+      const $library = document.getElementById('libraryList');
       try {
-        const [entitlements, published] = await Promise.all([
-          apiFetch('GET', '/me/entitlements').catch(() => []),
-          apiFetch('GET', '/publish/books').catch(() => []),
-        ]);
+        const entitlements = await apiFetch('GET', '/me/entitlements').catch(() => []);
 
-        const allBooks = [];
-
-        for (const ent of entitlements) {
-          const book = ent.books || ent;
-          allBooks.push({
-            id: book.content_id || book.id,
-            title: book.title,
-            author: book.author,
-            cover: book.cover_url,
-            type: ent.entitlement_type,
-            expires: ent.expires_at,
-          });
-        }
-
-        for (const book of published) {
-          if (!allBooks.some(b => b.id === book.content_id)) {
-            allBooks.push({
-              id: book.content_id,
-              title: book.title,
-              author: book.author,
-              cover: book.cover_url,
-              type: 'published',
-            });
-          }
-        }
-
-        if (!allBooks.length) {
-          $books.innerHTML = '<div class="empty-state">No books yet. <a href="/books/">Browse the catalog</a> or <a href="/books/publish/">publish one</a>.</div>';
+        if (!entitlements.length) {
+          $library.innerHTML = '<div class="empty-state">No books in your library yet. <a href="/books/">Browse the catalog</a> to find books.</div>';
         } else {
-          $books.innerHTML = `<div class="book-grid">${allBooks.map(b => `
-            <a class="book-card" href="/books/reader/#${esc(b.id)}">
+          $library.innerHTML = `<div class="book-grid">${entitlements.map(ent => {
+            const book = ent.books || ent;
+            const id = book.content_id || book.id;
+            const typeLabel = ent.entitlement_type === 'rental' && ent.expires_at
+              ? `Rented — expires ${new Date(ent.expires_at).toLocaleDateString()}`
+              : ent.entitlement_type === 'purchase' ? 'Purchased' : ent.entitlement_type || '';
+            return `
+              <a class="book-card" href="/books/reader/#${esc(id)}">
+                <div class="book-card-cover">
+                  ${book.cover_url ? `<img src="${esc(book.cover_url)}" alt="" />` : ''}
+                </div>
+                <div class="book-card-title">${esc(book.title)}</div>
+                <div class="book-card-meta">${esc(book.author || '')}</div>
+                <div class="book-card-meta" style="color:var(--accent);font-size:11px;">${esc(typeLabel)}</div>
+              </a>`;
+          }).join('')}</div>`;
+        }
+      } catch (err) {
+        $library.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
+      }
+
+      // My Publications (books I published)
+      const $pubs = document.getElementById('publicationsList');
+      try {
+        const published = await apiFetch('GET', '/publish/books').catch(() => []);
+
+        if (!published.length) {
+          $pubs.innerHTML = '<div class="empty-state">You haven\'t published any books yet. <a href="/books/publish/">Publish your first book</a>.</div>';
+        } else {
+          $pubs.innerHTML = `<div class="book-grid">${published.map(book => `
+            <a class="book-card" href="/books/reader/#${esc(book.content_id)}">
               <div class="book-card-cover">
-                ${b.cover ? `<img src="${esc(b.cover)}" alt="" />` : ''}
+                ${book.cover_url ? `<img src="${esc(book.cover_url)}" alt="" />` : ''}
               </div>
-              <div class="book-card-title">${esc(b.title)}</div>
-              <div class="book-card-meta">${esc(b.author || '')}${b.type === 'rental' && b.expires ? ` — expires ${new Date(b.expires).toLocaleDateString()}` : ''}${b.type === 'published' ? ' (published by you)' : ''}</div>
+              <div class="book-card-title">${esc(book.title)}</div>
+              <div class="book-card-meta">${esc(book.author || '')}</div>
+              <div class="book-card-meta" style="color:var(--accent);font-size:11px;">${esc(book.status)}</div>
             </a>
           `).join('')}</div>`;
         }
       } catch (err) {
-        $books.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
+        $pubs.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
       }
 
       // My Tenants
