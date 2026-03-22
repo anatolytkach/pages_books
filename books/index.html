@@ -2802,8 +2802,8 @@
             els.content.appendChild(table);
           }
 
-          if (!sync || typeof sync.isConfigured !== "function" || !sync.isConfigured()) {
-            // Drive not configured — show local reading history instead of auth prompt
+          // Always show local reading history — no Google Drive auth prompts
+          {
             const localItems = loadLocalMyBooksFallback();
             const hydratedLocalItems = await hydrateMyBooksCovers(localItems, renderNonce);
             if (renderNonce !== REQ_NONCE) return;
@@ -3738,7 +3738,7 @@
         });
       })();
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/books/shared/supabase.min.js"></script>
     <script type="module" src="/books/shared/user-menu.js"></script>
   </body>
 </html>

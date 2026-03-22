@@ -25,7 +25,7 @@ export function getClient() {
   }
 
   throw new Error(
-    'Supabase JS library not loaded. Add <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> to the page.'
+    'Supabase JS library not loaded. Add <script src="/books/shared/supabase.min.js"></script> to the page.'
   );
 }
 
