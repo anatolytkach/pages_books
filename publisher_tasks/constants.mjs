@@ -210,28 +210,3 @@ export const DEFAULT_SCOUT_CONFIG = {
     "site:quora.com what sci fi book should I read first",
   ],
 };
-
-export const QUORA_FALLBACK_CANDIDATES = [
-  {
-    source_url: "https://www.quora.com/How-do-you-focus-better-on-your-phone",
-    title: "How do you focus better on your phone when you want to read longer things?",
-    excerpt: "Looking for realistic habits rather than another extreme productivity system.",
-    topic_type: "general",
-    task_type: "presence",
-    intent: "general_reading",
-    link_type: "catalog",
-    category_slug: "classics-of-literature",
-    category_title: "Classics of Literature",
-  },
-  {
-    source_url: "https://www.quora.com/Where-can-I-read-classic-novels-online-legally",
-    title: "Where can I read classic novels online legally?",
-    excerpt: "Looking for a reliable source with a clean phone reading experience.",
-    topic_type: "book",
-    task_type: "qualified_disclosure",
-    intent: "general_reading",
-    link_type: "category",
-    category_slug: "classics-of-literature",
-    category_title: "Classics of Literature",
-  },
-];

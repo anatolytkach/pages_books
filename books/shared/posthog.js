@@ -6,6 +6,7 @@
   var sdkRequested = false;
   var pageviewSent = false;
   var bookOpenSent = false;
+  var seoPageviewSent = false;
 
   function getMetaContent(name) {
     try {
@@ -137,6 +138,37 @@
     return value;
   }
 
+  function guessSourceFromReferrer(referrer) {
+    var value = String(referrer || "").trim().toLowerCase();
+    if (!value) return "direct";
+    if (value.indexOf(global.location.host.toLowerCase()) !== -1) return "internal";
+    if (value.indexOf("google.") !== -1) return "google";
+    if (value.indexOf("bing.") !== -1) return "bing";
+    return "other";
+  }
+
+  function buildSeoPayload(properties) {
+    var payload = properties && typeof properties === "object" ? properties : {};
+    var pathname = payload.pathname || (global.location && global.location.pathname) || "";
+    var referrer = payload.referrer || document.referrer || "";
+    return {
+      page_type: payload.page_type || "",
+      pathname: pathname,
+      slug: payload.slug || "",
+      book_id: payload.book_id || "",
+      book_slug: payload.book_slug || "",
+      author_slug: payload.author_slug || "",
+      category_slug: payload.category_slug || "",
+      language: payload.language || "",
+      referrer: referrer,
+      source_guess: payload.source_guess || guessSourceFromReferrer(referrer),
+      destination_path: payload.destination_path || "",
+      destination_hash: payload.destination_hash || "",
+      cta_type: payload.cta_type || "",
+      link_text: payload.link_text || "",
+    };
+  }
+
   analytics.boot = function boot(options) {
     return ensureInit(options || {});
   };
@@ -177,12 +209,35 @@
     return true;
   };
 
+  analytics.captureSeoPageview = function captureSeoPageview(properties) {
+    var client = ensureInit();
+    if (!client || seoPageviewSent) return false;
+    seoPageviewSent = true;
+    client.capture("seo_pageview", buildSeoPayload(properties));
+    return true;
+  };
+
+  analytics.captureSeoToCatalog = function captureSeoToCatalog(properties) {
+    var client = ensureInit();
+    if (!client) return false;
+    client.capture("seo_to_catalog", buildSeoPayload(properties));
+    return true;
+  };
+
+  analytics.captureSeoToReader = function captureSeoToReader(properties) {
+    var client = ensureInit();
+    if (!client) return false;
+    client.capture("seo_to_reader", buildSeoPayload(properties));
+    return true;
+  };
+
   analytics.isEnabled = function analyticsEnabled() {
     var config = getConfig();
     return !!(config.enabled && config.key && config.host);
   };
 
   analytics.slugify = toSlug;
+  analytics.guessSourceFromReferrer = guessSourceFromReferrer;
 
   global.ReaderPubAnalytics = analytics;
 })(window);
