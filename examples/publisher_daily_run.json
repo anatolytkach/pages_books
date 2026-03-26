@@ -1,0 +1,17 @@
+{
+  "date": "2026-03-20",
+  "endpoint": "/run-daily",
+  "summary": {
+    "total": 10,
+    "linked": 4,
+    "book": 2,
+    "category": 1,
+    "catalog": 1
+  },
+  "notes": [
+    "Scout caps raw candidates at 100 and keeps 30-50 relevant URLs.",
+    "Writer generates at most 30 drafts.",
+    "Warmup accounts receive only no-link tasks.",
+    "Processed source URLs are written to KV by URL key."
+  ]
+}

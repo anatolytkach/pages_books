@@ -28,31 +28,8 @@ fi
 
 echo "[commit-logic] Staging code, indexes, and render/runtime files"
 
-# Core logic and app sources
-git add -A -- reader tests docs _worker.js .gitignore .wranglerignore
-git add -A -- commit_logic.sh
-
-# Docs are published from deploy/docs/index.html, so docs commits must include it.
-git add -A -- deploy/docs/index.html
-
-# Catalog/search/discovery indexes that drive Pages and R2 behavior
-if [[ -d reader_lang_indexes ]]; then
-  git add -A -- reader_lang_indexes
-fi
-
-# Config/entry points for books shell
-git add -A -- books/index.html books/catalog.config.json
-
-# Root UI assets used by app shell
-git add -A -- '*.svg'
-
-# Tooling scripts/configs only (no generated artifacts)
-if [[ -d tools ]]; then
-  while IFS= read -r -d '' f; do
-    git add -A -- "$f"
-  done < <(find tools -maxdepth 1 -type f \
-    \( -name "*.py" -o -name "*.js" -o -name "*.mjs" -o -name "*.sh" -o -name "*.toml" \) -print0)
-fi
+# Stage the whole repository first so every code path is covered.
+git add -A -- .
 
 # Explicitly keep data artifacts out of this commit even if staged before.
 git reset -q -- \

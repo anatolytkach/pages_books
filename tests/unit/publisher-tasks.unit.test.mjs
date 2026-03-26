@@ -149,6 +149,47 @@ function buildRemovedRedditMockCandidates() {
   });
 }
 
+function buildPendingReviewRedditMockCandidates() {
+  const items = buildMockCandidates();
+  return items.map((item, index) => {
+    if (index !== 0 || item.platform !== "Reddit") return item;
+    return {
+      ...item,
+      source_url: "https://www.reddit.com/r/books/comments/pending123/post_under_review/",
+      title: "Post under review",
+      raw_payload: {
+        ...(item.raw_payload || {}),
+        mock: true,
+        pending_moderation_review: true,
+        comments: [
+          {
+            author: "books-ModTeam",
+            distinguished: "moderator",
+            body: "Hi there. Your post is currently awaiting moderator approval and is under review.",
+          },
+        ],
+      },
+    };
+  });
+}
+
+function normalizedWords(text) {
+  return String(text || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter((token) => token.length >= 3);
+}
+
+function sharesLongPhrase(source, text, size = 4) {
+  const sourceTokens = normalizedWords(source);
+  const textJoined = normalizedWords(text).join(" ");
+  for (let i = 0; i + size <= sourceTokens.length; i++) {
+    const phrase = sourceTokens.slice(i, i + size).join(" ");
+    if (phrase && textJoined.includes(phrase)) return true;
+  }
+  return false;
+}
+
 test("publisher tasks: /run-daily generates 10 balanced tasks in safe mode", async () => {
   const env = {
     PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildMockCandidates()),
@@ -178,6 +219,18 @@ test("publisher tasks: /run-daily generates 10 balanced tasks in safe mode", asy
   );
   assert.ok(payload.tasks.every((task) => !/^(i had the same issue|i usually keep a few|what helped me was)/i.test(task.text)));
   assert.ok(new Set(payload.tasks.map((task) => task.text)).size >= 8);
+  const quoraTasks = payload.tasks.filter((task) => task.platform === "Quora");
+  assert.ok(quoraTasks.every((task) => task.target_url));
+  assert.ok(quoraTasks.every((task) => task.why_this_link));
+  assert.equal(new Set(quoraTasks.map((task) => task.target_url)).size, quoraTasks.length);
+  assert.ok(quoraTasks.every((task) => !String(task.text || "").includes(String(task.target_url || ""))));
+  assert.ok(quoraTasks.every((task) => !String(task.target_url || "").includes("https://reader.pub/book/")));
+  for (const task of payload.tasks) {
+    const source = buildMockCandidates().find((item) => item.source_url === task.source_url);
+    if (!source) continue;
+    assert.equal(sharesLongPhrase(source.title, task.text), false);
+    assert.equal(sharesLongPhrase(source.excerpt, task.text), false);
+  }
   const redditTasks = payload.tasks.filter((task) => task.platform === "Reddit");
   const redditPublisherSegments = new Map();
   let previousEmail = null;
@@ -283,7 +336,7 @@ test("publisher tasks: /get-tasks without date returns date index", async () => 
   assert.match(html, /href="\/get-tasks\?date=2026-03-20"/);
 });
 
-test("publisher tasks: empty daily run still saves date snapshot", async () => {
+test("publisher tasks: empty daily run does not save a partial snapshot", async () => {
   const env = {
     PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify([]),
   };
@@ -292,25 +345,20 @@ test("publisher tasks: empty daily run still saves date snapshot", async () => {
     url: "https://reader.pub/run-daily?date=2026-03-25",
     env,
   });
-  const runPayload = await readJson(runResponse);
-  assert.equal(runResponse.status, 200);
-  assert.equal(runPayload.tasks.length, 0);
+  assert.equal(runResponse.status, 500);
 
   const indexResponse = await callWorker({
     url: "https://reader.pub/get-tasks",
     env,
   });
   const html = await indexResponse.text();
-  assert.match(html, /href="\/get-tasks\?date=2026-03-25"/);
-  assert.match(html, />0 tasks</);
+  assert.doesNotMatch(html, /href="\/get-tasks\?date=2026-03-25"/);
 
   const dateResponse = await callWorker({
     url: "https://reader.pub/get-tasks?date=2026-03-25&format=json",
     env,
   });
-  const datePayload = await readJson(dateResponse);
-  assert.equal(dateResponse.status, 200);
-  assert.deepEqual(datePayload.tasks, []);
+  assert.equal(dateResponse.status, 404);
 });
 
 test("publisher tasks: expands Reddit freshness windows until batch reaches 10 tasks", async () => {
@@ -346,6 +394,22 @@ test("publisher tasks: removed Reddit posts are excluded from task output", asyn
   assert.equal(response.status, 200);
   assert.equal(payload.tasks.length, 10);
   assert.ok(payload.tasks.every((task) => task.source_url !== "https://www.reddit.com/r/books/comments/removed123/removed_by_moderator/"));
+});
+
+test("publisher tasks: Reddit posts awaiting moderator review are excluded from task output", async () => {
+  const env = {
+    PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildPendingReviewRedditMockCandidates()),
+  };
+
+  const response = await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-04-01",
+    env,
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.tasks.length, 10);
+  assert.ok(payload.tasks.every((task) => task.source_url !== "https://www.reddit.com/r/books/comments/pending123/post_under_review/"));
 });
 
 test("publisher tasks: missing Quora tasks are replaced by Reddit to keep 10 total", async () => {
@@ -414,30 +478,60 @@ test("publisher tasks: daily run reuses saved snapshot for the same date", async
 });
 
 test("publisher tasks: force=1 rebuilds an existing snapshot", async () => {
-  const firstEnv = {
+  const env = {
     PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildMockCandidates()),
-  };
-  const secondEnv = {
-    PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildRedditOnlyMockCandidates()),
   };
 
   const firstResponse = await callWorker({
     url: "https://reader.pub/run-daily?date=2026-03-23",
-    env: firstEnv,
+    env,
   });
   const firstPayload = await readJson(firstResponse);
 
+  env.PUBLISHER_SCOUT_MOCK_CANDIDATES = JSON.stringify(buildRedditOnlyMockCandidates());
+
   const forcedResponse = await callWorker({
     url: "https://reader.pub/run-daily?date=2026-03-23&force=1",
-    env: secondEnv,
+    env,
   });
   const forcedPayload = await readJson(forcedResponse);
 
   assert.equal(firstPayload.reused, false);
   assert.equal(forcedPayload.reused, false);
   assert.equal(forcedPayload.tasks.length, 10);
-  assert.equal(forcedPayload.tasks.filter((task) => task.platform === "Quora").length, 0);
-  assert.equal(forcedPayload.tasks.filter((task) => task.platform === "Reddit").length, 10);
+  assert.equal(forcedPayload.tasks.filter((task) => task.platform === "Quora").length, 2);
+  assert.equal(forcedPayload.tasks.filter((task) => task.platform === "Reddit").length, 8);
+  const firstQuoraUrls = new Set(firstPayload.tasks.filter((task) => task.platform === "Quora").map((task) => task.source_url));
+  const forcedQuoraUrls = new Set(forcedPayload.tasks.filter((task) => task.platform === "Quora").map((task) => task.source_url));
+  assert.deepEqual(forcedQuoraUrls, firstQuoraUrls);
+});
+
+test("publisher tasks: repeated source URLs are reassigned to different publishers on later days", async () => {
+  const env = {
+    PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildMockCandidates()),
+  };
+
+  const firstResponse = await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-03-26",
+    env,
+  });
+  const firstPayload = await readJson(firstResponse);
+
+  const secondResponse = await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-03-27",
+    env,
+  });
+  const secondPayload = await readJson(secondResponse);
+
+  assert.equal(firstResponse.status, 200);
+  assert.equal(secondResponse.status, 200);
+  assert.equal(secondPayload.tasks.length, 10);
+
+  const firstByUrl = new Map(firstPayload.tasks.map((task) => [task.source_url, task.publisher_email]));
+  for (const task of secondPayload.tasks) {
+    if (!firstByUrl.has(task.source_url)) continue;
+    assert.notEqual(task.publisher_email, firstByUrl.get(task.source_url));
+  }
 });
 
 test("publisher tasks: repair=quora-links rewrites known broken Quora URLs", async () => {
@@ -481,6 +575,38 @@ test("publisher tasks: repair=quora-links rewrites known broken Quora URLs", asy
   assert.ok(
     repairPayload.tasks.some(
       (task) => task.source_url === "https://www.quora.com/What-websites-apps-can-I-use-to-read-books-for-free"
+    )
+  );
+});
+
+test("publisher tasks: repair=restore-valid-quora restores saved valid Quora tasks", async () => {
+  const env = {
+    PUBLISHER_SCOUT_MOCK_CANDIDATES: JSON.stringify(buildRedditOnlyMockCandidates()),
+  };
+
+  const initialResponse = await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-03-22",
+    env,
+  });
+  const initialPayload = await readJson(initialResponse);
+  assert.equal(initialPayload.tasks.filter((task) => task.platform === "Quora").length, 0);
+
+  const repairResponse = await callWorker({
+    url: "https://reader.pub/run-daily?date=2026-03-22&repair=restore-valid-quora",
+    env,
+  });
+  const repairPayload = await readJson(repairResponse);
+
+  assert.equal(repairResponse.status, 200);
+  assert.equal(repairPayload.tasks.filter((task) => task.platform === "Quora").length, 2);
+  assert.ok(
+    repairPayload.tasks.some(
+      (task) => task.source_url === "https://www.quora.com/Can-you-recommend-must-read-classic-novels-for-literature-enthusiasts"
+    )
+  );
+  assert.ok(
+    repairPayload.tasks.some(
+      (task) => task.source_url === "https://www.quora.com/In-what-order-of-classic-novels-should-I-read-as-a-beginner"
     )
   );
 });

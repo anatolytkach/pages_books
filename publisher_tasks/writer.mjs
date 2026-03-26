@@ -26,6 +26,10 @@ function stableNumber(value) {
   return hash;
 }
 
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function pickResponseType(opportunity, attempt = 0) {
   const seed = stableNumber(`${opportunity.id}:${attempt}:${opportunity.topic_type || ""}`);
   return RESPONSE_TYPES[seed % RESPONSE_TYPES.length];
@@ -50,8 +54,8 @@ function extractFocus(opportunity) {
   if (/\b(recommend|recommendation|what should i read)\b/.test(source)) return "narrowing the next pick";
   if (/\b(project hail mary|sci[- ]?fi|science fiction)\b/.test(source)) return "science-fiction pacing";
   if (/\b(classic|classics)\b/.test(source)) return "approaching classics without overthinking them";
-  if (title) return trimToLength(title.replace(/[?!.]+$/, ""), 70);
-  return opportunity.topic_type === "general" ? "the routine itself" : "the reading choice";
+  if (opportunity.topic_type === "general") return "the routine itself";
+  return "the reading choice";
 }
 
 function extractDetail(opportunity) {
@@ -84,8 +88,9 @@ function extractDetail(opportunity) {
   if (/\b(tone|pacing|fit)\b/.test(source)) return "tone and pacing tell you more than reputation does";
   if (/\b(rhythm|attention|burnout)\b/.test(source)) return "light rituals usually beat grand plans";
   if (/\b(continuity|motivation|format friction)\b/.test(source)) return "continuity matters more than motivation";
-  const cleaned = trimToLength(excerpt || title || "the specifics change from person to person", 90);
-  return cleaned.replace(/[.;,:-]+$/g, "");
+  return opportunity.topic_type === "general"
+    ? "small shifts in habit usually matter more than people expect"
+    : "fit and pacing usually matter more than prestige";
 }
 
 function buildOpinion(opportunity, attempt = 0) {
@@ -143,8 +148,90 @@ function buildRecommendation(opportunity, attempt = 0) {
   return variants[pickVariant(opportunity, variants.length, attempt)];
 }
 
-function sanitizeText(text, limit) {
-  const normalized = trimToLength(compactWhitespace(text), limit);
+function phrasesFromSource(text) {
+  const tokens = compactWhitespace(text)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter((token) => token.length >= 3);
+  const phrases = [];
+  for (let size = 5; size >= 3; size--) {
+    for (let i = 0; i + size <= tokens.length; i++) {
+      phrases.push(tokens.slice(i, i + size).join(" "));
+    }
+  }
+  return phrases;
+}
+
+function sharesLongSourcePhrase(text, opportunity, size = 4) {
+  const draftTokens = compactWhitespace(text)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter((token) => token.length >= 3)
+    .join(" ");
+  const sourceTokens = compactWhitespace(`${opportunity.title || ""} ${opportunity.excerpt || ""}`)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter((token) => token.length >= 3);
+  for (let i = 0; i + size <= sourceTokens.length; i++) {
+    const phrase = sourceTokens.slice(i, i + size).join(" ");
+    if (phrase && draftTokens.includes(phrase)) return true;
+  }
+  return false;
+}
+
+function removeSourceEcho(text, opportunity) {
+  const sourcePhrases = [
+    ...phrasesFromSource(opportunity.title || ""),
+    ...phrasesFromSource(opportunity.excerpt || ""),
+  ].filter(Boolean);
+  let normalized = compactWhitespace(text);
+  for (const phrase of sourcePhrases) {
+    if (!phrase || phrase.length < 14) continue;
+    const pattern = new RegExp(escapeRegExp(phrase), "ig");
+    normalized = normalized.replace(pattern, "");
+  }
+  normalized = compactWhitespace(normalized)
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/[;,]\./g, ".")
+    .trim();
+  return normalized;
+}
+
+function ensureNotSourceLike(text, opportunity) {
+  if (sharesLongSourcePhrase(text, opportunity, 4)) {
+    const fallbackFocus = opportunity.topic_type === "general" ? "the broader habit" : "the overall reading choice";
+    const fallbackDetail = opportunity.topic_type === "general"
+      ? "small changes in routine tend to matter more than they look"
+      : "fit and pacing usually matter more than reputation";
+    return `My view is that ${fallbackFocus} gets easier when ${fallbackDetail}.`;
+  }
+  const sourceTokens = tokenSet(`${opportunity.title || ""} ${opportunity.excerpt || ""}`);
+  const draftTokens = tokenSet(text);
+  let overlap = 0;
+  for (const token of draftTokens) {
+    if (sourceTokens.has(token)) overlap += 1;
+  }
+  const ratio = draftTokens.size ? overlap / draftTokens.size : 0;
+  if (ratio < 0.4) return text;
+  const fallbackFocus = opportunity.topic_type === "general" ? "the broader habit" : "the overall reading choice";
+  const fallbackDetail = opportunity.topic_type === "general"
+    ? "small changes in routine tend to matter more than they look"
+    : "tone and pacing usually matter more than reputation";
+  return `My view is that ${fallbackFocus} gets easier when ${fallbackDetail}.`;
+}
+
+function sanitizeText(text, limit, opportunity) {
+  let normalized = compactWhitespace(text);
+  if (opportunity) {
+    normalized = removeSourceEcho(normalized, opportunity);
+    normalized = ensureNotSourceLike(normalized, opportunity);
+  }
+  if (!normalized) {
+    normalized = opportunity?.topic_type === "general"
+      ? "My view is that small changes in routine usually matter more than people expect."
+      : "My view is that fit and pacing usually matter more than reputation.";
+  }
+  normalized = trimToLength(normalized, limit);
   const lower = normalized.toLowerCase();
   if (FORBIDDEN_OPENINGS.some((item) => lower.startsWith(item))) {
     return trimToLength(`Personally, ${normalized[0].toLowerCase()}${normalized.slice(1)}`, limit);
@@ -163,7 +250,7 @@ function buildFallbackCopy(opportunity, attempt = 0) {
     recommendation: buildRecommendation,
   };
   return {
-    text: sanitizeText(builders[responseType](opportunity, attempt), limit),
+    text: sanitizeText(builders[responseType](opportunity, attempt), limit, opportunity),
     response_type: responseType,
   };
 }
@@ -242,7 +329,7 @@ async function generateViaOpenAI(env, opportunity, usedOpenings = [], attempt = 
     const text = payload?.output?.[0]?.content?.[0]?.text || payload?.output_text || "";
     const parsed = JSON.parse(String(text || "{}"));
     return {
-      text: sanitizeText(parsed.text || "", limit),
+      text: sanitizeText(parsed.text || "", limit, opportunity),
       title:
         opportunity.platform === "Medium"
           ? trimToLength(compactWhitespace(parsed.title || opportunity.title || ""), 120)

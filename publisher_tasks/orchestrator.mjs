@@ -14,6 +14,7 @@ import {
 } from "./constants.mjs";
 import { materializeDraft } from "./writer.mjs";
 import {
+  buildWhyThisLink,
   buildSuggestedLinkSentence,
   nowIso,
   pickLinkMetadata,
@@ -136,22 +137,50 @@ function groupTasksForOutput(tasks) {
   }));
 }
 
-function assignPublishers(teamMembers, tasks) {
+function buildSourceAssignmentMap(sourceAssignments) {
+  const map = new Map();
+  for (const item of sourceAssignments || []) {
+    const sourceUrl = String(item?.source_url || "");
+    const publisherEmail = String(item?.publisher_email || "");
+    if (!sourceUrl || !publisherEmail) continue;
+    if (!map.has(sourceUrl)) map.set(sourceUrl, new Set());
+    map.get(sourceUrl).add(publisherEmail);
+  }
+  return map;
+}
+
+function getSourceFreshMembers(allMembers, task, sourceAssignmentMap) {
+  const usedBy = sourceAssignmentMap.get(String(task?.source_url || "")) || new Set();
+  return allMembers.filter((member) => !usedBy.has(member.email));
+}
+
+function getEligibleMembers(allMembers, task, linkCounters, sourceAssignmentMap) {
+  const sourceFreshMembers = getSourceFreshMembers(allMembers, task, sourceAssignmentMap);
+  if (!sourceFreshMembers.length) return [];
+  if (task.target_url && task.platform === "Reddit") {
+    const withinLimit = sourceFreshMembers.filter(
+      (member) => Number(linkCounters.get(member.email) || 0) < Number(member.daily_link_limit || 0)
+    );
+    if (withinLimit.length) return withinLimit;
+    const nonWarmup = sourceFreshMembers.filter((member) => member.account_mode !== "warmup");
+    return nonWarmup.length ? nonWarmup : sourceFreshMembers;
+  }
+  if (task.target_url) {
+    const nonWarmup = sourceFreshMembers.filter((member) => member.account_mode !== "warmup");
+    return nonWarmup.length ? nonWarmup : sourceFreshMembers;
+  }
+  return sourceFreshMembers;
+}
+
+function assignPublishers(teamMembers, tasks, sourceAssignments = []) {
   const counters = new Map((teamMembers || []).map((member) => [member.email, 0]));
   const linkCounters = new Map((teamMembers || []).map((member) => [member.email, 0]));
   const allMembers = [...(teamMembers || [])];
+  const sourceAssignmentMap = buildSourceAssignmentMap(sourceAssignments);
   for (const task of tasks) {
-    let eligible = allMembers;
-    if (task.target_url && task.platform === "Reddit") {
-      eligible = allMembers.filter(
-        (member) => Number(linkCounters.get(member.email) || 0) < Number(member.daily_link_limit || 0)
-      );
-      if (!eligible.length) {
-        eligible = allMembers.filter((member) => member.account_mode !== "warmup");
-      }
-    } else if (task.target_url) {
-      eligible = allMembers.filter((member) => member.account_mode !== "warmup");
-      if (!eligible.length) eligible = allMembers;
+    let eligible = getEligibleMembers(allMembers, task, linkCounters, sourceAssignmentMap);
+    if (!eligible.length) {
+      throw new Error(`No eligible publisher remains for ${task.source_url}`);
     }
     eligible.sort((left, right) => {
       const leftLoad = (counters.get(left.email) || 0) + (linkCounters.get(left.email) || 0) * 0.25;
@@ -162,6 +191,8 @@ function assignPublishers(teamMembers, tasks) {
     const selected = eligible[0] || allMembers[0];
     task.publisher_email = selected?.email || "";
     counters.set(task.publisher_email, (counters.get(task.publisher_email) || 0) + 1);
+    if (!sourceAssignmentMap.has(task.source_url)) sourceAssignmentMap.set(task.source_url, new Set());
+    sourceAssignmentMap.get(task.source_url).add(task.publisher_email);
     if (task.target_url) {
       linkCounters.set(task.publisher_email, (linkCounters.get(task.publisher_email) || 0) + 1);
     }
@@ -190,6 +221,45 @@ function resolveQualifiedDisclosureTarget(teamMembers, opportunity, books, categ
   if (linkMeta.link_type === LINK_TYPE_BOOK && bookLink) usedBookSlugs.add(bookLink.slug);
   if (linkMeta.link_type === LINK_TYPE_CATEGORY && categoryLink) usedCategorySlugs.add(categoryLink.slug);
   return linkMeta;
+}
+
+function pickDistinctQuoraLinkMeta(opportunity, books, categories, usedBookSlugs, usedCategorySlugs, usedQuoraTargetUrls) {
+  const categoryLink = selectCategoryLink(opportunity.category_slug, categories, usedCategorySlugs);
+  const candidates = [];
+  if (opportunity.intent === "book_recommendation" && categoryLink) {
+    candidates.push({
+      link_type: LINK_TYPE_CATEGORY,
+      target_url: `https://reader.pub/books/#view=category&category=${encodeURIComponent(categoryLink.slug)}`,
+      target_slug: categoryLink.slug,
+      target_title: categoryLink.title,
+    });
+  }
+  if (categoryLink) {
+    candidates.push({
+      link_type: LINK_TYPE_CATEGORY,
+      target_url: `https://reader.pub/books/#view=category&category=${encodeURIComponent(categoryLink.slug)}`,
+      target_slug: categoryLink.slug,
+      target_title: categoryLink.title,
+    });
+  }
+  candidates.push({
+    link_type: LINK_TYPE_CATALOG,
+    target_url: "https://reader.pub/books/",
+    target_slug: "catalog",
+    target_title: "Catalog",
+  });
+  const uniqueCandidates = candidates.filter(
+    (candidate, index) =>
+      candidate?.target_url &&
+      candidates.findIndex((item) => item.target_url === candidate.target_url) === index
+  );
+  const selected =
+    uniqueCandidates.find((candidate) => !usedQuoraTargetUrls.has(candidate.target_url)) ||
+    uniqueCandidates[0] ||
+    { link_type: "", target_url: "", target_slug: "", target_title: "" };
+  if (selected.link_type === LINK_TYPE_CATEGORY && selected.target_slug) usedCategorySlugs.add(selected.target_slug);
+  if (selected.target_url) usedQuoraTargetUrls.add(selected.target_url);
+  return selected;
 }
 
 function enforceTopicMix(selected, ranked, selectedIds) {
@@ -253,9 +323,12 @@ function enforceTaskTypeMix(selected, ranked) {
   return repaired;
 }
 
-function buildCandidateBatch(teamMembers, opportunities) {
+function buildCandidateBatch(teamMembers, opportunities, sourceAssignments = []) {
   const selectedIds = new Set();
-  const ranked = rankOpportunities(opportunities).filter((item) => item.platform !== "Medium");
+  const sourceAssignmentMap = buildSourceAssignmentMap(sourceAssignments);
+  const ranked = rankOpportunities(opportunities)
+    .filter((item) => item.platform !== "Medium")
+    .filter((item) => getSourceFreshMembers(teamMembers || [], item, sourceAssignmentMap).length > 0);
   const quoraPool = ranked.filter((item) => item.platform === "Quora");
   const redditPool = ranked.filter((item) => item.platform === "Reddit");
   const qualifiedPool = ranked.filter((item) => item.task_type === "qualified_disclosure");
@@ -317,26 +390,41 @@ function buildCandidateBatch(teamMembers, opportunities) {
   );
 }
 
-export function orchestrateTasks(env, runDate, teamMembers, opportunities, drafts) {
+export function orchestrateTasks(env, runDate, teamMembers, opportunities, drafts, options = {}) {
   const books = parseJsonEnvArray(env.PUBLISHER_BOOK_LINKS_JSON, DEFAULT_BOOK_LINKS);
   const categories = parseJsonEnvArray(env.PUBLISHER_CATEGORY_LINKS_JSON, DEFAULT_CATEGORY_LINKS);
   const draftByOpportunity = new Map((drafts || []).map((draft) => [draft.opportunity_id, draft]));
-  const selectedOpportunities = buildCandidateBatch(teamMembers, opportunities || []);
+  const sourceAssignments = options.sourceAssignments || [];
+  const selectedOpportunities = buildCandidateBatch(teamMembers, opportunities || [], sourceAssignments);
   const usedBookSlugs = new Set();
   const usedCategorySlugs = new Set();
+  const usedQuoraTargetUrls = new Set();
 
   const tasks = selectedOpportunities.map((opportunity, index) => {
     const draft = draftByOpportunity.get(opportunity.id);
-    const linkMeta = resolveQualifiedDisclosureTarget(
-      teamMembers,
-      opportunity,
-      books,
-      categories,
-      usedBookSlugs,
-      usedCategorySlugs
-    );
+    const linkMeta = opportunity.platform === "Quora"
+      ? pickDistinctQuoraLinkMeta(
+          opportunity,
+          books,
+          categories,
+          usedBookSlugs,
+          usedCategorySlugs,
+          usedQuoraTargetUrls
+        )
+      : resolveQualifiedDisclosureTarget(
+          teamMembers,
+          opportunity,
+          books,
+          categories,
+          usedBookSlugs,
+          usedCategorySlugs
+        );
     const finalized = materializeDraft(draft, opportunity, "");
-    const linkAppropriate = Boolean((opportunity.task_type || "presence") === "qualified_disclosure" && linkMeta.target_url);
+    const linkAppropriate = Boolean(
+      opportunity.platform === "Quora"
+        ? (opportunity.task_type || "presence") === "qualified_disclosure" && linkMeta.target_url
+        : (opportunity.task_type || "presence") === "qualified_disclosure" && linkMeta.target_url
+    );
     return {
       id: stableId("task", `${runDate}:${index + 1}:${opportunity.source_url}`),
       run_date: runDate,
@@ -348,6 +436,7 @@ export function orchestrateTasks(env, runDate, teamMembers, opportunities, draft
       url_verified: Boolean(opportunity.url_verified),
       task_type: opportunity.task_type || "presence",
       link_appropriate: linkAppropriate,
+      why_this_link: "",
       suggested_link_sentence: "",
       title: finalized.title || "",
       text: finalized.text,
@@ -368,6 +457,7 @@ export function orchestrateTasks(env, runDate, teamMembers, opportunities, draft
     };
   }).map((task) => ({
     ...task,
+    why_this_link: buildWhyThisLink(task),
     suggested_link_sentence: buildSuggestedLinkSentence(task),
   }));
 
@@ -389,10 +479,10 @@ export function orchestrateTasks(env, runDate, teamMembers, opportunities, draft
       }
       return left.sequence_no - right.sequence_no;
     })).map((task, index) => ({ ...task, sequence_no: index + 1 }));
-    return groupTasksForOutput(assignPublishers(teamMembers, repaired));
+    return groupTasksForOutput(assignPublishers(teamMembers, repaired, sourceAssignments));
   }
 
-  return groupTasksForOutput(assignPublishers(teamMembers, tasks));
+  return groupTasksForOutput(assignPublishers(teamMembers, tasks, sourceAssignments));
 }
 
 export function summarizeTaskRun(tasks) {

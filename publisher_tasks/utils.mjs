@@ -183,6 +183,26 @@ export function pickLinkMetadata(opportunity, bookLink, categoryLink) {
   };
 }
 
+export function buildWhyThisLink(task) {
+  if (!task?.target_url) return "";
+  if (task.platform === "Quora") {
+    if (task.link_type === LINK_TYPE_BOOK) {
+      return "This points to a concrete edition that matches a question about a specific book.";
+    }
+    if (task.link_type === LINK_TYPE_CATEGORY) {
+      return "This narrows the answer to a relevant category instead of sending the reader to a generic starting point.";
+    }
+    return "This gives a broad starting point when the question is about reading options in general rather than one title.";
+  }
+  if (task.link_type === LINK_TYPE_BOOK) {
+    return "This points to a direct edition instead of a broad catalog.";
+  }
+  if (task.link_type === LINK_TYPE_CATEGORY) {
+    return "This narrows the answer to a useful category page.";
+  }
+  return "This gives a broad catalog entry point.";
+}
+
 export function buildSuggestedLinkSentence(task) {
   const targetUrl = String(task?.target_url || "").trim();
   if (!targetUrl || !task?.link_appropriate) return "";

@@ -2,8 +2,6 @@ import {
   DEFAULT_SCOUT_CONFIG,
   MAX_DAILY_CANDIDATES,
   PLATFORM_ACTIONS,
-  QUORA_FALLBACK_CANDIDATES,
-  QUORA_DAILY_TARGET,
   TARGET_FILTERED_CANDIDATES_MAX,
   TARGET_FILTERED_CANDIDATES_MIN,
 } from "./constants.mjs";
@@ -301,6 +299,48 @@ function isPlaceholderUrl(value) {
   return !source || /example\.com|placeholder|synthetic|mock|localhost/.test(source);
 }
 
+function isRedditRemovedPayload(payload) {
+  const data = payload?.data || payload || {};
+  const title = compactWhitespace(data.title || "");
+  const selftext = compactWhitespace(data.selftext || data.selftext_html || "");
+  return Boolean(
+    data.removed_by_category ||
+    data.removed_by ||
+    data.banned_by ||
+    data.author === "[deleted]" ||
+    /^\[\s*removed by moderator\s*\]$/i.test(title) ||
+    /^\[\s*removed\s*\]$/i.test(title) ||
+    /^\[\s*removed\s*\]$/i.test(selftext)
+  );
+}
+
+function isModeratorPendingReviewText(text) {
+  const source = compactWhitespace(text || "");
+  return /\b(awaiting|pending|under)\s+(moderator\s+)?(review|approval)\b/i.test(source) ||
+    /\b(post|submission|thread)\s+(is\s+)?(?:currently\s+)?(?:being\s+)?reviewed\b/i.test(source) ||
+    /\b(held|queued)\s+for\s+moderator\s+(review|approval)\b/i.test(source);
+}
+
+function isModeratorComment(data) {
+  const author = compactWhitespace(data?.author || "");
+  return data?.distinguished === "moderator" ||
+    /modteam/i.test(author) ||
+    /^automoderator$/i.test(author);
+}
+
+function isRedditPendingReviewPayload(payload) {
+  const data = payload?.data || payload || {};
+  if (data.pending_moderation_review || data.mod_review_only) return true;
+  const comments = Array.isArray(data.comments) ? data.comments : [];
+  const visibleUserComments = comments.filter((comment) => {
+    const body = compactWhitespace(comment?.body || "");
+    if (!body || /^\[(removed|deleted)\]$/i.test(body)) return false;
+    return !isModeratorComment(comment);
+  });
+  if (visibleUserComments.length > 0) return false;
+  return comments.some((comment) => isModeratorComment(comment) && isModeratorPendingReviewText(comment?.body || ""));
+}
+
 function matchesExpectedPlatform(url, platform) {
   try {
     const parsed = new URL(url);
@@ -331,19 +371,64 @@ async function checkUrlStatus(url, method = "HEAD") {
   return response?.status || 0;
 }
 
+async function verifyRedditThreadNotRemoved(candidate) {
+  try {
+    const jsonUrl = `${String(candidate.source_url || "").replace(/\/$/, "")}.json?raw_json=1`;
+    const response = await fetch(jsonUrl, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+        "user-agent": "readerpub-task-scout/1.0",
+      },
+    });
+    if (!response?.ok) {
+      if (response?.status === 403) return true;
+      return false;
+    }
+    const payload = await response.json();
+    const postData = payload?.[0]?.data?.children?.[0]?.data || null;
+    if (!postData) return false;
+    const commentChildren = Array.isArray(payload?.[1]?.data?.children) ? payload[1].data.children : [];
+    const comments = commentChildren
+      .filter((item) => item?.kind === "t1")
+      .map((item) => item?.data || {})
+      .filter(Boolean);
+    if (isRedditPendingReviewPayload({ ...postData, comments })) return false;
+    return !isRedditRemovedPayload(postData);
+  } catch (error) {
+    return false;
+  }
+}
+
 async function verifyCandidateUrl(candidate) {
   if (!candidate?.source_url || isPlaceholderUrl(candidate.source_url)) return false;
   if (!matchesExpectedPlatform(candidate.source_url, candidate.platform)) return false;
   try {
+    if (candidate.platform === "Reddit") {
+      const redditOk = await verifyRedditThreadNotRemoved(candidate);
+      if (!redditOk) return false;
+    }
     const headStatus = await checkUrlStatus(candidate.source_url, "HEAD");
     if ([200, 301, 302].includes(headStatus)) return true;
     if (headStatus === 403 && candidate.platform === "Reddit") return true;
-    if (headStatus === 403 && candidate.platform === "Quora") return true;
     if (headStatus === 405 || headStatus >= 500 || headStatus === 0) {
       const getStatus = await checkUrlStatus(candidate.source_url, "GET");
       if ([200, 301, 302].includes(getStatus)) return true;
       if (getStatus === 403 && candidate.platform === "Reddit") return true;
-      if (getStatus === 403 && candidate.platform === "Quora") return true;
+    }
+    if (candidate.platform === "Quora") {
+      const normalizedUrl = String(candidate.source_url || "").split("?")[0];
+      const response = await fetch(
+        `https://search.brave.com/search?q=${encodeURIComponent(normalizedUrl)}&source=web`,
+        {
+          headers: {
+            accept: "text/html",
+            "user-agent": "readerpub-task-scout/1.0",
+          },
+        }
+      );
+      const body = await fetchTextOrNull(response);
+      if (body && body.includes(normalizedUrl)) return true;
     }
   } catch (error) {}
   return false;
@@ -366,6 +451,7 @@ async function fetchRedditCandidates(env, config) {
       const items = Array.isArray(payload?.data?.children) ? payload.data.children : [];
       for (const item of items) {
         const data = item?.data || {};
+        if (isRedditRemovedPayload(data)) continue;
         const created = Number(data.created_utc || 0) * 1000;
         const ageHours = created ? (now - created) / 3600000 : 999;
         if (ageHours > maxAgeHours) continue;
@@ -388,7 +474,6 @@ async function fetchRedditCandidates(env, config) {
           }
         );
         if (!isStrongCandidate(candidate)) continue;
-        candidate.url_verified = true;
         out.push(candidate);
       }
     } catch (error) {}
@@ -411,11 +496,44 @@ function extractQuoraUrlsFromHtml(html) {
   return out;
 }
 
+function titleFromQuoraUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const slug = parsed.pathname.replace(/^\/+/, "").split("/")[0] || "";
+    const clean = decodeURIComponent(slug).replace(/-/g, " ").trim();
+    if (!clean) return "";
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  } catch (error) {
+    return "";
+  }
+}
+
+function extractQuoraResultsFromBraveHtml(html) {
+  const out = [];
+  const seen = new Set();
+  const regex = /"url":"(https:\/\/www\.quora\.com\/[^"]+)"/g;
+  for (const match of String(html || "").matchAll(regex)) {
+    const url = decodeHtmlEntities(String(match[1] || "").replace(/\\u002F/g, "/").replace(/\\"/g, '"'));
+    if (!matchesExpectedPlatform(url, "Quora")) continue;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    out.push({
+      url,
+      title: titleFromQuoraUrl(url),
+      excerpt: "",
+      publishedAt: nowIso(),
+    });
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
 async function fetchQuoraCandidates(env, config) {
   const out = [];
   const endpoints = [
     (query) => `https://www.bing.com/search?format=rss&q=${encodeURIComponent(query)}`,
     (query) => `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
+    (query) => `https://search.brave.com/search?q=${encodeURIComponent(query)}&source=web`,
   ];
   for (const query of config.quoraQueries || []) {
     for (const buildEndpoint of endpoints) {
@@ -441,11 +559,19 @@ async function fetchQuoraCandidates(env, config) {
           ? []
           : extractQuoraUrlsFromHtml(body).map((url) => ({
               url,
-              title: query,
+              title: titleFromQuoraUrl(url) || query,
               excerpt: `Question discovered for query: ${query}`,
               publishedAt: nowIso(),
             }));
-        const discovered = rssUrls.length ? rssUrls : htmlUrls;
+        const braveUrls = rssItems.length
+          ? []
+          : extractQuoraResultsFromBraveHtml(body).map((item) => ({
+              url: item.url,
+              title: item.title || query,
+              excerpt: item.excerpt || `Question discovered for query: ${query}`,
+              publishedAt: item.publishedAt || nowIso(),
+            }));
+        const discovered = rssUrls.length ? rssUrls : (braveUrls.length ? braveUrls : htmlUrls);
         for (const item of discovered) {
           const candidate = buildCandidate("Quora", item.url, item.title, item.excerpt, item.publishedAt, {
             query,
@@ -461,32 +587,6 @@ async function fetchQuoraCandidates(env, config) {
     if (out.length >= 30) break;
   }
   return out;
-}
-
-function buildQuoraFallbackCandidates() {
-  return QUORA_FALLBACK_CANDIDATES.map((item, index) =>
-    normalizeMockCandidate({
-      id: `opp_quora_fallback_${index + 1}`,
-      platform: "Quora",
-      action: "Answer",
-      source_url: item.source_url,
-      title: item.title,
-      excerpt: item.excerpt,
-      discovered_at: nowIso(),
-      published_at: nowIso(),
-      query: "quora-fallback",
-      source_author: "",
-      url_verified: true,
-      topic_type: item.topic_type,
-      task_type: item.task_type,
-      intent: item.intent,
-      link_type: item.link_type,
-      category_slug: item.category_slug,
-      category_title: item.category_title,
-      raw_payload: { fallback: true },
-      scout_score: 0.66,
-    })
-  ).filter(Boolean);
 }
 
 function parseRssItems(xml) {
@@ -546,7 +646,8 @@ export async function scoutOpportunities(env, options = {}) {
     ...(options || {}),
   });
   const mocked = safeJsonParse(String(env.PUBLISHER_SCOUT_MOCK_CANDIDATES || ""), null);
-  const enableQuoraFallback = String(env.PUBLISHER_ENABLE_QUORA_FALLBACK || "true").toLowerCase() !== "false";
+  const historicalSourceUrls = new Set(options.historicalSourceUrls || []);
+  const allowHistoricalReuse = Boolean(options.allowHistoricalReuse);
   const now = Date.now();
   let rawCandidates = Array.isArray(mocked) && mocked.length
     ? mocked
@@ -557,11 +658,6 @@ export async function scoutOpportunities(env, options = {}) {
         ...(await fetchRedditCandidates(env, config)),
         ...(await fetchQuoraCandidates(env, config)),
       ];
-
-  const currentQuoraCount = rawCandidates.filter((candidate) => candidate?.platform === "Quora").length;
-  if (enableQuoraFallback && currentQuoraCount < QUORA_DAILY_TARGET) {
-    rawCandidates = rawCandidates.concat(buildQuoraFallbackCandidates());
-  }
 
   const deduped = [];
   const seen = new Set();
@@ -577,13 +673,16 @@ export async function scoutOpportunities(env, options = {}) {
   let generalCount = 0;
   let bookCount = 0;
   for (const candidate of deduped) {
+    if (candidate.platform === "Reddit" && isRedditRemovedPayload(candidate.raw_payload || {})) continue;
+    if (candidate.platform === "Reddit" && isRedditPendingReviewPayload(candidate.raw_payload || {})) continue;
     if (!isStrongCandidate(candidate)) continue;
-    if (!candidate.url_verified) {
+    if ((candidate.platform === "Reddit" && !candidate?.raw_payload?.mock) || !candidate.url_verified) {
       candidate.url_verified = await verifyCandidateUrl(candidate);
     }
     if (!candidate.url_verified) continue;
+    if (!allowHistoricalReuse && historicalSourceUrls.has(candidate.source_url)) continue;
     const cached = await readKvCache(env, candidate.source_url);
-    if (cached?.processed && !candidate?.raw_payload?.fallback) continue;
+    if (cached?.processed && !allowHistoricalReuse) continue;
     if (candidate.topic_type === "general" && generalCount >= Math.ceil(TARGET_FILTERED_CANDIDATES_MAX * 0.5)) continue;
     if (candidate.topic_type === "book" && bookCount >= Math.ceil(TARGET_FILTERED_CANDIDATES_MAX * 0.65)) continue;
     filtered.push(candidate);

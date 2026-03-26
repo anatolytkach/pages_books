@@ -32,6 +32,15 @@ function hasD1(env) {
   return !!env.PUBLISHER_DB?.prepare;
 }
 
+function isMissingWhyThisLinkColumnError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return message.includes("why_this_link") && (
+    message.includes("no such column") ||
+    message.includes("has no column named") ||
+    message.includes("table tasks has no column named")
+  );
+}
+
 async function seedTeamMembersD1(env) {
   for (const member of TEAM_MEMBER_SEEDS) {
     const accountMode = deriveRedditAccountMode(member);
@@ -178,60 +187,124 @@ async function saveTaskD1(env, task) {
     )
     .run();
 
-  await env.PUBLISHER_DB.prepare(
-    `INSERT INTO tasks (
-      id, run_date, sequence_no, platform, action, publisher_email, source_url, url_verified, task_type, link_appropriate, suggested_link_sentence, title, text, target_url,
-      link_type, target_slug, opportunity_id, draft_id, status, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      publisher_email = excluded.publisher_email,
-      url_verified = excluded.url_verified,
-      task_type = excluded.task_type,
-      link_appropriate = excluded.link_appropriate,
-      suggested_link_sentence = excluded.suggested_link_sentence,
-      title = excluded.title,
-      text = excluded.text,
-      target_url = excluded.target_url,
-      link_type = excluded.link_type,
-      target_slug = excluded.target_slug,
-      status = excluded.status`
-    )
-    .bind(
-      asText(task.id),
-      asText(task.run_date),
-      asNumber(task.sequence_no),
-      asText(task.platform),
-      asText(task.action),
-      asText(task.publisher_email),
-      asText(task.source_url),
-      task.url_verified ? 1 : 0,
-      asText(task.task_type || "presence"),
-      task.link_appropriate ? 1 : 0,
-      asText(task.suggested_link_sentence || ""),
-      asText(task.title || ""),
-      asText(task.text),
-      asText(task.target_url || ""),
-      asText(task.link_type || ""),
-      asText(task.target_slug || ""),
-      asText(task.opportunity_id),
-      asText(task.draft_id),
-      asText(task.status),
-      asText(task.created_at)
-    )
-    .run();
+  try {
+    await env.PUBLISHER_DB.prepare(
+      `INSERT INTO tasks (
+        id, run_date, sequence_no, platform, action, publisher_email, source_url, url_verified, task_type, link_appropriate, why_this_link, suggested_link_sentence, title, text, target_url,
+        link_type, target_slug, opportunity_id, draft_id, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        publisher_email = excluded.publisher_email,
+        url_verified = excluded.url_verified,
+        task_type = excluded.task_type,
+        link_appropriate = excluded.link_appropriate,
+        why_this_link = excluded.why_this_link,
+        suggested_link_sentence = excluded.suggested_link_sentence,
+        title = excluded.title,
+        text = excluded.text,
+        target_url = excluded.target_url,
+        link_type = excluded.link_type,
+        target_slug = excluded.target_slug,
+        status = excluded.status`
+      )
+      .bind(
+        asText(task.id),
+        asText(task.run_date),
+        asNumber(task.sequence_no),
+        asText(task.platform),
+        asText(task.action),
+        asText(task.publisher_email),
+        asText(task.source_url),
+        task.url_verified ? 1 : 0,
+        asText(task.task_type || "presence"),
+        task.link_appropriate ? 1 : 0,
+        asText(task.why_this_link || ""),
+        asText(task.suggested_link_sentence || ""),
+        asText(task.title || ""),
+        asText(task.text),
+        asText(task.target_url || ""),
+        asText(task.link_type || ""),
+        asText(task.target_slug || ""),
+        asText(task.opportunity_id),
+        asText(task.draft_id),
+        asText(task.status),
+        asText(task.created_at)
+      )
+      .run();
+  } catch (error) {
+    if (!isMissingWhyThisLinkColumnError(error)) throw error;
+    await env.PUBLISHER_DB.prepare(
+      `INSERT INTO tasks (
+        id, run_date, sequence_no, platform, action, publisher_email, source_url, url_verified, task_type, link_appropriate, suggested_link_sentence, title, text, target_url,
+        link_type, target_slug, opportunity_id, draft_id, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        publisher_email = excluded.publisher_email,
+        url_verified = excluded.url_verified,
+        task_type = excluded.task_type,
+        link_appropriate = excluded.link_appropriate,
+        suggested_link_sentence = excluded.suggested_link_sentence,
+        title = excluded.title,
+        text = excluded.text,
+        target_url = excluded.target_url,
+        link_type = excluded.link_type,
+        target_slug = excluded.target_slug,
+        status = excluded.status`
+      )
+      .bind(
+        asText(task.id),
+        asText(task.run_date),
+        asNumber(task.sequence_no),
+        asText(task.platform),
+        asText(task.action),
+        asText(task.publisher_email),
+        asText(task.source_url),
+        task.url_verified ? 1 : 0,
+        asText(task.task_type || "presence"),
+        task.link_appropriate ? 1 : 0,
+        asText(task.suggested_link_sentence || ""),
+        asText(task.title || ""),
+        asText(task.text),
+        asText(task.target_url || ""),
+        asText(task.link_type || ""),
+        asText(task.target_slug || ""),
+        asText(task.opportunity_id),
+        asText(task.draft_id),
+        asText(task.status),
+        asText(task.created_at)
+      )
+      .run();
+  }
 }
 
 async function listTasksByDateD1(env, runDate) {
-  const result = await env.PUBLISHER_DB.prepare(
-    `SELECT id, run_date, sequence_no, platform, action, publisher_email, source_url, url_verified, task_type, link_appropriate, suggested_link_sentence, title, text, target_url,
-            link_type, target_slug, opportunity_id, draft_id, status, created_at
-     FROM tasks
-     WHERE run_date = ?
-     ORDER BY sequence_no ASC`
-  )
-    .bind(runDate)
-    .all();
-  return result?.results || [];
+  try {
+    const result = await env.PUBLISHER_DB.prepare(
+      `SELECT id, run_date, sequence_no, platform, action, publisher_email, source_url, url_verified, task_type, link_appropriate, why_this_link, suggested_link_sentence, title, text, target_url,
+              link_type, target_slug, opportunity_id, draft_id, status, created_at
+       FROM tasks
+       WHERE run_date = ?
+       ORDER BY sequence_no ASC`
+    )
+      .bind(runDate)
+      .all();
+    return result?.results || [];
+  } catch (error) {
+    if (!isMissingWhyThisLinkColumnError(error)) throw error;
+    const fallback = await env.PUBLISHER_DB.prepare(
+      `SELECT id, run_date, sequence_no, platform, action, publisher_email, source_url, url_verified, task_type, link_appropriate, suggested_link_sentence, title, text, target_url,
+              link_type, target_slug, opportunity_id, draft_id, status, created_at
+       FROM tasks
+       WHERE run_date = ?
+       ORDER BY sequence_no ASC`
+    )
+      .bind(runDate)
+      .all();
+    return (fallback?.results || []).map((item) => ({
+      ...item,
+      why_this_link: "",
+    }));
+  }
 }
 
 async function getRecentTasksByPublisherD1(env, email, limit = 10) {
@@ -257,6 +330,18 @@ async function listTaskDatesD1(env, limit = 90) {
      )
      GROUP BY run_date
      ORDER BY run_date DESC
+     LIMIT ?`
+  )
+    .bind(limit)
+    .all();
+  return result?.results || [];
+}
+
+async function listSourceAssignmentsD1(env, limit = 5000) {
+  const result = await env.PUBLISHER_DB.prepare(
+    `SELECT source_url, publisher_email, run_date
+     FROM tasks
+     ORDER BY run_date DESC, sequence_no ASC
      LIMIT ?`
   )
     .bind(limit)
@@ -414,6 +499,24 @@ export async function listTaskDates(env, limit = 90) {
     .sort((left, right) => String(right.run_date).localeCompare(String(left.run_date)))
     .slice(0, limit)
     .map((item) => ({ run_date: item.run_date, task_count: item.task_count }));
+}
+
+export async function listSourceAssignments(env, limit = 5000) {
+  if (hasD1(env)) return listSourceAssignmentsD1(env, limit);
+  return getMemoryStore(env)
+    .tasks
+    .slice()
+    .sort((a, b) => {
+      const dateCmp = String(b.run_date).localeCompare(String(a.run_date));
+      if (dateCmp !== 0) return dateCmp;
+      return Number(a.sequence_no || 0) - Number(b.sequence_no || 0);
+    })
+    .slice(0, limit)
+    .map((item) => ({
+      source_url: item.source_url,
+      publisher_email: item.publisher_email,
+      run_date: item.run_date,
+    }));
 }
 
 export async function getTaskRun(env, runDate) {

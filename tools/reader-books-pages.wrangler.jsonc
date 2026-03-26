@@ -1,0 +1,18 @@
+{
+  "name": "reader-books",
+  "compatibility_date": "2026-02-04",
+  "pages_build_output_dir": "./",
+  "d1_databases": [
+    {
+      "binding": "PUBLISHER_DB",
+      "database_name": "reader-publisher-tasks",
+      "database_id": "7bbeb8c4-d58f-4eeb-b294-656cda98f6c0"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "PUBLISHER_TASK_CACHE",
+      "id": "73547361358549f5a33bfb0793d5a7d4"
+    }
+  ]
+}
