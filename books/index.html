@@ -1023,6 +1023,7 @@
           categories: new Map(),
           categoryDetails: new Map(),
           popular: new Map(),
+          newest: new Map(),
         };
 
         try {
@@ -1560,9 +1561,13 @@
               const title = item.title || item.name || item.label || item.book || item.work || item.value || id;
               const cover = item.cover || item.coverUrl || item.cover_url || item.image || item.img || item.thumbnail;
               const author = item.author || item.authorName || item.creator || item.by;
+              const bookSource = item.source || item.bookSource || item.book_source || "gutenberg";
+              const legacyId = item.legacyId || item.legacy_id || item.readerId || item.reader_id || "";
               if (!id) return null;
               return {
                 id: String(id),
+                source: bookSource ? String(bookSource) : "",
+                legacyId: legacyId ? String(legacyId) : "",
                 title: String(title || id),
                 cover: cover ? String(cover) : "",
                 author: author ? String(author) : "",
@@ -1627,6 +1632,19 @@
           };
         }
 
+        function normalizeNewestPayload(data) {
+          if (!data || typeof data !== "object") {
+            return { windowDays: 7, generatedAt: "", count: 0, books: [] };
+          }
+          const books = normalizeBooks(data.books || data.items || data.list || []);
+          return {
+            windowDays: parseNumber(data.windowDays ?? data.window_days) ?? 7,
+            generatedAt: String(data.generatedAt || data.generated_at || "").trim(),
+            count: parseNumber(data.count ?? books.length) ?? books.length,
+            books,
+          };
+        }
+
         function parseNumber(value) {
           if (value === null || value === undefined || value === "") return null;
           const num = Number(value);
@@ -1672,14 +1690,49 @@
           return cover;
         }
 
-        function openBookUrl(id) {
-          return `/books/${encodeURIComponent(id)}/`;
+        function inferBookSource(bookOrId, sourceOverride) {
+          const explicit = String(sourceOverride || "").trim();
+          if (explicit) return explicit;
+          if (!bookOrId || typeof bookOrId !== "object") return "";
+
+          const rawSource = String(bookOrId.source || bookOrId.book_source || bookOrId.bookSource || "").trim();
+          if (rawSource) return rawSource;
+
+          const id = String(bookOrId.id || "").trim();
+          const sourceBookId = String(bookOrId.sourceBookId || bookOrId.source_book_id || id || "").trim();
+          const legacyId = String(bookOrId.legacyId || bookOrId.legacy_id || "").trim();
+
+          if (legacyId && sourceBookId && legacyId !== sourceBookId) return "manual";
+          if (legacyId && !sourceBookId && id && legacyId !== id) return "manual";
+
+          return "";
         }
 
-        function openReaderUrl(id, cover) {
+        function normalizeBookTarget(bookOrId, source) {
+          if (bookOrId && typeof bookOrId === "object") {
+            return {
+              id: String(bookOrId.id || ""),
+              source: inferBookSource(bookOrId, source),
+            };
+          }
+          return {
+            id: String(bookOrId || ""),
+            source: String(source || ""),
+          };
+        }
+
+        function openBookUrl(bookOrId, source, cover) {
+          return openReaderUrl(bookOrId, cover, source);
+        }
+
+        function openReaderUrl(bookOrId, cover, sourceOverride) {
+          const target = normalizeBookTarget(bookOrId, sourceOverride);
+          const id = target.id;
+          const source = target.source;
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
           const base = isPagesDev ? "/reader/" : "/books/reader/";
           let url = `${base}?id=${encodeURIComponent(id)}`;
+          if (source && source !== "gutenberg") url += `&source=${encodeURIComponent(source)}`;
           const coverHint = String(cover || "").trim();
           if (coverHint) url += `&cover=${encodeURIComponent(coverHint)}`;
           return url;
@@ -1859,6 +1912,12 @@
           return rawId ? String(rawId) : "";
         }
 
+        function getSearchBookSource(item) {
+          if (!item || typeof item !== "object") return "";
+          const rawSource = item.source || item.book_source || item.bookSource || "";
+          return rawSource ? String(rawSource) : "";
+        }
+
         function getSearchBookCover(item) {
           if (!item || typeof item !== "object") return "";
           const cover = item.cover || item.coverUrl || item.cover_url || item.image || item.img || item.thumbnail;
@@ -1891,15 +1950,16 @@
             .replace(/&gt;/g, ">");
         }
 
-        async function fetchBookCoverById(id) {
+        async function fetchBookCoverById(id, source) {
           const bookId = String(id || "").trim();
           if (!bookId) return "";
-          if (cache.bookCoverById.has(bookId)) return cache.bookCoverById.get(bookId) || "";
-          const url = openBookUrl(bookId);
+          const cacheKey = source ? `${source}:${bookId}` : bookId;
+          if (cache.bookCoverById.has(cacheKey)) return cache.bookCoverById.get(cacheKey) || "";
+          const url = openBookUrl({ id: bookId, source: source || "" });
           try {
             const res = await fetch(url, { cache: "no-store" });
             if (!res.ok) {
-              cache.bookCoverById.set(bookId, "");
+              cache.bookCoverById.set(cacheKey, "");
               return "";
             }
             const html = await res.text();
@@ -1929,10 +1989,10 @@
               if (relMatch && relMatch[0]) cover = `/${relMatch[0].replace(/^\/+/, "")}`;
             }
             cover = resolveCoverUrl(decodeHtmlAttr(String(cover || "").trim()));
-            cache.bookCoverById.set(bookId, cover || "");
+            cache.bookCoverById.set(cacheKey, cover || "");
             return cover || "";
           } catch (error) {
-            cache.bookCoverById.set(bookId, "");
+            cache.bookCoverById.set(cacheKey, "");
             return "";
           }
         }
@@ -1957,7 +2017,12 @@
                 if (expectedNonce !== REQ_NONCE) return item;
                 try {
                   const hits = await fetchSearchIndexForCatalog(token);
-                  const matched = hits.find((candidate) => getSearchBookId(candidate) === id);
+                  const matched = hits.find((candidate) => {
+                    if (getSearchBookId(candidate) !== id) return false;
+                    const candidateSource = getSearchBookSource(candidate);
+                    if (!item.source || !candidateSource) return true;
+                    return candidateSource === item.source;
+                  });
                   if (!matched) continue;
                   const cover = getSearchBookCover(matched);
                   if (!cover) continue;
@@ -1965,7 +2030,7 @@
                 } catch (error) {}
               }
               if (expectedNonce !== REQ_NONCE) return item;
-              const coverById = await fetchBookCoverById(id);
+              const coverById = await fetchBookCoverById(id, item.source);
               if (coverById) return { ...item, cover: coverById };
               return item;
             })
@@ -2028,6 +2093,7 @@
                 return {
                   type: "book",
                   id: item.id || item.book_id || item.bookId || item.key,
+                  source: item.source || item.bookSource || item.book_source || "",
                   title: item.title || item.name || item.label,
                   author: item.a || item.author || "",
                   authorKey: item.k || item.authorKey || "",
@@ -2044,7 +2110,7 @@
                     meta: item.author || "Book",
                     hint: "Open book",
                     cover: resolveCoverUrl(item.cover),
-                    href: openBookUrl(item.id),
+                    href: openBookUrl(item.id, item.source, item.cover),
                     openInNewTab: false,
                   };
                 }
@@ -2272,7 +2338,47 @@
           const grid = el("div", "grid");
           previewBooks.forEach((book) => {
             const card = el("a", "card");
-            card.href = openBookUrl(book.id);
+            card.href = openBookUrl(book, book.source, book.cover);
+
+            const coverUrl = resolveCoverUrl(book.cover);
+            const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
+            if (coverUrl) {
+              const img = new Image();
+              img.loading = "lazy";
+              img.decoding = "async";
+              img.alt = `${book.title} cover`;
+              img.src = coverUrl;
+              img.onerror = () => {
+                cover.classList.add("coverEmpty");
+                cover.textContent = "No cover";
+              };
+              cover.appendChild(img);
+            } else {
+              cover.textContent = "No cover";
+            }
+
+            card.appendChild(cover);
+            card.appendChild(el("div", "cardTitle", book.title));
+            card.appendChild(el("div", "cardMeta", book.author || ""));
+            grid.appendChild(card);
+          });
+          section.appendChild(grid);
+          return section;
+        }
+
+        function renderNewestPreview(newest) {
+          const section = el("section", "landingSection");
+          const windowDays = parseNumber(newest && newest.windowDays) ?? 7;
+          const previewBooks = Array.isArray(newest && newest.books) ? newest.books.slice(0, 12) : [];
+          section.appendChild(createSectionHeader("Newest Releases", `Added in the last ${windowDays} days`));
+          if (!previewBooks.length) {
+            section.appendChild(el("div", "loading", "No new books were added in the current window."));
+            return section;
+          }
+          const grid = el("div", "grid");
+          previewBooks.forEach((book) => {
+            const card = el("a", "card");
+            card.href = openBookUrl(book, book.source, book.cover);
 
             const coverUrl = resolveCoverUrl(book.cover);
             const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
@@ -2347,7 +2453,7 @@
           return section;
         }
 
-        function renderLanding(letters, popular, categories) {
+        function renderLanding(letters, newest, popular, categories) {
           els.content.innerHTML = "";
           const wrap = el("div", "catalogSections");
           const lettersSection = el("section", "landingSection");
@@ -2358,6 +2464,7 @@
             lettersSection.appendChild(createLettersGrid(letters));
           }
           wrap.appendChild(lettersSection);
+          wrap.appendChild(renderNewestPreview(newest || { windowDays: 7, books: [] }));
           wrap.appendChild(renderPopularPreview(popular || { defaultList: "last30days", lists: {} }));
           wrap.appendChild(renderCategoriesSection(categories || []));
           els.content.appendChild(wrap);
@@ -2499,7 +2606,7 @@
             const grid = el("div", "grid");
             books.forEach((book) => {
               const card = el("a", "card");
-              card.href = openBookUrl(book.id);
+              card.href = openBookUrl(book, book.source, book.cover);
 
               const coverUrl = resolveCoverUrl(book.cover);
               const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
@@ -2536,7 +2643,7 @@
               const row = el("tr", null);
               const cell = el("td");
               const link = el("a", null, book.title);
-              link.href = openBookUrl(book.id);
+              link.href = openBookUrl(book, book.source, book.cover);
               cell.appendChild(link);
               row.appendChild(cell);
               tbody.appendChild(row);
@@ -2568,7 +2675,7 @@
             body = el("div", "grid");
             listBooks.forEach((book) => {
               const card = el("a", "card");
-              card.href = openBookUrl(book.id);
+              card.href = openBookUrl(book, book.source, book.cover);
               const coverUrl = resolveCoverUrl(book.cover);
               const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
               if (coverUrl) {
@@ -2597,7 +2704,7 @@
               const row = el("tr", null);
               const titleCell = el("td");
               const link = el("a", null, book.title);
-              link.href = openBookUrl(book.id);
+              link.href = openBookUrl(book, book.source, book.cover);
               titleCell.appendChild(link);
               if (book.author) titleCell.appendChild(el("div", "mybooks-meta", book.author));
               row.appendChild(titleCell);
@@ -2706,7 +2813,7 @@
                 card.addEventListener("click", (event) => {
                   const t = event.target;
                   if (t && t.closest && t.closest("a, input, button, label")) return;
-                  const url = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
+                  const url = openReaderUrl(book, book.cover || book.coverUrl || book.cover_url || "", book.source);
                   window.location.href = url;
                 });
 
@@ -2732,7 +2839,7 @@
                   img.alt = `${book.title || `Book ${bookId}`} cover`;
                   img.src = coverUrl;
                   img.onerror = async () => {
-                    const fallback = await fetchBookCoverById(bookId);
+                    const fallback = await fetchBookCoverById(bookId, book.source);
                     if (fallback && fallback !== coverUrl) {
                       img.src = fallback;
                       return;
@@ -2746,7 +2853,7 @@
                 }
                 const titleWrap = el("div", "cardTitle");
                 const titleLink = el("a", null, book.title || `Book ${bookId}`);
-                titleLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
+                titleLink.href = openReaderUrl(book, book.cover || book.coverUrl || book.cover_url || "", book.source);
                 titleWrap.appendChild(titleLink);
                 const meta = el("div", "cardMeta", book.author || "");
 
@@ -2780,7 +2887,7 @@
 
               const bookCell = el("td");
               const titleLink = el("a", null, book.title || `Book ${bookId}`);
-              titleLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
+              titleLink.href = openReaderUrl(book, book.cover || book.coverUrl || book.cover_url || "", book.source);
               bookCell.appendChild(titleLink);
               if (book.author) {
                 bookCell.appendChild(el("div", "mybooks-meta", book.author));
@@ -2788,7 +2895,7 @@
 
               const openCell = el("td", "count");
               const openLink = el("a", "mybooks-open", "Open");
-              openLink.href = openReaderUrl(bookId, book.cover || book.coverUrl || book.cover_url || "");
+              openLink.href = openReaderUrl(book, book.cover || book.coverUrl || book.cover_url || "", book.source);
               openCell.appendChild(openLink);
 
               row.appendChild(selectCell);
@@ -3098,6 +3205,7 @@
           cache.categories.clear();
           cache.categoryDetails.clear();
           cache.popular.clear();
+          cache.newest.clear();
           hiddenEmptyPrefixes.clear();
         }
 
@@ -3161,6 +3269,17 @@
           }
           const payload = normalizePopularPayload(data);
           cache.popular.set(cacheKey, payload);
+          return payload;
+        }
+
+        async function getNewest(nonce) {
+          const cacheKey = "all";
+          if (cache.newest.has(cacheKey)) return cache.newest.get(cacheKey);
+          const pattern = config.discoverNewestPath;
+          if (!pattern) return { windowDays: 7, generatedAt: "", count: 0, books: [] };
+          const data = await fetchJsonMaybe(buildUrl(pattern, {}, { ignoreLang: true }), nonce);
+          const payload = normalizeNewestPayload(data);
+          cache.newest.set(cacheKey, payload);
           return payload;
         }
 
@@ -3395,8 +3514,13 @@
               showLoading("Loading letters...");
               const letters = await getLetters(nonce);
               if (nonce !== REQ_NONCE) return;
+              let newest = { windowDays: 7, books: [] };
               let popular = { defaultList: "last30days", lists: {} };
               let categories = [];
+              try {
+                newest = await getNewest(nonce);
+              } catch (error) {}
+              if (nonce !== REQ_NONCE) return;
               try {
                 popular = await getPopular(nonce);
               } catch (error) {}
@@ -3407,8 +3531,8 @@
               if (nonce !== REQ_NONCE) return;
               setBreadcrumbs([{ label: "Letters" }]);
               setToolbar("letters");
-              currentView = { renderer: () => renderLanding(letters, popular, categories), data: letters };
-              renderLanding(letters, popular, categories);
+              currentView = { renderer: () => renderLanding(letters, newest, popular, categories), data: letters };
+              renderLanding(letters, newest, popular, categories);
               renderSearchResults();
               return;
             }

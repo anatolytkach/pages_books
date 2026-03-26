@@ -50,12 +50,46 @@
               return undefined;
             }
 
+            function bookLocationShard(id) {
+              var raw = String(id || "").trim();
+              if (/^\d+$/.test(raw)) {
+                var value = Number(raw) % 100;
+                return String(value).padStart(2, "0");
+              }
+              var total = 0;
+              for (var i = 0; i < raw.length; i++) total = (total + raw.charCodeAt(i)) % 100;
+              return String(total).padStart(2, "0");
+            }
+
+            function isLocalPreviewHost() {
+              var host = String((window.location && window.location.hostname) || "").trim().toLowerCase();
+              return host === "127.0.0.1" || host === "localhost" || host === "::1";
+            }
+
+            function fetchBookLocation(source, id) {
+              var shard = bookLocationShard(id);
+              var path = source
+                ? `/books/api/book-locations/${encodeURIComponent(source)}/${shard}.json?v=${Date.now()}`
+                : `/books/api/book-locations/${shard}.json?v=${Date.now()}`;
+              return fetch(path, { cache: "no-store" })
+                .then(function(response){
+                  if (!response.ok) throw new Error(`book-locations fetch failed (${response.status})`);
+                  return response.json();
+                })
+                .then(function(payload){
+                  var items = payload && payload.items ? payload.items : {};
+                  var item = items && items[id] ? items[id] : null;
+                  return item || null;
+                });
+            }
+
             document.onreadystatechange = function () {
               if (document.readyState == "complete") {
                 // Book source: ONLY from catalog (exploded EPUB directories on R2).
 // Expect book id in either ?id=75586 or #75586 (hash).
 (function(){
   const params = new URLSearchParams(location.search);
+  const qsource = params.get("source");
   const qid = params.get("id");
   const qidShort = params.get("i");
   const rawHash = (location.hash || "");
@@ -63,12 +97,20 @@
   const hashIsId = /^\d+$/.test(hid);
   const hashIsCfi = /^epubcfi\(/i.test(hid);
   let id = (qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId ? hid.trim() : "") || "";
+  let source = (qsource && qsource.trim()) || "";
+  if (source === "gutenberg") source = "";
 
-  // Fallback: remember last opened book id
+  const hasExplicitId = !!((qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId && hid.trim()));
+
+  // Fallback: remember last opened book id/source
   try {
     if (!/^\d+$/.test(id)) {
       const lastId = localStorage && localStorage.getItem("readerpub:lastid");
       if (lastId && /^\d+$/.test(lastId)) id = lastId;
+    }
+    if (!source && !hasExplicitId) {
+      const lastSource = localStorage && localStorage.getItem("readerpub:lastsource");
+      if (lastSource && lastSource !== "gutenberg") source = lastSource;
     }
   } catch (e0) {}
 
@@ -88,10 +130,12 @@
     return;
   }
 
-  // Always keep ?id in URL (for reload/share). Preserve CFI hash if present.
+  // Always keep canonical params in URL (for reload/share). Preserve CFI hash if present.
   try {
-    if (!qid || qid !== id) {
+    if (!qid || qid !== id || (source && qsource !== source) || (!source && qsource)) {
       const nextParams = new URLSearchParams(location.search || "");
+      if (source) nextParams.set("source", source);
+      else nextParams.delete("source");
       nextParams.set("id", id);
       nextParams.delete("i");
       const newSearch = `?${nextParams.toString()}`;
@@ -101,32 +145,29 @@
   } catch (e1) {}
 
   try { localStorage && localStorage.setItem("readerpub:lastid", id); } catch (e2) {}
+  try { if (source && localStorage) localStorage.setItem("readerpub:lastsource", source); } catch (e3) {}
 
-  // Our catalog stores each book as an unpacked EPUB directory:
-  // /books/content/<id>/META-INF/container.xml, /OEBPS/content.opf, ...
-  const bookPath = `/books/content/${id}/`;
+  function bootReader(bookPath) {
+    const opts = {
+      openAs: "directory",
+      restore: true
+    };
 
-  const opts = {
-    openAs: "directory",
-    restore: true
-  };
+    window.reader = ePubReader(bookPath, opts);
 
-  // Run Reader
-  window.reader = ePubReader(bookPath, opts);
-
-  try {
-    if (window.ReaderPubAnalytics && typeof window.ReaderPubAnalytics.boot === "function") {
-      window.ReaderPubAnalytics.boot();
-      if (typeof window.ReaderPubAnalytics.captureReaderPageview === "function") {
-        window.ReaderPubAnalytics.captureReaderPageview({
-          path: window.location.pathname || "",
-          search: window.location.search || "",
-        });
+    try {
+      if (window.ReaderPubAnalytics && typeof window.ReaderPubAnalytics.boot === "function") {
+        window.ReaderPubAnalytics.boot();
+        if (typeof window.ReaderPubAnalytics.captureReaderPageview === "function") {
+          window.ReaderPubAnalytics.captureReaderPageview({
+            path: window.location.pathname || "",
+            search: window.location.search || "",
+          });
+        }
       }
-    }
-  } catch (ePageview) {}
+    } catch (ePageview) {}
 
-  (function(){
+    (function(){
     function buildBookOpenPayload(meta) {
       const rawTitle = meta && (meta.bookTitle || meta.title) ? String(meta.bookTitle || meta.title).trim() : "";
       const queryTitle = getQueryParam("title");
@@ -143,6 +184,7 @@
 
       return {
         book_id: id,
+        book_source: source || "",
         slug: slug,
         title: title,
         url: window.location.href,
@@ -175,49 +217,50 @@
     sendBookOpen(null);
   })();
 
-  // Keep document title dynamic per opened book.
-  (function(){
-    try {
-      if (!window.reader || !window.reader.book || !window.reader.book.loaded) return;
-      const loadedMeta = window.reader.book.loaded.metadata;
-      if (!loadedMeta || typeof loadedMeta.then !== "function") return;
-      loadedMeta.then(function(meta){
-        try {
-          const rawTitle = (meta && (meta.bookTitle || meta.title)) ? String(meta.bookTitle || meta.title).trim() : "";
-          const rawAuthor = (meta && meta.creator) ? String(meta.creator).trim() : "";
-          document.title = rawTitle ? (rawAuthor ? `${rawTitle} — ${rawAuthor}` : rawTitle) : "ReaderPub";
-        } catch (e0) {
-          document.title = "ReaderPub";
-        }
-      }).catch(function(){
-        document.title = "ReaderPub";
-      });
-    } catch (e) {
-      document.title = "ReaderPub";
-    }
-  })();
-
-  // Restore last position for this book (independent of EPUB.js internal restore)
-  (function(){
-    try {
-      if (!window.reader || !window.reader.rendition) return;
-      const key = `readerpub:lastcfi:${id}`;
+    // Keep document title dynamic per opened book.
+    (function(){
       try {
-        const last = localStorage && localStorage.getItem(key);
-        if (last) {
-          window.reader.rendition.display(last);
-        }
-      } catch (e1) {}
-      try {
-        window.reader.rendition.on("relocated", function(location){
+        if (!window.reader || !window.reader.book || !window.reader.book.loaded) return;
+        const loadedMeta = window.reader.book.loaded.metadata;
+        if (!loadedMeta || typeof loadedMeta.then !== "function") return;
+        loadedMeta.then(function(meta){
           try {
-            const cfi = location && location.start && location.start.cfi;
-            if (cfi && localStorage) localStorage.setItem(key, cfi);
-          } catch (e2) {}
+            const rawTitle = (meta && (meta.bookTitle || meta.title)) ? String(meta.bookTitle || meta.title).trim() : "";
+            const rawAuthor = (meta && meta.creator) ? String(meta.creator).trim() : "";
+            document.title = rawTitle ? (rawAuthor ? `${rawTitle} — ${rawAuthor}` : rawTitle) : "ReaderPub";
+          } catch (e0) {
+            document.title = "ReaderPub";
+          }
+        }).catch(function(){
+          document.title = "ReaderPub";
         });
-      } catch (e3) {}
-    } catch (e0) {}
-  })();
+      } catch (e) {
+        document.title = "ReaderPub";
+      }
+    })();
+
+    // Restore last position for this book (independent of EPUB.js internal restore)
+    (function(){
+      try {
+        if (!window.reader || !window.reader.rendition) return;
+        const key = `readerpub:lastcfi:${id}`;
+        try {
+          const last = localStorage && localStorage.getItem(key);
+          if (last) {
+            window.reader.rendition.display(last);
+          }
+        } catch (e1) {}
+        try {
+          window.reader.rendition.on("relocated", function(location){
+            try {
+              const cfi = location && location.start && location.start.cfi;
+              if (cfi && localStorage) localStorage.setItem(key, cfi);
+            } catch (e2) {}
+          });
+        } catch (e3) {}
+      } catch (e0) {}
+    })();
+  }
 
   // If hash changes to a different numeric id, reload the reader.
   window.addEventListener("hashchange", () => {
@@ -236,6 +279,65 @@
       }
     } catch (e) {}
   });
+
+  fetchBookLocation(source, id)
+    .then(function(locationInfo){
+      if (!source) {
+        if (!locationInfo || String(locationInfo.source || "gutenberg") !== "gutenberg") {
+          locationInfo = null;
+        }
+      } else if (!locationInfo || String(locationInfo.source || "") !== source) {
+        locationInfo = null;
+      }
+
+      if (locationInfo && locationInfo.source && !source && locationInfo.source !== "gutenberg") {
+        source = String(locationInfo.source);
+        try {
+          const nextParams = new URLSearchParams(location.search || "");
+          nextParams.set("source", source);
+          nextParams.set("id", id);
+          nextParams.delete("i");
+          const keepHash = hashIsCfi ? rawHash : "";
+          history.replaceState(null, "", `${location.pathname}?${nextParams.toString()}${keepHash}`);
+        } catch (e4) {}
+        try { if (localStorage) localStorage.setItem("readerpub:lastsource", source); } catch (e5) {}
+      }
+      var bookPath = "";
+      if (locationInfo) {
+        if (isLocalPreviewHost() && locationInfo.localContentPath) {
+          bookPath = String(locationInfo.localContentPath);
+        } else if (locationInfo.contentPath) {
+          bookPath = String(locationInfo.contentPath);
+        }
+      }
+      if (!bookPath) {
+        const el = document.getElementById("viewer");
+        if (el) {
+          el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
+            <h2 style="margin:0 0 10px 0;font-size:18px">Book not found</h2>
+            <div style="color:#666;font-size:14px;line-height:1.4">
+              No catalog mapping was found for
+              <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.
+            </div>
+          </div>`;
+        }
+        return;
+      }
+      if (!bookPath.endsWith("/")) bookPath += "/";
+      bootReader(bookPath);
+    })
+    .catch(function(){
+      const el = document.getElementById("viewer");
+      if (el) {
+        el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
+          <h2 style="margin:0 0 10px 0;font-size:18px">Book not found</h2>
+          <div style="color:#666;font-size:14px;line-height:1.4">
+            Failed to resolve catalog mapping for
+            <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.
+          </div>
+        </div>`;
+      }
+    });
 })();
               }
             };

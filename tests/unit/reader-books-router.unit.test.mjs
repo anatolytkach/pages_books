@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import routerWorker from "../../tools/reader-books-router.js";
+import routerWorker from "../../tools/runtime/reader-books-router.js";
 import { createR2Bucket, createR2Object } from "../helpers/worker-test-utils.mjs";
 
 async function callRouter({ url, env }) {

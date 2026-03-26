@@ -820,10 +820,11 @@ function buildBookJsonLd(origin, book) {
   return data;
 }
 
-function contentDirForChapter(bookId, chapter) {
+function contentDirForChapter(book, chapter) {
   const raw = String((chapter && chapter.sourcePath) || "").trim();
   const dir = raw.includes("/") ? raw.slice(0, raw.lastIndexOf("/") + 1) : "";
-  return `/books/content/${bookId}/${dir}`;
+  const base = String((book && (book.contentPath || book.content_path)) || `/books/content/${book && book.id ? book.id : ""}/`).replace(/\/?$/, "/");
+  return `${base}${dir}`;
 }
 
 function rewriteRelativeChapterHtml(html, assetBase) {
@@ -1397,11 +1398,13 @@ async function renderSeoRoute(request, env, url, path) {
       return new Response(null, { status: 301, headers });
     }
     return await withSeoCache(request, book.version || globalVersion, cacheVariant, async () => {
-      const sourceKey = `content/${book.id}/${chapter.sourcePath}`;
+      const contentPath = String(book.contentPath || book.content_path || `/books/content/${book.id}/`);
+      const contentKeyPrefix = contentPath.replace(/^\/books\//, "").replace(/^\/+/, "").replace(/\/?$/, "/");
+      const sourceKey = `${contentKeyPrefix}${chapter.sourcePath}`;
       let xhtmlText = await readBucketText(env, sourceKey);
       if (!xhtmlText) {
         xhtmlText = await fetchTextAbsolute(
-          `${publicContentOrigin}/books/content/${book.id}/${chapter.sourcePath}`
+          `${publicContentOrigin}${contentPath.replace(/\/?$/, "/")}${chapter.sourcePath}`
         );
       }
       if (!xhtmlText) {
@@ -1410,7 +1413,7 @@ async function renderSeoRoute(request, env, url, path) {
           "x-reader-route": "seo-chapter-source-miss",
         });
       }
-      const assetBase = contentDirForChapter(book.id, chapter);
+      const assetBase = contentDirForChapter(book, chapter);
       const chapterInner = rewriteRelativeChapterHtml(extractBodyInnerHtml(xhtmlText), assetBase);
       const response = htmlResponse(renderChapterPage(canonicalOrigin, book, chapter, chapterInner, posthogConfig), 200, {
         ...buildSeoCacheHeaders(book.version || globalVersion),
