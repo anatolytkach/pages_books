@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CONTENT_DIR="$SCRIPT_DIR"
-INDEX_TOOL="$ROOT_DIR/tools/build_lang_indexes.py"
+INDEX_TOOL="$ROOT_DIR/tools/catalog/build_lang_indexes.py"
 INDEX_DIR="$ROOT_DIR/reader_lang_indexes"
 DEPLOY_DIR="$ROOT_DIR/deploy"
 
@@ -41,7 +41,7 @@ What it does:
 
 Notes:
   - If content/<id>/... already exists on R2, it is replaced in-place.
-  - Catalog update is incremental via tools/build_lang_indexes.py --book-id <id>.
+  - Catalog update is incremental via tools/catalog/build_lang_indexes.py --book-id <id>.
   - Option --no-image-upload skips uploading image files from books.
     Existing images in R2 remain unchanged.
 USAGE
