@@ -192,12 +192,11 @@ deploy/
 ├── _worker.js  → ../_worker.js        (symlink)
 ├── books/      → ../books/            (symlink — contains catalog, auth, shared, content)
 ├── reader/     → ../reader/           (symlink)
-├── catalog/    → ../catalog/          (symlink — alternate catalog, not primary)
 ├── docs/       → (actual directory)
 └── .wranglerignore
 ```
 
-**Critical note**: The catalog page served at `/books/` comes from `books/index.html`, NOT `catalog/index.html`. Both files exist and are slightly different versions. Changes to the catalog must be made to `books/index.html` to appear on the live site. The `catalog/index.html` file appears to be an older copy.
+**Critical note**: The catalog page served at `/books/` comes from `books/index.html`, NOT `catalog/index.html`. The old `deploy/catalog` symlink was removed and should not be recreated. Changes to the live catalog must be made in `books/index.html`.
 
 ### Environment Variables
 

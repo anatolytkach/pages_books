@@ -14,10 +14,10 @@ rm -f books reader catalog _worker.js 2>/dev/null || true
 # Create directory symlinks
 cmd //c "mklink /D books ..\\books"
 cmd //c "mklink /D reader ..\\reader"
-cmd //c "mklink /D catalog ..\\catalog"
 
 # Create file symlink
 cmd //c "mklink _worker.js ..\\_worker.js"
 
 echo "Deploy symlinks created successfully."
+echo "Note: deploy/catalog is intentionally not recreated; books/index.html is the live catalog."
 ls -la "$DEPLOY_DIR"

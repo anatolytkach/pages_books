@@ -97,6 +97,26 @@
     };
   }
 
+  function noteSignature(note) {
+    if (!note) return "";
+    return [
+      String(note.cfi || "").trim(),
+      String(note.href || "").trim(),
+      String(note.quote || "").trim(),
+      String(note.comment || note.note_text || "").trim(),
+    ].join("||");
+  }
+
+  function looksLikeUuid(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || "").trim());
+  }
+
+  function isShareableOwnedNote(note) {
+    if (!note || !note.cfi) return false;
+    if (note._shared || note._readOnly) return false;
+    return true;
+  }
+
   // ── Shared package loading (works without auth) ──────────
 
   var contentId = getBookContentId();
@@ -244,20 +264,22 @@
 
   function mergeNotes(localNotes, supabaseNotes) {
     var merged = [];
-    var seenCfi = {};
+    var seenSignatures = {};
 
     // Add all Supabase notes first (source of truth)
     for (var i = 0; i < supabaseNotes.length; i++) {
       var sn = supabaseToLocal(supabaseNotes[i]);
       merged.push(sn);
-      seenCfi[sn.cfi] = true;
+      var snSig = noteSignature(sn);
+      if (snSig) seenSignatures[snSig] = true;
     }
 
     // Add local-only notes (not yet in Supabase)
     for (var j = 0; j < localNotes.length; j++) {
       var ln = localNotes[j];
       if (!ln || !ln.cfi) continue;
-      if (seenCfi[ln.cfi]) continue; // Already have this note from Supabase
+      var lnSig = noteSignature(ln);
+      if (lnSig && seenSignatures[lnSig]) continue; // Already have this note from Supabase
       merged.push(ln);
     }
 
@@ -314,8 +336,9 @@
     /** Create a package from ALL current notes, syncing unsynced ones first */
     createPackageFromAll: function (title) {
       var self = this;
-      var notes = (window.reader && window.reader.settings && window.reader.settings.notes) || [];
-      if (!notes.length) return Promise.reject(new Error("No notes to share"));
+      var allNotes = (window.reader && window.reader.settings && window.reader.settings.notes) || [];
+      var notes = allNotes.filter(isShareableOwnedNote);
+      if (!notes.length) return Promise.reject(new Error("No personal notes to share"));
 
       // Find unsynced notes and upload them first
       var uploads = [];
@@ -339,7 +362,7 @@
         var ids = [];
         for (var j = 0; j < notes.length; j++) {
           if (notes[j] && notes[j]._supabaseId) ids.push(notes[j]._supabaseId);
-          else if (notes[j] && /^[0-9a-f]{8}-/.test(notes[j].id)) ids.push(notes[j].id);
+          else if (notes[j] && looksLikeUuid(notes[j].id)) ids.push(notes[j].id);
         }
         if (!ids.length) return Promise.reject(new Error("Failed to sync notes"));
         return self.createPackage(title, ids);
@@ -376,7 +399,8 @@
       if (!isPlatformBook(contentId) || !getAuthToken()) return;
 
       var notes = (window.reader && window.reader.settings && window.reader.settings.notes) || [];
-      if (!notes.length) return;
+      var shareableNotes = notes.filter(isShareableOwnedNote);
+      if (!shareableNotes.length) return;
 
       // Prevent the original handler from running
       event.stopImmediatePropagation();
@@ -467,15 +491,18 @@
 
             // Merge shared notes with existing notes (don't duplicate by CFI)
             var existing = reader.settings.notes || [];
-            var existingCfis = {};
+            var existingSignatures = {};
             for (var i = 0; i < existing.length; i++) {
-              if (existing[i] && existing[i].cfi) existingCfis[existing[i].cfi] = true;
+              var existingSig = noteSignature(existing[i]);
+              if (existingSig) existingSignatures[existingSig] = true;
             }
 
             var added = 0;
             for (var j = 0; j < sharedNotes.length; j++) {
-              if (!existingCfis[sharedNotes[j].cfi]) {
+              var sharedSig = noteSignature(sharedNotes[j]);
+              if (!sharedSig || !existingSignatures[sharedSig]) {
                 existing.push(sharedNotes[j]);
+                if (sharedSig) existingSignatures[sharedSig] = true;
                 added++;
               }
             }

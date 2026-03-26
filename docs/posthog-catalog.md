@@ -11,7 +11,7 @@
 - Включен `autocapture`, поэтому PostHog будет автоматически считать клики и другие базовые browser events на каталоге и в reader.
 - Ключи и host не захардкожены: они читаются из env Cloudflare Pages / Worker и подставляются в HTML через `_worker.js`.
 
-Важно: в текущем репозитории каталог реализован не на Astro. Здесь статический `catalog/index.html` и `reader/index.html`, поэтому интеграция сделана в фактическую архитектуру проекта: статические страницы + Pages Worker.
+Важно: в текущем репозитории каталог реализован не на Astro. Живой каталог обслуживается из `books/index.html`, а reader из `reader/index.html`, поэтому интеграция сделана в фактическую архитектуру проекта: статические страницы + Pages Worker.
 
 Ниже инструкция именно для облачного PostHog, то есть для аккаунта в `app.posthog.com`.
 
@@ -216,7 +216,7 @@
 1. `_worker.js` читает env.
 2. `_worker.js` подставляет значения в `meta[name="posthog-*"]` в HTML.
 3. `books/shared/posthog.js` инициализирует PostHog только если env включены.
-4. `catalog/index.html` отправляет `$pageview` каталога.
+4. `books/index.html` отправляет `$pageview` каталога.
 5. `reader/index.html` отправляет `$pageview` reader.
 6. `reader/index.html` отправляет `book_open` один раз на загрузку страницы.
 7. `books/shared/posthog.js` включает `autocapture`, чтобы собирать клики на каталоге и в reader.

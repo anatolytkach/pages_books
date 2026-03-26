@@ -3535,7 +3535,7 @@ export default {
       }
 
       // ── GET /v1/note-packages/:token — get package by share token (public) ──
-      const pkgTokenMatch = apiPath.match(/^\/note-packages\/([a-f0-9]+)$/);
+      const pkgTokenMatch = apiPath.match(/^\/note-packages\/([a-f0-9]{24})$/);
       if (pkgTokenMatch && request.method === "GET") {
         const token = pkgTokenMatch[1];
         const { data: pkg } = await sbFetch("note_packages", {
@@ -3602,10 +3602,11 @@ export default {
       }
 
       // ── DELETE /v1/note-packages/:id — delete package ──
-      if (pkgTokenMatch && request.method === "DELETE") {
+      const pkgIdMatch = apiPath.match(/^\/note-packages\/([0-9a-f-]{36})$/i);
+      if (pkgIdMatch && request.method === "DELETE") {
         const authErr = requireAuth();
         if (authErr) return authErr;
-        const pkgId = pkgTokenMatch[1];
+        const pkgId = pkgIdMatch[1];
         await sbFetch("note_package_items", { method: "DELETE", params: `package_id=eq.${pkgId}` });
         await sbFetch("note_package_recipients", { method: "DELETE", params: `package_id=eq.${pkgId}` });
         await sbFetch("note_packages", { method: "DELETE", params: `id=eq.${pkgId}&created_by=eq.${user.sub}` });
