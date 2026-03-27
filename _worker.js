@@ -1288,9 +1288,10 @@ async function renderSeoRoute(request, env, url, path) {
         "x-reader-route": "seo-sitemap-miss",
       });
     }
-    return await withSeoCache(request, globalVersion, cacheVariant, async () => {
+    const sitemapVersion = payload.version || globalVersion;
+    return await withSeoCache(request, sitemapVersion, cacheVariant, async () => {
       const response = xmlResponse(buildSitemapXml(canonicalOrigin, payload.items || []), 200, {
-        ...buildSitemapCacheHeaders(globalVersion),
+        ...buildSitemapCacheHeaders(sitemapVersion),
         "x-reader-route": "seo-sitemap",
       });
       return response;

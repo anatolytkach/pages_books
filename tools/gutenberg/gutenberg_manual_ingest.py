@@ -340,7 +340,7 @@ def merge_author_shard(existing_path: Path, new_path: Path, target_path: Path) -
         json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
 
 
-def merge_sitemap_family(existing_root: Path, new_root: Path, patch_root: Path, family: str) -> List[dict]:
+def merge_sitemap_family(existing_root: Path, new_root: Path, patch_root: Path, family: str, version: str) -> List[dict]:
     merged = {}
     for path in sorted(existing_root.glob(f"{family}-*.json")):
         data = read_json(path, {}) or {}
@@ -361,12 +361,12 @@ def merge_sitemap_family(existing_root: Path, new_root: Path, patch_root: Path, 
     for idx, chunk in enumerate(chunk_items(items, 5000), start=1):
         slug = f"{family}-{idx}.json"
         out = patch_root / slug
-        write_json(out, {"items": chunk})
+        write_json(out, {"version": version, "generatedAt": iso_now(), "items": chunk})
         chunks_meta.append({"slug": slug, "path": f"/sitemaps/{family}-{idx}.xml", "count": len(chunk)})
     return chunks_meta
 
 
-def merge_single_sitemap(existing_path: Path, new_path: Path, target_path: Path) -> dict:
+def merge_single_sitemap(existing_path: Path, new_path: Path, target_path: Path, version: str) -> dict:
     merged = {}
     for path in [existing_path, new_path]:
         data = read_json(path, {}) or {}
@@ -374,7 +374,7 @@ def merge_single_sitemap(existing_path: Path, new_path: Path, target_path: Path)
             loc = clean_text(item.get("loc", ""))
             if loc:
                 merged.setdefault(loc, item)
-    payload = {"items": list(merged.values())}
+    payload = {"version": version, "generatedAt": iso_now(), "items": list(merged.values())}
     write_json(target_path, payload)
     return {"slug": target_path.name, "path": f"/sitemaps/{target_path.stem}.xml", "count": len(payload["items"])}
 
@@ -410,6 +410,11 @@ def build_selective_seo_patch(
 
     existing_seo = SEO_ROOT
     temp_seo = temp_build / "seo"
+    selective_version = (
+        read_json(temp_seo / "version.json", {}).get("version")
+        or read_json(existing_seo / "version.json", {}).get("version")
+        or str(int(datetime.now(timezone.utc).timestamp()))
+    )
 
     for path in sorted((temp_seo / "book-shards").glob("*.json")):
         merge_dict_items(existing_seo / "book-shards" / path.name, path, patch_root / "book-shards" / path.name)
@@ -419,9 +424,14 @@ def build_selective_seo_patch(
         merge_author_shard(existing_seo / "author-shards" / path.name, path, patch_root / "author-shards" / path.name)
     logger.log(f"[seo-authors] merged {len(list((temp_seo / 'author-shards').glob('*.json')))} shards")
 
-    books_chunks = merge_sitemap_family(existing_seo / "sitemaps", temp_seo / "sitemaps", patch_sitemaps, "books")
-    chapter_chunks = merge_sitemap_family(existing_seo / "sitemaps", temp_seo / "sitemaps", patch_sitemaps, "chapters")
-    authors_meta = merge_single_sitemap(existing_seo / "sitemaps" / "authors.json", temp_seo / "sitemaps" / "authors.json", patch_sitemaps / "authors.json")
+    books_chunks = merge_sitemap_family(existing_seo / "sitemaps", temp_seo / "sitemaps", patch_sitemaps, "books", selective_version)
+    chapter_chunks = merge_sitemap_family(existing_seo / "sitemaps", temp_seo / "sitemaps", patch_sitemaps, "chapters", selective_version)
+    authors_meta = merge_single_sitemap(
+        existing_seo / "sitemaps" / "authors.json",
+        temp_seo / "sitemaps" / "authors.json",
+        patch_sitemaps / "authors.json",
+        selective_version,
+    )
 
     existing_index = read_json(existing_seo / "sitemaps" / "index.json", {}) or {}
     other_entries = [
@@ -434,27 +444,11 @@ def build_selective_seo_patch(
         )
     ]
     merged_index = {
-        "version": read_json(temp_seo / "version.json", {}).get("version") or existing_index.get("version") or str(int(datetime.now(timezone.utc).timestamp())),
+        "version": selective_version,
         "generatedAt": iso_now(),
         "sitemaps": books_chunks + chapter_chunks + [authors_meta] + other_entries,
     }
     write_json(patch_sitemaps / "index.json", merged_index)
-
-    existing_version = read_json(existing_seo / "version.json", {}) or {}
-    temp_version = read_json(temp_seo / "version.json", {}) or {}
-    version_payload = dict(existing_version)
-    version_payload.update(
-        {
-            "version": temp_version.get("version") or existing_version.get("version") or str(int(datetime.now(timezone.utc).timestamp())),
-            "generatedAt": iso_now(),
-            "books": existing_version.get("books", 0) + temp_version.get("books", 0),
-            "authors": existing_version.get("authors", 0),
-            "categories": existing_version.get("categories", 0),
-            "chapters": sum(item["count"] for item in chapter_chunks),
-            "failures": existing_version.get("failures", 0),
-        }
-    )
-    write_json(patch_root / "version.json", version_payload)
 
     logger.log(
         f"[seo-sitemaps] books_chunks={len(books_chunks)} chapters_chunks={len(chapter_chunks)} "

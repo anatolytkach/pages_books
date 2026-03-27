@@ -146,15 +146,6 @@ def patch_author_shards(manual_authors: dict[str, dict], version: str):
     return changed
 
 
-def patch_version(version: str):
-    path = SEO_ROOT / "version.json"
-    payload = json_load(path, {}) or {}
-    payload["version"] = version
-    payload["generatedAt"] = version
-    json_dump(path, payload)
-    return path
-
-
 def main() -> int:
     version = str(int(time.time()))
     manual_books, manual_authors = load_manual_books()
@@ -164,7 +155,6 @@ def main() -> int:
 
     book_files = patch_book_shards(manual_books, version)
     author_files = patch_author_shards(manual_authors, version)
-    version_file = patch_version(version)
 
     output = {
         "version": version,
@@ -172,7 +162,6 @@ def main() -> int:
         "manual_authors": len(manual_authors),
         "book_shards": [str(path.relative_to(ROOT)) for path in book_files],
         "author_shards": [str(path.relative_to(ROOT)) for path in author_files],
-        "version_file": str(version_file.relative_to(ROOT)),
     }
     print(json.dumps(output, ensure_ascii=False, indent=2))
     return 0
