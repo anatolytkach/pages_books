@@ -51,6 +51,7 @@ DEFAULT_NEWEST_WINDOW_DAYS = 7
 DEFAULT_NEWEST_MAX_BOOKS = 12
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRIES = 3
+DEFAULT_RCLONE_REMOTE = "r2"
 
 DC_NS = "http://purl.org/dc/elements/1.1/"
 DCTERMS_NS = "http://purl.org/dc/terms/"
@@ -129,6 +130,32 @@ def run_cmd(cmd: List[str], dry_run: bool = False, capture_output: bool = False)
         text=True,
         capture_output=capture_output,
     )
+
+
+def command_exists(cmd: str) -> bool:
+    return shutil.which(cmd) is not None
+
+
+def detect_rclone_remote(rclone_bin: str, preferred_remote: str = "") -> str:
+    remote = clean_text(preferred_remote).rstrip(":")
+    if remote:
+        return remote
+    if not command_exists(rclone_bin):
+        return ""
+    try:
+        result = run_cmd([rclone_bin, "listremotes"], capture_output=True)
+    except Exception:
+        return ""
+    remotes = {line.strip().rstrip(":") for line in result.stdout.splitlines() if line.strip()}
+    if DEFAULT_RCLONE_REMOTE in remotes:
+        return DEFAULT_RCLONE_REMOTE
+    return ""
+
+
+def rclone_target(remote: str, bucket: str, key: str = "") -> str:
+    base = f"{remote.rstrip(':')}:{bucket}"
+    suffix = str(key or "").strip("/")
+    return f"{base}/{suffix}" if suffix else base
 
 
 def get_r2_s3_config() -> dict:
@@ -261,6 +288,16 @@ def changed_files(root: Path, before: Dict[str, int]) -> List[Path]:
         if before.get(rel) != mtime:
             changed.append(root / rel)
     return sorted(changed)
+
+
+def remove_local_language_search_dirs(index_root: Path) -> List[Path]:
+    removed: List[Path] = []
+    for path in sorted(index_root.glob("lang/*/search")):
+        if not path.is_dir():
+            continue
+        shutil.rmtree(path)
+        removed.append(path)
+    return removed
 
 
 def ensure_state_shape(state: dict) -> dict:
@@ -530,16 +567,108 @@ def upload_file_to_r2(bucket: str, key: str, path: Path, wrangler_bin: str, dry_
     )
 
 
-def upload_content_directory(prefix: str, book_root: Path, bucket: str, wrangler_bin: str, dry_run: bool = False) -> None:
+def upload_content_directory(
+    prefix: str,
+    book_root: Path,
+    bucket: str,
+    wrangler_bin: str,
+    rclone_bin: str = "rclone",
+    rclone_remote: str = "",
+    dry_run: bool = False,
+) -> None:
+    if rclone_remote:
+        run_cmd(
+            [rclone_bin, "copy", str(book_root), rclone_target(rclone_remote, bucket, prefix)],
+            dry_run=dry_run,
+        )
+        return
     for file_path in iter_files(book_root):
         rel = file_path.relative_to(book_root).as_posix()
         upload_file_to_r2(bucket, f"{prefix.rstrip('/')}/{rel}", file_path, wrangler_bin, dry_run=dry_run)
 
 
-def upload_api_files(files: List[Path], bucket: str, wrangler_bin: str, dry_run: bool = False) -> None:
+def upload_api_files(
+    files: List[Path],
+    bucket: str,
+    wrangler_bin: str,
+    rclone_bin: str = "rclone",
+    rclone_remote: str = "",
+    dry_run: bool = False,
+) -> None:
+    if not files:
+        return
+    if rclone_remote:
+        tmp_dir = Path(tempfile.mkdtemp(prefix="readerpub-api-upload-", dir="/tmp"))
+        try:
+            for file_path in files:
+                rel = file_path.relative_to(INDEX_ROOT)
+                staged_path = tmp_dir / rel
+                staged_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(file_path, staged_path)
+            run_cmd(
+                [rclone_bin, "copy", str(tmp_dir), rclone_target(rclone_remote, bucket, "api")],
+                dry_run=dry_run,
+            )
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        return
     for file_path in files:
         rel = file_path.relative_to(INDEX_ROOT).as_posix()
         upload_file_to_r2(bucket, f"api/{rel}", file_path, wrangler_bin, dry_run=dry_run)
+
+
+def purge_remote_language_search_dirs(
+    bucket: str,
+    wrangler_bin: str,
+    rclone_bin: str = "rclone",
+    rclone_remote: str = "",
+    dry_run: bool = False,
+) -> None:
+    if rclone_remote:
+        if dry_run:
+            log(f"[dry-run] purge language search dirs under {rclone_target(rclone_remote, bucket, 'api/lang')}")
+            return
+        result = run_cmd([rclone_bin, "lsf", rclone_target(rclone_remote, bucket, "api/lang")], capture_output=True)
+        langs = [line.strip().rstrip("/") for line in result.stdout.splitlines() if line.strip().endswith("/")]
+        for lang in langs:
+            target = rclone_target(rclone_remote, bucket, f"api/lang/{lang}/search")
+            proc = subprocess.run([rclone_bin, "purge", target], text=True, capture_output=True)
+            if proc.returncode == 0:
+                continue
+            output = f"{proc.stdout}\n{proc.stderr}"
+            if "directory not found" in output.lower() or "not found" in output.lower():
+                continue
+            raise RuntimeError(f"Failed to purge {target}: {output.strip()}")
+        return
+
+    s3_config = get_r2_s3_config()
+    if s3_config:
+        cmd = [
+            "aws",
+            "s3",
+            "rm",
+            f"s3://{bucket}/api/lang",
+            "--recursive",
+            "--exclude",
+            "*",
+            "--include",
+            "*/search/*",
+            "--endpoint-url",
+            s3_config["endpoint"],
+        ]
+        if dry_run:
+            run_cmd(cmd, dry_run=True)
+            return
+        subprocess.run(
+            cmd,
+            check=True,
+            text=True,
+            capture_output=True,
+            env=aws_env(s3_config),
+        )
+        return
+
+    warn("Skipping remote cleanup for api/lang/*/search because neither rclone nor S3 credentials are configured.")
 
 
 def deploy_pages(project: str, branch: str, wrangler_bin: str, dry_run: bool = False) -> None:
@@ -599,6 +728,9 @@ def main() -> int:
     parser.add_argument("--state-r2-key", default=os.environ.get("GUTENBERG_STATE_R2_KEY", DEFAULT_STATE_R2_KEY))
     parser.add_argument("--state-r2-bucket", default=os.environ.get("GUTENBERG_STATE_R2_BUCKET", ""))
     parser.add_argument("--wrangler-bin", default=os.environ.get("WRANGLER_BIN", "wrangler"))
+    parser.add_argument("--rclone-bin", default=os.environ.get("RCLONE_BIN", "rclone"))
+    parser.add_argument("--rclone-remote", default=os.environ.get("GUTENBERG_RCLONE_REMOTE", ""))
+    parser.add_argument("--skip-rclone", action="store_true")
     parser.add_argument("--python-bin", default=os.environ.get("PYTHON_BIN", sys.executable or "python3"))
     parser.add_argument("--pages-project", default=os.environ.get("EPUB_PUBLISH_PAGES_PROJECT", "reader-books"))
     parser.add_argument("--pages-branch", default=os.environ.get("EPUB_PUBLISH_PAGES_BRANCH", "production"))
@@ -610,6 +742,7 @@ def main() -> int:
 
     bucket = get_state_bucket(args.state_r2_bucket)
     deploy_pages_enabled = args.deploy_pages and not args.skip_pages_deploy
+    rclone_remote = "" if args.skip_rclone else detect_rclone_remote(args.rclone_bin, args.rclone_remote)
     state = ensure_state_shape({})
     state_uploaded = False
     temp_root = Path(tempfile.mkdtemp(prefix="readerpub-gutenberg-update-", dir=args.tmp_dir))
@@ -640,6 +773,10 @@ def main() -> int:
             queue = queue[: args.limit]
 
         log(f"Discovered {len(candidate_ids)} candidate Gutenberg IDs; {len(queue)} need processing.")
+        if rclone_remote:
+            log(f"Using rclone remote '{rclone_remote}' for bulk R2 sync.")
+        else:
+            log("rclone bulk sync is not configured; falling back to per-file R2 uploads.")
 
         if args.dry_run:
             for book_id in queue:
@@ -702,7 +839,15 @@ def main() -> int:
                 item["public_content_path"] = legacy_content_path
                 item["public_path_mode"] = "legacy"
 
-                upload_content_directory(target_content_prefix, final_root, bucket, args.wrangler_bin, dry_run=False)
+                upload_content_directory(
+                    target_content_prefix,
+                    final_root,
+                    bucket,
+                    args.wrangler_bin,
+                    rclone_bin=args.rclone_bin,
+                    rclone_remote=rclone_remote,
+                    dry_run=False,
+                )
                 item["uploaded_content_at"] = iso_now()
                 item["status"] = "uploaded_content"
                 current_run_uploaded_ids.append(book_id)
@@ -787,12 +932,31 @@ def main() -> int:
         )
         newest_payload = read_json(INDEX_ROOT / "discover" / "newest.json", {"count": 0}) or {"count": 0}
 
+        removed_local_language_search_dirs = remove_local_language_search_dirs(INDEX_ROOT)
+        if removed_local_language_search_dirs:
+            log(f"Removed {len(removed_local_language_search_dirs)} stale local language search directories.")
+
         api_changed = changed_files(INDEX_ROOT, index_snapshot)
         if api_changed:
-            upload_api_files(api_changed, bucket, args.wrangler_bin, dry_run=False)
+            upload_api_files(
+                api_changed,
+                bucket,
+                args.wrangler_bin,
+                rclone_bin=args.rclone_bin,
+                rclone_remote=rclone_remote,
+                dry_run=False,
+            )
             uploaded_api_at = iso_now()
             for book_id in current_run_uploaded_ids:
                 update_book_state(state, book_id, status="uploaded_api", uploaded_api_at=uploaded_api_at)
+
+        purge_remote_language_search_dirs(
+            bucket,
+            args.wrangler_bin,
+            rclone_bin=args.rclone_bin,
+            rclone_remote=rclone_remote,
+            dry_run=False,
+        )
 
         if current_run_uploaded_ids and not args.skip_seo:
             run_cmd(

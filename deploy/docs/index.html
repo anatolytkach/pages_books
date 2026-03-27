@@ -164,8 +164,8 @@ cd pages_books</code></pre>
           <li>Индексы: <code>api/...json</code>.</li>
           <li>Основные файлы: <code>api/letters.json</code>, <code>api/languages.json</code>.</li>
           <li>Навигация по авторам: <code>api/p/*.json</code>, <code>api/a/*.json</code>.</li>
-          <li>Поиск: <code>api/search/&lt;token2&gt;.json</code>.</li>
-          <li>Языковые ветки: <code>api/lang/&lt;lang&gt;/...</code>.</li>
+          <li>Поиск: <code>api/search/&lt;token3&gt;.json</code>.</li>
+          <li>Языковые ветки browse-навигации: <code>api/lang/&lt;lang&gt;/letters.json</code>, <code>api/lang/&lt;lang&gt;/p/*.json</code>, <code>api/lang/&lt;lang&gt;/a/*.json</code>.</li>
           <li>SEO data layer: <code>seo/book-shards/*.json</code>, <code>seo/author-shards/*.json</code>, <code>seo/category/*.json</code>, <code>seo/sitemaps/*.json</code>, <code>seo/version.json</code>.</li>
         </ul>
 
@@ -230,16 +230,23 @@ cd pages_books</code></pre>
           <li><code>letters.json</code>: список букв/ключей и количества авторов.</li>
           <li><code>p/&lt;node&gt;.json</code>: prefix-tree. Либо <code>authors</code>, либо <code>prefixes</code>, плюс <code>authorCount</code>.</li>
           <li><code>a/&lt;author_key&gt;.json</code>: автор и массив его книг (<code>id/title/cover</code>).</li>
-          <li><code>search/&lt;token2&gt;.json</code>: mixed items по токену:
+          <li><code>search/&lt;token3&gt;.json</code>: mixed items по токену:
             авторы (<code>t:"a",k,n,c</code>) и книги (<code>id,title,a,k,cover</code>).</li>
           <li><code>languages.json</code>: список языков и количества книг.</li>
         </ul>
+        <p>Языкового search-слоя больше нет: поиск всегда использует глобальные <code>api/search/&lt;token3&gt;.json</code>, а языковые ветки сохраняют только browse-навигацию по буквам, префиксам и авторам.</p>
 
         <p>Ограничения и правила:</p>
         <ul>
           <li><code>max_prefix</code> по умолчанию <code>5</code>;</li>
           <li><code>threshold</code> по умолчанию <code>50</code> (решает, когда хранить <code>authors</code>, а когда дробить на <code>prefixes</code>);</li>
-          <li>поиск bucket'изируется по первым 2 символам нормализованной строки.</li>
+          <li>поиск bucket'изируется по первым 3 символам нормализованной строки.</li>
+        </ul>
+        <p><strong>Frontend UX:</strong></p>
+        <ul>
+          <li>search требует минимум <code>3</code> символа;</li>
+          <li>search results рендерятся постранично по <code>24</code> элементов на страницу;</li>
+          <li>на author page длинные списки книг раскрываются через <code>Show more</code> по <code>24</code> книг за шаг.</li>
         </ul>
 
         <h2 id="ingest">6. Конвейер DOCX - EPUB - R2 - индексы - Pages</h2>
@@ -343,6 +350,12 @@ git status --short --branch</code></pre>
           <li>обновляет каталоговые индексы, <code>Newest Releases</code> и selective SEO;</li>
           <li>показывает прогресс в терминале и умеет <code>resume</code> после сбоя.</li>
         </ul>
+        <p><strong>Bulk upload и cleanup:</strong></p>
+        <ul>
+          <li>для массовой загрузки <code>content/*</code> и <code>api/*</code> CLI предпочитает <code>rclone</code>, если доступен remote <code>r2</code> или явно передан <code>--rclone-remote</code>;</li>
+          <li>fallback остается прежним: прямой R2 S3 доступ или <code>wrangler</code>;</li>
+          <li>после rebuild CLI удаляет устаревшие <code>lang/*/search</code> локально и на R2.</li>
+        </ul>
         <p><strong>Каноническая модель после ingest:</strong></p>
         <ul>
           <li>Gutenberg-книги остаются в reader как <code>?id=&lt;gutenberg_id&gt;</code> без <code>source=gutenberg</code>.</li>
@@ -354,6 +367,9 @@ git status --short --branch</code></pre>
 python3 tools/gutenberg/gutenberg_manual_ingest.py scan
 python3 tools/gutenberg/gutenberg_manual_ingest.py run
 python3 tools/gutenberg/gutenberg_manual_ingest.py resume</code></pre>
+        <p><strong>Дополнительные runtime flags:</strong></p>
+        <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py run --rclone-remote r2
+python3 tools/gutenberg/gutenberg_manual_ingest.py run --skip-rclone</code></pre>
         <p><strong>Что делает каждая команда:</strong></p>
         <ul>
           <li><code>status</code> — показывает текущий max Gutenberg ID, следующий стартовый ID и состояние текущей сессии.</li>
@@ -456,7 +472,24 @@ python3 tools/gutenberg/gutenberg_manual_ingest.py resume</code></pre>
         <p><strong>Runtime credentials:</strong></p>
         <ul>
           <li>предпочтительный режим: прямой R2 S3 доступ через <code>R2_S3_ENDPOINT</code>, <code>R2_ACCESS_KEY_ID</code>, <code>R2_SECRET_ACCESS_KEY</code>;</li>
+          <li>bulk-sync режим: <code>rclone</code> remote <code>r2</code> или явный <code>--rclone-remote</code>;</li>
           <li>fallback: активная <code>wrangler</code> session / <code>CLOUDFLARE_API_TOKEN</code>.</li>
+        </ul>
+
+        <h2 id="gutenberg-updater">7.5 Gutenberg updater</h2>
+        <p>Скрипт: <code>tools/gutenberg/update_gutenberg_catalog.py</code>.</p>
+        <p><strong>Назначение:</strong></p>
+        <ul>
+          <li>weekly/queued ingest новых Gutenberg-книг без ручного <code>from-id</code>;</li>
+          <li>массовая загрузка контента и каталоговых индексов;</li>
+          <li>rebuild <code>Newest Releases</code> и selective SEO;</li>
+          <li>синхронизация новой схемы индексов без <code>api/lang/&lt;lang&gt;/search/*</code>.</li>
+        </ul>
+        <p><strong>Особенности:</strong></p>
+        <ul>
+          <li>для bulk upload предпочитает <code>rclone</code>, если доступен remote <code>r2</code>;</li>
+          <li>можно явно передать <code>--rclone-remote</code> или отключить <code>rclone</code> через <code>--skip-rclone</code>;</li>
+          <li>после rebuild удаляет устаревшие <code>lang/*/search</code> локально и purge-ит <code>api/lang/*/search</code> на R2.</li>
         </ul>
         <p>
           Детальная инструкция для разработчика: <code>docs/gutenberg-pipeline.md</code>.
@@ -560,7 +593,7 @@ python3 tools/gutenberg/gutenberg_manual_ingest.py resume</code></pre>
           <li><code>/books/</code> и <code>/books/reader/?id=&lt;id&gt;</code> без регрессий.</li>
           <li><code>/book/&lt;slug&gt;</code>, <code>/author/&lt;slug&gt;</code>, <code>/category/&lt;slug&gt;</code> рендерятся как SSR HTML.</li>
           <li><code>/sitemap.xml</code> и child sitemaps открываются.</li>
-          <li><code>/books/api/search/a.json</code> и другие index endpoint'ы отдают актуальные JSON.</li>
+          <li><code>/books/api/search/100.json</code> и другие index endpoint'ы отдают актуальные JSON.</li>
           <li>Новая/обновленная книга ищется по названию и по автору.</li>
         </ul>
       </section>

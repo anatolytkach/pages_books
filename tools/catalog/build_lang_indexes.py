@@ -45,7 +45,7 @@ def normalize_search_token(value: str) -> str:
     base = normalize_search_match(value)
     base = re.sub(r"[^\w]+", "", base, flags=re.UNICODE)
     base = base.replace("_", "")
-    return base[:2] if len(base) >= 2 else ""
+    return base[:3] if len(base) >= 3 else ""
 
 def parse_author_name(name: str) -> tuple[str, str, str, str]:
     raw = clean_text(name)
@@ -448,8 +448,9 @@ def build_language_indexes(lang: str, authors: list, output_root: str, max_prefi
             "cover": book.get("cover"),
         })
 
-    for token, items in search_map.items():
-        write_json(os.path.join(lang_root, "search", f"{token}.json"), {"items": items})
+    if lang == "all":
+        for token, items in search_map.items():
+            write_json(os.path.join(lang_root, "search", f"{token}.json"), {"items": items})
 
     return len(books)
 

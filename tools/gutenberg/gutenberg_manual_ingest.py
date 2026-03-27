@@ -26,6 +26,7 @@ from update_gutenberg_catalog import (
     BUILD_LANG_INDEXES,
     BUILD_NEWEST_RELEASES,
     BUILD_SEO_INDEXES,
+    DEFAULT_RCLONE_REMOTE,
     DEFAULT_NEWEST_MAX_BOOKS,
     DEFAULT_NEWEST_WINDOW_DAYS,
     DEFAULT_SAFETY_WINDOW_DAYS,
@@ -39,6 +40,7 @@ from update_gutenberg_catalog import (
     clean_text,
     collect_summary,
     download_preferred_epub,
+    detect_rclone_remote,
     ensure_state_shape,
     get_r2_s3_config,
     get_state_bucket,
@@ -47,10 +49,12 @@ from update_gutenberg_catalog import (
     parse_rdf_metadata,
     r2_get_json,
     r2_put_json,
+    remove_local_language_search_dirs,
     run_cmd,
     snapshot_mtimes,
     stage_unpacked_epub,
     update_book_state,
+    purge_remote_language_search_dirs,
     upload_api_files,
     upload_content_directory,
 )
@@ -90,6 +94,8 @@ class RunLogger:
 def runtime_mode() -> str:
     if get_r2_s3_config():
         return "aws-r2"
+    if detect_rclone_remote("rclone", DEFAULT_RCLONE_REMOTE):
+        return "rclone"
     return "wrangler"
 
 
@@ -606,7 +612,15 @@ def run_ingest_pipeline(args, state: dict, queue: List[str], mode: str, logger: 
                 logger.log(f"[books {index}/{len(queue)}] id={book_id} phase=upload_content")
                 item["phase"] = "upload_content"
                 set_run_progress(state, book_id=book_id, phase="upload_content", index=index, total=len(queue), status="running")
-                upload_content_directory(f"content/{book_id}", final_root, bucket, args.wrangler_bin, dry_run=False)
+                upload_content_directory(
+                    f"content/{book_id}",
+                    final_root,
+                    bucket,
+                    args.wrangler_bin,
+                    rclone_bin=args.rclone_bin,
+                    rclone_remote=args.rclone_remote_effective,
+                    dry_run=False,
+                )
                 item["uploaded_content_at"] = iso_now()
                 item["status"] = "uploaded_content"
                 current_run_uploaded_ids.append(book_id)
@@ -674,14 +688,33 @@ def run_ingest_pipeline(args, state: dict, queue: List[str], mode: str, logger: 
         set_run_progress(state, phase="newest", status="running")
         build_newest(local_state_file, args.newest_window_days, args.newest_max_books, logger)
 
+        removed_local_language_search_dirs = remove_local_language_search_dirs(INDEX_ROOT)
+        if removed_local_language_search_dirs:
+            logger.log(f"[index] removed {len(removed_local_language_search_dirs)} stale local language search dirs")
+
         api_changed = changed_files(INDEX_ROOT, index_snapshot)
         if api_changed:
             logger.log(f"[api-upload] uploading {len(api_changed)} changed files")
             set_run_progress(state, phase="upload_api", status="running")
-            upload_api_files(api_changed, bucket, args.wrangler_bin, dry_run=False)
+            upload_api_files(
+                api_changed,
+                bucket,
+                args.wrangler_bin,
+                rclone_bin=args.rclone_bin,
+                rclone_remote=args.rclone_remote_effective,
+                dry_run=False,
+            )
             uploaded_api_at = iso_now()
             for book_id in current_run_uploaded_ids:
                 update_book_state(state, book_id, status="uploaded_api", uploaded_api_at=uploaded_api_at)
+
+        purge_remote_language_search_dirs(
+            bucket,
+            args.wrangler_bin,
+            rclone_bin=args.rclone_bin,
+            rclone_remote=args.rclone_remote_effective,
+            dry_run=False,
+        )
 
         if current_run_uploaded_ids and not args.skip_seo:
             set_run_progress(state, phase="seo_build", status="running")
@@ -742,6 +775,9 @@ def main() -> int:
     parser.add_argument("--state-r2-key", default=os.environ.get("GUTENBERG_STATE_R2_KEY", DEFAULT_STATE_R2_KEY))
     parser.add_argument("--state-r2-bucket", default=os.environ.get("GUTENBERG_STATE_R2_BUCKET", ""))
     parser.add_argument("--wrangler-bin", default=os.environ.get("WRANGLER_BIN", "wrangler"))
+    parser.add_argument("--rclone-bin", default=os.environ.get("RCLONE_BIN", "rclone"))
+    parser.add_argument("--rclone-remote", default=os.environ.get("GUTENBERG_RCLONE_REMOTE", ""))
+    parser.add_argument("--skip-rclone", action="store_true")
     parser.add_argument("--python-bin", default=os.environ.get("PYTHON_BIN", sys.executable or "python3"))
     parser.add_argument("--safety-window-days", type=int, default=DEFAULT_SAFETY_WINDOW_DAYS)
     parser.add_argument("--newest-window-days", type=int, default=DEFAULT_NEWEST_WINDOW_DAYS)
@@ -750,6 +786,8 @@ def main() -> int:
     parser.add_argument("--verify-epub-on-scan", action="store_true")
     parser.add_argument("--tmp-dir", default="/tmp")
     args = parser.parse_args()
+
+    args.rclone_remote_effective = "" if args.skip_rclone else detect_rclone_remote(args.rclone_bin, args.rclone_remote)
 
     bucket = get_state_bucket(args.state_r2_bucket)
     state = load_state_for_command(args.command, bucket, args.state_r2_key, args.wrangler_bin)

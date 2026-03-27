@@ -995,11 +995,19 @@
         let SEARCH_NONCE = 0;
         let currentView = null;
         let activeLanguage = "en";
+        const SEARCH_PAGE_SIZE = 24;
+        const AUTHOR_BOOKS_PAGE_SIZE = 24;
         let searchState = {
           query: "",
           items: [],
           error: "",
           loading: false,
+          page: 1,
+          pageSize: SEARCH_PAGE_SIZE,
+        };
+        let authorBooksState = {
+          key: "",
+          visibleLimit: AUTHOR_BOOKS_PAGE_SIZE,
         };
         let myBooksState = {
           items: [],
@@ -1294,8 +1302,40 @@
             return;
           }
 
-          const authors = searchState.items.filter((item) => item.kind === "author");
-          const books = searchState.items.filter((item) => item.kind === "book");
+          const pageSize = Math.max(1, parseNumber(searchState.pageSize) || SEARCH_PAGE_SIZE);
+          const totalItems = searchState.items.length;
+          const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+          const page = Math.min(totalPages, Math.max(1, parseNumber(searchState.page) || 1));
+          const startIndex = (page - 1) * pageSize;
+          const visibleItems = searchState.items.slice(startIndex, startIndex + pageSize);
+          const authors = visibleItems.filter((item) => item.kind === "author");
+          const books = visibleItems.filter((item) => item.kind === "book");
+
+          if (page !== searchState.page) {
+            searchState.page = page;
+          }
+
+          if (totalPages > 1) {
+            const pager = el("div", "sectionHead");
+            pager.appendChild(el("div", "sectionMeta", `Page ${page} of ${totalPages}`));
+            const actions = el("div", "toolbar");
+            const prevBtn = el("button", "toggleBtn", "Previous");
+            prevBtn.disabled = page <= 1;
+            prevBtn.addEventListener("click", () => {
+              searchState.page = Math.max(1, page - 1);
+              renderSearchResults();
+            });
+            const nextBtn = el("button", "toggleBtn", "Next");
+            nextBtn.disabled = page >= totalPages;
+            nextBtn.addEventListener("click", () => {
+              searchState.page = Math.min(totalPages, page + 1);
+              renderSearchResults();
+            });
+            actions.appendChild(prevBtn);
+            actions.appendChild(nextBtn);
+            pager.appendChild(actions);
+            els.searchResults.appendChild(pager);
+          }
 
           if (authors.length) {
             els.searchResults.appendChild(el("div", "srSectionTitle", "Authors:"));
@@ -1754,8 +1794,8 @@
 
         function normalizeSearchToken(query) {
           const base = normalizeSearchMatch(query).replace(/[^\p{L}\p{N}]+/gu, "");
-          if (base.length < 2) return "";
-          return base.slice(0, 2);
+          if (base.length < 3) return "";
+          return base.slice(0, 3);
         }
 
         function normalizeAuthorName(name) {
@@ -2042,7 +2082,7 @@
         async function runSearch() {
           const query = els.search.value.trim();
           if (!query) {
-            searchState = { query: "", items: [], error: "", loading: false };
+            searchState = { query: "", items: [], error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
             renderSearchResults();
             return;
           }
@@ -2051,15 +2091,17 @@
             searchState = {
               query,
               items: [],
-              error: "Enter at least two characters in the Search field",
+              error: "Enter at least three characters in the Search field",
               loading: false,
+              page: 1,
+              pageSize: SEARCH_PAGE_SIZE,
             };
             renderSearchResults();
             return;
           }
 
           const nonce = ++SEARCH_NONCE;
-          searchState = { query, items: [], error: "", loading: true };
+          searchState = { query, items: [], error: "", loading: true, page: 1, pageSize: SEARCH_PAGE_SIZE };
           renderSearchResults();
 
           try {
@@ -2132,7 +2174,7 @@
               })
               .filter(Boolean);
 
-            searchState = { query, items: results, error: "", loading: false };
+            searchState = { query, items: results, error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
             renderSearchResults();
           } catch (error) {
             if (nonce !== SEARCH_NONCE) return;
@@ -2141,6 +2183,8 @@
               items: [],
               error: error.message || "Search failed",
               loading: false,
+              page: 1,
+              pageSize: SEARCH_PAGE_SIZE,
             };
             renderSearchResults();
           }
@@ -2204,7 +2248,7 @@
         async function openAuthorFromSearch(authorKey, authorName) {
           // Hide search results to show the author page immediately.
           els.search.value = "";
-          searchState = { query: "", items: [], error: "", loading: false };
+          searchState = { query: "", items: [], error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
           updateSearchIcon();
           renderSearchResults();
 
@@ -2236,11 +2280,18 @@
                 next.authorKey,
             };
             const viewMode = next.bookView || "list";
+            authorBooksState = {
+              key: author.key || next.authorKey || "",
+              visibleLimit: AUTHOR_BOOKS_PAGE_SIZE,
+            };
 
             setBreadcrumbs([{ label: "Letters", onClick: () => navigate({ view: "letters" }) }, { label: author.name }]);
             setToolbar("author", viewMode);
-            currentView = { renderer: () => renderAuthorBooks(author, payload.books, viewMode), data: payload.books };
-            renderAuthorBooks(author, payload.books, viewMode);
+            currentView = {
+              renderer: () => renderAuthorBooks(author, payload.books, viewMode, authorBooksState.visibleLimit),
+              data: payload.books,
+            };
+            renderAuthorBooks(author, payload.books, viewMode, authorBooksState.visibleLimit);
             renderSearchResults();
             try {
               els.content.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2594,7 +2645,7 @@
           els.content.appendChild(table);
         }
 
-        function renderAuthorBooks(author, books, viewMode) {
+        function renderAuthorBooks(author, books, viewMode, visibleLimitInput) {
           els.content.innerHTML = "";
           if (!books.length) {
             const empty = el("div", "loading", "No books found.");
@@ -2602,9 +2653,23 @@
             return;
           }
 
+          const authorKey = String((author && author.key) || "");
+          if (authorBooksState.key !== authorKey) {
+            authorBooksState = {
+              key: authorKey,
+              visibleLimit: AUTHOR_BOOKS_PAGE_SIZE,
+            };
+          }
+          const visibleLimit = Math.min(
+            books.length,
+            Math.max(AUTHOR_BOOKS_PAGE_SIZE, parseNumber(visibleLimitInput) || authorBooksState.visibleLimit || AUTHOR_BOOKS_PAGE_SIZE)
+          );
+          authorBooksState.visibleLimit = visibleLimit;
+          const visibleBooks = books.slice(0, visibleLimit);
+
           if (viewMode === "grid") {
             const grid = el("div", "grid");
-            books.forEach((book) => {
+            visibleBooks.forEach((book) => {
               const card = el("a", "card");
               card.href = openBookUrl(book, book.source, book.cover);
 
@@ -2639,7 +2704,7 @@
             const table = el("table", "list");
             const tbody = el("tbody");
 
-            books.forEach((book) => {
+            visibleBooks.forEach((book) => {
               const row = el("tr", null);
               const cell = el("td");
               const link = el("a", null, book.title);
@@ -2651,6 +2716,15 @@
 
             table.appendChild(tbody);
             els.content.appendChild(table);
+          }
+
+          if (visibleLimit < books.length) {
+            const moreBtn = el("button", "toggleBtn sectionMoreBtn", `Show more (${books.length - visibleLimit} remaining)`);
+            moreBtn.addEventListener("click", () => {
+              authorBooksState.visibleLimit = visibleLimit + AUTHOR_BOOKS_PAGE_SIZE;
+              renderAuthorBooks(author, books, viewMode, authorBooksState.visibleLimit);
+            });
+            els.content.appendChild(moreBtn);
           }
         }
 
@@ -3685,11 +3759,15 @@
                 els.content.classList.add("noPanel");
               }
               setToolbar("author", viewMode);
+              authorBooksState = {
+                key: author.key || state.authorKey || "",
+                visibleLimit: AUTHOR_BOOKS_PAGE_SIZE,
+              };
               currentView = {
-                renderer: () => renderAuthorBooks(author, payload.books, viewMode),
+                renderer: () => renderAuthorBooks(author, payload.books, viewMode, authorBooksState.visibleLimit),
                 data: payload.books,
               };
-              renderAuthorBooks(author, payload.books, viewMode);
+              renderAuthorBooks(author, payload.books, viewMode, authorBooksState.visibleLimit);
               renderSearchResults();
               return;
             }
@@ -3780,7 +3858,7 @@
             closeLanguageMenu();
             setActiveLanguage(next);
             els.search.value = "";
-            searchState = { query: "", items: [], error: "", loading: false };
+            searchState = { query: "", items: [], error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
             updateSearchIcon();
             renderSearchResults();
             updateHash({ ...DEFAULT_STATE, language: next }, true);
@@ -3823,7 +3901,7 @@
           els.myBooksLink.addEventListener("click", (event) => {
             event.preventDefault();
             els.search.value = "";
-            searchState = { query: "", items: [], error: "", loading: false };
+            searchState = { query: "", items: [], error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
             updateSearchIcon();
             renderSearchResults();
             navigate({ view: "mybooks", letter: "", prefix: "", authorKey: "", authorName: "" });
