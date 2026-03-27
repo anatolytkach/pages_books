@@ -269,12 +269,8 @@
 
   function ensureAuthorized(interactive) {
     if (isTokenValid()) return Promise.resolve(true);
-    return requestAccessToken(false).then(function () {
-      return true;
-    }).catch(function () {
-      if (!interactive) return false;
-      return requestAccessToken(true);
-    });
+    if (!interactive) return Promise.resolve(false);
+    return requestAccessToken(true);
   }
 
   function authHeaders(extra) {
@@ -756,15 +752,4 @@
     flushPendingReaderStateSync: flushPendingReaderStateSync
   };
 
-  // Preload GIS and token client so sign-in starts from a direct user gesture click.
-  try {
-    if (isConfigured()) {
-      loadGis().then(function () {
-        return ensureTokenClient();
-      }).catch(function () {});
-      setTimeout(function () {
-        try { flushPendingReaderStateSync({ interactive: false }); } catch (e1) {}
-      }, 1200);
-    }
-  } catch (e0) {}
 })();

@@ -100,19 +100,20 @@
           <li><a href="#seo-layer">4. SEO-layer: архитектура и runtime</a></li>
           <li><a href="#indexes">5. Форматы индексов каталога</a></li>
           <li><a href="#ingest">6. Конвейер DOCX -> EPUB -> R2 -> индексы -> Pages</a></li>
-          <li><a href="#ops">7. Операционные сценарии и rollback</a></li>
-          <li><a href="#secrets">8. Секреты и переменные окружения</a></li>
-          <li><a href="#reader-arch">9. Устройство читалки</a></li>
-          <li><a href="#docsauth">10. Защита документации</a></li>
-          <li><a href="#stats">11. Статистика / PostHog</a></li>
-          <li><a href="#checks">12. Проверки после релиза</a></li>
+          <li><a href="#gutenberg-cli">7. Ручной Gutenberg CLI</a></li>
+          <li><a href="#ops">8. Операционные сценарии и rollback</a></li>
+          <li><a href="#secrets">9. Секреты и переменные окружения</a></li>
+          <li><a href="#reader-arch">10. Устройство читалки</a></li>
+          <li><a href="#docsauth">11. Защита документации</a></li>
+          <li><a href="#stats">12. Статистика / PostHog</a></li>
+          <li><a href="#checks">13. Проверки после релиза</a></li>
         </ul>
       </aside>
 
       <section class="card">
         <h1>ReaderPub: передача проекта</h1>
-        <p class="meta">Документация на русском языке. Актуально на 2026-03-18.</p>
-        <p class="meta"><strong>Версия страницы:</strong> docs-live-2026-03-18-SEO-layer</p>
+        <p class="meta">Документация на русском языке. Актуально на 2026-03-26.</p>
+        <p class="meta"><strong>Версия страницы:</strong> docs-live-2026-03-26-gutenberg-manual-cli</p>
 
         <h2 id="scope">1. Назначение и границы</h2>
         <p>
@@ -137,20 +138,20 @@ cd pages_books</code></pre>
           <li>SSR/edge-rendering SEO pages: <code>/book/*</code>, <code>/author/*</code>, <code>/category/*</code>, <code>/sitemap.xml</code>, <code>/sitemaps/*</code>, <code>/robots.txt</code>.</li>
         </ul>
 
-        <p><strong>Worker B (служебный notes proxy):</strong> <code>tools/notes-share-proxy-worker.js</code>.</p>
+        <p><strong>Worker B (служебный notes proxy):</strong> <code>tools/runtime/notes-share-proxy-worker.js</code>.</p>
         <ul>
           <li>KV storage заметок: ключи <code>ns:&lt;shareId&gt;</code> в <code>READERPUB_NOTES_SHARE_KV</code>.</li>
           <li>Routes: <code>/books/api/notes-share*</code>, <code>/api/notes-share*</code>, алиасы <code>/ns*</code>.</li>
         </ul>
 
-        <p><strong>Worker C (docs gateway):</strong> <code>tools/docs-route-worker.js</code>, deployed как <code>readerpub-docs-route</code>.</p>
+        <p><strong>Worker C (docs gateway):</strong> <code>tools/runtime/docs-route-worker.js</code>, deployed как <code>readerpub-docs-route</code>.</p>
         <ul>
           <li>Routes: <code>reader.pub/docs</code>, <code>reader.pub/docs/*</code>.</li>
           <li>Назначение: Basic Auth + проксирование docs на <code>master.reader-books.pages.dev/docs/*</code>.</li>
-          <li>Правило публикации: изменения в <code>docs/README.md</code> нужно сразу переносить в <code>deploy/docs/index.html</code> и публиковать через <code>tools/deploy_docs.sh</code>; этот скрипт всегда выкатывает docs в ветку <code>master</code>, потому что <code>staging.reader.pub/docs/</code> читает docs именно оттуда.</li>
+          <li>Правило публикации: изменения в <code>docs/README.md</code> нужно сразу переносить в <code>deploy/docs/index.html</code> и публиковать через <code>tools/dev/deploy_docs.sh</code>; этот скрипт всегда выкатывает docs в ветку <code>master</code>, потому что <code>staging.reader.pub/docs/</code> читает docs именно оттуда.</li>
         </ul>
 
-        <p><strong>Worker D (production router):</strong> <code>tools/reader-books-router.js</code>.</p>
+        <p><strong>Worker D (production router):</strong> <code>tools/runtime/reader-books-router.js</code>.</p>
         <ul>
           <li>Routes: <code>/books*</code>, <code>/book*</code>, <code>/author*</code>, <code>/category*</code>, <code>/sitemap.xml*</code>, <code>/sitemaps/*</code>, <code>/robots.txt*</code>.</li>
           <li>Читает R2 binding <code>BOOKS</code> напрямую для <code>api/*</code>, <code>content/*</code> и <code>seo/*</code>.</li>
@@ -163,8 +164,8 @@ cd pages_books</code></pre>
           <li>Индексы: <code>api/...json</code>.</li>
           <li>Основные файлы: <code>api/letters.json</code>, <code>api/languages.json</code>.</li>
           <li>Навигация по авторам: <code>api/p/*.json</code>, <code>api/a/*.json</code>.</li>
-          <li>Поиск: <code>api/search/&lt;token2&gt;.json</code>.</li>
-          <li>Языковые ветки: <code>api/lang/&lt;lang&gt;/...</code>.</li>
+          <li>Поиск: <code>api/search/&lt;token3&gt;.json</code>.</li>
+          <li>Языковые ветки browse-навигации: <code>api/lang/&lt;lang&gt;/letters.json</code>, <code>api/lang/&lt;lang&gt;/p/*.json</code>, <code>api/lang/&lt;lang&gt;/a/*.json</code>.</li>
           <li>SEO data layer: <code>seo/book-shards/*.json</code>, <code>seo/author-shards/*.json</code>, <code>seo/category/*.json</code>, <code>seo/sitemaps/*.json</code>, <code>seo/version.json</code>.</li>
         </ul>
 
@@ -224,21 +225,28 @@ cd pages_books</code></pre>
         </ul>
 
         <h2 id="indexes">5. Форматы индексов каталога</h2>
-        <p>Источник: <code>tools/build_lang_indexes.py</code>.</p>
+        <p>Источник: <code>tools/catalog/build_lang_indexes.py</code>.</p>
         <ul>
           <li><code>letters.json</code>: список букв/ключей и количества авторов.</li>
           <li><code>p/&lt;node&gt;.json</code>: prefix-tree. Либо <code>authors</code>, либо <code>prefixes</code>, плюс <code>authorCount</code>.</li>
           <li><code>a/&lt;author_key&gt;.json</code>: автор и массив его книг (<code>id/title/cover</code>).</li>
-          <li><code>search/&lt;token2&gt;.json</code>: mixed items по токену:
+          <li><code>search/&lt;token3&gt;.json</code>: mixed items по токену:
             авторы (<code>t:"a",k,n,c</code>) и книги (<code>id,title,a,k,cover</code>).</li>
           <li><code>languages.json</code>: список языков и количества книг.</li>
         </ul>
+        <p>Языкового search-слоя больше нет: поиск всегда использует глобальные <code>api/search/&lt;token3&gt;.json</code>, а языковые ветки сохраняют только browse-навигацию по буквам, префиксам и авторам.</p>
 
         <p>Ограничения и правила:</p>
         <ul>
           <li><code>max_prefix</code> по умолчанию <code>5</code>;</li>
           <li><code>threshold</code> по умолчанию <code>50</code> (решает, когда хранить <code>authors</code>, а когда дробить на <code>prefixes</code>);</li>
-          <li>поиск bucket'изируется по первым 2 символам нормализованной строки.</li>
+          <li>поиск bucket'изируется по первым 3 символам нормализованной строки.</li>
+        </ul>
+        <p><strong>Frontend UX:</strong></p>
+        <ul>
+          <li>search требует минимум <code>3</code> символа;</li>
+          <li>search results рендерятся постранично по <code>24</code> элементов на страницу;</li>
+          <li>на author page длинные списки книг раскрываются через <code>Show more</code> по <code>24</code> книг за шаг.</li>
         </ul>
 
         <h2 id="ingest">6. Конвейер DOCX - EPUB - R2 - индексы - Pages</h2>
@@ -248,7 +256,7 @@ cd pages_books</code></pre>
           <li><code>books/content/gen_epub_css_from_docx.py</code> — извлечение heading-стилей Word в CSS.</li>
           <li><code>books/content/epub_unpack.sh</code> — распаковка EPUB в папки книг (новые id или replace).</li>
           <li><code>books/content/epub_publish.sh</code> — upload в R2 + переиндексация + Pages deploy.</li>
-          <li><code>tools/build_lang_indexes.py</code> — генератор индексов.</li>
+          <li><code>tools/catalog/build_lang_indexes.py</code> — генератор индексов.</li>
         </ul>
 
         <p>Сборка EPUB:</p>
@@ -283,7 +291,7 @@ cd pages_books</code></pre>
         <ul>
           <li>production branch у Cloudflare Pages проекта <code>reader-books</code> называется <code>production</code>, а не <code>master</code>;</li>
           <li>ветка <code>master</code> у этого проекта создает только preview deploy и не обновляет <code>reader.pub/books/*</code>;</li>
-          <li>production router <code>tools/reader-books-router.js</code> проксирует <code>reader.pub/books/reader/*</code> в <code>https://reader-books.pages.dev/reader/*</code>, поэтому для боевого обновления должен обновиться именно production alias <code>reader-books.pages.dev</code>.</li>
+          <li>production router <code>tools/runtime/reader-books-router.js</code> проксирует <code>reader.pub/books/reader/*</code> в <code>https://reader-books.pages.dev/reader/*</code>, поэтому для боевого обновления должен обновиться именно production alias <code>reader-books.pages.dev</code>.</li>
         </ul>
         <p>Правильный порядок:</p>
         <ol>
@@ -327,7 +335,167 @@ git status --short --branch</code></pre>
           <li>ветка не должна оставаться в состоянии <code>ahead N</code>.</li>
         </ul>
 
-        <h2 id="ops">7. Операционные сценарии и rollback</h2>
+        <h2 id="gutenberg-cli">7. Ручной Gutenberg CLI</h2>
+        <p>
+          Для новых книг из Project Gutenberg weekly automation больше не используется.
+          Вместо нее проект использует ручной terminal-first pipeline:
+          <code>tools/gutenberg/gutenberg_manual_ingest.py</code>.
+        </p>
+        <p><strong>Зачем он нужен:</strong></p>
+        <ul>
+          <li>сам находит старший Gutenberg ID в текущей системе;</li>
+          <li>сам начинает со следующего номера, без ручного указания <code>from-id</code>;</li>
+          <li>скачивает только preferred EPUB-вариант <code>pg&lt;ID&gt;.epub</code>;</li>
+          <li>заливает новые книги в legacy Gutenberg layout <code>content/&lt;id&gt;/...</code>;</li>
+          <li>обновляет каталоговые индексы, <code>Newest Releases</code> и selective SEO;</li>
+          <li>показывает прогресс в терминале и умеет <code>resume</code> после сбоя.</li>
+        </ul>
+        <p><strong>Bulk upload и cleanup:</strong></p>
+        <ul>
+          <li>для массовой загрузки <code>content/*</code> и <code>api/*</code> CLI предпочитает <code>rclone</code>, если доступен remote <code>r2</code> или явно передан <code>--rclone-remote</code>;</li>
+          <li>fallback остается прежним: прямой R2 S3 доступ или <code>wrangler</code>;</li>
+          <li>после rebuild CLI удаляет устаревшие <code>lang/*/search</code> локально и на R2.</li>
+        </ul>
+        <p><strong>Каноническая модель после ingest:</strong></p>
+        <ul>
+          <li>Gutenberg-книги остаются в reader как <code>?id=&lt;gutenberg_id&gt;</code> без <code>source=gutenberg</code>.</li>
+          <li>Manual-книги остаются source-qualified: <code>?id=&lt;manual_id&gt;&amp;source=manual</code>.</li>
+          <li><code>Newest Releases</code> всегда показывает максимум <code>12</code> последних книг из последней новой партии Gutenberg.</li>
+        </ul>
+        <p><strong>Основные команды:</strong></p>
+        <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py status
+python3 tools/gutenberg/gutenberg_manual_ingest.py scan
+python3 tools/gutenberg/gutenberg_manual_ingest.py run
+python3 tools/gutenberg/gutenberg_manual_ingest.py resume</code></pre>
+        <p><strong>Дополнительные runtime flags:</strong></p>
+        <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py run --rclone-remote r2
+python3 tools/gutenberg/gutenberg_manual_ingest.py run --skip-rclone</code></pre>
+        <p><strong>Что делает каждая команда:</strong></p>
+        <ul>
+          <li><code>status</code> — показывает текущий max Gutenberg ID, следующий стартовый ID и состояние текущей сессии.</li>
+          <li><code>scan</code> — ищет новые Gutenberg-книги без импорта.</li>
+          <li><code>run</code> — выполняет полный импорт: книги, индексы, <code>Newest Releases</code>, SEO.</li>
+          <li><code>resume</code> — продолжает незавершенный run после сбоя.</li>
+        </ul>
+        <p><strong>Пример безопасного рабочего порядка:</strong></p>
+        <ol>
+          <li><code>python3 tools/gutenberg/gutenberg_manual_ingest.py status</code></li>
+          <li><code>python3 tools/gutenberg/gutenberg_manual_ingest.py scan</code></li>
+          <li><code>python3 tools/gutenberg/gutenberg_manual_ingest.py run</code></li>
+          <li>если run оборвался — <code>python3 tools/gutenberg/gutenberg_manual_ingest.py resume</code></li>
+        </ol>
+        <p><strong>Пошаговая инструкция для работы в терминале:</strong></p>
+        <ol>
+          <li>Откройте терминал в корне репозитория:
+            <pre><code>cd /Volumes/2T/se_ingest/pages_books</code></pre>
+          </li>
+          <li>Проверьте текущее состояние pipeline:
+            <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py status</code></pre>
+            Ожидаемо увидеть:
+            <ul>
+              <li><code>max_gutenberg_id</code> — текущий старший Gutenberg ID в системе;</li>
+              <li><code>next_start_id</code> — номер, с которого начнется следующий импорт;</li>
+              <li><code>current_run_status</code> — состояние текущей сессии, если она уже была.</li>
+            </ul>
+          </li>
+          <li>Сделайте безопасный предварительный поиск новых книг без импорта:
+            <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py scan</code></pre>
+            После этого:
+            <ul>
+              <li>CLI сам найдет старший Gutenberg ID;</li>
+              <li>CLI сам вычислит следующий стартовый ID;</li>
+              <li>в выводе появится число новых кандидатов.</li>
+            </ul>
+          </li>
+          <li>Если нужно заранее проверить, что у кандидатов реально есть preferred EPUB-вариант, используйте:
+            <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py scan --verify-epub-on-scan</code></pre>
+            Этот режим не импортирует книги, а только проверяет наличие <code>pg&lt;ID&gt;.epub</code>.
+          </li>
+          <li>Если кандидаты найдены и запуск одобрен, запустите полный импорт:
+            <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py run</code></pre>
+            Во время выполнения CLI последовательно делает:
+            <ul>
+              <li>скачивание EPUB;</li>
+              <li>распаковку;</li>
+              <li>загрузку в <code>/books/content/&lt;id&gt;/</code>;</li>
+              <li>обновление каталоговых индексов;</li>
+              <li>обновление <code>Newest Releases</code> с лимитом <code>12</code>;</li>
+              <li>селективную генерацию и публикацию SEO.</li>
+            </ul>
+          </li>
+          <li>Следите за прогрессом прямо в терминале. Основные фазы, которые должны появляться в логе:
+            <ul>
+              <li><code>download</code></li>
+              <li><code>unpack</code></li>
+              <li><code>upload_content</code></li>
+              <li><code>index_catalog</code></li>
+              <li><code>newest</code></li>
+              <li><code>seo_build</code></li>
+              <li><code>seo_upload</code></li>
+            </ul>
+            Параллельно локальный лог пишется в:
+            <pre><code>/tmp/readerpub_gutenberg_runs/&lt;timestamp&gt;-run.log</code></pre>
+          </li>
+          <li>Если run завершился успешно, еще раз проверьте итог:
+            <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py status</code></pre>
+            Затем проверьте каталог и reader вручную:
+            <ul>
+              <li>поиск новой книги в <code>/books/</code>;</li>
+              <li>открытие книги в reader как <code>?id=&lt;gutenberg_id&gt;</code>;</li>
+              <li>наличие новых книг в <code>Newest Releases</code>;</li>
+              <li>наличие новых SEO book pages.</li>
+            </ul>
+          </li>
+          <li>Если run оборвался, не запускайте новый <code>run</code> поверх старого состояния. Вместо этого продолжайте текущую сессию:
+            <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py resume</code></pre>
+            CLI должен продолжить с незавершенной книги и незавершенной фазы.
+          </li>
+          <li>Если книги уже импортированы, но SEO по какой-то причине не дописалось, используйте отдельный добор SEO:
+            <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py seo</code></pre>
+          </li>
+          <li>Если нужно только пересобрать витрину <code>Newest Releases</code>, без нового импорта книг:
+            <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py newest</code></pre>
+          </li>
+        </ol>
+        <p><strong>Прогресс и логи:</strong></p>
+        <ul>
+          <li>CLI пишет фазовый progress в терминал: <code>download</code>, <code>unpack</code>, <code>upload_content</code>, <code>index_catalog</code>, <code>newest</code>, <code>seo_build</code>, <code>seo_upload</code>.</li>
+          <li>Локальный run-log создается в <code>/tmp/readerpub_gutenberg_runs/&lt;timestamp&gt;-&lt;command&gt;.log</code>.</li>
+          <li>Состояние pipeline хранится в R2: <code>system/gutenberg-pipeline/state.json</code>.</li>
+        </ul>
+        <p><strong>Поведение при сбое:</strong></p>
+        <ul>
+          <li>если ошибка временная, pipeline пытается пережить ее автоматически;</li>
+          <li>если ошибка hard-failure, CLI пишет книгу, фазу и точную команду продолжения;</li>
+          <li>основная команда восстановления: <code>python3 tools/gutenberg/gutenberg_manual_ingest.py resume</code>.</li>
+        </ul>
+        <p><strong>Runtime credentials:</strong></p>
+        <ul>
+          <li>предпочтительный режим: прямой R2 S3 доступ через <code>R2_S3_ENDPOINT</code>, <code>R2_ACCESS_KEY_ID</code>, <code>R2_SECRET_ACCESS_KEY</code>;</li>
+          <li>bulk-sync режим: <code>rclone</code> remote <code>r2</code> или явный <code>--rclone-remote</code>;</li>
+          <li>fallback: активная <code>wrangler</code> session / <code>CLOUDFLARE_API_TOKEN</code>.</li>
+        </ul>
+
+        <h2 id="gutenberg-updater">7.5 Gutenberg updater</h2>
+        <p>Скрипт: <code>tools/gutenberg/update_gutenberg_catalog.py</code>.</p>
+        <p><strong>Назначение:</strong></p>
+        <ul>
+          <li>weekly/queued ingest новых Gutenberg-книг без ручного <code>from-id</code>;</li>
+          <li>массовая загрузка контента и каталоговых индексов;</li>
+          <li>rebuild <code>Newest Releases</code> и selective SEO;</li>
+          <li>синхронизация новой схемы индексов без <code>api/lang/&lt;lang&gt;/search/*</code>.</li>
+        </ul>
+        <p><strong>Особенности:</strong></p>
+        <ul>
+          <li>для bulk upload предпочитает <code>rclone</code>, если доступен remote <code>r2</code>;</li>
+          <li>можно явно передать <code>--rclone-remote</code> или отключить <code>rclone</code> через <code>--skip-rclone</code>;</li>
+          <li>после rebuild удаляет устаревшие <code>lang/*/search</code> локально и purge-ит <code>api/lang/*/search</code> на R2.</li>
+        </ul>
+        <p>
+          Детальная инструкция для разработчика: <code>docs/gutenberg-pipeline.md</code>.
+        </p>
+
+        <h2 id="ops">8. Операционные сценарии и rollback</h2>
         <p><strong>replace &lt;id&gt;</strong> — безопасный способ исправить одну книгу.</p>
         <ul>
           <li>Кладете ровно один EPUB в <code>books/content/</code>.</li>
@@ -340,7 +508,7 @@ git status --short --branch</code></pre>
           <li>или <code>upload-ids</code> для восстановления папки книги + <code>reindex-ids</code> через <code>epub_publish.sh</code>.</li>
         </ul>
 
-        <h2 id="secrets">8. Секреты и переменные окружения</h2>
+        <h2 id="secrets">9. Секреты и переменные окружения</h2>
         <ul>
           <li><code>EPUB_PUBLISH_R2_BUCKET</code>, <code>EPUB_PUBLISH_PAGES_PROJECT</code>, <code>EPUB_PUBLISH_PAGES_BRANCH</code></li>
           <li><code>READER_BOOKS</code> (R2 binding)</li>
@@ -351,7 +519,7 @@ git status --short --branch</code></pre>
           <li><code>DOCS_AUTH_USER</code>, <code>DOCS_AUTH_PASS</code></li>
         </ul>
 
-        <h2 id="reader-arch">9. Устройство читалки</h2>
+        <h2 id="reader-arch">10. Устройство читалки</h2>
         <p><strong>Ключевые файлы:</strong> <code>reader/index.html</code>, <code>reader/js/reader.js</code>, <code>reader/js/fbreader-ui.js</code>, <code>books/shared/drive-sync.js</code>.</p>
         <p><strong>Поток запуска:</strong></p>
         <ul>
@@ -383,7 +551,7 @@ git status --short --branch</code></pre>
           <li>Синхронность версий <code>reader.js</code>, <code>fbreader-ui.js</code>, CSS.</li>
         </ul>
 
-        <h2 id="docsauth">10. Защита документации</h2>
+        <h2 id="docsauth">11. Защита документации</h2>
         <p>
           URL: <code>https://reader.pub/docs/</code>. Маршруты защищены Basic Auth через
           worker <code>readerpub-docs-route</code>.
@@ -394,7 +562,7 @@ git status --short --branch</code></pre>
           <li>публичный fallback отключен.</li>
         </ul>
 
-        <h2 id="stats">11. Статистика / PostHog</h2>
+        <h2 id="stats">12. Статистика / PostHog</h2>
         <p>Для <code>reader.pub/books/</code> и <code>reader.pub/books/reader/</code> подключен PostHog Cloud.</p>
         <p><strong>Важно:</strong></p>
         <ul>
@@ -419,13 +587,13 @@ git status --short --branch</code></pre>
         <p><strong>Переменные окружения:</strong> <code>READERPUB_POSTHOG_ENABLED</code>, <code>READERPUB_POSTHOG_KEY</code>, <code>READERPUB_POSTHOG_HOST</code>.</p>
         <p>Подробная инструкция: <code>docs/posthog-catalog.md</code>.</p>
 
-        <h2 id="checks">12. Проверки после релиза</h2>
+        <h2 id="checks">13. Проверки после релиза</h2>
         <ul>
           <li><code>/docs/</code> -> 401 без auth, 200 с auth.</li>
           <li><code>/books/</code> и <code>/books/reader/?id=&lt;id&gt;</code> без регрессий.</li>
           <li><code>/book/&lt;slug&gt;</code>, <code>/author/&lt;slug&gt;</code>, <code>/category/&lt;slug&gt;</code> рендерятся как SSR HTML.</li>
           <li><code>/sitemap.xml</code> и child sitemaps открываются.</li>
-          <li><code>/books/api/search/a.json</code> и другие index endpoint'ы отдают актуальные JSON.</li>
+          <li><code>/books/api/search/100.json</code> и другие index endpoint'ы отдают актуальные JSON.</li>
           <li>Новая/обновленная книга ищется по названию и по автору.</li>
         </ul>
       </section>

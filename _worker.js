@@ -382,41 +382,44 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
     });
   }
 
-  // Author search token: first 2 chars of normalized index name (matches Python normalize_search_token)
-  const authorToken = indexKey.length >= 2 ? indexKey.slice(0, 2) : "";
-  if (authorToken) {
-    await updateSearchToken(authorToken, {
-      t: "a",
-      k: authorKey,
-      n: authorDisplay,
-      c: authorData.books.length,
-    }, authorKey, "k");
-  }
+  // Search is global-only in the current catalog contract.
+  if (apiPrefix === "api") {
+    // Author search token: first 3 chars of normalized index name.
+    const authorToken = indexKey.length >= 3 ? indexKey.slice(0, 3) : "";
+    if (authorToken) {
+      await updateSearchToken(authorToken, {
+        t: "a",
+        k: authorKey,
+        n: authorDisplay,
+        c: authorData.books.length,
+      }, authorKey, "k");
+    }
 
-  // Book/title search token: first 2 chars of normalized title
-  const titleNorm = normalizeIndex(title);
-  const titleToken = titleNorm.length >= 2 ? titleNorm.slice(0, 2) : "";
-  if (titleToken) {
-    await updateSearchToken(titleToken, {
-      id: contentId,
-      title: title,
-      a: authorDisplay,
-      k: authorKey,
-      cover: coverUrl || "",
-    }, contentId, "id");
-  }
+    // Book/title search token: first 3 chars of normalized title.
+    const titleNorm = normalizeIndex(title);
+    const titleToken = titleNorm.length >= 3 ? titleNorm.slice(0, 3) : "";
+    if (titleToken) {
+      await updateSearchToken(titleToken, {
+        id: contentId,
+        title: title,
+        a: authorDisplay,
+        k: authorKey,
+        cover: coverUrl || "",
+      }, contentId, "id");
+    }
 
-  // Also add tokens from individual title words (for multi-word search)
-  const titleWords = buildSearchTokens(title, "");
-  for (const token of titleWords) {
-    if (token === titleToken) continue; // already handled
-    await updateSearchToken(token, {
-      id: contentId,
-      title: title,
-      a: authorDisplay,
-      k: authorKey,
-      cover: coverUrl || "",
-    }, contentId, "id");
+    // Also add tokens from individual title words (for multi-word search).
+    const titleWords = buildSearchTokens(title, "");
+    for (const token of titleWords) {
+      if (token === titleToken) continue;
+      await updateSearchToken(token, {
+        id: contentId,
+        title: title,
+        a: authorDisplay,
+        k: authorKey,
+        cover: coverUrl || "",
+      }, contentId, "id");
+    }
   }
 
   // 4. Update letters.json (based on index key = last name first)
@@ -528,22 +531,22 @@ function parseAuthorForIndex(name) {
 
 /**
  * Build search tokens from title and author.
- * Matches Python's normalize_search_token(): first 2 chars of each normalized word.
+ * Matches the current Python normalize_search_token(): first 3 chars of each normalized word.
  * For non-English, uses Unicode-aware normalization.
  */
 function buildSearchTokens(title, author) {
   const tokens = new Set();
   const combined = `${title || ""} ${author || ""}`;
 
-  // Unicode-aware: split on non-letter/non-number, normalize, take first 2 chars
+  // Unicode-aware: split on non-letter/non-number, normalize, take first 3 chars
   const words = stripDiacritics(combined).toLowerCase()
     .split(/[^\p{L}\p{N}]+/u)
-    .filter(w => w.length >= 2);
+    .filter(w => w.length >= 3);
 
   for (const word of words) {
-    // Matching Python: normalize_search_token returns base[:2]
+    // Matching Python: normalize_search_token returns base[:3]
     const normalized = word.replace(/[^\p{L}\p{N}]+/gu, "");
-    if (normalized.length >= 2) tokens.add(normalized.slice(0, 2));
+    if (normalized.length >= 3) tokens.add(normalized.slice(0, 3));
   }
   return [...tokens];
 }
@@ -1425,10 +1428,11 @@ function buildBookJsonLd(origin, book) {
   return data;
 }
 
-function contentDirForChapter(bookId, chapter) {
+function contentDirForChapter(book, chapter) {
   const raw = String((chapter && chapter.sourcePath) || "").trim();
   const dir = raw.includes("/") ? raw.slice(0, raw.lastIndexOf("/") + 1) : "";
-  return `/books/content/${bookId}/${dir}`;
+  const base = String((book && (book.contentPath || book.content_path)) || `/books/content/${book && book.id ? book.id : ""}/`).replace(/\/?$/, "/");
+  return `${base}${dir}`;
 }
 
 function rewriteRelativeChapterHtml(html, assetBase) {
@@ -1892,9 +1896,10 @@ async function renderSeoRoute(request, env, url, path) {
         "x-reader-route": "seo-sitemap-miss",
       });
     }
-    return await withSeoCache(request, globalVersion, cacheVariant, async () => {
+    const sitemapVersion = payload.version || globalVersion;
+    return await withSeoCache(request, sitemapVersion, cacheVariant, async () => {
       const response = xmlResponse(buildSitemapXml(canonicalOrigin, payload.items || []), 200, {
-        ...buildSitemapCacheHeaders(globalVersion),
+        ...buildSitemapCacheHeaders(sitemapVersion),
         "x-reader-route": "seo-sitemap",
       });
       return response;
@@ -2002,11 +2007,13 @@ async function renderSeoRoute(request, env, url, path) {
       return new Response(null, { status: 301, headers });
     }
     return await withSeoCache(request, book.version || globalVersion, cacheVariant, async () => {
-      const sourceKey = `content/${book.id}/${chapter.sourcePath}`;
+      const contentPath = String(book.contentPath || book.content_path || `/books/content/${book.id}/`);
+      const contentKeyPrefix = contentPath.replace(/^\/books\//, "").replace(/^\/+/, "").replace(/\/?$/, "/");
+      const sourceKey = `${contentKeyPrefix}${chapter.sourcePath}`;
       let xhtmlText = await readBucketText(env, sourceKey);
       if (!xhtmlText) {
         xhtmlText = await fetchTextAbsolute(
-          `${publicContentOrigin}/books/content/${book.id}/${chapter.sourcePath}`
+          `${publicContentOrigin}${contentPath.replace(/\/?$/, "/")}${chapter.sourcePath}`
         );
       }
       if (!xhtmlText) {
@@ -2015,7 +2022,7 @@ async function renderSeoRoute(request, env, url, path) {
           "x-reader-route": "seo-chapter-source-miss",
         });
       }
-      const assetBase = contentDirForChapter(book.id, chapter);
+      const assetBase = contentDirForChapter(book, chapter);
       const chapterInner = rewriteRelativeChapterHtml(extractBodyInnerHtml(xhtmlText), assetBase);
       const response = htmlResponse(renderChapterPage(canonicalOrigin, book, chapter, chapterInner, posthogConfig), 200, {
         ...buildSeoCacheHeaders(book.version || globalVersion),

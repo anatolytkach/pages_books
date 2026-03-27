@@ -10,5 +10,7 @@
   "languageBasePath": "/lang/{lang}",
   "discoverCategoriesPath": "/discover/categories.json",
   "discoverCategoryPath": "/discover/category/{slug}.json",
-  "discoverPopularPath": "/discover/popular.json"
+  "discoverPopularPath": "/discover/popular.json",
+  "discoverNewestPath": "/discover/newest.json",
+  "bookLocationsPath": "/book-locations.json"
 }

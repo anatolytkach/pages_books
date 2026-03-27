@@ -1,0 +1,117 @@
+{
+  "defaults": {
+    "manual": {
+      "public_path_mode": "target"
+    }
+  },
+  "manual": {
+    "1": {
+      "reader_id": "1",
+      "source_book_id": "1",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/1/"
+    },
+    "2": {
+      "reader_id": "2",
+      "source_book_id": "2",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/2/"
+    },
+    "3": {
+      "reader_id": "3",
+      "source_book_id": "3",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/3/"
+    },
+    "4": {
+      "reader_id": "4",
+      "source_book_id": "4",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/4/"
+    },
+    "5": {
+      "reader_id": "5",
+      "source_book_id": "5",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/5/"
+    },
+    "6": {
+      "reader_id": "6",
+      "source_book_id": "6",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/6/"
+    },
+    "7": {
+      "reader_id": "7",
+      "source_book_id": "7",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/7/"
+    },
+    "8": {
+      "reader_id": "8",
+      "source_book_id": "8",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/8/"
+    },
+    "9": {
+      "reader_id": "9",
+      "source_book_id": "9",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/9/"
+    },
+    "10": {
+      "reader_id": "10",
+      "source_book_id": "10",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/10/"
+    },
+    "11": {
+      "reader_id": "11",
+      "source_book_id": "11",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/11/"
+    },
+    "12": {
+      "reader_id": "12",
+      "source_book_id": "12",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/12/"
+    },
+    "13": {
+      "reader_id": "13",
+      "source_book_id": "13",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/13/"
+    },
+    "14": {
+      "reader_id": "14",
+      "source_book_id": "14",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/14/"
+    },
+    "15": {
+      "reader_id": "15",
+      "source_book_id": "15",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/15/"
+    },
+    "16": {
+      "reader_id": "16",
+      "source_book_id": "16",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/16/"
+    },
+    "17": {
+      "reader_id": "17",
+      "source_book_id": "17",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/17/"
+    },
+    "18": {
+      "reader_id": "18",
+      "source_book_id": "18",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/18/"
+    }
+  }
+}

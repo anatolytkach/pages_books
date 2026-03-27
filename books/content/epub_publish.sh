@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CONTENT_DIR="$SCRIPT_DIR"
-INDEX_TOOL="$ROOT_DIR/tools/build_lang_indexes.py"
+INDEX_TOOL="$ROOT_DIR/tools/catalog/build_lang_indexes.py"
 INDEX_DIR="$ROOT_DIR/reader_lang_indexes"
 DEPLOY_DIR="$ROOT_DIR/deploy"
 
@@ -41,7 +41,7 @@ What it does:
 
 Notes:
   - If content/<id>/... already exists on R2, it is replaced in-place.
-  - Catalog update is incremental via tools/build_lang_indexes.py --book-id <id>.
+  - Catalog update is incremental via tools/catalog/build_lang_indexes.py --book-id <id>.
   - Option --no-image-upload skips uploading image files from books.
     Existing images in R2 remain unchanged.
 USAGE
@@ -171,7 +171,7 @@ def normalize_search_match(value: str) -> str:
 def normalize_search_token(value: str) -> str:
     base = normalize_search_match(value)
     base = re.sub(r"[^\w]+", "", base, flags=re.UNICODE).replace("_", "")
-    return base[:2] if len(base) >= 2 else ""
+    return base[:3] if len(base) >= 3 else ""
 
 name = str(data.get("name") or "").strip()
 books = data.get("books") or []
@@ -225,11 +225,7 @@ verify_selective_index_consistency() {
 
     while IFS= read -r token; do
       [[ -n "$token" ]] || continue
-      if [[ "$lang" == "all" ]]; then
-        search_file="$INDEX_DIR/search/$token.json"
-      else
-        search_file="$INDEX_DIR/lang/$lang/search/$token.json"
-      fi
+      search_file="$INDEX_DIR/search/$token.json"
       [[ -f "$search_file" ]] || die "Missing search index file for author '$key': $search_file"
       rg -Fxq -- "$search_file" "$tmp_listed" || die "Selective publish list missed search file for author '$key': $search_file"
     done < <(json_get_author_tokens "$author_file")
@@ -284,11 +280,7 @@ build_selective_index_upload_list() {
 
     while IFS= read -r token; do
       [[ -n "$token" ]] || continue
-      if [[ "$lang" == "all" ]]; then
-        [[ -f "$INDEX_DIR/search/$token.json" ]] && echo "$INDEX_DIR/search/$token.json" >> "$tmp_files"
-      else
-        [[ -f "$INDEX_DIR/lang/$lang/search/$token.json" ]] && echo "$INDEX_DIR/lang/$lang/search/$token.json" >> "$tmp_files"
-      fi
+      [[ -f "$INDEX_DIR/search/$token.json" ]] && echo "$INDEX_DIR/search/$token.json" >> "$tmp_files"
     done < <(
       if [[ "$lang" == "all" ]]; then
         json_get_author_tokens "$INDEX_DIR/a/$key.json"
@@ -300,7 +292,7 @@ build_selective_index_upload_list() {
     if [[ "$lang" == "all" ]]; then
       rg -l "\"key\"\\s*:\\s*\"$key\"|\"k\"\\s*:\\s*\"$key\"" "$INDEX_DIR/p" "$INDEX_DIR/search" -S 2>/dev/null >> "$tmp_files" || true
     else
-      rg -l "\"key\"\\s*:\\s*\"$key\"|\"k\"\\s*:\\s*\"$key\"" "$INDEX_DIR/lang/$lang/p" "$INDEX_DIR/lang/$lang/search" -S 2>/dev/null >> "$tmp_files" || true
+      rg -l "\"key\"\\s*:\\s*\"$key\"|\"k\"\\s*:\\s*\"$key\"" "$INDEX_DIR/lang/$lang/p" -S 2>/dev/null >> "$tmp_files" || true
     fi
 
     if [[ "$lang" != "all" ]]; then

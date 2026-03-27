@@ -1,0 +1,150 @@
+{
+  "version": "1",
+  "generatedAt": "2026-03-25T18:44:45.979122Z",
+  "items": {
+    "77752": {
+      "source": "manual",
+      "sourceBookId": "1",
+      "localContentPath": "/books/content/77752/",
+      "publicContentPath": "/books/content/manual/1/",
+      "targetPath": "/books/content/manual/1/",
+      "publicPathMode": "target"
+    },
+    "77771": {
+      "source": "manual",
+      "sourceBookId": "16",
+      "localContentPath": "/books/content/77771/",
+      "publicContentPath": "/books/content/manual/16/",
+      "targetPath": "/books/content/manual/16/",
+      "publicPathMode": "target"
+    },
+    "77772": {
+      "source": "manual",
+      "sourceBookId": "17",
+      "localContentPath": "/books/content/77772/",
+      "publicContentPath": "/books/content/manual/17/",
+      "targetPath": "/books/content/manual/17/",
+      "publicPathMode": "target"
+    },
+    "77754": {
+      "source": "manual",
+      "sourceBookId": "2",
+      "localContentPath": "/books/content/77754/",
+      "publicContentPath": "/books/content/manual/2/",
+      "targetPath": "/books/content/manual/2/",
+      "publicPathMode": "target"
+    },
+    "77755": {
+      "source": "manual",
+      "sourceBookId": "3",
+      "localContentPath": "/books/content/77755/",
+      "publicContentPath": "/books/content/manual/3/",
+      "targetPath": "/books/content/manual/3/",
+      "publicPathMode": "target"
+    },
+    "77756": {
+      "source": "manual",
+      "sourceBookId": "4",
+      "localContentPath": "/books/content/77756/",
+      "publicContentPath": "/books/content/manual/4/",
+      "targetPath": "/books/content/manual/4/",
+      "publicPathMode": "target"
+    },
+    "77757": {
+      "source": "manual",
+      "sourceBookId": "5",
+      "localContentPath": "/books/content/77757/",
+      "publicContentPath": "/books/content/manual/5/",
+      "targetPath": "/books/content/manual/5/",
+      "publicPathMode": "target"
+    },
+    "77758": {
+      "source": "manual",
+      "sourceBookId": "6",
+      "localContentPath": "/books/content/77758/",
+      "publicContentPath": "/books/content/manual/6/",
+      "targetPath": "/books/content/manual/6/",
+      "publicPathMode": "target"
+    },
+    "77759": {
+      "source": "manual",
+      "sourceBookId": "7",
+      "localContentPath": "/books/content/77759/",
+      "publicContentPath": "/books/content/manual/7/",
+      "targetPath": "/books/content/manual/7/",
+      "publicPathMode": "target"
+    },
+    "77760": {
+      "source": "manual",
+      "sourceBookId": "8",
+      "localContentPath": "/books/content/77760/",
+      "publicContentPath": "/books/content/manual/8/",
+      "targetPath": "/books/content/manual/8/",
+      "publicPathMode": "target"
+    },
+    "77761": {
+      "source": "manual",
+      "sourceBookId": "9",
+      "localContentPath": "/books/content/77761/",
+      "publicContentPath": "/books/content/manual/9/",
+      "targetPath": "/books/content/manual/9/",
+      "publicPathMode": "target"
+    },
+    "77762": {
+      "source": "manual",
+      "sourceBookId": "10",
+      "localContentPath": "/books/content/77762/",
+      "publicContentPath": "/books/content/manual/10/",
+      "targetPath": "/books/content/manual/10/",
+      "publicPathMode": "target"
+    },
+    "77763": {
+      "source": "manual",
+      "sourceBookId": "11",
+      "localContentPath": "/books/content/77763/",
+      "publicContentPath": "/books/content/manual/11/",
+      "targetPath": "/books/content/manual/11/",
+      "publicPathMode": "target"
+    },
+    "77766": {
+      "source": "manual",
+      "sourceBookId": "12",
+      "localContentPath": "/books/content/77766/",
+      "publicContentPath": "/books/content/manual/12/",
+      "targetPath": "/books/content/manual/12/",
+      "publicPathMode": "target"
+    },
+    "77767": {
+      "source": "manual",
+      "sourceBookId": "13",
+      "localContentPath": "/books/content/77767/",
+      "publicContentPath": "/books/content/manual/13/",
+      "targetPath": "/books/content/manual/13/",
+      "publicPathMode": "target"
+    },
+    "77769": {
+      "source": "manual",
+      "sourceBookId": "14",
+      "localContentPath": "/books/content/77769/",
+      "publicContentPath": "/books/content/manual/14/",
+      "targetPath": "/books/content/manual/14/",
+      "publicPathMode": "target"
+    },
+    "77770": {
+      "source": "manual",
+      "sourceBookId": "15",
+      "localContentPath": "/books/content/77770/",
+      "publicContentPath": "/books/content/manual/15/",
+      "targetPath": "/books/content/manual/15/",
+      "publicPathMode": "target"
+    },
+    "77753": {
+      "source": "manual",
+      "sourceBookId": "18",
+      "localContentPath": "/books/content/77753/",
+      "publicContentPath": "/books/content/manual/18/",
+      "targetPath": "/books/content/manual/18/",
+      "publicPathMode": "target"
+    }
+  }
+}

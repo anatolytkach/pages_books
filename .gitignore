@@ -4,6 +4,7 @@
 .env
 .env.*
 *.log
+*.pyc
 npm-debug.log*
 .yarn*
 .pnpm-store
@@ -13,8 +14,14 @@ npm-debug.log*
 /dist
 /build
 /out
+/coverage
+/tmp
 /reader_seo_indexes
+/reader_lang_indexes
 /tools/__pycache__
+**/__pycache__/
+/books/content/[0-9]*/
+/books/content/manual/[0-9]*/
 
 # Claude Code
 .claude/
