@@ -90,8 +90,11 @@ CREATE TABLE tenant_invitations (
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN (
-        'admin', 'publisher', 'editor', 'librarian',
+        'owner', 'admin', 'publisher', 'editor', 'librarian',
         'acquisitions_manager', 'course_admin', 'member'
+    )),
+    invite_type TEXT NOT NULL DEFAULT 'tenant_reader' CHECK (invite_type IN (
+        'tenant_reader', 'self_publisher'
     )),
     invited_by UUID NOT NULL REFERENCES auth.users(id),
     token TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(32), 'hex'),
@@ -101,6 +104,14 @@ CREATE TABLE tenant_invitations (
 );
 
 CREATE INDEX idx_tenant_invitations_email ON tenant_invitations(email) WHERE accepted_at IS NULL;
+CREATE INDEX idx_tenant_invitations_token ON tenant_invitations(token);
+
+-- Platform-wide superusers live above tenants.
+CREATE TABLE platform_superusers (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    granted_by UUID REFERENCES auth.users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 -- updated_at trigger
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -126,6 +137,7 @@ ALTER TABLE tenant_memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_superusers ENABLE ROW LEVEL SECURITY;
 
 -- user_profiles: users read any profile, update only own
 CREATE POLICY "Profiles are viewable by everyone"
@@ -244,6 +256,10 @@ CREATE POLICY "Users can see invitations to their email"
     USING (
         email = (SELECT email FROM auth.users WHERE id = auth.uid())
     );
+
+CREATE POLICY "Superusers can see their own superuser row"
+    ON platform_superusers FOR SELECT
+    USING (user_id = auth.uid());
 -- ============================================================
 -- Migration 002: Books & Publication
 -- ============================================================

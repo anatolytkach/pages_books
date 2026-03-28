@@ -242,6 +242,13 @@ async function updateCatalogIndexes(env, book) {
     });
   }
 
+  await updateBookLocationIndexes(env, {
+    contentId,
+    title,
+    author: authorDisplay,
+    coverUrl,
+  });
+
   // 5. Update languages.json — ensure the book's language is listed
   if (language && language !== "und") {
     const langR2Key = "api/languages.json";
@@ -268,6 +275,14 @@ async function updateCatalogIndexes(env, book) {
 }
 
 async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexKey, authorDisplay, title, contentId, coverUrl }) {
+  const bookEntry = {
+    id: contentId,
+    source: "manual",
+    sourceBookId: contentId,
+    legacyId: contentId,
+    title,
+    cover: coverUrl || "",
+  };
 
   // 1. Update author file: <apiPrefix>/a/<authorKey>.json
   const authorR2Key = `${apiPrefix}/a/${authorKey}.json`;
@@ -281,9 +296,12 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
     authorData = { key: authorKey, name: authorDisplay, books: [] };
   }
   // Avoid duplicates
-  if (!authorData.books.some(b => b.id === contentId)) {
-    authorData.books.push({ id: contentId, title, cover: coverUrl });
+  if (!authorData.books.some(b => String(b.legacyId || b.id || "") === contentId)) {
+    authorData.books.push(bookEntry);
     authorData.books.sort((a, b) => a.title.localeCompare(b.title));
+  } else {
+    const existingBook = authorData.books.find(b => String(b.legacyId || b.id || "") === contentId);
+    if (existingBook) Object.assign(existingBook, bookEntry);
   }
   await env.READER_BOOKS.put(authorR2Key, JSON.stringify(authorData), {
     httpMetadata: { contentType: "application/json; charset=utf-8" },
@@ -401,6 +419,9 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
     if (titleToken) {
       await updateSearchToken(titleToken, {
         id: contentId,
+        source: "manual",
+        sourceBookId: contentId,
+        legacyId: contentId,
         title: title,
         a: authorDisplay,
         k: authorKey,
@@ -414,6 +435,9 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
       if (token === titleToken) continue;
       await updateSearchToken(token, {
         id: contentId,
+        source: "manual",
+        sourceBookId: contentId,
+        legacyId: contentId,
         title: title,
         a: authorDisplay,
         k: authorKey,
@@ -446,6 +470,77 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
   await env.READER_BOOKS.put(lettersR2Key, JSON.stringify(lettersData), {
     httpMetadata: { contentType: "application/json; charset=utf-8" },
   });
+}
+
+function shardForReaderId(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "00";
+  if (/^\d+$/.test(raw)) return String(parseInt(raw, 10) % 100).padStart(2, "0");
+  let total = 0;
+  for (let i = 0; i < raw.length; i++) total = (total + raw.charCodeAt(i)) % 100;
+  return String(total).padStart(2, "0");
+}
+
+async function putCatalogJson(env, r2Key, payload) {
+  await env.READER_BOOKS.put(r2Key, JSON.stringify(payload), {
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+  });
+}
+
+async function getCatalogJson(env, r2Key, fallback) {
+  try {
+    const obj = await env.READER_BOOKS.get(r2Key);
+    return obj ? await obj.json() : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function updateBookLocationIndexes(env, { contentId, title, author, coverUrl }) {
+  const generatedAt = new Date().toISOString();
+  const item = {
+    readerId: contentId,
+    legacyId: contentId,
+    source: "manual",
+    sourceBookId: contentId,
+    legacyPath: `/books/content/${contentId}/`,
+    localContentPath: `/books/content/${contentId}/`,
+    contentPath: `/books/content/${contentId}/`,
+    targetPath: `/books/content/${contentId}/`,
+    publicPathMode: "legacy",
+    title: String(title || contentId),
+    author: String(author || ""),
+    cover: String(coverUrl || ""),
+  };
+
+  const rootKey = "api/book-locations.json";
+  const rootData = await getCatalogJson(env, rootKey, { version: "1", generatedAt, count: 0, items: {} });
+  if (!rootData || typeof rootData !== "object") return;
+  if (!rootData.items || typeof rootData.items !== "object") rootData.items = {};
+  rootData.version = "1";
+  rootData.generatedAt = generatedAt;
+  rootData.items[contentId] = item;
+  rootData.count = Object.keys(rootData.items).length;
+  await putCatalogJson(env, rootKey, rootData);
+
+  const shard = shardForReaderId(contentId);
+  const manualShardKey = `api/book-locations/manual/${shard}.json`;
+  const shardData = await getCatalogJson(env, manualShardKey, {
+    version: "1",
+    generatedAt,
+    source: "manual",
+    count: 0,
+    shard,
+    items: {},
+  });
+  if (!shardData.items || typeof shardData.items !== "object") shardData.items = {};
+  shardData.version = "1";
+  shardData.generatedAt = generatedAt;
+  shardData.source = "manual";
+  shardData.shard = shard;
+  shardData.items[contentId] = item;
+  shardData.count = Object.keys(shardData.items).length;
+  await putCatalogJson(env, manualShardKey, shardData);
 }
 
 // ── Catalog index helpers (ported from build_lang_indexes.py) ──
@@ -2672,6 +2767,15 @@ export default {
         return null;
       };
 
+      const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+
+      const bootstrapSuperuserEmails = new Set(
+        String(env.PLATFORM_BOOTSTRAP_SUPERUSER_EMAILS || "yarane@gmail.com")
+          .split(",")
+          .map((item) => normalizeEmail(item))
+          .filter(Boolean)
+      );
+
       // Helper: create Supabase admin client (service role)
       const supabaseAdmin = () => {
         const url = String(env.SUPABASE_URL || "").trim();
@@ -2702,6 +2806,65 @@ export default {
         }
         const data = await res.json().catch(() => null);
         return { data, error: null };
+      };
+
+      const getPlatformSuperuserStatus = async () => {
+        if (!user) return false;
+        if (bootstrapSuperuserEmails.has(normalizeEmail(user.email))) return true;
+        const { data, error } = await sbFetch("platform_superusers", {
+          params: `user_id=eq.${user.sub}&select=user_id`,
+          single: true,
+        });
+        return !error && !!data;
+      };
+
+      const requireSuperuser = async () => {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        if (await getPlatformSuperuserStatus()) return null;
+        return jsonResponse({ error: "Superuser access required" }, 403, apiCorsHeaders);
+      };
+
+      const getTenantAdminMemberships = async () => {
+        if (!user) return [];
+        const { data, error } = await sbFetch("tenant_memberships", {
+          params: `user_id=eq.${user.sub}&is_active=eq.true&role=in.(owner,admin)&select=id,role,tenant_id,tenants:tenant_id(id,slug,name,tenant_type)`,
+        });
+        if (error || !Array.isArray(data)) return [];
+        return data;
+      };
+
+      const resolvePublishingTenant = async ({ tenantId = "", tenantSlug = "" } = {}) => {
+        const memberships = await getTenantAdminMemberships();
+        if (!memberships.length) {
+          return { error: jsonResponse({ error: "Tenant admin access required for publishing" }, 403, apiCorsHeaders) };
+        }
+
+        const normalizedTenantId = String(tenantId || "").trim();
+        const normalizedTenantSlug = String(tenantSlug || "").trim().toLowerCase();
+
+        let match = null;
+        if (normalizedTenantId) {
+          match = memberships.find((item) => String(item.tenant_id || "") === normalizedTenantId) || null;
+          if (!match) {
+            return { error: jsonResponse({ error: "Not authorized for requested tenant" }, 403, apiCorsHeaders) };
+          }
+        } else if (normalizedTenantSlug) {
+          match = memberships.find((item) => String(item?.tenants?.slug || "").toLowerCase() === normalizedTenantSlug) || null;
+          if (!match) {
+            return { error: jsonResponse({ error: "Not authorized for requested tenant" }, 403, apiCorsHeaders) };
+          }
+        } else if (memberships.length === 1) {
+          match = memberships[0];
+        } else {
+          return { error: jsonResponse({ error: "tenant_id or tenant_slug is required when you administer multiple tenants" }, 400, apiCorsHeaders) };
+        }
+
+        return {
+          tenantId: String(match.tenant_id || ""),
+          tenantSlug: String(match?.tenants?.slug || ""),
+          membership: match,
+        };
       };
 
       // Helper: call Supabase RPC
@@ -2757,6 +2920,88 @@ export default {
         });
         if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
         return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/me/platform-access — superuser flag + admin tenants ──
+      if (apiPath === "/me/platform-access" && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const [isSuperuser, adminTenants] = await Promise.all([
+          getPlatformSuperuserStatus(),
+          getTenantAdminMemberships(),
+        ]);
+        return jsonResponse({
+          is_superuser: !!isSuperuser,
+          admin_tenants: adminTenants.map((item) => ({
+            tenant_id: item.tenant_id,
+            role: item.role,
+            tenant: item.tenants || null,
+          })),
+        }, 200, apiCorsHeaders);
+      }
+
+      // ── POST /v1/invitations/accept — accept tenant or self-publisher invite ──
+      if (apiPath === "/invitations/accept" && request.method === "POST") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const body = await request.json().catch(() => null);
+        const token = String(body?.token || "").trim();
+        if (!token) {
+          return jsonResponse({ error: "token is required" }, 400, apiCorsHeaders);
+        }
+
+        const { data: invite, error: inviteErr } = await sbFetch("tenant_invitations", {
+          params: `token=eq.${token}&select=*`,
+          single: true,
+        });
+        if (inviteErr || !invite) return jsonResponse({ error: "Invitation not found" }, 404, apiCorsHeaders);
+        if (invite.accepted_at) return jsonResponse({ error: "Invitation already accepted" }, 400, apiCorsHeaders);
+        if (invite.expires_at && new Date(invite.expires_at) <= new Date()) {
+          return jsonResponse({ error: "Invitation has expired" }, 400, apiCorsHeaders);
+        }
+        if (normalizeEmail(invite.email) !== normalizeEmail(user.email)) {
+          return jsonResponse({ error: "Invitation email does not match authenticated user" }, 403, apiCorsHeaders);
+        }
+
+        const { data: existingMembership } = await sbFetch("tenant_memberships", {
+          params: `tenant_id=eq.${invite.tenant_id}&user_id=eq.${user.sub}&select=id,role,is_active`,
+          single: true,
+        });
+        if (existingMembership) {
+          await sbFetch("tenant_memberships", {
+            method: "PATCH",
+            params: `id=eq.${existingMembership.id}`,
+            body: { role: invite.role, is_active: true },
+          });
+        } else {
+          const { error: membershipErr } = await sbFetch("tenant_memberships", {
+            method: "POST",
+            body: {
+              tenant_id: invite.tenant_id,
+              user_id: user.sub,
+              role: invite.role,
+            },
+            single: true,
+          });
+          if (membershipErr) return jsonResponse({ error: membershipErr }, 400, apiCorsHeaders);
+        }
+
+        await sbFetch("tenant_invitations", {
+          method: "PATCH",
+          params: `id=eq.${invite.id}&select=*`,
+          body: { accepted_at: new Date().toISOString() },
+        });
+
+        const { data: tenant } = await sbFetch("tenants", {
+          params: `id=eq.${invite.tenant_id}&select=id,slug,name,tenant_type`,
+          single: true,
+        });
+        return jsonResponse({
+          accepted: true,
+          invite_type: invite.invite_type || "tenant_reader",
+          role: invite.role,
+          tenant,
+        }, 200, apiCorsHeaders);
       }
 
       // ── GET /v1/genres — list genres ──
@@ -2977,8 +3222,8 @@ export default {
 
       // ── POST /v1/tenants — create tenant ──
       if (apiPath === "/tenants" && request.method === "POST") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
+        const superErr = await requireSuperuser();
+        if (superErr) return superErr;
         const body = await request.json().catch(() => null);
         if (!body || !body.name || !body.slug || !body.tenant_type) {
           return jsonResponse({ error: "name, slug, and tenant_type are required" }, 400, apiCorsHeaders);
@@ -2996,6 +3241,50 @@ export default {
           body: { tenant_id: tenant.id, user_id: user.sub, role: "owner" },
         });
         return jsonResponse(tenant, 201, apiCorsHeaders);
+      }
+
+      // ── POST /v1/onboarding/self-publisher/invite — bootstrap individual author ──
+      if (apiPath === "/onboarding/self-publisher/invite" && request.method === "POST") {
+        const superErr = await requireSuperuser();
+        if (superErr) return superErr;
+        const body = await request.json().catch(() => null);
+        if (!body || !body.email || !body.name || !body.slug) {
+          return jsonResponse({ error: "email, name, and slug are required" }, 400, apiCorsHeaders);
+        }
+
+        const tenantSlug = String(body.slug || "").trim().toLowerCase();
+        const email = normalizeEmail(body.email);
+        if (!tenantSlug) return jsonResponse({ error: "slug is required" }, 400, apiCorsHeaders);
+        if (!email) return jsonResponse({ error: "email is required" }, 400, apiCorsHeaders);
+
+        const { data: tenant, error: tenantErr } = await sbFetch("tenants", {
+          method: "POST",
+          body: {
+            name: body.name,
+            slug: tenantSlug,
+            tenant_type: "individual_author",
+          },
+          single: true,
+        });
+        if (tenantErr) return jsonResponse({ error: tenantErr }, 400, apiCorsHeaders);
+
+        const { data: invite, error: inviteErr } = await sbFetch("tenant_invitations", {
+          method: "POST",
+          body: {
+            tenant_id: tenant.id,
+            email,
+            role: "owner",
+            invite_type: "self_publisher",
+            invited_by: user.sub,
+          },
+          single: true,
+        });
+        if (inviteErr) return jsonResponse({ error: inviteErr }, 400, apiCorsHeaders);
+
+        return jsonResponse({
+          invite,
+          tenant,
+        }, 201, apiCorsHeaders);
       }
 
       // ── GET /v1/tenants/:slug — tenant info ──
@@ -3044,8 +3333,8 @@ export default {
         if (authErr) return authErr;
         const slug = tenantInviteMatch[1];
         const body = await request.json().catch(() => null);
-        if (!body || !body.email || !body.role) {
-          return jsonResponse({ error: "email and role are required" }, 400, apiCorsHeaders);
+        if (!body || !body.email) {
+          return jsonResponse({ error: "email is required" }, 400, apiCorsHeaders);
         }
 
         const { data: tenant } = await sbFetch("tenants", {
@@ -3068,7 +3357,8 @@ export default {
           body: {
             tenant_id: tenant.id,
             email: body.email,
-            role: body.role,
+            role: "member",
+            invite_type: "tenant_reader",
             invited_by: user.sub,
           },
           single: true,
@@ -3172,10 +3462,19 @@ export default {
         const bookId = pubMatch[1];
         const body = await request.json().catch(() => ({}));
         const visibility = body.visibility || "public";
+        if (!["public", "tenant_only"].includes(visibility)) {
+          return jsonResponse({ error: "visibility must be 'public' or 'tenant_only'" }, 400, apiCorsHeaders);
+        }
 
-        // Verify book is ready and belongs to user
+        const tenantContext = await resolvePublishingTenant({
+          tenantId: body.tenant_id,
+          tenantSlug: body.tenant_slug,
+        });
+        if (tenantContext.error) return tenantContext.error;
+
+        // Verify book is ready and belongs to publishing user within the selected tenant
         const { data: book } = await sbFetch("books", {
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*`,
+          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
           single: true,
         });
         if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
@@ -3188,7 +3487,7 @@ export default {
 
         const { data, error } = await sbFetch("books", {
           method: "PATCH",
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*`,
+          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
           body: { status: "published", visibility },
           single: true,
         });
@@ -3215,6 +3514,11 @@ export default {
 
         try {
           const formData = await request.formData();
+          const tenantContext = await resolvePublishingTenant({
+            tenantId: formData.get("tenant_id"),
+            tenantSlug: formData.get("tenant_slug"),
+          });
+          if (tenantContext.error) return tenantContext.error;
           const file = formData.get("file");
           if (!file || !file.name) {
             return jsonResponse({ error: "No file provided" }, 400, apiCorsHeaders);
@@ -3253,6 +3557,7 @@ export default {
               genre_id: "fiction",
               annotation: "",
               content_id: String(contentId),
+              published_by_tenant_id: tenantContext.tenantId,
               published_by_user_id: user.sub,
               status: "processing",
             },

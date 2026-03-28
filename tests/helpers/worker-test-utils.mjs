@@ -98,6 +98,12 @@ export function createR2Object({
   return {
     body,
     httpEtag,
+    async json() {
+      return JSON.parse(typeof body === "string" ? body : String(body));
+    },
+    async text() {
+      return typeof body === "string" ? body : String(body);
+    },
     writeHttpMetadata(headers) {
       if (contentType) {
         headers.set("content-type", contentType);
@@ -111,11 +117,22 @@ export function createR2Object({
 
 export function createR2Bucket({ objectsByKey = {} } = {}) {
   const calls = [];
+  const putCalls = [];
+  const stored = { ...objectsByKey };
   return {
     calls,
+    putCalls,
     async get(key) {
       calls.push(key);
-      return objectsByKey[key] ?? null;
+      return stored[key] ?? null;
+    },
+    async put(key, body, options = {}) {
+      putCalls.push({ key, body, options });
+      const contentType = options?.httpMetadata?.contentType || "application/octet-stream";
+      stored[key] = createR2Object({
+        body: typeof body === "string" ? body : String(body),
+        contentType,
+      });
     },
   };
 }

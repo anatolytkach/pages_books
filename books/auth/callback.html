@@ -25,8 +25,21 @@
     <div class="msg" id="msg">Completing sign in...</div>
     <script type="module">
       import config from '../shared/config.js';
+      import { acceptInvitation } from '../shared/api.js';
 
       const sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+      const params = new URLSearchParams(window.location.search);
+
+      async function finishRedirect() {
+        const inviteToken = params.get('invite') || sessionStorage.getItem('authInviteToken');
+        if (inviteToken) {
+          try { await acceptInvitation(inviteToken); } catch {}
+          sessionStorage.removeItem('authInviteToken');
+        }
+        const returnTo = sessionStorage.getItem('authReturnTo');
+        sessionStorage.removeItem('authReturnTo');
+        window.location.href = returnTo || '/books/';
+      }
 
       // Supabase client automatically picks up tokens from the URL hash/params.
       // We just need to wait for the session to be established.
@@ -36,17 +49,12 @@
         document.getElementById('msg').innerHTML =
           `Sign in failed: ${error.message}<br><a href="/books/auth/">Try again</a>`;
       } else if (session) {
-        // Check for a returnTo param stored before OAuth redirect
-        const returnTo = sessionStorage.getItem('authReturnTo');
-        sessionStorage.removeItem('authReturnTo');
-        window.location.href = returnTo || '/books/';
+        await finishRedirect();
       } else {
         // No session yet — might still be processing. Listen for change.
-        sb.auth.onAuthStateChange((event, session) => {
+        sb.auth.onAuthStateChange(async (event, session) => {
           if (event === 'SIGNED_IN' && session) {
-            const returnTo = sessionStorage.getItem('authReturnTo');
-            sessionStorage.removeItem('authReturnTo');
-            window.location.href = returnTo || '/books/';
+            await finishRedirect();
           }
         });
         // Timeout fallback

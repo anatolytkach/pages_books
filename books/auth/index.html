@@ -394,9 +394,12 @@
 
     <script type="module">
       import config from '../shared/config.js';
+      import { acceptInvitation } from '../shared/api.js';
 
       // ── Supabase client ────────────────────────────
       const sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+      const params = new URLSearchParams(window.location.search);
+      const inviteToken = params.get('invite');
 
       // ── DOM refs ───────────────────────────────────
       const alert = document.getElementById('alert');
@@ -428,7 +431,6 @@
 
       /** After successful auth, redirect to the page the user came from, or catalog. */
       function redirectAfterAuth() {
-        const params = new URLSearchParams(window.location.search);
         const returnTo = params.get('returnTo');
         if (returnTo && returnTo.startsWith('/')) {
           window.location.href = returnTo;
@@ -437,10 +439,19 @@
         }
       }
 
+      async function acceptInviteIfPresent() {
+        if (!inviteToken) return;
+        await acceptInvitation(inviteToken);
+        sessionStorage.removeItem('authInviteToken');
+      }
+
       // ── Check if already signed in ─────────────────
       (async () => {
         const { data: { session } } = await sb.auth.getSession();
-        if (session) redirectAfterAuth();
+        if (session) {
+          try { await acceptInviteIfPresent(); } catch {}
+          redirectAfterAuth();
+        }
       })();
 
       // ── Tab switching ──────────────────────────────
@@ -487,6 +498,7 @@
         if (error) {
           showAlert(error.message);
         } else {
+          try { await acceptInviteIfPresent(); } catch {}
           redirectAfterAuth();
         }
       });
@@ -515,6 +527,7 @@
           // Email confirmation required
           showAlert('Check your email for a confirmation link.', 'success');
         } else {
+          try { await acceptInviteIfPresent(); } catch {}
           redirectAfterAuth();
         }
       });
@@ -541,6 +554,10 @@
           showAlert('Check your email for a sign-in link.', 'success');
         }
       });
+
+      if (inviteToken) {
+        sessionStorage.setItem('authInviteToken', inviteToken);
+      }
 
       // ── Google OAuth (disabled until provider is configured) ──
       // const googleBtn = document.getElementById('google-btn');

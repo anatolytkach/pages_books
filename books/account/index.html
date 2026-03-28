@@ -227,6 +227,11 @@
         font-size: 14px;
       }
 
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+
       .tab-row {
         display: flex;
         gap: 0;
@@ -311,6 +316,8 @@
 
       <!-- Organizations -->
       <div class="tab-content" id="tab-tenants">
+        <div id="tenantAlerts"></div>
+        <div id="superuserPanel" class="panel" style="display:none"></div>
         <div id="tenantsList" class="empty-state"><span class="spinner"></span> Loading...</div>
       </div>
     </div>
@@ -328,16 +335,26 @@
         window.location.href = `/books/auth/?returnTo=${encodeURIComponent(window.location.pathname + window.location.hash)}`;
       }
 
-      async function apiFetch(method, path) {
+      async function apiFetch(method, path, body) {
         const { data: { session: s } } = await sb.auth.getSession();
         const headers = {};
         if (s) headers['Authorization'] = `Bearer ${s.access_token}`;
-        const res = await fetch(`${API}${path}`, { method, headers });
+        const opts = { method, headers };
+        if (body !== undefined) {
+          headers['Content-Type'] = 'application/json';
+          opts.body = JSON.stringify(body);
+        }
+        const res = await fetch(`${API}${path}`, opts);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       }
 
       function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+      function showTenantAlert(msg, type = 'success') {
+        document.getElementById('tenantAlerts').innerHTML = `<div class="panel" style="border-color:${type === 'error' ? '#f5c6cb' : '#a3d9d0'}; color:${type === 'error' ? '#c0392b' : '#028f80'}; padding:12px 16px;">${esc(msg)}</div>`;
+      }
+
+      let platformAccess = { is_superuser: false, admin_tenants: [] };
 
       // Profile
       const user = session.user;
@@ -434,17 +451,91 @@
 
       // My Tenants
       const $tenants = document.getElementById('tenantsList');
+      const inviteToken = new URLSearchParams(window.location.search).get('invite');
+
+      try {
+        platformAccess = await apiFetch('GET', '/me/platform-access');
+      } catch {
+        platformAccess = { is_superuser: false, admin_tenants: [] };
+      }
+
+      if (inviteToken) {
+        try {
+          const accepted = await apiFetch('POST', '/invitations/accept', { token: inviteToken });
+          showTenantAlert(`Invitation accepted for ${accepted.tenant?.name || 'organization'}.`);
+          const nextUrl = new URL(window.location.href);
+          nextUrl.searchParams.delete('invite');
+          history.replaceState(null, '', nextUrl.toString());
+        } catch (err) {
+          showTenantAlert(`Invite could not be accepted: ${err.message}`, 'error');
+        }
+      }
+
+      const $superuserPanel = document.getElementById('superuserPanel');
+      if (platformAccess.is_superuser) {
+        $superuserPanel.style.display = '';
+        $superuserPanel.innerHTML = `
+          <h3 style="margin-top:0;">Self-Publisher Invite</h3>
+          <div style="color:var(--muted); font-size:14px; margin-bottom:12px;">Create an invite for an individual author. This also reserves their organization slug.</div>
+          <div class="stack">
+            <div>
+              <label for="sp-email" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Email</label>
+              <input id="sp-email" type="email" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="author@example.com" />
+            </div>
+            <div>
+              <label for="sp-name" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Display Name</label>
+              <input id="sp-name" type="text" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="Ada Lovelace" />
+            </div>
+            <div>
+              <label for="sp-slug" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Tenant Slug / Source</label>
+              <input id="sp-slug" type="text" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="ada-lovelace" />
+            </div>
+            <button class="btn" id="spInviteBtn" style="width:max-content;">Create Invite</button>
+            <div id="spInviteResult" style="font-size:13px; color:var(--muted);"></div>
+          </div>`;
+
+        document.getElementById('sp-name').addEventListener('input', (e) => {
+          const slug = e.target.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+          document.getElementById('sp-slug').value = slug;
+        });
+
+        document.getElementById('spInviteBtn').addEventListener('click', async () => {
+          const email = document.getElementById('sp-email').value.trim();
+          const name = document.getElementById('sp-name').value.trim();
+          const slug = document.getElementById('sp-slug').value.trim();
+          if (!email || !name || !slug) {
+            showTenantAlert('Email, display name, and slug are required.', 'error');
+            return;
+          }
+          const btn = document.getElementById('spInviteBtn');
+          btn.disabled = true;
+          btn.textContent = 'Creating...';
+          try {
+            const payload = await apiFetch('POST', '/onboarding/self-publisher/invite', { email, name, slug });
+            document.getElementById('spInviteResult').textContent = `Invite created for ${payload.invite.email}. Token: ${payload.invite.token}`;
+            showTenantAlert(`Self-publisher invite created for ${payload.tenant.name}.`);
+          } catch (err) {
+            showTenantAlert(`Could not create self-publisher invite: ${err.message}`, 'error');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Create Invite';
+          }
+        });
+      }
+
       try {
         const memberships = await apiFetch('GET', '/me/tenants');
         if (!memberships.length) {
-          $tenants.innerHTML = '<div class="empty-state">You are not a member of any organizations. <a href="/books/publish/">Create a publisher account</a>.</div>';
+          $tenants.innerHTML = '<div class="empty-state">You are not a member of any organizations yet.</div>';
         } else {
           $tenants.innerHTML = memberships.map(m => {
             const t = m.tenants || m.tenant || m;
+            const canPublish = ['owner', 'admin'].includes(String(m.role || ''));
             return `
               <div class="panel" style="margin-bottom:12px;">
                 <strong>${esc(t.name)}</strong>
                 <span style="color:var(--muted); font-size:13px; margin-left:8px;">${esc(m.role)} — ${esc(t.tenant_type)}</span>
+                <div style="margin-top:8px; color:var(--muted); font-size:13px;">${canPublish ? 'Publishing enabled' : 'Reader access only'}</div>
               </div>`;
           }).join('');
         }
