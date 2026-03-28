@@ -212,7 +212,7 @@ async function processEpub(env, fileBytes, bookId, contentId) {
  * Update R2 catalog indexes when a book is published.
  * Performs incremental updates to: author file, prefix tree, search tokens, letters.
  */
-async function updateCatalogIndexes(env, book) {
+async function updateCatalogIndexes(env, book, options = {}) {
   if (!env.READER_BOOKS) return;
 
   const authorName = String(book.author || "").trim();
@@ -220,6 +220,8 @@ async function updateCatalogIndexes(env, book) {
   const contentId = String(book.content_id || "");
   const coverUrl = book.cover_url || "";
   const language = String(book.language || "en").trim();
+  const source = String(options.source || book.source || "manual").trim() || "manual";
+  const sourceBookId = String(options.sourceBookId || contentId).trim() || contentId;
   if (!authorName || !title || !contentId) return;
 
   const { authorKey, indexKey, indexKeyAscii, display: authorDisplay } = parseAuthorForIndex(authorName);
@@ -238,7 +240,7 @@ async function updateCatalogIndexes(env, book) {
 
   for (const { apiPrefix, useIndexKey } of updates) {
     await updateCatalogIndexesForPrefix(env, apiPrefix, {
-      authorKey, indexKey: useIndexKey, authorDisplay, title, contentId, coverUrl,
+      authorKey, indexKey: useIndexKey, authorDisplay, title, contentId, coverUrl, source, sourceBookId,
     });
   }
 
@@ -247,6 +249,8 @@ async function updateCatalogIndexes(env, book) {
     title,
     author: authorDisplay,
     coverUrl,
+    source,
+    sourceBookId,
   });
 
   // 5. Update languages.json — ensure the book's language is listed
@@ -274,11 +278,11 @@ async function updateCatalogIndexes(env, book) {
   }
 }
 
-async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexKey, authorDisplay, title, contentId, coverUrl }) {
+async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexKey, authorDisplay, title, contentId, coverUrl, source, sourceBookId }) {
   const bookEntry = {
     id: contentId,
-    source: "manual",
-    sourceBookId: contentId,
+    source: String(source || "manual"),
+    sourceBookId: String(sourceBookId || contentId),
     legacyId: contentId,
     title,
     cover: coverUrl || "",
@@ -402,9 +406,7 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
 
   // Search is global-only in the current catalog contract.
   if (apiPrefix === "api") {
-    // Author search token: first 3 chars of normalized index name.
-    const authorToken = indexKey.length >= 3 ? indexKey.slice(0, 3) : "";
-    if (authorToken) {
+    for (const authorToken of buildAuthorSearchTokens(authorDisplay)) {
       await updateSearchToken(authorToken, {
         t: "a",
         k: authorKey,
@@ -413,14 +415,14 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
       }, authorKey, "k");
     }
 
-    // Book/title search token: first 3 chars of normalized title.
+    // Keep the historical normalized-title token for compatibility.
     const titleNorm = normalizeIndex(title);
     const titleToken = titleNorm.length >= 3 ? titleNorm.slice(0, 3) : "";
     if (titleToken) {
       await updateSearchToken(titleToken, {
         id: contentId,
-        source: "manual",
-        sourceBookId: contentId,
+        source: String(source || "manual"),
+        sourceBookId: String(sourceBookId || contentId),
         legacyId: contentId,
         title: title,
         a: authorDisplay,
@@ -429,14 +431,14 @@ async function updateCatalogIndexesForPrefix(env, apiPrefix, { authorKey, indexK
       }, contentId, "id");
     }
 
-    // Also add tokens from individual title words (for multi-word search).
-    const titleWords = buildSearchTokens(title, "");
+    // Also add tokens from significant title words.
+    const titleWords = buildBookSearchTokens(title);
     for (const token of titleWords) {
       if (token === titleToken) continue;
       await updateSearchToken(token, {
         id: contentId,
-        source: "manual",
-        sourceBookId: contentId,
+        source: String(source || "manual"),
+        sourceBookId: String(sourceBookId || contentId),
         legacyId: contentId,
         title: title,
         a: authorDisplay,
@@ -496,13 +498,15 @@ async function getCatalogJson(env, r2Key, fallback) {
   }
 }
 
-async function updateBookLocationIndexes(env, { contentId, title, author, coverUrl }) {
+async function updateBookLocationIndexes(env, { contentId, title, author, coverUrl, source, sourceBookId }) {
   const generatedAt = new Date().toISOString();
+  const normalizedSource = String(source || "manual").trim() || "manual";
+  const normalizedSourceBookId = String(sourceBookId || contentId).trim() || contentId;
   const item = {
     readerId: contentId,
     legacyId: contentId,
-    source: "manual",
-    sourceBookId: contentId,
+    source: normalizedSource,
+    sourceBookId: normalizedSourceBookId,
     legacyPath: `/books/content/${contentId}/`,
     localContentPath: `/books/content/${contentId}/`,
     contentPath: `/books/content/${contentId}/`,
@@ -524,11 +528,11 @@ async function updateBookLocationIndexes(env, { contentId, title, author, coverU
   await putCatalogJson(env, rootKey, rootData);
 
   const shard = shardForReaderId(contentId);
-  const manualShardKey = `api/book-locations/manual/${shard}.json`;
-  const shardData = await getCatalogJson(env, manualShardKey, {
+  const sourceShardKey = `api/book-locations/${normalizedSource}/${shard}.json`;
+  const shardData = await getCatalogJson(env, sourceShardKey, {
     version: "1",
     generatedAt,
-    source: "manual",
+    source: normalizedSource,
     count: 0,
     shard,
     items: {},
@@ -536,11 +540,11 @@ async function updateBookLocationIndexes(env, { contentId, title, author, coverU
   if (!shardData.items || typeof shardData.items !== "object") shardData.items = {};
   shardData.version = "1";
   shardData.generatedAt = generatedAt;
-  shardData.source = "manual";
+  shardData.source = normalizedSource;
   shardData.shard = shard;
   shardData.items[contentId] = item;
   shardData.count = Object.keys(shardData.items).length;
-  await putCatalogJson(env, manualShardKey, shardData);
+  await putCatalogJson(env, sourceShardKey, shardData);
 }
 
 // ── Catalog index helpers (ported from build_lang_indexes.py) ──
@@ -568,6 +572,10 @@ function normalizeIndex(value) {
 function normalizeIndexAscii(value) {
   const base = stripDiacritics(String(value || "").replace(/\s+/g, " ").trim()).toLowerCase();
   return base.replace(/[^a-z0-9]+/g, "");
+}
+
+function normalizeSearchMatch(value) {
+  return stripDiacritics(String(value || "").replace(/\s+/g, " ").trim()).toLowerCase();
 }
 
 /**
@@ -624,26 +632,61 @@ function parseAuthorForIndex(name) {
   return { authorKey, indexKey, indexKeyAscii, display };
 }
 
-/**
- * Build search tokens from title and author.
- * Matches the current Python normalize_search_token(): first 3 chars of each normalized word.
- * For non-English, uses Unicode-aware normalization.
- */
-function buildSearchTokens(title, author) {
-  const tokens = new Set();
-  const combined = `${title || ""} ${author || ""}`;
+const BOOK_SEARCH_STOP_WORDS = new Set([
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "of",
+  "to",
+  "in",
+  "on",
+  "for",
+  "by",
+]);
 
-  // Unicode-aware: split on non-letter/non-number, normalize, take first 3 chars
-  const words = stripDiacritics(combined).toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(w => w.length >= 3);
+const BOOK_SEARCH_SERVICE_WORDS = new Set([
+  "vol",
+  "volume",
+  "no",
+  "part",
+  "chapter",
+]);
 
-  for (const word of words) {
-    // Matching Python: normalize_search_token returns base[:3]
-    const normalized = word.replace(/[^\p{L}\p{N}]+/gu, "");
-    if (normalized.length >= 3) tokens.add(normalized.slice(0, 3));
+function tokenizeSearchWords(value) {
+  return normalizeSearchMatch(value)
+    .match(/[\p{L}\p{N}_]+/gu)
+    ?.map((word) => word.replace(/_/g, ""))
+    .filter(Boolean) || [];
+}
+
+function buildAuthorSearchTokens(value) {
+  const tokens = [];
+  const seen = new Set();
+  for (const word of tokenizeSearchWords(value)) {
+    if (word.length < 3) continue;
+    if (BOOK_SEARCH_STOP_WORDS.has(word)) continue;
+    const token = word.slice(0, 3);
+    if (!token || seen.has(token)) continue;
+    seen.add(token);
+    tokens.push(token);
   }
-  return [...tokens];
+  return tokens;
+}
+
+function buildBookSearchTokens(value) {
+  const tokens = [];
+  const seen = new Set();
+  for (const word of tokenizeSearchWords(value)) {
+    if (word.length < 3) continue;
+    if (BOOK_SEARCH_STOP_WORDS.has(word) || BOOK_SEARCH_SERVICE_WORDS.has(word)) continue;
+    const token = word.slice(0, 3);
+    if (seen.has(token)) continue;
+    seen.add(token);
+    tokens.push(token);
+  }
+  return tokens;
 }
 
 function getFirstLetter(indexKey) {
@@ -3287,6 +3330,16 @@ export default {
         }, 201, apiCorsHeaders);
       }
 
+      const getTenantSourceSlug = async (tenantId) => {
+        const normalizedTenantId = String(tenantId || "").trim();
+        if (!normalizedTenantId) return "";
+        const { data: tenant } = await sbFetch("tenants", {
+          params: `id=eq.${normalizedTenantId}&select=slug`,
+          single: true,
+        });
+        return String(tenant?.slug || "").trim().toLowerCase();
+      };
+
       // ── GET /v1/tenants/:slug — tenant info ──
       const tenantSlugMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])$/);
       if (tenantSlugMatch && request.method === "GET") {
@@ -3493,11 +3546,17 @@ export default {
         });
         if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
 
-        // Update catalog indexes so the book appears in browse/search
-        try {
-          await updateCatalogIndexes(env, data);
-        } catch (indexErr) {
-          // Non-fatal: book is published even if index update fails
+        // Only public books should appear in public browse/search artifacts.
+        if (visibility === "public") {
+          try {
+            const source = await getTenantSourceSlug(tenantContext.tenantId) || "manual";
+            await updateCatalogIndexes(env, data, {
+              source,
+              sourceBookId: String(data.content_id || ""),
+            });
+          } catch (indexErr) {
+            // Non-fatal: book is published even if index update fails
+          }
         }
 
         return jsonResponse(data, 200, apiCorsHeaders);

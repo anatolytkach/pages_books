@@ -1317,25 +1317,7 @@
           }
 
           if (totalPages > 1) {
-            const pager = el("div", "sectionHead");
-            pager.appendChild(el("div", "sectionMeta", `Page ${page} of ${totalPages}`));
-            const actions = el("div", "toolbar");
-            const prevBtn = el("button", "toggleBtn", "Previous");
-            prevBtn.disabled = page <= 1;
-            prevBtn.addEventListener("click", () => {
-              searchState.page = Math.max(1, page - 1);
-              renderSearchResults();
-            });
-            const nextBtn = el("button", "toggleBtn", "Next");
-            nextBtn.disabled = page >= totalPages;
-            nextBtn.addEventListener("click", () => {
-              searchState.page = Math.min(totalPages, page + 1);
-              renderSearchResults();
-            });
-            actions.appendChild(prevBtn);
-            actions.appendChild(nextBtn);
-            pager.appendChild(actions);
-            els.searchResults.appendChild(pager);
+            els.searchResults.appendChild(buildSearchPager(page, totalPages));
           }
 
           if (authors.length) {
@@ -1447,6 +1429,36 @@
             row.appendChild(body);
             els.searchResults.appendChild(row);
           });
+
+          if (totalPages > 1) {
+            els.searchResults.appendChild(buildSearchPager(page, totalPages));
+          }
+        }
+
+        function goToSearchPage(nextPage) {
+          searchState.page = nextPage;
+          renderSearchResults();
+          els.searchResults.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        function buildSearchPager(page, totalPages) {
+          const pager = el("div", "sectionHead");
+          pager.appendChild(el("div", "sectionMeta", `Page ${page} of ${totalPages}`));
+          const actions = el("div", "toolbar");
+          const prevBtn = el("button", "toggleBtn", "Previous");
+          prevBtn.disabled = page <= 1;
+          prevBtn.addEventListener("click", () => {
+            goToSearchPage(Math.max(1, page - 1));
+          });
+          const nextBtn = el("button", "toggleBtn", "Next");
+          nextBtn.disabled = page >= totalPages;
+          nextBtn.addEventListener("click", () => {
+            goToSearchPage(Math.min(totalPages, page + 1));
+          });
+          actions.appendChild(prevBtn);
+          actions.appendChild(nextBtn);
+          pager.appendChild(actions);
+          return pager;
         }
 
         function normalizeLetters(data) {
@@ -1906,21 +1918,26 @@
           if (!query) return true;
           const needle = normalizeSearchMatch(query);
           if (!needle) return true;
-          const compactNeedle = needle.replace(/[^\p{L}\p{N}]+/gu, "");
+          const queryTerms = needle
+            .split(/[^\p{L}\p{N}]+/gu)
+            .map((term) => term.trim())
+            .filter(Boolean);
           let fields = [];
           if (item.type === "book") fields = [item.title, item.author];
           if (item.type === "author") {
             const parsed = normalizeAuthorName(item.name);
-            const last = normalizeSearchMatch(parsed.last || "").replace(/[^\p{L}\p{N}]+/gu, "");
-            if (!last) return false;
-            return compactNeedle ? last.startsWith(compactNeedle) : last.startsWith(needle);
+            fields = [parsed.last, parsed.rest, parsed.display, item.name];
           }
-          return fields.some((field) => {
-            if (!field) return false;
-            const hay = normalizeSearchMatch(field);
-            if (hay.includes(needle)) return true;
-            if (compactNeedle && hay.replace(/[^\p{L}\p{N}]+/gu, "").includes(compactNeedle)) return true;
-            return false;
+          const normalizedFields = fields
+            .filter(Boolean)
+            .map((field) => normalizeSearchMatch(field))
+            .filter(Boolean);
+          if (!normalizedFields.length) return false;
+          return queryTerms.every((term) => {
+            return normalizedFields.some((hay) => {
+              const hayTokens = hay.split(/[^\p{L}\p{N}]+/gu).filter(Boolean);
+              return hayTokens.some((token) => token.startsWith(term));
+            });
           });
         }
 
@@ -2173,7 +2190,14 @@
                 }
                 return null;
               })
-              .filter(Boolean);
+              .filter(Boolean)
+              .sort((a, b) => {
+                if (a.kind !== b.kind) return a.kind === "author" ? -1 : 1;
+                return String(a.title || "").localeCompare(String(b.title || ""), undefined, {
+                  numeric: true,
+                  sensitivity: "base",
+                });
+              });
 
             searchState = { query, items: results, error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
             renderSearchResults();

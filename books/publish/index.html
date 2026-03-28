@@ -480,6 +480,13 @@
             <div class="tenant-help" id="editTenantHelp"></div>
           </div>
           <form id="metadataForm">
+            <div class="form-group">
+              <label for="meta-visibility">Visibility</label>
+              <select id="meta-visibility">
+                <option value="public">Public</option>
+                <option value="tenant_only">Organization only</option>
+              </select>
+            </div>
             <div class="form-row">
               <div class="form-group">
                 <label for="meta-title">Title *</label>
@@ -745,6 +752,7 @@
           document.getElementById('meta-isbn').value = book.isbn || '';
           document.getElementById('meta-language').value = book.language || 'en';
           document.getElementById('meta-annotation').value = book.annotation || '';
+          document.getElementById('meta-visibility').value = book.visibility || 'public';
 
           const $status = document.getElementById('bookStatus');
           $status.innerHTML = `<span class="status-badge ${book.status}">${book.status}</span>`;
@@ -970,7 +978,7 @@
           if (!tenant) throw new Error('Choose a publishing organization before publishing.');
           await apiFetch('POST', `/publish/books/${editingBookId}/publish`, {
             body: {
-              visibility: 'public',
+              visibility: document.getElementById('meta-visibility').value || 'public',
               tenant_id: tenant.tenant_id,
               tenant_slug: tenant.tenant?.slug || '',
             },

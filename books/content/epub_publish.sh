@@ -197,15 +197,69 @@ def normalize_search_token(value: str) -> str:
     base = re.sub(r"[^\w]+", "", base, flags=re.UNICODE).replace("_", "")
     return base[:3] if len(base) >= 3 else ""
 
+BOOK_SEARCH_STOP_WORDS = {
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "of",
+    "to",
+    "in",
+    "on",
+    "for",
+    "by",
+}
+
+BOOK_SEARCH_SERVICE_WORDS = {
+    "vol",
+    "volume",
+    "no",
+    "part",
+    "chapter",
+}
+
+def tokenize_search_words(value: str):
+    words = re.findall(r"[\w]+", normalize_search_match(value), flags=re.UNICODE)
+    return [word.replace("_", "") for word in words if word]
+
+def build_author_search_tokens(value: str):
+    tokens = []
+    seen = set()
+    for word in tokenize_search_words(value):
+        if len(word) < 3:
+            continue
+        if word in BOOK_SEARCH_STOP_WORDS:
+            continue
+        token = word[:3]
+        if token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+    return tokens
+
+def build_book_search_tokens(value: str):
+    tokens = []
+    seen = set()
+    for word in tokenize_search_words(value):
+        if len(word) < 3:
+            continue
+        if word in BOOK_SEARCH_STOP_WORDS or word in BOOK_SEARCH_SERVICE_WORDS:
+            continue
+        token = word[:3]
+        if token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+    return tokens
+
 name = str(data.get("name") or "").strip()
 books = data.get("books") or []
 tokens = set()
-token = normalize_search_token(name)
-if token:
+for token in build_author_search_tokens(name):
     tokens.add(token)
 for book in books:
-    token = normalize_search_token(book.get("title") or "")
-    if token:
+    for token in build_book_search_tokens(book.get("title") or ""):
         tokens.add(token)
 for token in sorted(tokens):
     print(token)
