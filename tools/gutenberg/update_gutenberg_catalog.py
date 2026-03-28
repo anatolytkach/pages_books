@@ -624,6 +624,8 @@ def purge_remote_language_search_dirs(
     rclone_remote: str = "",
     dry_run: bool = False,
 ) -> None:
+    # Legacy cleanup only: older catalog builds wrote api/lang/<lang>/search/*.
+    # The current contract uses global-only search files under api/search/*.
     if rclone_remote:
         if dry_run:
             log(f"[dry-run] purge language search dirs under {rclone_target(rclone_remote, bucket, 'api/lang')}")
@@ -668,7 +670,7 @@ def purge_remote_language_search_dirs(
         )
         return
 
-    warn("Skipping remote cleanup for api/lang/*/search because neither rclone nor S3 credentials are configured.")
+    warn("Skipping legacy cleanup for api/lang/*/search because neither rclone nor S3 credentials are configured.")
 
 
 def deploy_pages(project: str, branch: str, wrangler_bin: str, dry_run: bool = False) -> None:
@@ -896,21 +898,6 @@ def main() -> int:
                 str(local_state_file),
             ]
         )
-
-        if current_run_uploaded_ids:
-            for book_id in current_run_uploaded_ids:
-                run_cmd(
-                    [
-                        args.python_bin,
-                        str(BUILD_LANG_INDEXES),
-                        "--input",
-                        str(staged_content_root),
-                        "--output",
-                        str(INDEX_ROOT),
-                        "--book-id",
-                        book_id,
-                    ]
-                )
 
         run_cmd([args.python_bin, str(SYNC_GUTENBERG_INDEXES), "--index-root", str(INDEX_ROOT)])
 

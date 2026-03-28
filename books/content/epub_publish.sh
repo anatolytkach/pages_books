@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CONTENT_DIR="$SCRIPT_DIR"
 INDEX_TOOL="$ROOT_DIR/tools/catalog/build_lang_indexes.py"
+BOOK_LOCATIONS_TOOL="$ROOT_DIR/tools/catalog/build_book_locations.py"
 INDEX_DIR="$ROOT_DIR/reader_lang_indexes"
 DEPLOY_DIR="$ROOT_DIR/deploy"
 
@@ -42,6 +43,7 @@ What it does:
 Notes:
   - If content/<id>/... already exists on R2, it is replaced in-place.
   - Catalog update is incremental via tools/catalog/build_lang_indexes.py --book-id <id>.
+  - book-locations.json and shard files are rebuilt after catalog index updates.
   - Option --no-image-upload skips uploading image files from books.
     Existing images in R2 remain unchanged.
 USAGE
@@ -149,6 +151,28 @@ rebuild_catalog_indexes_for_ids() {
   done
 }
 
+rebuild_book_locations() {
+  [[ -f "$BOOK_LOCATIONS_TOOL" ]] || die "Book locations builder not found: $BOOK_LOCATIONS_TOOL"
+  log "Rebuilding book-locations indexes"
+  run_cmd "$PYTHON_BIN" "$BOOK_LOCATIONS_TOOL" --index-root "$INDEX_DIR"
+}
+
+shard_for_reader_id() {
+  local raw="$1"
+  if [[ "$raw" =~ ^[0-9]+$ ]]; then
+    printf '%02d\n' "$((10#$raw % 100))"
+    return
+  fi
+  "$PYTHON_BIN" - "$raw" <<'PY'
+import sys
+raw = str(sys.argv[1] or "").strip()
+total = 0
+for char in raw:
+    total = (total + ord(char)) % 100
+print(f"{total:02d}")
+PY
+}
+
 json_get_author_tokens() {
   local author_file="$1"
   "$PYTHON_BIN" - "$author_file" <<'PY'
@@ -246,8 +270,12 @@ build_selective_index_upload_list() {
 
   [[ -f "$INDEX_DIR/letters.json" ]] && echo "$INDEX_DIR/letters.json" >> "$tmp_files"
   [[ -f "$INDEX_DIR/languages.json" ]] && echo "$INDEX_DIR/languages.json" >> "$tmp_files"
+  [[ -f "$INDEX_DIR/book-locations.json" ]] && echo "$INDEX_DIR/book-locations.json" >> "$tmp_files"
 
   for id in "${ids[@]}"; do
+    local legacy_shard
+    legacy_shard="$(shard_for_reader_id "$id")"
+    [[ -f "$INDEX_DIR/book-locations/$legacy_shard.json" ]] && echo "$INDEX_DIR/book-locations/$legacy_shard.json" >> "$tmp_files"
     rg -l "\"id\"\\s*:\\s*\"$id\"" "$INDEX_DIR/a" "$INDEX_DIR/search" "$INDEX_DIR/lang" -S 2>/dev/null >> "$tmp_files" || true
   done
 
@@ -425,6 +453,7 @@ main() {
   fi
 
   rebuild_catalog_indexes_for_ids "${ids[@]}"
+  rebuild_book_locations
 
   local selective_list_file selective_count
   selective_list_file="$(mktemp)"
