@@ -8,6 +8,28 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
 
+BOOK_SEARCH_STOP_WORDS = {
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "of",
+    "to",
+    "in",
+    "on",
+    "for",
+    "by",
+}
+
+BOOK_SEARCH_SERVICE_WORDS = {
+    "vol",
+    "volume",
+    "no",
+    "part",
+    "chapter",
+}
+
 def clean_text(value: str) -> str:
     return " ".join(str(value or "").split())
 
@@ -46,6 +68,43 @@ def normalize_search_token(value: str) -> str:
     base = re.sub(r"[^\w]+", "", base, flags=re.UNICODE)
     base = base.replace("_", "")
     return base[:3] if len(base) >= 3 else ""
+
+
+def tokenize_search_words(value: str) -> list[str]:
+    words = re.findall(r"[\w]+", normalize_search_match(value), flags=re.UNICODE)
+    return [word.replace("_", "") for word in words if word]
+
+
+def build_author_search_tokens(value: str) -> list[str]:
+    tokens = []
+    seen = set()
+    for word in tokenize_search_words(value):
+        if len(word) < 3:
+            continue
+        if word in BOOK_SEARCH_STOP_WORDS:
+            continue
+        token = word[:3] if len(word) >= 3 else ""
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+    return tokens
+
+
+def build_book_search_tokens(value: str) -> list[str]:
+    tokens = []
+    seen = set()
+    for word in tokenize_search_words(value):
+        if len(word) < 3:
+            continue
+        if word in BOOK_SEARCH_STOP_WORDS or word in BOOK_SEARCH_SERVICE_WORDS:
+            continue
+        token = word[:3]
+        if token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+    return tokens
 
 def parse_author_name(name: str) -> tuple[str, str, str, str]:
     raw = clean_text(name)
@@ -423,8 +482,8 @@ def build_language_indexes(lang: str, authors: list, output_root: str, max_prefi
     search_map = defaultdict(list)
     seen_author_tokens = defaultdict(set)
     for author in authors:
-        token = normalize_search_token(author.get("index") or author.get("name") or "")
-        if token:
+        author_search_name = author.get("name") or ""
+        for token in build_author_search_tokens(author_search_name):
             if author["key"] not in seen_author_tokens[token]:
                 search_map[token].append({
                     "t": "a",
@@ -435,18 +494,16 @@ def build_language_indexes(lang: str, authors: list, output_root: str, max_prefi
                 seen_author_tokens[token].add(author["key"])
 
     for book in books:
-        token = normalize_search_token(book.get("title") or "")
-        if not token:
-            continue
-        search_map[token].append({
-            "id": book.get("id"),
-            "source": book.get("source") or "gutenberg",
-            "legacyId": book.get("legacyId") or book.get("id"),
-            "title": book.get("title"),
-            "a": book.get("author"),
-            "k": book.get("author_key"),
-            "cover": book.get("cover"),
-        })
+        for token in build_book_search_tokens(book.get("title") or ""):
+            search_map[token].append({
+                "id": book.get("id"),
+                "source": book.get("source") or "gutenberg",
+                "legacyId": book.get("legacyId") or book.get("id"),
+                "title": book.get("title"),
+                "a": book.get("author"),
+                "k": book.get("author_key"),
+                "cover": book.get("cover"),
+            })
 
     if lang == "all":
         for token, items in search_map.items():
