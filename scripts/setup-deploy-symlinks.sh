@@ -5,6 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEPLOY_DIR="$(cd "$SCRIPT_DIR/../deploy" && pwd)"
+CMD_EXE="${COMSPEC:-/mnt/c/Windows/System32/cmd.exe}"
 
 cd "$DEPLOY_DIR"
 
@@ -12,11 +13,11 @@ cd "$DEPLOY_DIR"
 rm -f books reader catalog _worker.js 2>/dev/null || true
 
 # Create directory symlinks
-cmd //c "mklink /D books ..\\books"
-cmd //c "mklink /D reader ..\\reader"
+"$CMD_EXE" //c "mklink /D books ..\\books"
+"$CMD_EXE" //c "mklink /D reader ..\\reader"
 
 # Create file symlink
-cmd //c "mklink _worker.js ..\\_worker.js"
+"$CMD_EXE" //c "mklink _worker.js ..\\_worker.js"
 
 echo "Deploy symlinks created successfully."
 echo "Note: deploy/catalog is intentionally not recreated; books/index.html is the live catalog."
