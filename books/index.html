@@ -105,6 +105,7 @@
       .brandLink {
         color: inherit;
         text-decoration: none;
+        min-width: 0;
       }
 
       .brandLogo {
@@ -119,13 +120,59 @@
         font-weight: 700;
         color: var(--accent);
         letter-spacing: 0.4px;
+        min-width: 0;
+      }
+
+      .headerActions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-left: auto;
+        min-width: 0;
+      }
+
+      .headerLinks {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-left: auto;
+      }
+
+      .headerSearchForm {
+        flex: 0 1 420px;
+        width: min(420px, 40vw);
+        min-width: 220px;
+      }
+
+      .headerMyBooksLink {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--accent);
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .headerMyBooksLink:hover {
+        text-decoration: underline;
+      }
+
+      .headerBackLink {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--accent);
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .headerBackLink:hover {
+        text-decoration: underline;
       }
 
       .searchWrap {
         flex: 1;
         min-width: 240px;
         display: flex;
-        justify-content: flex-end;
+        justify-content: flex-start;
         align-items: center;
         gap: 12px;
         flex-wrap: nowrap;
@@ -347,9 +394,10 @@
       .breadcrumbs-row {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-end;
         gap: 12px;
-        margin-bottom: 18px;
+        margin-bottom: 8px;
+        margin-left: auto;
       }
 
       #breadcrumbs {
@@ -370,40 +418,359 @@
         text-decoration: underline;
       }
 
-      .my-books-link {
-        font-size: 13px;
-        color: var(--accent);
-        text-decoration: none;
-        white-space: nowrap;
+      .browseHeader {
+        border: 1px solid var(--border);
+        background: var(--rect-bg);
+        border-radius: var(--radius-lg);
+        padding: 18px;
+        margin-bottom: 18px;
       }
 
-      .my-books-link:hover {
-        text-decoration: underline;
+      .browseHeaderTitle {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 26px;
+        line-height: 1.1;
+        color: var(--ink);
+        margin-bottom: 14px;
       }
 
-      .my-books-link {
-        font-size: 13px;
-        color: var(--accent);
-        text-decoration: none;
-        white-space: nowrap;
+      .browseContent {
+        margin-top: 8px;
       }
 
-      .my-books-link:hover {
-        text-decoration: underline;
-      }
-
-      #breadcrumbs .my-books-link {
-        margin-left: auto;
+      .browseControlsRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
       }
 
       #toolbar {
         display: flex;
         gap: 8px;
         margin-bottom: 12px;
+        align-items: center;
+      }
+
+      .toolbarLabel {
+        margin-left: auto;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .book-opening {
+        transition: transform 180ms ease, opacity 180ms ease;
+        transform: scale(1.02);
+        opacity: 0.88;
       }
 
       #main {
         flex: 1;
+      }
+
+      .catalogControls {
+        display: flex;
+        justify-content: flex-start;
+        margin-top: 0;
+        margin-bottom: 14px;
+      }
+
+      .catalogHero {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        align-items: stretch;
+        margin-bottom: 0;
+        padding-bottom: 28px;
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+
+      .catalogHero.autostartPending {
+        opacity: 0.94;
+        transform: scale(0.995);
+      }
+
+      .catalogHero.autostartPending .catalogHeroPanel,
+      .catalogHero.autostartPending .catalogHeroReaders,
+      .catalogHero.autostartPending .readerPreview {
+        box-shadow: 0 0 0 2px rgba(2, 143, 128, 0.12);
+      }
+
+      .catalogHeroTop {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 1fr);
+        gap: 24px;
+        align-items: center;
+      }
+
+      .catalogHeroReaders {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        pointer-events: none;
+        min-width: 0;
+      }
+
+      .catalogHeroReaders img {
+        display: block;
+        width: min(100%, 432px);
+        height: auto;
+        object-fit: contain;
+        transform: scaleX(-1);
+      }
+
+      .catalogHeroPanel {
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--rect-bg);
+        box-shadow: none;
+      }
+
+      .catalogHeroCopy {
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 14px;
+        min-height: 100%;
+        max-width: min(100%, 680px);
+        border: none;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      .catalogHeroEyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent-2);
+      }
+
+      .catalogHeroEyebrow::before {
+        content: "";
+        width: 28px;
+        height: 1px;
+        background: currentColor;
+        opacity: 0.45;
+      }
+
+      .catalogHeroTitle {
+        margin: 0;
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: clamp(36px, 5vw, 56px);
+        line-height: 0.98;
+        letter-spacing: -0.03em;
+        color: #14202f;
+        max-width: 10ch;
+      }
+
+      .catalogHeroText {
+        margin: 0;
+        max-width: 32rem;
+        font-size: 18px;
+        line-height: 1.55;
+        color: #586273;
+      }
+
+      .catalogHeroActions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .catalogHeroTrust {
+        font-size: 15px;
+        line-height: 1.62;
+        color: var(--muted);
+      }
+
+      .catalogHeroButton {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 999px;
+        border: 1px solid #0f766e;
+        background: linear-gradient(180deg, #16867b 0%, #0f766e 100%);
+        color: #ffffff;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        box-shadow: 0 10px 24px rgba(15, 118, 110, 0.18);
+      }
+
+      .catalogHeroButton:hover {
+        text-decoration: none;
+        background: linear-gradient(180deg, #13796f 0%, #0d675f 100%);
+      }
+
+      .catalogHeroPreview {
+        display: block;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        transition: transform 160ms ease, box-shadow 160ms ease;
+      }
+
+      .catalogHeroPreview:hover {
+        transform: scale(1.015);
+      }
+
+      .catalogHeroPreview:hover .readerPreview {
+        box-shadow: 0 18px 34px rgba(21, 34, 48, 0.1);
+      }
+
+      .catalogHeroPreview:focus-visible {
+        outline: none;
+      }
+
+      .catalogHeroPreview:focus-visible .readerPreview {
+        box-shadow: 0 0 0 3px rgba(2, 143, 128, 0.18), 0 18px 34px rgba(21, 34, 48, 0.1);
+      }
+
+      .readerPreview {
+        height: 100%;
+        min-height: 300px;
+        border-radius: 18px;
+        border: 1px solid rgba(15, 23, 42, 0.09);
+        background: #fdfcf9;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: box-shadow 160ms ease;
+      }
+
+      .readerPreviewTopbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        background: rgba(245, 247, 250, 0.92);
+      }
+
+      .readerPreviewWindow {
+        display: inline-flex;
+        gap: 6px;
+      }
+
+      .readerPreviewWindow span {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(20, 32, 47, 0.2);
+      }
+
+      .readerPreviewMeta {
+        min-width: 0;
+        text-align: right;
+      }
+
+      .readerPreviewLabel {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #718096;
+      }
+
+      .readerPreviewBook {
+        display: block;
+        font-size: 13px;
+        color: #1f2937;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .readerPreviewBookByline {
+        font-size: 12px;
+        color: #718096;
+      }
+
+      .readerPreviewBody {
+        padding: 20px 22px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .readerPreviewChapter {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 28px;
+        line-height: 1.05;
+        color: #182230;
+      }
+
+      .readerPreviewContinue {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: var(--accent-2);
+      }
+
+      .readerPreviewParagraph {
+        margin: 0;
+        color: #2f3c4c;
+        font-size: 15px;
+        line-height: 1.62;
+      }
+
+      .readerPreviewFooter {
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(15, 23, 42, 0.08);
+        font-size: 12px;
+        color: #718096;
+      }
+
+      .readerPreviewCta {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--accent-2);
+        white-space: nowrap;
+      }
+
+      .readerPreviewProgress {
+        position: relative;
+        flex: 1;
+        max-width: 180px;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+      }
+
+      .readerPreviewProgress::after {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 38%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #0f766e 0%, #36a99c 100%);
       }
 
       #footer {
@@ -529,6 +896,14 @@
         display: flex;
         flex-direction: column;
         gap: 26px;
+      }
+
+      .catalogSections.searchActive > :not(#browseHeader) {
+        display: none;
+      }
+
+      .catalogSections.searchActive #browseContent {
+        display: none;
       }
 
       .landingSection {
@@ -867,8 +1242,87 @@
 
       @media (max-width: 720px) {
         header {
-          flex-direction: column;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-areas:
+            "brand actions"
+            "search search";
+          align-items: center;
+          column-gap: 12px;
+          row-gap: 12px;
+        }
+        .brandLink {
+          grid-area: brand;
+        }
+        .headerActions {
+          grid-area: actions;
+          display: contents;
+        }
+        .headerLinks {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 12px;
+          min-width: 0;
+        }
+        .headerSearchForm {
+          grid-area: search;
+          width: 100%;
+          min-width: 0;
+          max-width: none;
+        }
+        .brand {
+          min-width: 0;
+          flex: 1 1 auto;
+        }
+        .title {
+          font-size: 21px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .catalogHero {
+          gap: 16px;
+          padding-bottom: 20px;
+        }
+        .catalogHeroTop {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .catalogHeroReaders {
+          justify-content: center;
+        }
+        .catalogHeroReaders img {
+          width: 80%;
+          max-width: 320px;
+        }
+        .catalogHeroCopy {
+          padding: 22px 20px;
+        }
+        .catalogControls {
+          margin-top: 0;
+          margin-bottom: 16px;
+        }
+        .browseControlsRow {
           align-items: flex-start;
+        }
+        .catalogControls .searchWrap {
+          width: 100%;
+        }
+        .catalogHeroTitle {
+          max-width: none;
+        }
+        .catalogHeroPreview {
+          padding: 0;
+        }
+        .catalogHeroPreview:hover {
+          transform: none;
+        }
+        .readerPreview {
+          min-height: 0;
+        }
+        .readerPreviewBody {
+          padding: 20px;
         }
         .searchWrap {
           width: 100%;
@@ -910,15 +1364,8 @@
           <img class="brandLogo" src="/books/assets/logo.svg" alt="ReaderPub" />
           <div class="title">ReaderPub Books</div>
         </a>
-        <div class="searchWrap">
-          <div class="langWrap" id="languageWrap">
-            <button id="languageSelect" class="langSelect" type="button" aria-haspopup="listbox" aria-expanded="false">
-              <span class="langValue">All languages</span>
-              <span class="langChevron">▾</span>
-            </button>
-            <div id="languageMenu" class="langMenu" role="listbox" aria-label="Languages"></div>
-          </div>
-          <form id="searchForm" class="searchForm" role="search">
+        <div class="headerActions">
+          <form id="searchForm" class="searchForm headerSearchForm" role="search">
             <input
               id="searchInput"
               class="searchInput"
@@ -938,13 +1385,50 @@
               </svg>
             </button>
           </form>
+          <div class="headerLinks">
+            <a id="headerBackLink" class="headerBackLink" href="#view=letters" style="display: none">Back to Catalog</a>
+            <a id="myBooksLink" class="headerMyBooksLink" href="#view=mybooks">My Books</a>
+          </div>
         </div>
       </header>
       <main id="main">
-        <div id="breadcrumbsRow" class="breadcrumbs-row">
-          <div id="breadcrumbs"></div>
-          <a id="myBooksLink" class="my-books-link" href="#view=mybooks">My Books</a>
-        </div>
+        <section id="catalogHero" class="catalogHero" aria-label="Reader experience preview">
+          <div class="catalogHeroTop">
+            <div class="catalogHeroPanel catalogHeroCopy">
+              <div class="catalogHeroEyebrow">Browser Reader</div>
+              <h1 class="catalogHeroTitle">Start reading instantly</h1>
+              <p class="catalogHeroText">No downloads, no apps, no setup. Just open a book and read.</p>
+              <div class="catalogHeroActions">
+                <a id="heroStartLink" class="catalogHeroButton" href="/books/reader/?id=1342&amp;entry=hero" target="_blank" rel="noopener noreferrer">Check it out in WeRead</a>
+              </div>
+              <div class="catalogHeroTrust">80,000+ books available instantly</div>
+            </div>
+            <div class="catalogHeroReaders" aria-hidden="true">
+              <img src="/books/assets/readers1.webp" alt="" />
+            </div>
+          </div>
+        </section>
+        <div id="browseHeaderDefaultMount"></div>
+        <section id="browseHeader" class="browseHeader" aria-label="Browse by author">
+          <div class="browseHeaderTitle">Browse by Author</div>
+          <div class="browseControlsRow">
+            <div class="catalogControls">
+              <div class="searchWrap">
+                <div class="langWrap" id="languageWrap">
+                  <button id="languageSelect" class="langSelect" type="button" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="langValue">All languages</span>
+                    <span class="langChevron">▾</span>
+                  </button>
+                  <div id="languageMenu" class="langMenu" role="listbox" aria-label="Languages"></div>
+                </div>
+              </div>
+            </div>
+            <div id="breadcrumbsRow" class="breadcrumbs-row">
+              <div id="breadcrumbs"></div>
+            </div>
+          </div>
+          <div id="browseContent" class="browseContent"></div>
+        </section>
         <div id="toolbar"></div>
         <div id="searchResults"></div>
         <div id="content" class="panel"></div>
@@ -961,6 +1445,10 @@
         const BUILD_STAMP = "2026-02-07T16:24:17Z";
         const BUILD_CHECK_URL = `${location.origin}/books/?__buildcheck=1`;
         const PENDING_HASH_KEY = "reader_pub_pending_hash";
+        const AUTO_START_KEY = "readerpub_autostart_v7";
+        const AUTO_START_RETURN_KEY = "readerpub_catalog_return_v1";
+        const AUTO_START_DELAY_MS = 6500;
+        const AUTO_START_MOVE_THRESHOLD = 24;
 
         const DEFAULT_STATE = {
           view: "letters",
@@ -974,8 +1462,14 @@
         };
 
         const els = {
+          hero: document.getElementById("catalogHero"),
+          heroStartLink: document.getElementById("heroStartLink"),
+          browseHeaderDefaultMount: document.getElementById("browseHeaderDefaultMount"),
+          browseHeader: document.getElementById("browseHeader"),
+          browseContent: document.getElementById("browseContent"),
           breadcrumbs: document.getElementById("breadcrumbs"),
           breadcrumbsRow: document.getElementById("breadcrumbsRow"),
+          headerBackLink: document.getElementById("headerBackLink"),
           myBooksLink: document.getElementById("myBooksLink"),
           toolbar: document.getElementById("toolbar"),
           brandLink: document.getElementById("brandLink"),
@@ -995,6 +1489,7 @@
         let SEARCH_NONCE = 0;
         let currentView = null;
         let activeLanguage = "en";
+        let pendingScrollRestoreY = null;
         const SEARCH_PAGE_SIZE = 24;
         const AUTHOR_BOOKS_PAGE_SIZE = 24;
         let searchState = {
@@ -1044,6 +1539,115 @@
           }
         } catch (error) {
           // ignore analytics boot failures
+        }
+
+        function setupHeroAutostart() {
+          if (!els.hero || !els.heroStartLink) return;
+          const currentState = parseState();
+          if (currentState && currentState.view === "mybooks") return;
+
+          let alreadyStarted = false;
+          try {
+            alreadyStarted = sessionStorage.getItem(AUTO_START_KEY) === "1";
+          } catch (error) {
+            alreadyStarted = false;
+          }
+          if (alreadyStarted) return;
+
+          const href = String(els.heroStartLink.getAttribute("href") || "").trim();
+          if (!href) return;
+
+          let timerId = 0;
+          let canceled = false;
+          let lastMoveX = null;
+          let lastMoveY = null;
+          const listenerOptions = { passive: true };
+          const cleanup = () => {
+            window.removeEventListener("scroll", onInteract, listenerOptions);
+            window.removeEventListener("keydown", onInteract, listenerOptions);
+            window.removeEventListener("pointerdown", onInteract, listenerOptions);
+            window.removeEventListener("touchstart", onInteract, listenerOptions);
+            window.removeEventListener("mousemove", onMouseMove, listenerOptions);
+            document.removeEventListener("focusin", onFocusIn, listenerOptions);
+          };
+
+          const cancel = () => {
+            if (canceled) return;
+            canceled = true;
+            if (timerId) window.clearTimeout(timerId);
+            cleanup();
+          };
+
+          function onInteract() {
+            cancel();
+          }
+
+          function onFocusIn(event) {
+            const target = event && event.target ? event.target : null;
+            if (!target) return;
+            if (
+              target === els.search ||
+              target === els.searchBtn ||
+              target === els.languageSelect ||
+              (els.searchForm && els.searchForm.contains(target))
+            ) {
+              cancel();
+            }
+          }
+
+          function onMouseMove(event) {
+            if (lastMoveX == null || lastMoveY == null) {
+              lastMoveX = event.clientX;
+              lastMoveY = event.clientY;
+              return;
+            }
+            const dx = Math.abs(event.clientX - lastMoveX);
+            const dy = Math.abs(event.clientY - lastMoveY);
+            if (dx > AUTO_START_MOVE_THRESHOLD || dy > AUTO_START_MOVE_THRESHOLD) cancel();
+          }
+
+          window.addEventListener("scroll", onInteract, listenerOptions);
+          window.addEventListener("keydown", onInteract, listenerOptions);
+          window.addEventListener("pointerdown", onInteract, listenerOptions);
+          window.addEventListener("touchstart", onInteract, listenerOptions);
+          window.addEventListener("mousemove", onMouseMove, listenerOptions);
+          document.addEventListener("focusin", onFocusIn, listenerOptions);
+
+          const startTimer = () => {
+            timerId = window.setTimeout(() => {
+              if (canceled) return;
+              cleanup();
+              els.hero.classList.add("autostartPending");
+              window.setTimeout(() => {
+              try {
+                sessionStorage.setItem(AUTO_START_KEY, "1");
+                sessionStorage.setItem(AUTO_START_RETURN_KEY, `${window.location.pathname}${window.location.search}${window.location.hash}`);
+              } catch (error) {
+                // ignore storage failures
+              }
+              const destination = new URL(href, window.location.origin);
+              const returnTarget = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+              destination.searchParams.set("entry", "hero");
+              destination.searchParams.set("catalog_return", returnTarget || "/books/");
+              destination.searchParams.set("autostart", "1");
+              window.location.assign(`${destination.pathname}${destination.search}${destination.hash}`);
+              }, 220);
+            }, AUTO_START_DELAY_MS);
+          };
+
+          if (document.readyState === "complete") {
+            if (!canceled && !timerId) startTimer();
+            return;
+          }
+
+          window.addEventListener(
+            "load",
+            () => {
+              if (canceled || timerId) return;
+              startTimer();
+            },
+            { once: true }
+          );
         }
 
         const LANGUAGE_NAMES = {
@@ -1135,6 +1739,60 @@
           els.status.textContent = message || "";
         }
 
+        function updateCatalogChrome(state) {
+          const current = state || parseState();
+          const isMyBooksView = current && current.view === "mybooks";
+          if (els.hero) {
+            els.hero.style.display = isMyBooksView ? "none" : "";
+          }
+          if (els.browseHeader) {
+            els.browseHeader.style.display = isMyBooksView ? "none" : "";
+          }
+          if (els.headerBackLink) {
+            els.headerBackLink.style.display = isMyBooksView ? "" : "none";
+          }
+          if (els.myBooksLink) {
+            els.myBooksLink.style.display = isMyBooksView ? "none" : "";
+          }
+        }
+
+        function restoreBrowseHeaderDefaultPosition() {
+          if (!els.browseHeader || !els.browseHeaderDefaultMount) return;
+          const parent = els.browseHeaderDefaultMount.parentNode;
+          if (!parent) return;
+          if (els.browseHeader.parentNode === parent && els.browseHeader.previousSibling === els.browseHeaderDefaultMount) return;
+          parent.insertBefore(els.browseHeader, els.browseHeaderDefaultMount.nextSibling);
+        }
+
+        function isBrowseView(state) {
+          const current = state || parseState();
+          return !current.view || current.view === "letters" || current.view === "prefixes" || current.view === "prefix" || current.view === "author";
+        }
+
+        function showBrowseLoading(message) {
+          if (!els.browseContent) return;
+          els.browseContent.innerHTML = "";
+          els.browseContent.appendChild(el("div", "loading", message || "Loading..."));
+        }
+
+        function showBrowseError(message, detail) {
+          if (!els.browseContent) return;
+          els.browseContent.innerHTML = "";
+          const box = el("div", "error");
+          box.appendChild(el("div", null, message || "Unexpected error"));
+          if (detail) {
+            const pre = el("pre", null, String(detail));
+            pre.style.margin = "8px 0 0";
+            pre.style.whiteSpace = "pre-wrap";
+            box.appendChild(pre);
+          }
+          els.browseContent.appendChild(box);
+        }
+
+        function hasLandingScaffold() {
+          return !!(els.content && els.content.querySelector(".catalogSections"));
+        }
+
         function showLoading(message) {
           els.content.innerHTML = "";
           const loading = el("div", "loading", message || "Loading...");
@@ -1191,6 +1849,9 @@
               els.breadcrumbs.appendChild(el("span", null, item.label));
             }
           });
+          if (els.breadcrumbsRow) {
+            els.breadcrumbsRow.style.display = compact.length ? "" : "none";
+          }
         }
 
         function formatPrefixLabel(value) {
@@ -1260,6 +1921,8 @@
             }
             delBtn.addEventListener("click", deleteSelectedMyBooks);
             els.toolbar.appendChild(delBtn);
+
+            els.toolbar.appendChild(el("div", "toolbarLabel", "My Books"));
           }
         }
 
@@ -1267,13 +1930,20 @@
           els.searchResults.innerHTML = "";
           if (!searchState.query) {
             els.searchResults.style.display = "none";
-            if (els.breadcrumbsRow) els.breadcrumbsRow.style.display = "";
-            else els.breadcrumbs.style.display = "";
+            if (els.hero && parseState().view !== "mybooks") {
+              els.hero.style.display = "";
+            }
+            if (els.breadcrumbsRow) {
+              els.breadcrumbsRow.style.display = els.breadcrumbs && els.breadcrumbs.childNodes.length ? "" : "none";
+            } else if (els.breadcrumbs) {
+              els.breadcrumbs.style.display = "";
+            }
             els.content.style.display = "";
             els.toolbar.style.display = "";
             return;
           }
           els.searchResults.style.display = "block";
+          if (els.hero) els.hero.style.display = "none";
           if (els.breadcrumbsRow) els.breadcrumbsRow.style.display = "none";
           else els.breadcrumbs.style.display = "none";
           els.content.style.display = "none";
@@ -1773,21 +2443,52 @@
           };
         }
 
-        function openBookUrl(bookOrId, source, cover) {
-          return openReaderUrl(bookOrId, cover, source);
+        function openBookUrl(bookOrId, source, cover, entryOverride) {
+          return openReaderUrl(bookOrId, cover, source, entryOverride);
         }
 
-        function openReaderUrl(bookOrId, cover, sourceOverride) {
+        function openReaderUrl(bookOrId, cover, sourceOverride, entryOverride) {
           const target = normalizeBookTarget(bookOrId, sourceOverride);
           const id = target.id;
           const source = target.source;
+          const entry = String(entryOverride || "catalog").trim();
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
           const base = isPagesDev ? "/reader/" : "/books/reader/";
           let url = `${base}?id=${encodeURIComponent(id)}`;
           if (source && source !== "gutenberg") url += `&source=${encodeURIComponent(source)}`;
           const coverHint = String(cover || "").trim();
           if (coverHint) url += `&cover=${encodeURIComponent(coverHint)}`;
+          if (entry) url += `&entry=${encodeURIComponent(entry)}`;
           return url;
+        }
+
+        function isReaderBookHref(href) {
+          if (!href) return false;
+          try {
+            const url = new URL(href, window.location.origin);
+            const path = String(url.pathname || "");
+            const isReaderPath = path === "/books/reader/" || path === "/reader/";
+            if (!isReaderPath) return false;
+            return !!(url.searchParams.get("id") || url.searchParams.get("i") || url.hash);
+          } catch (error) {
+            return false;
+          }
+        }
+
+        function resolveBookOpeningTarget(trigger) {
+          const source = trigger && trigger.nodeType === 1 ? trigger : null;
+          if (!source) return null;
+          const explicit = source.closest("[data-book-open-url]");
+          if (explicit) return explicit;
+          const anchor = source.closest("a[href]");
+          if (!anchor) return null;
+          try {
+            const display = window.getComputedStyle(anchor).display;
+            if (display === "inline") {
+              return anchor.closest(".card, td, .bookmark-text, .mybooks-open") || anchor;
+            }
+          } catch (error) {}
+          return anchor.closest(".card, .mybooks-open, td") || anchor;
         }
 
         function updateSearchIcon() {
@@ -2236,7 +2937,7 @@
           if (replace) {
             history.replaceState(null, "", hash);
           } else {
-            location.hash = hash;
+            history.pushState(null, "", hash);
           }
         }
 
@@ -2254,8 +2955,14 @@
           return state;
         }
 
-        function navigate(state) {
-          updateHash({ ...parseState(), ...state }, false);
+        function navigate(state, options) {
+          const opts = options && typeof options === "object" ? options : {};
+          const restoreY = opts.preserveScroll ? (window.scrollY || window.pageYOffset || 0) : null;
+          const nextState = { ...parseState(), ...state };
+          updateHash(nextState, false);
+          Promise.resolve(renderState(nextState)).then(() => {
+            restoreScrollPosition(restoreY);
+          });
         }
 
         function authorHash(authorKey, authorName) {
@@ -2367,6 +3074,13 @@
             });
         }
 
+        function restoreScrollPosition(y) {
+          if (typeof y !== "number") return;
+          window.requestAnimationFrame(() => {
+            window.scrollTo(0, y);
+          });
+        }
+
         function createSectionHeader(title, meta) {
           const head = el("div", "sectionHead");
           head.appendChild(el("div", "sectionTitle", title));
@@ -2394,7 +3108,7 @@
           mapped.forEach((item) => {
             const btn = el("button", "letterBtn", item.label);
             if (!isEnglishAlphabetCard(item.label)) btn.classList.add("letterBtnNonEnglish");
-            btn.addEventListener("click", () => navigate({ view: "prefixes", letter: item.label, category: "" }));
+            btn.addEventListener("click", () => navigate({ view: "prefixes", letter: item.label, category: "" }, { preserveScroll: true }));
             grid.appendChild(btn);
           });
           return grid;
@@ -2528,35 +3242,62 @@
           return section;
         }
 
-        function renderLanding(letters, newest, popular, categories) {
+        function renderLandingScaffold(newest, popular, categories) {
           els.content.innerHTML = "";
           const wrap = el("div", "catalogSections");
-          const lettersSection = el("section", "landingSection");
-          lettersSection.appendChild(createSectionHeader("Browse by Author"));
-          if (!letters.length) {
-            lettersSection.appendChild(el("div", "loading", "No letters available."));
-          } else {
-            lettersSection.appendChild(createLettersGrid(letters));
+          const newestSection = renderNewestPreview(newest || { windowDays: 7, books: [] });
+          const popularSection = renderPopularPreview(popular || { defaultList: "last30days", lists: {} });
+          const categoriesSection = renderCategoriesSection(categories || []);
+          wrap.appendChild(newestSection);
+          wrap.appendChild(popularSection);
+          wrap.appendChild(categoriesSection);
+          if (els.browseHeader) {
+            wrap.appendChild(els.browseHeader);
           }
-          wrap.appendChild(lettersSection);
-          wrap.appendChild(renderNewestPreview(newest || { windowDays: 7, books: [] }));
-          wrap.appendChild(renderPopularPreview(popular || { defaultList: "last30days", lists: {} }));
-          wrap.appendChild(renderCategoriesSection(categories || []));
           els.content.appendChild(wrap);
         }
 
+        function renderLanding(letters, newest, popular, categories) {
+          renderLandingScaffold(newest, popular, categories);
+          renderLetters(letters);
+        }
+
+        async function ensureLandingScaffold(nonce) {
+          if (hasLandingScaffold()) return;
+          let newest = { windowDays: 7, books: [] };
+          let popular = { defaultList: "last30days", lists: {} };
+          let categories = [];
+          try {
+            newest = await getNewest(nonce);
+          } catch (error) {}
+          if (nonce !== REQ_NONCE) return;
+          try {
+            popular = await getPopular(nonce);
+          } catch (error) {}
+          if (nonce !== REQ_NONCE) return;
+          try {
+            categories = await getCategories(nonce);
+          } catch (error) {}
+          if (nonce !== REQ_NONCE) return;
+          renderLandingScaffold(newest, popular, categories);
+        }
+
         function renderLetters(letters) {
-          els.content.innerHTML = "";
+          if (!els.browseContent) return;
+          els.browseContent.innerHTML = "";
           if (!letters.length) {
             const empty = el("div", "loading", "No letters available.");
-            els.content.appendChild(empty);
+            els.browseContent.appendChild(empty);
             return;
           }
-          els.content.appendChild(createLettersGrid(letters));
+          const lettersSection = el("section", "landingSection");
+          lettersSection.appendChild(createLettersGrid(letters));
+          els.browseContent.appendChild(lettersSection);
         }
 
         function renderPrefixes(prefixes, letter) {
-          els.content.innerHTML = "";
+          if (!els.browseContent) return;
+          els.browseContent.innerHTML = "";
           const basePrefix = (() => {
             const state = parseState();
             if (state.view === "prefix" && state.prefix) return String(state.prefix);
@@ -2589,10 +3330,11 @@
               });
           if (!visible.length) {
             const empty = el("div", "loading", "No prefixes found.");
-            els.content.appendChild(empty);
+            els.browseContent.appendChild(empty);
             return;
           }
 
+          const section = el("section", "landingSection");
           const table = el("table", "list");
           const tbody = el("tbody");
 
@@ -2605,7 +3347,8 @@
           });
 
           table.appendChild(tbody);
-          els.content.appendChild(table);
+          section.appendChild(table);
+          els.browseContent.appendChild(section);
         }
 
         async function pruneEmptyPrefixes(letter, prefixes, nonce) {
@@ -2637,14 +3380,16 @@
         }
 
         function renderAuthors(authors, letter, prefix) {
-          els.content.innerHTML = "";
+          if (!els.browseContent) return;
+          els.browseContent.innerHTML = "";
           const filteredAuthors = filterAuthorsForPrefix(authors, letter, prefix);
           if (!filteredAuthors.length) {
             const empty = el("div", "loading", "No authors found.");
-            els.content.appendChild(empty);
+            els.browseContent.appendChild(empty);
             return;
           }
 
+          const section = el("section", "landingSection");
           const table = el("table", "list");
           const tbody = el("tbody");
 
@@ -2666,14 +3411,16 @@
           });
 
           table.appendChild(tbody);
-          els.content.appendChild(table);
+          section.appendChild(table);
+          els.browseContent.appendChild(section);
         }
 
         function renderAuthorBooks(author, books, viewMode, visibleLimitInput) {
-          els.content.innerHTML = "";
+          if (!els.browseContent) return;
+          els.browseContent.innerHTML = "";
           if (!books.length) {
             const empty = el("div", "loading", "No books found.");
-            els.content.appendChild(empty);
+            els.browseContent.appendChild(empty);
             return;
           }
 
@@ -2690,6 +3437,7 @@
           );
           authorBooksState.visibleLimit = visibleLimit;
           const visibleBooks = books.slice(0, visibleLimit);
+          const section = el("section", "landingSection");
 
           if (viewMode === "grid") {
             const grid = el("div", "grid");
@@ -2723,7 +3471,7 @@
               card.appendChild(meta);
               grid.appendChild(card);
             });
-            els.content.appendChild(grid);
+            section.appendChild(grid);
           } else {
             const table = el("table", "list");
             const tbody = el("tbody");
@@ -2739,8 +3487,10 @@
             });
 
             table.appendChild(tbody);
-            els.content.appendChild(table);
+            section.appendChild(table);
           }
+
+          els.browseContent.appendChild(section);
 
           if (visibleLimit < books.length) {
             const moreBtn = el("button", "toggleBtn sectionMoreBtn", `Show more (${books.length - visibleLimit} remaining)`);
@@ -2748,7 +3498,7 @@
               authorBooksState.visibleLimit = visibleLimit + AUTHOR_BOOKS_PAGE_SIZE;
               renderAuthorBooks(author, books, viewMode, authorBooksState.visibleLimit);
             });
-            els.content.appendChild(moreBtn);
+            els.browseContent.appendChild(moreBtn);
           }
         }
 
@@ -2908,12 +3658,10 @@
               items.forEach((book) => {
                 const bookId = String(book.id || "");
                 const card = el("div", "card");
-                card.addEventListener("click", (event) => {
-                  const t = event.target;
-                  if (t && t.closest && t.closest("a, input, button, label")) return;
-                  const url = openReaderUrl(book, book.cover || book.coverUrl || book.cover_url || "", book.source);
-                  window.location.href = url;
-                });
+                card.setAttribute(
+                  "data-book-open-url",
+                  openReaderUrl(book, book.cover || book.coverUrl || book.cover_url || "", book.source, "mybooks")
+                );
 
                 const head = el("div", "mybooks-card-head");
                 const check = document.createElement("input");
@@ -2951,7 +3699,12 @@
                 }
                 const titleWrap = el("div", "cardTitle");
                 const titleLink = el("a", null, book.title || `Book ${bookId}`);
-                titleLink.href = openReaderUrl(book, book.cover || book.coverUrl || book.cover_url || "", book.source);
+                titleLink.href = openReaderUrl(
+                  book,
+                  book.cover || book.coverUrl || book.cover_url || "",
+                  book.source,
+                  "mybooks"
+                );
                 titleWrap.appendChild(titleLink);
                 const meta = el("div", "cardMeta", book.author || "");
 
@@ -2985,7 +3738,12 @@
 
               const bookCell = el("td");
               const titleLink = el("a", null, book.title || `Book ${bookId}`);
-              titleLink.href = openReaderUrl(book, book.cover || book.coverUrl || book.cover_url || "", book.source);
+              titleLink.href = openReaderUrl(
+                book,
+                book.cover || book.coverUrl || book.cover_url || "",
+                book.source,
+                "mybooks"
+              );
               bookCell.appendChild(titleLink);
               if (book.author) {
                 bookCell.appendChild(el("div", "mybooks-meta", book.author));
@@ -2993,7 +3751,12 @@
 
               const openCell = el("td", "count");
               const openLink = el("a", "mybooks-open", "Open");
-              openLink.href = openReaderUrl(book, book.cover || book.coverUrl || book.cover_url || "", book.source);
+              openLink.href = openReaderUrl(
+                book,
+                book.cover || book.coverUrl || book.cover_url || "",
+                book.source,
+                "mybooks"
+              );
               openCell.appendChild(openLink);
 
               row.appendChild(selectCell);
@@ -3006,7 +3769,19 @@
             els.content.appendChild(table);
           }
 
+          const localItems = loadLocalMyBooksFallback();
+
           if (!sync || typeof sync.isConfigured !== "function" || !sync.isConfigured()) {
+            const hydratedLocalItems = await hydrateMyBooksCovers(localItems, renderNonce);
+            if (renderNonce !== REQ_NONCE) return;
+            if (hydratedLocalItems.length) {
+              myBooksState.items = hydratedLocalItems;
+              myBooksState.loaded = true;
+              myBooksState.lastLoadAt = Date.now();
+              setStatus("Showing locally saved My Books.");
+              renderItems(hydratedLocalItems);
+              return;
+            }
             renderAuthCard(
               "Google Drive integration is not configured for this build. Add a Google client id to enable My Books sync."
             );
@@ -3024,7 +3799,6 @@
 
           const authState = (typeof sync.getAuthState === "function") ? sync.getAuthState() : { configured: true, authorized: false };
           if (!authState || !authState.authorized) {
-            const localItems = loadLocalMyBooksFallback();
             const hydratedLocalItems = await hydrateMyBooksCovers(localItems, renderNonce);
             if (renderNonce !== REQ_NONCE) return;
             if (hydratedLocalItems.length) {
@@ -3598,6 +4372,10 @@
           const nonce = ++REQ_NONCE;
           setStatus("");
           els.content.classList.remove("noPanel");
+          if (!isBrowseView(state)) {
+            restoreBrowseHeaderDefaultPosition();
+          }
+          updateCatalogChrome(state);
 
           try {
             await loadConfig(nonce);
@@ -3609,7 +4387,7 @@
 
             if (!state.view || state.view === "letters") {
               els.content.classList.add("noPanel");
-              showLoading("Loading letters...");
+              showBrowseLoading("Loading letters...");
               const letters = await getLetters(nonce);
               if (nonce !== REQ_NONCE) return;
               let newest = { windowDays: 7, books: [] };
@@ -3640,16 +4418,19 @@
                 updateHash({ view: "letters" }, true);
                 return renderState(parseState());
               }
-              showLoading("Loading prefixes...");
+              els.content.classList.add("noPanel");
+              await ensureLandingScaffold(nonce);
+              if (nonce !== REQ_NONCE) return;
+              showBrowseLoading("Loading prefixes...");
               try {
                 const prefixesRaw = await getLetterPrefixes(state.letter, nonce);
                 if (nonce !== REQ_NONCE) return;
                 const prefixes = await pruneEmptyPrefixes(state.letter, prefixesRaw, nonce);
                 if (nonce !== REQ_NONCE) return;
                 setBreadcrumbs([
-                  { label: "Letters", onClick: () => navigate({ view: "letters" }) },
-                  { label: formatPrefixLabel(state.letter) },
-                ]);
+                { label: "Letters", onClick: () => navigate({ view: "letters" }, { preserveScroll: true }) },
+                { label: formatPrefixLabel(state.letter) },
+              ]);
                 setToolbar("prefixes");
                 currentView = { renderer: () => renderPrefixes(prefixes, state.letter), data: prefixes };
                 renderPrefixes(prefixes, state.letter);
@@ -3662,7 +4443,7 @@
                   if (nonce !== REQ_NONCE) return;
                   if (node.authors.length) {
                     setBreadcrumbs([
-                      { label: "Letters", onClick: () => navigate({ view: "letters" }) },
+                      { label: "Letters", onClick: () => navigate({ view: "letters" }, { preserveScroll: true }) },
                       { label: formatPrefixLabel(state.letter) },
                     ]);
                     setToolbar("prefix");
@@ -3673,11 +4454,12 @@
                     renderAuthors(node.authors, state.letter, token);
                     renderSearchResults();
                     return;
-                  }
-                } catch (fallbackError) {
-                  throw fallbackError;
                 }
-                throw error;
+              } catch (fallbackError) {
+                throw fallbackError;
+              }
+                showBrowseError("Catalog error", error.message || error);
+                return;
               }
             }
 
@@ -3687,7 +4469,10 @@
                 return renderState(parseState());
               }
 
-              showLoading("Loading prefix node...");
+              els.content.classList.add("noPanel");
+              await ensureLandingScaffold(nonce);
+              if (nonce !== REQ_NONCE) return;
+              showBrowseLoading("Loading prefix node...");
               const node = await getPrefixNode(state.letter, state.prefix, nonce);
               if (nonce !== REQ_NONCE) return;
 
@@ -3699,7 +4484,7 @@
               const hasVisibleAuthors = visibleAuthors.length > 0;
 
               setBreadcrumbs([
-                { label: "Letters", onClick: () => navigate({ view: "letters" }) },
+                { label: "Letters", onClick: () => navigate({ view: "letters" }, { preserveScroll: true }) },
                 { label: formatPrefixLabel(state.letter), onClick: () => navigate({ view: "prefixes", letter: state.letter }) },
                 { label: formatPrefixLabel(state.prefix) },
               ]);
@@ -3751,7 +4536,10 @@
                 updateHash({ view: "letters" }, true);
                 return renderState(parseState());
               }
-              showLoading("Loading author books...");
+              els.content.classList.add("noPanel");
+              await ensureLandingScaffold(nonce);
+              if (nonce !== REQ_NONCE) return;
+              showBrowseLoading("Loading author books...");
               const payload = await getAuthorBooks(state.authorKey, nonce);
               if (nonce !== REQ_NONCE) return;
 
@@ -3766,7 +4554,7 @@
               const bookCount = payload.books ? payload.books.length : 0;
 
               setBreadcrumbs([
-                { label: "Letters", onClick: () => navigate({ view: "letters" }) },
+                { label: "Letters", onClick: () => navigate({ view: "letters" }, { preserveScroll: true }) },
                 state.letter
                   ? { label: formatPrefixLabel(state.letter), onClick: () => navigate({ view: "prefixes", letter: state.letter }) }
                   : null,
@@ -3779,9 +4567,6 @@
                 { label: `${author.name} - ${bookCount} books` },
               ].filter(Boolean));
 
-              if (viewMode === "grid") {
-                els.content.classList.add("noPanel");
-              }
               setToolbar("author", viewMode);
               authorBooksState = {
                 key: author.key || state.authorKey || "",
@@ -3809,8 +4594,8 @@
               const detail = await getCategoryDetail(state.category, nonce);
               if (nonce !== REQ_NONCE) return;
               setBreadcrumbs([
-                { label: "Letters", onClick: () => navigate({ view: "letters", category: "", letter: "", prefix: "", authorKey: "", authorName: "" }) },
-                { label: "Categories", onClick: () => navigate({ view: "letters", category: "", letter: "", prefix: "", authorKey: "", authorName: "" }) },
+                { label: "Letters", onClick: () => navigate({ view: "letters", category: "", letter: "", prefix: "", authorKey: "", authorName: "" }, { preserveScroll: true }) },
+                { label: "Categories", onClick: () => navigate({ view: "letters", category: "", letter: "", prefix: "", authorKey: "", authorName: "" }, { preserveScroll: true }) },
                 { label: detail.title },
               ]);
               setToolbar("category", viewMode);
@@ -3829,7 +4614,7 @@
                 els.content.classList.add("noPanel");
               }
               setBreadcrumbs([
-                { label: "Letters", onClick: () => navigate({ view: "letters" }) },
+                { label: "Letters", onClick: () => navigate({ view: "letters" }, { preserveScroll: true }) },
                 { label: "My Books" },
               ]);
               setToolbar("mybooks", viewMode);
@@ -3881,12 +4666,15 @@
             const next = option.dataset.code || "all";
             closeLanguageMenu();
             setActiveLanguage(next);
+            const restoreY = window.scrollY || window.pageYOffset || 0;
             els.search.value = "";
             searchState = { query: "", items: [], error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
             updateSearchIcon();
             renderSearchResults();
             updateHash({ ...DEFAULT_STATE, language: next }, true);
-            renderState(parseState());
+            Promise.resolve(renderState(parseState())).then(() => {
+              restoreScrollPosition(restoreY);
+            });
           });
 
           document.addEventListener("click", (event) => {
@@ -3932,8 +4720,61 @@
           });
         }
 
+        document.addEventListener("click", (event) => {
+          if (event.defaultPrevented) return;
+          if (event.button !== 0) return;
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+          const target = event.target && event.target.nodeType === 1 ? event.target : null;
+          if (!target) return;
+
+          const explicitTarget = target.closest("[data-book-open-url]");
+          const anchor = target.closest("a[href]");
+          const trigger = explicitTarget || anchor;
+          if (!trigger) return;
+
+          if (els.hero && els.hero.contains(trigger)) return;
+          if (explicitTarget && target.closest("a, input, button, label")) return;
+
+          const href = explicitTarget
+            ? String(explicitTarget.getAttribute("data-book-open-url") || "").trim()
+            : String(anchor.getAttribute("href") || "").trim();
+          if (!isReaderBookHref(href)) return;
+
+          if (anchor) {
+            const targetAttr = String(anchor.getAttribute("target") || "").trim().toLowerCase();
+            if (targetAttr && targetAttr !== "_self") return;
+            if (anchor.hasAttribute("download")) return;
+          }
+
+          event.preventDefault();
+          const effectTarget = resolveBookOpeningTarget(target);
+          if (effectTarget) effectTarget.classList.add("book-opening");
+          window.setTimeout(() => {
+            window.location.href = href;
+          }, 180);
+        });
+
         window.addEventListener("hashchange", () => {
-          renderState(parseState());
+          const restoreY = pendingScrollRestoreY;
+          pendingScrollRestoreY = null;
+          Promise.resolve(renderState(parseState())).then(() => {
+            if (typeof restoreY !== "number") return;
+            window.requestAnimationFrame(() => {
+              window.scrollTo(0, restoreY);
+            });
+          });
+        });
+
+        window.addEventListener("popstate", () => {
+          const restoreY = pendingScrollRestoreY;
+          pendingScrollRestoreY = null;
+          Promise.resolve(renderState(parseState())).then(() => {
+            if (typeof restoreY !== "number") return;
+            window.requestAnimationFrame(() => {
+              window.scrollTo(0, restoreY);
+            });
+          });
         });
 
         const pendingHash = sessionStorage.getItem(PENDING_HASH_KEY);
@@ -3947,6 +4788,7 @@
         }
         updateSearchIcon();
         renderState(parseState());
+        setupHeroAutostart();
 
         setInterval(checkForNewBuild, 60000);
         document.addEventListener("visibilitychange", () => {

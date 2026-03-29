@@ -240,13 +240,41 @@ cd pages_books</code></pre>
         <ul>
           <li><code>max_prefix</code> по умолчанию <code>5</code>;</li>
           <li><code>threshold</code> по умолчанию <code>50</code> (решает, когда хранить <code>authors</code>, а когда дробить на <code>prefixes</code>);</li>
-          <li>поиск bucket'изируется по первым 3 символам нормализованной строки.</li>
+          <li>поиск bucket'изируется по первым 3 символам нормализованного слова;</li>
+          <li>книги индексируются по значимым словам заголовка, авторы — по значимым словам author index name;</li>
+          <li>для книг и авторов исключаются stop-words: <code>the</code>, <code>a</code>, <code>an</code>, <code>and</code>, <code>or</code>, <code>of</code>, <code>to</code>, <code>in</code>, <code>on</code>, <code>for</code>, <code>by</code>;</li>
+          <li>для книг дополнительно исключаются service-words: <code>vol</code>, <code>volume</code>, <code>no</code>, <code>part</code>, <code>chapter</code>.</li>
         </ul>
         <p><strong>Frontend UX:</strong></p>
         <ul>
           <li>search требует минимум <code>3</code> символа;</li>
+          <li>frontend search использует token-based matching по словам запроса, а не glued-string matching;</li>
+          <li>порядок слов в запросе не важен для match'а (<code>william sha</code> и <code>sha william</code> работают одинаково);</li>
+          <li>склеенные запросы без разделителей вроде <code>williamsha</code> не считаются multi-word match;</li>
+          <li>search results сортируются по алфавиту: сначала authors, затем titles;</li>
           <li>search results рендерятся постранично по <code>24</code> элементов на страницу;</li>
+          <li>pager search results показывается и сверху, и снизу списка, а переключение страницы делает мягкий scroll к началу search-блока;</li>
           <li>на author page длинные списки книг раскрываются через <code>Show more</code> по <code>24</code> книг за шаг.</li>
+        </ul>
+        <p><strong>Текущее UI-поведение каталога <code>/books/</code>:</strong></p>
+        <ul>
+          <li>Desktop search живет в header; на узких экранах header разбит на две строки: бренд + <code>My Books</code>/<code>Back to Catalog</code> сверху и search-field на всю ширину снизу.</li>
+          <li>Hero состоит из CTA-карточки слева и изображения readers справа.</li>
+          <li>Landing order: <code>Newest Releases</code> → <code>Popular Titles</code> → <code>Browse by Category</code> → <code>Browse by Author</code>.</li>
+          <li><code>Browse by Author</code> собран в одну card-like секцию; внутри нее находятся title, language selector, breadcrumbs и динамический browse content.</li>
+          <li>Клики по буквам/префиксам/авторам не должны убирать остальные landing sections; обновляется только внутренний browse content этого блока.</li>
+          <li>При активном search hero и остальные catalog sections скрываются, на экране остаются только search results; очистка query возвращает обычный landing layout.</li>
+          <li><code>My Books</code> view внутри каталога скрывает hero и <code>Browse by Author</code>, показывает локальный список даже без Google Drive integration и держит <code>Back to Catalog</code> в header.</li>
+          <li>Hero autostart в режиме <code>My Books</code> отключен.</li>
+          <li>Обычные book-open links внутри каталога используют короткий micro-transition <code>book-opening</code> на <code>180ms</code>; modified clicks и hero/demo links не перехватываются.</li>
+        </ul>
+        <p><strong>Entry semantics для входа в reader:</strong></p>
+        <ul>
+          <li><code>entry=hero</code> используется только для hero/demo preview и не должен считаться реальным пользовательским чтением.</li>
+          <li>Для <code>entry=hero</code> не сохраняются <code>readerpub:lastid</code>, <code>readerpub:lastsource</code>, <code>readerpub:lastcfi:&lt;book_id&gt;</code>; такая книга не должна попадать в <code>My Books</code> ни локально, ни через Drive sync snapshot.</li>
+          <li><code>entry=catalog</code> добавляется к обычным открытиям книг из общего каталога.</li>
+          <li><code>entry=mybooks</code> используется для открытий книги из <code>My Books</code> в каталоге и из <code>My Books</code> внутри reader.</li>
+          <li>Reader onboarding hints показываются только для <code>entry=catalog</code>.</li>
         </ul>
 
         <h2 id="ingest">6. Конвейер DOCX - EPUB - R2 - индексы - Pages</h2>
@@ -297,7 +325,7 @@ cd pages_books</code></pre>
         <ol>
           <li>Все изменения сначала проверять на локальном сайте; не выкатывать их сразу на production без явного подтверждения пользователя после локальной проверки.</li>
           <li>Собрать минимальный deploy bundle, а не деплоить весь корень репозитория.</li>
-          <li>Включать в bundle только <code>_worker.js</code>, <code>books/</code> без <code>books/content/</code> и <code>reader/</code>.</li>
+          <li>Включать в bundle только <code>_worker.js</code>, <code>books/</code> без <code>books/content/</code>, <code>reader/</code> и <code>publisher_tasks/</code> (worker импортирует <code>./publisher_tasks/service.mjs</code>).</li>
           <li>Не включать тяжелые артефакты вроде <code>reader_seo_indexes/</code>, иначе Pages может отклонить deploy из-за лимита <code>25 MiB</code> на файл.</li>
           <li>Деплоить Pages project <code>reader-books</code> в branch <code>production</code> только после явной команды пользователя на production deploy.</li>
         </ol>
@@ -549,6 +577,15 @@ python3 tools/gutenberg/gutenberg_manual_ingest.py run --skip-rclone</code></pre
           <li>Наличие валидной структуры книги в <code>content/&lt;id&gt;</code>.</li>
           <li>Доступность worker endpoint'ов translate/notes.</li>
           <li>Синхронность версий <code>reader.js</code>, <code>fbreader-ui.js</code>, CSS.</li>
+        </ul>
+        <p><strong>Onboarding hints в reader:</strong></p>
+        <ul>
+          <li>Hint-логика зависит от <code>entry</code> query param.</li>
+          <li>Показывать hint только для <code>entry=catalog</code>; не показывать для <code>entry=hero</code> и <code>entry=mybooks</code>.</li>
+          <li>Текущий hint появляется через <code>1500ms</code> после открытия книги и расположен в нижней центральной части viewport.</li>
+          <li>Текст: touch — <code>Swipe or tap edges to turn the page →</code>, desktop — <code>Click on edges to turn the page →</code>.</li>
+          <li>Hint автоматически скрывается через <code>4000ms</code> после появления или раньше, если пользователь сделал первый реальный page turn.</li>
+          <li>Для определения первого пользовательского перелистывания используется существующее reader navigation событие <code>rendition.on("relocated", ...)</code>; initial relocation на загрузке книги не считается turn.</li>
         </ul>
 
         <h2 id="docsauth">11. Защита документации</h2>

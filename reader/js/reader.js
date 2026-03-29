@@ -8588,6 +8588,20 @@ return {
 
 // ---- My Books (recently opened) ----
 (function () {
+	function isDemoEntry() {
+		try {
+			var ctx = window.__readerpubEntryContext || null;
+			return !!(ctx && ctx.isDemoEntry);
+		} catch (e) {
+			return false;
+		}
+	}
+
+	function currentDemoBookId() {
+		if (!isDemoEntry()) return "";
+		return String(getBookId() || "");
+	}
+
 	function getBookId() {
 		try {
 			var params = new URLSearchParams(window.location.search || "");
@@ -8654,6 +8668,7 @@ return {
 		var href = "?id=" + encodeURIComponent(id);
 		var cover = String((item && (item.cover || item.coverUrl || item.cover_url)) || "");
 		if (cover) href += "&cover=" + encodeURIComponent(cover);
+		href += "&entry=mybooks";
 		return href;
 	}
 
@@ -8695,6 +8710,26 @@ return {
 		}
 	}
 
+	function purgeDemoBookFromLocalMyBooks() {
+		if (!isDemoEntry()) return;
+		var id = getBookId();
+		if (!id) return;
+		var list = loadList();
+		var next = [];
+		var changed = false;
+		for (var i = 0; i < list.length; i++) {
+			var item = list[i];
+			if (item && String(item.id) === String(id)) {
+				changed = true;
+				continue;
+			}
+			next.push(item);
+		}
+		if (!changed) return;
+		saveList(next);
+		render(next);
+	}
+
 	function saveList(list) {
 		_memoryList = Array.isArray(list) ? list.slice() : [];
 		var storage = getStorage();
@@ -8709,10 +8744,12 @@ return {
 		var ul = document.getElementById("mybooks");
 		if (!ul) return;
 		var items = list || loadList();
+		var demoBookId = currentDemoBookId();
 		while (ul.firstChild) ul.removeChild(ul.firstChild);
 		for (var i = 0; i < items.length; i++) {
 			var item = items[i];
 			if (!item || !item.id) continue;
+			if (demoBookId && String(item.id) === demoBookId) continue;
 			var li = document.createElement("li");
 			li.className = "list_item";
 			li.setAttribute("data-book-id", item.id);
@@ -8794,12 +8831,14 @@ return {
 	}
 
 	function addFromMeta(title, author) {
+		if (isDemoEntry()) return;
 		var id = getBookId();
 		if (!id || !/^\d+$/.test(id)) return;
 		upsertBook({ id: id, title: title || "", author: author || "" });
 	}
 
 	function upsertBook(entry) {
+		if (isDemoEntry()) return;
 		if (!entry || !entry.id) return;
 		var list = loadList();
 		var now = Date.now();
@@ -8831,6 +8870,7 @@ return {
 	}
 
 	function ensureCurrentBook() {
+		if (isDemoEntry()) return;
 		var id = getBookId();
 		if (!id || !/^\d+$/.test(id)) return;
 		upsertBook({ id: id, title: "", author: "", cover: getBookCoverHint() });
@@ -8896,6 +8936,7 @@ return {
 
 	if (document.readyState === "loading") {
 		document.addEventListener("DOMContentLoaded", function () {
+			purgeDemoBookFromLocalMyBooks();
 			render();
 			hydrateFromDriveSilent();
 			ensureCurrentBook();
@@ -8903,6 +8944,7 @@ return {
 			setTimeout(syncFromDom, 600);
 		});
 	} else {
+		purgeDemoBookFromLocalMyBooks();
 		render();
 		hydrateFromDriveSilent();
 		ensureCurrentBook();

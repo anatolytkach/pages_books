@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ROOT = path.resolve(__dirname, "..");
+const ROOT = path.resolve(__dirname, "..", "..");
 const BOOKS_DIR = path.join(ROOT, "books");
 const READER_DIR = path.join(ROOT, "reader");
 const INDEX_DIR = path.join(ROOT, "reader_lang_indexes");
@@ -180,6 +180,9 @@ const server = http.createServer(async (req, res) => {
   }
   if (pathname.startsWith("/books/content/") && !existsSync(routed.file)) {
     return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content");
+  }
+  if (pathname.startsWith("/books/api/") && !existsSync(routed.file)) {
+    return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-api");
   }
   return serveFile(res, routed.file, routed.route);
 });

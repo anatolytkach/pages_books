@@ -7147,7 +7147,7 @@
 
   waitForReader().then(function (reader) {
     // Desktop: bars must always be visible. Mobile: start hidden (FBReader-like).
-    if (window.__fb_isDesktop) {
+    if (window.__fb_isDesktop || window.__readerpubAutostart) {
       showUi();
     } else {
       hideUi();
