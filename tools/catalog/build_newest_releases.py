@@ -83,7 +83,11 @@ def collect_recent_ids(state: dict, now: datetime, window_days: int, max_books: 
         recent.append((added_at, str(book_id)))
         added_at_by_id[str(book_id)] = added_at.isoformat().replace("+00:00", "Z")
     recent.sort(key=lambda pair: (pair[0], pair[1]), reverse=True)
-    selected_ids = [book_id for _dt, book_id in recent[:max_books]]
+    if max_books and max_books > 0:
+        selected = recent[:max_books]
+    else:
+        selected = recent
+    selected_ids = [book_id for _dt, book_id in selected]
     selected_added_at = {book_id: added_at_by_id[book_id] for book_id in selected_ids if book_id in added_at_by_id}
     return selected_ids, selected_added_at
 
@@ -92,8 +96,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Build ReaderPub newest-releases discover payloads.")
     parser.add_argument("--state", required=True, help="Path to downloaded Gutenberg pipeline state JSON")
     parser.add_argument("--index-root", default=str(Path(__file__).resolve().parents[2] / "reader_lang_indexes"))
-    parser.add_argument("--window-days", type=int, default=7)
-    parser.add_argument("--max-books", type=int, default=12)
+    parser.add_argument("--window-days", type=int, default=30)
+    parser.add_argument("--max-books", type=int, default=0)
     parser.add_argument("--now")
     args = parser.parse_args()
 

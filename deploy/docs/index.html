@@ -258,11 +258,16 @@ cd pages_books</code></pre>
         </ul>
         <p><strong>Текущее UI-поведение каталога <code>/books/</code>:</strong></p>
         <ul>
-          <li>Desktop search живет в header; на узких экранах header разбит на две строки: бренд + <code>My Books</code>/<code>Back to Catalog</code> сверху и search-field на всю ширину снизу.</li>
+          <li>Desktop search живет в header; на desktop рядом с ним находятся меню <code>Newest</code>, <code>Popular</code>, <code>By Author</code>, <code>By Category</code> и <code>My Books</code>.</li>
+          <li>На узких экранах header использует гамбургер-меню для навигации, а search остается отдельной строкой под первой строкой header.</li>
+          <li>Mobile hamburger раскрывается на всю ширину и перекрывает search, а не раздвигает layout.</li>
+          <li>Переход через верхние меню скроллит так, чтобы заголовок секции оставался видимым; активный menu item временно становится черным и некликабельным до следующего ручного scroll.</li>
           <li>Hero состоит из CTA-карточки слева и изображения readers справа.</li>
           <li>Landing order: <code>Newest Releases</code> → <code>Popular Titles</code> → <code>Browse by Category</code> → <code>Browse by Author</code>.</li>
+          <li><code>Browse by Category</code> показывает все категории, отсортированные по алфавиту, без счетчиков на chips.</li>
           <li><code>Browse by Author</code> собран в одну card-like секцию; внутри нее находятся title, language selector, breadcrumbs и динамический browse content.</li>
           <li>Клики по буквам/префиксам/авторам не должны убирать остальные landing sections; обновляется только внутренний browse content этого блока.</li>
+          <li>Все книжные секции используют единые card-style карточки: счетчик <code>N books</code> стоит справа в строке заголовка, книги пагинируются по <code>24</code>, названия темно-зеленые и underline показывается только на hover.</li>
           <li>При активном search hero и остальные catalog sections скрываются, на экране остаются только search results; очистка query возвращает обычный landing layout.</li>
           <li><code>My Books</code> view внутри каталога скрывает hero и <code>Browse by Author</code>, показывает локальный список даже без Google Drive integration и держит <code>Back to Catalog</code> в header.</li>
           <li>Hero autostart в режиме <code>My Books</code> отключен.</li>
@@ -388,7 +393,7 @@ git status --short --branch</code></pre>
         <ul>
           <li>Gutenberg-книги остаются в reader как <code>?id=&lt;gutenberg_id&gt;</code> без <code>source=gutenberg</code>.</li>
           <li>Manual-книги остаются source-qualified: <code>?id=&lt;manual_id&gt;&amp;source=manual</code>.</li>
-          <li><code>Newest Releases</code> всегда показывает максимум <code>12</code> последних книг из последней новой партии Gutenberg.</li>
+          <li><code>Newest Releases</code> строится по <code>catalog_added_at</code> за последние <code>30</code> дней, без hard limit по количеству книг.</li>
         </ul>
         <p><strong>Основные команды:</strong></p>
         <pre><code>python3 tools/gutenberg/gutenberg_manual_ingest.py status
@@ -447,7 +452,7 @@ python3 tools/gutenberg/gutenberg_manual_ingest.py run --skip-rclone</code></pre
               <li>распаковку;</li>
               <li>загрузку в <code>/books/content/&lt;id&gt;/</code>;</li>
               <li>обновление каталоговых индексов;</li>
-              <li>обновление <code>Newest Releases</code> с лимитом <code>12</code>;</li>
+              <li>обновление <code>Newest Releases</code> по окну последних <code>30</code> дней, без hard limit;</li>
               <li>селективную генерацию и публикацию SEO.</li>
             </ul>
           </li>

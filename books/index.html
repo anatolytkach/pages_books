@@ -138,6 +138,48 @@
         margin-left: auto;
       }
 
+      .headerMenuToggle {
+        display: none;
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--rect-bg);
+        color: var(--accent);
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .headerMenuToggle svg {
+        width: 18px;
+        height: 18px;
+        display: block;
+      }
+
+      .headerNavLink {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--accent);
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .headerNavLink:hover {
+        text-decoration: underline;
+      }
+
+      .headerNavLink.isActive {
+        color: var(--ink);
+        pointer-events: none;
+        cursor: default;
+      }
+
+      .headerNavLink.isActive:hover {
+        text-decoration: none;
+      }
+
       .headerSearchForm {
         flex: 0 1 420px;
         width: min(420px, 40vw);
@@ -557,16 +599,11 @@
         gap: 8px;
         font-size: 12px;
         letter-spacing: 0.12em;
-        text-transform: uppercase;
         color: var(--accent-2);
       }
 
       .catalogHeroEyebrow::before {
-        content: "";
-        width: 28px;
-        height: 1px;
-        background: currentColor;
-        opacity: 0.45;
+        content: none;
       }
 
       .catalogHeroTitle {
@@ -1009,11 +1046,17 @@
 
       .sectionHead {
         display: flex;
-        align-items: baseline;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 12px;
         margin-bottom: 14px;
         flex-wrap: wrap;
+      }
+
+      .sectionHeadMain {
+        display: flex;
+        align-items: baseline;
+        min-width: 0;
       }
 
       .sectionTitle {
@@ -1052,35 +1095,8 @@
         background: rgba(45, 111, 107, 0.08);
       }
 
-      .categoryCount {
-        color: var(--muted);
-        font-size: 12px;
-        font-variant-numeric: tabular-nums;
-      }
-
       .sectionMoreBtn {
         margin-top: 14px;
-      }
-
-      .collectionHead {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-        margin-bottom: 16px;
-      }
-
-      .collectionTitle {
-        font-family: "Playfair Display", "Times New Roman", serif;
-        font-size: 28px;
-        line-height: 1.1;
-        color: var(--ink);
-      }
-
-      .collectionMeta {
-        color: var(--muted);
-        font-size: 13px;
       }
 
       .letterBtn {
@@ -1148,6 +1164,103 @@
         grid-template-columns: repeat(auto-fit, minmax(160px, 250px));
         grid-auto-rows: 1fr;
         gap: 16px;
+      }
+
+      .bookGrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+      }
+
+      .bookCard {
+        position: relative;
+        display: grid;
+        grid-template-columns: 77px minmax(0, 1fr);
+        gap: 14px;
+        align-items: stretch;
+        min-height: 137px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--rect-bg);
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .bookCard:hover {
+        transform: translateY(-2px);
+      }
+
+      .bookCard.withSelection {
+        padding-top: 18px;
+      }
+
+      .bookCardCover {
+        width: 77px;
+        height: 109px;
+        border-radius: 0;
+        overflow: hidden;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .bookCardCover img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .bookCardBody {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .bookCardTitle {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 18px;
+        line-height: 1.18;
+        color: #0d6b66;
+        text-decoration: none;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 2px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .bookCard:hover .bookCardTitle,
+      .bookCard:focus-visible .bookCardTitle {
+        text-decoration: underline;
+      }
+
+      .bookCardAuthor {
+        font-size: 16px;
+        line-height: 1.25;
+        color: var(--ink);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .bookCardMeta {
+        margin-top: auto;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .bookCardCheck {
+        position: absolute;
+        top: 12px;
+        right: 12px;
       }
 
       .card {
@@ -1334,6 +1447,26 @@
         margin: 12px 0 6px;
       }
 
+      .pagerBar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 18px;
+        flex-wrap: wrap;
+      }
+
+      .pagerInfo {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .pagerActions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
       @media (max-width: 720px) {
         header {
           display: grid;
@@ -1353,11 +1486,28 @@
           display: contents;
         }
         .headerLinks {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 12px;
+          display: none;
+          position: absolute;
+          top: 64px;
+          left: 0;
+          right: 0;
+          align-items: flex-start;
+          justify-content: flex-start;
+          gap: 10px;
           min-width: 0;
+          flex-wrap: nowrap;
+          flex-direction: column;
+          width: 100%;
+          padding: 12px 0 0;
+          background: var(--bg);
+          z-index: 60;
+        }
+        .headerLinks.open {
+          display: flex;
+        }
+        .headerMenuToggle {
+          display: inline-flex;
+          margin-left: 0;
         }
         .headerSearchForm {
           grid-area: search;
@@ -1374,6 +1524,15 @@
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+        .headerNavLink,
+        .headerMyBooksLink,
+        .headerBackLink {
+          font-size: 13px;
+        }
+        .headerNavLink,
+        .headerMyBooksLink {
+          width: 100%;
         }
         .catalogHero {
           gap: 16px;
@@ -1432,6 +1591,25 @@
           flex: 1;
           min-width: 0;
         }
+        .bookGrid {
+          grid-template-columns: 1fr;
+        }
+        .bookCard {
+          grid-template-columns: 68px minmax(0, 1fr);
+          min-height: 120px;
+          padding: 12px;
+          gap: 12px;
+        }
+        .bookCardCover {
+          width: 68px;
+          height: 96px;
+        }
+        .bookCardTitle {
+          font-size: 17px;
+        }
+        .bookCardAuthor {
+          font-size: 15px;
+        }
         .srItem {
           grid-template-columns: 44px 1fr;
         }
@@ -1469,7 +1647,7 @@
       <header>
         <a class="brand brandLink" id="brandLink" href="#view=letters">
           <img class="brandLogo" src="/books/assets/logo.svg" alt="ReaderPub" />
-          <div class="title">ReaderPub Books</div>
+          <div class="title">ReaderPub</div>
         </a>
         <div class="headerActions">
           <form id="searchForm" class="searchForm headerSearchForm" role="search">
@@ -1492,8 +1670,19 @@
               </svg>
             </button>
           </form>
-          <div class="headerLinks">
+          <button id="headerMenuToggle" class="headerMenuToggle" type="button" aria-expanded="false" aria-controls="headerLinks" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+              <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+              <line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+            </svg>
+          </button>
+          <div id="headerLinks" class="headerLinks">
             <a id="headerBackLink" class="headerBackLink" href="#view=letters" style="display: none">Back to Catalog</a>
+            <a id="headerNewestLink" class="headerNavLink" href="#view=letters">Newest</a>
+            <a id="headerPopularLink" class="headerNavLink" href="#view=letters">Popular</a>
+            <a id="headerByAuthorLink" class="headerNavLink" href="#view=letters">By Author</a>
+            <a id="headerByCategoryLink" class="headerNavLink" href="#view=letters">By Category</a>
             <a id="myBooksLink" class="headerMyBooksLink" href="#view=mybooks">My Books</a>
           </div>
         </div>
@@ -1502,7 +1691,7 @@
         <section id="catalogHero" class="catalogHero" aria-label="Reader experience preview">
           <div class="catalogHeroTop">
             <div class="catalogHeroPanel catalogHeroCopy">
-              <div class="catalogHeroEyebrow">Browser Reader</div>
+              <div class="catalogHeroEyebrow">WeRead – THE BROWSER READER</div>
               <h1 class="catalogHeroTitle">Start reading instantly</h1>
               <p class="catalogHeroText">No downloads, no apps, no setup. Just open a book and read.</p>
               <div class="catalogHeroActions">
@@ -1580,6 +1769,12 @@
           breadcrumbs: document.getElementById("breadcrumbs"),
           breadcrumbsRow: document.getElementById("breadcrumbsRow"),
           headerBackLink: document.getElementById("headerBackLink"),
+          headerNewestLink: document.getElementById("headerNewestLink"),
+          headerPopularLink: document.getElementById("headerPopularLink"),
+          headerByAuthorLink: document.getElementById("headerByAuthorLink"),
+          headerByCategoryLink: document.getElementById("headerByCategoryLink"),
+          headerLinks: document.getElementById("headerLinks"),
+          headerMenuToggle: document.getElementById("headerMenuToggle"),
           myBooksLink: document.getElementById("myBooksLink"),
           toolbar: document.getElementById("toolbar"),
           brandLink: document.getElementById("brandLink"),
@@ -1599,7 +1794,9 @@
         let SEARCH_NONCE = 0;
         let currentView = null;
         let activeLanguage = "en";
+        let activeHeaderMenu = "";
         let pendingScrollRestoreY = null;
+        let headerMenuScrollLock = false;
         const SEARCH_PAGE_SIZE = 24;
         const AUTHOR_BOOKS_PAGE_SIZE = 24;
         let searchState = {
@@ -1612,7 +1809,27 @@
         };
         let authorBooksState = {
           key: "",
-          visibleLimit: AUTHOR_BOOKS_PAGE_SIZE,
+          page: 1,
+          sort: "title",
+        };
+        let categoryBooksState = {
+          key: "",
+          page: 1,
+          sort: "popularity",
+        };
+        let sectionPageState = {
+          newest: 1,
+          popular: 1,
+        };
+        const sectionSortState = {
+          newest: "release",
+          popular: "popularity",
+          mybooks: "title",
+        };
+        let landingData = {
+          newest: { windowDays: 7, books: [] },
+          popular: { defaultList: "last30days", lists: {} },
+          categories: [],
         };
         let myBooksState = {
           items: [],
@@ -1932,19 +2149,85 @@
 
         function updateCatalogChrome(state) {
           const current = state || parseState();
-          const isMyBooksView = current && current.view === "mybooks";
+          const view = current && current.view;
+          const isCompactCatalogView = view === "mybooks" || view === "category";
           if (els.hero) {
-            els.hero.style.display = isMyBooksView ? "none" : "";
+            els.hero.style.display = isCompactCatalogView ? "none" : "";
           }
           if (els.browseHeader) {
-            els.browseHeader.style.display = isMyBooksView ? "none" : "";
+            els.browseHeader.style.display = isCompactCatalogView ? "none" : "";
           }
           if (els.headerBackLink) {
-            els.headerBackLink.style.display = isMyBooksView ? "" : "none";
+            els.headerBackLink.style.display = isCompactCatalogView ? "" : "none";
+          }
+          if (els.searchForm) {
+            els.searchForm.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerMenuToggle) {
+            els.headerMenuToggle.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerLinks && isCompactCatalogView) {
+            els.headerLinks.classList.remove("open");
+          }
+          if (els.headerByAuthorLink) {
+            els.headerByAuthorLink.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerNewestLink) {
+            els.headerNewestLink.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerPopularLink) {
+            els.headerPopularLink.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerByCategoryLink) {
+            els.headerByCategoryLink.style.display = isCompactCatalogView ? "none" : "";
           }
           if (els.myBooksLink) {
-            els.myBooksLink.style.display = isMyBooksView ? "none" : "";
+            els.myBooksLink.style.display = isCompactCatalogView ? "none" : "";
           }
+          updateHeaderNavState(isCompactCatalogView ? "" : activeHeaderMenu);
+        }
+
+        function updateHeaderNavState(activeMenu) {
+          activeHeaderMenu = activeMenu || "";
+          const navLinks = [
+            [els.headerNewestLink, "newest"],
+            [els.headerPopularLink, "popular"],
+            [els.headerByAuthorLink, "author"],
+            [els.headerByCategoryLink, "category"],
+          ];
+          navLinks.forEach(([link, key]) => {
+            if (!link) return;
+            const isActive = activeHeaderMenu === key;
+            link.classList.toggle("isActive", isActive);
+            if (isActive) link.setAttribute("aria-current", "page");
+            else link.removeAttribute("aria-current");
+          });
+        }
+
+        function scrollSectionIntoView(sectionId) {
+          const target = document.getElementById(sectionId);
+          if (!target) return;
+          const header = document.querySelector("header");
+          const headerHeight = header ? header.offsetHeight : 0;
+          const top = Math.max(0, window.scrollY + target.getBoundingClientRect().top - headerHeight - 12);
+          headerMenuScrollLock = true;
+          window.scrollTo({ top, behavior: "smooth" });
+          window.setTimeout(() => {
+            headerMenuScrollLock = false;
+          }, 700);
+        }
+
+        function closeHeaderMenu() {
+          if (!els.headerLinks) return;
+          els.headerLinks.classList.remove("open");
+          if (els.headerMenuToggle) els.headerMenuToggle.setAttribute("aria-expanded", "false");
+        }
+
+        function toggleHeaderMenu() {
+          if (!els.headerLinks) return;
+          const nextOpen = !els.headerLinks.classList.contains("open");
+          els.headerLinks.classList.toggle("open", nextOpen);
+          if (els.headerMenuToggle) els.headerMenuToggle.setAttribute("aria-expanded", nextOpen ? "true" : "false");
         }
 
         function restoreBrowseHeaderDefaultPosition() {
@@ -2088,18 +2371,7 @@
         function setToolbar(view, bookView) {
           els.toolbar.innerHTML = "";
           if (searchState && searchState.query) return;
-          if (view !== "author" && view !== "mybooks" && view !== "category") return;
-
-          const listBtn = el("button", "toggleBtn", "List");
-          const gridBtn = el("button", "toggleBtn", "Grid");
-          if (bookView === "list") listBtn.classList.add("active");
-          if (bookView === "grid") gridBtn.classList.add("active");
-
-          listBtn.addEventListener("click", () => updateBookView("list"));
-          gridBtn.addEventListener("click", () => updateBookView("grid"));
-
-          els.toolbar.appendChild(listBtn);
-          els.toolbar.appendChild(gridBtn);
+          if (view !== "mybooks") return;
 
           if (view === "mybooks") {
             const delBtn = el(
@@ -2121,8 +2393,9 @@
           els.searchResults.innerHTML = "";
           if (!searchState.query) {
             els.searchResults.style.display = "none";
-            if (els.hero && parseState().view !== "mybooks") {
-              els.hero.style.display = "";
+            const currentView = parseState().view;
+            if (els.hero) {
+              els.hero.style.display = currentView === "mybooks" || currentView === "category" ? "none" : "";
             }
             if (els.breadcrumbsRow) {
               els.breadcrumbsRow.style.display = els.breadcrumbs && els.breadcrumbs.childNodes.length ? "" : "none";
@@ -2301,24 +2574,36 @@
           els.searchResults.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
-        function buildSearchPager(page, totalPages) {
-          const pager = el("div", "sectionHead");
-          pager.appendChild(el("div", "sectionMeta", `Page ${page} of ${totalPages}`));
-          const actions = el("div", "toolbar");
+        function buildPager(page, pageSize, totalItems, onPageChange) {
+          const safeTotal = Math.max(0, parseNumber(totalItems) || 0);
+          const totalPages = Math.max(1, Math.ceil(safeTotal / pageSize));
+          const safePage = Math.min(totalPages, Math.max(1, parseNumber(page) || 1));
+          const start = safeTotal ? (safePage - 1) * pageSize + 1 : 0;
+          const end = safeTotal ? Math.min(safeTotal, safePage * pageSize) : 0;
+          const pager = el("div", "pagerBar");
+          pager.appendChild(el("div", "pagerInfo", safeTotal ? `Showing ${start}-${end} of ${safeTotal}` : "Showing 0 of 0"));
+          const actions = el("div", "pagerActions");
           const prevBtn = el("button", "toggleBtn", "Previous");
-          prevBtn.disabled = page <= 1;
+          prevBtn.disabled = safePage <= 1;
           prevBtn.addEventListener("click", () => {
-            goToSearchPage(Math.max(1, page - 1));
+            onPageChange(Math.max(1, safePage - 1));
           });
           const nextBtn = el("button", "toggleBtn", "Next");
-          nextBtn.disabled = page >= totalPages;
+          nextBtn.disabled = safePage >= totalPages;
           nextBtn.addEventListener("click", () => {
-            goToSearchPage(Math.min(totalPages, page + 1));
+            onPageChange(Math.min(totalPages, safePage + 1));
           });
           actions.appendChild(prevBtn);
           actions.appendChild(nextBtn);
           pager.appendChild(actions);
           return pager;
+        }
+
+        function buildSearchPager(page, totalPages) {
+          const totalItems = searchState.items.length;
+          return buildPager(page, searchState.pageSize || SEARCH_PAGE_SIZE, totalItems, (nextPage) => {
+            goToSearchPage(nextPage);
+          });
         }
 
         function normalizeLetters(data) {
@@ -2476,6 +2761,20 @@
               const author = item.author || item.authorName || item.creator || item.by;
               const bookSource = item.source || item.bookSource || item.book_source || "gutenberg";
               const legacyId = item.legacyId || item.legacy_id || item.readerId || item.reader_id || "";
+              const releaseDate =
+                item.releaseDate ||
+                item.release_date ||
+                item.publishedAt ||
+                item.published_at ||
+                item.pubDate ||
+                item.pub_date ||
+                item.date ||
+                item.addedAt ||
+                item.added_at ||
+                "";
+              const popularity = parseNumber(
+                item.popularity ?? item.rank ?? item.score ?? item.downloads ?? item.reads ?? item.count
+              );
               if (!id) return null;
               return {
                 id: String(id),
@@ -2484,6 +2783,8 @@
                 title: String(title || id),
                 cover: cover ? String(cover) : "",
                 author: author ? String(author) : "",
+                releaseDate: releaseDate ? String(releaseDate) : "",
+                popularity: popularity !== null ? popularity : 0,
               };
             })
             .filter(Boolean);
@@ -3156,6 +3457,26 @@
           });
         }
 
+        function resetSearchUi() {
+          els.search.value = "";
+          searchState = { query: "", items: [], error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
+          updateSearchIcon();
+          renderSearchResults();
+        }
+
+        function jumpToCatalogSection(sectionId, activeMenu) {
+          resetSearchUi();
+          closeHeaderMenu();
+          const nextState = { ...DEFAULT_STATE, language: activeLanguage || DEFAULT_STATE.language };
+          updateHash(nextState, false);
+          Promise.resolve(renderState(nextState)).then(() => {
+            updateHeaderNavState(activeMenu || "");
+            window.requestAnimationFrame(() => {
+              scrollSectionIntoView(sectionId);
+            });
+          });
+        }
+
         function authorHash(authorKey, authorName) {
           const params = new URLSearchParams();
           const current = parseState();
@@ -3163,7 +3484,7 @@
           if (authorKey) params.set("authorKey", authorKey);
           if (authorName) params.set("authorName", authorName);
           if (current.language && current.language !== DEFAULT_STATE.language) params.set("lang", current.language);
-          params.set("bookView", current.bookView || "list");
+          params.set("bookView", current.bookView || "grid");
           return `#${params.toString()}`;
         }
 
@@ -3179,7 +3500,7 @@
             view: "author",
             authorKey: authorKey || authorName || "",
             authorName: authorName || authorKey || "",
-            bookView: (current.bookView || "list"),
+            bookView: (current.bookView || "grid"),
             language: "all",
           };
           updateHash(next, false);
@@ -3201,19 +3522,20 @@
                 next.authorName ||
                 next.authorKey,
             };
-            const viewMode = next.bookView || "list";
+            const viewMode = next.bookView || "grid";
             authorBooksState = {
               key: author.key || next.authorKey || "",
-              visibleLimit: AUTHOR_BOOKS_PAGE_SIZE,
+              page: 1,
+              sort: "title",
             };
 
             setBreadcrumbs([{ label: "Letters", onClick: () => navigate({ view: "letters" }) }, { label: author.name }]);
             setToolbar("author", viewMode);
             currentView = {
-              renderer: () => renderAuthorBooks(author, payload.books, viewMode, authorBooksState.visibleLimit),
+              renderer: () => renderAuthorBooks(author, payload.books, viewMode),
               data: payload.books,
             };
-            renderAuthorBooks(author, payload.books, viewMode, authorBooksState.visibleLimit);
+            renderAuthorBooks(author, payload.books, viewMode);
             renderSearchResults();
             try {
               els.content.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -3274,9 +3596,143 @@
 
         function createSectionHeader(title, meta) {
           const head = el("div", "sectionHead");
-          head.appendChild(el("div", "sectionTitle", title));
+          const main = el("div", "sectionHeadMain");
+          main.appendChild(el("div", "sectionTitle", title));
+          head.appendChild(main);
           if (meta) head.appendChild(el("div", "sectionMeta", meta));
           return head;
+        }
+
+        function parseBookDateValue(book) {
+          const raw =
+            (book &&
+              (book.releaseDate ||
+                book.release_date ||
+                book.publishedAt ||
+                book.published_at ||
+                book.pubDate ||
+                book.pub_date ||
+                book.date ||
+                book.addedAt ||
+                book.added_at ||
+                book.updatedAt ||
+                book.updated_at)) ||
+            "";
+          if (!raw) return 0;
+          const timestamp = Date.parse(String(raw));
+          if (Number.isFinite(timestamp)) return timestamp;
+          const yearMatch = String(raw).match(/\b(1[6-9]\d{2}|20\d{2})\b/);
+          return yearMatch ? Number(yearMatch[1]) : 0;
+        }
+
+        function formatBookDateLabel(book) {
+          const raw =
+            (book &&
+              (book.releaseDate ||
+                book.release_date ||
+                book.publishedAt ||
+                book.published_at ||
+                book.pubDate ||
+                book.pub_date ||
+                book.date ||
+                book.addedAt ||
+                book.added_at ||
+                "")) ||
+            "";
+          if (!raw) return "";
+          const parsed = Date.parse(String(raw));
+          if (Number.isFinite(parsed)) {
+            try {
+              return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(parsed));
+            } catch (error) {}
+          }
+          return String(raw);
+        }
+
+        function parseBookPopularityValue(book) {
+          return (
+            parseNumber(
+              book &&
+                (book.popularity ||
+                  book.rank ||
+                  book.score ||
+                  book.downloads ||
+                  book.reads ||
+                  book.bookCount ||
+                  book.count)
+            ) || 0
+          );
+        }
+
+        function sortBooks(books, sortKey) {
+          const key = String(sortKey || "title");
+          return [...(Array.isArray(books) ? books : [])].sort((a, b) => {
+            if (key === "release") {
+              const diff = parseBookDateValue(b) - parseBookDateValue(a);
+              if (diff) return diff;
+            } else if (key === "popularity") {
+              const diff = parseBookPopularityValue(b) - parseBookPopularityValue(a);
+              if (diff) return diff;
+            }
+            return String(a && a.title ? a.title : "").localeCompare(String(b && b.title ? b.title : ""), undefined, {
+              numeric: true,
+              sensitivity: "base",
+            });
+          });
+        }
+
+        function createBookCard(book, options) {
+          const opts = options && typeof options === "object" ? options : {};
+          const isInteractive = !opts.static;
+          const card = document.createElement(isInteractive ? "a" : "div");
+          card.className = `bookCard${opts.withSelection ? " withSelection" : ""}`;
+          if (isInteractive) {
+            card.href = opts.href || openBookUrl(book, book.source, book.cover, opts.entry);
+          }
+          if (opts.dataBookOpenUrl) {
+            card.setAttribute("data-book-open-url", opts.dataBookOpenUrl);
+          }
+
+          if (opts.checkbox) {
+            const checkWrap = el("div", "bookCardCheck");
+            checkWrap.appendChild(opts.checkbox);
+            card.appendChild(checkWrap);
+          }
+
+          const coverUrl = resolveCoverUrl((book && (book.cover || book.coverUrl || book.cover_url)) || "");
+          const cover = el("div", `bookCardCover${coverUrl ? "" : " coverEmpty"}`);
+          if (coverUrl) {
+            const img = new Image();
+            img.loading = "lazy";
+            img.decoding = "async";
+            img.alt = `${(book && book.title) || "Book"} cover`;
+            img.src = coverUrl;
+            img.onerror = () => {
+              cover.classList.add("coverEmpty");
+              cover.textContent = "No cover";
+            };
+            cover.appendChild(img);
+          } else {
+            cover.textContent = "No cover";
+          }
+          card.appendChild(cover);
+
+          const body = el("div", "bookCardBody");
+          body.appendChild(el("div", "bookCardTitle", (book && book.title) || ""));
+          body.appendChild(el("div", "bookCardAuthor", (opts.authorText || (book && book.author) || "").trim() || "Unknown author"));
+          const dateLabel = opts.metaText !== undefined ? opts.metaText : formatBookDateLabel(book);
+          if (dateLabel) body.appendChild(el("div", "bookCardMeta", dateLabel));
+          card.appendChild(body);
+
+          return card;
+        }
+
+        function renderBookGrid(books, options) {
+          const grid = el("div", "bookGrid");
+          (Array.isArray(books) ? books : []).forEach((book) => {
+            grid.appendChild(createBookCard(book, options));
+          });
+          return grid;
         }
 
         function createLettersGrid(letters) {
@@ -3307,138 +3763,112 @@
 
         function renderPopularPreview(popular) {
           const section = el("section", "landingSection");
+          section.id = "popularTitlesSection";
           const listKey = popular.defaultList && popular.lists[popular.defaultList] ? popular.defaultList : "last30days";
           const list = popular.lists[listKey] || { books: [], count: 0 };
-          const previewBooks = list.books.slice(0, 12);
-          section.appendChild(createSectionHeader("Popular Titles", "Matched from the last 30 days"));
-          if (!previewBooks.length) {
+          const sortedBooks = sortBooks(list.books, sectionSortState.popular || "popularity");
+          const total = sortedBooks.length;
+          const pageSize = 24;
+          const totalPages = Math.max(1, Math.ceil(total / pageSize));
+          const page = Math.min(totalPages, Math.max(1, parseNumber(sectionPageState.popular) || 1));
+          sectionPageState.popular = page;
+          const startIndex = (page - 1) * pageSize;
+          const pageBooks = sortedBooks.slice(startIndex, startIndex + pageSize);
+          section.appendChild(createSectionHeader("Popular Titles", `${total} books`));
+          if (!pageBooks.length) {
             section.appendChild(el("div", "loading", "Popular books are not available yet."));
             return section;
           }
-          const grid = el("div", "grid");
-          previewBooks.forEach((book) => {
-            const card = el("a", "card");
-            card.href = openBookUrl(book, book.source, book.cover);
-
-            const coverUrl = resolveCoverUrl(book.cover);
-            const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
-            if (coverUrl) {
-              const img = new Image();
-              img.loading = "lazy";
-              img.decoding = "async";
-              img.alt = `${book.title} cover`;
-              img.src = coverUrl;
-              img.onerror = () => {
-                cover.classList.add("coverEmpty");
-                cover.textContent = "No cover";
-              };
-              cover.appendChild(img);
-            } else {
-              cover.textContent = "No cover";
-            }
-
-            card.appendChild(cover);
-            card.appendChild(el("div", "cardTitle", book.title));
-            card.appendChild(el("div", "cardMeta", book.author || ""));
-            grid.appendChild(card);
-          });
-          section.appendChild(grid);
+          section.appendChild(renderBookGrid(pageBooks));
+          if (total > pageSize) {
+            section.appendChild(
+              buildPager(page, pageSize, total, (nextPage) => {
+                sectionPageState.popular = nextPage;
+                const replacement = renderPopularPreview(popular);
+                const current = document.getElementById("popularTitlesSection");
+                if (current) current.replaceWith(replacement);
+              })
+            );
+          }
           return section;
         }
 
         function renderNewestPreview(newest) {
           const section = el("section", "landingSection");
-          const windowDays = parseNumber(newest && newest.windowDays) ?? 7;
-          const previewBooks = Array.isArray(newest && newest.books) ? newest.books.slice(0, 12) : [];
-          section.appendChild(createSectionHeader("Newest Releases", `Added in the last ${windowDays} days`));
-          if (!previewBooks.length) {
+          section.id = "newestTitlesSection";
+          const newestBooks = Array.isArray(newest && newest.books) ? newest.books : [];
+          const sortedBooks = sortBooks(newestBooks, sectionSortState.newest || "release");
+          const total = sortedBooks.length;
+          const pageSize = 24;
+          const totalPages = Math.max(1, Math.ceil(total / pageSize));
+          const page = Math.min(totalPages, Math.max(1, parseNumber(sectionPageState.newest) || 1));
+          sectionPageState.newest = page;
+          const startIndex = (page - 1) * pageSize;
+          const pageBooks = sortedBooks.slice(startIndex, startIndex + pageSize);
+          section.appendChild(createSectionHeader("Newest Releases", `${total} books`));
+          if (!pageBooks.length) {
             section.appendChild(el("div", "loading", "No new books were added in the current window."));
             return section;
           }
-          const grid = el("div", "grid");
-          previewBooks.forEach((book) => {
-            const card = el("a", "card");
-            card.href = openBookUrl(book, book.source, book.cover);
-
-            const coverUrl = resolveCoverUrl(book.cover);
-            const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
-            if (coverUrl) {
-              const img = new Image();
-              img.loading = "lazy";
-              img.decoding = "async";
-              img.alt = `${book.title} cover`;
-              img.src = coverUrl;
-              img.onerror = () => {
-                cover.classList.add("coverEmpty");
-                cover.textContent = "No cover";
-              };
-              cover.appendChild(img);
-            } else {
-              cover.textContent = "No cover";
-            }
-
-            card.appendChild(cover);
-            card.appendChild(el("div", "cardTitle", book.title));
-            card.appendChild(el("div", "cardMeta", book.author || ""));
-            grid.appendChild(card);
-          });
-          section.appendChild(grid);
+          section.appendChild(renderBookGrid(pageBooks));
+          if (total > pageSize) {
+            section.appendChild(
+              buildPager(page, pageSize, total, (nextPage) => {
+                sectionPageState.newest = nextPage;
+                const replacement = renderNewestPreview(newest);
+                const current = document.getElementById("newestTitlesSection");
+                if (current) current.replaceWith(replacement);
+              })
+            );
+          }
           return section;
         }
 
         function renderCategoriesSection(categories) {
           const section = el("section", "landingSection");
+          section.id = "catalogCategoriesSection";
           section.appendChild(createSectionHeader("Browse by Category"));
           if (!categories.length) {
             section.appendChild(el("div", "loading", "Categories are not available yet."));
             return section;
           }
           const chips = el("div", "categoryChips");
-          const initialCount = 24;
-          let expanded = false;
+          const sortedCategories = categories
+            .slice()
+            .sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), undefined, { sensitivity: "base" }));
 
-          const paint = () => {
-            chips.innerHTML = "";
-            const visible = expanded ? categories : categories.slice(0, initialCount);
-            visible.forEach((category) => {
-              const btn = el("button", "categoryChip");
-              btn.type = "button";
-              btn.appendChild(el("span", null, category.title));
-              btn.appendChild(el("span", "categoryCount", `${category.count}`));
-              btn.addEventListener("click", () =>
-                navigate({
-                  view: "category",
-                  category: category.slug,
-                  letter: "",
-                  prefix: "",
-                  authorKey: "",
-                  authorName: "",
-                })
-              );
-              chips.appendChild(btn);
-            });
-          };
+          sortedCategories.forEach((category) => {
+            const btn = el("button", "categoryChip");
+            btn.type = "button";
+            btn.appendChild(el("span", null, category.title));
+            btn.addEventListener("click", () =>
+              navigate({
+                view: "category",
+                category: category.slug,
+                letter: "",
+                prefix: "",
+                authorKey: "",
+                authorName: "",
+              })
+            );
+            chips.appendChild(btn);
+          });
 
-          paint();
           section.appendChild(chips);
-          if (categories.length > initialCount) {
-            const moreBtn = el("button", "toggleBtn sectionMoreBtn", "Show all categories");
-            moreBtn.addEventListener("click", () => {
-              expanded = !expanded;
-              moreBtn.textContent = expanded ? "Show fewer categories" : "Show all categories";
-              paint();
-            });
-            section.appendChild(moreBtn);
-          }
           return section;
         }
 
         function renderLandingScaffold(newest, popular, categories) {
           els.content.innerHTML = "";
+          landingData = {
+            newest: newest || { windowDays: 7, books: [] },
+            popular: popular || { defaultList: "last30days", lists: {} },
+            categories: categories || [],
+          };
           const wrap = el("div", "catalogSections");
-          const newestSection = renderNewestPreview(newest || { windowDays: 7, books: [] });
-          const popularSection = renderPopularPreview(popular || { defaultList: "last30days", lists: {} });
-          const categoriesSection = renderCategoriesSection(categories || []);
+          const newestSection = renderNewestPreview(landingData.newest);
+          const popularSection = renderPopularPreview(landingData.popular);
+          const categoriesSection = renderCategoriesSection(landingData.categories);
           wrap.appendChild(newestSection);
           wrap.appendChild(popularSection);
           wrap.appendChild(categoriesSection);
@@ -3619,78 +4049,27 @@
           if (authorBooksState.key !== authorKey) {
             authorBooksState = {
               key: authorKey,
-              visibleLimit: AUTHOR_BOOKS_PAGE_SIZE,
+              page: 1,
+              sort: "title",
             };
           }
-          const visibleLimit = Math.min(
-            books.length,
-            Math.max(AUTHOR_BOOKS_PAGE_SIZE, parseNumber(visibleLimitInput) || authorBooksState.visibleLimit || AUTHOR_BOOKS_PAGE_SIZE)
-          );
-          authorBooksState.visibleLimit = visibleLimit;
-          const visibleBooks = books.slice(0, visibleLimit);
           const section = el("section", "landingSection");
-
-          if (viewMode === "grid") {
-            const grid = el("div", "grid");
-            visibleBooks.forEach((book) => {
-              const card = el("a", "card");
-              card.href = openBookUrl(book, book.source, book.cover);
-
-              const coverUrl = resolveCoverUrl(book.cover);
-              const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
-              if (coverUrl) {
-                const img = new Image();
-                img.loading = "lazy";
-                img.decoding = "async";
-                img.alt = `${book.title} cover`;
-                img.src = coverUrl;
-                img.onerror = () => {
-                  cover.classList.add("coverEmpty");
-                  cover.textContent = "No cover";
-                };
-                cover.appendChild(img);
-              } else {
-                cover.textContent = "No cover";
-              }
-
-              const title = el("div", "cardTitle", book.title);
-              const metaText = author.name || book.author || "";
-              const meta = el("div", "cardMeta", metaText);
-
-              card.appendChild(cover);
-              card.appendChild(title);
-              card.appendChild(meta);
-              grid.appendChild(card);
-            });
-            section.appendChild(grid);
-          } else {
-            const table = el("table", "list");
-            const tbody = el("tbody");
-
-            visibleBooks.forEach((book) => {
-              const row = el("tr", null);
-              const cell = el("td");
-              const link = el("a", null, book.title);
-              link.href = openBookUrl(book, book.source, book.cover);
-              cell.appendChild(link);
-              row.appendChild(cell);
-              tbody.appendChild(row);
-            });
-
-            table.appendChild(tbody);
-            section.appendChild(table);
+          const sortedBooks = sortBooks(books, authorBooksState.sort || "title");
+          const page = Math.max(1, parseNumber(authorBooksState.page) || 1);
+          const total = sortedBooks.length;
+          const startIndex = (page - 1) * AUTHOR_BOOKS_PAGE_SIZE;
+          const visibleBooks = sortedBooks.slice(startIndex, startIndex + AUTHOR_BOOKS_PAGE_SIZE);
+          section.appendChild(createSectionHeader(author.name || "Author", `${total} books`));
+          section.appendChild(renderBookGrid(visibleBooks, { authorText: author.name || "" }));
+          if (total > AUTHOR_BOOKS_PAGE_SIZE) {
+            section.appendChild(
+              buildPager(page, AUTHOR_BOOKS_PAGE_SIZE, total, (nextPage) => {
+                authorBooksState.page = nextPage;
+                renderAuthorBooks(author, books, viewMode);
+              })
+            );
           }
-
           els.browseContent.appendChild(section);
-
-          if (visibleLimit < books.length) {
-            const moreBtn = el("button", "toggleBtn sectionMoreBtn", `Show more (${books.length - visibleLimit} remaining)`);
-            moreBtn.addEventListener("click", () => {
-              authorBooksState.visibleLimit = visibleLimit + AUTHOR_BOOKS_PAGE_SIZE;
-              renderAuthorBooks(author, books, viewMode, authorBooksState.visibleLimit);
-            });
-            els.browseContent.appendChild(moreBtn);
-          }
         }
 
         function renderCategoryBooks(detail, viewMode, visibleLimit) {
@@ -3700,66 +4079,30 @@
             els.content.appendChild(el("div", "loading", "No books found in this category."));
             return;
           }
-
-          const head = el("div", "collectionHead");
-          head.appendChild(el("div", "collectionTitle", detail.title));
-          head.appendChild(el("div", "collectionMeta", `${detail.count} books`));
-          els.content.appendChild(head);
-
-          const pageSize = 60;
-          const visible = Math.min(visibleLimit || pageSize, books.length);
-          const listBooks = books.slice(0, visible);
-          let body;
-          if (viewMode === "grid") {
-            body = el("div", "grid");
-            listBooks.forEach((book) => {
-              const card = el("a", "card");
-              card.href = openBookUrl(book, book.source, book.cover);
-              const coverUrl = resolveCoverUrl(book.cover);
-              const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
-              if (coverUrl) {
-                const img = new Image();
-                img.loading = "lazy";
-                img.decoding = "async";
-                img.alt = `${book.title} cover`;
-                img.src = coverUrl;
-                img.onerror = () => {
-                  cover.classList.add("coverEmpty");
-                  cover.textContent = "No cover";
-                };
-                cover.appendChild(img);
-              } else {
-                cover.textContent = "No cover";
-              }
-              card.appendChild(cover);
-              card.appendChild(el("div", "cardTitle", book.title));
-              card.appendChild(el("div", "cardMeta", book.author || ""));
-              body.appendChild(card);
-            });
-          } else {
-            body = el("table", "list");
-            const tbody = el("tbody");
-            listBooks.forEach((book) => {
-              const row = el("tr", null);
-              const titleCell = el("td");
-              const link = el("a", null, book.title);
-              link.href = openBookUrl(book, book.source, book.cover);
-              titleCell.appendChild(link);
-              if (book.author) titleCell.appendChild(el("div", "mybooks-meta", book.author));
-              row.appendChild(titleCell);
-              tbody.appendChild(row);
-            });
-            body.appendChild(tbody);
+          if (categoryBooksState.key !== String(detail.slug || "")) {
+            categoryBooksState = {
+              key: String(detail.slug || ""),
+              page: 1,
+              sort: "popularity",
+            };
           }
-
-          els.content.appendChild(body);
-          if (visible < books.length) {
-            const moreBtn = el("button", "toggleBtn sectionMoreBtn", `Show more (${books.length - visible} remaining)`);
-            moreBtn.addEventListener("click", () => {
-              renderCategoryBooks(detail, viewMode, visible + pageSize);
-            });
-            els.content.appendChild(moreBtn);
+          const section = el("section", "landingSection");
+          const sortedBooks = sortBooks(books, categoryBooksState.sort || "popularity");
+          const pageSize = 24;
+          const page = Math.max(1, parseNumber(categoryBooksState.page) || 1);
+          const startIndex = (page - 1) * pageSize;
+          const pageBooks = sortedBooks.slice(startIndex, startIndex + pageSize);
+          section.appendChild(createSectionHeader(detail.title, `${detail.count} books`));
+          section.appendChild(renderBookGrid(pageBooks));
+          if (sortedBooks.length > pageSize) {
+            section.appendChild(
+              buildPager(page, pageSize, sortedBooks.length, (nextPage) => {
+                categoryBooksState.page = nextPage;
+                renderCategoryBooks(detail, viewMode);
+              })
+            );
           }
+          els.content.appendChild(section);
         }
 
         async function renderMyBooks(viewMode, nonce) {
@@ -3832,132 +4175,49 @@
           function renderItems(itemsInput) {
             els.content.innerHTML = "";
             const items = Array.isArray(itemsInput) ? itemsInput : [];
-            const existingIds = new Set(items.map((item) => String(item.id || "")));
+            const sortedItems = sortBooks(items, sectionSortState.mybooks || "title");
+            const existingIds = new Set(sortedItems.map((item) => String(item.id || "")));
             myBooksState.selected = new Set(
               Array.from(myBooksState.selected || []).filter((id) => existingIds.has(String(id)))
             );
             setToolbar("mybooks", viewMode);
 
-            if (!items.length) {
+            if (!sortedItems.length) {
               const empty = el("div", "mybooks-empty", "My Books is empty in Google Drive.");
               els.content.appendChild(empty);
               return;
             }
+            const section = el("section", "landingSection");
+            section.appendChild(createSectionHeader("My Books", `${sortedItems.length} books`));
 
-            if (viewMode === "grid") {
-              const grid = el("div", "grid");
-              items.forEach((book) => {
-                const bookId = String(book.id || "");
-                const card = el("div", "card");
-                card.setAttribute(
-                  "data-book-open-url",
-                  openReaderUrl(book, book.cover || book.coverUrl || book.cover_url || "", book.source, "mybooks")
-                );
-
-                const head = el("div", "mybooks-card-head");
-                const check = document.createElement("input");
-                check.type = "checkbox";
-                check.className = "mybooks-check";
-                check.checked = myBooksState.selected.has(bookId);
-                check.setAttribute("aria-label", "Select book for deletion");
-                check.addEventListener("click", (event) => event.stopPropagation());
-                check.addEventListener("change", (event) => {
-                  setSelected(bookId, !!event.target.checked);
-                });
-
-                head.appendChild(check);
-
-                const coverUrl = resolveCoverUrl(book.cover || book.coverUrl || book.cover_url || "");
-                const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
-                if (coverUrl) {
-                  const img = new Image();
-                  img.loading = "lazy";
-                  img.decoding = "async";
-                  img.alt = `${book.title || `Book ${bookId}`} cover`;
-                  img.src = coverUrl;
-                  img.onerror = async () => {
-                    const fallback = await fetchBookCoverById(bookId, book.source);
-                    if (fallback && fallback !== coverUrl) {
-                      img.src = fallback;
-                      return;
-                    }
-                    cover.classList.add("coverEmpty");
-                    cover.textContent = "No cover";
-                  };
-                  cover.appendChild(img);
-                } else {
-                  cover.textContent = "No cover";
-                }
-                const titleWrap = el("div", "cardTitle");
-                const titleLink = el("a", null, book.title || `Book ${bookId}`);
-                titleLink.href = openReaderUrl(
-                  book,
-                  book.cover || book.coverUrl || book.cover_url || "",
-                  book.source,
-                  "mybooks"
-                );
-                titleWrap.appendChild(titleLink);
-                const meta = el("div", "cardMeta", book.author || "");
-
-                card.appendChild(head);
-                card.appendChild(cover);
-                card.appendChild(titleWrap);
-                card.appendChild(meta);
-                grid.appendChild(card);
-              });
-              els.content.appendChild(grid);
-              return;
-            }
-
-            const table = el("table", "list");
-            const tbody = el("tbody");
-
-            items.forEach((book) => {
+            const grid = el("div", "bookGrid");
+            sortedItems.forEach((book) => {
               const bookId = String(book.id || "");
-              const row = el("tr", "mybooks-list-row");
-
-              const selectCell = el("td");
               const check = document.createElement("input");
               check.type = "checkbox";
               check.className = "mybooks-check";
               check.checked = myBooksState.selected.has(bookId);
               check.setAttribute("aria-label", "Select book for deletion");
+              check.addEventListener("click", (event) => event.stopPropagation());
               check.addEventListener("change", (event) => {
                 setSelected(bookId, !!event.target.checked);
               });
-              selectCell.appendChild(check);
 
-              const bookCell = el("td");
-              const titleLink = el("a", null, book.title || `Book ${bookId}`);
-              titleLink.href = openReaderUrl(
-                book,
-                book.cover || book.coverUrl || book.cover_url || "",
-                book.source,
-                "mybooks"
-              );
-              bookCell.appendChild(titleLink);
-              if (book.author) {
-                bookCell.appendChild(el("div", "mybooks-meta", book.author));
-              }
-
-              const openCell = el("td", "count");
-              const openLink = el("a", "mybooks-open", "Open");
-              openLink.href = openReaderUrl(
-                book,
-                book.cover || book.coverUrl || book.cover_url || "",
-                book.source,
-                "mybooks"
-              );
-              openCell.appendChild(openLink);
-
-              row.appendChild(selectCell);
-              row.appendChild(bookCell);
-              row.appendChild(openCell);
-              tbody.appendChild(row);
+              const card = createBookCard(book, {
+                static: true,
+                withSelection: true,
+                checkbox: check,
+                dataBookOpenUrl: openReaderUrl(
+                  book,
+                  book.cover || book.coverUrl || book.cover_url || "",
+                  book.source,
+                  "mybooks"
+                ),
+              });
+              grid.appendChild(card);
             });
-
-            table.appendChild(tbody);
-            els.content.appendChild(table);
+            section.appendChild(grid);
+            els.content.appendChild(section);
           }
 
           const localItems = loadLocalMyBooksFallback();
@@ -4596,7 +4856,7 @@
                 categories = await getCategories(nonce);
               } catch (error) {}
               if (nonce !== REQ_NONCE) return;
-              setBreadcrumbs([{ label: "Letters" }]);
+              setBreadcrumbs([]);
               setToolbar("letters");
               currentView = { renderer: () => renderLanding(letters, newest, popular, categories), data: letters };
               renderLanding(letters, newest, popular, categories);
@@ -4761,13 +5021,14 @@
               setToolbar("author", viewMode);
               authorBooksState = {
                 key: author.key || state.authorKey || "",
-                visibleLimit: AUTHOR_BOOKS_PAGE_SIZE,
+                page: 1,
+                sort: "title",
               };
               currentView = {
-                renderer: () => renderAuthorBooks(author, payload.books, viewMode, authorBooksState.visibleLimit),
+                renderer: () => renderAuthorBooks(author, payload.books, viewMode),
                 data: payload.books,
               };
-              renderAuthorBooks(author, payload.books, viewMode, authorBooksState.visibleLimit);
+              renderAuthorBooks(author, payload.books, viewMode);
               renderSearchResults();
               return;
             }
@@ -4778,17 +5039,11 @@
                 return renderState(parseState());
               }
               const viewMode = state.bookView || "grid";
-              if (viewMode === "grid") {
-                els.content.classList.add("noPanel");
-              }
+              els.content.classList.add("noPanel");
               showLoading("Loading category...");
               const detail = await getCategoryDetail(state.category, nonce);
               if (nonce !== REQ_NONCE) return;
-              setBreadcrumbs([
-                { label: "Letters", onClick: () => navigate({ view: "letters", category: "", letter: "", prefix: "", authorKey: "", authorName: "" }, { preserveScroll: true }) },
-                { label: "Categories", onClick: () => navigate({ view: "letters", category: "", letter: "", prefix: "", authorKey: "", authorName: "" }, { preserveScroll: true }) },
-                { label: detail.title },
-              ]);
+              setBreadcrumbs([]);
               setToolbar("category", viewMode);
               currentView = {
                 renderer: () => renderCategoryBooks(detail, viewMode),
@@ -4804,10 +5059,7 @@
               if (viewMode === "grid") {
                 els.content.classList.add("noPanel");
               }
-              setBreadcrumbs([
-                { label: "Letters", onClick: () => navigate({ view: "letters" }, { preserveScroll: true }) },
-                { label: "My Books" },
-              ]);
+              setBreadcrumbs([]);
               setToolbar("mybooks", viewMode);
               currentView = { renderer: () => renderMyBooks(viewMode, REQ_NONCE), data: myBooksState.items };
               await renderMyBooks(viewMode, nonce);
@@ -4892,24 +5144,90 @@
         if (els.brandLink) {
           els.brandLink.addEventListener("click", (event) => {
             event.preventDefault();
-            els.search.value = "";
-            updateSearchIcon();
-            runSearch();
+            resetSearchUi();
+            updateHeaderNavState("");
             updateHash({ ...DEFAULT_STATE, language: DEFAULT_STATE.language }, true);
             renderState(parseState());
+          });
+        }
+
+        if (els.headerBackLink) {
+          els.headerBackLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            resetSearchUi();
+            updateHeaderNavState("");
+            closeHeaderMenu();
+            updateHash({ ...DEFAULT_STATE, language: activeLanguage || DEFAULT_STATE.language }, false);
+            renderState(parseState());
+          });
+        }
+
+        if (els.headerNewestLink) {
+          els.headerNewestLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            jumpToCatalogSection("newestTitlesSection", "newest");
+          });
+        }
+
+        if (els.headerPopularLink) {
+          els.headerPopularLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            jumpToCatalogSection("popularTitlesSection", "popular");
+          });
+        }
+
+        if (els.headerByAuthorLink) {
+          els.headerByAuthorLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            jumpToCatalogSection("browseHeader", "author");
+          });
+        }
+
+        if (els.headerByCategoryLink) {
+          els.headerByCategoryLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            jumpToCatalogSection("catalogCategoriesSection", "category");
           });
         }
 
         if (els.myBooksLink) {
           els.myBooksLink.addEventListener("click", (event) => {
             event.preventDefault();
-            els.search.value = "";
-            searchState = { query: "", items: [], error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
-            updateSearchIcon();
-            renderSearchResults();
+            resetSearchUi();
+            updateHeaderNavState("");
+            closeHeaderMenu();
             navigate({ view: "mybooks", letter: "", prefix: "", authorKey: "", authorName: "" });
           });
         }
+
+        if (els.headerMenuToggle) {
+          els.headerMenuToggle.addEventListener("click", (event) => {
+            event.preventDefault();
+            toggleHeaderMenu();
+          });
+        }
+
+        document.addEventListener("click", (event) => {
+          if (!els.headerLinks || !els.headerMenuToggle) return;
+          if (!els.headerLinks.classList.contains("open")) return;
+          const target = event.target;
+          if (els.headerLinks.contains(target) || els.headerMenuToggle.contains(target)) return;
+          closeHeaderMenu();
+        });
+
+        window.addEventListener("resize", () => {
+          if (window.innerWidth > 720) closeHeaderMenu();
+        });
+
+        window.addEventListener(
+          "scroll",
+          () => {
+            if (headerMenuScrollLock) return;
+            if (!activeHeaderMenu) return;
+            updateHeaderNavState("");
+          },
+          { passive: true }
+        );
 
         document.addEventListener("click", (event) => {
           if (event.defaultPrevented) return;

@@ -427,7 +427,7 @@ cd /Volumes/2T/se_ingest/pages_books/books/content
 - скачать только preferred EPUB `pg<ID>.epub`;
 - залить новые Gutenberg-книги в legacy layout `books/content/<id>/`;
 - обновить каталоговые `api/*`;
-- обновить `Newest Releases` с hard limit `12`;
+- обновить `Newest Releases` по окну последних `30` дней, без hard limit по числу книг;
 - собрать selective SEO только для новых книг;
 - показать прогресс и поддержать `resume` после сбоя.
 
@@ -629,16 +629,31 @@ git status --short --branch
 
 - Header:
   - desktop search живет в header;
-  - на узких экранах header делится на две строки: бренд + `My Books`/`Back to Catalog` сверху, search-field на всю ширину снизу.
+  - на desktop в header находятся меню `Newest`, `Popular`, `By Author`, `By Category`, search и `My Books`;
+  - на узких экранах header использует гамбургер-меню для навигации, а search остается отдельной строкой под первой строкой header;
+  - mobile hamburger раскрывается на всю ширину и перекрывает search, а не раздвигает layout;
+  - при переходе через верхние меню секция скроллится так, чтобы ее заголовок оставался видимым;
+  - активный header menu item временно становится черным и некликабельным до следующего ручного scroll.
 - Landing layout:
   - hero состоит из CTA-карточки слева и изображения readers справа;
   - блок `Browse by Author` расположен после `Browse by Category`;
   - landing order сейчас такой: `Newest Releases` -> `Popular Titles` -> `Browse by Category` -> `Browse by Author`.
+- `Browse by Category`:
+  - показывает все категории, без client-side лимита;
+  - категории отсортированы по алфавиту;
+  - счетчики книг на category chips не показываются.
 - `Browse by Author`:
   - собран в одну card-like секцию с закруглением, как `Browse by Category`;
   - внутри секции находятся title, language selector, breadcrumbs и динамический browse content;
   - клики по буквам/префиксам/авторам не должны убирать остальные landing sections;
   - внутренний browse content обновляется локально внутри блока, без перерисовки всей страницы.
+- Book sections (`Newest Releases`, `Popular Titles`, author/category listings, search results, `My Books`):
+  - используют единый card-style книжных карточек;
+  - счетчик `N books` показывается в той же строке, что и заголовок секции, справа;
+  - list/grid toggle для каталоговых книжных секций убран;
+  - книги показываются постранично по `24` на страницу с pager формата `Showing X-Y of Z`;
+  - названия книг в карточках — темно-зеленые, underline только на hover;
+  - обложка уменьшена, а текстовый блок справа вертикально центрируется относительно высоты карточки.
 - Search UX:
   - при активном query hero и остальные catalog sections скрываются, на экране остаются только search results;
   - очистка query возвращает обычный landing layout;
@@ -667,6 +682,14 @@ git status --short --branch
 - `entry=mybooks`:
   - используется для открытий книги из `My Books` в каталоге и из `My Books` внутри reader;
   - onboarding hints для каталожного входа в этом режиме не показываются.
+
+### `Newest Releases`: текущее правило данных
+
+- `Newest Releases` теперь строится по `catalog_added_at` за последние `30` дней;
+- hard limit на число книг снят;
+- count секции должен отражать все книги, попавшие в это окно;
+- rebuild `newest` требует актуального базового `reader_lang_indexes`: если свежие книги есть в pipeline state, но отсутствуют в author indexes, секция будет неполной;
+- после мартовской починки 2026-03-29 опубликованный `discover/newest.json` снова содержит полный набор книг из текущего 30-дневного окна.
 
 Reader (`reader/index.html` + `reader/js/*`) требует:
 - книгу в `/books/content/<id>/...` с валидным `META-INF/container.xml`.
