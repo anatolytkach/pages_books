@@ -29,39 +29,76 @@
 
       const sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
       const params = new URLSearchParams(window.location.search);
+      const msgEl = document.getElementById('msg');
+
+      function getReturnTo() {
+        const returnTo = params.get('returnTo') || sessionStorage.getItem('authReturnTo');
+        return returnTo && returnTo.startsWith('/') ? returnTo : '/books/';
+      }
 
       async function finishRedirect() {
         const inviteToken = params.get('invite') || sessionStorage.getItem('authInviteToken');
+        msgEl.textContent = inviteToken
+          ? 'Email confirmed. Finishing your invitation...'
+          : 'Email confirmed. Signing you in...';
         if (inviteToken) {
-          try { await acceptInvitation(inviteToken); } catch {}
+          try {
+            await acceptInvitation(inviteToken);
+          } catch (err) {
+            msgEl.innerHTML =
+              `Signed in, but invitation acceptance failed: ${err.message}<br><a href="/books/auth/?returnTo=${encodeURIComponent(getReturnTo())}">Return to sign in</a>`;
+            return;
+          }
           sessionStorage.removeItem('authInviteToken');
         }
-        const returnTo = sessionStorage.getItem('authReturnTo');
+        sessionStorage.removeItem('pendingSignupEmail');
         sessionStorage.removeItem('authReturnTo');
-        window.location.href = returnTo || '/books/';
+        window.location.href = getReturnTo();
       }
 
-      // Supabase client automatically picks up tokens from the URL hash/params.
-      // We just need to wait for the session to be established.
-      const { data: { session }, error } = await sb.auth.getSession();
+      const initialReturnTo = params.get('returnTo');
+      if (initialReturnTo && initialReturnTo.startsWith('/')) {
+        sessionStorage.setItem('authReturnTo', initialReturnTo);
+      }
 
-      if (error) {
-        document.getElementById('msg').innerHTML =
-          `Sign in failed: ${error.message}<br><a href="/books/auth/">Try again</a>`;
-      } else if (session) {
-        await finishRedirect();
+      let exchangeFailed = false;
+      const code = params.get('code');
+      if (code && typeof sb.auth.exchangeCodeForSession === 'function') {
+        msgEl.textContent = 'Confirming your email and creating your session...';
+        const { error: exchangeError } = await sb.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          msgEl.innerHTML =
+            `Confirmation failed: ${exchangeError.message}<br><a href="/books/auth/?returnTo=${encodeURIComponent(getReturnTo())}">Return to sign in</a>`;
+          exchangeFailed = true;
+        }
+      }
+
+      if (exchangeFailed) {
+        // Stop here after rendering the error state.
       } else {
-        // No session yet — might still be processing. Listen for change.
-        sb.auth.onAuthStateChange(async (event, session) => {
-          if (event === 'SIGNED_IN' && session) {
-            await finishRedirect();
-          }
-        });
-        // Timeout fallback
-        setTimeout(() => {
-          document.getElementById('msg').innerHTML =
-            'Taking too long? <a href="/books/auth/">Go back to sign in</a>';
-        }, 10000);
+        // Supabase client automatically picks up tokens from the URL hash/params.
+        // We just need to wait for the session to be established.
+        const { data: { session }, error } = await sb.auth.getSession();
+
+        if (error) {
+          msgEl.innerHTML =
+            `Sign in failed: ${error.message}<br><a href="/books/auth/">Try again</a>`;
+        } else if (session) {
+          await finishRedirect();
+        } else {
+          // No session yet — might still be processing. Listen for change.
+          msgEl.textContent = 'Email confirmed. Waiting for your session...';
+          sb.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+              await finishRedirect();
+            }
+          });
+          // Timeout fallback
+          setTimeout(() => {
+            msgEl.innerHTML =
+              `Email was confirmed, but the sign-in session did not finish automatically.<br><a href="/books/auth/?returnTo=${encodeURIComponent(getReturnTo())}">Return to sign in</a>`;
+          }, 10000);
+        }
       }
     </script>
   </body>

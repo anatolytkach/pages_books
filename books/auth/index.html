@@ -255,6 +255,44 @@
         display: block;
       }
 
+      .invite-note,
+      .status-panel {
+        margin-bottom: 16px;
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .invite-note {
+        color: var(--accent-2);
+      }
+
+      .status-panel {
+        display: none;
+      }
+
+      .status-panel.visible {
+        display: block;
+      }
+
+      .status-panel h2 {
+        margin: 0 0 8px;
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 24px;
+        color: var(--ink);
+      }
+
+      .status-panel p {
+        margin: 0 0 10px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .status-panel strong {
+        color: var(--ink);
+      }
+
       /* Magic link form */
       #magic-link-form {
         display: none;
@@ -328,6 +366,15 @@
 
       <div class="auth-card">
         <div id="alert" class="alert"></div>
+        <div id="invite-note" class="invite-note" style="display:none">
+          This invitation will create your account and then connect it to your organization.
+        </div>
+        <div id="pending-confirmation" class="status-panel">
+          <h2>Confirm Your Email</h2>
+          <p>We created your account for <strong id="pending-email"></strong>.</p>
+          <p>Open the confirmation email, click the link, and keep this browser available. We will finish the invitation after confirmation.</p>
+          <p>If the email does not arrive, check spam or try signing in after an admin confirms your address manually.</p>
+        </div>
 
         <!-- Tab toggle: Sign In / Sign Up -->
         <div class="tab-row" id="tab-row">
@@ -407,6 +454,8 @@
       const signinForm = document.getElementById('signin-form');
       const signupForm = document.getElementById('signup-form');
       const magicLinkForm = document.getElementById('magic-link-form');
+      const inviteNote = document.getElementById('invite-note');
+      const pendingConfirmation = document.getElementById('pending-confirmation');
 
       // ── Helpers ────────────────────────────────────
       function showAlert(msg, type = 'error') {
@@ -416,6 +465,31 @@
 
       function hideAlert() {
         alert.className = 'alert';
+      }
+
+      function setActiveTab(tab) {
+        tabRow.querySelectorAll('.tab-btn').forEach((btn) => {
+          btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        signinForm.style.display = tab === 'signin' ? '' : 'none';
+        signupForm.style.display = tab === 'signup' ? '' : 'none';
+        magicLinkForm.classList.remove('visible');
+      }
+
+      function showPendingConfirmation(email) {
+        hideAlert();
+        tabRow.style.display = 'none';
+        signinForm.style.display = 'none';
+        signupForm.style.display = 'none';
+        magicLinkForm.classList.remove('visible');
+        inviteNote.style.display = 'none';
+        document.getElementById('pending-email').textContent = email;
+        pendingConfirmation.classList.add('visible');
+      }
+
+      function clearPendingConfirmation() {
+        pendingConfirmation.classList.remove('visible');
+        tabRow.style.display = '';
       }
 
       function setLoading(btn, loading) {
@@ -430,12 +504,22 @@
       }
 
       /** After successful auth, redirect to the page the user came from, or catalog. */
+      function getReturnTo() {
+        const returnTo = params.get('returnTo') || sessionStorage.getItem('authReturnTo');
+        return returnTo && returnTo.startsWith('/') ? returnTo : '/books/';
+      }
+
       function redirectAfterAuth() {
+        window.location.href = getReturnTo();
+      }
+
+      function persistAuthContext() {
+        if (inviteToken) {
+          sessionStorage.setItem('authInviteToken', inviteToken);
+        }
         const returnTo = params.get('returnTo');
         if (returnTo && returnTo.startsWith('/')) {
-          window.location.href = returnTo;
-        } else {
-          window.location.href = '/books/';
+          sessionStorage.setItem('authReturnTo', returnTo);
         }
       }
 
@@ -455,9 +539,19 @@
 
       // ── Check if already signed in ─────────────────
       (async () => {
+        persistAuthContext();
+        if (inviteToken) {
+          inviteNote.style.display = '';
+          setActiveTab('signup');
+        }
         const { data: { session } } = await sb.auth.getSession();
         if (session) {
-          try { await acceptInviteIfPresent(); } catch {}
+          try {
+            await acceptInviteIfPresent();
+          } catch (err) {
+            showAlert(`Signed in, but invitation acceptance failed: ${err.message}`);
+            return;
+          }
           redirectAfterAuth();
         }
       })();
@@ -467,25 +561,22 @@
         const btn = e.target.closest('.tab-btn');
         if (!btn) return;
         hideAlert();
+        clearPendingConfirmation();
 
-        tabRow.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        const tab = btn.dataset.tab;
-        signinForm.style.display = tab === 'signin' ? '' : 'none';
-        signupForm.style.display = tab === 'signup' ? '' : 'none';
-        magicLinkForm.classList.remove('visible');
+        setActiveTab(btn.dataset.tab);
       });
 
       // ── Magic link toggle ──────────────────────────
       document.getElementById('show-magic-link').addEventListener('click', () => {
         hideAlert();
+        clearPendingConfirmation();
         signinForm.style.display = 'none';
         magicLinkForm.classList.add('visible');
       });
 
       document.getElementById('back-to-password').addEventListener('click', () => {
         hideAlert();
+        clearPendingConfirmation();
         magicLinkForm.classList.remove('visible');
         signinForm.style.display = '';
       });
@@ -506,7 +597,12 @@
         if (error) {
           showAlert(error.message);
         } else {
-          try { await acceptInviteIfPresent(); } catch {}
+          try {
+            await acceptInviteIfPresent();
+          } catch (err) {
+            showAlert(`Signed in, but invitation acceptance failed: ${err.message}`);
+            return;
+          }
           redirectAfterAuth();
         }
       });
@@ -536,9 +632,15 @@
           showAlert(error.message);
         } else if (data.user && !data.session) {
           // Email confirmation required
-          showAlert('Check your email for a confirmation link.', 'success');
+          sessionStorage.setItem('pendingSignupEmail', email);
+          showPendingConfirmation(email);
         } else {
-          try { await acceptInviteIfPresent(); } catch {}
+          try {
+            await acceptInviteIfPresent();
+          } catch (err) {
+            showAlert(`Account created, but invitation acceptance failed: ${err.message}`);
+            return;
+          }
           redirectAfterAuth();
         }
       });
@@ -566,8 +668,10 @@
         }
       });
 
-      if (inviteToken) {
-        sessionStorage.setItem('authInviteToken', inviteToken);
+      persistAuthContext();
+      const pendingSignupEmail = sessionStorage.getItem('pendingSignupEmail');
+      if (pendingSignupEmail && !inviteToken) {
+        showPendingConfirmation(pendingSignupEmail);
       }
 
       // ── Google OAuth (disabled until provider is configured) ──
