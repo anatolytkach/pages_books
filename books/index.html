@@ -493,6 +493,15 @@
         transform: scale(0.995);
       }
 
+      .catalogHeroButton.autostartPressed {
+        transform: scale(0.95);
+        filter: saturate(1.08) brightness(1.08);
+        box-shadow:
+          0 0 0 8px rgba(255, 221, 87, 0.42),
+          0 0 28px rgba(255, 221, 87, 0.34),
+          0 12px 34px rgba(15, 118, 110, 0.24);
+      }
+
       .catalogHero.autostartPending .catalogHeroPanel,
       .catalogHero.autostartPending .catalogHeroReaders,
       .catalogHero.autostartPending .readerPreview {
@@ -604,11 +613,96 @@
         font-weight: 600;
         letter-spacing: 0.01em;
         box-shadow: 0 10px 24px rgba(15, 118, 110, 0.18);
+        transition: transform 1000ms ease, filter 1000ms ease, box-shadow 1000ms ease;
       }
 
       .catalogHeroButton:hover {
         text-decoration: none;
         background: linear-gradient(180deg, #13796f 0%, #0d675f 100%);
+      }
+
+      .autostartLaunch {
+        position: fixed;
+        inset: 0;
+        z-index: 120;
+        pointer-events: none;
+        visibility: hidden;
+      }
+
+      .autostartLaunch.active {
+        visibility: visible;
+      }
+
+      .autostartLaunchCard {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        border-radius: 24px;
+        overflow: hidden;
+        background: #f3f5f8;
+        box-shadow: 0 30px 80px rgba(20, 32, 47, 0.16);
+        transform-origin: top left;
+        will-change: transform, border-radius, opacity;
+        opacity: 0;
+        transition:
+          transform 2000ms cubic-bezier(0.2, 0.9, 0.2, 1),
+          border-radius 2000ms cubic-bezier(0.2, 0.9, 0.2, 1),
+          opacity 140ms ease;
+      }
+
+      .autostartLaunchCard.ready {
+        border-radius: 0;
+        opacity: 1;
+      }
+
+      .autostartLaunchFrame {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #f8fafc;
+        opacity: 0;
+        transition: opacity 220ms ease 120ms;
+      }
+
+      .autostartLaunchCard.frameReady .autostartLaunchFrame {
+        opacity: 1;
+      }
+
+      .autostartLaunchFallback {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(180deg, rgba(226, 232, 240, 0.92) 0%, rgba(241, 245, 249, 0.94) 100%);
+        opacity: 1;
+        transition: opacity 220ms ease;
+      }
+
+      .autostartLaunchCard.frameReady .autostartLaunchFallback {
+        opacity: 0;
+      }
+
+      .autostartLaunchFallback::before,
+      .autostartLaunchFallback::after {
+        content: "";
+        position: absolute;
+        left: 8%;
+        right: 8%;
+        border-radius: 999px;
+        background: rgba(28, 39, 54, 0.09);
+      }
+
+      .autostartLaunchFallback::before {
+        top: 14%;
+        height: 7%;
+      }
+
+      .autostartLaunchFallback::after {
+        top: 26%;
+        height: 3%;
       }
 
       .catalogHeroPreview {
@@ -1358,7 +1452,20 @@
   </head>
   <body>
     <!-- deploy-bust: 2026-02-07T16:24:17Z -->
-    <div id="app">
+        <div id="app">
+      <div id="autostartLaunch" class="autostartLaunch" aria-hidden="true">
+        <div id="autostartLaunchCard" class="autostartLaunchCard">
+          <div class="autostartLaunchFallback"></div>
+          <iframe
+            id="autostartLaunchFrame"
+            class="autostartLaunchFrame"
+            title="Reader launch preview"
+            tabindex="-1"
+            loading="eager"
+            aria-hidden="true"
+          ></iframe>
+        </div>
+      </div>
       <header>
         <a class="brand brandLink" id="brandLink" href="#view=letters">
           <img class="brandLogo" src="/books/assets/logo.svg" alt="ReaderPub" />
@@ -1445,7 +1552,7 @@
         const BUILD_STAMP = "2026-02-07T16:24:17Z";
         const BUILD_CHECK_URL = `${location.origin}/books/?__buildcheck=1`;
         const PENDING_HASH_KEY = "reader_pub_pending_hash";
-        const AUTO_START_KEY = "readerpub_autostart_v7";
+        const AUTO_START_KEY = "readerpub_autostart_seen_v8";
         const AUTO_START_RETURN_KEY = "readerpub_catalog_return_v1";
         const AUTO_START_DELAY_MS = 6500;
         const AUTO_START_MOVE_THRESHOLD = 24;
@@ -1464,6 +1571,9 @@
         const els = {
           hero: document.getElementById("catalogHero"),
           heroStartLink: document.getElementById("heroStartLink"),
+          autostartLaunch: document.getElementById("autostartLaunch"),
+          autostartLaunchCard: document.getElementById("autostartLaunchCard"),
+          autostartLaunchFrame: document.getElementById("autostartLaunchFrame"),
           browseHeaderDefaultMount: document.getElementById("browseHeaderDefaultMount"),
           browseHeader: document.getElementById("browseHeader"),
           browseContent: document.getElementById("browseContent"),
@@ -1548,7 +1658,7 @@
 
           let alreadyStarted = false;
           try {
-            alreadyStarted = sessionStorage.getItem(AUTO_START_KEY) === "1";
+            alreadyStarted = localStorage.getItem(AUTO_START_KEY) === "1";
           } catch (error) {
             alreadyStarted = false;
           }
@@ -1557,10 +1667,18 @@
           const href = String(els.heroStartLink.getAttribute("href") || "").trim();
           if (!href) return;
 
+          const previewDestination = new URL(href, window.location.origin);
+          const previewReturnTarget = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+          previewDestination.searchParams.set("entry", "hero");
+          previewDestination.searchParams.set("catalog_return", previewReturnTarget || "/books/");
+          previewDestination.searchParams.set("autostart", "1");
+          const previewHref = `${previewDestination.pathname}${previewDestination.search}${previewDestination.hash}`;
+
           let timerId = 0;
           let canceled = false;
           let lastMoveX = null;
           let lastMoveY = null;
+          let previewFrameLoaded = false;
           const listenerOptions = { passive: true };
           const cleanup = () => {
             window.removeEventListener("scroll", onInteract, listenerOptions);
@@ -1613,25 +1731,98 @@
           window.addEventListener("mousemove", onMouseMove, listenerOptions);
           document.addEventListener("focusin", onFocusIn, listenerOptions);
 
+          try {
+            if (els.autostartLaunchFrame) {
+              els.autostartLaunchFrame.onload = function () {
+                previewFrameLoaded = true;
+              };
+              els.autostartLaunchFrame.src = previewHref;
+            }
+          } catch (error) {}
+
+          function animateAutostartLaunch(previewHref, onComplete) {
+            const button = els.heroStartLink;
+            const launch = els.autostartLaunch;
+            const card = els.autostartLaunchCard;
+            const frame = els.autostartLaunchFrame;
+            if (!button || !launch || !card || !frame) {
+              onComplete();
+              return;
+            }
+
+            const buttonRect = button.getBoundingClientRect();
+            const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+            const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+            const pressDurationMs = 1000;
+            const growDurationMs = 2000;
+            const scaleX = Math.max(buttonRect.width / viewportWidth, 0.01);
+            const scaleY = Math.max(buttonRect.height / viewportHeight, 0.01);
+            const startTransform = `translate(${buttonRect.left}px, ${buttonRect.top}px) scale(${scaleX}, ${scaleY})`;
+
+            let completed = false;
+            const finish = () => {
+              if (completed) return;
+              completed = true;
+              onComplete();
+            };
+
+            card.classList.remove("ready", "frameReady");
+            if (frame.getAttribute("src") !== previewHref) {
+              previewFrameLoaded = false;
+              frame.onload = function () {
+                previewFrameLoaded = true;
+                card.classList.add("frameReady");
+              };
+              frame.src = previewHref;
+            } else if (previewFrameLoaded) {
+              card.classList.add("frameReady");
+            }
+
+            button.classList.add("autostartPressed");
+            card.style.opacity = "0";
+            card.style.borderRadius = `${Math.max(buttonRect.height / 2, 20)}px`;
+            card.style.transform = startTransform;
+
+            window.setTimeout(() => {
+              launch.classList.add("active");
+              window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                  card.classList.add("ready");
+                  card.style.opacity = "1";
+                  card.style.borderRadius = "0px";
+                  card.style.transform = "translate(0px, 0px) scale(1, 1)";
+                });
+              });
+            }, pressDurationMs);
+
+            window.setTimeout(() => {
+              if (previewFrameLoaded) card.classList.add("frameReady");
+            }, Math.max(pressDurationMs - 120, 0));
+
+            window.setTimeout(() => {
+              finish();
+            }, pressDurationMs + growDurationMs);
+          }
+
           const startTimer = () => {
             timerId = window.setTimeout(() => {
               if (canceled) return;
               cleanup();
               els.hero.classList.add("autostartPending");
-              window.setTimeout(() => {
-              try {
-                sessionStorage.setItem(AUTO_START_KEY, "1");
-                sessionStorage.setItem(AUTO_START_RETURN_KEY, `${window.location.pathname}${window.location.search}${window.location.hash}`);
-              } catch (error) {
-                // ignore storage failures
-              }
-              const destination = new URL(href, window.location.origin);
-              const returnTarget = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-              destination.searchParams.set("entry", "hero");
-              destination.searchParams.set("catalog_return", returnTarget || "/books/");
-              destination.searchParams.set("autostart", "1");
-              window.location.assign(`${destination.pathname}${destination.search}${destination.hash}`);
-              }, 220);
+              animateAutostartLaunch(previewHref, () => {
+                try {
+                  localStorage.setItem(AUTO_START_KEY, "1");
+                } catch (error) {}
+                try {
+                  sessionStorage.setItem(
+                    AUTO_START_RETURN_KEY,
+                    `${window.location.pathname}${window.location.search}${window.location.hash}`
+                  );
+                } catch (error) {
+                  // ignore storage failures
+                }
+                window.location.assign(previewHref);
+              });
             }, AUTO_START_DELAY_MS);
           };
 
