@@ -88,3 +88,111 @@ test("Unit: tenant admin invites are forced to reader role", async (t) => {
   assert.equal(inviteBody.email, "reader@example.com");
   assert.equal(inviteBody.role, "member");
 });
+
+test("Unit: superuser can invite an organization admin", async (t) => {
+  const jwt = makeJwt({ sub: "super-1", email: "yarane@gmail.com" });
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "super-1", email: "yarane@gmail.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ id: "tenant-1", slug: "acme-publishing", name: "Acme Publishing", tenant_type: "publisher" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ id: "invite-2", email: "admin@example.com", role: "admin", invite_type: "tenant_admin" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: "https://reader.pub/books/api/v1/tenants/acme-publishing/admin-invite",
+    method: "POST",
+    headers: { authorization: `Bearer ${jwt}` },
+    body: { email: "admin@example.com", role: "admin" },
+    env: {
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 201);
+  assert.equal(payload.invite.role, "admin");
+  assert.equal(payload.invite.invite_type, "tenant_admin");
+
+  const inviteBody = JSON.parse(fetchMock.calls[2][1].body);
+  assert.equal(inviteBody.role, "admin");
+  assert.equal(inviteBody.invite_type, "tenant_admin");
+});
+
+test("Unit: accepting tenant reader invite does not downgrade existing admin", async (t) => {
+  const jwt = makeJwt({ sub: "user-1", email: "admin@example.com" });
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "admin@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "invite-1",
+        tenant_id: "tenant-1",
+        email: "admin@example.com",
+        role: "member",
+        invite_type: "tenant_reader",
+        token: "invite-token-1",
+        accepted_at: null,
+        expires_at: "2099-01-01T00:00:00.000Z",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "membership-1",
+        role: "admin",
+        is_active: true,
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "membership-1",
+        role: "admin",
+        is_active: true,
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ id: "invite-1", accepted_at: "2026-03-28T00:00:00.000Z" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ id: "tenant-1", slug: "acme-publishing", name: "Acme Publishing", tenant_type: "publisher" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: "https://reader.pub/books/api/v1/invitations/accept",
+    method: "POST",
+    headers: { authorization: `Bearer ${jwt}` },
+    body: { token: "invite-token-1" },
+    env: {
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.role, "member");
+
+  const membershipPatchBody = JSON.parse(fetchMock.calls[3][1].body);
+  assert.equal(membershipPatchBody.role, "admin");
+  assert.equal(membershipPatchBody.is_active, true);
+});

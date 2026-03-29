@@ -2811,6 +2811,14 @@ export default {
       };
 
       const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+      const roleRank = (role) => {
+        const normalized = String(role || "").trim().toLowerCase();
+        if (normalized === "owner") return 100;
+        if (normalized === "admin") return 90;
+        if (normalized === "publisher") return 80;
+        if (normalized === "editor") return 70;
+        return 10;
+      };
 
       const bootstrapSuperuserEmails = new Set(
         String(env.PLATFORM_BOOTSTRAP_SUPERUSER_EMAILS || "yarane@gmail.com")
@@ -2872,6 +2880,14 @@ export default {
         if (!user) return [];
         const { data, error } = await sbFetch("tenant_memberships", {
           params: `user_id=eq.${user.sub}&is_active=eq.true&role=in.(owner,admin)&select=id,role,tenant_id,tenants:tenant_id(id,slug,name,tenant_type)`,
+        });
+        if (error || !Array.isArray(data)) return [];
+        return data;
+      };
+
+      const listPlatformTenants = async () => {
+        const { data, error } = await sbFetch("tenants", {
+          params: "select=id,slug,name,tenant_type,is_active,created_at&order=name.asc",
         });
         if (error || !Array.isArray(data)) return [];
         return data;
@@ -2983,6 +2999,52 @@ export default {
         }, 200, apiCorsHeaders);
       }
 
+      // ── GET /v1/platform/tenants — list all tenants (superuser only) ──
+      if (apiPath === "/platform/tenants" && request.method === "GET") {
+        const superErr = await requireSuperuser();
+        if (superErr) return superErr;
+        return jsonResponse(await listPlatformTenants(), 200, apiCorsHeaders);
+      }
+
+      // ── GET /v1/platform/superusers — list superusers + pending invites ──
+      if (apiPath === "/platform/superusers" && request.method === "GET") {
+        const superErr = await requireSuperuser();
+        if (superErr) return superErr;
+        const [{ data: superusers }, { data: invites }] = await Promise.all([
+          sbFetch("platform_superusers", {
+            params: "select=user_id,granted_by,created_at,user_profiles:user_id(display_name,avatar_url)&order=created_at.asc",
+          }),
+          sbFetch("platform_superuser_invitations", {
+            params: "accepted_at=is.null&select=id,email,token,expires_at,created_at&order=created_at.desc",
+          }),
+        ]);
+        return jsonResponse({
+          superusers: Array.isArray(superusers) ? superusers : [],
+          pending_invites: Array.isArray(invites) ? invites : [],
+        }, 200, apiCorsHeaders);
+      }
+
+      // ── POST /v1/platform/superusers/invite — invite a new superuser ──
+      if (apiPath === "/platform/superusers/invite" && request.method === "POST") {
+        const superErr = await requireSuperuser();
+        if (superErr) return superErr;
+        const body = await request.json().catch(() => null);
+        const email = normalizeEmail(body?.email);
+        if (!email) {
+          return jsonResponse({ error: "email is required" }, 400, apiCorsHeaders);
+        }
+        const { data: invite, error } = await sbFetch("platform_superuser_invitations", {
+          method: "POST",
+          body: {
+            email,
+            invited_by: user.sub,
+          },
+          single: true,
+        });
+        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
+        return jsonResponse(invite, 201, apiCorsHeaders);
+      }
+
       // ── POST /v1/invitations/accept — accept tenant or self-publisher invite ──
       if (apiPath === "/invitations/accept" && request.method === "POST") {
         const authErr = requireAuth();
@@ -2997,53 +3059,105 @@ export default {
           params: `token=eq.${token}&select=*`,
           single: true,
         });
-        if (inviteErr || !invite) return jsonResponse({ error: "Invitation not found" }, 404, apiCorsHeaders);
-        if (invite.accepted_at) return jsonResponse({ error: "Invitation already accepted" }, 400, apiCorsHeaders);
-        if (invite.expires_at && new Date(invite.expires_at) <= new Date()) {
+        if (!inviteErr && invite) {
+          if (invite.accepted_at) return jsonResponse({ error: "Invitation already accepted" }, 400, apiCorsHeaders);
+          if (invite.expires_at && new Date(invite.expires_at) <= new Date()) {
+            return jsonResponse({ error: "Invitation has expired" }, 400, apiCorsHeaders);
+          }
+          if (normalizeEmail(invite.email) !== normalizeEmail(user.email)) {
+            return jsonResponse({ error: "Invitation email does not match authenticated user" }, 403, apiCorsHeaders);
+          }
+
+          const { data: existingMembership } = await sbFetch("tenant_memberships", {
+            params: `tenant_id=eq.${invite.tenant_id}&user_id=eq.${user.sub}&select=id,role,is_active`,
+            single: true,
+          });
+          if (existingMembership) {
+            const nextRole = roleRank(existingMembership.role) >= roleRank(invite.role)
+              ? existingMembership.role
+              : invite.role;
+            await sbFetch("tenant_memberships", {
+              method: "PATCH",
+              params: `id=eq.${existingMembership.id}`,
+              body: { role: nextRole, is_active: true },
+            });
+          } else {
+            const { error: membershipErr } = await sbFetch("tenant_memberships", {
+              method: "POST",
+              body: {
+                tenant_id: invite.tenant_id,
+                user_id: user.sub,
+                role: invite.role,
+              },
+              single: true,
+            });
+            if (membershipErr) return jsonResponse({ error: membershipErr }, 400, apiCorsHeaders);
+          }
+
+          await sbFetch("tenant_invitations", {
+            method: "PATCH",
+            params: `id=eq.${invite.id}&select=*`,
+            body: { accepted_at: new Date().toISOString() },
+          });
+
+          const { data: tenant } = await sbFetch("tenants", {
+            params: `id=eq.${invite.tenant_id}&select=id,slug,name,tenant_type`,
+            single: true,
+          });
+          return jsonResponse({
+            accepted: true,
+            invite_type: invite.invite_type || "tenant_reader",
+            role: invite.role,
+            tenant,
+          }, 200, apiCorsHeaders);
+        }
+
+        const { data: superInvite, error: superInviteErr } = await sbFetch("platform_superuser_invitations", {
+          params: `token=eq.${token}&select=*`,
+          single: true,
+        });
+        if (superInviteErr || !superInvite) {
+          return jsonResponse({ error: "Invitation not found" }, 404, apiCorsHeaders);
+        }
+        if (superInvite.accepted_at) {
+          return jsonResponse({ error: "Invitation already accepted" }, 400, apiCorsHeaders);
+        }
+        if (superInvite.expires_at && new Date(superInvite.expires_at) <= new Date()) {
           return jsonResponse({ error: "Invitation has expired" }, 400, apiCorsHeaders);
         }
-        if (normalizeEmail(invite.email) !== normalizeEmail(user.email)) {
+        if (normalizeEmail(superInvite.email) !== normalizeEmail(user.email)) {
           return jsonResponse({ error: "Invitation email does not match authenticated user" }, 403, apiCorsHeaders);
         }
 
-        const { data: existingMembership } = await sbFetch("tenant_memberships", {
-          params: `tenant_id=eq.${invite.tenant_id}&user_id=eq.${user.sub}&select=id,role,is_active`,
+        const { data: existingSuperuser } = await sbFetch("platform_superusers", {
+          params: `user_id=eq.${user.sub}&select=user_id`,
           single: true,
         });
-        if (existingMembership) {
-          await sbFetch("tenant_memberships", {
-            method: "PATCH",
-            params: `id=eq.${existingMembership.id}`,
-            body: { role: invite.role, is_active: true },
-          });
-        } else {
-          const { error: membershipErr } = await sbFetch("tenant_memberships", {
+        if (!existingSuperuser) {
+          const { error: grantErr } = await sbFetch("platform_superusers", {
             method: "POST",
             body: {
-              tenant_id: invite.tenant_id,
               user_id: user.sub,
-              role: invite.role,
+              granted_by: superInvite.invited_by || null,
             },
             single: true,
           });
-          if (membershipErr) return jsonResponse({ error: membershipErr }, 400, apiCorsHeaders);
+          if (grantErr) return jsonResponse({ error: grantErr }, 400, apiCorsHeaders);
         }
 
-        await sbFetch("tenant_invitations", {
+        await sbFetch("platform_superuser_invitations", {
           method: "PATCH",
-          params: `id=eq.${invite.id}&select=*`,
-          body: { accepted_at: new Date().toISOString() },
+          params: `id=eq.${superInvite.id}&select=*`,
+          body: {
+            accepted_at: new Date().toISOString(),
+            accepted_by: user.sub,
+          },
         });
 
-        const { data: tenant } = await sbFetch("tenants", {
-          params: `id=eq.${invite.tenant_id}&select=id,slug,name,tenant_type`,
-          single: true,
-        });
         return jsonResponse({
           accepted: true,
-          invite_type: invite.invite_type || "tenant_reader",
-          role: invite.role,
-          tenant,
+          invite_type: "platform_superuser",
+          role: "superuser",
         }, 200, apiCorsHeaders);
       }
 
@@ -3420,12 +3534,49 @@ export default {
         return jsonResponse(invite, 201, apiCorsHeaders);
       }
 
+      // ── POST /v1/tenants/:slug/admin-invite — superuser invites org admin/owner ──
+      const tenantAdminInviteMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/admin-invite$/);
+      if (tenantAdminInviteMatch && request.method === "POST") {
+        const superErr = await requireSuperuser();
+        if (superErr) return superErr;
+        const slug = tenantAdminInviteMatch[1];
+        const body = await request.json().catch(() => null);
+        const email = normalizeEmail(body?.email);
+        const role = String(body?.role || "admin").trim().toLowerCase();
+        if (!email) {
+          return jsonResponse({ error: "email is required" }, 400, apiCorsHeaders);
+        }
+        if (!["owner", "admin"].includes(role)) {
+          return jsonResponse({ error: "role must be owner or admin" }, 400, apiCorsHeaders);
+        }
+
+        const { data: tenant } = await sbFetch("tenants", {
+          params: `slug=eq.${slug}&select=id,slug,name,tenant_type`,
+          single: true,
+        });
+        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
+
+        const { data: invite, error } = await sbFetch("tenant_invitations", {
+          method: "POST",
+          body: {
+            tenant_id: tenant.id,
+            email,
+            role,
+            invite_type: "tenant_admin",
+            invited_by: user.sub,
+          },
+          single: true,
+        });
+        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
+        return jsonResponse({ invite, tenant }, 201, apiCorsHeaders);
+      }
+
       // ── GET /v1/publish/books — list user's books ──
       if (apiPath === "/publish/books" && request.method === "GET") {
         const authErr = requireAuth();
         if (authErr) return authErr;
         const { data, error } = await sbFetch("books", {
-          params: `published_by_user_id=eq.${user.sub}&select=*&order=created_at.desc`,
+          params: `published_by_user_id=eq.${user.sub}&select=*,tenant:tenants!books_published_by_tenant_id_fkey(id,slug,name,tenant_type)&order=created_at.desc`,
         });
         if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
         return jsonResponse(data || [], 200, apiCorsHeaders);
@@ -3438,7 +3589,7 @@ export default {
         if (authErr) return authErr;
         const bookId = publishBookMatch[1];
         const { data: book } = await sbFetch("books", {
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*`,
+          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*,tenant:tenants!books_published_by_tenant_id_fkey(id,slug,name,tenant_type)`,
           single: true,
         });
         if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);

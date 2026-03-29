@@ -4,9 +4,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-DEPLOY_DIR="$ROOT_DIR/deploy"
+DEPLOY_DIR="$(mktemp -d "${TMPDIR:-/tmp}/readerpub-staging-deploy.XXXXXX")"
 ACCOUNT_ID="764a8c94ce002764fc1d3d29faa4bb09"
 PROJECT="readerpub-books-staging"
+
+trap 'rm -rf "$DEPLOY_DIR"' EXIT
+
+"$SCRIPT_DIR/build-deploy-bundle.sh" "$DEPLOY_DIR"
 
 echo "=== Deploying to STAGING ($PROJECT) ==="
 echo "Deploy dir: $DEPLOY_DIR"

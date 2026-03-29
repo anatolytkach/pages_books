@@ -67,10 +67,11 @@
             }
 
             function fetchBookLocation(source, id) {
-              var shard = bookLocationShard(id);
-              var path = source
-                ? `/books/api/book-locations/${encodeURIComponent(source)}/${shard}.json?v=${Date.now()}`
-                : `/books/api/book-locations/${shard}.json?v=${Date.now()}`;
+              var path = `/books/api/book-locations.json?v=${Date.now()}`;
+              if (source) {
+                var shard = bookLocationShard(id);
+                path = `/books/api/book-locations/${encodeURIComponent(source)}/${shard}.json?v=${Date.now()}`;
+              }
               return fetch(path, { cache: "no-store" })
                 .then(function(response){
                   if (!response.ok) throw new Error(`book-locations fetch failed (${response.status})`);
@@ -83,6 +84,26 @@
                 });
             }
 
+            function resolveLegacyPlatformBookPath(id) {
+              var basePath = `/books/content/${encodeURIComponent(id)}/`;
+              var containerPath = `${basePath}META-INF/container.xml?v=${Date.now()}`;
+              return fetch(containerPath, { cache: "no-store" })
+                .then(function(response){
+                  if (!response.ok) throw new Error(`container fetch failed (${response.status})`);
+                  return response.text();
+                })
+                .then(function(xmlText){
+                  var parser = new DOMParser();
+                  var doc = parser.parseFromString(xmlText, "application/xml");
+                  var rootfile = doc.querySelector("rootfile");
+                  var fullPath = rootfile ? String(rootfile.getAttribute("full-path") || "").trim() : "";
+                  if (!fullPath) throw new Error("container missing rootfile");
+                  return `${basePath}${fullPath}`;
+                });
+            }
+
+            const PLATFORM_ID_START = 200000;
+
             document.onreadystatechange = function () {
               if (document.readyState == "complete") {
 
@@ -90,7 +111,6 @@
 // Sets window.__entitlementPending = Promise that resolves when check is done.
 // The reader init waits for this before loading the book.
 (function(){
-  const PLATFORM_ID_START = 200000;
   const params = new URLSearchParams(location.search);
   const rawHash = (location.hash || "").replace(/^#/, "");
   const id = (params.get("id") || params.get("i") || (/^\d+$/.test(rawHash) ? rawHash : "")).trim();
@@ -219,12 +239,15 @@
   try { if (source && localStorage) localStorage.setItem("readerpub:lastsource", source); } catch (e3) {}
 
   function bootReader(bookPath) {
+    const normalizedBookPath = /\.opf(?:$|\?)/i.test(String(bookPath || ""))
+      ? String(bookPath || "")
+      : (String(bookPath || "").endsWith("/") ? String(bookPath || "") : `${String(bookPath || "")}/`);
     const opts = {
-      openAs: "directory",
+      openAs: /\.opf(?:$|\?)/i.test(normalizedBookPath) ? "opf" : "directory",
       restore: true
     };
 
-    window.reader = ePubReader(bookPath, opts);
+    window.reader = ePubReader(normalizedBookPath, opts);
 
     try {
       if (window.ReaderPubAnalytics && typeof window.ReaderPubAnalytics.boot === "function") {
@@ -350,14 +373,33 @@
       }
     } catch (e) {}
   });
+  function showNotFound(messageHtml) {
+    const el = document.getElementById("viewer");
+    if (el) {
+      el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
+        <h2 style="margin:0 0 10px 0;font-size:18px">Book not found</h2>
+        <div style="color:#666;font-size:14px;line-height:1.4">
+          ${messageHtml}
+        </div>
+      </div>`;
+    }
+  }
+
+  function bootLegacyPlatformBook() {
+    resolveLegacyPlatformBookPath(id)
+      .then(function(bookPath){
+        bootReader(bookPath);
+      })
+      .catch(function(){
+        showNotFound(`No readable content was found for
+          <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.`);
+      });
+  }
+
   function resolveAndBootReader() {
     fetchBookLocation(source, id)
     .then(function(locationInfo){
-      if (!source) {
-        if (!locationInfo || String(locationInfo.source || "gutenberg") !== "gutenberg") {
-          locationInfo = null;
-        }
-      } else if (!locationInfo || String(locationInfo.source || "") !== source) {
+      if (source && (!locationInfo || String(locationInfo.source || "") !== source)) {
         locationInfo = null;
       }
 
@@ -381,33 +423,24 @@
           bookPath = String(locationInfo.contentPath);
         }
       }
-      if (!bookPath) {
-        const el = document.getElementById("viewer");
-        if (el) {
-          el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
-            <h2 style="margin:0 0 10px 0;font-size:18px">Book not found</h2>
-            <div style="color:#666;font-size:14px;line-height:1.4">
-              No catalog mapping was found for
-              <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.
-            </div>
-          </div>`;
-        }
+      if (!bookPath && !source && /^\d+$/.test(id) && parseInt(id, 10) >= PLATFORM_ID_START) {
+        bootLegacyPlatformBook();
         return;
       }
-      if (!bookPath.endsWith("/")) bookPath += "/";
+      if (!bookPath) {
+        showNotFound(`No catalog mapping was found for
+          <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.`);
+        return;
+      }
       bootReader(bookPath);
     })
     .catch(function(){
-      const el = document.getElementById("viewer");
-      if (el) {
-        el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
-          <h2 style="margin:0 0 10px 0;font-size:18px">Book not found</h2>
-          <div style="color:#666;font-size:14px;line-height:1.4">
-            Failed to resolve catalog mapping for
-            <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.
-          </div>
-        </div>`;
+      if (!source && /^\d+$/.test(id) && parseInt(id, 10) >= PLATFORM_ID_START) {
+        bootLegacyPlatformBook();
+        return;
       }
+      showNotFound(`Failed to resolve catalog mapping for
+        <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.`);
     });
   }
 

@@ -8,9 +8,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-DEPLOY_DIR="$ROOT_DIR/deploy"
+DEPLOY_DIR="$(mktemp -d "${TMPDIR:-/tmp}/readerpub-production-deploy.XXXXXX")"
 ACCOUNT_ID="764a8c94ce002764fc1d3d29faa4bb09"
 PROJECT="reader-books"
+
+trap 'rm -rf "$DEPLOY_DIR"' EXIT
+
+"$SCRIPT_DIR/build-deploy-bundle.sh" "$DEPLOY_DIR"
 
 # Safety check: should be on master branch
 BRANCH=$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")

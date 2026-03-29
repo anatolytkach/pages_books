@@ -350,6 +350,10 @@
       }
 
       function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+      function inviteLinkFromToken(token) {
+        const base = `${window.location.origin}/books/auth/`;
+        return `${base}?invite=${encodeURIComponent(String(token || '').trim())}`;
+      }
       function showTenantAlert(msg, type = 'success') {
         document.getElementById('tenantAlerts').innerHTML = `<div class="panel" style="border-color:${type === 'error' ? '#f5c6cb' : '#a3d9d0'}; color:${type === 'error' ? '#c0392b' : '#028f80'}; padding:12px 16px;">${esc(msg)}</div>`;
       }
@@ -435,7 +439,13 @@
           $pubs.innerHTML = '<div class="empty-state">You haven\'t published any books yet. <a href="/books/publish/">Publish your first book</a>.</div>';
         } else {
           $pubs.innerHTML = `<div class="book-grid">${published.map(book => `
-            <a class="book-card" href="/books/reader/#${esc(book.content_id)}">
+            <a class="book-card" href="${esc((() => {
+              const params = new URLSearchParams();
+              params.set('id', String(book.content_id || ''));
+              const sourceSlug = String(book?.tenant?.slug || book?.tenants?.slug || '').trim();
+              if (sourceSlug) params.set('source', sourceSlug);
+              return `/books/reader/?${params.toString()}`;
+            })())}">
               <div class="book-card-cover">
                 ${book.cover_url ? `<img src="${esc(book.cover_url)}" alt="" />` : ''}
               </div>
@@ -475,28 +485,197 @@
       if (platformAccess.is_superuser) {
         $superuserPanel.style.display = '';
         $superuserPanel.innerHTML = `
-          <h3 style="margin-top:0;">Self-Publisher Invite</h3>
-          <div style="color:var(--muted); font-size:14px; margin-bottom:12px;">Create an invite for an individual author. This also reserves their organization slug.</div>
+          <h3 style="margin-top:0;">Platform Admin</h3>
+          <div style="color:var(--muted); font-size:14px; margin-bottom:20px;">Superusers can create organizations, invite organization admins, invite self-publishers, and grant new superusers.</div>
+
           <div class="stack">
-            <div>
-              <label for="sp-email" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Email</label>
-              <input id="sp-email" type="email" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="author@example.com" />
+            <div class="panel" style="margin:0; padding:18px;">
+              <h3 style="font-size:18px; margin-top:0;">Create Organization</h3>
+              <div class="stack">
+                <div>
+                  <label for="org-name" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Organization Name</label>
+                  <input id="org-name" type="text" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="Acme Publishing" />
+                </div>
+                <div>
+                  <label for="org-slug" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Source / Slug</label>
+                  <input id="org-slug" type="text" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="acme-publishing" />
+                </div>
+                <div>
+                  <label for="org-type" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Type</label>
+                  <select id="org-type" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;">
+                    <option value="publisher">Publisher</option>
+                    <option value="distributor">Distributor</option>
+                    <option value="library">Library</option>
+                    <option value="school">School</option>
+                    <option value="enterprise">Enterprise</option>
+                    <option value="individual_author">Individual author</option>
+                  </select>
+                </div>
+                <button class="btn" id="orgCreateBtn" style="width:max-content;">Create Organization</button>
+                <div id="orgCreateResult" style="font-size:13px; color:var(--muted);"></div>
+              </div>
             </div>
-            <div>
-              <label for="sp-name" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Display Name</label>
-              <input id="sp-name" type="text" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="Ada Lovelace" />
+
+            <div class="panel" style="margin:0; padding:18px;">
+              <h3 style="font-size:18px; margin-top:0;">Invite Organization Admin</h3>
+              <div class="stack">
+                <div>
+                  <label for="tenant-select" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Organization</label>
+                  <select id="tenant-select" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;"></select>
+                </div>
+                <div>
+                  <label for="tenant-admin-email" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Admin Email</label>
+                  <input id="tenant-admin-email" type="email" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="admin@example.com" />
+                </div>
+                <div>
+                  <label for="tenant-admin-role" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Role</label>
+                  <select id="tenant-admin-role" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;">
+                    <option value="admin">Admin</option>
+                    <option value="owner">Owner</option>
+                  </select>
+                </div>
+                <button class="btn" id="tenantAdminInviteBtn" style="width:max-content;">Create Admin Invite</button>
+                <div id="tenantAdminInviteResult" style="font-size:13px; color:var(--muted);"></div>
+              </div>
             </div>
-            <div>
-              <label for="sp-slug" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Tenant Slug / Source</label>
-              <input id="sp-slug" type="text" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="ada-lovelace" />
+
+            <div class="panel" style="margin:0; padding:18px;">
+              <h3 style="font-size:18px; margin-top:0;">Self-Publisher Invite</h3>
+              <div class="stack">
+                <div>
+                  <label for="sp-email" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Email</label>
+                  <input id="sp-email" type="email" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="author@example.com" />
+                </div>
+                <div>
+                  <label for="sp-name" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Display Name</label>
+                  <input id="sp-name" type="text" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="Ada Lovelace" />
+                </div>
+                <div>
+                  <label for="sp-slug" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Tenant Slug / Source</label>
+                  <input id="sp-slug" type="text" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="ada-lovelace" />
+                </div>
+                <button class="btn" id="spInviteBtn" style="width:max-content;">Create Invite</button>
+                <div id="spInviteResult" style="font-size:13px; color:var(--muted);"></div>
+              </div>
             </div>
-            <button class="btn" id="spInviteBtn" style="width:max-content;">Create Invite</button>
-            <div id="spInviteResult" style="font-size:13px; color:var(--muted);"></div>
+
+            <div class="panel" style="margin:0; padding:18px;">
+              <h3 style="font-size:18px; margin-top:0;">Invite Superuser</h3>
+              <div class="stack">
+                <div>
+                  <label for="superuser-email" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Email</label>
+                  <input id="superuser-email" type="email" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="admin@example.com" />
+                </div>
+                <button class="btn" id="superuserInviteBtn" style="width:max-content;">Create Superuser Invite</button>
+                <div id="superuserInviteResult" style="font-size:13px; color:var(--muted);"></div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin:0; padding:18px;">
+              <h3 style="font-size:18px; margin-top:0;">Current Superusers</h3>
+              <div id="superuserList" style="font-size:13px; color:var(--muted);"><span class="spinner"></span> Loading...</div>
+            </div>
           </div>`;
 
+        const slugify = (value) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+
+        document.getElementById('org-name').addEventListener('input', (e) => {
+          document.getElementById('org-slug').value = slugify(e.target.value);
+        });
+
         document.getElementById('sp-name').addEventListener('input', (e) => {
-          const slug = e.target.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
-          document.getElementById('sp-slug').value = slug;
+          document.getElementById('sp-slug').value = slugify(e.target.value);
+        });
+
+        let platformTenants = [];
+        try {
+          platformTenants = await apiFetch('GET', '/platform/tenants');
+        } catch {
+          platformTenants = [];
+        }
+
+        const $tenantSelect = document.getElementById('tenant-select');
+        if (platformTenants.length) {
+          $tenantSelect.innerHTML = platformTenants.map((tenant) => `
+            <option value="${esc(tenant.slug)}">${esc(tenant.name)} (${esc(tenant.slug)})</option>
+          `).join('');
+        } else {
+          $tenantSelect.innerHTML = '<option value="">No organizations available</option>';
+        }
+
+        try {
+          const data = await apiFetch('GET', '/platform/superusers');
+          const active = Array.isArray(data.superusers) ? data.superusers : [];
+          const pending = Array.isArray(data.pending_invites) ? data.pending_invites : [];
+          document.getElementById('superuserList').innerHTML = `
+            <div class="stack">
+              <div><strong>Active</strong></div>
+              ${active.length ? active.map((row) => `
+                <div>${esc(row.user_profiles?.display_name || row.user_id)} <span style="color:var(--muted)">(${esc(row.user_id)})</span></div>
+              `).join('') : '<div style="color:var(--muted)">No explicit superuser rows yet.</div>'}
+              <div style="margin-top:8px;"><strong>Pending Invites</strong></div>
+              ${pending.length ? pending.map((row) => `
+                <div>
+                  ${esc(row.email)}
+                  <div style="margin-top:4px; word-break:break-all;">
+                    <a href="${esc(inviteLinkFromToken(row.token))}" style="color:var(--accent); text-decoration:none;">${esc(inviteLinkFromToken(row.token))}</a>
+                  </div>
+                </div>
+              `).join('') : '<div style="color:var(--muted)">No pending superuser invites.</div>'}
+            </div>`;
+        } catch (err) {
+          document.getElementById('superuserList').textContent = `Failed to load: ${err.message}`;
+        }
+
+        document.getElementById('orgCreateBtn').addEventListener('click', async () => {
+          const name = document.getElementById('org-name').value.trim();
+          const slug = document.getElementById('org-slug').value.trim();
+          const tenant_type = document.getElementById('org-type').value;
+          if (!name || !slug || !tenant_type) {
+            showTenantAlert('Organization name, slug, and type are required.', 'error');
+            return;
+          }
+          const btn = document.getElementById('orgCreateBtn');
+          btn.disabled = true;
+          btn.textContent = 'Creating...';
+          try {
+            const tenant = await apiFetch('POST', '/tenants', { name, slug, tenant_type });
+            document.getElementById('orgCreateResult').textContent = `Created ${tenant.name} (${tenant.slug}).`;
+            showTenantAlert(`Organization ${tenant.name} created.`);
+            if (!$tenantSelect.querySelector(`option[value="${tenant.slug}"]`)) {
+              $tenantSelect.insertAdjacentHTML('beforeend', `<option value="${esc(tenant.slug)}">${esc(tenant.name)} (${esc(tenant.slug)})</option>`);
+            }
+            $tenantSelect.value = tenant.slug;
+          } catch (err) {
+            showTenantAlert(`Could not create organization: ${err.message}`, 'error');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Create Organization';
+          }
+        });
+
+        document.getElementById('tenantAdminInviteBtn').addEventListener('click', async () => {
+          const slug = document.getElementById('tenant-select').value;
+          const email = document.getElementById('tenant-admin-email').value.trim();
+          const role = document.getElementById('tenant-admin-role').value;
+          if (!slug || !email) {
+            showTenantAlert('Organization and admin email are required.', 'error');
+            return;
+          }
+          const btn = document.getElementById('tenantAdminInviteBtn');
+          btn.disabled = true;
+          btn.textContent = 'Creating...';
+          try {
+            const payload = await apiFetch('POST', `/tenants/${encodeURIComponent(slug)}/admin-invite`, { email, role });
+            const link = inviteLinkFromToken(payload.invite.token);
+            document.getElementById('tenantAdminInviteResult').innerHTML = `Invite link for ${esc(payload.invite.email)}: <a href="${esc(link)}" style="color:var(--accent); text-decoration:none; word-break:break-all;">${esc(link)}</a>`;
+            showTenantAlert(`Organization admin invite created for ${payload.tenant.name}.`);
+          } catch (err) {
+            showTenantAlert(`Could not create organization admin invite: ${err.message}`, 'error');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Create Admin Invite';
+          }
         });
 
         document.getElementById('spInviteBtn').addEventListener('click', async () => {
@@ -512,13 +691,36 @@
           btn.textContent = 'Creating...';
           try {
             const payload = await apiFetch('POST', '/onboarding/self-publisher/invite', { email, name, slug });
-            document.getElementById('spInviteResult').textContent = `Invite created for ${payload.invite.email}. Token: ${payload.invite.token}`;
+            const link = inviteLinkFromToken(payload.invite.token);
+            document.getElementById('spInviteResult').innerHTML = `Invite link for ${esc(payload.invite.email)}: <a href="${esc(link)}" style="color:var(--accent); text-decoration:none; word-break:break-all;">${esc(link)}</a>`;
             showTenantAlert(`Self-publisher invite created for ${payload.tenant.name}.`);
           } catch (err) {
             showTenantAlert(`Could not create self-publisher invite: ${err.message}`, 'error');
           } finally {
             btn.disabled = false;
             btn.textContent = 'Create Invite';
+          }
+        });
+
+        document.getElementById('superuserInviteBtn').addEventListener('click', async () => {
+          const email = document.getElementById('superuser-email').value.trim();
+          if (!email) {
+            showTenantAlert('Superuser email is required.', 'error');
+            return;
+          }
+          const btn = document.getElementById('superuserInviteBtn');
+          btn.disabled = true;
+          btn.textContent = 'Creating...';
+          try {
+            const invite = await apiFetch('POST', '/platform/superusers/invite', { email });
+            const link = inviteLinkFromToken(invite.token);
+            document.getElementById('superuserInviteResult').innerHTML = `Invite link for ${esc(invite.email)}: <a href="${esc(link)}" style="color:var(--accent); text-decoration:none; word-break:break-all;">${esc(link)}</a>`;
+            showTenantAlert(`Superuser invite created for ${invite.email}.`);
+          } catch (err) {
+            showTenantAlert(`Could not create superuser invite: ${err.message}`, 'error');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Create Superuser Invite';
           }
         });
       }

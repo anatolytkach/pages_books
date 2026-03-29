@@ -150,3 +150,88 @@ test("Unit: accepting self-publisher invite creates owner membership", async (t)
   assert.equal(membershipCreateBody.tenant_id, "tenant-1");
   assert.equal(membershipCreateBody.user_id, "author-1");
 });
+
+test("Unit: superuser can invite another superuser and acceptance grants access", async (t) => {
+  const createJwt = makeJwt({ sub: "super-1", email: "yarane@gmail.com" });
+  const createFetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "super-1", email: "yarane@gmail.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "superinvite-1",
+        email: "new-super@example.com",
+        token: "super-token-1",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreCreateFetch = patchGlobal("fetch", createFetchMock);
+
+  const createResponse = await callWorker({
+    url: "https://reader.pub/books/api/v1/platform/superusers/invite",
+    method: "POST",
+    headers: { authorization: `Bearer ${createJwt}` },
+    body: { email: "new-super@example.com" },
+    env: {
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const createPayload = await readJson(createResponse);
+  restoreCreateFetch();
+
+  assert.equal(createResponse.status, 201);
+  assert.equal(createPayload.email, "new-super@example.com");
+
+  const acceptJwt = makeJwt({ sub: "super-2", email: "new-super@example.com" });
+  const acceptFetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "super-2", email: "new-super@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response("{}", { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(
+      JSON.stringify({
+        id: "superinvite-1",
+        email: "new-super@example.com",
+        invited_by: "super-1",
+        accepted_at: null,
+        expires_at: "2099-01-01T00:00:00.000Z",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response("{}", { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(
+      JSON.stringify({ user_id: "super-2", granted_by: "super-1" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ id: "superinvite-1", accepted_at: "2026-03-28T00:00:00.000Z", accepted_by: "super-2" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreAcceptFetch = patchGlobal("fetch", acceptFetchMock);
+  t.after(restoreAcceptFetch);
+
+  const acceptResponse = await callWorker({
+    url: "https://reader.pub/books/api/v1/invitations/accept",
+    method: "POST",
+    headers: { authorization: `Bearer ${acceptJwt}` },
+    body: { token: "super-token-1" },
+    env: {
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const acceptPayload = await readJson(acceptResponse);
+
+  assert.equal(acceptResponse.status, 200);
+  assert.equal(acceptPayload.invite_type, "platform_superuser");
+  assert.equal(acceptPayload.role, "superuser");
+
+  const grantBody = JSON.parse(acceptFetchMock.calls[4][1].body);
+  assert.equal(grantBody.user_id, "super-2");
+  assert.equal(grantBody.granted_by, "super-1");
+});

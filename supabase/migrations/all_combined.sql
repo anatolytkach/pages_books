@@ -94,7 +94,7 @@ CREATE TABLE tenant_invitations (
         'acquisitions_manager', 'course_admin', 'member'
     )),
     invite_type TEXT NOT NULL DEFAULT 'tenant_reader' CHECK (invite_type IN (
-        'tenant_reader', 'self_publisher'
+        'tenant_reader', 'tenant_admin', 'self_publisher'
     )),
     invited_by UUID NOT NULL REFERENCES auth.users(id),
     token TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(32), 'hex'),
@@ -112,6 +112,22 @@ CREATE TABLE platform_superusers (
     granted_by UUID REFERENCES auth.users(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE platform_superuser_invitations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL,
+    token TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(32), 'hex'),
+    invited_by UUID NOT NULL REFERENCES auth.users(id),
+    accepted_by UUID REFERENCES auth.users(id),
+    accepted_at TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '7 days'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_platform_superuser_invitations_email
+    ON platform_superuser_invitations(email) WHERE accepted_at IS NULL;
+CREATE INDEX idx_platform_superuser_invitations_token
+    ON platform_superuser_invitations(token);
 
 -- updated_at trigger
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -138,6 +154,7 @@ ALTER TABLE tenant_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_invitations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_superusers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_superuser_invitations ENABLE ROW LEVEL SECURITY;
 
 -- user_profiles: users read any profile, update only own
 CREATE POLICY "Profiles are viewable by everyone"
@@ -260,6 +277,19 @@ CREATE POLICY "Users can see invitations to their email"
 CREATE POLICY "Superusers can see their own superuser row"
     ON platform_superusers FOR SELECT
     USING (user_id = auth.uid());
+
+CREATE POLICY "Superusers can manage superuser invitations"
+    ON platform_superuser_invitations FOR ALL
+    USING (
+        auth.uid() IN (
+            SELECT user_id FROM platform_superusers
+        )
+    )
+    WITH CHECK (
+        auth.uid() IN (
+            SELECT user_id FROM platform_superusers
+        )
+    );
 -- ============================================================
 -- Migration 002: Books & Publication
 -- ============================================================

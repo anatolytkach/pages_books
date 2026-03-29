@@ -445,6 +445,14 @@
         sessionStorage.removeItem('authInviteToken');
       }
 
+      function buildAuthCallbackUrl() {
+        const callbackUrl = new URL(window.location.origin + '/books/auth/callback');
+        if (inviteToken) callbackUrl.searchParams.set('invite', inviteToken);
+        const returnTo = params.get('returnTo');
+        if (returnTo && returnTo.startsWith('/')) callbackUrl.searchParams.set('returnTo', returnTo);
+        return callbackUrl.toString();
+      }
+
       // ── Check if already signed in ─────────────────
       (async () => {
         const { data: { session } } = await sb.auth.getSession();
@@ -517,7 +525,10 @@
         const { data, error } = await sb.auth.signUp({
           email,
           password,
-          options: { data: { display_name: displayName } },
+          options: {
+            data: { display_name: displayName },
+            emailRedirectTo: buildAuthCallbackUrl(),
+          },
         });
         setLoading(btn, false);
 
@@ -543,7 +554,7 @@
         const { error } = await sb.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: window.location.origin + '/books/auth/callback',
+            emailRedirectTo: buildAuthCallbackUrl(),
           },
         });
         setLoading(btn, false);
