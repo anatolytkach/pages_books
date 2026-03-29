@@ -663,7 +663,6 @@ git status --short --branch
   - скрывает hero и весь `Browse by Author` block;
   - показывает локальный список книг даже если Google Drive integration не настроен;
   - `Back to Catalog` находится в header;
-  - hero autostart в режиме `My Books` отключен.
 - Catalog open transition:
   - все обычные book-open links внутри каталога используют короткий micro-transition `book-opening` на `180ms` перед переходом в reader;
   - modified clicks (`cmd/ctrl/shift/alt`, middle click, `_blank`) не перехватываются;
