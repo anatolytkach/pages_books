@@ -643,8 +643,8 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        font-size: 12px;
-        letter-spacing: 0.12em;
+        font-size: clamp(13px, 1.35vw, 15px);
+        letter-spacing: 0.06em;
         color: var(--accent-2);
       }
 
@@ -706,6 +706,7 @@
         letter-spacing: 0.01em;
         box-shadow: 0 10px 24px rgba(15, 118, 110, 0.18);
         transition: transform 1000ms ease, filter 1000ms ease, box-shadow 1000ms ease;
+        cursor: pointer;
       }
 
       .catalogHeroButton:hover {
@@ -719,6 +720,8 @@
 
       .heroBookPickerSummary {
         list-style: none;
+        cursor: pointer;
+        user-select: none;
       }
 
       .heroBookPickerSummary::-webkit-details-marker {
@@ -730,6 +733,7 @@
         margin-left: 10px;
         font-size: 14px;
         line-height: 1;
+        pointer-events: none;
       }
 
       .heroBookPicker[open] .heroBookPickerSummary::after {
@@ -1724,6 +1728,11 @@
         .catalogHeroEyebrow,
         .catalogHeroActions {
           justify-content: center;
+        }
+        .catalogHeroEyebrow {
+          font-size: clamp(13px, 2.8vw, 15px);
+          letter-spacing: 0.04em;
+          white-space: nowrap;
         }
         .catalogHeroText,
         .catalogHeroTrust {
