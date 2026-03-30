@@ -128,15 +128,34 @@ body.dark-ui .arrow:hover {
 }
 
 /* Light theme: show arrow on hover (desktop) */
-body:not(.dark-ui) .arrow:hover {
-  color: #888888 !important;
-  opacity: 0.75;
+html.is-desktop #prev,
+html.is-desktop #next {
+  width: calc(var(--arrow-hit) + var(--arrow-gap));
 }
 
-body:not(.dark-ui) .arrow:active,
-body:not(.dark-ui) .arrow.active {
-  color: #888888 !important;
-  opacity: 0.75;
+html.is-desktop #prev {
+  left: 0;
+}
+
+html.is-desktop #next {
+  right: 0;
+}
+
+html.is-desktop body:not(.dark-ui) .arrow {
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+html.is-desktop body:not(.dark-ui) .arrow:hover {
+  color: #8d8d8d !important;
+  background: rgba(236, 236, 236, 0.98);
+  opacity: 1;
+}
+
+html.is-desktop body:not(.dark-ui) .arrow:active,
+html.is-desktop body:not(.dark-ui) .arrow.active {
+  color: #8d8d8d !important;
+  background: rgba(230, 230, 230, 0.99);
+  opacity: 1;
 }
 
 body.dark-ui .arrow:active,
