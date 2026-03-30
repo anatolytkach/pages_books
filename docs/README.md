@@ -1,6 +1,6 @@
 # Документация проекта reader.pub (handover)
 
-Дата актуальности: 2026-03-18
+Дата актуальности: 2026-03-30
 
 ## 1. Назначение проекта
 
@@ -620,15 +620,16 @@ git status --short --branch
 - search results сортируются по алфавиту:
   - сначала authors;
   - затем titles;
-- search results рендерятся постранично на frontend по `24` элементов на страницу;
+- search results рендерятся постранично на frontend по `12` элементов на страницу;
 - pager search results показывается и сверху, и снизу списка;
 - при перелистывании search results frontend делает мягкий scroll к началу search-блока;
-- на author page длинные списки книг раскрываются кнопкой `Show more` по `24` книг за шаг.
+- author books и category books используют обычный pager `Showing X-Y of Z`, без `Show more`.
 
 ### Текущее UI-поведение каталога `/books/`
 
 - Header:
   - desktop search живет в header;
+  - бренд в header: `WeRead` с subtitle `Powered by ReaderPub`;
   - на desktop в header находятся меню `Newest`, `Popular`, `By Author`, `By Category`, search и `My Books`;
   - на узких экранах header использует гамбургер-меню для навигации, а search остается отдельной строкой под первой строкой header;
   - mobile hamburger раскрывается на всю ширину и перекрывает search, а не раздвигает layout;
@@ -636,22 +637,28 @@ git status --short --branch
   - активный header menu item временно становится черным и некликабельным до следующего ручного scroll.
 - Landing layout:
   - hero состоит из CTA-карточки слева и изображения readers справа;
+  - CTA не автозапускает demo-reader и не открывает одну заранее выбранную книгу;
+  - CTA раскрывает dropdown `Choose a book to try in WeRead` с 5 известными книгами, title/author и маленькими обложками;
   - блок `Browse by Author` расположен после `Browse by Category`;
   - landing order сейчас такой: `Newest Releases` -> `Popular Titles` -> `Browse by Category` -> `Browse by Author`.
 - `Browse by Category`:
-  - показывает все категории, без client-side лимита;
-  - категории отсортированы по алфавиту;
-  - счетчики книг на category chips не показываются.
+  - больше не рендерится как плоский список chips;
+  - показывает 9 Gutenberg-групп категорий;
+  - каждая группа — отдельная dropdown-выкидушка поверх страницы;
+  - внутри каждой выкидушки категории отсортированы по алфавиту;
+  - длинные category labels переносятся на новую строку, а не обрезаются;
+  - grouping строится по Gutenberg taxonomy metadata (`groupTitle`, `groupSlug`, `groupOrder`) с client-side fallback mapping на случай старого payload.
 - `Browse by Author`:
   - собран в одну card-like секцию с закруглением, как `Browse by Category`;
-  - внутри секции находятся title, language selector, breadcrumbs и динамический browse content;
+  - внутри секции находятся title, language selector, breadcrumbs, reset-control и динамический browse content;
   - клики по буквам/префиксам/авторам не должны убирать остальные landing sections;
   - внутренний browse content обновляется локально внутри блока, без перерисовки всей страницы.
+  - если пользователь находится на уровне `prefixes`, `prefix` или `author`, справа в строке заголовка появляется reset-иконка (undo), которая сбрасывает секцию в исходный `letters` state без прыжка по странице.
 - Book sections (`Newest Releases`, `Popular Titles`, author/category listings, search results, `My Books`):
   - используют единый card-style книжных карточек;
   - счетчик `N books` показывается в той же строке, что и заголовок секции, справа;
   - list/grid toggle для каталоговых книжных секций убран;
-  - книги показываются постранично по `24` на страницу с pager формата `Showing X-Y of Z`;
+  - книги показываются постранично по `12` на страницу с pager формата `Showing X-Y of Z`;
   - названия книг в карточках — темно-зеленые, underline только на hover;
   - обложка уменьшена, а текстовый блок справа вертикально центрируется относительно высоты карточки.
 - Search UX:
@@ -689,6 +696,17 @@ git status --short --branch
 - count секции должен отражать все книги, попавшие в это окно;
 - rebuild `newest` требует актуального базового `reader_lang_indexes`: если свежие книги есть в pipeline state, но отсутствуют в author indexes, секция будет неполной;
 - после мартовской починки 2026-03-29 опубликованный `discover/newest.json` снова содержит полный набор книг из текущего 30-дневного окна.
+
+### Categories taxonomy: текущее правило данных
+
+- `tools/catalog/sync_gutenberg_indexes.py` теперь сохраняет Gutenberg grouping metadata для category summary payloads;
+- на каждой категории могут присутствовать:
+  - `groupTitle`
+  - `groupSlug`
+  - `groupOrder`
+- summary payload также может содержать top-level `groups[]`;
+- это grouping metadata живет на уровне taxonomy категорий, а не на уровне отдельной книги;
+- оба Gutenberg ingest-скрипта (`tools/gutenberg/gutenberg_manual_ingest.py` и `tools/gutenberg/update_gutenberg_catalog.py`) уже вызывают `sync_gutenberg_indexes.py` после rebuild author/book indexes и `book-locations`, поэтому новые книги после ingest автоматически попадают в обновленные category indexes и в корректно сгруппированную категориальную структуру.
 
 Reader (`reader/index.html` + `reader/js/*`) требует:
 - книгу в `/books/content/<id>/...` с валидным `META-INF/container.xml`.

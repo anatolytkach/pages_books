@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -63,8 +64,19 @@ def fetch_html(url: str, timeout: int, retries: int = 3, retry_delay: float = 1.
                 raise
         except URLError as error:
             last_error = error
-            if attempt >= retries:
-                raise
+            try:
+                result = subprocess.run(
+                    ["curl", "-L", "-sS", "-A", USER_AGENT, "--max-time", str(timeout), url],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    check=True,
+                )
+                return result.stdout
+            except Exception as curl_error:
+                last_error = curl_error
+                if attempt >= retries:
+                    raise
         if attempt < retries:
             time.sleep(retry_delay * (attempt + 1))
     if last_error:
@@ -102,6 +114,9 @@ class CategorySource:
     title: str
     url: str
     source_id: str
+    group_title: str = ""
+    group_slug: str = ""
+    group_order: int = 0
 
 
 class GutenbergCategoriesPageParser(HTMLParser):
@@ -110,9 +125,17 @@ class GutenbergCategoriesPageParser(HTMLParser):
         self.base_url = base_url
         self.current_href = ""
         self.current_text: List[str] = []
+        self.current_group_text: List[str] = []
+        self.current_group_title = ""
+        self.current_group_order = 0
         self.categories: List[CategorySource] = []
+        self._capturing_group = False
 
     def handle_starttag(self, tag, attrs):
+        if tag == "h2":
+            self._capturing_group = True
+            self.current_group_text = []
+            return
         if tag != "a":
             return
         attr = dict(attrs)
@@ -123,10 +146,20 @@ class GutenbergCategoriesPageParser(HTMLParser):
         self.current_text = []
 
     def handle_data(self, data):
+        if self._capturing_group:
+            self.current_group_text.append(data)
         if self.current_href:
             self.current_text.append(data)
 
     def handle_endtag(self, tag):
+        if tag == "h2" and self._capturing_group:
+            self._capturing_group = False
+            group_title = clean_text("".join(self.current_group_text))
+            self.current_group_text = []
+            if group_title:
+                self.current_group_title = group_title
+                self.current_group_order += 1
+            return
         if tag == "a" and self.current_href:
             text = clean_text("".join(self.current_text))
             href = self.current_href
@@ -135,7 +168,16 @@ class GutenbergCategoriesPageParser(HTMLParser):
             if not text or "/ebooks/bookshelf/" not in href:
                 return
             source_id = urlparse(href).path.rstrip("/").split("/")[-1]
-            self.categories.append(CategorySource(title=text, url=href, source_id=source_id))
+            self.categories.append(
+                CategorySource(
+                    title=text,
+                    url=href,
+                    source_id=source_id,
+                    group_title=self.current_group_title,
+                    group_slug=slugify(self.current_group_title),
+                    group_order=self.current_group_order,
+                )
+            )
 
 
 class GutenbergCategoryDetailParser(HTMLParser):
@@ -320,6 +362,8 @@ def build_category_indexes(
     global_details: Dict[str, dict] = {}
     lang_summaries: Dict[str, List[dict]] = {lang: [] for lang in language_books}
     lang_details: Dict[str, Dict[str, dict]] = {lang: {} for lang in language_books}
+    global_groups: Dict[str, dict] = {}
+    lang_groups: Dict[str, Dict[str, dict]] = {lang: {} for lang in language_books}
     parse_stats = {
         "categoriesFound": len(categories),
         "categoriesParsed": 0,
@@ -359,29 +403,100 @@ def build_category_indexes(
         if matched_global:
             parse_stats["categoriesMatched"] += 1
             books_payload = [book.to_payload() for book in matched_global]
-            global_summary.append({"slug": slug, "title": category.title, "count": len(books_payload)})
-            global_details[slug] = {"slug": slug, "title": category.title, "count": len(books_payload), "books": books_payload}
+            summary_item = {
+                "slug": slug,
+                "title": category.title,
+                "count": len(books_payload),
+                "groupTitle": category.group_title,
+                "groupSlug": category.group_slug,
+                "groupOrder": category.group_order,
+            }
+            global_summary.append(summary_item)
+            global_details[slug] = {
+                "slug": slug,
+                "title": category.title,
+                "count": len(books_payload),
+                "groupTitle": category.group_title,
+                "groupSlug": category.group_slug,
+                "groupOrder": category.group_order,
+                "books": books_payload,
+            }
+            if category.group_slug:
+                group_entry = global_groups.setdefault(
+                    category.group_slug,
+                    {
+                        "slug": category.group_slug,
+                        "title": category.group_title,
+                        "order": category.group_order,
+                        "count": 0,
+                        "totalMatchedBooks": 0,
+                        "categories": [],
+                    },
+                )
+                group_entry["count"] += 1
+                group_entry["totalMatchedBooks"] += len(books_payload)
+                group_entry["categories"].append(summary_item)
 
         for lang, book_map in language_books.items():
             matched_lang = [book_map[book_id] for book_id in ids if book_id in book_map]
             if not matched_lang:
                 continue
             books_payload = [book.to_payload() for book in matched_lang]
-            lang_summaries[lang].append({"slug": slug, "title": category.title, "count": len(books_payload)})
-            lang_details[lang][slug] = {"slug": slug, "title": category.title, "count": len(books_payload), "books": books_payload}
+            summary_item = {
+                "slug": slug,
+                "title": category.title,
+                "count": len(books_payload),
+                "groupTitle": category.group_title,
+                "groupSlug": category.group_slug,
+                "groupOrder": category.group_order,
+            }
+            lang_summaries[lang].append(summary_item)
+            lang_details[lang][slug] = {
+                "slug": slug,
+                "title": category.title,
+                "count": len(books_payload),
+                "groupTitle": category.group_title,
+                "groupSlug": category.group_slug,
+                "groupOrder": category.group_order,
+                "books": books_payload,
+            }
+            if category.group_slug:
+                group_entry = lang_groups[lang].setdefault(
+                    category.group_slug,
+                    {
+                        "slug": category.group_slug,
+                        "title": category.group_title,
+                        "order": category.group_order,
+                        "count": 0,
+                        "totalMatchedBooks": 0,
+                        "categories": [],
+                    },
+                )
+                group_entry["count"] += 1
+                group_entry["totalMatchedBooks"] += len(books_payload)
+                group_entry["categories"].append(summary_item)
 
     global_summary.sort(key=lambda item: (-item["count"], item["title"].lower()))
     for items in lang_summaries.values():
         items.sort(key=lambda item: (-item["count"], item["title"].lower()))
 
+    def finalize_groups(groups: Dict[str, dict]) -> List[dict]:
+        items = list(groups.values())
+        items.sort(key=lambda item: (item["order"], item["title"].lower()))
+        for item in items:
+            item["categories"].sort(key=lambda category: category["title"].lower())
+        return items
+
     global_summary_payload = {
         "categories": global_summary,
+        "groups": finalize_groups(global_groups),
         "totalCategories": len(global_summary),
         "totalMatchedBooks": sum(item["count"] for item in global_summary),
     }
     lang_summary_payloads = {
         lang: {
             "categories": items,
+            "groups": finalize_groups(lang_groups[lang]),
             "totalCategories": len(items),
             "totalMatchedBooks": sum(item["count"] for item in items),
         }

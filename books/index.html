@@ -102,6 +102,14 @@
         gap: 12px;
       }
 
+      .brandText {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        min-width: 0;
+      }
+
       .brandLink {
         color: inherit;
         text-decoration: none;
@@ -120,6 +128,14 @@
         font-weight: 700;
         color: var(--accent);
         letter-spacing: 0.4px;
+        min-width: 0;
+      }
+
+      .brandSubtitle {
+        font-size: 14px;
+        line-height: 1.2;
+        font-weight: 400;
+        color: #586273;
         min-width: 0;
       }
 
@@ -468,12 +484,60 @@
         margin-bottom: 18px;
       }
 
+      .browseHeaderTop {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
       .browseHeaderTitle {
         font-family: "Playfair Display", "Times New Roman", serif;
         font-size: 26px;
         line-height: 1.1;
         color: var(--ink);
-        margin-bottom: 14px;
+        margin: 0;
+      }
+
+      .browseResetBtn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        color: #0d6b66;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex: 0 0 auto;
+        padding: 0;
+      }
+
+      .browseResetBtn:hover,
+      .browseResetBtn:focus-visible {
+        color: #0b5d59;
+        background: transparent;
+      }
+
+      .browseResetBtn[hidden] {
+        display: none;
+      }
+
+      .browseResetBtnIcon {
+        width: 15px;
+        height: 15px;
+        display: block;
+        background-color: currentColor;
+        -webkit-mask-image: url("/books/assets/undo.svg");
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        -webkit-mask-size: contain;
+        mask-image: url("/books/assets/undo.svg");
+        mask-repeat: no-repeat;
+        mask-position: center;
+        mask-size: contain;
       }
 
       .browseContent {
@@ -534,7 +598,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(220px, 1fr);
         gap: 24px;
-        align-items: center;
+        align-items: stretch;
       }
 
       .catalogHeroReaders {
@@ -565,9 +629,10 @@
         flex-direction: column;
         justify-content: center;
         gap: 14px;
+        height: 100%;
         min-height: 100%;
         max-width: min(100%, 680px);
-        align-self: center;
+        align-self: stretch;
         border: none;
         background: transparent;
         box-shadow: none;
@@ -593,7 +658,7 @@
         line-height: 0.98;
         letter-spacing: -0.03em;
         color: #14202f;
-        max-width: 14ch;
+        max-width: 15ch;
       }
 
       .catalogHeroText {
@@ -608,12 +673,6 @@
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
-      }
-
-      .catalogHeroTrust {
-        font-size: 15px;
-        line-height: 1.62;
-        color: var(--accent-2);
       }
 
       .catalogHeroButton {
@@ -636,6 +695,94 @@
       .catalogHeroButton:hover {
         text-decoration: none;
         background: linear-gradient(180deg, #13796f 0%, #0d675f 100%);
+      }
+
+      .heroBookPicker {
+        position: relative;
+      }
+
+      .heroBookPickerSummary {
+        list-style: none;
+      }
+
+      .heroBookPickerSummary::-webkit-details-marker {
+        display: none;
+      }
+
+      .heroBookPickerSummary::after {
+        content: "▾";
+        margin-left: 10px;
+        font-size: 14px;
+        line-height: 1;
+      }
+
+      .heroBookPicker[open] .heroBookPickerSummary::after {
+        content: "▴";
+      }
+
+      .heroBookPickerMenu {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        z-index: 30;
+        width: min(360px, calc(100vw - 48px));
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: #fffdfa;
+        box-shadow: 0 18px 38px rgba(20, 32, 47, 0.12);
+      }
+
+      .heroBookOption {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .heroBookOptionCover {
+        width: 34px;
+        height: 48px;
+        border-radius: 5px;
+        object-fit: cover;
+        display: block;
+      }
+
+      .heroBookOptionBody {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+      }
+
+      .heroBookOption:hover {
+        background: rgba(2, 143, 128, 0.07);
+        text-decoration: none;
+      }
+
+      .heroBookOptionTitle {
+        font-size: 16px;
+        line-height: 1.25;
+        font-weight: 600;
+        color: #0d6b66;
+      }
+
+      .heroBookOptionAuthor {
+        font-size: 14px;
+        line-height: 1.35;
+        color: #586273;
+      }
+
+      .catalogHeroTrust {
+        max-width: 30rem;
+        font-size: 15px;
+        line-height: 1.62;
+        color: var(--accent-2);
       }
 
       .catalogHeroPreview {
@@ -967,28 +1114,102 @@
         color: var(--muted);
       }
 
-      .categoryChips {
+      .categoryGroupsGrid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        align-items: start;
+        overflow: visible;
+      }
+
+      .categoryGroupPicker {
+        position: relative;
+        min-width: 0;
+      }
+
+      .categoryGroupSummary {
+        list-style: none;
         display: flex;
-        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 18px;
+        cursor: pointer;
+        border: 1px solid var(--border);
+        background: #fffdfa;
+        border-radius: var(--radius-md);
+      }
+
+      .categoryGroupSummary::-webkit-details-marker {
+        display: none;
+      }
+
+      .categoryGroupPicker[open] .categoryGroupSummary {
+        border-color: rgba(13, 107, 102, 0.28);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+      }
+
+      .categoryGroupTitle {
+        font-family: inherit;
+        font-size: 18px;
+        line-height: 1.18;
+        color: #0d6b66;
+        margin: 0;
+        font-weight: 600;
+      }
+
+      .categoryGroupChevron {
+        font-size: 18px;
+        line-height: 1;
+        color: var(--accent-2);
+        transition: transform 180ms ease;
+        flex: 0 0 auto;
+      }
+
+      .categoryGroupPicker[open] .categoryGroupChevron {
+        transform: rotate(180deg);
+      }
+
+      .categoryGroupMenu {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        z-index: 30;
+        padding: 14px 18px 18px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: var(--radius-md);
+        background: #fffdfa;
+        box-shadow: 0 20px 36px rgba(15, 23, 42, 0.14);
+      }
+
+      .categoryGroupList {
+        list-style: disc;
+        padding-left: 20px;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
         gap: 10px;
       }
 
-      .categoryChip {
-        border: 1px solid var(--border);
-        background: #fffdfa;
-        border-radius: 999px;
+      .categoryGroupList li {
+        margin: 0;
         color: var(--ink);
-        padding: 9px 12px;
-        font-size: 14px;
-        line-height: 1.2;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
       }
 
-      .categoryChip:hover {
-        background: rgba(45, 111, 107, 0.08);
+      .categoryGroupLink {
+        color: #0d6b66;
+        text-decoration: none;
+        font-size: 15px;
+        line-height: 1.3;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
+      }
+
+      .categoryGroupLink:hover,
+      .categoryGroupLink:focus-visible {
+        text-decoration: underline;
       }
 
       .sectionMoreBtn {
@@ -1504,6 +1725,9 @@
         .bookGrid {
           grid-template-columns: 1fr;
         }
+        .categoryGroupsGrid {
+          grid-template-columns: 1fr;
+        }
         .bookCard {
           grid-template-columns: 68px minmax(0, 1fr);
           min-height: 120px;
@@ -1544,7 +1768,10 @@
       <header>
         <a class="brand brandLink" id="brandLink" href="#view=letters">
           <img class="brandLogo" src="/books/assets/logo.svg" alt="ReaderPub" />
-          <div class="title">ReaderPub</div>
+          <div class="brandText">
+            <div class="title">WeRead</div>
+            <div class="brandSubtitle">Powered by ReaderPub</div>
+          </div>
         </a>
         <div class="headerActions">
           <form id="searchForm" class="searchForm headerSearchForm" role="search">
@@ -1589,12 +1816,51 @@
           <div class="catalogHeroTop">
             <div class="catalogHeroPanel catalogHeroCopy">
               <div class="catalogHeroEyebrow">WeRead – THE BROWSER E-READER</div>
-              <h1 class="catalogHeroTitle">A real reading app — in your browser</h1>
+              <h1 class="catalogHeroTitle">Genuine reading app — in your browser</h1>
               <p class="catalogHeroText">Smooth pages, instant open, no installs.<br />Feels like an app. Works like the web.</p>
               <div class="catalogHeroActions">
-                <a id="heroStartLink" class="catalogHeroButton" href="/books/reader/?id=1342&amp;entry=hero" target="_blank" rel="noopener noreferrer">Start reading in WeRead</a>
+                <details class="heroBookPicker">
+                  <summary id="heroStartLink" class="catalogHeroButton heroBookPickerSummary">Choose a book to try in WeRead</summary>
+                  <div class="heroBookPickerMenu">
+                    <a class="heroBookOption" href="/books/reader/?id=1342&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                      <img class="heroBookOptionCover" src="/books/content/1342/OEBPS/3996567743618079316_cover.jpg" alt="" />
+                      <span class="heroBookOptionBody">
+                        <span class="heroBookOptionTitle">Pride and Prejudice</span>
+                        <span class="heroBookOptionAuthor">Jane Austen</span>
+                      </span>
+                    </a>
+                    <a class="heroBookOption" href="/books/reader/?id=11&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                      <img class="heroBookOptionCover" src="/books/content/11/OEBPS/4500724211512504931_cover.jpg" alt="" />
+                      <span class="heroBookOptionBody">
+                        <span class="heroBookOptionTitle">Alice's Adventures in Wonderland</span>
+                        <span class="heroBookOptionAuthor">Lewis Carroll</span>
+                      </span>
+                    </a>
+                    <a class="heroBookOption" href="/books/reader/?id=84&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                      <img class="heroBookOptionCover" src="/books/content/84/OEBPS/6171239746783589600_cover.jpg" alt="" />
+                      <span class="heroBookOptionBody">
+                        <span class="heroBookOptionTitle">Frankenstein</span>
+                        <span class="heroBookOptionAuthor">Mary Wollstonecraft Shelley</span>
+                      </span>
+                    </a>
+                    <a class="heroBookOption" href="/books/reader/?id=1661&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                      <img class="heroBookOptionCover" src="/books/content/1661/OEBPS/5463403510293679682_cover.jpg" alt="" />
+                      <span class="heroBookOptionBody">
+                        <span class="heroBookOptionTitle">The Adventures of Sherlock Holmes</span>
+                        <span class="heroBookOptionAuthor">Arthur Conan Doyle</span>
+                      </span>
+                    </a>
+                    <a class="heroBookOption" href="/books/reader/?id=2701&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                      <img class="heroBookOptionCover" src="/books/content/2701/OEBPS/4318954881170042010_cover.jpg" alt="" />
+                      <span class="heroBookOptionBody">
+                        <span class="heroBookOptionTitle">Moby-Dick</span>
+                        <span class="heroBookOptionAuthor">Herman Melville</span>
+                      </span>
+                    </a>
+                  </div>
+                </details>
               </div>
-              <div class="catalogHeroTrust">80,000+ books ready to read</div>
+              <div class="catalogHeroTrust">80,000+ books available. Pick one to try right now.</div>
             </div>
             <div class="catalogHeroReaders" aria-hidden="true">
               <img src="/books/assets/readers1.webp" alt="" />
@@ -1603,7 +1869,12 @@
         </section>
         <div id="browseHeaderDefaultMount"></div>
         <section id="browseHeader" class="browseHeader" aria-label="Browse by author">
-          <div class="browseHeaderTitle">Browse by Author</div>
+          <div class="browseHeaderTop">
+            <div class="browseHeaderTitle">Browse by Author</div>
+            <button id="browseResetBtn" class="browseResetBtn" type="button" hidden aria-label="Reset Browse by Author">
+              <span class="browseResetBtnIcon" aria-hidden="true"></span>
+            </button>
+          </div>
           <div class="browseControlsRow">
             <div class="catalogControls">
               <div class="searchWrap">
@@ -1652,11 +1923,13 @@
         const els = {
           hero: document.getElementById("catalogHero"),
           heroStartLink: document.getElementById("heroStartLink"),
+          heroBookPicker: document.querySelector(".heroBookPicker"),
           browseHeaderDefaultMount: document.getElementById("browseHeaderDefaultMount"),
           browseHeader: document.getElementById("browseHeader"),
           browseContent: document.getElementById("browseContent"),
           breadcrumbs: document.getElementById("breadcrumbs"),
           breadcrumbsRow: document.getElementById("breadcrumbsRow"),
+          browseResetBtn: document.getElementById("browseResetBtn"),
           headerBackLink: document.getElementById("headerBackLink"),
           headerNewestLink: document.getElementById("headerNewestLink"),
           headerPopularLink: document.getElementById("headerPopularLink"),
@@ -1686,8 +1959,9 @@
         let activeHeaderMenu = "";
         let pendingScrollRestoreY = null;
         let headerMenuScrollLock = false;
-        const SEARCH_PAGE_SIZE = 24;
-        const AUTHOR_BOOKS_PAGE_SIZE = 24;
+        const SEARCH_PAGE_SIZE = 12;
+        const AUTHOR_BOOKS_PAGE_SIZE = 12;
+        const SECTION_BOOKS_PAGE_SIZE = 12;
         let searchState = {
           query: "",
           items: [],
@@ -1829,10 +2103,173 @@
           zh: "Chinese",
         };
 
+        const GUTENBERG_CATEGORY_GROUPS = [
+          {
+            title: "Literature",
+            slug: "literature",
+            categories: [
+              "Adventure",
+              "American Literature",
+              "British Literature",
+              "French Literature",
+              "German Literature",
+              "Russian Literature",
+              "Classics of Literature",
+              "Biographies",
+              "Novels",
+              "Short Stories",
+              "Poetry",
+              "Plays/Films/Dramas",
+              "Romance",
+              "Science-Fiction & Fantasy",
+              "Crime, Thrillers & Mystery",
+              "Mythology, Legends & Folklore",
+              "Humour",
+              "Children & Young Adult Reading",
+              "Literature - Other",
+            ],
+          },
+          {
+            title: "Science & Technology",
+            slug: "science-technology",
+            categories: [
+              "Engineering & Technology",
+              "Mathematics",
+              "Science - Physics",
+              "Science - Chemistry/Biochemistry",
+              "Science - Biology",
+              "Science - Earth/Agricultural/Farming",
+              "Research Methods/Statistics/Information Sys",
+              "Environmental Issues",
+            ],
+          },
+          {
+            title: "History",
+            slug: "history",
+            categories: [
+              "History - American",
+              "History - British",
+              "History - European",
+              "History - Ancient",
+              "History - Medieval/Middle Ages",
+              "History - Early Modern (c. 1450-1750)",
+              "History - Modern (1750+)",
+              "History - Religious",
+              "History - Royalty",
+              "History - Warfare",
+              "History - Schools & Universities",
+              "History - Other",
+              "Archaeology & Anthropology",
+            ],
+          },
+          {
+            title: "Social Sciences & Society",
+            slug: "social-sciences-society",
+            categories: [
+              "Business/Management",
+              "Economics",
+              "Law & Criminology",
+              "Gender & Sexuality Studies",
+              "Psychiatry/Psychology",
+              "Sociology",
+              "Politics",
+              "Parenthood & Family Relations",
+              "Old Age & the Elderly",
+            ],
+          },
+          {
+            title: "Arts & Culture",
+            slug: "arts-culture",
+            categories: [
+              "Art",
+              "Architecture",
+              "Music",
+              "Fashion",
+              "Journalism/Media/Writing",
+              "Language & Communication",
+              "Essays, Letters & Speeches",
+            ],
+          },
+          {
+            title: "Religion & Philosophy",
+            slug: "religion-philosophy",
+            categories: ["Religion/Spirituality", "Philosophy & Ethics"],
+          },
+          {
+            title: "Lifestyle & Hobbies",
+            slug: "lifestyle-hobbies",
+            categories: [
+              "Cooking & Drinking",
+              "Sports/Hobbies",
+              "How To ...",
+              "Travel Writing",
+              "Nature/Gardening/Animals",
+              "Sexuality & Erotica",
+            ],
+          },
+          {
+            title: "Health & Medicine",
+            slug: "health-medicine",
+            categories: ["Health & Medicine", "Drugs/Alcohol/Pharmacology", "Nutrition"],
+          },
+          {
+            title: "Education & Reference",
+            slug: "education-reference",
+            categories: ["Encyclopedias/Dictionaries/Reference", "Teaching & Education", "Reports & Conference Proceedings", "Journals"],
+          },
+        ];
+        const GUTENBERG_CATEGORY_TO_GROUP = (() => {
+          const map = new Map();
+          GUTENBERG_CATEGORY_GROUPS.forEach((group, index) => {
+            (group.categories || []).forEach((title) => {
+              map.set(String(title).toLowerCase(), {
+                groupTitle: group.title,
+                groupSlug: group.slug,
+                groupOrder: index + 1,
+              });
+            });
+          });
+          return map;
+        })();
+
         function formatLanguageLabel(code) {
           const key = String(code || "").toLowerCase();
           if (!key) return "";
           return LANGUAGE_NAMES[key] || LANGUAGE_NAMES[key.split("-")[0]] || key.toUpperCase();
+        }
+
+        function buildGroupedCategories(categories) {
+          const groups = new Map();
+          (categories || []).forEach((category) => {
+            if (!category) return;
+            const fallback = GUTENBERG_CATEGORY_TO_GROUP.get(String(category.title || "").toLowerCase()) || null;
+            const groupTitle = String(category.groupTitle || (fallback && fallback.groupTitle) || "").trim();
+            const groupSlug = String(category.groupSlug || (fallback && fallback.groupSlug) || "").trim();
+            const groupOrder = parseNumber(category.groupOrder ?? (fallback && fallback.groupOrder)) || 999;
+            if (!groupTitle || !groupSlug) return;
+            const enriched = {
+              ...category,
+              groupTitle,
+              groupSlug,
+              groupOrder,
+            };
+            const entry = groups.get(groupSlug) || {
+              title: groupTitle,
+              slug: groupSlug,
+              order: groupOrder,
+              categories: [],
+            };
+            entry.categories.push(enriched);
+            groups.set(groupSlug, entry);
+          });
+          return Array.from(groups.values())
+            .map((group) => ({
+              ...group,
+              categories: group.categories
+                .slice()
+                .sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), undefined, { sensitivity: "base" })),
+            }))
+            .sort((a, b) => (a.order - b.order) || String(a.title || "").localeCompare(String(b.title || ""), undefined, { sensitivity: "base" }));
         }
 
         function el(tag, className, text) {
@@ -2025,6 +2462,13 @@
           if (els.breadcrumbsRow) {
             els.breadcrumbsRow.style.display = compact.length ? "" : "none";
           }
+        }
+
+        function updateBrowseResetControl(state) {
+          if (!els.browseResetBtn) return;
+          const current = state || parseState();
+          const isActiveBrowseState = current.view === "prefixes" || current.view === "prefix" || current.view === "author";
+          els.browseResetBtn.hidden = !isActiveBrowseState;
         }
 
         function formatPrefixLabel(value) {
@@ -3467,7 +3911,7 @@
           const list = popular.lists[listKey] || { books: [], count: 0 };
           const sortedBooks = sortBooks(list.books, sectionSortState.popular || "popularity");
           const total = sortedBooks.length;
-          const pageSize = 24;
+          const pageSize = SECTION_BOOKS_PAGE_SIZE;
           const totalPages = Math.max(1, Math.ceil(total / pageSize));
           const page = Math.min(totalPages, Math.max(1, parseNumber(sectionPageState.popular) || 1));
           sectionPageState.popular = page;
@@ -3498,7 +3942,7 @@
           const newestBooks = Array.isArray(newest && newest.books) ? newest.books : [];
           const sortedBooks = sortBooks(newestBooks, sectionSortState.newest || "release");
           const total = sortedBooks.length;
-          const pageSize = 24;
+          const pageSize = SECTION_BOOKS_PAGE_SIZE;
           const totalPages = Math.max(1, Math.ceil(total / pageSize));
           const page = Math.min(totalPages, Math.max(1, parseNumber(sectionPageState.newest) || 1));
           sectionPageState.newest = page;
@@ -3531,29 +3975,45 @@
             section.appendChild(el("div", "loading", "Categories are not available yet."));
             return section;
           }
-          const chips = el("div", "categoryChips");
-          const sortedCategories = categories
-            .slice()
-            .sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), undefined, { sensitivity: "base" }));
-
-          sortedCategories.forEach((category) => {
-            const btn = el("button", "categoryChip");
-            btn.type = "button";
-            btn.appendChild(el("span", null, category.title));
-            btn.addEventListener("click", () =>
-              navigate({
-                view: "category",
-                category: category.slug,
-                letter: "",
-                prefix: "",
-                authorKey: "",
-                authorName: "",
-              })
-            );
-            chips.appendChild(btn);
+          const groups = buildGroupedCategories(categories);
+          if (!groups.length) {
+            section.appendChild(el("div", "loading", "Category groups are not available yet."));
+            return section;
+          }
+          const grid = el("div", "categoryGroupsGrid");
+          groups.forEach((group) => {
+            const card = document.createElement("details");
+            card.className = "categoryGroupPicker";
+            const summary = document.createElement("summary");
+            summary.className = "categoryGroupSummary";
+            summary.appendChild(el("div", "categoryGroupTitle", group.title));
+            summary.appendChild(el("span", "categoryGroupChevron", "▾"));
+            card.appendChild(summary);
+            const body = el("div", "categoryGroupMenu");
+            const list = el("ul", "categoryGroupList");
+            group.categories.forEach((category) => {
+              const item = el("li");
+              const link = el("a", "categoryGroupLink", category.title);
+              link.href = `#view=category&category=${encodeURIComponent(category.slug)}`;
+              link.addEventListener("click", (event) => {
+                event.preventDefault();
+                navigate({
+                  view: "category",
+                  category: category.slug,
+                  letter: "",
+                  prefix: "",
+                  authorKey: "",
+                  authorName: "",
+                });
+              });
+              item.appendChild(link);
+              list.appendChild(item);
+            });
+            body.appendChild(list);
+            card.appendChild(body);
+            grid.appendChild(card);
           });
-
-          section.appendChild(chips);
+          section.appendChild(grid);
           return section;
         }
 
@@ -3787,7 +4247,7 @@
           }
           const section = el("section", "landingSection");
           const sortedBooks = sortBooks(books, categoryBooksState.sort || "popularity");
-          const pageSize = 24;
+          const pageSize = SECTION_BOOKS_PAGE_SIZE;
           const page = Math.max(1, parseNumber(categoryBooksState.page) || 1);
           const startIndex = (page - 1) * pageSize;
           const pageBooks = sortedBooks.slice(startIndex, startIndex + pageSize);
@@ -4526,6 +4986,7 @@
             restoreBrowseHeaderDefaultPosition();
           }
           updateCatalogChrome(state);
+          updateBrowseResetControl(state);
 
           try {
             await loadConfig(nonce);
@@ -4861,6 +5322,24 @@
           });
         }
 
+        if (els.browseResetBtn) {
+          els.browseResetBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            navigate(
+              {
+                view: "letters",
+                letter: "",
+                prefix: "",
+                authorKey: "",
+                authorName: "",
+                category: "",
+                language: activeLanguage || DEFAULT_STATE.language,
+              },
+              { preserveScroll: true }
+            );
+          });
+        }
+
         if (els.headerNewestLink) {
           els.headerNewestLink.addEventListener("click", (event) => {
             event.preventDefault();
@@ -4905,6 +5384,34 @@
             toggleHeaderMenu();
           });
         }
+
+        document.addEventListener("click", (event) => {
+          if (!els.heroBookPicker || !els.heroBookPicker.hasAttribute("open")) return;
+          if (els.heroBookPicker.contains(event.target)) return;
+          els.heroBookPicker.removeAttribute("open");
+        });
+
+        document.addEventListener("click", (event) => {
+          const pickers = document.querySelectorAll(".categoryGroupPicker[open]");
+          if (!pickers.length) return;
+          pickers.forEach((picker) => {
+            if (picker.contains(event.target)) return;
+            picker.removeAttribute("open");
+          });
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape") return;
+          if (!els.heroBookPicker || !els.heroBookPicker.hasAttribute("open")) return;
+          els.heroBookPicker.removeAttribute("open");
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape") return;
+          document.querySelectorAll(".categoryGroupPicker[open]").forEach((picker) => {
+            picker.removeAttribute("open");
+          });
+        });
 
         document.addEventListener("click", (event) => {
           if (!els.headerLinks || !els.headerMenuToggle) return;
