@@ -2030,6 +2030,7 @@
           category: "",
           authorKey: "",
           authorName: "",
+          searchAuthor: "",
           language: "en",
           bookView: "grid",
         };
@@ -2651,9 +2652,12 @@
           els.searchResults.innerHTML = "";
           if (!searchState.query) {
             els.searchResults.style.display = "none";
-            const currentView = parseState().view;
+            const currentState = parseState();
+            const currentView = currentState.view;
+            const searchAuthorMode = currentView === "author" && currentState.searchAuthor === "1";
             if (els.hero) {
-              els.hero.style.display = currentView === "mybooks" || currentView === "category" ? "none" : "";
+              els.hero.style.display =
+                currentView === "mybooks" || currentView === "category" || searchAuthorMode ? "none" : "";
             }
             if (els.breadcrumbsRow) {
               els.breadcrumbsRow.style.display = els.breadcrumbs && els.breadcrumbs.childNodes.length ? "" : "none";
@@ -3635,7 +3639,18 @@
                     countLabel: item.count !== null ? `${item.count} books` : "",
                     hint: "Open",
                     cover: "",
-                    onClick: () => openAuthorFromSearch(authorKey, authorName),
+                    onClick: () => {
+                      resetSearchUi();
+                      navigate({
+                        view: "author",
+                        letter: "",
+                        prefix: "",
+                        authorKey,
+                        authorName,
+                        searchAuthor: "1",
+                        language: "all",
+                      });
+                    },
                   };
                 }
                 return null;
@@ -3680,6 +3695,7 @@
           if (state.category) params.set("category", state.category);
           if (state.authorKey) params.set("authorKey", state.authorKey);
           if (state.authorName) params.set("authorName", state.authorName);
+          if (state.searchAuthor) params.set("searchAuthor", state.searchAuthor);
           if (state.language && state.language !== DEFAULT_STATE.language) params.set("lang", state.language);
           if (state.bookView) params.set("bookView", state.bookView);
 
@@ -3700,9 +3716,26 @@
           if (params.get("category")) state.category = params.get("category");
           if (params.get("authorKey")) state.authorKey = params.get("authorKey");
           if (params.get("authorName")) state.authorName = params.get("authorName");
+          if (params.get("searchAuthor")) state.searchAuthor = params.get("searchAuthor");
           if (params.get("lang")) state.language = params.get("lang");
           if (params.get("bookView")) state.bookView = params.get("bookView");
           return state;
+        }
+
+        function setSearchAuthorFocusMode(enabled) {
+          const hide = !!enabled;
+          ["newestTitlesSection", "popularTitlesSection", "catalogCategoriesSection"].forEach((id) => {
+            const node = document.getElementById(id);
+            if (node) node.style.display = hide ? "none" : "";
+          });
+          if (els.hero) {
+            els.hero.style.display = hide ? "none" : "";
+          }
+          if (hide && els.browseHeader) {
+            try {
+              els.browseHeader.scrollIntoView({ behavior: "auto", block: "start" });
+            } catch (error) {}
+          }
         }
 
         function navigate(state, options) {
@@ -5112,7 +5145,7 @@
         async function getAuthorBooks(authorKey, nonce) {
           if (cache.authorBooks.has(authorKey)) return cache.authorBooks.get(authorKey);
           if (!config.authorPath) throw new Error("catalog.config.json missing authorPath");
-          const url = buildUrl(config.authorPath, { key: authorKey, author: authorKey });
+          const url = buildUrl(config.authorPath, { key: authorKey, author: authorKey }, { ignoreLang: true });
           const data = await fetchJson(url, nonce);
 
           const author = {
@@ -5153,6 +5186,9 @@
             if (nonce !== REQ_NONCE) return;
             renderLanguageSelect(languages);
             setActiveLanguage(state.language || "all");
+            if (!(state.view === "author" && state.searchAuthor === "1")) {
+              setSearchAuthorFocusMode(false);
+            }
 
             if (!state.view || state.view === "letters") {
               els.content.classList.add("noPanel");
@@ -5308,6 +5344,7 @@
               els.content.classList.add("noPanel");
               await ensureLandingScaffold(nonce);
               if (nonce !== REQ_NONCE) return;
+              setSearchAuthorFocusMode(state.searchAuthor === "1");
               showBrowseLoading("Loading author books...");
               const payload = await getAuthorBooks(state.authorKey, nonce);
               if (nonce !== REQ_NONCE) return;
@@ -5350,6 +5387,8 @@
               renderSearchResults();
               return;
             }
+
+            setSearchAuthorFocusMode(false);
 
             if (state.view === "category") {
               if (!state.category) {
