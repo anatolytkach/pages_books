@@ -529,6 +529,184 @@ Runtime:
 - при необходимости можно явно передать `--rclone-remote` или отключить `rclone` через `--skip-rclone`;
 - после rebuild удаляет устаревшие `lang/*/search` локально и purge-ит `api/lang/*/search` на R2.
 
+## 7.6 Reader1 publish pipeline
+
+Новый pipeline для source-qualified книг в новом формате:
+
+- `tools/reader1/publish_books.py`
+
+Назначение:
+- импортировать EPUB сразу в новый `reader1`-формат без промежуточной legacy-распаковки;
+- поддерживать произвольный `source` вроде `manual`, `partner`, `archive`, а не только `manual`;
+- публиковать книги так, чтобы каталог мог потом выбирать читалку по явному `readerType: "reader1"`;
+- пересобирать все нужные индексные слои каталога: `a/*`, `p/*`, `search/*`, `letters.json`, `lang/*`, `book-locations/*`, `newest`;
+- поддерживать `status` и `resume` после сбоя, как в Gutenberg pipeline.
+
+Критичные правила:
+- этот pipeline предназначен только для non-Gutenberg книг;
+- `source=gutenberg` здесь запрещен намеренно;
+- Gutenberg-книги по-прежнему заливаются только через legacy Gutenberg pipeline и остаются в root без `source`;
+- вызывать pipeline нужно из корня репозитория:
+  ```bash
+  cd /Volumes/2T/se_ingest/pages_books
+  ```
+
+Что он делает в полном цикле:
+1. принимает один EPUB, папку с EPUB или zip-архив с EPUB;
+2. staging-ит исходные EPUB в локальную очередь;
+3. назначает `reader_id` и `source_book_id`;
+4. конвертирует EPUB в `reader1`-формат прямо в `books/content/<source>/<source_book_id>/`;
+5. пересобирает каталоговые индексы и `book-locations`;
+6. обновляет `Newest Releases`;
+7. валидирует, что книга реально появилась во всех обязательных слоях;
+8. при `--publish` загружает content и изменившиеся `api/*` на боевое хранилище.
+
+Основные команды:
+
+```bash
+python3 tools/reader1/publish_books.py status
+python3 tools/reader1/publish_books.py run --source manual --epub /path/to/book.epub
+python3 tools/reader1/publish_books.py run --source manual --input-dir /path/to/folder
+python3 tools/reader1/publish_books.py run --source manual --input-zip /path/to/books.zip
+python3 tools/reader1/publish_books.py resume
+```
+
+Поддерживаются и совместимые алиасы:
+
+```bash
+python3 tools/reader1/publish_books.py publish-epub /path/to/book.epub --source manual
+python3 tools/reader1/publish_books.py publish-dir /path/to/folder --source manual
+python3 tools/reader1/publish_books.py publish-zip /path/to/books.zip --source manual
+```
+
+Какой режим когда использовать:
+- `status` — перед запуском и после него; показывает текущее состояние pipeline, активный run, текущую книгу, фазу, число успехов и ошибок;
+- `run --epub` — одна новая книга;
+- `run --input-dir` — пакет из нескольких EPUB, уже лежащих в одной папке;
+- `run --input-zip` — пакет из zip-архива, если EPUB приходят одним архивом;
+- `resume` — продолжение незавершенного run после исправления ошибки.
+
+Обязательные и основные параметры:
+- `--source <name>` — обязательный source для всех non-Gutenberg книг; именно он определяет, куда книга ляжет и как будет квалифицирована в каталоге;
+- `--epub <path>` — путь к одному EPUB;
+- `--input-dir <path>` — путь к папке с несколькими EPUB;
+- `--input-zip <path>` — путь к zip-архиву, внутри которого лежат EPUB;
+- `--source-book-id <id>` — явный публичный id внутри source; обычно задается только для одиночной книги, если нужен конкретный номер;
+- `--start-source-book-id <id>` — стартовый публичный id для batch-run; полезно, когда пакет книг должен занять заранее выбранный диапазон;
+- `--label <text>` — человекочитаемая подпись импорта в `source_registry.json`;
+- `--publish` — после локальной сборки и валидации сразу загрузить content и `api/*` на продовое хранилище;
+- `--dry-run` — прогнать pipeline без фактической remote upload-фазы;
+- `--skip-rclone` — не использовать `rclone` даже если он доступен;
+- `--rclone-remote <name>` — явно задать remote для bulk upload;
+- `--newest-window-days <N>` — окно для `Newest Releases`, по умолчанию `30`;
+- `--newest-max-books <N>` — hard limit для `Newest Releases`; `0` означает без лимита.
+
+Служебные параметры, которые обычно не трогают:
+- `--content-root` — локальный content-root, по умолчанию `books/content`;
+- `--index-root` — локальный индексный root, по умолчанию `reader_lang_indexes`;
+- `--registry` — путь к `tools/state/source_registry.json`;
+- `--state-file` — путь к state-файлу pipeline;
+- `--queue-root` — локальная папка очереди для staged EPUB;
+- `--python-bin`, `--wrangler-bin`, `--rclone-bin`, `--state-r2-bucket` — runtime overrides для нестандартного окружения.
+
+Пошаговый безопасный порядок работы:
+1. Открыть терминал в корне репозитория:
+   ```bash
+   cd /Volumes/2T/se_ingest/pages_books
+   ```
+2. Проверить текущее состояние:
+   ```bash
+   python3 tools/reader1/publish_books.py status
+   ```
+3. Запустить локальный import без публикации:
+   ```bash
+   python3 tools/reader1/publish_books.py run --source manual --epub /absolute/path/to/book.epub
+   ```
+4. Проверить локально:
+   - появился ли content в `books/content/<source>/<source_book_id>/`;
+   - появились ли нужные записи в `reader_lang_indexes`;
+   - открывается ли книга в локальном каталоге и в `reader1`.
+5. Только после локальной проверки повторить тот же запуск с `--publish`, либо запустить новый batch с `--publish`.
+
+Примеры рабочих запусков:
+
+Одна книга:
+```bash
+python3 tools/reader1/publish_books.py run \
+  --source manual \
+  --epub /absolute/path/to/book.epub \
+  --source-book-id 20
+```
+
+Несколько EPUB из папки:
+```bash
+python3 tools/reader1/publish_books.py run \
+  --source manual \
+  --input-dir /absolute/path/to/epub-folder
+```
+
+Несколько EPUB из zip:
+```bash
+python3 tools/reader1/publish_books.py run \
+  --source manual \
+  --input-zip /absolute/path/to/books.zip
+```
+
+Публикация после локальной проверки:
+```bash
+python3 tools/reader1/publish_books.py run \
+  --source manual \
+  --epub /absolute/path/to/book.epub \
+  --publish
+```
+
+Где pipeline хранит свое состояние:
+- state-файл:
+  - `tools/state/reader1_publish_state.json`
+- очередь staged EPUB для текущих run:
+  - `tools/state/reader1_publish_queue/<run_id>/sources/...`
+- локальные логи:
+  - `/tmp/reader1_publish_runs/<timestamp>-<command>.log`
+
+Что означает `status`:
+- `current_run_id` — идентификатор текущего или последнего незавершенного run;
+- `current_run_source` — source текущего run;
+- `current_run_input_mode` — `epub`, `dir` или `zip`;
+- `current_run_book` — текущая книга по внутреннему `reader_id`;
+- `current_run_phase` — текущая фаза;
+- `current_run_success / pending / failed` — статус книг внутри run;
+- `current_run_log` — путь к локальному log-файлу.
+
+Основные фазы:
+- `convert`
+- `upload_content`
+- `index_catalog`
+- `book_locations`
+- `newest`
+- `validate`
+- `upload_api`
+
+Как реагировать на ошибки и что делать в диалоге:
+- если `run` завершился без ошибок, следующий шаг — локальная проверка или ручная проверка продового каталога после `--publish`;
+- если ошибка возникла до публикации, не запускать новый batch поверх старого состояния; сначала посмотреть:
+  - `python3 tools/reader1/publish_books.py status`
+  - лог из `/tmp/reader1_publish_runs/...`
+- если ошибка понятна и исправлена, продолжать только через:
+  ```bash
+  python3 tools/reader1/publish_books.py resume
+  ```
+- если ошибка связана с неправильным EPUB, лучше сначала исправить источник, удалить неудачный локальный output этой книги и потом повторить запуск осознанно, а не накапливать новые run поверх поврежденной книги;
+- если ошибка связана с remote upload, после исправления credentials или сети использовать `resume`, потому что staged EPUB уже сохранены в queue;
+- если `status` показывает `pending_retry`, это означает, что run надо именно продолжать, а не начинать новый `run`.
+
+Правила использования:
+- не использовать этот pipeline для Gutenberg;
+- не смешивать в одном run книги разных `source`;
+- не публиковать сразу большой пакет без локального прогона хотя бы на одной книге;
+- при batch-импорте не задавать `--source-book-id` для нескольких книг; для batch использовать либо автоназначение, либо `--start-source-book-id`;
+- content-файлы книг не коммитить в git;
+- для каталога source-книги должны попадать в индексы с явным `readerType: "reader1"`, и этот pipeline это делает сам.
+
 ### 7.3 Workflow: безопасный production deploy каталога и читалки
 
 Для изменений только в UI каталога/читалки (`books/`, `reader/`, `_worker.js`) production deploy нужно делать отдельно от контентного конвейера.

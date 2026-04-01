@@ -299,7 +299,7 @@
       }
 
       .langList {
-        max-height: 540px;
+        max-height: 200px;
         overflow-y: auto;
         overscroll-behavior: contain;
         background: var(--rect-bg);
@@ -455,8 +455,8 @@
         align-items: center;
         justify-content: flex-end;
         gap: 12px;
-        margin-bottom: 8px;
-        margin-left: auto;
+        margin: 0;
+        min-width: 0;
       }
 
       #breadcrumbs {
@@ -486,10 +486,11 @@
       }
 
       .browseHeaderTop {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(0, auto) max-content minmax(0, 1fr) auto;
+        grid-template-areas: "title lang crumbs reset";
         align-items: center;
-        justify-content: space-between;
-        gap: 12px;
+        gap: 12px 16px;
         margin-bottom: 14px;
       }
 
@@ -499,6 +500,17 @@
         line-height: 1.1;
         color: var(--ink);
         margin: 0;
+        grid-area: title;
+        min-width: 0;
+      }
+
+      .browseHeaderLang {
+        grid-area: lang;
+        min-width: 0;
+      }
+
+      .browseHeaderTop .breadcrumbs-row {
+        grid-area: crumbs;
       }
 
       .browseResetBtn {
@@ -514,6 +526,7 @@
         cursor: pointer;
         flex: 0 0 auto;
         padding: 0;
+        grid-area: reset;
       }
 
       .browseResetBtn:hover,
@@ -545,12 +558,12 @@
         margin-top: 8px;
       }
 
-      .browseControlsRow {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        flex-wrap: wrap;
+      .browseHeaderLang .catalogControls {
+        margin: 0;
+      }
+
+      .browseHeaderLang .searchWrap {
+        min-width: 0;
       }
 
       #toolbar {
@@ -1086,10 +1099,32 @@
         padding: 0;
       }
 
+      .authorListScroll {
+        max-height: 220px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+
+      .authorListScroll::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+
+      .authorListScroll {
+        scrollbar-width: none;
+      }
+
       .lettersGrid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
         gap: 14px;
+      }
+
+      .prefixesGrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        width: 100%;
       }
 
       .catalogSections {
@@ -1260,6 +1295,26 @@
       .letterBtn:hover {
         transform: translateY(-2px);
         box-shadow: none;
+      }
+
+      .prefixBtn {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 0;
+        padding: 10px 12px;
+        text-align: left;
+        min-width: 0;
+      }
+
+      .prefixBtnCount {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--muted);
+        margin-left: auto;
+        white-space: nowrap;
       }
 
       table.list {
@@ -1743,11 +1798,24 @@
           margin-top: 0;
           margin-bottom: 16px;
         }
-        .browseControlsRow {
-          align-items: flex-start;
+        .browseHeaderTop {
+          grid-template-columns: max-content minmax(0, 1fr) auto;
+          grid-template-areas:
+            "title title title"
+            "lang crumbs reset";
+          align-items: center;
         }
-        .catalogControls .searchWrap {
-          width: 100%;
+
+        .browseHeaderLang {
+          align-self: start;
+        }
+
+        .browseHeaderTop .breadcrumbs-row {
+          justify-content: flex-end;
+        }
+
+        .browseHeaderLang .catalogControls {
+          margin-bottom: 0;
         }
         .catalogHeroTitle {
           font-size: clamp(25px, 5.8vw, 42px);
@@ -1814,12 +1882,20 @@
         .langWrap {
           width: auto;
         }
+        #breadcrumbs {
+          font-size: 12px;
+          min-width: 0;
+          justify-content: flex-end;
+        }
         .searchForm {
           flex: 1;
           min-width: 0;
         }
         .bookGrid {
           grid-template-columns: 1fr;
+        }
+        .prefixesGrid {
+          grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
         }
         .categoryGroupsGrid {
           grid-template-columns: 1fr;
@@ -1985,25 +2061,25 @@
         <section id="browseHeader" class="browseHeader" aria-label="Browse by author">
           <div class="browseHeaderTop">
             <div class="browseHeaderTitle">Browse by Author</div>
-            <button id="browseResetBtn" class="browseResetBtn" type="button" hidden aria-label="Reset Browse by Author">
-              <span class="browseResetBtnIcon" aria-hidden="true"></span>
-            </button>
-          </div>
-          <div class="browseControlsRow">
-            <div class="catalogControls">
-              <div class="searchWrap">
-                <div class="langWrap" id="languageWrap">
-                  <button id="languageSelect" class="langSelect" type="button" aria-haspopup="listbox" aria-expanded="false">
-                    <span class="langValue">All languages</span>
-                    <span class="langChevron">▾</span>
-                  </button>
-                  <div id="languageMenu" class="langMenu" role="listbox" aria-label="Languages"></div>
+            <div class="browseHeaderLang">
+              <div class="catalogControls">
+                <div class="searchWrap">
+                  <div class="langWrap" id="languageWrap">
+                    <button id="languageSelect" class="langSelect" type="button" aria-haspopup="listbox" aria-expanded="false">
+                      <span class="langValue">All languages</span>
+                      <span class="langChevron">▾</span>
+                    </button>
+                    <div id="languageMenu" class="langMenu" role="listbox" aria-label="Languages"></div>
+                  </div>
                 </div>
               </div>
             </div>
             <div id="breadcrumbsRow" class="breadcrumbs-row">
               <div id="breadcrumbs"></div>
             </div>
+            <button id="browseResetBtn" class="browseResetBtn" type="button" hidden aria-label="Reset Browse by Author">
+              <span class="browseResetBtnIcon" aria-hidden="true"></span>
+            </button>
           </div>
           <div id="browseContent" class="browseContent"></div>
         </section>
@@ -4248,9 +4324,7 @@
             els.browseContent.appendChild(empty);
             return;
           }
-          const lettersSection = el("section", "landingSection");
-          lettersSection.appendChild(createLettersGrid(letters));
-          els.browseContent.appendChild(lettersSection);
+          els.browseContent.appendChild(createLettersGrid(letters));
         }
 
         function renderPrefixes(prefixes, letter) {
@@ -4292,21 +4366,20 @@
             return;
           }
 
-          const section = el("section", "landingSection");
-          const table = el("table", "list");
-          const tbody = el("tbody");
+          const grid = el("div", "prefixesGrid");
 
           visible.forEach((item) => {
-            const row = el("tr", "rowLink");
-            row.addEventListener("click", () => navigate({ view: "prefix", letter, prefix: item.prefix }));
-            row.appendChild(el("td", "prefixLabel", item.prefix));
-            row.appendChild(el("td", "count", item.count !== null ? `${item.count} authors` : ""));
-            tbody.appendChild(row);
+            const btn = el("button", "letterBtn prefixBtn");
+            btn.type = "button";
+            btn.addEventListener("click", () => navigate({ view: "prefix", letter, prefix: item.prefix }));
+            btn.appendChild(el("span", "prefixLabel", item.prefix));
+            if (item.count !== null) {
+              btn.appendChild(el("span", "prefixBtnCount", `${item.count} authors`));
+            }
+            grid.appendChild(btn);
           });
 
-          table.appendChild(tbody);
-          section.appendChild(table);
-          els.browseContent.appendChild(section);
+          els.browseContent.appendChild(grid);
         }
 
         async function pruneEmptyPrefixes(letter, prefixes, nonce) {
@@ -4350,6 +4423,7 @@
           const section = el("section", "landingSection");
           const table = el("table", "list");
           const tbody = el("tbody");
+          const scrollWrap = el("div", "authorListScroll");
 
           const sorted = filteredAuthors
             .map((item) => {
@@ -4369,7 +4443,8 @@
           });
 
           table.appendChild(tbody);
-          section.appendChild(table);
+          scrollWrap.appendChild(table);
+          section.appendChild(scrollWrap);
           els.browseContent.appendChild(section);
         }
 

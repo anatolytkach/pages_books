@@ -116,9 +116,10 @@ def iter_books(index_root: Path):
         data = read_json(path, {}) or {}
         author = str(data.get("name") or "").strip()
         for book in data.get("books") or []:
-            # Prefer the canonical/public id over legacyId so non-Gutenberg
-            # sources keep their source-qualified ids in book-locations.
-            reader_id = str(book.get("readerId") or book.get("reader_id") or book.get("id") or book.get("legacyId") or book.get("legacy_id") or "").strip()
+            # book-locations root items are keyed by the internal reader id.
+            # For non-Gutenberg sources the public/source-qualified id still
+            # lives in sourceBookId and in the source shards.
+            reader_id = str(book.get("readerId") or book.get("reader_id") or book.get("legacyId") or book.get("legacy_id") or book.get("id") or "").strip()
             public_id = str(book.get("sourceBookId") or book.get("source_book_id") or book.get("id") or reader_id).strip()
             source = str(book.get("source") or "").strip()
             title = str(book.get("title") or public_id or reader_id).strip()

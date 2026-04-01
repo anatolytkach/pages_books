@@ -602,6 +602,7 @@ def build_incremental(input_root: str, output_root: str, book_id: str, max_prefi
     public_id = str(location.get("sourceBookId") or book_id)
     source = str(location.get("source") or "gutenberg")
     book_entry = {
+        "readerId": str(book_id),
         "id": public_id,
         "source": source,
         "sourceBookId": public_id,
@@ -689,6 +690,7 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
         public_id = str((location or {}).get("sourceBookId") or book_id)
         source = str((location or {}).get("source") or "gutenberg")
         book_entry = {
+            "readerId": str(book_id),
             "id": public_id,
             "source": source,
             "sourceBookId": public_id,
