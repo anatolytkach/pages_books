@@ -292,7 +292,7 @@
         background: var(--rect-bg);
         border: 1px solid var(--border);
         border-radius: var(--radius-md);
-        box-shadow: none;
+        box-shadow: 0 20px 36px rgba(15, 23, 42, 0.14);
         padding: 6px 0;
         display: none;
         z-index: 20;
@@ -1251,6 +1251,18 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
+        max-height: 180px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+
+      .categoryGroupList::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+
+      .categoryGroupList {
+        scrollbar-width: none;
       }
 
       .categoryGroupList li {
@@ -1315,6 +1327,87 @@
         color: var(--muted);
         margin-left: auto;
         white-space: nowrap;
+      }
+
+      .prefixAuthorShell {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        width: fit-content;
+        max-width: 100%;
+      }
+
+      .prefixAuthorFlyout {
+        width: fit-content;
+        max-width: min(560px, calc(100vw - 72px));
+        background: transparent;
+        padding: 0;
+      }
+
+      .prefixAuthorList {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        max-height: 220px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        background: var(--rect-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        box-shadow: 0 20px 36px rgba(15, 23, 42, 0.14);
+        padding: 6px 0;
+      }
+
+      .prefixAuthorList::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+
+      .prefixAuthorList {
+        scrollbar-width: none;
+      }
+
+      .prefixAuthorRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+        padding: 8px 10px;
+        border: none;
+        border-radius: 0;
+        background: var(--rect-bg);
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .prefixAuthorRow:hover {
+        background: var(--rect-bg);
+      }
+
+      .prefixAuthorName {
+        color: var(--accent);
+        font-size: 14px;
+        line-height: 1.25;
+        font-weight: 400;
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left;
+      }
+
+      .prefixAuthorBookCount {
+        font-size: 14px;
+        color: var(--muted);
+        white-space: nowrap;
+        text-align: right;
+        min-width: 32px;
+        font-variant-numeric: tabular-nums;
       }
 
       table.list {
@@ -4371,7 +4464,10 @@
           visible.forEach((item) => {
             const btn = el("button", "letterBtn prefixBtn");
             btn.type = "button";
-            btn.addEventListener("click", () => navigate({ view: "prefix", letter, prefix: item.prefix }));
+            btn.addEventListener("click", (event) => {
+              event.stopPropagation();
+              navigate({ view: "prefix", letter, prefix: item.prefix });
+            });
             btn.appendChild(el("span", "prefixLabel", item.prefix));
             if (item.count !== null) {
               btn.appendChild(el("span", "prefixBtnCount", `${item.count} authors`));
@@ -4420,10 +4516,19 @@
             return;
           }
 
-          const section = el("section", "landingSection");
-          const table = el("table", "list");
-          const tbody = el("tbody");
-          const scrollWrap = el("div", "authorListScroll");
+          const shell = el("div", "prefixAuthorShell");
+          const prefixCard = el("button", "letterBtn prefixBtn");
+          prefixCard.type = "button";
+          prefixCard.addEventListener("click", (event) => {
+            event.stopPropagation();
+            navigate({ view: "prefixes", letter }, { preserveScroll: true });
+          });
+          prefixCard.appendChild(el("span", "prefixLabel", prefix));
+          prefixCard.appendChild(el("span", "prefixBtnCount", `${filteredAuthors.length} authors`));
+          shell.appendChild(prefixCard);
+
+          const flyout = el("div", "prefixAuthorFlyout");
+          const list = el("div", "prefixAuthorList");
 
           const sorted = filteredAuthors
             .map((item) => {
@@ -4433,19 +4538,19 @@
             .sort((a, b) => a.sortKey.localeCompare(b.sortKey, undefined, { numeric: true, sensitivity: "base" }));
 
           sorted.forEach((item) => {
-            const row = el("tr", "rowLink");
+            const row = el("button", "prefixAuthorRow");
+            row.type = "button";
             row.addEventListener("click", () =>
               navigate({ view: "author", letter, prefix, authorKey: item.key, authorName: item.displayName || item.name })
             );
-            row.appendChild(el("td", "authorName", item.displayName || item.name));
-            row.appendChild(el("td", "count", item.count !== null ? `${item.count} books` : ""));
-            tbody.appendChild(row);
+            row.appendChild(el("span", "prefixAuthorName", item.displayName || item.name));
+            row.appendChild(el("span", "prefixAuthorBookCount", item.count !== null ? `${item.count} books` : ""));
+            list.appendChild(row);
           });
 
-          table.appendChild(tbody);
-          scrollWrap.appendChild(table);
-          section.appendChild(scrollWrap);
-          els.browseContent.appendChild(section);
+          flyout.appendChild(list);
+          shell.appendChild(flyout);
+          els.browseContent.appendChild(shell);
         }
 
         function renderAuthorBooks(author, books, viewMode, visibleLimitInput) {
@@ -5006,14 +5111,11 @@
         }
 
         async function getPopular(nonce) {
-          const cacheKey = activeLanguage || "all";
+          const cacheKey = "global";
           if (cache.popular.has(cacheKey)) return cache.popular.get(cacheKey);
           const pattern = config.discoverPopularPath;
           if (!pattern) return { defaultList: "last30days", lists: {} };
-          let data = await fetchJsonMaybe(buildUrl(pattern, {}), nonce);
-          if (!data && cacheKey !== "all") {
-            data = await fetchJsonMaybe(buildUrl(pattern, {}, { ignoreLang: true }), nonce);
-          }
+          const data = await fetchJsonMaybe(buildUrl(pattern, {}, { ignoreLang: true }), nonce);
           const payload = normalizePopularPayload(data);
           cache.popular.set(cacheKey, payload);
           return payload;
@@ -5694,6 +5796,15 @@
           });
         });
 
+        document.addEventListener("click", (event) => {
+          const current = parseState();
+          if (current.view !== "prefix" || !current.letter || !current.prefix) return;
+          const target = event.target && event.target.nodeType === 1 ? event.target : null;
+          if (!target) return;
+          if (target.closest(".prefixAuthorList")) return;
+          navigate({ view: "prefixes", letter: current.letter }, { preserveScroll: true });
+        });
+
         document.addEventListener("keydown", (event) => {
           if (event.key !== "Escape") return;
           if (!els.heroBookPicker || !els.heroBookPicker.hasAttribute("open")) return;
@@ -5705,6 +5816,13 @@
           document.querySelectorAll(".categoryGroupPicker[open]").forEach((picker) => {
             picker.removeAttribute("open");
           });
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape") return;
+          const current = parseState();
+          if (current.view !== "prefix" || !current.letter || !current.prefix) return;
+          navigate({ view: "prefixes", letter: current.letter }, { preserveScroll: true });
         });
 
         document.addEventListener("click", (event) => {
