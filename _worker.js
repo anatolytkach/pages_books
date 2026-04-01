@@ -1494,15 +1494,19 @@ export default {
       normalizedPath === "/books/api/notes-share" ||
       normalizedPath === "/api/notes-share" ||
       normalizedPath === "/books/reader/api/notes-share" ||
+      normalizedPath === "/books/reader1/api/notes-share" ||
       normalizedPath === "/books/api/ns" ||
       normalizedPath === "/api/ns" ||
       normalizedPath === "/books/reader/api/ns" ||
+      normalizedPath === "/books/reader1/api/ns" ||
       normalizedPath.startsWith("/books/api/notes-share/") ||
       normalizedPath.startsWith("/api/notes-share/") ||
       normalizedPath.startsWith("/books/reader/api/notes-share/") ||
+      normalizedPath.startsWith("/books/reader1/api/notes-share/") ||
       normalizedPath.startsWith("/books/api/ns/") ||
       normalizedPath.startsWith("/api/ns/") ||
-      normalizedPath.startsWith("/books/reader/api/ns/")
+      normalizedPath.startsWith("/books/reader/api/ns/") ||
+      normalizedPath.startsWith("/books/reader1/api/ns/")
     ) {
       if (request.method === "OPTIONS") {
         const headers = new Headers(notesShareCorsHeaders());
@@ -1514,9 +1518,11 @@ export default {
         normalizedPath === "/books/api/notes-share" ||
         normalizedPath === "/api/notes-share" ||
         normalizedPath === "/books/reader/api/notes-share" ||
+        normalizedPath === "/books/reader1/api/notes-share" ||
         normalizedPath === "/books/api/ns" ||
         normalizedPath === "/api/ns" ||
-        normalizedPath === "/books/reader/api/ns"
+        normalizedPath === "/books/reader/api/ns" ||
+        normalizedPath === "/books/reader1/api/ns"
       ) {
         if (request.method !== "POST") {
           const headers = new Headers(notesShareCorsHeaders());
@@ -1950,7 +1956,7 @@ export default {
     }
 
     // Normalize reader/catalog roots to trailing-slash form to avoid 404 on some routes.
-    if (path === "/books/reader" || path === "/books/catalog") {
+    if (path === "/books/reader" || path === "/books/reader1" || path === "/books/catalog") {
       const headers = new Headers({ location: `${path}/` });
       headers.set("x-reader-worker", "1");
       headers.set("x-reader-route", "slash-redirect");
@@ -1978,7 +1984,15 @@ export default {
       path.startsWith("/books/reader/css/") ||
       path.startsWith("/books/reader/js/") ||
       path.startsWith("/books/reader/icons/") ||
-      path.startsWith("/books/reader/fonts/");
+      path.startsWith("/books/reader/fonts/") ||
+      path.startsWith("/books/reader/img/") ||
+      path === "/books/reader1/" ||
+      path === "/books/reader1/index.html" ||
+      path.startsWith("/books/reader1/css/") ||
+      path.startsWith("/books/reader1/js/") ||
+      path.startsWith("/books/reader1/icons/") ||
+      path.startsWith("/books/reader1/fonts/") ||
+      path.startsWith("/books/reader1/img/");
     const isDocsPath = path === "/docs/" || path.startsWith("/docs/");
     const contentType = String(headers.get("content-type") || "").toLowerCase();
     const isHtml = contentType.includes("text/html");

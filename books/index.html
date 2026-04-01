@@ -1927,41 +1927,41 @@
               </h1>
               <p class="catalogHeroText">
                 <span class="catalogHeroTextLine">Smooth pages, instant open, no installs.</span>
-                <span class="catalogHeroTextLine">Feels like an app. Works like the web.</span>
+                <span class="catalogHeroTextLine">Feels like an app. Works on the web.</span>
               </p>
               <div class="catalogHeroActions">
                 <details class="heroBookPicker">
                   <summary id="heroStartLink" class="catalogHeroButton heroBookPickerSummary">Start reading in WeRead</summary>
                   <div class="heroBookPickerMenu">
-                    <a class="heroBookOption" href="/books/reader/?id=1342&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                    <a class="heroBookOption" href="/books/reader1/?id=1342&amp;entry=hero" target="_blank" rel="noopener noreferrer">
                       <img class="heroBookOptionCover" src="/books/content/1342/OEBPS/3996567743618079316_cover.jpg" alt="" />
                       <span class="heroBookOptionBody">
                         <span class="heroBookOptionTitle">Pride and Prejudice</span>
                         <span class="heroBookOptionAuthor">Jane Austen</span>
                       </span>
                     </a>
-                    <a class="heroBookOption" href="/books/reader/?id=11&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                    <a class="heroBookOption" href="/books/reader1/?id=11&amp;entry=hero" target="_blank" rel="noopener noreferrer">
                       <img class="heroBookOptionCover" src="/books/content/11/OEBPS/4500724211512504931_cover.jpg" alt="" />
                       <span class="heroBookOptionBody">
                         <span class="heroBookOptionTitle">Alice's Adventures in Wonderland</span>
                         <span class="heroBookOptionAuthor">Lewis Carroll</span>
                       </span>
                     </a>
-                    <a class="heroBookOption" href="/books/reader/?id=84&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                    <a class="heroBookOption" href="/books/reader1/?id=84&amp;entry=hero" target="_blank" rel="noopener noreferrer">
                       <img class="heroBookOptionCover" src="/books/content/84/OEBPS/6171239746783589600_cover.jpg" alt="" />
                       <span class="heroBookOptionBody">
                         <span class="heroBookOptionTitle">Frankenstein</span>
                         <span class="heroBookOptionAuthor">Mary Wollstonecraft Shelley</span>
                       </span>
                     </a>
-                    <a class="heroBookOption" href="/books/reader/?id=1661&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                    <a class="heroBookOption" href="/books/reader1/?id=1661&amp;entry=hero" target="_blank" rel="noopener noreferrer">
                       <img class="heroBookOptionCover" src="/books/content/1661/OEBPS/5463403510293679682_cover.jpg" alt="" />
                       <span class="heroBookOptionBody">
                         <span class="heroBookOptionTitle">The Adventures of Sherlock Holmes</span>
                         <span class="heroBookOptionAuthor">Arthur Conan Doyle</span>
                       </span>
                     </a>
-                    <a class="heroBookOption" href="/books/reader/?id=2701&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                    <a class="heroBookOption" href="/books/reader1/?id=2701&amp;entry=hero" target="_blank" rel="noopener noreferrer">
                       <img class="heroBookOptionCover" src="/books/content/2701/OEBPS/4318954881170042010_cover.jpg" alt="" />
                       <span class="heroBookOptionBody">
                         <span class="heroBookOptionTitle">Moby-Dick</span>
@@ -2030,6 +2030,7 @@
           category: "",
           authorKey: "",
           authorName: "",
+          searchAuthor: "",
           language: "en",
           bookView: "grid",
         };
@@ -2651,9 +2652,12 @@
           els.searchResults.innerHTML = "";
           if (!searchState.query) {
             els.searchResults.style.display = "none";
-            const currentView = parseState().view;
+            const currentState = parseState();
+            const currentView = currentState.view;
+            const searchAuthorMode = currentView === "author" && currentState.searchAuthor === "1";
             if (els.hero) {
-              els.hero.style.display = currentView === "mybooks" || currentView === "category" ? "none" : "";
+              els.hero.style.display =
+                currentView === "mybooks" || currentView === "category" || searchAuthorMode ? "none" : "";
             }
             if (els.breadcrumbsRow) {
               els.breadcrumbsRow.style.display = els.breadcrumbs && els.breadcrumbs.childNodes.length ? "" : "none";
@@ -3203,7 +3207,7 @@
           const source = target.source;
           const entry = String(entryOverride || "catalog").trim();
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
-          const base = isPagesDev ? "/reader/" : "/books/reader/";
+          const base = isPagesDev ? "/reader1/" : "/books/reader1/";
           let url = `${base}?id=${encodeURIComponent(id)}`;
           if (source && source !== "gutenberg") url += `&source=${encodeURIComponent(source)}`;
           const coverHint = String(cover || "").trim();
@@ -3217,7 +3221,11 @@
           try {
             const url = new URL(href, window.location.origin);
             const path = String(url.pathname || "");
-            const isReaderPath = path === "/books/reader/" || path === "/reader/";
+            const isReaderPath =
+              path === "/books/reader/" ||
+              path === "/reader/" ||
+              path === "/books/reader1/" ||
+              path === "/reader1/";
             if (!isReaderPath) return false;
             return !!(url.searchParams.get("id") || url.searchParams.get("i") || url.hash);
           } catch (error) {
@@ -3635,7 +3643,18 @@
                     countLabel: item.count !== null ? `${item.count} books` : "",
                     hint: "Open",
                     cover: "",
-                    onClick: () => openAuthorFromSearch(authorKey, authorName),
+                    onClick: () => {
+                      resetSearchUi();
+                      navigate({
+                        view: "author",
+                        letter: "",
+                        prefix: "",
+                        authorKey,
+                        authorName,
+                        searchAuthor: "1",
+                        language: "all",
+                      });
+                    },
                   };
                 }
                 return null;
@@ -3680,6 +3699,7 @@
           if (state.category) params.set("category", state.category);
           if (state.authorKey) params.set("authorKey", state.authorKey);
           if (state.authorName) params.set("authorName", state.authorName);
+          if (state.searchAuthor) params.set("searchAuthor", state.searchAuthor);
           if (state.language && state.language !== DEFAULT_STATE.language) params.set("lang", state.language);
           if (state.bookView) params.set("bookView", state.bookView);
 
@@ -3700,9 +3720,26 @@
           if (params.get("category")) state.category = params.get("category");
           if (params.get("authorKey")) state.authorKey = params.get("authorKey");
           if (params.get("authorName")) state.authorName = params.get("authorName");
+          if (params.get("searchAuthor")) state.searchAuthor = params.get("searchAuthor");
           if (params.get("lang")) state.language = params.get("lang");
           if (params.get("bookView")) state.bookView = params.get("bookView");
           return state;
+        }
+
+        function setSearchAuthorFocusMode(enabled) {
+          const hide = !!enabled;
+          ["newestTitlesSection", "popularTitlesSection", "catalogCategoriesSection"].forEach((id) => {
+            const node = document.getElementById(id);
+            if (node) node.style.display = hide ? "none" : "";
+          });
+          if (els.hero) {
+            els.hero.style.display = hide ? "none" : "";
+          }
+          if (hide && els.browseHeader) {
+            try {
+              els.browseHeader.scrollIntoView({ behavior: "auto", block: "start" });
+            } catch (error) {}
+          }
         }
 
         function navigate(state, options) {
@@ -3770,7 +3807,7 @@
             if (nonce !== REQ_NONCE) return;
             setActiveLanguage("all");
             showLoading("Loading author books...");
-            const payload = await getAuthorBooks(next.authorKey, nonce);
+            const payload = await getAuthorBooks(next.authorKey, nonce, next.language);
             if (nonce !== REQ_NONCE) return;
 
             const author = {
@@ -4622,6 +4659,18 @@
             if (nonce !== REQ_NONCE) return null;
             if (!res.ok) throw new Error(`Config fetch failed (${res.status})`);
             config = await res.json();
+            try {
+              const host = String(window.location.hostname || "").toLowerCase();
+              const isLocalHost =
+                host === "127.0.0.1" ||
+                host === "localhost" ||
+                host === "::1" ||
+                host.endsWith(".local");
+              if (isLocalHost) {
+                config.baseUrl = `${window.location.origin}/books/api`;
+                config.assetBaseUrl = window.location.origin;
+              }
+            } catch (overrideError) {}
             return config;
           } catch (error) {
             showError("Failed to load catalog.config.json", error);
@@ -5109,10 +5158,16 @@
           return node;
         }
 
-        async function getAuthorBooks(authorKey, nonce) {
-          if (cache.authorBooks.has(authorKey)) return cache.authorBooks.get(authorKey);
+        async function getAuthorBooks(authorKey, nonce, langOverride) {
+          const lang = langOverride !== undefined ? langOverride : activeLanguage;
+          const cacheKey = `${lang || "all"}:${authorKey}`;
+          if (cache.authorBooks.has(cacheKey)) return cache.authorBooks.get(cacheKey);
           if (!config.authorPath) throw new Error("catalog.config.json missing authorPath");
-          const url = buildUrl(config.authorPath, { key: authorKey, author: authorKey });
+          const url = buildUrl(
+            config.authorPath,
+            { key: authorKey, author: authorKey },
+            lang && lang !== "all" ? { lang } : { ignoreLang: true }
+          );
           const data = await fetchJson(url, nonce);
 
           const author = {
@@ -5132,7 +5187,7 @@
             throw new Error("Author JSON missing expected books list.");
           }
           const payload = { author, books };
-          cache.authorBooks.set(authorKey, payload);
+          cache.authorBooks.set(cacheKey, payload);
           return payload;
         }
 
@@ -5153,6 +5208,9 @@
             if (nonce !== REQ_NONCE) return;
             renderLanguageSelect(languages);
             setActiveLanguage(state.language || "all");
+            if (!(state.view === "author" && state.searchAuthor === "1")) {
+              setSearchAuthorFocusMode(false);
+            }
 
             if (!state.view || state.view === "letters") {
               els.content.classList.add("noPanel");
@@ -5308,8 +5366,9 @@
               els.content.classList.add("noPanel");
               await ensureLandingScaffold(nonce);
               if (nonce !== REQ_NONCE) return;
+              setSearchAuthorFocusMode(state.searchAuthor === "1");
               showBrowseLoading("Loading author books...");
-              const payload = await getAuthorBooks(state.authorKey, nonce);
+              const payload = await getAuthorBooks(state.authorKey, nonce, state.language);
               if (nonce !== REQ_NONCE) return;
 
               const author = {
@@ -5350,6 +5409,8 @@
               renderSearchResults();
               return;
             }
+
+            setSearchAuthorFocusMode(false);
 
             if (state.view === "category") {
               if (!state.category) {

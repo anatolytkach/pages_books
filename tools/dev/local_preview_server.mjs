@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, "..", "..");
 const BOOKS_DIR = path.join(ROOT, "books");
 const READER_DIR = path.join(ROOT, "reader");
+const READER1_DIR = path.join(ROOT, "reader1");
 const INDEX_DIR = path.join(ROOT, "reader_lang_indexes");
 const CONTENT_DIR = path.join(ROOT, "books", "content");
 const PORT = Number(process.env.PORT || 8788);
@@ -144,11 +145,23 @@ function routeLocalPath(urlPath) {
   if (urlPath.startsWith("/books/reader/")) {
     return { file: safeJoin(READER_DIR, urlPath.slice("/books/reader".length)), route: "reader" };
   }
+  if (urlPath === "/books/reader1/" || urlPath === "/books/reader1/index.html") {
+    return { file: path.join(READER1_DIR, "index.html"), route: "reader1" };
+  }
+  if (urlPath.startsWith("/books/reader1/")) {
+    return { file: safeJoin(READER1_DIR, urlPath.slice("/books/reader1".length)), route: "reader1" };
+  }
   if (urlPath === "/reader/" || urlPath === "/reader/index.html") {
     return { file: path.join(READER_DIR, "index.html"), route: "reader" };
   }
   if (urlPath.startsWith("/reader/")) {
     return { file: safeJoin(READER_DIR, urlPath.slice("/reader".length)), route: "reader" };
+  }
+  if (urlPath === "/reader1/" || urlPath === "/reader1/index.html") {
+    return { file: path.join(READER1_DIR, "index.html"), route: "reader1" };
+  }
+  if (urlPath.startsWith("/reader1/")) {
+    return { file: safeJoin(READER1_DIR, urlPath.slice("/reader1".length)), route: "reader1" };
   }
   return null;
 }
@@ -159,6 +172,7 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === "/books") return redirect(res, "/books/", "slash-redirect");
   if (pathname === "/books/reader") return redirect(res, "/books/reader/", "slash-redirect");
+  if (pathname === "/books/reader1") return redirect(res, "/books/reader1/", "slash-redirect");
   if (pathname === "/books/ping") {
     return send(res, 200, "pong\n", { "content-type": "text/plain; charset=utf-8", "x-reader-route": "ping" });
   }

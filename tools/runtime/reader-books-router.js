@@ -14,6 +14,7 @@ Allow: /category/
 Allow: /sitemap.xml
 Allow: /sitemaps/
 Disallow: /books/reader/
+Disallow: /books/reader1/
 Disallow: /books/api/
 
 Sitemap: https://reader.pub/sitemap.xml
@@ -164,6 +165,10 @@ export default {
       return redirect("/books/reader/", "slash-redirect");
     }
 
+    if (path === "/books/reader1") {
+      return redirect("/books/reader1/", "slash-redirect");
+    }
+
     if (path === "/books/ping") {
       return new Response("pong\n", {
         status: 200,
@@ -287,6 +292,13 @@ export default {
       const upstreamUrl = new URL(`${host}${rewrittenPath}`);
       upstreamUrl.search = url.search;
       return proxyRequest(request, upstreamUrl, "proxy-reader");
+    }
+
+    if (path === "/books/reader1/" || path.startsWith("/books/reader1/")) {
+      const rewrittenPath = path.replace(/^\/books\/reader1/, "/reader1");
+      const upstreamUrl = new URL(`${host}${rewrittenPath}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-reader1");
     }
 
     return new Response("Not found", {

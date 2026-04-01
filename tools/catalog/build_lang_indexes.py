@@ -170,6 +170,7 @@ def parse_author_name(name: str) -> tuple[str, str, str, str]:
 DC_NS = "http://purl.org/dc/elements/1.1/"
 OPF_NS = "http://www.idpf.org/2007/opf"
 CONTAINER_NS = "urn:oasis:names:tc:opendocument:xmlns:container"
+READER1_MANIFEST = "reader1-manifest.json"
 
 
 def find_first_text(root, tag):
@@ -227,7 +228,66 @@ def parse_opf(opf_path: str) -> dict:
         "creators": creators,
         "languages": languages,
         "cover_href": cover_href,
+        "reader_type": "legacy",
     }
+
+
+def parse_reader1_manifest(manifest_path: str) -> dict:
+    data = read_json(manifest_path, {}) or {}
+    metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else {}
+    resources = data.get("resources") if isinstance(data.get("resources"), list) else []
+
+    title = clean_text(metadata.get("title") or metadata.get("bookTitle") or "")
+    creators = metadata.get("creators") if isinstance(metadata.get("creators"), list) else []
+    if not creators:
+        creator = clean_text(metadata.get("creator") or "")
+        if creator:
+            creators = [creator]
+    creators = [clean_text(value) for value in creators if clean_text(value)]
+
+    languages = metadata.get("languages") if isinstance(metadata.get("languages"), list) else []
+    if not languages:
+        language = clean_text(metadata.get("language") or "")
+        if language:
+            languages = [language]
+    languages = [clean_text(value) for value in languages if clean_text(value)]
+
+    cover_href = ""
+    for item in resources:
+        if not isinstance(item, dict):
+            continue
+        rel = item.get("rel")
+        rel_values = rel if isinstance(rel, list) else [rel]
+        if any(clean_text(value) == "cover" for value in rel_values if value):
+            cover_href = clean_text(item.get("href") or "")
+            if cover_href:
+                break
+
+    return {
+        "title": title,
+        "creators": creators,
+        "languages": languages,
+        "cover_href": cover_href,
+        "reader_type": "reader1",
+    }
+
+
+def load_book_package(book_path: str) -> tuple[dict, str]:
+    reader1_manifest_path = os.path.join(book_path, READER1_MANIFEST)
+    if os.path.exists(reader1_manifest_path):
+        return parse_reader1_manifest(reader1_manifest_path), "reader1"
+
+    container_path = os.path.join(book_path, "META-INF", "container.xml")
+    if not os.path.exists(container_path):
+        raise FileNotFoundError(f"Missing container.xml for book path: {book_path}")
+
+    opf_rel = parse_container(container_path)
+    if not opf_rel:
+        raise FileNotFoundError(f"Missing OPF path for book path: {book_path}")
+    opf_path = os.path.join(book_path, opf_rel)
+    if not os.path.exists(opf_path):
+        raise FileNotFoundError(f"Missing OPF file for book path: {book_path}")
+    return parse_opf(opf_path), opf_rel
 
 
 def iter_books(root_dir: str):
@@ -364,6 +424,7 @@ def build_language_indexes(lang: str, authors: list, output_root: str, max_prefi
                 "author": author.get("name", ""),
                 "author_key": author.get("key", ""),
                 "cover": book.get("cover", ""),
+                "readerType": book.get("readerType", "legacy"),
             })
 
     letters = defaultdict(set)
@@ -503,6 +564,7 @@ def build_language_indexes(lang: str, authors: list, output_root: str, max_prefi
                 "a": book.get("author"),
                 "k": book.get("author_key"),
                 "cover": book.get("cover"),
+                "readerType": book.get("readerType", "legacy"),
             })
 
     if lang == "all":
@@ -514,18 +576,7 @@ def build_language_indexes(lang: str, authors: list, output_root: str, max_prefi
 def build_incremental(input_root: str, output_root: str, book_id: str, max_prefix: int, threshold: int, locations: dict | None = None, registry: dict | None = None):
     location = get_book_location(locations or {}, registry or {}, book_id)
     book_path = content_root_to_fs_path(input_root, location.get("localContentPath") or location.get("contentPath") or f"/books/content/{book_id}/")
-    container_path = os.path.join(book_path, "META-INF", "container.xml")
-    if not os.path.exists(container_path):
-        raise FileNotFoundError(f"Missing container.xml for book {book_id}")
-
-    opf_rel = parse_container(container_path)
-    if not opf_rel:
-        raise FileNotFoundError(f"Missing OPF path for book {book_id}")
-    opf_path = os.path.join(book_path, opf_rel)
-    if not os.path.exists(opf_path):
-        raise FileNotFoundError(f"Missing OPF file for book {book_id}")
-
-    opf_data = parse_opf(opf_path)
+    opf_data, package_ref = load_book_package(book_path)
     title = opf_data.get("title") or book_id
     creators = opf_data.get("creators") or []
     author_name_raw = creators[0] if creators else "Unknown"
@@ -543,7 +594,7 @@ def build_incremental(input_root: str, output_root: str, book_id: str, max_prefi
     cover_href = opf_data.get("cover_href") or ""
     cover_url = ""
     if cover_href:
-        cover_rel_dir = os.path.dirname(opf_rel)
+        cover_rel_dir = os.path.dirname(package_ref) if package_ref != "reader1" else ""
         cover_rel = os.path.normpath(os.path.join(cover_rel_dir, cover_href))
         base = str(location.get("contentPath") or location.get("legacyPath") or f"/books/content/{book_id}/").rstrip("/")
         cover_url = f"{base}/{cover_rel}"
@@ -557,6 +608,7 @@ def build_incremental(input_root: str, output_root: str, book_id: str, max_prefi
         "legacyId": str(book_id),
         "title": title,
         "cover": cover_url,
+        "readerType": str(opf_data.get("reader_type") or "legacy"),
     }
 
     languages_path = os.path.join(output_root, "languages.json")
@@ -579,7 +631,13 @@ def build_incremental(input_root: str, output_root: str, book_id: str, max_prefi
             author["name"] = author_name
         author["books"] = [
             existing for existing in author.get("books", [])
-            if str(existing.get("legacyId") or existing.get("id") or "") != str(book_id)
+            if not (
+                str(existing.get("legacyId") or existing.get("id") or "") == str(book_id)
+                or (
+                    str(existing.get("source") or "") == source
+                    and str(existing.get("sourceBookId") or existing.get("id") or "") == public_id
+                )
+            )
         ]
         author["books"].append(book_entry)
 
@@ -600,17 +658,8 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
     for book_id, book_path, location in iterator:
         if not location:
             location = get_book_location(locations or {}, registry or {}, book_id)
-        container_path = os.path.join(book_path, "META-INF", "container.xml")
-        if not os.path.exists(container_path):
-            continue
         try:
-            opf_rel = parse_container(container_path)
-            if not opf_rel:
-                continue
-            opf_path = os.path.join(book_path, opf_rel)
-            if not os.path.exists(opf_path):
-                continue
-            opf_data = parse_opf(opf_path)
+            opf_data, package_ref = load_book_package(book_path)
         except Exception:
             continue
 
@@ -632,7 +681,7 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
         cover_href = opf_data.get("cover_href") or ""
         cover_url = ""
         if cover_href:
-            cover_rel_dir = os.path.dirname(opf_rel)
+            cover_rel_dir = os.path.dirname(package_ref) if package_ref != "reader1" else ""
             cover_rel = os.path.normpath(os.path.join(cover_rel_dir, cover_href))
             base = str((location or {}).get("contentPath") or (location or {}).get("legacyPath") or f"/books/content/{book_id}/").rstrip("/")
             cover_url = f"{base}/{cover_rel}"
@@ -646,6 +695,7 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
             "legacyId": str(book_id),
             "title": title,
             "cover": cover_url,
+            "readerType": str(opf_data.get("reader_type") or "legacy"),
         }
 
         for lang in lang_codes:

@@ -106,6 +106,12 @@
       "source_book_id": "18",
       "label": "Manual import",
       "local_content_path": "/books/content/manual/18/"
+    },
+    "19": {
+      "reader_id": "19",
+      "source_book_id": "19",
+      "label": "Manual import",
+      "local_content_path": "/books/content/manual/19/"
     }
   }
 }
