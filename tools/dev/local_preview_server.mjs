@@ -10,6 +10,7 @@ const ROOT = path.resolve(__dirname, "..", "..");
 const BOOKS_DIR = path.join(ROOT, "books");
 const READER_DIR = path.join(ROOT, "reader");
 const READER1_DIR = path.join(ROOT, "reader1");
+const READER_RENDER_V3_DIR = path.join(ROOT, "reader_render_v3");
 const INDEX_DIR = path.join(ROOT, "reader_lang_indexes");
 const CONTENT_DIR = path.join(ROOT, "books", "content");
 const PORT = Number(process.env.PORT || 8788);
@@ -151,6 +152,12 @@ function routeLocalPath(urlPath) {
   if (urlPath.startsWith("/books/reader1/")) {
     return { file: safeJoin(READER1_DIR, urlPath.slice("/books/reader1".length)), route: "reader1" };
   }
+  if (urlPath === "/books/reader_render_v3/" || urlPath === "/books/reader_render_v3/index.html") {
+    return { file: path.join(READER_RENDER_V3_DIR, "index.html"), route: "reader-render-v3" };
+  }
+  if (urlPath.startsWith("/books/reader_render_v3/")) {
+    return { file: safeJoin(READER_RENDER_V3_DIR, urlPath.slice("/books/reader_render_v3".length)), route: "reader-render-v3" };
+  }
   if (urlPath === "/reader/" || urlPath === "/reader/index.html") {
     return { file: path.join(READER_DIR, "index.html"), route: "reader" };
   }
@@ -163,6 +170,12 @@ function routeLocalPath(urlPath) {
   if (urlPath.startsWith("/reader1/")) {
     return { file: safeJoin(READER1_DIR, urlPath.slice("/reader1".length)), route: "reader1" };
   }
+  if (urlPath === "/reader_render_v3/" || urlPath === "/reader_render_v3/index.html") {
+    return { file: path.join(READER_RENDER_V3_DIR, "index.html"), route: "reader-render-v3" };
+  }
+  if (urlPath.startsWith("/reader_render_v3/")) {
+    return { file: safeJoin(READER_RENDER_V3_DIR, urlPath.slice("/reader_render_v3".length)), route: "reader-render-v3" };
+  }
   return null;
 }
 
@@ -173,6 +186,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname === "/books") return redirect(res, "/books/", "slash-redirect");
   if (pathname === "/books/reader") return redirect(res, "/books/reader/", "slash-redirect");
   if (pathname === "/books/reader1") return redirect(res, "/books/reader1/", "slash-redirect");
+  if (pathname === "/books/reader_render_v3") return redirect(res, "/books/reader_render_v3/", "slash-redirect");
   if (pathname === "/books/ping") {
     return send(res, 200, "pong\n", { "content-type": "text/plain; charset=utf-8", "x-reader-route": "ping" });
   }

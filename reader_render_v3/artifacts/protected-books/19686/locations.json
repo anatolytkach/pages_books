@@ -1,0 +1,4486 @@
+{
+  "version": 1,
+  "chunks": [
+    {
+      "chunkId": "chunk-000001",
+      "order": 0,
+      "locationId": "loc:chunk-000001",
+      "startOffset": 0,
+      "endOffset": 920,
+      "textLength": 920,
+      "blockCount": 24,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 0,
+          "nodeId": "xe9782b2de4",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 1,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 2,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 3,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 4,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 5,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 6,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 7,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 8,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 9,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 10,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 11,
+          "nodeId": "x78a6c2d11f",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 12,
+          "nodeId": "x58e524cfb7",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 13,
+          "nodeId": "x4770e335bf",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 14,
+          "nodeId": "x81887c65ce",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 15,
+          "nodeId": "x54d8a171db",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 16,
+          "nodeId": "x7c7a5add34",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 17,
+          "nodeId": "x444f6cedfa",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 18,
+          "nodeId": "xdae7e4b8a9",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 19,
+          "nodeId": "x389863f57d",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 20,
+          "nodeId": "x99b2497215",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 21,
+          "nodeId": "xd4b71c4525",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 22,
+          "nodeId": "x63227078f1",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 23,
+          "nodeId": "xe7667bd56c",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000001:item1-b-0001",
+          "blockId": "item1-b-0001",
+          "startOffset": 0,
+          "endOffset": 57,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 0,
+            "nodeId": "xe9782b2de4",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0002",
+          "blockId": "item1-b-0002",
+          "startOffset": 59,
+          "endOffset": 321,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 1,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0003",
+          "blockId": "item1-b-0003",
+          "startOffset": 323,
+          "endOffset": 342,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 2,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0004",
+          "blockId": "item1-b-0004",
+          "startOffset": 344,
+          "endOffset": 379,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 3,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0005",
+          "blockId": "item1-b-0005",
+          "startOffset": 381,
+          "endOffset": 402,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 4,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0006",
+          "blockId": "item1-b-0006",
+          "startOffset": 404,
+          "endOffset": 446,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 5,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0007",
+          "blockId": "item1-b-0007",
+          "startOffset": 448,
+          "endOffset": 465,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 6,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0008",
+          "blockId": "item1-b-0008",
+          "startOffset": 467,
+          "endOffset": 522,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 7,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0009",
+          "blockId": "item1-b-0009",
+          "startOffset": 524,
+          "endOffset": 569,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 8,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0010",
+          "blockId": "item1-b-0010",
+          "startOffset": 571,
+          "endOffset": 585,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 9,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0011",
+          "blockId": "item1-b-0011",
+          "startOffset": 587,
+          "endOffset": 595,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 10,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0012",
+          "blockId": "item1-b-0012",
+          "startOffset": 597,
+          "endOffset": 620,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 11,
+            "nodeId": "x78a6c2d11f",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0013",
+          "blockId": "item1-b-0013",
+          "startOffset": 622,
+          "endOffset": 645,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 12,
+            "nodeId": "x58e524cfb7",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0014",
+          "blockId": "item1-b-0014",
+          "startOffset": 647,
+          "endOffset": 670,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 13,
+            "nodeId": "x4770e335bf",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0015",
+          "blockId": "item1-b-0015",
+          "startOffset": 672,
+          "endOffset": 695,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 14,
+            "nodeId": "x81887c65ce",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0016",
+          "blockId": "item1-b-0016",
+          "startOffset": 697,
+          "endOffset": 720,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 15,
+            "nodeId": "x54d8a171db",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0017",
+          "blockId": "item1-b-0017",
+          "startOffset": 722,
+          "endOffset": 745,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 16,
+            "nodeId": "x7c7a5add34",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0018",
+          "blockId": "item1-b-0018",
+          "startOffset": 747,
+          "endOffset": 770,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 17,
+            "nodeId": "x444f6cedfa",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0019",
+          "blockId": "item1-b-0019",
+          "startOffset": 772,
+          "endOffset": 795,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 18,
+            "nodeId": "xdae7e4b8a9",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0020",
+          "blockId": "item1-b-0020",
+          "startOffset": 797,
+          "endOffset": 820,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 19,
+            "nodeId": "x389863f57d",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0021",
+          "blockId": "item1-b-0021",
+          "startOffset": 822,
+          "endOffset": 845,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 20,
+            "nodeId": "x99b2497215",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0022",
+          "blockId": "item1-b-0022",
+          "startOffset": 847,
+          "endOffset": 870,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 21,
+            "nodeId": "xd4b71c4525",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0023",
+          "blockId": "item1-b-0023",
+          "startOffset": 872,
+          "endOffset": 895,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 22,
+            "nodeId": "x63227078f1",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000001:item1-b-0024",
+          "blockId": "item1-b-0024",
+          "startOffset": 897,
+          "endOffset": 920,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 23,
+            "nodeId": "xe7667bd56c",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-1",
+          "label": "Top",
+          "href": "c/10eccbb7894c.html#xe9782b2de4",
+          "blockId": "item1-b-0001",
+          "locationId": "chunk-000001:item1-b-0001"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000001",
+        "startOffset": 0,
+        "endOffset": 920
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000002",
+      "order": 1,
+      "locationId": "loc:chunk-000002",
+      "startOffset": 920,
+      "endOffset": 1964,
+      "textLength": 1044,
+      "blockCount": 19,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 24,
+          "nodeId": "xc4fea16c69",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 25,
+          "nodeId": "x3e9951a88f",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 26,
+          "nodeId": "x55870437b9",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 27,
+          "nodeId": "x930e7ba6f5",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 28,
+          "nodeId": "xda7de5826c",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 29,
+          "nodeId": "xadf847aab9",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 30,
+          "nodeId": "x40e2696f38",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 31,
+          "nodeId": "xf08c3dc846",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 32,
+          "nodeId": "xdfd1d28e28",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 33,
+          "nodeId": "xe4da3b1df9",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 34,
+          "nodeId": "xd5fcbcc1da",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 35,
+          "nodeId": "x603e61e0ac",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 36,
+          "nodeId": "x8d7ad3b4c2",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 37,
+          "nodeId": "x97340c6b17",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 38,
+          "nodeId": "x9960250175",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 39,
+          "nodeId": "xf44c595183",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h5",
+          "nodeIndex": 40,
+          "nodeId": "xe8d189300a",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 41,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 42,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000002:item1-b-0025",
+          "blockId": "item1-b-0025",
+          "startOffset": 0,
+          "endOffset": 23,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 24,
+            "nodeId": "xc4fea16c69",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0026",
+          "blockId": "item1-b-0026",
+          "startOffset": 25,
+          "endOffset": 48,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 25,
+            "nodeId": "x3e9951a88f",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0027",
+          "blockId": "item1-b-0027",
+          "startOffset": 50,
+          "endOffset": 73,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 26,
+            "nodeId": "x55870437b9",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0028",
+          "blockId": "item1-b-0028",
+          "startOffset": 75,
+          "endOffset": 98,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 27,
+            "nodeId": "x930e7ba6f5",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0029",
+          "blockId": "item1-b-0029",
+          "startOffset": 100,
+          "endOffset": 123,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 28,
+            "nodeId": "xda7de5826c",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0030",
+          "blockId": "item1-b-0030",
+          "startOffset": 125,
+          "endOffset": 148,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 29,
+            "nodeId": "xadf847aab9",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0031",
+          "blockId": "item1-b-0031",
+          "startOffset": 150,
+          "endOffset": 173,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 30,
+            "nodeId": "x40e2696f38",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0032",
+          "blockId": "item1-b-0032",
+          "startOffset": 175,
+          "endOffset": 198,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 31,
+            "nodeId": "xf08c3dc846",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0033",
+          "blockId": "item1-b-0033",
+          "startOffset": 200,
+          "endOffset": 223,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 32,
+            "nodeId": "xdfd1d28e28",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0034",
+          "blockId": "item1-b-0034",
+          "startOffset": 225,
+          "endOffset": 248,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 33,
+            "nodeId": "xe4da3b1df9",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0035",
+          "blockId": "item1-b-0035",
+          "startOffset": 250,
+          "endOffset": 273,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 34,
+            "nodeId": "xd5fcbcc1da",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0036",
+          "blockId": "item1-b-0036",
+          "startOffset": 275,
+          "endOffset": 298,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 35,
+            "nodeId": "x603e61e0ac",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0037",
+          "blockId": "item1-b-0037",
+          "startOffset": 300,
+          "endOffset": 323,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 36,
+            "nodeId": "x8d7ad3b4c2",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0038",
+          "blockId": "item1-b-0038",
+          "startOffset": 325,
+          "endOffset": 348,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 37,
+            "nodeId": "x97340c6b17",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0039",
+          "blockId": "item1-b-0039",
+          "startOffset": 350,
+          "endOffset": 373,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 38,
+            "nodeId": "x9960250175",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0040",
+          "blockId": "item1-b-0040",
+          "startOffset": 375,
+          "endOffset": 398,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 39,
+            "nodeId": "xf44c595183",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0041",
+          "blockId": "item1-b-0041",
+          "startOffset": 400,
+          "endOffset": 423,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h5",
+            "nodeIndex": 40,
+            "nodeId": "xe8d189300a",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0042",
+          "blockId": "item1-b-0042",
+          "startOffset": 425,
+          "endOffset": 478,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 41,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000002:item1-b-0043",
+          "blockId": "item1-b-0043",
+          "startOffset": 480,
+          "endOffset": 1044,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 42,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000002",
+        "startOffset": 920,
+        "endOffset": 1964
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000003",
+      "order": 2,
+      "locationId": "loc:chunk-000003",
+      "startOffset": 1964,
+      "endOffset": 3170,
+      "textLength": 1206,
+      "blockCount": 5,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 43,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 44,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 45,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 46,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 47,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000003:item1-b-0044",
+          "blockId": "item1-b-0044",
+          "startOffset": 0,
+          "endOffset": 225,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 43,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000003:item1-b-0045",
+          "blockId": "item1-b-0045",
+          "startOffset": 227,
+          "endOffset": 711,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 44,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000003:item1-b-0046",
+          "blockId": "item1-b-0046",
+          "startOffset": 713,
+          "endOffset": 1025,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 45,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000003:item1-b-0047",
+          "blockId": "item1-b-0047",
+          "startOffset": 1027,
+          "endOffset": 1051,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 46,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000003:item1-b-0048",
+          "blockId": "item1-b-0048",
+          "startOffset": 1053,
+          "endOffset": 1206,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 47,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000003",
+        "startOffset": 1964,
+        "endOffset": 3170
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000004",
+      "order": 3,
+      "locationId": "loc:chunk-000004",
+      "startOffset": 3170,
+      "endOffset": 3610,
+      "textLength": 440,
+      "blockCount": 9,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 48,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h3",
+          "nodeIndex": 49,
+          "nodeId": "xe194be655b",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 50,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 51,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 52,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 53,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 54,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 55,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 56,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000004:item1-b-0049",
+          "blockId": "item1-b-0049",
+          "startOffset": 0,
+          "endOffset": 53,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 48,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000004:item1-b-0050",
+          "blockId": "item1-b-0050",
+          "startOffset": 55,
+          "endOffset": 62,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h3",
+            "nodeIndex": 49,
+            "nodeId": "xe194be655b",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000004:item1-b-0051",
+          "blockId": "item1-b-0051",
+          "startOffset": 64,
+          "endOffset": 76,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 50,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000004:item1-b-0052",
+          "blockId": "item1-b-0052",
+          "startOffset": 78,
+          "endOffset": 171,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 51,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000004:item1-b-0053",
+          "blockId": "item1-b-0053",
+          "startOffset": 173,
+          "endOffset": 202,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 52,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000004:item1-b-0054",
+          "blockId": "item1-b-0054",
+          "startOffset": 204,
+          "endOffset": 240,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 53,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000004:item1-b-0055",
+          "blockId": "item1-b-0055",
+          "startOffset": 242,
+          "endOffset": 308,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 54,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000004:item1-b-0056",
+          "blockId": "item1-b-0056",
+          "startOffset": 310,
+          "endOffset": 354,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 55,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000004:item1-b-0057",
+          "blockId": "item1-b-0057",
+          "startOffset": 356,
+          "endOffset": 440,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 56,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-2",
+          "label": "CREDITS",
+          "href": "c/10eccbb7894c.html#xe194be655b",
+          "blockId": "item1-b-0050",
+          "locationId": "chunk-000004:item1-b-0050"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000004",
+        "startOffset": 3170,
+        "endOffset": 3610
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000005",
+      "order": 4,
+      "locationId": "loc:chunk-000005",
+      "startOffset": 3610,
+      "endOffset": 4712,
+      "textLength": 1102,
+      "blockCount": 3,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 57,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 58,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 59,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000005:item1-b-0058",
+          "blockId": "item1-b-0058",
+          "startOffset": 0,
+          "endOffset": 1008,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 57,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000005:item1-b-0059",
+          "blockId": "item1-b-0059",
+          "startOffset": 1010,
+          "endOffset": 1044,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 58,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000005:item1-b-0060",
+          "blockId": "item1-b-0060",
+          "startOffset": 1046,
+          "endOffset": 1102,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 59,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000005",
+        "startOffset": 3610,
+        "endOffset": 4712
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000006",
+      "order": 5,
+      "locationId": "loc:chunk-000006",
+      "startOffset": 4712,
+      "endOffset": 5857,
+      "textLength": 1145,
+      "blockCount": 6,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 60,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 61,
+          "nodeId": "xc55e035efa",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 62,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 63,
+          "nodeId": "xe415d4ad6e",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 64,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 65,
+          "nodeId": "xd3eb678794",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000006:item1-b-0061",
+          "blockId": "item1-b-0061",
+          "startOffset": 0,
+          "endOffset": 367,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 60,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000006:item1-b-0062",
+          "blockId": "item1-b-0062",
+          "startOffset": 369,
+          "endOffset": 379,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 61,
+            "nodeId": "xc55e035efa",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000006:item1-b-0063",
+          "blockId": "item1-b-0063",
+          "startOffset": 381,
+          "endOffset": 456,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 62,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000006:item1-b-0064",
+          "blockId": "item1-b-0064",
+          "startOffset": 458,
+          "endOffset": 462,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 63,
+            "nodeId": "xe415d4ad6e",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000006:item1-b-0065",
+          "blockId": "item1-b-0065",
+          "startOffset": 464,
+          "endOffset": 1139,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 64,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000006:item1-b-0066",
+          "blockId": "item1-b-0066",
+          "startOffset": 1141,
+          "endOffset": 1145,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 65,
+            "nodeId": "xd3eb678794",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-3",
+          "label": "Section 1.",
+          "href": "c/10eccbb7894c.html#xc55e035efa",
+          "blockId": "item1-b-0062",
+          "locationId": "chunk-000006:item1-b-0062"
+        },
+        {
+          "tocId": "toc-4",
+          "label": "1.A.",
+          "href": "c/10eccbb7894c.html#xe415d4ad6e",
+          "blockId": "item1-b-0064",
+          "locationId": "chunk-000006:item1-b-0064"
+        },
+        {
+          "tocId": "toc-5",
+          "label": "1.B.",
+          "href": "c/10eccbb7894c.html#xd3eb678794",
+          "blockId": "item1-b-0066",
+          "locationId": "chunk-000006:item1-b-0066"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000006",
+        "startOffset": 4712,
+        "endOffset": 5857
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000007",
+      "order": 6,
+      "locationId": "loc:chunk-000007",
+      "startOffset": 5857,
+      "endOffset": 6445,
+      "textLength": 588,
+      "blockCount": 2,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 66,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 67,
+          "nodeId": "x27b191f9c4",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000007:item1-b-0067",
+          "blockId": "item1-b-0067",
+          "startOffset": 0,
+          "endOffset": 582,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 66,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000007:item1-b-0068",
+          "blockId": "item1-b-0068",
+          "startOffset": 584,
+          "endOffset": 588,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 67,
+            "nodeId": "x27b191f9c4",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-6",
+          "label": "1.C.",
+          "href": "c/10eccbb7894c.html#x27b191f9c4",
+          "blockId": "item1-b-0068",
+          "locationId": "chunk-000007:item1-b-0068"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000007",
+        "startOffset": 5857,
+        "endOffset": 6445
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000008",
+      "order": 7,
+      "locationId": "loc:chunk-000008",
+      "startOffset": 6445,
+      "endOffset": 7493,
+      "textLength": 1048,
+      "blockCount": 2,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 68,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 69,
+          "nodeId": "x6ef3264d6d",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000008:item1-b-0069",
+          "blockId": "item1-b-0069",
+          "startOffset": 0,
+          "endOffset": 1042,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 68,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000008:item1-b-0070",
+          "blockId": "item1-b-0070",
+          "startOffset": 1044,
+          "endOffset": 1048,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 69,
+            "nodeId": "x6ef3264d6d",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-7",
+          "label": "1.D.",
+          "href": "c/10eccbb7894c.html#x6ef3264d6d",
+          "blockId": "item1-b-0070",
+          "locationId": "chunk-000008:item1-b-0070"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000008",
+        "startOffset": 6445,
+        "endOffset": 7493
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000009",
+      "order": 8,
+      "locationId": "loc:chunk-000009",
+      "startOffset": 7493,
+      "endOffset": 8499,
+      "textLength": 1006,
+      "blockCount": 5,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 70,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 71,
+          "nodeId": "x37dc017104",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 72,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 73,
+          "nodeId": "xcd61c2e36d",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 74,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000009:item1-b-0071",
+          "blockId": "item1-b-0071",
+          "startOffset": 0,
+          "endOffset": 557,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 70,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000009:item1-b-0072",
+          "blockId": "item1-b-0072",
+          "startOffset": 559,
+          "endOffset": 563,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 71,
+            "nodeId": "x37dc017104",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000009:item1-b-0073",
+          "blockId": "item1-b-0073",
+          "startOffset": 565,
+          "endOffset": 625,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 72,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000009:item1-b-0074",
+          "blockId": "item1-b-0074",
+          "startOffset": 627,
+          "endOffset": 633,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 73,
+            "nodeId": "xcd61c2e36d",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000009:item1-b-0075",
+          "blockId": "item1-b-0075",
+          "startOffset": 635,
+          "endOffset": 1006,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 74,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-8",
+          "label": "1.E.",
+          "href": "c/10eccbb7894c.html#x37dc017104",
+          "blockId": "item1-b-0072",
+          "locationId": "chunk-000009:item1-b-0072"
+        },
+        {
+          "tocId": "toc-9",
+          "label": "1.E.1.",
+          "href": "c/10eccbb7894c.html#xcd61c2e36d",
+          "blockId": "item1-b-0074",
+          "locationId": "chunk-000009:item1-b-0074"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000009",
+        "startOffset": 7493,
+        "endOffset": 8499
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000010",
+      "order": 9,
+      "locationId": "loc:chunk-000010",
+      "startOffset": 8499,
+      "endOffset": 9402,
+      "textLength": 903,
+      "blockCount": 4,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 75,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 76,
+          "nodeId": "x2c113cd8f9",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 77,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 78,
+          "nodeId": "xd05eb350bc",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000010:item1-b-0076",
+          "blockId": "item1-b-0076",
+          "startOffset": 0,
+          "endOffset": 254,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 75,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000010:item1-b-0077",
+          "blockId": "item1-b-0077",
+          "startOffset": 256,
+          "endOffset": 262,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 76,
+            "nodeId": "x2c113cd8f9",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000010:item1-b-0078",
+          "blockId": "item1-b-0078",
+          "startOffset": 264,
+          "endOffset": 895,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 77,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000010:item1-b-0079",
+          "blockId": "item1-b-0079",
+          "startOffset": 897,
+          "endOffset": 903,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 78,
+            "nodeId": "xd05eb350bc",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-10",
+          "label": "1.E.2.",
+          "href": "c/10eccbb7894c.html#x2c113cd8f9",
+          "blockId": "item1-b-0077",
+          "locationId": "chunk-000010:item1-b-0077"
+        },
+        {
+          "tocId": "toc-11",
+          "label": "1.E.3.",
+          "href": "c/10eccbb7894c.html#xd05eb350bc",
+          "blockId": "item1-b-0079",
+          "locationId": "chunk-000010:item1-b-0079"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000010",
+        "startOffset": 8499,
+        "endOffset": 9402
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000011",
+      "order": 10,
+      "locationId": "loc:chunk-000011",
+      "startOffset": 9402,
+      "endOffset": 10320,
+      "textLength": 918,
+      "blockCount": 6,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 79,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 80,
+          "nodeId": "xe9a4f436f2",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 81,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 82,
+          "nodeId": "x23d90c2ae2",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 83,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 84,
+          "nodeId": "xcf7d21eb59",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000011:item1-b-0080",
+          "blockId": "item1-b-0080",
+          "startOffset": 0,
+          "endOffset": 415,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 79,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000011:item1-b-0081",
+          "blockId": "item1-b-0081",
+          "startOffset": 417,
+          "endOffset": 423,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 80,
+            "nodeId": "xe9a4f436f2",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000011:item1-b-0082",
+          "blockId": "item1-b-0082",
+          "startOffset": 425,
+          "endOffset": 618,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 81,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000011:item1-b-0083",
+          "blockId": "item1-b-0083",
+          "startOffset": 620,
+          "endOffset": 626,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 82,
+            "nodeId": "x23d90c2ae2",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000011:item1-b-0084",
+          "blockId": "item1-b-0084",
+          "startOffset": 628,
+          "endOffset": 910,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 83,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000011:item1-b-0085",
+          "blockId": "item1-b-0085",
+          "startOffset": 912,
+          "endOffset": 918,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 84,
+            "nodeId": "xcf7d21eb59",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-12",
+          "label": "1.E.4.",
+          "href": "c/10eccbb7894c.html#xe9a4f436f2",
+          "blockId": "item1-b-0081",
+          "locationId": "chunk-000011:item1-b-0081"
+        },
+        {
+          "tocId": "toc-13",
+          "label": "1.E.5.",
+          "href": "c/10eccbb7894c.html#x23d90c2ae2",
+          "blockId": "item1-b-0083",
+          "locationId": "chunk-000011:item1-b-0083"
+        },
+        {
+          "tocId": "toc-14",
+          "label": "1.E.6.",
+          "href": "c/10eccbb7894c.html#xcf7d21eb59",
+          "blockId": "item1-b-0085",
+          "locationId": "chunk-000011:item1-b-0085"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000011",
+        "startOffset": 9402,
+        "endOffset": 10320
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000012",
+      "order": 11,
+      "locationId": "loc:chunk-000012",
+      "startOffset": 10320,
+      "endOffset": 11391,
+      "textLength": 1071,
+      "blockCount": 5,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 85,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 86,
+          "nodeId": "xfa12527ad2",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 87,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 88,
+          "nodeId": "x9c5aa37190",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 89,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000012:item1-b-0086",
+          "blockId": "item1-b-0086",
+          "startOffset": 0,
+          "endOffset": 744,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 85,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000012:item1-b-0087",
+          "blockId": "item1-b-0087",
+          "startOffset": 746,
+          "endOffset": 752,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 86,
+            "nodeId": "xfa12527ad2",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000012:item1-b-0088",
+          "blockId": "item1-b-0088",
+          "startOffset": 754,
+          "endOffset": 925,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 87,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000012:item1-b-0089",
+          "blockId": "item1-b-0089",
+          "startOffset": 927,
+          "endOffset": 933,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 88,
+            "nodeId": "x9c5aa37190",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000012:item1-b-0090",
+          "blockId": "item1-b-0090",
+          "startOffset": 935,
+          "endOffset": 1071,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 89,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-15",
+          "label": "1.E.7.",
+          "href": "c/10eccbb7894c.html#xfa12527ad2",
+          "blockId": "item1-b-0087",
+          "locationId": "chunk-000012:item1-b-0087"
+        },
+        {
+          "tocId": "toc-16",
+          "label": "1.E.8.",
+          "href": "c/10eccbb7894c.html#x9c5aa37190",
+          "blockId": "item1-b-0089",
+          "locationId": "chunk-000012:item1-b-0089"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000012",
+        "startOffset": 10320,
+        "endOffset": 11391
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000013",
+      "order": 12,
+      "locationId": "loc:chunk-000013",
+      "startOffset": 11391,
+      "endOffset": 12542,
+      "textLength": 1151,
+      "blockCount": 2,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 90,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 91,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000013:item1-b-0091",
+          "blockId": "item1-b-0091",
+          "startOffset": 0,
+          "endOffset": 751,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 90,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000013:item1-b-0092",
+          "blockId": "item1-b-0092",
+          "startOffset": 753,
+          "endOffset": 1151,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 91,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000013",
+        "startOffset": 11391,
+        "endOffset": 12542
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000014",
+      "order": 13,
+      "locationId": "loc:chunk-000014",
+      "startOffset": 12542,
+      "endOffset": 13272,
+      "textLength": 730,
+      "blockCount": 6,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 92,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 93,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 94,
+          "nodeId": "x8da87183c8",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 95,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 96,
+          "nodeId": "x9ddacefabb",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 97,
+          "nodeId": "x1b058ed2c4",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000014:item1-b-0093",
+          "blockId": "item1-b-0093",
+          "startOffset": 0,
+          "endOffset": 224,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 92,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000014:item1-b-0094",
+          "blockId": "item1-b-0094",
+          "startOffset": 226,
+          "endOffset": 330,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 93,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000014:item1-b-0095",
+          "blockId": "item1-b-0095",
+          "startOffset": 332,
+          "endOffset": 338,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 94,
+            "nodeId": "x8da87183c8",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000014:item1-b-0096",
+          "blockId": "item1-b-0096",
+          "startOffset": 340,
+          "endOffset": 716,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 95,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000014:item1-b-0097",
+          "blockId": "item1-b-0097",
+          "startOffset": 718,
+          "endOffset": 722,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 96,
+            "nodeId": "x9ddacefabb",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000014:item1-b-0098",
+          "blockId": "item1-b-0098",
+          "startOffset": 724,
+          "endOffset": 730,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 97,
+            "nodeId": "x1b058ed2c4",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-17",
+          "label": "1.E.9.",
+          "href": "c/10eccbb7894c.html#x8da87183c8",
+          "blockId": "item1-b-0095",
+          "locationId": "chunk-000014:item1-b-0095"
+        },
+        {
+          "tocId": "toc-18",
+          "label": "1.F.",
+          "href": "c/10eccbb7894c.html#x9ddacefabb",
+          "blockId": "item1-b-0097",
+          "locationId": "chunk-000014:item1-b-0097"
+        },
+        {
+          "tocId": "toc-19",
+          "label": "1.F.1.",
+          "href": "c/10eccbb7894c.html#x1b058ed2c4",
+          "blockId": "item1-b-0098",
+          "locationId": "chunk-000014:item1-b-0098"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000014",
+        "startOffset": 12542,
+        "endOffset": 13272
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000015",
+      "order": 14,
+      "locationId": "loc:chunk-000015",
+      "startOffset": 13272,
+      "endOffset": 13889,
+      "textLength": 617,
+      "blockCount": 2,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 98,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 99,
+          "nodeId": "x395c481dbb",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000015:item1-b-0099",
+          "blockId": "item1-b-0099",
+          "startOffset": 0,
+          "endOffset": 609,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 98,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000015:item1-b-0100",
+          "blockId": "item1-b-0100",
+          "startOffset": 611,
+          "endOffset": 617,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 99,
+            "nodeId": "x395c481dbb",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-20",
+          "label": "1.F.2.",
+          "href": "c/10eccbb7894c.html#x395c481dbb",
+          "blockId": "item1-b-0100",
+          "locationId": "chunk-000015:item1-b-0100"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000015",
+        "startOffset": 13272,
+        "endOffset": 13889
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000016",
+      "order": 15,
+      "locationId": "loc:chunk-000016",
+      "startOffset": 13889,
+      "endOffset": 14701,
+      "textLength": 812,
+      "blockCount": 2,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 100,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 101,
+          "nodeId": "xf6a663a43f",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000016:item1-b-0101",
+          "blockId": "item1-b-0101",
+          "startOffset": 0,
+          "endOffset": 804,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 100,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000016:item1-b-0102",
+          "blockId": "item1-b-0102",
+          "startOffset": 806,
+          "endOffset": 812,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 101,
+            "nodeId": "xf6a663a43f",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-21",
+          "label": "1.F.3.",
+          "href": "c/10eccbb7894c.html#xf6a663a43f",
+          "blockId": "item1-b-0102",
+          "locationId": "chunk-000016:item1-b-0102"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000016",
+        "startOffset": 13889,
+        "endOffset": 14701
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000017",
+      "order": 16,
+      "locationId": "loc:chunk-000017",
+      "startOffset": 14701,
+      "endOffset": 15784,
+      "textLength": 1083,
+      "blockCount": 4,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 102,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 103,
+          "nodeId": "x844f448914",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 104,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 105,
+          "nodeId": "x079f7d02a9",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000017:item1-b-0103",
+          "blockId": "item1-b-0103",
+          "startOffset": 0,
+          "endOffset": 795,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 102,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000017:item1-b-0104",
+          "blockId": "item1-b-0104",
+          "startOffset": 797,
+          "endOffset": 803,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 103,
+            "nodeId": "x844f448914",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000017:item1-b-0105",
+          "blockId": "item1-b-0105",
+          "startOffset": 805,
+          "endOffset": 1075,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 104,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000017:item1-b-0106",
+          "blockId": "item1-b-0106",
+          "startOffset": 1077,
+          "endOffset": 1083,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 105,
+            "nodeId": "x079f7d02a9",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-22",
+          "label": "1.F.4.",
+          "href": "c/10eccbb7894c.html#x844f448914",
+          "blockId": "item1-b-0104",
+          "locationId": "chunk-000017:item1-b-0104"
+        },
+        {
+          "tocId": "toc-23",
+          "label": "1.F.5.",
+          "href": "c/10eccbb7894c.html#x079f7d02a9",
+          "blockId": "item1-b-0106",
+          "locationId": "chunk-000017:item1-b-0106"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000017",
+        "startOffset": 14701,
+        "endOffset": 15784
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000018",
+      "order": 17,
+      "locationId": "loc:chunk-000018",
+      "startOffset": 15784,
+      "endOffset": 16967,
+      "textLength": 1183,
+      "blockCount": 4,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 106,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 107,
+          "nodeId": "x008f50da4a",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 108,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 109,
+          "nodeId": "x1d0e7719fb",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000018:item1-b-0107",
+          "blockId": "item1-b-0107",
+          "startOffset": 0,
+          "endOffset": 476,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 106,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000018:item1-b-0108",
+          "blockId": "item1-b-0108",
+          "startOffset": 478,
+          "endOffset": 484,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 107,
+            "nodeId": "x008f50da4a",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000018:item1-b-0109",
+          "blockId": "item1-b-0109",
+          "startOffset": 486,
+          "endOffset": 1171,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 108,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000018:item1-b-0110",
+          "blockId": "item1-b-0110",
+          "startOffset": 1173,
+          "endOffset": 1183,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 109,
+            "nodeId": "x1d0e7719fb",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-24",
+          "label": "1.F.6.",
+          "href": "c/10eccbb7894c.html#x008f50da4a",
+          "blockId": "item1-b-0108",
+          "locationId": "chunk-000018:item1-b-0108"
+        },
+        {
+          "tocId": "toc-25",
+          "label": "Section 2.",
+          "href": "c/10eccbb7894c.html#x1d0e7719fb",
+          "blockId": "item1-b-0110",
+          "locationId": "chunk-000018:item1-b-0110"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000018",
+        "startOffset": 15784,
+        "endOffset": 16967
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000019",
+      "order": 18,
+      "locationId": "loc:chunk-000019",
+      "startOffset": 16967,
+      "endOffset": 18002,
+      "textLength": 1035,
+      "blockCount": 5,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 110,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 111,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 112,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 113,
+          "nodeId": "xc7293d6faf",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 114,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000019:item1-b-0111",
+          "blockId": "item1-b-0111",
+          "startOffset": 0,
+          "endOffset": 53,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 110,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000019:item1-b-0112",
+          "blockId": "item1-b-0112",
+          "startOffset": 55,
+          "endOffset": 354,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 111,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000019:item1-b-0113",
+          "blockId": "item1-b-0113",
+          "startOffset": 356,
+          "endOffset": 954,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 112,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000019:item1-b-0114",
+          "blockId": "item1-b-0114",
+          "startOffset": 956,
+          "endOffset": 966,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 113,
+            "nodeId": "xc7293d6faf",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000019:item1-b-0115",
+          "blockId": "item1-b-0115",
+          "startOffset": 968,
+          "endOffset": 1035,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 114,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-26",
+          "label": "Section 3.",
+          "href": "c/10eccbb7894c.html#xc7293d6faf",
+          "blockId": "item1-b-0114",
+          "locationId": "chunk-000019:item1-b-0114"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000019",
+        "startOffset": 16967,
+        "endOffset": 18002
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000020",
+      "order": 19,
+      "locationId": "loc:chunk-000020",
+      "startOffset": 18002,
+      "endOffset": 19165,
+      "textLength": 1163,
+      "blockCount": 6,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 115,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 116,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 117,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 118,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 119,
+          "nodeId": "xf9a51db60d",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 120,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000020:item1-b-0116",
+          "blockId": "item1-b-0116",
+          "startOffset": 0,
+          "endOffset": 529,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 115,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000020:item1-b-0117",
+          "blockId": "item1-b-0117",
+          "startOffset": 531,
+          "endOffset": 963,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 116,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000020:item1-b-0118",
+          "blockId": "item1-b-0118",
+          "startOffset": 965,
+          "endOffset": 1000,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 117,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000020:item1-b-0119",
+          "blockId": "item1-b-0119",
+          "startOffset": 1002,
+          "endOffset": 1069,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 118,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000020:item1-b-0120",
+          "blockId": "item1-b-0120",
+          "startOffset": 1071,
+          "endOffset": 1081,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 119,
+            "nodeId": "xf9a51db60d",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000020:item1-b-0121",
+          "blockId": "item1-b-0121",
+          "startOffset": 1083,
+          "endOffset": 1163,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 120,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-27",
+          "label": "Section 4.",
+          "href": "c/10eccbb7894c.html#xf9a51db60d",
+          "blockId": "item1-b-0120",
+          "locationId": "chunk-000020:item1-b-0120"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000020",
+        "startOffset": 18002,
+        "endOffset": 19165
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000021",
+      "order": 20,
+      "locationId": "loc:chunk-000021",
+      "startOffset": 19165,
+      "endOffset": 20365,
+      "textLength": 1200,
+      "blockCount": 3,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 121,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 122,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 123,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000021:item1-b-0122",
+          "blockId": "item1-b-0122",
+          "startOffset": 0,
+          "endOffset": 427,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 121,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000021:item1-b-0123",
+          "blockId": "item1-b-0123",
+          "startOffset": 429,
+          "endOffset": 953,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 122,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000021:item1-b-0124",
+          "blockId": "item1-b-0124",
+          "startOffset": 955,
+          "endOffset": 1200,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 123,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000021",
+        "startOffset": 19165,
+        "endOffset": 20365
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000022",
+      "order": 21,
+      "locationId": "loc:chunk-000022",
+      "startOffset": 20365,
+      "endOffset": 21451,
+      "textLength": 1086,
+      "blockCount": 6,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 124,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 125,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "h4",
+          "nodeIndex": 126,
+          "nodeId": "xdd4a565380",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 127,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 128,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 129,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000022:item1-b-0125",
+          "blockId": "item1-b-0125",
+          "startOffset": 0,
+          "endOffset": 200,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 124,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000022:item1-b-0126",
+          "blockId": "item1-b-0126",
+          "startOffset": 202,
+          "endOffset": 469,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 125,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000022:item1-b-0127",
+          "blockId": "item1-b-0127",
+          "startOffset": 471,
+          "endOffset": 481,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "h4",
+            "nodeIndex": 126,
+            "nodeId": "xdd4a565380",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000022:item1-b-0128",
+          "blockId": "item1-b-0128",
+          "startOffset": 483,
+          "endOffset": 547,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 127,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000022:item1-b-0129",
+          "blockId": "item1-b-0129",
+          "startOffset": 549,
+          "endOffset": 824,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 128,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000022:item1-b-0130",
+          "blockId": "item1-b-0130",
+          "startOffset": 826,
+          "endOffset": 1086,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 129,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [
+        {
+          "tocId": "toc-28",
+          "label": "Section 5.",
+          "href": "c/10eccbb7894c.html#xdd4a565380",
+          "blockId": "item1-b-0127",
+          "locationId": "chunk-000022:item1-b-0127"
+        }
+      ],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000022",
+        "startOffset": 20365,
+        "endOffset": 21451
+      },
+      "noteAnchors": []
+    },
+    {
+      "chunkId": "chunk-000023",
+      "order": 22,
+      "locationId": "loc:chunk-000023",
+      "startOffset": 21451,
+      "endOffset": 22236,
+      "textLength": 785,
+      "blockCount": 6,
+      "sourceRefs": [
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 130,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 131,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 132,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 133,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 134,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 135,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      ],
+      "blockBoundaries": [
+        {
+          "locationId": "chunk-000023:item1-b-0131",
+          "blockId": "item1-b-0131",
+          "startOffset": 0,
+          "endOffset": 175,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 130,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000023:item1-b-0132",
+          "blockId": "item1-b-0132",
+          "startOffset": 177,
+          "endOffset": 415,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 131,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000023:item1-b-0133",
+          "blockId": "item1-b-0133",
+          "startOffset": 417,
+          "endOffset": 489,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 132,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000023:item1-b-0134",
+          "blockId": "item1-b-0134",
+          "startOffset": 491,
+          "endOffset": 515,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 133,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000023:item1-b-0135",
+          "blockId": "item1-b-0135",
+          "startOffset": 517,
+          "endOffset": 772,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 134,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        },
+        {
+          "locationId": "chunk-000023:item1-b-0136",
+          "blockId": "item1-b-0136",
+          "startOffset": 774,
+          "endOffset": 785,
+          "sourceRef": {
+            "spineId": "item1",
+            "spineIndex": 0,
+            "href": "c/10eccbb7894c.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+            "nodeTag": "p",
+            "nodeIndex": 135,
+            "nodeId": "",
+            "nodeClass": ""
+          },
+          "inlineIds": [],
+          "linkTargets": []
+        }
+      ],
+      "tocAnchors": [],
+      "restoreAnchor": {
+        "locationId": "loc:chunk-000023",
+        "startOffset": 21451,
+        "endOffset": 22236
+      },
+      "noteAnchors": []
+    }
+  ]
+}

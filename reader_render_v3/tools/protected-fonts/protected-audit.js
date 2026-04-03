@@ -1,0 +1,473 @@
+#!/usr/bin/env node
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+
+const ROOT = path.resolve(__dirname, "..", "..");
+const docsDir = path.join(ROOT, "docs", "protected-reader");
+const auditPath = path.join(docsDir, "01-baseline-audit.md");
+const specPath = path.join(docsDir, "02-protected-format-v0.md");
+
+function ensureDir(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+function writeFile(filePath, body) {
+  ensureDir(path.dirname(filePath));
+  fs.writeFileSync(filePath, body, "utf8");
+}
+
+const audit = `# 01 Baseline Audit
+
+Updated: 2026-04-03
+
+## Scope
+
+This document inventories the current repository state before any protected reader renderer, migration flow, or new storage contract is introduced.
+
+This audit is limited to the branch-local protected-reader groundwork and must not change behavior of:
+
+- \`/Volumes/2T/se_ingest/pages_books/reader\`
+- \`/Volumes/2T/se_ingest/pages_books/books/index.html\`
+- \`/Volumes/2T/se_ingest/pages_books/tools/runtime/reader-books-router.js\`
+- \`/Volumes/2T/se_ingest/pages_books/_worker.js\`
+- existing exploded-EPUB book storage and opening flow
+
+## Current working reader
+
+- Main reader root: \`/Volumes/2T/se_ingest/pages_books/reader\`
+- Reader entrypoint: \`/Volumes/2T/se_ingest/pages_books/reader/index.html\`
+- Reader runtime: \`/Volumes/2T/se_ingest/pages_books/reader/js/reader.js\`
+- Shared styles: \`/Volumes/2T/se_ingest/pages_books/reader/css\`
+
+### Reader bootstrap behavior
+
+The current reader bootstrap in \`/Volumes/2T/se_ingest/pages_books/reader/index.html\`:
+
+- resolves book id from query/hash
+- fetches book location metadata from:
+  - \`/books/api/book-locations/<shard>.json\`
+  - \`/books/api/book-locations/<source>/<shard>.json\`
+- infers \`openAs\` mode using path shape:
+  - \`.epub\` -> \`epub\`
+  - \`.opf\` -> \`opf\`
+  - trailing slash or extensionless path -> \`directory\`
+- defaults current catalog flow to \`openAs: "directory"\`
+
+### Reader capabilities that must be preserved
+
+The current reader code in \`/Volumes/2T/se_ingest/pages_books/reader/js/reader.js\` includes behavior that must survive later protected-format work:
+
+- table of contents
+- internal location tracking via CFI / href
+- reading position restore
+- bookmarks
+- notes / highlights / annotations
+- footnote modal flow
+- internal cross-document links, including note hrefs such as \`notes-ch005.xhtml#fn1\`
+- theme switching
+- font size / UI scale
+- page counter and location labels
+- image and stylesheet rendering from EPUB resources
+- preloaded adjacent renditions for reading continuity
+
+## Current experimental protected reader hook
+
+- Local-only route root: \`/Volumes/2T/se_ingest/pages_books/reader_render_v3\`
+- Local preview route wiring:
+  - \`/Volumes/2T/se_ingest/pages_books/tools/dev/local_preview_server.mjs\`
+  - routes:
+    - \`/books/reader_render_v3/\`
+    - \`/reader_render_v3/\`
+
+### Important limitation
+
+\`reader_render_v3\` is currently only wired into the local preview server. It is **not** part of the production catalog opening path and must remain isolated at this stage.
+
+## Ingestion / unpack / upload scripts
+
+### Legacy / current working catalog and Gutenberg flow
+
+- Gutenberg update pipeline:
+  - \`/Volumes/2T/se_ingest/pages_books/tools/gutenberg/update_gutenberg_catalog.py\`
+  - \`/Volumes/2T/se_ingest/pages_books/tools/gutenberg/gutenberg_manual_ingest.py\`
+- Catalog index builders:
+  - \`/Volumes/2T/se_ingest/pages_books/tools/catalog/build_lang_indexes.py\`
+  - \`/Volumes/2T/se_ingest/pages_books/tools/catalog/build_book_locations.py\`
+  - \`/Volumes/2T/se_ingest/pages_books/tools/catalog/build_newest_releases.py\`
+
+### Existing alternate source-book pipeline
+
+- Source-book unpacker / converter:
+  - \`/Volumes/2T/se_ingest/pages_books/tools/reader1/unpack_epub.py\`
+- Source-book publish flow:
+  - \`/Volumes/2T/se_ingest/pages_books/tools/reader1/publish_books.py\`
+
+## How the catalog is formed
+
+### Main catalog UI
+
+- Catalog app: \`/Volumes/2T/se_ingest/pages_books/books/index.html\`
+
+### API / index roots
+
+- Local index root: \`/Volumes/2T/se_ingest/pages_books/reader_lang_indexes\`
+- Book-locations index:
+  - root aggregate: \`/Volumes/2T/se_ingest/pages_books/reader_lang_indexes/book-locations.json\`
+  - shards: \`/Volumes/2T/se_ingest/pages_books/reader_lang_indexes/book-locations/*.json\`
+
+### Catalog index builders
+
+- Author/search/prefix/language indexes come from:
+  - \`/Volumes/2T/se_ingest/pages_books/tools/catalog/build_lang_indexes.py\`
+- Book location mapping comes from:
+  - \`/Volumes/2T/se_ingest/pages_books/tools/catalog/build_book_locations.py\`
+
+## Current R2 key and path model
+
+### Unprotected Gutenberg books
+
+Current public content path model is an exploded EPUB directory:
+
+- public URL: \`/books/content/<book_id>/...\`
+- R2 key: \`content/<book_id>/...\`
+
+The live worker route handling is implemented in:
+
+- \`/Volumes/2T/se_ingest/pages_books/tools/runtime/reader-books-router.js\`
+- \`/Volumes/2T/se_ingest/pages_books/_worker.js\`
+
+### Source / manual books
+
+The registry for source-backed books is:
+
+- \`/Volumes/2T/se_ingest/pages_books/tools/state/source_registry.json\`
+
+For example, manual books currently resolve local content roots such as:
+
+- \`/books/content/manual/19/\`
+
+Book-locations can expose:
+
+- \`legacyPath\`
+- \`localContentPath\`
+- \`contentPath\`
+- \`targetPath\`
+- \`publicPathMode\`
+
+as generated by \`/Volumes/2T/se_ingest/pages_books/tools/catalog/build_book_locations.py\`.
+
+## How the catalog opens a book now
+
+The current catalog opening flow is based on a single working reader:
+
+- public reader route: \`/books/reader/\`
+
+Key places:
+
+- \`/Volumes/2T/se_ingest/pages_books/books/index.html\`
+- \`/Volumes/2T/se_ingest/pages_books/reader/index.html\`
+- \`/Volumes/2T/se_ingest/pages_books/tools/runtime/reader-books-router.js\`
+- \`/Volumes/2T/se_ingest/pages_books/_worker.js\`
+
+High-level flow:
+
+1. Catalog selects a book and builds a \`/books/reader/?id=...\` URL.
+2. Reader bootstrap fetches book-location metadata.
+3. Reader resolves \`contentPath\` / source path.
+4. Reader opens the book as \`directory\`, \`opf\`, or \`epub\`.
+5. Existing catalog behavior assumes exploded EPUB directories for the normal path.
+
+## Code coupled to the old exploded-EPUB directory format
+
+The following code is directly coupled to the old format and must not be silently broken:
+
+- \`/Volumes/2T/se_ingest/pages_books/reader/index.html\`
+  - \`inferOpenAs(...)\`
+  - directory-based reader bootstrap
+- \`/Volumes/2T/se_ingest/pages_books/reader/js/reader.js\`
+  - EPUBJS directory/book path resolution
+  - footnote href handling across XHTML files
+  - spine href / CFI logic
+- \`/Volumes/2T/se_ingest/pages_books/tools/catalog/build_lang_indexes.py\`
+  - \`META-INF/container.xml\`
+  - OPF discovery / parsing
+- \`/Volumes/2T/se_ingest/pages_books/tools/catalog/build_book_locations.py\`
+  - assumes public and local content paths based on current storage model
+- \`/Volumes/2T/se_ingest/pages_books/tools/gutenberg/update_gutenberg_catalog.py\`
+  - uploads exploded EPUB directories to \`content/<book_id>\`
+- \`/Volumes/2T/se_ingest/pages_books/tools/runtime/reader-books-router.js\`
+  - serves \`/books/content/*\` directly from R2 key \`content/*\`
+- \`/Volumes/2T/se_ingest/pages_books/_worker.js\`
+  - same public path assumptions for content and reader routing
+
+## Parts that must not be changed in later protected groundwork steps
+
+- \`/Volumes/2T/se_ingest/pages_books/reader\`
+- \`/Volumes/2T/se_ingest/pages_books/books/index.html\`
+- \`/Volumes/2T/se_ingest/pages_books/tools/runtime/reader-books-router.js\`
+- \`/Volumes/2T/se_ingest/pages_books/_worker.js\`
+- existing book-locations contract used by the current catalog
+- existing R2 key layout for unprotected books
+
+## reader_render_v3 coexistence strategy
+
+At the audit stage, \`reader_render_v3\` must stay isolated and experimental.
+
+Future coexistence goal:
+
+- current books continue to open in the existing reader flow unchanged
+- protected books will be opened by \`reader_render_v3\` only after the protected pipeline is ready
+- \`reader_render_v3\` must therefore support:
+  - current unprotected exploded-EPUB books through a compatibility path or adapter
+  - new protected chunk-based books through the new format contract
+
+This requirement does **not** imply changing the current catalog or current reader now.
+
+## Risks and uncertainties
+
+1. The current reader is deeply coupled to EPUBJS directory semantics, not just book URLs.
+2. Footnote behavior depends on XHTML cross-document href semantics that do not exist in the future protected format yet.
+3. Bookmarks, notes, and restore-position logic rely on CFI / href / spine assumptions that will need a protected-reader locator contract later.
+4. Catalog builders still parse OPF/container data directly. A future protected format cannot reuse those builders unchanged.
+5. Existing source-book tooling under \`tools/reader1\` introduces a parallel ingestion model that may overlap conceptually with the protected-reader work, but must not be confused with it.
+6. \`reader_render_v3\` already exists as a local experimental route; future work must keep it isolated until the protected pipeline is functionally complete.
+7. No existing code currently uses HarfBuzz shaping or OpenType path extraction; that capability is entirely new and must be introduced without bleeding into the public reader.
+
+## Later integration points that will need changes
+
+These are the concrete future touchpoints, but they are out of scope for this step:
+
+- \`/Volumes/2T/se_ingest/pages_books/reader_render_v3\`
+- a future protected-book converter under \`/Volumes/2T/se_ingest/pages_books/tools/protected-fonts\` or sibling protected tooling
+- a future protected storage uploader
+- book-location metadata or an adjacent protected-book registry for new protected books
+- catalog opening logic only after protected books become real user-facing content
+- note/bookmark/location model for protected books
+`;
+
+const spec = `# 02 Protected Format v0
+
+Updated: 2026-04-03
+
+## Status
+
+This is the current working protected-book contract for the dry-run ingestion skeleton inside \`reader_render_v3\`. It exists only for local tooling and future runtime preparation. It does not change the current public reader, catalog, or R2 behavior.
+
+## Non-negotiable compatibility rules
+
+1. Existing books continue to work without changes.
+2. New protected books must **not** be delivered as direct HTML / exploded EPUB directories.
+3. \`reader_render_v3\` must support both existing unprotected books and new protected books.
+4. Protected-book text must **not** land in the DOM as normal text.
+5. Hidden DOM text is forbidden as the primary strategy for selection / copy / notes.
+6. Each protected chunk must contain two explicit layers:
+   - render layer
+   - selection layer
+7. Runtime-safe artifact and debug artifact must be physically separated.
+8. Runtime-safe payloads must not contain raw \`char\`, \`fullText\`, or equivalent plain-text leakage fields.
+9. \`glyph id -> symbol\` mapping must not be global.
+10. Glyph mapping must change at least at the chunk level.
+11. This step does not implement server-side anti-fast-flip protection.
+
+## Artifact layout
+
+\`\`\`
+manifest.json
+toc.json
+locations.json
+styles.json
+assets/...
+chunks/chunk-000001.json
+chunks/chunk-000002.json
+glyphs/chunk-000001.glyphs.json
+glyphs/chunk-000002.glyphs.json
+debug/                  # only when debug artifact is enabled
+debug/chunks/chunk-000001.debug.json
+debug/glyphs/chunk-000001.glyphs.debug.json
+\`\`\`
+
+## Runtime-safe vs debug artifact
+
+### Runtime-safe artifact
+
+This is the default output of \`protected:build\`.
+
+It is the only artifact the future \`reader_render_v3\` runtime helpers are allowed to read.
+
+It must not contain:
+
+- \`char\` in glyph records
+- \`fullText\` in selection payloads
+- any equivalent direct plain-text fields that would let a caller reconstruct chunk text by trivially reading one runtime-safe JSON file
+
+### Debug artifact
+
+This is generated only with \`--debug-artifact\`.
+
+It may contain:
+
+- \`char\`
+- \`fullText\`
+- additional friendly inspection fields
+
+It must live under \`debug/\` and must not be required for runtime-safe validation.
+
+## File purposes
+
+### manifest.json
+
+Top-level runtime-safe descriptor.
+
+Contains:
+
+- protected format version
+- book metadata
+- chunk list
+- pointers to \`toc.json\`, \`locations.json\`, and \`styles.json\`
+- runtime-safe mode marker
+- debug availability marker
+
+Must not contain:
+
+- readable book text
+- global glyph tables
+- exploded EPUB structure
+
+### toc.json
+
+Logical TOC retained for user-facing navigation.
+
+Contains:
+
+- labels
+- href/fragment metadata from the source
+- enough information to map TOC entries back to chunks and anchors later
+
+### locations.json
+
+Runtime-safe logical locator map.
+
+Contains, per chunk:
+
+- \`chunkId\`
+- chunk order
+- stable location id
+- cumulative logical offsets
+- text length
+- block boundaries
+- source refs
+- TOC-related anchors where available
+- restore-position anchor
+- note-anchor placeholders
+
+This is not final pagination. It is a viewport-independent logical map for future reader state, notes, and highlights.
+
+### styles.json
+
+Runtime-safe style registry.
+
+Contains:
+
+- style tokens
+- block role and heading level where available
+- bold / italic / bold-italic / superscript / linkLike flags
+- script bucket
+- font policy hints
+- font plan gaps if known
+
+### chunks/chunk-000001.json
+### chunks/chunk-000002.json
+
+Runtime-safe chunk payloads.
+
+Must contain:
+
+- \`chunkId\`
+- source refs
+- logical block list without raw text
+- \`renderLayer\`
+- \`selectionLayer\`
+
+#### renderLayer
+
+Carries:
+
+- refs to chunk glyph payload
+- text runs as glyph ids
+- style tokens
+- source traceability
+
+Must not carry direct text strings.
+
+#### selectionLayer
+
+Carries only runtime-safe logical selection data:
+
+- \`textLength\`
+- \`textSegments\` without raw text
+- \`ranges\`
+- \`blockAnchors\`
+- \`noteAnchors\`
+- \`copyRanges\`
+- \`chunkRange\`
+
+It preserves the architecture required for future selection/copy/highlights/notes without using hidden DOM text.
+
+### glyphs/chunk-000001.glyphs.json
+### glyphs/chunk-000002.glyphs.json
+
+Runtime-safe chunk-local glyph tables.
+
+Each glyph record may contain:
+
+- \`glyphId\`
+- \`codePoint\`
+- \`styleToken\`
+- \`fontFamilyCandidate\`
+- \`scriptBucket\`
+- \`glyphClass\`
+- \`stableRenderClass\`
+- placeholder shape metadata
+
+It must not contain:
+
+- \`char\`
+- raw text payload
+
+### debug/chunks/*.debug.json
+### debug/glyphs/*.glyphs.debug.json
+
+Optional debug-only payloads.
+
+These may contain \`fullText\`, \`char\`, and other convenience fields for local inspection. They are not part of the runtime-safe contract.
+
+## Current operating model
+
+### Existing unprotected books
+
+Remain unchanged:
+
+- stored as exploded EPUB-style directories or current local storage roots
+- opened by the current working reader flow
+- catalog behavior unchanged
+
+### New protected books
+
+Are built locally by the protected dry-run builder into runtime-safe chunk artifacts plus optional debug payloads.
+
+## What this spec intentionally does not include yet
+
+- final page layout engine
+- final canvas renderer
+- server-side throttling / bot protection
+- production upload orchestration
+- production catalog cutover
+`;
+
+writeFile(auditPath, audit);
+writeFile(specPath, spec);
+
+console.log(`Wrote ${path.relative(ROOT, auditPath)}`);
+console.log(`Wrote ${path.relative(ROOT, specPath)}`);
