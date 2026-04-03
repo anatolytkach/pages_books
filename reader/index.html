@@ -66,6 +66,43 @@
               return host === "127.0.0.1" || host === "localhost" || host === "::1";
             }
 
+            function extractAccessTokenFromSessionShape(value) {
+              if (!value) return null;
+              if (typeof value === "string") {
+                try {
+                  return extractAccessTokenFromSessionShape(JSON.parse(value));
+                } catch (e) {
+                  return null;
+                }
+              }
+              if (Array.isArray(value)) {
+                for (var i = 0; i < value.length; i++) {
+                  var token = extractAccessTokenFromSessionShape(value[i]);
+                  if (token) return token;
+                }
+                return null;
+              }
+              if (typeof value !== "object") return null;
+              if (typeof value.access_token === "string" && value.access_token) return value.access_token;
+              if (value.currentSession) return extractAccessTokenFromSessionShape(value.currentSession);
+              if (value.session) return extractAccessTokenFromSessionShape(value.session);
+              if (value.data) return extractAccessTokenFromSessionShape(value.data);
+              return null;
+            }
+
+            function getSupabaseAccessToken() {
+              try {
+                for (var i = 0; i < localStorage.length; i++) {
+                  var key = localStorage.key(i) || "";
+                  if (!/^sb-.*-auth-token$/i.test(key)) continue;
+                  var raw = localStorage.getItem(key);
+                  var token = extractAccessTokenFromSessionShape(raw);
+                  if (token) return token;
+                }
+              } catch (e) {}
+              return null;
+            }
+
             function fetchBookLocation(source, id) {
               var path = `/books/api/book-locations.json?v=${Date.now()}`;
               if (source) {
@@ -74,13 +111,31 @@
               }
               return fetch(path, { cache: "no-store" })
                 .then(function(response){
+                  if (response.status === 404) return null;
                   if (!response.ok) throw new Error(`book-locations fetch failed (${response.status})`);
                   return response.json();
                 })
                 .then(function(payload){
+                  if (!payload) return null;
                   var items = payload && payload.items ? payload.items : {};
                   var item = items && items[id] ? items[id] : null;
                   return item || null;
+                });
+            }
+
+            function fetchAuthorizedBookLocation(id) {
+              var token = getSupabaseAccessToken();
+              if (!token) return Promise.resolve(null);
+              return fetch(`/books/api/v1/books/by-content/${encodeURIComponent(id)}/location`, {
+                headers: { Authorization: `Bearer ${token}` },
+                cache: "no-store",
+              })
+                .then(function(response){
+                  if (!response.ok) return null;
+                  return response.json();
+                })
+                .catch(function(){
+                  return null;
                 });
             }
 
@@ -125,8 +180,7 @@
   // Get auth token if available
   let token = null;
   try {
-    const stored = localStorage.getItem('sb-kalbegycglkhxulhatpx-auth-token');
-    if (stored) token = JSON.parse(stored).access_token;
+    token = getSupabaseAccessToken();
   } catch {}
 
   const headers = {};
@@ -399,6 +453,14 @@
   function resolveAndBootReader() {
     fetchBookLocation(source, id)
     .then(function(locationInfo){
+      if (!locationInfo) {
+        return fetchAuthorizedBookLocation(id).then(function(fallbackLocationInfo){
+          return fallbackLocationInfo || null;
+        });
+      }
+      return locationInfo;
+    })
+    .then(function(locationInfo){
       if (source && (!locationInfo || String(locationInfo.source || "") !== source)) {
         locationInfo = null;
       }
@@ -435,12 +497,27 @@
       bootReader(bookPath);
     })
     .catch(function(){
-      if (!source && /^\d+$/.test(id) && parseInt(id, 10) >= PLATFORM_ID_START) {
-        bootLegacyPlatformBook();
-        return;
-      }
-      showNotFound(`Failed to resolve catalog mapping for
-        <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.`);
+      fetchAuthorizedBookLocation(id)
+        .then(function(locationInfo){
+          if (locationInfo) {
+            bootReader(isLocalPreviewHost() && locationInfo.localContentPath ? String(locationInfo.localContentPath) : String(locationInfo.contentPath || ""));
+            return;
+          }
+          if (!source && /^\d+$/.test(id) && parseInt(id, 10) >= PLATFORM_ID_START) {
+            bootLegacyPlatformBook();
+            return;
+          }
+          showNotFound(`Failed to resolve catalog mapping for
+            <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.`);
+        })
+        .catch(function(){
+          if (!source && /^\d+$/.test(id) && parseInt(id, 10) >= PLATFORM_ID_START) {
+            bootLegacyPlatformBook();
+            return;
+          }
+          showNotFound(`Failed to resolve catalog mapping for
+            <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.`);
+        });
     });
   }
 

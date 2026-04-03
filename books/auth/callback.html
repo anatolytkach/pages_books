@@ -31,6 +31,42 @@
       const params = new URLSearchParams(window.location.search);
       const msgEl = document.getElementById('msg');
 
+      function getAuthFlowType() {
+        return sessionStorage.getItem('authFlowType') || '';
+      }
+
+      function getCompletionLabels() {
+        const flowType = getAuthFlowType();
+        if (flowType === 'invite-magic-link') {
+          return {
+            start: 'Verifying your sign-in link and loading your invitation...',
+            waiting: 'Sign-in link verified. Waiting for your session...',
+            signedIn: 'Sign-in link verified. Signing you in...',
+            invited: 'Sign-in link verified. Finishing your invitation...',
+            timeout: 'Your sign-in link was accepted, but the session did not finish automatically.',
+            error: 'Sign-in link failed',
+          };
+        }
+        if (flowType === 'magic-link') {
+          return {
+            start: 'Verifying your sign-in link...',
+            waiting: 'Sign-in link verified. Waiting for your session...',
+            signedIn: 'Sign-in link verified. Signing you in...',
+            invited: 'Sign-in link verified. Finishing your invitation...',
+            timeout: 'Your sign-in link was accepted, but the session did not finish automatically.',
+            error: 'Sign-in link failed',
+          };
+        }
+        return {
+          start: 'Confirming your email and creating your session...',
+          waiting: 'Email confirmed. Waiting for your session...',
+          signedIn: 'Email confirmed. Signing you in...',
+          invited: 'Email confirmed. Finishing your invitation...',
+          timeout: 'Email was confirmed, but the sign-in session did not finish automatically.',
+          error: 'Confirmation failed',
+        };
+      }
+
       function getReturnTo() {
         const returnTo = params.get('returnTo') || sessionStorage.getItem('authReturnTo');
         return returnTo && returnTo.startsWith('/') ? returnTo : '/books/';
@@ -38,9 +74,10 @@
 
       async function finishRedirect() {
         const inviteToken = params.get('invite') || sessionStorage.getItem('authInviteToken');
+        const labels = getCompletionLabels();
         msgEl.textContent = inviteToken
-          ? 'Email confirmed. Finishing your invitation...'
-          : 'Email confirmed. Signing you in...';
+          ? labels.invited
+          : labels.signedIn;
         if (inviteToken) {
           try {
             await acceptInvitation(inviteToken);
@@ -53,6 +90,7 @@
         }
         sessionStorage.removeItem('pendingSignupEmail');
         sessionStorage.removeItem('authReturnTo');
+        sessionStorage.removeItem('authFlowType');
         window.location.href = getReturnTo();
       }
 
@@ -63,12 +101,13 @@
 
       let exchangeFailed = false;
       const code = params.get('code');
+      const labels = getCompletionLabels();
       if (code && typeof sb.auth.exchangeCodeForSession === 'function') {
-        msgEl.textContent = 'Confirming your email and creating your session...';
+        msgEl.textContent = labels.start;
         const { error: exchangeError } = await sb.auth.exchangeCodeForSession(code);
         if (exchangeError) {
           msgEl.innerHTML =
-            `Confirmation failed: ${exchangeError.message}<br><a href="/books/auth/?returnTo=${encodeURIComponent(getReturnTo())}">Return to sign in</a>`;
+            `${labels.error}: ${exchangeError.message}<br><a href="/books/auth/?returnTo=${encodeURIComponent(getReturnTo())}">Return to sign in</a>`;
           exchangeFailed = true;
         }
       }
@@ -87,7 +126,7 @@
           await finishRedirect();
         } else {
           // No session yet — might still be processing. Listen for change.
-          msgEl.textContent = 'Email confirmed. Waiting for your session...';
+          msgEl.textContent = labels.waiting;
           sb.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session) {
               await finishRedirect();
@@ -96,7 +135,7 @@
           // Timeout fallback
           setTimeout(() => {
             msgEl.innerHTML =
-              `Email was confirmed, but the sign-in session did not finish automatically.<br><a href="/books/auth/?returnTo=${encodeURIComponent(getReturnTo())}">Return to sign in</a>`;
+              `${labels.timeout}<br><a href="/books/auth/?returnTo=${encodeURIComponent(getReturnTo())}">Return to sign in</a>`;
           }, 10000);
         }
       }

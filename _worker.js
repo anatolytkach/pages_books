@@ -85,6 +85,14 @@ function normalizeNotes(raw) {
   return out;
 }
 
+async function readJsonSafe(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Verify a Supabase JWT by calling Supabase's auth API.
  * Supports both HS256 and ES256 tokens.
@@ -2859,6 +2867,333 @@ export default {
         return { data, error: null };
       };
 
+      const buildInviteUrl = (token) => {
+        const baseUrl = String(env.PUBLIC_SITE_URL || "").trim().replace(/\/+$/, "");
+        const origin = baseUrl || url.origin;
+        const inviteUrl = new URL("/books/auth/", origin);
+        inviteUrl.searchParams.set("invite", String(token || "").trim());
+        return inviteUrl.toString();
+      };
+
+      const sendInviteEmail = async ({ email, subject, html, text, trackingId = "" }) => {
+        const apiKey = String(env.PINGRAM_API_KEY || "").trim();
+        const clientId = String(env.PINGRAM_CLIENT_ID || "").trim();
+        const clientSecret = String(env.PINGRAM_CLIENT_SECRET || "").trim();
+        const baseUrl = String(env.PINGRAM_API_BASE_URL || env.NOTIFICATIONAPI_BASE_URL || "https://api.notificationapi.com").trim().replace(/\/+$/, "");
+        const senderName = String(env.PINGRAM_SENDER_NAME || "reader.pub").trim();
+        const senderEmail = String(env.PINGRAM_SENDER_EMAIL || "").trim();
+        if (!email) return { sent: false, skipped: true, reason: "missing-email" };
+        if (!apiKey && !(clientId && clientSecret)) {
+          return { sent: false, skipped: true, reason: "missing-pingram-config" };
+        }
+        if (!senderEmail) {
+          return { sent: false, skipped: true, reason: "missing-pingram-sender-email" };
+        }
+
+        const payload = {
+          type: "readerpub_invite",
+          to: {
+            id: normalizeEmail(email) || String(email).trim(),
+            email: normalizeEmail(email),
+          },
+          email: {
+            subject,
+            html,
+            senderName,
+            senderEmail,
+          },
+        };
+        if (text) payload.email.previewText = text.slice(0, 200);
+
+        let endpoint = `${baseUrl}/send`;
+        const headers = {
+          "content-type": "application/json",
+        };
+
+        if (apiKey) {
+          headers.authorization = `Bearer ${apiKey}`;
+          headers["x-api-key"] = apiKey;
+        } else {
+          endpoint = `${baseUrl}/${encodeURIComponent(clientId)}/sender`;
+          headers.authorization = `Basic ${btoa(`${clientId}:${clientSecret}`)}`;
+        }
+        if (trackingId) headers["x-reader-tracking-id"] = trackingId;
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const detail = await response.text().catch(() => "");
+          throw new Error(detail || `Pingram request failed with HTTP ${response.status}`);
+        }
+        return {
+          sent: true,
+          skipped: false,
+          detail: await readJsonSafe(response),
+        };
+      };
+
+      const sbAuthAdmin = async (path, { method = "GET", body } = {}) => {
+        const sb = supabaseAdmin();
+        if (!sb) return { data: null, error: "Supabase not configured", detail: null };
+        const response = await fetch(`${sb.url}/auth/v1/admin${path}`, {
+          method,
+          headers: {
+            "apikey": sb.key,
+            "authorization": `Bearer ${sb.key}`,
+            "content-type": "application/json",
+          },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        const data = await readJsonSafe(response);
+        if (!response.ok) {
+          const errorMessage = data?.msg || data?.message || data?.error || `HTTP ${response.status}`;
+          return { data: null, error: errorMessage, detail: data };
+        }
+        return { data, error: null, detail: data };
+      };
+
+      const createPasswordUser = async ({ email, password, displayName }) => {
+        const normalizedEmail = normalizeEmail(email);
+        const normalizedPassword = String(password || "");
+        const normalizedDisplayName = String(displayName || "").trim();
+        if (!normalizedEmail) return { data: null, error: "email is required", detail: null };
+        if (normalizedPassword.length < 6) {
+          return { data: null, error: "password must be at least 6 characters", detail: null };
+        }
+
+        const result = await sbAuthAdmin("/users", {
+          method: "POST",
+          body: {
+            email: normalizedEmail,
+            password: normalizedPassword,
+            email_confirm: true,
+            user_metadata: normalizedDisplayName ? { display_name: normalizedDisplayName } : {},
+          },
+        });
+        if (result.error) return result;
+        return {
+          data: {
+            id: result.data?.id,
+            email: result.data?.email || normalizedEmail,
+          },
+          error: null,
+          detail: result.detail,
+        };
+      };
+
+      const applyTenantInviteForUser = async (invite, { userId, email }) => {
+        if (!invite) return { data: null, error: "Invitation not found" };
+        if (invite.accepted_at) return { data: null, error: "Invitation already accepted" };
+        if (invite.expires_at && new Date(invite.expires_at) <= new Date()) {
+          return { data: null, error: "Invitation has expired" };
+        }
+        if (normalizeEmail(invite.email) !== normalizeEmail(email)) {
+          return { data: null, error: "Invitation email does not match authenticated user" };
+        }
+
+        const grantedRole = invite.invite_type === "self_publisher" ? "owner" : invite.role;
+
+        const { data: existingMembership } = await sbFetch("tenant_memberships", {
+          params: `tenant_id=eq.${invite.tenant_id}&user_id=eq.${userId}&select=id,role,is_active`,
+          single: true,
+        });
+        if (existingMembership) {
+          const nextRole = roleRank(existingMembership.role) >= roleRank(grantedRole)
+            ? existingMembership.role
+            : grantedRole;
+          await sbFetch("tenant_memberships", {
+            method: "PATCH",
+            params: `id=eq.${existingMembership.id}`,
+            body: { role: nextRole, is_active: true },
+          });
+        } else {
+          const { error: membershipErr } = await sbFetch("tenant_memberships", {
+            method: "POST",
+            body: {
+              tenant_id: invite.tenant_id,
+              user_id: userId,
+              role: grantedRole,
+            },
+            single: true,
+          });
+          if (membershipErr) return { data: null, error: membershipErr };
+        }
+
+        await sbFetch("tenant_invitations", {
+          method: "PATCH",
+          params: `id=eq.${invite.id}&select=*`,
+          body: { accepted_at: new Date().toISOString() },
+        });
+
+        const { data: tenant } = await sbFetch("tenants", {
+          params: `id=eq.${invite.tenant_id}&select=id,slug,name,tenant_type`,
+          single: true,
+        });
+        return {
+          data: {
+            accepted: true,
+            invite_type: invite.invite_type || "tenant_reader",
+            role: grantedRole,
+            tenant,
+          },
+          error: null,
+        };
+      };
+
+      const applySuperuserInviteForUser = async (invite, { userId, email }) => {
+        if (!invite) return { data: null, error: "Invitation not found" };
+        if (invite.accepted_at) return { data: null, error: "Invitation already accepted" };
+        if (invite.expires_at && new Date(invite.expires_at) <= new Date()) {
+          return { data: null, error: "Invitation has expired" };
+        }
+        if (normalizeEmail(invite.email) !== normalizeEmail(email)) {
+          return { data: null, error: "Invitation email does not match authenticated user" };
+        }
+
+        const { data: existingSuperuser } = await sbFetch("platform_superusers", {
+          params: `user_id=eq.${userId}&select=user_id`,
+          single: true,
+        });
+        if (!existingSuperuser) {
+          const { error: grantErr } = await sbFetch("platform_superusers", {
+            method: "POST",
+            body: {
+              user_id: userId,
+              granted_by: invite.invited_by || userId,
+            },
+            single: true,
+          });
+          if (grantErr) return { data: null, error: grantErr };
+        }
+
+        await sbFetch("platform_superuser_invitations", {
+          method: "PATCH",
+          params: `id=eq.${invite.id}&select=*`,
+          body: {
+            accepted_at: new Date().toISOString(),
+            accepted_by: userId,
+          },
+        });
+
+        return {
+          data: {
+            accepted: true,
+            invite_type: "platform_superuser",
+            role: "superuser",
+          },
+          error: null,
+        };
+      };
+
+      const applyInvitationTokenForUser = async (token, { userId, email }) => {
+        const { data: invite, error: inviteErr } = await sbFetch("tenant_invitations", {
+          params: `token=eq.${token}&select=*`,
+          single: true,
+        });
+        if (!inviteErr && invite) {
+          return applyTenantInviteForUser(invite, { userId, email });
+        }
+
+        const { data: superInvite, error: superInviteErr } = await sbFetch("platform_superuser_invitations", {
+          params: `token=eq.${token}&select=*`,
+          single: true,
+        });
+        if (superInviteErr || !superInvite) {
+          return { data: null, error: "Invitation not found" };
+        }
+        return applySuperuserInviteForUser(superInvite, { userId, email });
+      };
+
+      const inspectInvitationToken = async (token) => {
+        const { data: invite, error: inviteErr } = await sbFetch("tenant_invitations", {
+          params: `token=eq.${token}&select=*`,
+          single: true,
+        });
+        if (!inviteErr && invite) {
+          const { data: tenant } = await sbFetch("tenants", {
+            params: `id=eq.${invite.tenant_id}&select=id,slug,name,tenant_type`,
+            single: true,
+          });
+          return {
+            data: {
+              token,
+              email: invite.email,
+              role: invite.role,
+              invite_type: invite.invite_type || "tenant_reader",
+              accepted_at: invite.accepted_at || null,
+              expires_at: invite.expires_at || null,
+              tenant,
+            },
+            error: null,
+          };
+        }
+
+        const { data: superInvite, error: superInviteErr } = await sbFetch("platform_superuser_invitations", {
+          params: `token=eq.${token}&select=*`,
+          single: true,
+        });
+        if (superInviteErr || !superInvite) {
+          return { data: null, error: "Invitation not found" };
+        }
+        return {
+          data: {
+            token,
+            email: superInvite.email,
+            role: "superuser",
+            invite_type: "platform_superuser",
+            accepted_at: superInvite.accepted_at || null,
+            expires_at: superInvite.expires_at || null,
+            tenant: null,
+          },
+          error: null,
+        };
+      };
+
+      const sendTenantInviteNotification = async ({ invite, tenant, audienceLabel }) => {
+        if (!invite?.token || !invite?.email || !tenant?.name) {
+          return { sent: false, skipped: true, reason: "missing-invite-data" };
+        }
+        const inviteUrl = buildInviteUrl(invite.token);
+        const roleLabel = String(invite.role || "member").replace(/_/g, " ");
+        return sendInviteEmail({
+          email: invite.email,
+          subject: `You were invited to join ${tenant.name} on reader.pub`,
+          html: `
+            <p>You were invited to join <strong>${escapeHtml(tenant.name)}</strong> on reader.pub.</p>
+            <p>Access level: <strong>${escapeHtml(roleLabel)}</strong>${audienceLabel ? ` (${escapeHtml(audienceLabel)})` : ""}</p>
+            <p><a href="${escapeHtml(inviteUrl)}">Accept your invitation</a></p>
+            <p>If you do not have an account yet, the link will let you set a password directly without waiting for a confirmation email.</p>
+          `,
+          text:
+            `You were invited to join ${tenant.name} on reader.pub as ${roleLabel}. ` +
+            `Open this link to accept your invitation: ${inviteUrl}`,
+          trackingId: `tenant-invite:${invite.id || invite.token}`,
+        });
+      };
+
+      const sendSuperuserInviteNotification = async ({ invite }) => {
+        if (!invite?.token || !invite?.email) {
+          return { sent: false, skipped: true, reason: "missing-invite-data" };
+        }
+        const inviteUrl = buildInviteUrl(invite.token);
+        return sendInviteEmail({
+          email: invite.email,
+          subject: "You were invited to become a reader.pub superuser",
+          html: `
+            <p>You were invited to become a <strong>reader.pub superuser</strong>.</p>
+            <p><a href="${escapeHtml(inviteUrl)}">Accept your invitation</a></p>
+            <p>The link will let you create an account or sign in without relying on Supabase email delivery.</p>
+          `,
+          text:
+            `You were invited to become a reader.pub superuser. ` +
+            `Open this link to accept your invitation: ${inviteUrl}`,
+          trackingId: `superuser-invite:${invite.id || invite.token}`,
+        });
+      };
+
       const getPlatformSuperuserStatus = async () => {
         if (!user) return false;
         if (bootstrapSuperuserEmails.has(normalizeEmail(user.email))) return true;
@@ -2891,6 +3226,96 @@ export default {
         });
         if (error || !Array.isArray(data)) return [];
         return data;
+      };
+
+      const attachProfilesToMemberships = async (memberships) => {
+        const rows = Array.isArray(memberships) ? memberships : [];
+        const userIds = [...new Set(rows.map((row) => String(row.user_id || "").trim()).filter(Boolean))];
+        if (!userIds.length) return rows.map((row) => ({ ...row, profile: null }));
+
+        const encodedIds = userIds.map((id) => `"${id}"`).join(",");
+        const { data: profiles } = await sbFetch("user_profiles", {
+          params: `id=in.(${encodedIds})&select=id,display_name,avatar_url`,
+        });
+        const byId = new Map((Array.isArray(profiles) ? profiles : []).map((profile) => [String(profile.id), profile]));
+
+        return rows.map((row) => ({
+          ...row,
+          profile: byId.get(String(row.user_id || "")) || null,
+        }));
+      };
+
+      const canManageTenantUsers = async (tenantId) => {
+        const normalizedTenantId = String(tenantId || "").trim();
+        if (!normalizedTenantId || !user) return false;
+        if (await getPlatformSuperuserStatus()) return true;
+        const { data: membership } = await sbFetch("tenant_memberships", {
+          params: `tenant_id=eq.${normalizedTenantId}&user_id=eq.${user.sub}&is_active=eq.true&select=role`,
+          single: true,
+        });
+        return !!membership && ["owner", "admin"].includes(String(membership.role || ""));
+      };
+
+      const listPlatformTenantsWithRoster = async () => {
+        const [tenants, membershipsRes, invitesRes] = await Promise.all([
+          listPlatformTenants(),
+          sbFetch("tenant_memberships", {
+            params: "is_active=eq.true&select=id,tenant_id,user_id,role,department,created_at&order=created_at.asc",
+          }),
+          sbFetch("tenant_invitations", {
+            params: "accepted_at=is.null&select=id,tenant_id,email,role,invite_type,token,created_at,expires_at&order=created_at.desc",
+          }),
+        ]);
+
+        const memberships = await attachProfilesToMemberships(Array.isArray(membershipsRes?.data) ? membershipsRes.data : []);
+        const pendingInvites = Array.isArray(invitesRes?.data) ? invitesRes.data : [];
+
+        return tenants.map((tenant) => ({
+          ...tenant,
+          members: memberships
+            .filter((row) => String(row.tenant_id || "") === String(tenant.id))
+            .map((row) => ({
+              id: row.id,
+              user_id: row.user_id,
+              role: row.role,
+              department: row.department,
+              created_at: row.created_at,
+              status: "active",
+              profile: row.profile || null,
+            })),
+          pending_invites: pendingInvites
+            .filter((row) => String(row.tenant_id || "") === String(tenant.id))
+            .map((row) => ({
+              id: row.id,
+              email: row.email,
+              role: row.role,
+              invite_type: row.invite_type,
+              token: row.token,
+              created_at: row.created_at,
+              expires_at: row.expires_at,
+              status: "pending",
+            })),
+        }));
+      };
+
+      const getActiveUserTenantIds = async (userId) => {
+        const normalizedUserId = String(userId || "").trim();
+        if (!normalizedUserId) return [];
+        const { data, error } = await sbFetch("tenant_memberships", {
+          params: `user_id=eq.${normalizedUserId}&is_active=eq.true&select=tenant_id`,
+        });
+        if (error || !Array.isArray(data)) return [];
+        return [...new Set(data.map((row) => String(row.tenant_id || "").trim()).filter(Boolean))];
+      };
+
+      const userCanAccessTenantBook = async (book, userId) => {
+        if (!book || !userId) return false;
+        if (String(book.published_by_user_id || "") === String(userId)) return true;
+        const visibility = String(book.visibility || "");
+        const tenantId = String(book.published_by_tenant_id || "").trim();
+        if (visibility !== "tenant_only" || !tenantId) return false;
+        const tenantIds = await getActiveUserTenantIds(userId);
+        return tenantIds.includes(tenantId);
       };
 
       const resolvePublishingTenant = async ({ tenantId = "", tenantSlug = "" } = {}) => {
@@ -2947,6 +3372,57 @@ export default {
         return { data, error: null };
       };
 
+      // ── POST /v1/auth/register — password signup without Supabase emails ──
+      if (apiPath === "/auth/register" && request.method === "POST") {
+        const body = await request.json().catch(() => null);
+        const email = normalizeEmail(body?.email);
+        const password = String(body?.password || "");
+        const displayName = String(body?.display_name || "").trim();
+        const inviteToken = String(body?.invite_token || "").trim();
+
+        if (!email || !password || !displayName) {
+          return jsonResponse({ error: "email, password, and display_name are required" }, 400, apiCorsHeaders);
+        }
+
+        const createResult = await createPasswordUser({ email, password, displayName });
+        if (createResult.error) {
+          const message = String(createResult.error || "");
+          const status = /already been registered|already exists|duplicate/i.test(message) ? 409 : 400;
+          return jsonResponse({ error: message }, status, apiCorsHeaders);
+        }
+
+        let inviteAcceptance = null;
+        if (inviteToken) {
+          const acceptResult = await applyInvitationTokenForUser(inviteToken, {
+            userId: createResult.data.id,
+            email,
+          });
+          if (acceptResult.error) {
+            return jsonResponse({ error: acceptResult.error }, 400, apiCorsHeaders);
+          }
+          inviteAcceptance = acceptResult.data;
+        }
+
+        return jsonResponse({
+          registered: true,
+          user: createResult.data,
+          invite: inviteAcceptance,
+        }, 201, apiCorsHeaders);
+      }
+
+      // ── GET /v1/invitations/inspect — public invite metadata ──
+      if (apiPath === "/invitations/inspect" && request.method === "GET") {
+        const token = String(url.searchParams.get("token") || "").trim();
+        if (!token) {
+          return jsonResponse({ error: "token is required" }, 400, apiCorsHeaders);
+        }
+        const inspected = await inspectInvitationToken(token);
+        if (inspected.error) {
+          return jsonResponse({ error: inspected.error }, 404, apiCorsHeaders);
+        }
+        return jsonResponse(inspected.data, 200, apiCorsHeaders);
+      }
+
       // ── GET /v1/me — current user profile ──
       if (apiPath === "/me" && request.method === "GET") {
         const authErr = requireAuth();
@@ -2968,6 +3444,32 @@ export default {
         });
         if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
         return jsonResponse(data || [], 200, apiCorsHeaders);
+      }
+
+      if (apiPath === "/me/catalog-books" && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const tenantIds = await getActiveUserTenantIds(user.sub);
+        if (!tenantIds.length) return jsonResponse([], 200, apiCorsHeaders);
+
+        const encodedTenantIds = tenantIds.map((id) => `"${id}"`).join(",");
+        const { data, error } = await sbFetch("books", {
+          params: `status=eq.published&visibility=eq.tenant_only&published_by_tenant_id=in.(${encodedTenantIds})&select=id,title,author,cover_url,content_id,published_by_tenant_id,tenant:tenants!books_published_by_tenant_id_fkey(slug,name)&order=updated_at.desc`,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+
+        const items = (Array.isArray(data) ? data : [])
+          .filter((book) => String(book.content_id || "").trim())
+          .map((book) => ({
+            id: String(book.content_id),
+            source: String(book?.tenant?.slug || "").trim(),
+            title: String(book.title || ""),
+            author: String(book.author || ""),
+            cover: String(book.cover_url || ""),
+            visibility: "tenant_only",
+            tenant_name: String(book?.tenant?.name || ""),
+          }));
+        return jsonResponse(items, 200, apiCorsHeaders);
       }
 
       // ── GET /v1/me/tenants — user's tenant memberships ──
@@ -3003,7 +3505,7 @@ export default {
       if (apiPath === "/platform/tenants" && request.method === "GET") {
         const superErr = await requireSuperuser();
         if (superErr) return superErr;
-        return jsonResponse(await listPlatformTenants(), 200, apiCorsHeaders);
+        return jsonResponse(await listPlatformTenantsWithRoster(), 200, apiCorsHeaders);
       }
 
       // ── GET /v1/platform/superusers — list superusers + pending invites ──
@@ -3024,6 +3526,26 @@ export default {
         }, 200, apiCorsHeaders);
       }
 
+      const platformSuperuserInviteDeleteMatch = apiPath.match(/^\/platform\/superusers\/invitations\/([a-f0-9-]+)$/i);
+      if (platformSuperuserInviteDeleteMatch && request.method === "DELETE") {
+        const superErr = await requireSuperuser();
+        if (superErr) return superErr;
+        const invitationId = platformSuperuserInviteDeleteMatch[1];
+        const { data: invite } = await sbFetch("platform_superuser_invitations", {
+          params: `id=eq.${invitationId}&accepted_at=is.null&select=id,email,token,expires_at`,
+          single: true,
+        });
+        if (!invite) {
+          return jsonResponse({ error: "Invitation not found" }, 404, apiCorsHeaders);
+        }
+        const { error: deleteErr } = await sbFetch("platform_superuser_invitations", {
+          method: "DELETE",
+          params: `id=eq.${invitationId}`,
+        });
+        if (deleteErr) return jsonResponse({ error: deleteErr }, 400, apiCorsHeaders);
+        return jsonResponse({ deleted: true, invite_id: invite.id, email: invite.email }, 200, apiCorsHeaders);
+      }
+
       // ── POST /v1/platform/superusers/invite — invite a new superuser ──
       if (apiPath === "/platform/superusers/invite" && request.method === "POST") {
         const superErr = await requireSuperuser();
@@ -3042,7 +3564,17 @@ export default {
           single: true,
         });
         if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
-        return jsonResponse(invite, 201, apiCorsHeaders);
+        let emailDelivery = { sent: false, skipped: true, reason: "not-attempted" };
+        try {
+          emailDelivery = await sendSuperuserInviteNotification({ invite });
+        } catch (err) {
+          emailDelivery = { sent: false, skipped: false, error: err.message };
+        }
+        return jsonResponse({
+          ...invite,
+          invite_url: buildInviteUrl(invite.token),
+          email_delivery: emailDelivery,
+        }, 201, apiCorsHeaders);
       }
 
       // ── POST /v1/invitations/accept — accept tenant or self-publisher invite ──
@@ -3068,14 +3600,16 @@ export default {
             return jsonResponse({ error: "Invitation email does not match authenticated user" }, 403, apiCorsHeaders);
           }
 
+          const grantedRole = invite.invite_type === "self_publisher" ? "owner" : invite.role;
+
           const { data: existingMembership } = await sbFetch("tenant_memberships", {
             params: `tenant_id=eq.${invite.tenant_id}&user_id=eq.${user.sub}&select=id,role,is_active`,
             single: true,
           });
           if (existingMembership) {
-            const nextRole = roleRank(existingMembership.role) >= roleRank(invite.role)
+            const nextRole = roleRank(existingMembership.role) >= roleRank(grantedRole)
               ? existingMembership.role
-              : invite.role;
+              : grantedRole;
             await sbFetch("tenant_memberships", {
               method: "PATCH",
               params: `id=eq.${existingMembership.id}`,
@@ -3087,7 +3621,7 @@ export default {
               body: {
                 tenant_id: invite.tenant_id,
                 user_id: user.sub,
-                role: invite.role,
+                role: grantedRole,
               },
               single: true,
             });
@@ -3107,7 +3641,7 @@ export default {
           return jsonResponse({
             accepted: true,
             invite_type: invite.invite_type || "tenant_reader",
-            role: invite.role,
+            role: grantedRole,
             tenant,
           }, 200, apiCorsHeaders);
         }
@@ -3187,7 +3721,7 @@ export default {
       if (byContentAccessMatch && request.method === "GET") {
         const contentId = byContentAccessMatch[1];
         const { data: book } = await sbFetch("books", {
-          params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free,published_by_user_id`,
+          params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free,visibility,published_by_tenant_id,published_by_user_id`,
           single: true,
         });
 
@@ -3203,6 +3737,10 @@ export default {
         // Publisher always has access to their own books
         if (user && book.published_by_user_id === user.sub) {
           return jsonResponse({ access: "full", type: "publisher" }, 200, apiCorsHeaders);
+        }
+
+        if (user && await userCanAccessTenantBook(book, user.sub)) {
+          return jsonResponse({ access: "full", type: "tenant_membership" }, 200, apiCorsHeaders);
         }
 
         // Check for purchase/rental entitlements
@@ -3236,6 +3774,54 @@ export default {
         return jsonResponse({ access: "none", book, offers }, 200, apiCorsHeaders);
       }
 
+      // ── GET /v1/books/by-content/:contentId/location — resolve readable content path for authorized users ──
+      const byContentLocationMatch = apiPath.match(/^\/books\/by-content\/(\d+)\/location$/);
+      if (byContentLocationMatch && request.method === "GET") {
+        const contentId = byContentLocationMatch[1];
+        const { data: book } = await sbFetch("books", {
+          params: `content_id=eq.${contentId}&select=id,content_id,status,is_free,visibility,published_by_tenant_id,published_by_user_id,tenant:tenants!books_published_by_tenant_id_fkey(slug)`,
+          single: true,
+        });
+        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+
+        let hasAccess = false;
+
+        if (book.status !== "published" || book.is_free || book.visibility === "public") {
+          hasAccess = true;
+        } else if (user && book.published_by_user_id === user.sub) {
+          hasAccess = true;
+        } else if (user && await userCanAccessTenantBook(book, user.sub)) {
+          hasAccess = true;
+        } else if (user) {
+          const { data: entitlements } = await sbFetch("entitlements", {
+            params: `user_id=eq.${user.sub}&book_id=eq.${book.id}&is_active=eq.true&select=entitlement_type,expires_at&order=created_at.desc`,
+          });
+          if (entitlements && entitlements.length > 0) {
+            for (const ent of entitlements) {
+              if (ent.entitlement_type === "purchase") {
+                hasAccess = true;
+                break;
+              }
+              if (ent.entitlement_type === "rental" && (!ent.expires_at || new Date(ent.expires_at) > new Date())) {
+                hasAccess = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!hasAccess) {
+          return jsonResponse({ error: "Access denied" }, 403, apiCorsHeaders);
+        }
+
+        return jsonResponse({
+          id: String(book.content_id || contentId),
+          source: String(book?.tenant?.slug || ""),
+          contentPath: `/books/content/${contentId}/`,
+          localContentPath: `/books/content/${contentId}/`,
+        }, 200, apiCorsHeaders);
+      }
+
       // ── GET /v1/books/:id/entitlement — check access ──
       const entitlementMatch = apiPath.match(/^\/books\/([0-9a-f-]+)\/entitlement$/);
       if (entitlementMatch && request.method === "GET") {
@@ -3243,7 +3829,7 @@ export default {
 
         // Check if book is free
         const { data: book } = await sbFetch("books", {
-          params: `id=eq.${bookId}&select=id,is_free,status`,
+          params: `id=eq.${bookId}&select=id,is_free,status,visibility,published_by_tenant_id,published_by_user_id`,
           single: true,
         });
         if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
@@ -3257,6 +3843,10 @@ export default {
             params: `book_id=eq.${bookId}&is_active=eq.true&select=*`,
           });
           return jsonResponse({ access: "none", offers: offers || [] }, 200, apiCorsHeaders);
+        }
+
+        if (await userCanAccessTenantBook(book, user.sub)) {
+          return jsonResponse({ access: "full", type: "tenant_membership" }, 200, apiCorsHeaders);
         }
 
         // Check purchase entitlement
@@ -3430,17 +4020,29 @@ export default {
           body: {
             tenant_id: tenant.id,
             email,
-            role: "owner",
+            role: "publisher",
             invite_type: "self_publisher",
             invited_by: user.sub,
           },
           single: true,
         });
         if (inviteErr) return jsonResponse({ error: inviteErr }, 400, apiCorsHeaders);
+        let emailDelivery = { sent: false, skipped: true, reason: "not-attempted" };
+        try {
+          emailDelivery = await sendTenantInviteNotification({
+            invite,
+            tenant,
+            audienceLabel: "self-publisher",
+          });
+        } catch (err) {
+          emailDelivery = { sent: false, skipped: false, error: err.message };
+        }
 
         return jsonResponse({
           invite,
           tenant,
+          invite_url: buildInviteUrl(invite.token),
+          email_delivery: emailDelivery,
         }, 201, apiCorsHeaders);
       }
 
@@ -3473,24 +4075,82 @@ export default {
         if (authErr) return authErr;
         const slug = tenantMembersMatch[1];
         const { data: tenant } = await sbFetch("tenants", {
-          params: `slug=eq.${slug}&select=id`,
+          params: `slug=eq.${slug}&select=id,slug,name,tenant_type`,
           single: true,
         });
         if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
 
-        // Check user is admin/owner
-        const { data: membership } = await sbFetch("tenant_memberships", {
-          params: `tenant_id=eq.${tenant.id}&user_id=eq.${user.sub}&is_active=eq.true&select=role`,
-          single: true,
-        });
-        if (!membership || !["owner", "admin"].includes(membership.role)) {
+        if (!(await canManageTenantUsers(tenant.id))) {
           return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
         }
 
         const { data: members } = await sbFetch("tenant_memberships", {
-          params: `tenant_id=eq.${tenant.id}&is_active=eq.true&select=id,role,department,user_id,user_profiles:user_id(display_name,avatar_url)`,
+          params: `tenant_id=eq.${tenant.id}&is_active=eq.true&select=id,role,department,user_id,created_at,user_profiles:user_id(display_name,avatar_url)&order=created_at.asc`,
         });
         return jsonResponse(members || [], 200, apiCorsHeaders);
+      }
+
+      const tenantRosterMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/roster$/);
+      if (tenantRosterMatch && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const slug = tenantRosterMatch[1];
+        const { data: tenant } = await sbFetch("tenants", {
+          params: `slug=eq.${slug}&select=id,slug,name,tenant_type,created_at`,
+          single: true,
+        });
+        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
+        if (!(await canManageTenantUsers(tenant.id))) {
+          return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
+        }
+
+        const [membersRes, invitesRes] = await Promise.all([
+          sbFetch("tenant_memberships", {
+            params: `tenant_id=eq.${tenant.id}&is_active=eq.true&select=id,role,department,user_id,created_at&order=created_at.asc`,
+          }),
+          sbFetch("tenant_invitations", {
+            params: `tenant_id=eq.${tenant.id}&accepted_at=is.null&select=id,email,role,invite_type,token,created_at,expires_at&order=created_at.desc`,
+          }),
+        ]);
+
+        const members = await attachProfilesToMemberships(Array.isArray(membersRes.data) ? membersRes.data : []);
+
+        return jsonResponse({
+          tenant,
+          members,
+          pending_invites: Array.isArray(invitesRes.data) ? invitesRes.data : [],
+        }, 200, apiCorsHeaders);
+      }
+
+      const tenantInviteDeleteMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/invitations\/([a-f0-9-]+)$/i);
+      if (tenantInviteDeleteMatch && request.method === "DELETE") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const slug = tenantInviteDeleteMatch[1];
+        const invitationId = tenantInviteDeleteMatch[2];
+        const { data: tenant } = await sbFetch("tenants", {
+          params: `slug=eq.${slug}&select=id,slug,name`,
+          single: true,
+        });
+        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
+        if (!(await canManageTenantUsers(tenant.id))) {
+          return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
+        }
+
+        const { data: invite } = await sbFetch("tenant_invitations", {
+          params: `id=eq.${invitationId}&tenant_id=eq.${tenant.id}&accepted_at=is.null&select=id,email,role,token,expires_at`,
+          single: true,
+        });
+        if (!invite) {
+          return jsonResponse({ error: "Invitation not found" }, 404, apiCorsHeaders);
+        }
+
+        const { error: deleteErr } = await sbFetch("tenant_invitations", {
+          method: "DELETE",
+          params: `id=eq.${invitationId}&tenant_id=eq.${tenant.id}`,
+        });
+        if (deleteErr) return jsonResponse({ error: deleteErr }, 400, apiCorsHeaders);
+        return jsonResponse({ deleted: true, invite_id: invite.id, email: invite.email }, 200, apiCorsHeaders);
       }
 
       // ── POST /v1/tenants/:slug/invite — invite by email ──
@@ -3500,22 +4160,22 @@ export default {
         if (authErr) return authErr;
         const slug = tenantInviteMatch[1];
         const body = await request.json().catch(() => null);
-        if (!body || !body.email) {
+        const email = normalizeEmail(body?.email);
+        const role = String(body?.role || "member").trim().toLowerCase();
+        if (!email) {
           return jsonResponse({ error: "email is required" }, 400, apiCorsHeaders);
+        }
+        if (!["member", "publisher"].includes(role)) {
+          return jsonResponse({ error: "role must be member or publisher" }, 400, apiCorsHeaders);
         }
 
         const { data: tenant } = await sbFetch("tenants", {
-          params: `slug=eq.${slug}&select=id`,
+          params: `slug=eq.${slug}&select=id,slug,name,tenant_type`,
           single: true,
         });
         if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
 
-        // Check user is admin/owner
-        const { data: membership } = await sbFetch("tenant_memberships", {
-          params: `tenant_id=eq.${tenant.id}&user_id=eq.${user.sub}&is_active=eq.true&select=role`,
-          single: true,
-        });
-        if (!membership || !["owner", "admin"].includes(membership.role)) {
+        if (!(await canManageTenantUsers(tenant.id))) {
           return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
         }
 
@@ -3523,15 +4183,29 @@ export default {
           method: "POST",
           body: {
             tenant_id: tenant.id,
-            email: body.email,
-            role: "member",
+            email,
+            role,
             invite_type: "tenant_reader",
             invited_by: user.sub,
           },
           single: true,
         });
         if (invErr) return jsonResponse({ error: invErr }, 400, apiCorsHeaders);
-        return jsonResponse(invite, 201, apiCorsHeaders);
+        let emailDelivery = { sent: false, skipped: true, reason: "not-attempted" };
+        try {
+          emailDelivery = await sendTenantInviteNotification({
+            invite,
+            tenant,
+            audienceLabel: role,
+          });
+        } catch (err) {
+          emailDelivery = { sent: false, skipped: false, error: err.message };
+        }
+        return jsonResponse({
+          ...invite,
+          invite_url: buildInviteUrl(invite.token),
+          email_delivery: emailDelivery,
+        }, 201, apiCorsHeaders);
       }
 
       // ── POST /v1/tenants/:slug/admin-invite — superuser invites org admin/owner ──
@@ -3568,7 +4242,22 @@ export default {
           single: true,
         });
         if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
-        return jsonResponse({ invite, tenant }, 201, apiCorsHeaders);
+        let emailDelivery = { sent: false, skipped: true, reason: "not-attempted" };
+        try {
+          emailDelivery = await sendTenantInviteNotification({
+            invite,
+            tenant,
+            audienceLabel: "organization admin",
+          });
+        } catch (err) {
+          emailDelivery = { sent: false, skipped: false, error: err.message };
+        }
+        return jsonResponse({
+          invite,
+          tenant,
+          invite_url: buildInviteUrl(invite.token),
+          email_delivery: emailDelivery,
+        }, 201, apiCorsHeaders);
       }
 
       // ── GET /v1/publish/books — list user's books ──

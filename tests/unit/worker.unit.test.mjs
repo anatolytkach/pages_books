@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   callWorker,
+  createR2Bucket,
   createFetchMockSequence,
   patchGlobal,
   readJson,

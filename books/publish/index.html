@@ -420,12 +420,13 @@
       <!-- ── My Books view ──────────────── -->
       <div id="view-list" class="view active">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:8px;">
-          <h2 style="margin:0;">My Books</h2>
+          <h2 style="margin:0;" id="booksHeading">Publishing Books</h2>
           <div style="display:flex; gap:8px;">
             <button class="btn btn-secondary" id="showTenantBtn">Organization</button>
             <button class="btn" id="uploadBtn">+ Upload Book</button>
           </div>
         </div>
+        <div id="publishIntro" style="color:var(--muted); font-size:14px; margin:-4px 0 16px;"></div>
         <div id="bookList" class="book-list">
           <div class="empty-state">
             <p><span class="spinner dark"></span></p>
@@ -436,7 +437,7 @@
 
       <!-- ── Upload view ────────────────── -->
       <div id="view-upload" class="view">
-        <h2>Upload Book</h2>
+        <h2 id="uploadHeading">Upload Book</h2>
         <div class="panel">
           <div class="tenant-picker">
             <label for="uploadTenantSelect">Publishing Organization</label>
@@ -630,6 +631,28 @@
       let selectedUploadTenantId = '';
       let selectedEditTenantId = '';
 
+      function applyPublishingModeCopy() {
+        const heading = document.getElementById('booksHeading');
+        const intro = document.getElementById('publishIntro');
+        const uploadHeading = document.getElementById('uploadHeading');
+        const uploadBtn = document.getElementById('uploadBtn');
+
+        if (!heading || !intro || !uploadHeading || !uploadBtn) return;
+
+        if (platformAccess.is_superuser) {
+          heading.textContent = 'Publishing Books';
+          uploadHeading.textContent = 'Upload Book';
+          uploadBtn.textContent = '+ Upload Book';
+          intro.textContent = 'Books on this page are published through an organization or self-publisher tenant. Personal publishing is reserved for superusers.';
+          return;
+        }
+
+        heading.textContent = 'Organization Books';
+        uploadHeading.textContent = 'Upload To Organization';
+        uploadBtn.textContent = '+ Upload To Organization';
+        intro.textContent = 'You can publish only through your organization or self-publisher tenant. Personal publishing is not available on this account.';
+      }
+
       function adminTenantLabel(item) {
         const tenant = item.tenant || item.tenants || {};
         const name = tenant.name || tenant.slug || item.tenant_id || 'Organization';
@@ -681,6 +704,7 @@
         }
         adminTenants = Array.isArray(platformAccess.admin_tenants) ? platformAccess.admin_tenants : [];
         syncTenantSelectors();
+        applyPublishingModeCopy();
       }
 
       async function loadGenres() {
@@ -704,8 +728,8 @@
           if (!myBooks.length) {
             $list.innerHTML = `
               <div class="empty-state">
-                <p>You haven't published any books yet.</p>
-                <p>Click <strong>Upload Book</strong> to get started.</p>
+                <p>You don't have any published books here yet.</p>
+                <p>${platformAccess.is_superuser ? 'Click <strong>Upload Book</strong> to get started.' : 'Click <strong>Upload To Organization</strong> to publish through your organization or self-publisher tenant.'}</p>
               </div>`;
             return;
           }

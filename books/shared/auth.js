@@ -7,6 +7,10 @@
 
 import { getClient, getSession } from './supabase-client.js';
 
+function getAuthCallbackUrl() {
+  return new URL('/books/auth/callback', window.location.origin).toString();
+}
+
 // ── Sign-up / Sign-in ──────────────────────────────────────
 
 export async function signUp(email, password, displayName) {
@@ -32,7 +36,7 @@ export async function signInWithGoogle() {
   const { data, error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin + '/auth/callback',
+      redirectTo: getAuthCallbackUrl(),
     },
   });
   return { data, error };
@@ -43,7 +47,7 @@ export async function signInWithMagicLink(email) {
   const { data, error } = await sb.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: window.location.origin + '/auth/callback',
+      emailRedirectTo: getAuthCallbackUrl(),
     },
   });
   return { data, error };

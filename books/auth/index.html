@@ -6,6 +6,11 @@
     <title>Sign In — reader.pub</title>
     <link rel="icon" type="image/svg+xml" href="/books/assets/logo.svg" />
     <script src="/books/shared/supabase.min.js"></script>
+    <script>
+      if (window.location.search.includes('invite=')) {
+        document.documentElement.classList.add('invite-mode');
+      }
+    </script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap");
 
@@ -83,11 +88,36 @@
         padding: 32px 28px;
       }
 
+      .auth-heading {
+        margin: 0 0 8px;
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 28px;
+        color: var(--ink);
+      }
+
+      .auth-subtitle {
+        margin: 0 0 18px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
       .tab-row {
         display: flex;
         gap: 0;
         margin-bottom: 24px;
         border-bottom: 2px solid var(--border);
+      }
+
+      .invite-mode .tab-row {
+        display: none;
+      }
+
+      .invite-mode #signin-form {
+        display: none;
+      }
+
+      .invite-mode #signup-form {
+        display: block !important;
       }
 
       .tab-btn {
@@ -255,17 +285,12 @@
         display: block;
       }
 
-      .invite-note,
       .status-panel {
         margin-bottom: 16px;
         padding: 14px 16px;
         border-radius: var(--radius-md);
         border: 1px solid var(--border);
         background: rgba(255, 255, 255, 0.82);
-      }
-
-      .invite-note {
-        color: var(--accent-2);
       }
 
       .status-panel {
@@ -365,15 +390,13 @@
       </a>
 
       <div class="auth-card">
+        <h1 class="auth-heading" id="auth-heading">Sign In</h1>
+        <p class="auth-subtitle" id="auth-subtitle">Sign in to continue to reader.pub.</p>
         <div id="alert" class="alert"></div>
-        <div id="invite-note" class="invite-note" style="display:none">
-          This invitation will create your account and then connect it to your organization.
-        </div>
         <div id="pending-confirmation" class="status-panel">
-          <h2>Confirm Your Email</h2>
+          <h2>Account Created</h2>
           <p>We created your account for <strong id="pending-email"></strong>.</p>
-          <p>Open the confirmation email, click the link, and keep this browser available. We will finish the invitation after confirmation.</p>
-          <p>If the email does not arrive, check spam or try signing in after an admin confirms your address manually.</p>
+          <p>Use your password to sign in on this page. No confirmation email is required.</p>
         </div>
 
         <!-- Tab toggle: Sign In / Sign Up -->
@@ -393,7 +416,6 @@
             <input type="password" id="signin-password" autocomplete="current-password" required />
           </div>
           <button type="submit" class="submit-btn" id="signin-btn">Sign In</button>
-          <button type="button" class="magic-link-btn" id="show-magic-link">Sign in with magic link instead</button>
         </form>
 
         <!-- Sign Up Form -->
@@ -407,23 +429,11 @@
             <input type="email" id="signup-email" autocomplete="email" required />
           </div>
           <div class="form-group">
-            <label for="signup-password">Password (min 6 characters)</label>
+            <label for="signup-password">Password</label>
             <input type="password" id="signup-password" autocomplete="new-password" minlength="6" required />
           </div>
           <button type="submit" class="submit-btn" id="signup-btn">Create Account</button>
         </form>
-
-        <!-- Magic Link Form -->
-        <div id="magic-link-form">
-          <button type="button" class="back-link" id="back-to-password">&larr; Back to password sign in</button>
-          <form id="magic-form">
-            <div class="form-group">
-              <label for="magic-email">Email</label>
-              <input type="email" id="magic-email" autocomplete="email" required />
-            </div>
-            <button type="submit" class="submit-btn" id="magic-btn">Send Magic Link</button>
-          </form>
-        </div>
 
         <!-- Google OAuth hidden until provider is configured
         <div class="divider">or</div>
@@ -441,7 +451,7 @@
 
     <script type="module">
       import config from '../shared/config.js';
-      import { acceptInvitation } from '../shared/api.js';
+      import { acceptInvitation, inspectInvitation, registerAccount } from '../shared/api.js';
 
       // ── Supabase client ────────────────────────────
       const sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
@@ -453,9 +463,10 @@
       const tabRow = document.getElementById('tab-row');
       const signinForm = document.getElementById('signin-form');
       const signupForm = document.getElementById('signup-form');
-      const magicLinkForm = document.getElementById('magic-link-form');
-      const inviteNote = document.getElementById('invite-note');
       const pendingConfirmation = document.getElementById('pending-confirmation');
+      const authHeading = document.getElementById('auth-heading');
+      const authSubtitle = document.getElementById('auth-subtitle');
+      let inviteDetails = null;
 
       // ── Helpers ────────────────────────────────────
       function showAlert(msg, type = 'error') {
@@ -467,13 +478,39 @@
         alert.className = 'alert';
       }
 
+      function formatInviteAcceptanceError(prefix, err) {
+        const message = String(err?.message || err || '').trim();
+        if (/invitation has expired/i.test(message)) {
+          return 'This invitation has expired. Ask your organization administrator to send a new invite.';
+        }
+        return `${prefix}: ${message}`;
+      }
+
+      function lockInviteMode(tab = 'signup') {
+        document.documentElement.classList.add('invite-mode');
+        tabRow.style.display = 'none';
+        signinForm.style.display = tab === 'signin' ? '' : 'none';
+        signupForm.style.display = tab === 'signup' ? '' : 'none';
+        authHeading.textContent = 'Confirm Invitation';
+        authSubtitle.textContent = tab === 'signin'
+          ? 'Sign in with the invited email address to confirm this invitation.'
+          : 'Create your account with the invited email address below to confirm this invitation.';
+      }
+
       function setActiveTab(tab) {
         tabRow.querySelectorAll('.tab-btn').forEach((btn) => {
           btn.classList.toggle('active', btn.dataset.tab === tab);
         });
-        signinForm.style.display = tab === 'signin' ? '' : 'none';
-        signupForm.style.display = tab === 'signup' ? '' : 'none';
-        magicLinkForm.classList.remove('visible');
+        if (inviteToken) {
+          lockInviteMode(tab);
+        } else {
+          signinForm.style.display = tab === 'signin' ? '' : 'none';
+          signupForm.style.display = tab === 'signup' ? '' : 'none';
+          authHeading.textContent = tab === 'signin' ? 'Sign In' : 'Create Account';
+          authSubtitle.textContent = tab === 'signin'
+            ? 'Sign in to continue to reader.pub.'
+            : 'Create a new account to continue to reader.pub.';
+        }
       }
 
       function showPendingConfirmation(email) {
@@ -481,15 +518,13 @@
         tabRow.style.display = 'none';
         signinForm.style.display = 'none';
         signupForm.style.display = 'none';
-        magicLinkForm.classList.remove('visible');
-        inviteNote.style.display = 'none';
         document.getElementById('pending-email').textContent = email;
         pendingConfirmation.classList.add('visible');
       }
 
       function clearPendingConfirmation() {
         pendingConfirmation.classList.remove('visible');
-        tabRow.style.display = '';
+        tabRow.style.display = inviteToken ? 'none' : '';
       }
 
       function setLoading(btn, loading) {
@@ -513,6 +548,15 @@
         window.location.href = getReturnTo();
       }
 
+      function notifyTenantRosterChanged() {
+        try {
+          localStorage.setItem('readerpub:tenant-roster-updated', JSON.stringify({
+            at: Date.now(),
+            token: inviteToken || null,
+          }));
+        } catch {}
+      }
+
       function persistAuthContext() {
         if (inviteToken) {
           sessionStorage.setItem('authInviteToken', inviteToken);
@@ -529,29 +573,60 @@
         sessionStorage.removeItem('authInviteToken');
       }
 
-      function buildAuthCallbackUrl() {
-        const callbackUrl = new URL(window.location.origin + '/books/auth/callback');
-        if (inviteToken) callbackUrl.searchParams.set('invite', inviteToken);
-        const returnTo = params.get('returnTo');
-        if (returnTo && returnTo.startsWith('/')) callbackUrl.searchParams.set('returnTo', returnTo);
-        return callbackUrl.toString();
+      async function ensureInviteAccepted() {
+        if (!inviteToken) return;
+        try {
+          await acceptInviteIfPresent();
+        } catch (err) {
+          if (/already accepted/i.test(String(err.message || ''))) {
+            sessionStorage.removeItem('authInviteToken');
+            return;
+          }
+          throw err;
+        }
+      }
+
+      function applyInviteDetails(details) {
+        if (!details) return;
+        inviteDetails = details;
+        const invitedEmail = String(details.email || '').trim();
+        const inviteName = details.tenant?.name || 'reader.pub';
+        authHeading.textContent = 'Confirm Invitation';
+        authSubtitle.textContent = `You were invited to join ${inviteName}. Create your account with the invited email address below.`;
+        lockInviteMode('signup');
+        if (invitedEmail) {
+          const signupEmail = document.getElementById('signup-email');
+          const signinEmail = document.getElementById('signin-email');
+          signupEmail.value = invitedEmail;
+          signinEmail.value = invitedEmail;
+          signupEmail.readOnly = true;
+          signinEmail.readOnly = true;
+        }
       }
 
       // ── Check if already signed in ─────────────────
       (async () => {
         persistAuthContext();
         if (inviteToken) {
-          inviteNote.style.display = '';
-          setActiveTab('signup');
+          lockInviteMode('signup');
+        }
+        if (inviteToken) {
+          try {
+            const inspected = await inspectInvitation(inviteToken);
+            applyInviteDetails(inspected);
+          } catch (err) {
+            showAlert(`Could not load invitation: ${err.message}`);
+          }
         }
         const { data: { session } } = await sb.auth.getSession();
         if (session) {
           try {
-            await acceptInviteIfPresent();
+            await ensureInviteAccepted();
           } catch (err) {
-            showAlert(`Signed in, but invitation acceptance failed: ${err.message}`);
+            showAlert(formatInviteAcceptanceError('Signed in, but invitation acceptance failed', err));
             return;
           }
+          notifyTenantRosterChanged();
           redirectAfterAuth();
         }
       })();
@@ -564,21 +639,6 @@
         clearPendingConfirmation();
 
         setActiveTab(btn.dataset.tab);
-      });
-
-      // ── Magic link toggle ──────────────────────────
-      document.getElementById('show-magic-link').addEventListener('click', () => {
-        hideAlert();
-        clearPendingConfirmation();
-        signinForm.style.display = 'none';
-        magicLinkForm.classList.add('visible');
-      });
-
-      document.getElementById('back-to-password').addEventListener('click', () => {
-        hideAlert();
-        clearPendingConfirmation();
-        magicLinkForm.classList.remove('visible');
-        signinForm.style.display = '';
       });
 
       // ── Sign In ────────────────────────────────────
@@ -598,11 +658,12 @@
           showAlert(error.message);
         } else {
           try {
-            await acceptInviteIfPresent();
+            await ensureInviteAccepted();
           } catch (err) {
-            showAlert(`Signed in, but invitation acceptance failed: ${err.message}`);
+            showAlert(formatInviteAcceptanceError('Signed in, but invitation acceptance failed', err));
             return;
           }
+          notifyTenantRosterChanged();
           redirectAfterAuth();
         }
       });
@@ -617,73 +678,44 @@
         const displayName = document.getElementById('signup-name').value.trim();
         const email = document.getElementById('signup-email').value.trim();
         const password = document.getElementById('signup-password').value;
+        try {
+          await registerAccount({
+            email,
+            password,
+            display_name: displayName,
+            invite_token: inviteToken || undefined,
+          });
+        } catch (err) {
+          setLoading(btn, false);
+          if (err.status === 409) {
+            showAlert('An account with this email already exists. Sign in with your password to continue.');
+            setActiveTab('signin');
+            document.getElementById('signin-email').value = inviteDetails?.email || email;
+            return;
+          }
+          showAlert(err.message);
+          return;
+        }
 
-        const { data, error } = await sb.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { display_name: displayName },
-            emailRedirectTo: buildAuthCallbackUrl(),
-          },
-        });
+        const { error } = await sb.auth.signInWithPassword({ email, password });
         setLoading(btn, false);
 
         if (error) {
           showAlert(error.message);
-        } else if (data.user && !data.session) {
-          // Email confirmation required
-          sessionStorage.setItem('pendingSignupEmail', email);
-          showPendingConfirmation(email);
         } else {
           try {
-            await acceptInviteIfPresent();
+            await ensureInviteAccepted();
           } catch (err) {
-            showAlert(`Account created, but invitation acceptance failed: ${err.message}`);
+            showAlert(formatInviteAcceptanceError('Account created, but invitation acceptance failed', err));
             return;
           }
+          notifyTenantRosterChanged();
+          sessionStorage.removeItem('pendingSignupEmail');
           redirectAfterAuth();
         }
       });
 
-      // ── Magic Link ─────────────────────────────────
-      document.getElementById('magic-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        hideAlert();
-        const btn = document.getElementById('magic-btn');
-        setLoading(btn, true);
-
-        const email = document.getElementById('magic-email').value.trim();
-        const { error } = await sb.auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: buildAuthCallbackUrl(),
-          },
-        });
-        setLoading(btn, false);
-
-        if (error) {
-          showAlert(error.message);
-        } else {
-          showAlert('Check your email for a sign-in link.', 'success');
-        }
-      });
-
       persistAuthContext();
-      const pendingSignupEmail = sessionStorage.getItem('pendingSignupEmail');
-      if (pendingSignupEmail && !inviteToken) {
-        showPendingConfirmation(pendingSignupEmail);
-      }
-
-      // ── Google OAuth (disabled until provider is configured) ──
-      // const googleBtn = document.getElementById('google-btn');
-      // if (googleBtn) googleBtn.addEventListener('click', async () => {
-      //   hideAlert();
-      //   const { error } = await sb.auth.signInWithOAuth({
-      //     provider: 'google',
-      //     options: { redirectTo: window.location.origin + '/books/auth/callback' },
-      //   });
-      //   if (error) showAlert(error.message);
-      // });
     </script>
   </body>
 </html>

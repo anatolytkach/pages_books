@@ -345,11 +345,18 @@
           opts.body = JSON.stringify(body);
         }
         const res = await fetch(`${API}${path}`, opts);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
+        const payload = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(payload?.error || payload?.message || `HTTP ${res.status}`);
+        return payload;
       }
 
       function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+      function formatDate(value) {
+        if (!value) return 'Unknown date';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'Unknown date';
+        return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      }
       function inviteLinkFromToken(token) {
         const base = `${window.location.origin}/books/auth/`;
         return `${base}?invite=${encodeURIComponent(String(token || '').trim())}`;
@@ -359,6 +366,7 @@
       }
 
       let platformAccess = { is_superuser: false, admin_tenants: [] };
+      let platformTenants = [];
 
       // Profile
       const user = session.user;
@@ -394,6 +402,9 @@
         btn.classList.add('active');
         document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
         window.location.hash = btn.dataset.tab;
+        if (btn.dataset.tab === 'tenants') {
+          refreshTenantView({ force: true });
+        }
       });
 
       if (hash === 'tenants' || hash === 'publications' || hash === 'library') {
@@ -482,11 +493,202 @@
       }
 
       const $superuserPanel = document.getElementById('superuserPanel');
+
+      function renderMemberRow(member) {
+        const displayName = member.profile?.display_name || member.user_id || 'Unknown user';
+        return `
+          <div style="padding:10px 0; border-top:1px solid var(--border);">
+            <div style="font-weight:600;">${esc(displayName)}</div>
+            <div style="color:var(--muted); font-size:13px;">Role: ${esc(member.role)} • Joined ${esc(formatDate(member.created_at))}</div>
+          </div>`;
+      }
+
+      function isInviteExpired(invite) {
+        if (!invite?.expires_at) return false;
+        const expiresAt = new Date(invite.expires_at);
+        return !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= Date.now();
+      }
+
+      function renderPendingInviteRow(invite, tenantSlug = '') {
+        const expired = isInviteExpired(invite);
+        const statusLabel = expired ? 'Expired' : 'Pending confirmation';
+        return `
+          <div style="padding:10px 0; border-top:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+              <div>
+                <div style="font-weight:600;">${esc(invite.email)} <span style="color:${expired ? '#c0392b' : 'var(--accent)'}; font-size:12px;">${esc(statusLabel)}</span></div>
+                <div style="color:var(--muted); font-size:13px;">Role: ${esc(invite.role)} • Invited ${esc(formatDate(invite.created_at))}</div>
+              </div>
+              ${tenantSlug ? `<button class="btn btn-secondary invite-delete-btn" data-tenant-slug="${esc(tenantSlug)}" data-invite-id="${esc(String(invite.id))}" style="height:32px; padding:0 12px;">Delete</button>` : ''}
+            </div>
+            <div style="margin-top:4px; word-break:break-all; font-size:12px;">
+              <a href="${esc(inviteLinkFromToken(invite.token))}" style="color:var(--accent); text-decoration:none;">${esc(inviteLinkFromToken(invite.token))}</a>
+            </div>
+          </div>`;
+      }
+
+      function renderPlatformTenantsList() {
+        if (!platformTenants.length) {
+          $tenants.innerHTML = '<div class="empty-state">No organizations exist yet.</div>';
+          return;
+        }
+        $tenants.innerHTML = platformTenants.map((tenant) => `
+          <div class="panel" style="margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start;">
+              <div>
+                <strong style="font-size:18px;">${esc(tenant.name)}</strong>
+                <div style="color:var(--muted); font-size:13px; margin-top:4px;">${esc(tenant.slug)} • ${esc(tenant.tenant_type)} • Created ${esc(formatDate(tenant.created_at))}</div>
+              </div>
+              <div style="color:var(--muted); font-size:13px;">${tenant.members.length} members • ${tenant.pending_invites.length} pending invites</div>
+            </div>
+
+            <div style="margin-top:18px;">
+              <div style="font-weight:600; margin-bottom:8px;">Invite member</div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+                <div style="flex:1 1 220px;">
+                  <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Email</label>
+                  <input data-tenant-email="${esc(tenant.slug)}" type="email" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="person@example.com" />
+                </div>
+                <div style="width:160px;">
+                  <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Role</label>
+                  <select data-tenant-role="${esc(tenant.slug)}" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;">
+                    <option value="admin">Admin</option>
+                    <option value="publisher">Publisher</option>
+                    <option value="member">Member</option>
+                  </select>
+                </div>
+                <button class="btn tenant-invite-btn" data-tenant-slug="${esc(tenant.slug)}">Send Invite</button>
+              </div>
+              <div data-tenant-result="${esc(tenant.slug)}" style="margin-top:10px; font-size:13px; color:var(--muted);"></div>
+            </div>
+
+            <div style="margin-top:18px;">
+              <div style="font-weight:600;">Members</div>
+              ${tenant.members.length ? tenant.members.map(renderMemberRow).join('') : '<div style="padding:10px 0; color:var(--muted);">No active members yet.</div>'}
+            </div>
+
+            <div style="margin-top:18px;">
+              <div style="font-weight:600;">Pending invites</div>
+              ${tenant.pending_invites.length ? tenant.pending_invites.map((invite) => renderPendingInviteRow(invite, tenant.slug)).join('') : '<div style="padding:10px 0; color:var(--muted);">No pending invites.</div>'}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      async function loadPlatformTenants() {
+        $tenants.innerHTML = '<div class="empty-state"><span class="spinner"></span> Loading organizations...</div>';
+        try {
+          platformTenants = await apiFetch('GET', '/platform/tenants');
+          renderPlatformTenantsList();
+        } catch (err) {
+          $tenants.innerHTML = `<div class="empty-state">Failed to load organizations: ${esc(err.message)}</div>`;
+        }
+      }
+
+      async function loadMembershipTenants() {
+        try {
+          const memberships = await apiFetch('GET', '/me/tenants');
+          if (!memberships.length) {
+            $tenants.innerHTML = '<div class="empty-state">You are not a member of any organizations yet.</div>';
+          } else {
+            const adminMemberships = memberships.filter((m) => ['owner', 'admin'].includes(String(m.role || '')));
+            if (!adminMemberships.length) {
+              $tenants.innerHTML = memberships.map(m => {
+                const t = m.tenants || m.tenant || m;
+                const canPublish = ['owner', 'admin', 'publisher'].includes(String(m.role || ''));
+                return `
+                  <div class="panel" style="margin-bottom:12px;">
+                    <strong>${esc(t.name)}</strong>
+                    <span style="color:var(--muted); font-size:13px; margin-left:8px;">${esc(m.role)} — ${esc(t.tenant_type)}</span>
+                    <div style="margin-top:8px; color:var(--muted); font-size:13px;">${canPublish ? 'Publishing enabled' : 'Reader access only'}</div>
+                  </div>`;
+              }).join('');
+              return;
+            }
+
+            const rosters = await Promise.all(adminMemberships.map(async (membership) => {
+              const tenant = membership.tenants || membership.tenant || membership;
+              return apiFetch('GET', `/tenants/${encodeURIComponent(tenant.slug)}/roster`);
+            }));
+
+            $tenants.innerHTML = rosters.map((roster) => `
+              <div class="panel" style="margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start;">
+                  <div>
+                    <strong style="font-size:18px;">${esc(roster.tenant.name)}</strong>
+                    <div style="color:var(--muted); font-size:13px; margin-top:4px;">${esc(roster.tenant.slug)} • ${esc(roster.tenant.tenant_type)}</div>
+                  </div>
+                </div>
+
+                <div style="margin-top:18px;">
+                  <div style="font-weight:600; margin-bottom:8px;">Invite new members</div>
+                  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+                    <div style="flex:1 1 220px;">
+                      <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Email</label>
+                      <input data-tenant-email="${esc(roster.tenant.slug)}" type="email" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="person@example.com" />
+                    </div>
+                    <div style="width:160px;">
+                      <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Role</label>
+                      <select data-tenant-role="${esc(roster.tenant.slug)}" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;">
+                        <option value="publisher">Publisher</option>
+                        <option value="member">Member</option>
+                      </select>
+                    </div>
+                    <button class="btn tenant-invite-btn" data-tenant-slug="${esc(roster.tenant.slug)}">Invite New Members</button>
+                  </div>
+                  <div data-tenant-result="${esc(roster.tenant.slug)}" style="margin-top:10px; font-size:13px; color:var(--muted);"></div>
+                </div>
+
+                <div style="margin-top:18px;">
+                  <div style="font-weight:600;">Members</div>
+                  ${roster.members.length ? roster.members.map((member) => renderMemberRow({
+                    profile: member.user_profiles || member.profile || null,
+                    user_id: member.user_id,
+                    role: member.role,
+                    created_at: member.created_at,
+                  })).join('') : '<div style="padding:10px 0; color:var(--muted);">No active members yet.</div>'}
+                </div>
+
+                <div style="margin-top:18px;">
+                  <div style="font-weight:600;">Pending invites</div>
+                  ${roster.pending_invites.length ? roster.pending_invites.map((invite) => renderPendingInviteRow(invite, roster.tenant.slug)).join('') : '<div style="padding:10px 0; color:var(--muted);">No pending invites.</div>'}
+                </div>
+              </div>
+            `).join('');
+          }
+        } catch (err) {
+          $tenants.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
+        }
+      }
+
+      async function refreshTenantView({ force = false } = {}) {
+        if (!force) {
+          return;
+        }
+        if (platformAccess.is_superuser) {
+          await loadPlatformTenants();
+        } else {
+          await loadMembershipTenants();
+        }
+      }
+
+      window.addEventListener('storage', (event) => {
+        if (event.key !== 'readerpub:tenant-roster-updated' || !event.newValue) return;
+        if (!document.getElementById('tab-tenants').classList.contains('active')) return;
+        refreshTenantView({ force: true });
+      });
+
+      window.addEventListener('pageshow', () => {
+        if (document.getElementById('tab-tenants').classList.contains('active')) {
+          refreshTenantView({ force: true });
+        }
+      });
+
       if (platformAccess.is_superuser) {
         $superuserPanel.style.display = '';
         $superuserPanel.innerHTML = `
           <h3 style="margin-top:0;">Platform Admin</h3>
-          <div style="color:var(--muted); font-size:14px; margin-bottom:20px;">Superusers can create organizations, invite organization admins, invite self-publishers, and grant new superusers.</div>
+          <div style="color:var(--muted); font-size:14px; margin-bottom:20px;">Superusers can create organizations, inspect their members and pending invites, invite admins, publishers, and members, and grant new superusers.</div>
 
           <div class="stack">
             <div class="panel" style="margin:0; padding:18px;">
@@ -506,36 +708,13 @@
                     <option value="publisher">Publisher</option>
                     <option value="distributor">Distributor</option>
                     <option value="library">Library</option>
-                    <option value="school">School</option>
-                    <option value="enterprise">Enterprise</option>
+                    <option value="university">University</option>
+                    <option value="consortium">Consortium</option>
                     <option value="individual_author">Individual author</option>
                   </select>
                 </div>
                 <button class="btn" id="orgCreateBtn" style="width:max-content;">Create Organization</button>
                 <div id="orgCreateResult" style="font-size:13px; color:var(--muted);"></div>
-              </div>
-            </div>
-
-            <div class="panel" style="margin:0; padding:18px;">
-              <h3 style="font-size:18px; margin-top:0;">Invite Organization Admin</h3>
-              <div class="stack">
-                <div>
-                  <label for="tenant-select" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Organization</label>
-                  <select id="tenant-select" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;"></select>
-                </div>
-                <div>
-                  <label for="tenant-admin-email" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Admin Email</label>
-                  <input id="tenant-admin-email" type="email" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" placeholder="admin@example.com" />
-                </div>
-                <div>
-                  <label for="tenant-admin-role" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Role</label>
-                  <select id="tenant-admin-role" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;">
-                    <option value="admin">Admin</option>
-                    <option value="owner">Owner</option>
-                  </select>
-                </div>
-                <button class="btn" id="tenantAdminInviteBtn" style="width:max-content;">Create Admin Invite</button>
-                <div id="tenantAdminInviteResult" style="font-size:13px; color:var(--muted);"></div>
               </div>
             </div>
 
@@ -587,22 +766,6 @@
           document.getElementById('sp-slug').value = slugify(e.target.value);
         });
 
-        let platformTenants = [];
-        try {
-          platformTenants = await apiFetch('GET', '/platform/tenants');
-        } catch {
-          platformTenants = [];
-        }
-
-        const $tenantSelect = document.getElementById('tenant-select');
-        if (platformTenants.length) {
-          $tenantSelect.innerHTML = platformTenants.map((tenant) => `
-            <option value="${esc(tenant.slug)}">${esc(tenant.name)} (${esc(tenant.slug)})</option>
-          `).join('');
-        } else {
-          $tenantSelect.innerHTML = '<option value="">No organizations available</option>';
-        }
-
         try {
           const data = await apiFetch('GET', '/platform/superusers');
           const active = Array.isArray(data.superusers) ? data.superusers : [];
@@ -611,12 +774,18 @@
             <div class="stack">
               <div><strong>Active</strong></div>
               ${active.length ? active.map((row) => `
-                <div>${esc(row.user_profiles?.display_name || row.user_id)} <span style="color:var(--muted)">(${esc(row.user_id)})</span></div>
+                <div>${esc(row.user_profiles?.display_name || row.user_id)} <span style="color:var(--muted)">(${esc(row.user_id)})</span> <span style="color:var(--muted)">since ${esc(formatDate(row.created_at))}</span></div>
               `).join('') : '<div style="color:var(--muted)">No explicit superuser rows yet.</div>'}
               <div style="margin-top:8px;"><strong>Pending Invites</strong></div>
               ${pending.length ? pending.map((row) => `
                 <div>
-                  ${esc(row.email)}
+                  <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                    <div>
+                      ${esc(row.email)} <span style="color:${isInviteExpired(row) ? '#c0392b' : 'var(--accent)'}">${esc(isInviteExpired(row) ? 'Expired' : 'Pending confirmation')}</span>
+                      <div style="margin-top:4px; color:var(--muted);">Invited ${esc(formatDate(row.created_at))}</div>
+                    </div>
+                    <button class="btn btn-secondary superuser-invite-delete-btn" data-invite-id="${esc(String(row.id))}" style="height:32px; padding:0 12px;">Delete</button>
+                  </div>
                   <div style="margin-top:4px; word-break:break-all;">
                     <a href="${esc(inviteLinkFromToken(row.token))}" style="color:var(--accent); text-decoration:none;">${esc(inviteLinkFromToken(row.token))}</a>
                   </div>
@@ -642,39 +811,12 @@
             const tenant = await apiFetch('POST', '/tenants', { name, slug, tenant_type });
             document.getElementById('orgCreateResult').textContent = `Created ${tenant.name} (${tenant.slug}).`;
             showTenantAlert(`Organization ${tenant.name} created.`);
-            if (!$tenantSelect.querySelector(`option[value="${tenant.slug}"]`)) {
-              $tenantSelect.insertAdjacentHTML('beforeend', `<option value="${esc(tenant.slug)}">${esc(tenant.name)} (${esc(tenant.slug)})</option>`);
-            }
-            $tenantSelect.value = tenant.slug;
+            await loadPlatformTenants();
           } catch (err) {
             showTenantAlert(`Could not create organization: ${err.message}`, 'error');
           } finally {
             btn.disabled = false;
             btn.textContent = 'Create Organization';
-          }
-        });
-
-        document.getElementById('tenantAdminInviteBtn').addEventListener('click', async () => {
-          const slug = document.getElementById('tenant-select').value;
-          const email = document.getElementById('tenant-admin-email').value.trim();
-          const role = document.getElementById('tenant-admin-role').value;
-          if (!slug || !email) {
-            showTenantAlert('Organization and admin email are required.', 'error');
-            return;
-          }
-          const btn = document.getElementById('tenantAdminInviteBtn');
-          btn.disabled = true;
-          btn.textContent = 'Creating...';
-          try {
-            const payload = await apiFetch('POST', `/tenants/${encodeURIComponent(slug)}/admin-invite`, { email, role });
-            const link = inviteLinkFromToken(payload.invite.token);
-            document.getElementById('tenantAdminInviteResult').innerHTML = `Invite link for ${esc(payload.invite.email)}: <a href="${esc(link)}" style="color:var(--accent); text-decoration:none; word-break:break-all;">${esc(link)}</a>`;
-            showTenantAlert(`Organization admin invite created for ${payload.tenant.name}.`);
-          } catch (err) {
-            showTenantAlert(`Could not create organization admin invite: ${err.message}`, 'error');
-          } finally {
-            btn.disabled = false;
-            btn.textContent = 'Create Admin Invite';
           }
         });
 
@@ -691,9 +833,11 @@
           btn.textContent = 'Creating...';
           try {
             const payload = await apiFetch('POST', '/onboarding/self-publisher/invite', { email, name, slug });
-            const link = inviteLinkFromToken(payload.invite.token);
+            const link = payload.invite_url || inviteLinkFromToken(payload.invite.token);
             document.getElementById('spInviteResult').innerHTML = `Invite link for ${esc(payload.invite.email)}: <a href="${esc(link)}" style="color:var(--accent); text-decoration:none; word-break:break-all;">${esc(link)}</a>`;
-            showTenantAlert(`Self-publisher invite created for ${payload.tenant.name}.`);
+            const emailStatus = payload.email_delivery?.sent ? ' Email sent via Pingram.' : ' Email not sent automatically; use the invite link above.';
+            showTenantAlert(`Self-publisher invite created for ${payload.tenant.name}.${emailStatus}`);
+            await refreshTenantView({ force: true });
           } catch (err) {
             showTenantAlert(`Could not create self-publisher invite: ${err.message}`, 'error');
           } finally {
@@ -713,9 +857,10 @@
           btn.textContent = 'Creating...';
           try {
             const invite = await apiFetch('POST', '/platform/superusers/invite', { email });
-            const link = inviteLinkFromToken(invite.token);
+            const link = invite.invite_url || inviteLinkFromToken(invite.token);
             document.getElementById('superuserInviteResult').innerHTML = `Invite link for ${esc(invite.email)}: <a href="${esc(link)}" style="color:var(--accent); text-decoration:none; word-break:break-all;">${esc(link)}</a>`;
-            showTenantAlert(`Superuser invite created for ${invite.email}.`);
+            const emailStatus = invite.email_delivery?.sent ? ' Email sent via Pingram.' : ' Email not sent automatically; use the invite link above.';
+            showTenantAlert(`Superuser invite created for ${invite.email}.${emailStatus}`);
           } catch (err) {
             showTenantAlert(`Could not create superuser invite: ${err.message}`, 'error');
           } finally {
@@ -723,27 +868,111 @@
             btn.textContent = 'Create Superuser Invite';
           }
         });
+
+        await refreshTenantView({ force: true });
+      } else {
+        await refreshTenantView({ force: true });
       }
 
-      try {
-        const memberships = await apiFetch('GET', '/me/tenants');
-        if (!memberships.length) {
-          $tenants.innerHTML = '<div class="empty-state">You are not a member of any organizations yet.</div>';
-        } else {
-          $tenants.innerHTML = memberships.map(m => {
-            const t = m.tenants || m.tenant || m;
-            const canPublish = ['owner', 'admin'].includes(String(m.role || ''));
-            return `
-              <div class="panel" style="margin-bottom:12px;">
-                <strong>${esc(t.name)}</strong>
-                <span style="color:var(--muted); font-size:13px; margin-left:8px;">${esc(m.role)} — ${esc(t.tenant_type)}</span>
-                <div style="margin-top:8px; color:var(--muted); font-size:13px;">${canPublish ? 'Publishing enabled' : 'Reader access only'}</div>
-              </div>`;
-          }).join('');
+      $tenants.addEventListener('click', async (e) => {
+        const deleteBtn = e.target.closest('.invite-delete-btn');
+        if (deleteBtn) {
+          const slug = deleteBtn.dataset.tenantSlug;
+          const inviteId = deleteBtn.dataset.inviteId;
+          if (!slug || !inviteId) return;
+          deleteBtn.disabled = true;
+          deleteBtn.textContent = 'Deleting...';
+          try {
+            await apiFetch('DELETE', `/tenants/${encodeURIComponent(slug)}/invitations/${encodeURIComponent(inviteId)}`);
+            showTenantAlert('Invitation deleted.');
+            await refreshTenantView({ force: true });
+          } catch (err) {
+            showTenantAlert(`Could not delete invitation: ${err.message}`, 'error');
+          } finally {
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = 'Delete';
+          }
+          return;
         }
-      } catch (err) {
-        $tenants.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
-      }
+
+        const btn = e.target.closest('.tenant-invite-btn');
+        if (!btn) return;
+        const slug = btn.dataset.tenantSlug;
+        const emailInput = $tenants.querySelector(`[data-tenant-email="${slug}"]`);
+        const roleInput = $tenants.querySelector(`[data-tenant-role="${slug}"]`);
+        const resultEl = $tenants.querySelector(`[data-tenant-result="${slug}"]`);
+        const email = emailInput?.value.trim() || '';
+        const role = roleInput?.value || 'member';
+        if (!slug || !email) {
+          showTenantAlert('Organization and member email are required.', 'error');
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+        try {
+          let payload;
+          if (role === 'admin') {
+            payload = await apiFetch('POST', `/tenants/${encodeURIComponent(slug)}/admin-invite`, { email, role });
+          } else {
+            payload = await apiFetch('POST', `/tenants/${encodeURIComponent(slug)}/invite`, { email, role });
+          }
+          const invite = payload.invite || payload;
+          const link = payload.invite_url || invite.invite_url || inviteLinkFromToken(invite.token);
+          resultEl.innerHTML = `Invite link for ${esc(invite.email)}: <a href="${esc(link)}" style="color:var(--accent); text-decoration:none; word-break:break-all;">${esc(link)}</a>`;
+          const emailStatus = payload.email_delivery?.sent ? ' Email sent via Pingram.' : ' Email not sent automatically; use the invite link above.';
+          showTenantAlert(`Invite created for ${email} in ${slug}.${emailStatus}`);
+          await refreshTenantView({ force: true });
+        } catch (err) {
+          showTenantAlert(`Could not create invite: ${err.message}`, 'error');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = platformAccess.is_superuser ? 'Send Invite' : 'Invite New Members';
+        }
+      });
+
+      document.addEventListener('click', async (e) => {
+        const deleteBtn = e.target.closest('.superuser-invite-delete-btn');
+        if (!deleteBtn) return;
+        const inviteId = deleteBtn.dataset.inviteId;
+        if (!inviteId) return;
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = 'Deleting...';
+        try {
+          await apiFetch('DELETE', `/platform/superusers/invitations/${encodeURIComponent(inviteId)}`);
+          showTenantAlert('Superuser invitation deleted.');
+          const data = await apiFetch('GET', '/platform/superusers');
+          const active = Array.isArray(data.superusers) ? data.superusers : [];
+          const pending = Array.isArray(data.pending_invites) ? data.pending_invites : [];
+          document.getElementById('superuserList').innerHTML = `
+            <div class="stack">
+              <div><strong>Active</strong></div>
+              ${active.length ? active.map((row) => `
+                <div>${esc(row.user_profiles?.display_name || row.user_id)} <span style="color:var(--muted)">(${esc(row.user_id)})</span> <span style="color:var(--muted)">since ${esc(formatDate(row.created_at))}</span></div>
+              `).join('') : '<div style="color:var(--muted)">No explicit superuser rows yet.</div>'}
+              <div style="margin-top:8px;"><strong>Pending Invites</strong></div>
+              ${pending.length ? pending.map((row) => `
+                <div>
+                  <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                    <div>
+                      ${esc(row.email)} <span style="color:${isInviteExpired(row) ? '#c0392b' : 'var(--accent)'}">${esc(isInviteExpired(row) ? 'Expired' : 'Pending confirmation')}</span>
+                      <div style="margin-top:4px; color:var(--muted);">Invited ${esc(formatDate(row.created_at))}</div>
+                    </div>
+                    <button class="btn btn-secondary superuser-invite-delete-btn" data-invite-id="${esc(String(row.id))}" style="height:32px; padding:0 12px;">Delete</button>
+                  </div>
+                  <div style="margin-top:4px; word-break:break-all;">
+                    <a href="${esc(inviteLinkFromToken(row.token))}" style="color:var(--accent); text-decoration:none;">${esc(inviteLinkFromToken(row.token))}</a>
+                  </div>
+                </div>
+              `).join('') : '<div style="color:var(--muted)">No pending superuser invites.</div>'}
+            </div>`;
+        } catch (err) {
+          showTenantAlert(`Could not delete superuser invitation: ${err.message}`, 'error');
+        } finally {
+          deleteBtn.disabled = false;
+          deleteBtn.textContent = 'Delete';
+        }
+      });
+
     </script>
   </body>
 </html>

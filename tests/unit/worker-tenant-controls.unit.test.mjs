@@ -45,7 +45,7 @@ test("Unit: tenant creation requires superuser", async (t) => {
   assert.equal(payload.error, "Superuser access required");
 });
 
-test("Unit: tenant admin invites are forced to reader role", async (t) => {
+test("Unit: tenant admins can invite publishers without role downgrading", async (t) => {
   const jwt = makeJwt({ email: "admin@example.com" });
   const fetchMock = createFetchMockSequence([
     new Response(
@@ -56,12 +56,13 @@ test("Unit: tenant admin invites are forced to reader role", async (t) => {
       JSON.stringify({ id: "tenant-1" }),
       { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
     ),
+    new Response("{}", { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
     new Response(
-      JSON.stringify({ role: "admin" }),
+      JSON.stringify({ role: "admin", is_active: true }),
       { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
     ),
     new Response(
-      JSON.stringify({ id: "invite-1", tenant_id: "tenant-1", email: "reader@example.com", role: "member" }),
+      JSON.stringify({ id: "invite-1", tenant_id: "tenant-1", email: "publisher@example.com", role: "publisher" }),
       { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
     ),
   ]);
@@ -72,7 +73,7 @@ test("Unit: tenant admin invites are forced to reader role", async (t) => {
     url: "https://reader.pub/books/api/v1/tenants/acme-publishing/invite",
     method: "POST",
     headers: { authorization: `Bearer ${jwt}` },
-    body: { email: "reader@example.com", role: "admin" },
+    body: { email: "publisher@example.com", role: "publisher" },
     env: {
       SUPABASE_URL: "https://supabase.example",
       SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
@@ -81,12 +82,12 @@ test("Unit: tenant admin invites are forced to reader role", async (t) => {
   const payload = await readJson(response);
 
   assert.equal(response.status, 201);
-  assert.equal(payload.role, "member");
+  assert.equal(payload.role, "publisher");
 
-  const inviteCall = fetchMock.calls[3];
+  const inviteCall = fetchMock.calls[4];
   const inviteBody = JSON.parse(inviteCall[1].body);
-  assert.equal(inviteBody.email, "reader@example.com");
-  assert.equal(inviteBody.role, "member");
+  assert.equal(inviteBody.email, "publisher@example.com");
+  assert.equal(inviteBody.role, "publisher");
 });
 
 test("Unit: superuser can invite an organization admin", async (t) => {
@@ -127,6 +128,73 @@ test("Unit: superuser can invite an organization admin", async (t) => {
   const inviteBody = JSON.parse(fetchMock.calls[2][1].body);
   assert.equal(inviteBody.role, "admin");
   assert.equal(inviteBody.invite_type, "tenant_admin");
+});
+
+test("Unit: platform tenants includes active members and pending invites", async (t) => {
+  const jwt = makeJwt({ sub: "super-1", email: "yarane@gmail.com" });
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "super-1", email: "yarane@gmail.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify([
+        { id: "tenant-1", slug: "acme-publishing", name: "Acme Publishing", tenant_type: "publisher", created_at: "2026-03-01T00:00:00.000Z" },
+      ]),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify([
+        {
+          id: "membership-1",
+          tenant_id: "tenant-1",
+          user_id: "user-1",
+          role: "admin",
+          department: null,
+          created_at: "2026-03-02T00:00:00.000Z",
+          user_profiles: { display_name: "Ada Admin", avatar_url: null },
+        },
+      ]),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify([
+        {
+          id: "invite-1",
+          tenant_id: "tenant-1",
+          email: "pending@example.com",
+          role: "publisher",
+          invite_type: "tenant_reader",
+          token: "invite-token-1",
+          created_at: "2026-03-03T00:00:00.000Z",
+          expires_at: "2026-03-10T00:00:00.000Z",
+        },
+      ]),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: "https://reader.pub/books/api/v1/platform/tenants",
+    method: "GET",
+    headers: { authorization: `Bearer ${jwt}` },
+    env: {
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.length, 1);
+  assert.equal(payload[0].slug, "acme-publishing");
+  assert.equal(payload[0].members.length, 1);
+  assert.equal(payload[0].members[0].role, "admin");
+  assert.equal(payload[0].pending_invites.length, 1);
+  assert.equal(payload[0].pending_invites[0].email, "pending@example.com");
+  assert.equal(payload[0].pending_invites[0].status, "pending");
 });
 
 test("Unit: accepting tenant reader invite does not downgrade existing admin", async (t) => {

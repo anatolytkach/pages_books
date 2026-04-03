@@ -38,7 +38,7 @@ test("Unit: superuser can create self-publisher onboarding invite", async (t) =>
         id: "invite-1",
         tenant_id: "tenant-1",
         email: "ada@example.com",
-        role: "owner",
+        role: "publisher",
         invite_type: "self_publisher",
         token: "invite-token-1",
       }),
@@ -67,13 +67,13 @@ test("Unit: superuser can create self-publisher onboarding invite", async (t) =>
   assert.equal(response.status, 201);
   assert.equal(payload.tenant.tenant_type, "individual_author");
   assert.equal(payload.invite.invite_type, "self_publisher");
-  assert.equal(payload.invite.role, "owner");
+  assert.equal(payload.invite.role, "publisher");
 
   const tenantCreateBody = JSON.parse(fetchMock.calls[1][1].body);
   assert.equal(tenantCreateBody.tenant_type, "individual_author");
 
   const inviteCreateBody = JSON.parse(fetchMock.calls[2][1].body);
-  assert.equal(inviteCreateBody.role, "owner");
+  assert.equal(inviteCreateBody.role, "publisher");
   assert.equal(inviteCreateBody.invite_type, "self_publisher");
 });
 
@@ -89,7 +89,7 @@ test("Unit: accepting self-publisher invite creates owner membership", async (t)
         id: "invite-1",
         tenant_id: "tenant-1",
         email: "ada@example.com",
-        role: "owner",
+        role: "publisher",
         invite_type: "self_publisher",
         token: "invite-token-1",
         accepted_at: null,
@@ -234,4 +234,90 @@ test("Unit: superuser can invite another superuser and acceptance grants access"
   const grantBody = JSON.parse(acceptFetchMock.calls[4][1].body);
   assert.equal(grantBody.user_id, "super-2");
   assert.equal(grantBody.granted_by, "super-1");
+});
+
+test("Unit: password registration can complete an invite without Supabase email", async (t) => {
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({
+        id: "user-9",
+        email: "invitee@example.com",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "invite-9",
+        tenant_id: "tenant-9",
+        email: "invitee@example.com",
+        role: "publisher",
+        invite_type: "tenant_reader",
+        token: "invite-token-9",
+        accepted_at: null,
+        expires_at: "2099-01-01T00:00:00.000Z",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response("{}", { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(
+      JSON.stringify({
+        id: "membership-9",
+        tenant_id: "tenant-9",
+        user_id: "user-9",
+        role: "publisher",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "invite-9",
+        accepted_at: "2026-03-29T00:00:00.000Z",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "tenant-9",
+        slug: "acme-publishing",
+        name: "Acme Publishing",
+        tenant_type: "publisher",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: "https://reader.pub/books/api/v1/auth/register",
+    method: "POST",
+    body: {
+      email: "invitee@example.com",
+      password: "secret123",
+      display_name: "Invited User",
+      invite_token: "invite-token-9",
+    },
+    env: {
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 201);
+  assert.equal(payload.registered, true);
+  assert.equal(payload.user.id, "user-9");
+  assert.equal(payload.invite.accepted, true);
+  assert.equal(payload.invite.role, "publisher");
+  assert.equal(payload.invite.tenant.slug, "acme-publishing");
+
+  const createUserBody = JSON.parse(fetchMock.calls[0][1].body);
+  assert.equal(createUserBody.email, "invitee@example.com");
+  assert.equal(createUserBody.password, "secret123");
+  assert.equal(createUserBody.email_confirm, true);
+  assert.equal(createUserBody.user_metadata.display_name, "Invited User");
+
+  const membershipBody = JSON.parse(fetchMock.calls[3][1].body);
+  assert.equal(membershipBody.user_id, "user-9");
+  assert.equal(membershipBody.role, "publisher");
 });

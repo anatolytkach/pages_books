@@ -1033,7 +1033,10 @@
           categoryDetails: new Map(),
           popular: new Map(),
           newest: new Map(),
+          memberCatalogBooks: null,
         };
+
+        const API_ROOT = `${window.location.origin}/books/api/v1`;
 
         try {
           if (window.ReaderPubAnalytics && typeof window.ReaderPubAnalytics.boot === "function") {
@@ -1627,6 +1630,65 @@
               };
             })
             .filter(Boolean);
+        }
+
+        function extractAccessTokenFromSessionShape(value) {
+          if (!value) return "";
+          if (typeof value === "string") {
+            try {
+              return extractAccessTokenFromSessionShape(JSON.parse(value));
+            } catch (error) {
+              return "";
+            }
+          }
+          if (Array.isArray(value)) {
+            for (const item of value) {
+              const token = extractAccessTokenFromSessionShape(item);
+              if (token) return token;
+            }
+            return "";
+          }
+          if (typeof value !== "object") return "";
+          if (typeof value.access_token === "string" && value.access_token) return value.access_token;
+          if (value.currentSession) return extractAccessTokenFromSessionShape(value.currentSession);
+          if (value.session) return extractAccessTokenFromSessionShape(value.session);
+          if (value.data) return extractAccessTokenFromSessionShape(value.data);
+          return "";
+        }
+
+        function getSupabaseAccessToken() {
+          try {
+            for (let i = 0; i < localStorage.length; i += 1) {
+              const key = localStorage.key(i);
+              if (!/^sb-.*-auth-token$/i.test(String(key || ""))) continue;
+              const raw = localStorage.getItem(key);
+              const token = extractAccessTokenFromSessionShape(raw);
+              if (token) return token;
+            }
+          } catch (error) {
+            return "";
+          }
+          return "";
+        }
+
+        async function getMemberCatalogBooks() {
+          if (Array.isArray(cache.memberCatalogBooks)) return cache.memberCatalogBooks;
+          const accessToken = getSupabaseAccessToken();
+          if (!accessToken) {
+            cache.memberCatalogBooks = [];
+            return [];
+          }
+          const res = await fetch(`${API_ROOT}/me/catalog-books`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            cache: "no-store",
+          });
+          if (!res.ok) {
+            cache.memberCatalogBooks = [];
+            return [];
+          }
+          const data = await res.json().catch(() => []);
+          cache.memberCatalogBooks = normalizeBooks(data);
+          return cache.memberCatalogBooks;
         }
 
         function normalizeCategoryEntries(source) {
@@ -2482,6 +2544,44 @@
           return section;
         }
 
+        function renderMemberBooksPreview(books) {
+          const section = el("section", "landingSection");
+          section.appendChild(createSectionHeader("Your Organization Books", "Visible to your organization memberships"));
+          if (!books.length) {
+            section.appendChild(el("div", "loading", "No organization-only books are currently available to this account."));
+            return section;
+          }
+          const grid = el("div", "grid");
+          books.slice(0, 12).forEach((book) => {
+            const card = el("a", "card");
+            card.href = openBookUrl(book, book.source, book.cover);
+
+            const coverUrl = resolveCoverUrl(book.cover);
+            const cover = el("div", "cover" + (coverUrl ? "" : " coverEmpty"));
+            if (coverUrl) {
+              const img = new Image();
+              img.loading = "lazy";
+              img.decoding = "async";
+              img.alt = `${book.title} cover`;
+              img.src = coverUrl;
+              img.onerror = () => {
+                cover.classList.add("coverEmpty");
+                cover.textContent = "No cover";
+              };
+              cover.appendChild(img);
+            } else {
+              cover.textContent = "No cover";
+            }
+
+            card.appendChild(cover);
+            card.appendChild(el("div", "cardTitle", book.title));
+            card.appendChild(el("div", "cardMeta", book.author || ""));
+            grid.appendChild(card);
+          });
+          section.appendChild(grid);
+          return section;
+        }
+
         function renderCategoriesSection(categories) {
           const section = el("section", "landingSection");
           section.appendChild(createSectionHeader("Browse by Category"));
@@ -2529,7 +2629,7 @@
           return section;
         }
 
-        function renderLanding(letters, newest, popular, categories) {
+        function renderLanding(letters, newest, popular, categories, memberBooks) {
           els.content.innerHTML = "";
           const wrap = el("div", "catalogSections");
           const lettersSection = el("section", "landingSection");
@@ -2540,6 +2640,9 @@
             lettersSection.appendChild(createLettersGrid(letters));
           }
           wrap.appendChild(lettersSection);
+          if (Array.isArray(memberBooks) && memberBooks.length) {
+            wrap.appendChild(renderMemberBooksPreview(memberBooks));
+          }
           wrap.appendChild(renderNewestPreview(newest || { windowDays: 7, books: [] }));
           wrap.appendChild(renderPopularPreview(popular || { defaultList: "last30days", lists: {} }));
           wrap.appendChild(renderCategoriesSection(categories || []));
@@ -3314,6 +3417,7 @@
           cache.categoryDetails.clear();
           cache.popular.clear();
           cache.newest.clear();
+          cache.memberCatalogBooks = null;
           hiddenEmptyPrefixes.clear();
         }
 
@@ -3637,10 +3741,15 @@
                 categories = await getCategories(nonce);
               } catch (error) {}
               if (nonce !== REQ_NONCE) return;
+              let memberBooks = [];
+              try {
+                memberBooks = await getMemberCatalogBooks();
+              } catch (error) {}
+              if (nonce !== REQ_NONCE) return;
               setBreadcrumbs([{ label: "Letters" }]);
               setToolbar("letters");
-              currentView = { renderer: () => renderLanding(letters, newest, popular, categories), data: letters };
-              renderLanding(letters, newest, popular, categories);
+              currentView = { renderer: () => renderLanding(letters, newest, popular, categories, memberBooks), data: letters };
+              renderLanding(letters, newest, popular, categories, memberBooks);
               renderSearchResults();
               return;
             }
