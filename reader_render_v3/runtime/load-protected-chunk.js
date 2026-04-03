@@ -25,17 +25,22 @@ function assertNoLeakage(value, where) {
 function loadProtectedChunk(rootPath, manifestChunk) {
   const chunkPath = path.join(rootPath, manifestChunk.chunkPath);
   const glyphPath = path.join(rootPath, manifestChunk.glyphsPath);
+  const shapesPath = manifestChunk.shapesPath ? path.join(rootPath, manifestChunk.shapesPath) : "";
   const chunk = readJson(chunkPath);
   const glyphs = readJson(glyphPath);
+  const shapes = shapesPath ? readJson(shapesPath) : null;
 
   assertNoLeakage(chunk.selectionLayer, "chunk.selectionLayer");
   assertNoLeakage(glyphs.glyphs, "glyphs.glyphs");
+  if (shapes) assertNoLeakage(shapes, "shapes");
 
   return {
     chunkPath,
     glyphPath,
+    shapesPath,
     chunk,
-    glyphs
+    glyphs,
+    shapes
   };
 }
 

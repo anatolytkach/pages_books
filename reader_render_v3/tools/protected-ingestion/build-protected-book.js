@@ -8,8 +8,10 @@ const { extractSpine } = require("./lib/extract-spine");
 const { extractTextBlocks } = require("./lib/extract-text-blocks");
 const { extractStyleSignals } = require("./lib/extract-style-signals");
 const { chunkTextBlocks } = require("./lib/chunk-text-blocks");
+const { extractFontAssets } = require("./lib/extract-font-assets");
 const { buildSelectionLayer } = require("./lib/build-selection-layer");
 const { buildGlyphLayer } = require("./lib/build-glyph-layer");
+const { buildShapeLayer } = require("./lib/build-shape-layer");
 const { buildProtectedManifest } = require("./lib/build-protected-manifest");
 const { writeProtectedBook } = require("./lib/write-protected-book");
 
@@ -71,10 +73,12 @@ async function main() {
     const spine = extractSpine(book);
     const extracted = extractTextBlocks({ book, spine });
     const styles = extractStyleSignals(extracted.blocks, { fontPlan });
+    const fontAssets = extractFontAssets(book);
     const chunks = chunkTextBlocks(extracted.blocks, config);
 
     const runtimeChunks = [];
     const runtimeGlyphChunks = [];
+    const runtimeShapeChunks = [];
     const debugChunks = [];
     const debugGlyphChunks = [];
 
@@ -112,6 +116,12 @@ async function main() {
         seed: glyphLayer.seed,
         glyphs: Object.fromEntries(glyphLayer.runtimeGlyphs.map((glyph) => [glyph.glyphId, glyph]))
       });
+      runtimeShapeChunks.push(buildShapeLayer({
+        chunkId: chunk.chunkId,
+        runtimeGlyphs: glyphLayer.runtimeGlyphs,
+        styleRegistry: styles.styleRegistry,
+        fontAssets
+      }));
 
       if (debugArtifactEnabled) {
         debugChunks.push({
@@ -143,6 +153,7 @@ async function main() {
       toc: extracted.toc,
       runtimeChunks,
       runtimeGlyphChunks,
+      runtimeShapeChunks,
       debugChunks,
       debugGlyphChunks,
       styles,

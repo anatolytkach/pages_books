@@ -1,4 +1,5 @@
 import { reconstructRunText } from "./protected-text-reconstruction.js";
+import { getShapeMetricsBackend } from "./protected-shape-metrics.js";
 
 export function fontSpecForStyle(styleTokenRecord = {}) {
   const headingLevel = styleTokenRecord.headingLevel || 0;
@@ -46,6 +47,23 @@ function charPositions(ctx, text) {
   return points;
 }
 
+function getTextMetricsBackend(ctx) {
+  return {
+    name: "text",
+    measureRun({ text }) {
+      const width = ctx.measureText(text).width;
+      return { width, charPositions: charPositions(ctx, text) };
+    }
+  };
+}
+
+function resolveMetricsBackend({ ctx, renderMode, shapeRegistry }) {
+  if (renderMode === "shape" && shapeRegistry) {
+    return getShapeMetricsBackend(shapeRegistry);
+  }
+  return getTextMetricsBackend(ctx);
+}
+
 function segmentMapForChunk(chunk) {
   const map = new Map();
   for (const segment of (chunk.selectionLayer && chunk.selectionLayer.textSegments) || []) {
@@ -54,7 +72,15 @@ function segmentMapForChunk(chunk) {
   return map;
 }
 
-export function layoutChunk({ chunkModel, styles, width, padding = 44 }) {
+export function layoutChunk({
+  chunkModel,
+  styles,
+  width,
+  padding = 44,
+  metricsBackend = null,
+  renderMode = "text",
+  shapeRegistry = null
+}) {
   const scratch = document.createElement("canvas");
   const ctx = scratch.getContext("2d");
   const maxWidth = width - padding * 2;
@@ -62,6 +88,7 @@ export function layoutChunk({ chunkModel, styles, width, padding = 44 }) {
   const lines = [];
   const orderedBlockIds = [];
   const segmentMap = segmentMapForChunk(chunkModel.chunk);
+  const backend = metricsBackend || resolveMetricsBackend({ ctx, renderMode, shapeRegistry });
   let cursorY = padding;
 
   for (const block of chunkModel.chunk.logicalBlockList) {
@@ -94,9 +121,25 @@ export function layoutChunk({ chunkModel, styles, width, padding = 44 }) {
       return currentLine;
     }
 
-    function placeToken({ token, font, styleToken, segmentId, sourceRef }) {
+    function placeToken({
+      token,
+      font,
+      styleToken,
+      segmentId,
+      sourceRef,
+      runKey,
+      glyphs,
+      glyphStartIndex,
+      glyphEndIndex
+    }) {
       ctx.font = font.css;
-      const widthPx = ctx.measureText(token.text).width;
+      const measure = backend.measureRun({
+        text: token.text,
+        glyphs,
+        font,
+        ctx
+      });
+      const widthPx = measure.width;
       const line = ensureLine(font.lineHeight);
       line.height = Math.max(line.height, font.lineHeight);
       const currentWidth = line.fragments.reduce((sum, item) => sum + item.width, 0);
@@ -107,7 +150,17 @@ export function layoutChunk({ chunkModel, styles, width, padding = 44 }) {
         currentWidth + widthPx > maxWidth
       ) {
         commitLine();
-        return placeToken({ token, font, styleToken, segmentId, sourceRef });
+        return placeToken({
+          token,
+          font,
+          styleToken,
+          segmentId,
+          sourceRef,
+          runKey,
+          glyphs,
+          glyphStartIndex,
+          glyphEndIndex
+        });
       }
 
       if (!currentLine.fragments.length && /^\s+$/.test(token.text)) {
@@ -119,6 +172,9 @@ export function layoutChunk({ chunkModel, styles, width, padding = 44 }) {
         segmentId,
         fragmentIndex: blockFragments.length,
         lineLocalIndex: line.fragments.length,
+        runKey,
+        glyphStartIndex,
+        glyphEndIndex,
         styleToken,
         font,
         text: token.text,
@@ -129,7 +185,8 @@ export function layoutChunk({ chunkModel, styles, width, padding = 44 }) {
         height: font.lineHeight,
         startOffset: token.startOffset,
         endOffset: token.endOffset,
-        charPositions: charPositions(ctx, token.text)
+        charPositions: measure.charPositions,
+        glyphCount: glyphs.length
       };
       line.fragments.push(fragment);
       blockFragments.push(fragment);
@@ -142,11 +199,20 @@ export function layoutChunk({ chunkModel, styles, width, padding = 44 }) {
       const runText = reconstructRunText(run, chunkModel.glyphMap);
       const tokens = tokenizeWithOffsets(runText, segment ? segment.start : 0);
       tokens.forEach((token) => {
+        const localStart = token.startOffset - (segment ? segment.start : 0);
+        const localEnd = token.endOffset - (segment ? segment.start : 0);
         placeToken({
           token,
           font,
           styleToken: run.styleToken,
           segmentId: segment ? segment.segmentId : `${block.blockId}:run:${runIndex}`,
+          runKey: `${block.blockId}:${runIndex}`,
+          glyphs: (run.glyphIds || [])
+            .slice(localStart, localEnd)
+            .map((glyphId) => chunkModel.glyphMap.get(glyphId))
+            .filter(Boolean),
+          glyphStartIndex: localStart,
+          glyphEndIndex: localEnd,
           sourceRef: run.sourceRef || block.sourceRef
         });
       });
@@ -177,5 +243,14 @@ export function layoutChunk({ chunkModel, styles, width, padding = 44 }) {
   }
 
   const height = Math.max(cursorY + padding, 640);
-  return { width, height, padding, blocks, lines, orderedBlockIds };
+  return {
+    width,
+    height,
+    padding,
+    blocks,
+    lines,
+    orderedBlockIds,
+    metricsBackend: backend.name,
+    renderMode
+  };
 }

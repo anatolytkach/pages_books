@@ -1,3 +1,7 @@
+import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
+import { buildGlyphRenderOps } from "./protected-shape-layout.js";
+import { renderGlyphOps } from "./protected-shape-renderer.js";
+
 function clearCanvas(canvas, width, height) {
   canvas.width = width * 2;
   canvas.height = height * 2;
@@ -9,17 +13,59 @@ function clearCanvas(canvas, width, height) {
   return ctx;
 }
 
-export function renderChunkToCanvas({ canvas, overlayCanvas, layout, highlightSpans }) {
+export function renderChunkToCanvas({
+  canvas,
+  overlayCanvas,
+  layout,
+  chunkModel,
+  renderMode = "text",
+  shapeRegistry = null,
+  highlightSpans
+}) {
   const ctx = clearCanvas(canvas, layout.width, layout.height);
   ctx.fillStyle = "#fffdfa";
   ctx.fillRect(0, 0, layout.width, layout.height);
+  const activeShapeRegistry = shapeRegistry || createGlyphShapeRegistry(chunkModel.shapeBundle, chunkModel.glyphMap);
 
-  for (const line of layout.lines) {
-    for (const fragment of line.fragments) {
-      ctx.font = fragment.font.css;
-      ctx.fillStyle = "#18212f";
-      ctx.fillText(fragment.text || "", fragment.x, fragment.y + fragment.font.size);
+  let diagnostics = {
+    renderMode,
+    glyphOps: 0,
+    shapeRecords: activeShapeRegistry.records.size,
+    shapeCoveragePercent: activeShapeRegistry.coveragePercent,
+    extractedShapeCount: activeShapeRegistry.extractedGlyphs,
+    syntheticShapeCount: activeShapeRegistry.syntheticGlyphs,
+    placeholderShapeCount: activeShapeRegistry.placeholderGlyphs,
+    extractedCoveragePercent: activeShapeRegistry.extractedCoveragePercent,
+    shapeSource: activeShapeRegistry.sourceCounts.extracted ? "extracted" :
+      activeShapeRegistry.sourceCounts.synthetic ? "synthetic" :
+      activeShapeRegistry.sourceCounts.placeholder ? "placeholder" : "none",
+    shapeSources: activeShapeRegistry.sourceCounts,
+    metricsBackend: layout.metricsBackend,
+    selectionCompatible: true,
+    hasShapeBundle: !!chunkModel.shapeBundle
+  };
+
+  if (renderMode === "shape") {
+    const glyphOps = buildGlyphRenderOps({
+      layout,
+      chunkModel,
+      shapeRegistry: activeShapeRegistry,
+      renderMode
+    });
+    renderGlyphOps(ctx, glyphOps, activeShapeRegistry);
+    diagnostics = {
+      ...diagnostics,
+      glyphOps: glyphOps.length
+    };
+  } else {
+    for (const line of layout.lines) {
+      for (const fragment of line.fragments) {
+        ctx.font = fragment.font.css;
+        ctx.fillStyle = "#18212f";
+        ctx.fillText(fragment.text || "", fragment.x, fragment.y + fragment.font.size);
+      }
     }
+    diagnostics.glyphOps = layout.lines.reduce((sum, line) => sum + line.fragments.reduce((count, fragment) => count + fragment.glyphCount, 0), 0);
   }
 
   const overlay = clearCanvas(overlayCanvas, layout.width, layout.height);
@@ -29,4 +75,6 @@ export function renderChunkToCanvas({ canvas, overlayCanvas, layout, highlightSp
   for (const span of highlightSpans || []) {
     overlay.fillRect(span.x, span.y + 2, span.width, Math.max(12, span.height - 4));
   }
+
+  return diagnostics;
 }

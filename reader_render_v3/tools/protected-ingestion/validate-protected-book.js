@@ -24,6 +24,7 @@ function resolveInput(input) {
 function validateChunk(chunkInfo, glyphInfo, locations) {
   const chunk = chunkInfo.chunk;
   const glyphs = glyphInfo.glyphs;
+  const shapes = glyphInfo.shapes;
   const chunkLocation = locations.chunks.find((item) => item.chunkId === chunk.chunkId);
 
   if (!chunk.renderLayer || !Array.isArray(chunk.renderLayer.textRuns)) {
@@ -50,6 +51,39 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
   }
   if (glyphValues.some((item) => !("codePoint" in item) || !item.styleToken)) {
     throw new Error(`Glyph file for ${chunk.chunkId} has incomplete glyph records`);
+  }
+  if (shapes) {
+    if (!Array.isArray(shapes.shapeRecords)) {
+      throw new Error(`Shapes file for ${chunk.chunkId} has no shapeRecords`);
+    }
+    const shapeRefs = new Set(shapes.shapeRecords.map((item) => item.shapeRef));
+    for (const shape of shapes.shapeRecords) {
+      if (!shape.shapeRef || !shape.glyphId) {
+        throw new Error(`Shapes file for ${chunk.chunkId} has incomplete shape linkage`);
+      }
+      if (shape.source === "extracted") {
+        if (!shape.pathData || typeof shape.pathData !== "string") {
+          throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} is missing pathData`);
+        }
+        if (!shape.extractionStatus || shape.extractionStatus !== "ok") {
+          throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} has invalid extractionStatus`);
+        }
+        if (typeof shape.advance !== "number" || shape.advance <= 0) {
+          throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} has invalid advance`);
+        }
+        if (!shape.bbox || typeof shape.bbox.width !== "number" || typeof shape.bbox.height !== "number") {
+          throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} has invalid bbox`);
+        }
+      }
+    }
+    for (const glyph of glyphValues) {
+      if (!glyph.shapeRef) {
+        throw new Error(`Glyph ${glyph.glyphId} in ${chunk.chunkId} is missing shapeRef`);
+      }
+      if (!shapeRefs.has(glyph.shapeRef)) {
+        throw new Error(`Shape bundle for ${chunk.chunkId} is missing ${glyph.shapeRef}`);
+      }
+    }
   }
   for (const run of chunk.renderLayer.textRuns) {
     for (const glyphId of run.glyphIds || []) {

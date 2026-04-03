@@ -2,6 +2,7 @@ import { loadProtectedBook, loadProtectedChunkModel } from "../runtime/protected
 import { findChunkIndexForToc } from "../runtime/protected-navigation-model.js";
 import { layoutChunk } from "../runtime/protected-layout-engine.js";
 import { renderChunkToCanvas } from "../runtime/protected-canvas-renderer.js";
+import { createGlyphShapeRegistry } from "../runtime/protected-glyph-shape-registry.js";
 import { hitTestPosition } from "../runtime/protected-hit-testing.js";
 import { copySelection } from "../runtime/protected-copy-engine.js";
 import {
@@ -27,6 +28,7 @@ const elements = {
   bookMeta: document.querySelector("#book-meta"),
   tocList: document.querySelector("#toc-list"),
   tocCount: document.querySelector("#toc-count"),
+  renderMode: document.querySelector("#render-mode"),
   runtimeMeta: document.querySelector("#runtime-meta"),
   selectionMeta: document.querySelector("#selection-meta"),
   selectionKind: document.querySelector("#selection-kind"),
@@ -45,6 +47,9 @@ const state = {
   currentChunkIndex: 0,
   currentChunkModel: null,
   currentLayout: null,
+  currentShapeRegistry: null,
+  currentRenderDiagnostics: null,
+  renderMode: "text",
   selectionState: createSelectionState()
 };
 
@@ -73,8 +78,22 @@ function getArtifactRootFromLocation() {
   return DEFAULT_ARTIFACT;
 }
 
+function getRenderModeFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const renderMode = params.get("renderMode");
+  return renderMode === "shape" ? "shape" : "text";
+}
+
+function syncLocationParams() {
+  const url = new URL(window.location.href);
+  url.searchParams.set("artifact", state.artifactRoot);
+  url.searchParams.set("renderMode", state.renderMode);
+  window.history.replaceState({}, "", url);
+}
+
 function syncArtifactInput() {
   elements.artifactInput.value = state.artifactRoot;
+  elements.renderMode.value = state.renderMode;
 }
 
 function renderBookMeta() {
@@ -116,6 +135,7 @@ function renderRuntimeMeta() {
   const chunk = state.currentChunkModel.chunk;
   const location = state.currentChunkModel.chunkLocation;
   const metadata = state.book.manifest.metadata || {};
+  const diagnostics = state.currentRenderDiagnostics || {};
   setDlRows(elements.runtimeMeta, [
     ["Book", metadata.title || "(untitled)"],
     ["Chunk", chunk.chunkId],
@@ -123,7 +143,17 @@ function renderRuntimeMeta() {
     ["Location", location ? location.locationId : "n/a"],
     ["TOC", state.currentChunkModel.tocLabel || "none"],
     ["Blocks", chunk.logicalBlockList.length],
-    ["Segments", buildChunkSelectionIndex(chunk).segmentCount]
+    ["Segments", buildChunkSelectionIndex(chunk).segmentCount],
+    ["Render mode", state.renderMode],
+    ["Metrics backend", diagnostics.metricsBackend || state.currentLayout?.metricsBackend || "n/a"],
+    ["Glyph ops", diagnostics.glyphOps ?? "n/a"],
+    ["Shape bundle", diagnostics.hasShapeBundle ? "yes" : "no"],
+    ["Shape records", diagnostics.shapeRecords ?? 0],
+    ["Coverage", diagnostics.shapeCoveragePercent != null ? `${diagnostics.shapeCoveragePercent}%` : "n/a"],
+    ["Extracted", diagnostics.extractedShapeCount ?? 0],
+    ["Synthetic fallback", diagnostics.syntheticShapeCount ?? 0],
+    ["Extracted coverage", diagnostics.extractedCoveragePercent != null ? `${diagnostics.extractedCoveragePercent}%` : "n/a"],
+    ["Shape source", diagnostics.shapeSource || "none"]
   ]);
 }
 
@@ -154,12 +184,16 @@ function refreshCanvas() {
     layout: state.currentLayout,
     selectionState: state.selectionState
   });
-  renderChunkToCanvas({
+  state.currentRenderDiagnostics = renderChunkToCanvas({
     canvas: elements.canvas,
     overlayCanvas: elements.overlayCanvas,
     layout: state.currentLayout,
+    chunkModel: state.currentChunkModel,
+    renderMode: state.renderMode,
+    shapeRegistry: state.currentShapeRegistry,
     highlightSpans: buildSelectionHighlights(state.currentLayout, selectionResult)
   });
+  renderRuntimeMeta();
 }
 
 async function openChunk(chunkIndex) {
@@ -167,18 +201,23 @@ async function openChunk(chunkIndex) {
   const boundedIndex = Math.max(0, Math.min(chunkIndex, state.book.manifest.chunks.length - 1));
   state.currentChunkIndex = boundedIndex;
   state.currentChunkModel = await loadProtectedChunkModel(state.book, boundedIndex);
+  state.currentShapeRegistry = createGlyphShapeRegistry(
+    state.currentChunkModel.shapeBundle,
+    state.currentChunkModel.glyphMap
+  );
   state.currentLayout = layoutChunk({
     chunkModel: state.currentChunkModel,
     styles: state.book.styleMap,
-    width: CANVAS_WIDTH
+    width: CANVAS_WIDTH,
+    renderMode: state.renderMode,
+    shapeRegistry: state.currentShapeRegistry
   });
   state.selectionState = createSelectionState();
-  renderRuntimeMeta();
   renderSelectionMeta();
   refreshCanvas();
   syncActiveToc();
   setStatus(
-    `Opened ${state.currentChunkModel.chunk.chunkId} (${boundedIndex + 1}/${state.book.manifest.chunks.length}).`,
+    `Opened ${state.currentChunkModel.chunk.chunkId} (${boundedIndex + 1}/${state.book.manifest.chunks.length}) in ${state.renderMode} mode.`,
     "ok"
   );
 }
@@ -193,6 +232,7 @@ function syncActiveToc() {
 async function loadArtifact(artifactRoot) {
   state.artifactRoot = artifactRoot;
   syncArtifactInput();
+  syncLocationParams();
   setStatus(`Loading runtime-safe artifact ${artifactRoot}...`);
   state.book = await loadProtectedBook(artifactRoot);
   renderBookMeta();
@@ -279,6 +319,7 @@ function resetSelection() {
 
 async function boot() {
   state.artifactRoot = getArtifactRootFromLocation();
+  state.renderMode = getRenderModeFromLocation();
   syncArtifactInput();
 
   elements.artifactForm.addEventListener("submit", async (event) => {
@@ -294,6 +335,35 @@ async function boot() {
   elements.load19686.addEventListener("click", async () => {
     try {
       await loadArtifact(DEFAULT_ARTIFACT);
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message || String(error), "error");
+    }
+  });
+
+  elements.renderMode.addEventListener("change", async () => {
+    state.renderMode = elements.renderMode.value === "shape" ? "shape" : "text";
+    syncArtifactInput();
+    syncLocationParams();
+    if (!state.book || !state.currentChunkModel) {
+      setStatus(`Render mode set to ${state.renderMode}.`, "ok");
+      return;
+    }
+    try {
+      state.currentShapeRegistry = createGlyphShapeRegistry(
+        state.currentChunkModel.shapeBundle,
+        state.currentChunkModel.glyphMap
+      );
+      state.currentLayout = layoutChunk({
+        chunkModel: state.currentChunkModel,
+        styles: state.book.styleMap,
+        width: CANVAS_WIDTH,
+        renderMode: state.renderMode,
+        shapeRegistry: state.currentShapeRegistry
+      });
+      renderSelectionMeta();
+      refreshCanvas();
+      setStatus(`Render mode switched to ${state.renderMode}.`, "ok");
     } catch (error) {
       console.error(error);
       setStatus(error.message || String(error), "error");

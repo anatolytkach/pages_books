@@ -20,6 +20,7 @@ function writeProtectedBook(outputPath, built) {
   ensureDir(path.join(root, "assets"));
   ensureDir(path.join(root, "chunks"));
   ensureDir(path.join(root, "glyphs"));
+  ensureDir(path.join(root, "shapes"));
 
   writeJson(path.join(root, "manifest.json"), built.manifest);
   writeJson(path.join(root, "toc.json"), built.toc);
@@ -32,6 +33,10 @@ function writeProtectedBook(outputPath, built) {
 
   for (const glyphChunk of built.runtimeGlyphChunks) {
     writeJson(path.join(root, "glyphs", `${glyphChunk.chunkId}.glyphs.json`), glyphChunk);
+  }
+
+  for (const shapeChunk of built.runtimeShapeChunks || []) {
+    writeJson(path.join(root, "shapes", `${shapeChunk.chunkId}.shapes.json`), shapeChunk);
   }
 
   if (built.debugArtifactEnabled) {

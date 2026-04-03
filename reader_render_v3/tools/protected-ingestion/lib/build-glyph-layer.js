@@ -48,8 +48,8 @@ function buildGlyphLayer({ bookId, chunkId, blocks, styleRegistry }) {
         scriptBucket,
         glyphClass: `${scriptBucket.toLowerCase()}-${styleToken}`,
         stableRenderClass: `${scriptBucket.toLowerCase()}-chunk-glyph`,
-        shapeRef: null,
-        shapeStatus: "placeholder"
+        shapeRef: `shape-${glyphId}`,
+        shapeStatus: "synthetic"
       };
       const debugGlyph = {
         ...runtimeGlyph,

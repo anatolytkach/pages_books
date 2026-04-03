@@ -99,7 +99,7 @@ function buildStyles(styles, fontPlan) {
   };
 }
 
-function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, debugChunks, debugGlyphChunks, styles, fontPlan, debugArtifactEnabled }) {
+function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, runtimeShapeChunks, debugChunks, debugGlyphChunks, styles, fontPlan, debugArtifactEnabled }) {
   const manifest = {
     version: 2,
     mode: "protected-runtime-safe",
@@ -122,6 +122,7 @@ function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, 
       order: index,
       chunkPath: `chunks/${chunk.chunkId}.json`,
       glyphsPath: `glyphs/${chunk.chunkId}.glyphs.json`,
+      shapesPath: `shapes/${chunk.chunkId}.shapes.json`,
       startOffset: chunk.selectionLayer.chunkRange.start,
       endOffset: chunk.selectionLayer.chunkRange.end,
       textLength: chunk.selectionLayer.textLength
@@ -141,6 +142,7 @@ function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, 
     styles: buildStyles(styles, fontPlan),
     runtimeChunks,
     runtimeGlyphChunks,
+    runtimeShapeChunks,
     debugChunks,
     debugGlyphChunks,
     debugArtifactEnabled: !!debugArtifactEnabled

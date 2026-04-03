@@ -55,6 +55,15 @@ Hit-testing is now canvas-driven and offset-aware:
 This is an approximation layer based on browser fonts and `measureText()`.
 It is good enough for dev-only selection/copy testing, but it is not yet glyph-path exact.
 
+In the current renderer foundation, this offset-aware selection model remains stable across two renderer backends:
+
+- `text` mode
+- `shape` mode
+
+The render backend may change, but selection continues to operate over the shared logical layout and offset model.
+
+Even after real extracted shapes are introduced, selection is intentionally allowed to stay on the current approximation backend until glyph-path metrics and hit-testing become precise enough to replace it safely.
+
 ## Current selection interactions
 
 Implemented now:
@@ -116,8 +125,8 @@ The highlight is no longer whole-block only.
 The current runtime is still an approximation compared to Kindle Web:
 
 - it reconstructs visible text from `codePoint`
-- it uses browser font metrics
-- it does not yet use final glyph path shapes
+- it still primarily uses browser/font-derived layout metrics
+- it now can paint extracted glyph paths in shape mode, but layout/hit-testing remain approximate
 - it does not yet shape complex scripts with final runtime glyph geometry
 
 What it already matches conceptually:
@@ -126,6 +135,7 @@ What it already matches conceptually:
 - no debug payload dependency
 - canvas-based visible surface
 - controlled in-memory reconstruction for rendering and copy
+- renderer backend abstraction decoupled from selection/hit-testing
 
 ## Next precision steps
 

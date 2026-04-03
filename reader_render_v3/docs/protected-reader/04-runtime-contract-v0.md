@@ -18,6 +18,7 @@ The future runtime may read only:
 - `styles.json`
 - `chunks/chunk-*.json`
 - `glyphs/chunk-*.glyphs.json`
+- `shapes/chunk-*.shapes.json` when present
 
 It must not require:
 
@@ -55,6 +56,43 @@ Each text run exposes:
 - `styleSignals`
 
 This gives the future renderer enough information to map chunk-local glyph ids onto a render surface without exposing raw chunk text.
+
+### shape bundles
+
+When present, `shapes/chunk-*.shapes.json` provides a runtime-safe shape layer for the same chunk.
+
+Each shape record currently exposes:
+
+- `shapeRef`
+- `glyphId`
+- `codePoint`
+- `styleToken`
+- `scriptBucket`
+- `source`
+- `extractionStatus`
+- `fontSourceType`
+- `fontSourceName`
+- `fontSourceRef`
+- `advance`
+- `primitiveType`
+- `advanceEm`
+- `unitsPerEm`
+- `bbox`
+- optional `pathData`
+
+Current allowed `source` values:
+
+- `synthetic`
+- `placeholder`
+- `extracted`
+
+At this stage, the protected runtime must treat:
+
+- extracted shapes as the preferred runtime path
+- synthetic shapes as honest fallback
+- placeholder shapes as explicit future-compatible fallback
+
+These are runtime-safe inputs, not debug data.
 
 ### selectionLayer
 
@@ -109,7 +147,42 @@ It must not expose convenience APIs such as:
 
 The temporary dev runtime may reconstruct code points into visible canvas text for contract testing, but only in memory and only for the currently loaded chunk.
 
-This temporary renderer uses browser text metrics and `codePoint` reconstruction. It is not yet glyph-path accurate.
+This temporary renderer may still reconstruct code points into readable canvas output for fallback drawing, but extracted path shapes are now part of the runtime-safe contract.
+
+## Render backend abstraction
+
+The dev/runtime contract now supports two renderer backends:
+
+- `text` mode
+  - browser font metrics
+  - `fillText`
+  - offset mapping from measured text spans
+- `shape` mode
+  - glyph render ops
+  - shape registry from runtime-safe `shapes/`
+  - extracted path shapes where available
+  - synthetic/placeholder shape descriptors where true extracted shapes do not yet exist
+
+Both modes must consume only runtime-safe artifact files.
+
+The renderer backend may change, but:
+
+- the selection model
+- the offset map
+- the hit-testing model
+- the controlled copy model
+
+must continue to operate over the same logical runtime-safe data.
+
+## Path payload format
+
+Current extracted shapes use:
+
+- `pathData`: SVG path string
+
+This is runtime-safe and `Path2D`-friendly.
+
+Runtime may parse it into cached path objects, but must not require debug payloads to do so.
 
 ## Controlled copy policy
 
@@ -159,7 +232,9 @@ The first dev-only runtime reader inside `reader_render_v3/dev/` uses:
 - runtime-safe `locations`
 - runtime-safe `styles`
 - runtime-safe `chunk` and `glyph` files
-- a temporary canvas text renderer based on runtime-safe `codePoint`
+- a temporary canvas renderer that can run in:
+  - `text` mode
+  - `shape` mode with extracted path painting where available
 
 This is only a contract-testing layer. It is not the final glyph-shape renderer.
 
@@ -168,6 +243,15 @@ The dev shell must never:
 - read debug files
 - render text as DOM paragraphs
 - expose reconstructed text in DOM widgets
+
+It may expose diagnostics such as:
+
+- render mode
+- glyph op counts
+- shape coverage
+- metrics backend
+
+but it must not log or surface raw chunk text as a convenience API.
 
 ## Fine-grained selection model
 

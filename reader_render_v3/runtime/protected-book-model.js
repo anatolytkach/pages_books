@@ -65,12 +65,19 @@ export async function loadProtectedChunkModel(book, chunkIndex) {
 
   const chunkUrl = resolveUrl(book.manifestUrl, manifestChunk.chunkPath);
   const glyphUrl = resolveUrl(book.manifestUrl, manifestChunk.glyphsPath);
+  const shapesUrl = manifestChunk.shapesPath ? resolveUrl(book.manifestUrl, manifestChunk.shapesPath) : "";
   assertNoDebug(chunkUrl);
   assertNoDebug(glyphUrl);
+  if (shapesUrl) assertNoDebug(shapesUrl);
 
-  const [chunk, glyphPayload] = await Promise.all([fetchJson(chunkUrl), fetchJson(glyphUrl)]);
+  const [chunk, glyphPayload, shapeBundle] = await Promise.all([
+    fetchJson(chunkUrl),
+    fetchJson(glyphUrl),
+    shapesUrl ? fetchJson(shapesUrl) : Promise.resolve(null)
+  ]);
   assertNoLeakage(chunk.selectionLayer, "chunk.selectionLayer");
   assertNoLeakage(glyphPayload.glyphs, "glyphs.glyphs");
+  if (shapeBundle) assertNoLeakage(shapeBundle, "shapeBundle");
 
   const glyphMap = new Map(Object.entries(glyphPayload.glyphs || {}));
   const runsByBlock = new Map();
@@ -89,6 +96,7 @@ export async function loadProtectedChunkModel(book, chunkIndex) {
   const model = {
     chunk,
     glyphPayload,
+    shapeBundle,
     glyphMap,
     runsByBlock,
     runBySegmentKey,

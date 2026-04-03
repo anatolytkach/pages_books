@@ -33,6 +33,13 @@ Equivalent direct artifact form:
 http://127.0.0.1:8788/reader_render_v3/dev/protected-reader.html?artifact=../artifacts/protected-books/19686
 ```
 
+Render mode variants:
+
+```text
+http://127.0.0.1:8788/reader_render_v3/dev/protected-reader.html?book=19686&renderMode=text
+http://127.0.0.1:8788/reader_render_v3/dev/protected-reader.html?book=19686&renderMode=shape
+```
+
 ## Files involved
 
 Dev shell:
@@ -55,6 +62,10 @@ Runtime helpers used by the dev shell:
 - `reader_render_v3/runtime/protected-selection-model.js`
 - `reader_render_v3/runtime/protected-copy-engine.js`
 - `reader_render_v3/runtime/protected-text-reconstruction.js`
+- `reader_render_v3/runtime/protected-glyph-shape-registry.js`
+- `reader_render_v3/runtime/protected-shape-metrics.js`
+- `reader_render_v3/runtime/protected-shape-layout.js`
+- `reader_render_v3/runtime/protected-shape-renderer.js`
 
 ## What runtime-safe data it reads
 
@@ -66,6 +77,7 @@ The shell reads only:
 - `styles.json`
 - `chunks/chunk-*.json`
 - `glyphs/chunk-*.glyphs.json`
+- `shapes/chunk-*.shapes.json` when present
 
 It must not read:
 
@@ -84,6 +96,9 @@ It:
 - uses `styles.json` as a temporary font policy
 - lays out one chunk at a time with simple flow layout
 - draws to canvas only
+- can switch between:
+  - `text` mode
+  - `shape` mode
 
 It does **not**:
 
@@ -92,6 +107,26 @@ It does **not**:
 - insert text nodes for the book into DOM
 
 This is a contract-testing renderer, not a final production renderer.
+
+### text mode
+
+`text` mode is the current stable fallback:
+
+- browser `measureText()`
+- browser `fillText()`
+- fine-grained selection already proven on top of this backend
+
+### shape mode
+
+`shape` mode is the new foundation layer:
+
+- builds glyph render ops from chunk layout
+- loads runtime-safe chunk-local `shapes/`
+- creates a shape registry
+- uses synthetic/placeholder shape descriptors to drive render intent
+- still uses temporary visible fallback drawing for readable output
+
+This is not yet glyph-path perfect, but it proves the runtime can render through a shape-aware abstraction rather than only text spans.
 
 ## Navigation behavior
 
@@ -128,6 +163,8 @@ Not yet implemented:
 - word snapping
 - persistent highlights
 - notes UI
+
+Both render modes are expected to keep this selection/copy model working from runtime-safe artifact only.
 
 ## Why text does not enter DOM
 
@@ -169,14 +206,23 @@ node tools/dev/local_preview_server.mjs
 http://127.0.0.1:8788/reader_render_v3/dev/protected-reader.html?book=19686
 ```
 
+To compare modes:
+
+```text
+http://127.0.0.1:8788/reader_render_v3/dev/protected-reader.html?book=19686&renderMode=text
+http://127.0.0.1:8788/reader_render_v3/dev/protected-reader.html?book=19686&renderMode=shape
+```
+
 5. Verify manually:
 
 - first chunk is visible on canvas
 - `Next chunk` and `Prev chunk` work
 - TOC click jumps to a mapped chunk
-- clicking a block highlights it
-- `Shift+click` extends selection across neighboring blocks
+- partial drag selection works inside a line
+- multi-line selection works inside the current chunk
+- `Shift+click` extends selection from the current anchor
 - `Copy selected text` succeeds and reports copied length
+- switching render mode does not trigger any `/debug/` fetches
 - no hidden DOM text is used
 
 ## Remaining work before production-ready protected reader
