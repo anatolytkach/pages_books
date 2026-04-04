@@ -57,6 +57,12 @@ This bundle is used for:
 - protected bundle export/import
 - future file-based sync
 
+The next transport layer is now a separate file-sync format:
+
+- `protected-sync-file-v1`
+
+That keeps local persisted state and file handoff related, but not conflated.
+
 It does not store book text as its anchor of truth.
 
 ## Book fingerprint and compatibility
@@ -127,6 +133,8 @@ Import/export now run against the persisted model rather than ad-hoc UI state sc
 
 - export protected bundle -> current persisted protected state
 - import protected bundle -> validate, apply, persist
+- export protected sync file -> build file transport from current persisted state
+- import protected sync file -> validate compatibility, convert back into persisted state
 - import production payload -> convert to protected state, persist
 - export production notes/share/snapshot -> adapter output from persisted protected state
 

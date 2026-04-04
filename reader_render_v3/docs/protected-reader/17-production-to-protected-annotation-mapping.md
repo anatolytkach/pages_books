@@ -190,6 +190,32 @@ Treat production snapshot/share payloads as external compatibility formats:
 - notes share payload
 - share-link query state
 
+### Protected file-sync bundle
+
+File handoff now uses a separate protected transport format:
+
+```json
+{
+  "kind": "protected-sync-file-v1",
+  "schemaVersion": 1,
+  "bundleVersion": 1,
+  "bookId": "19686",
+  "userScope": "default",
+  "bookFingerprint": { "...": "protected artifact identity" },
+  "artifactVersion": 3,
+  "exportedAt": "ISO string",
+  "state": {
+    "readingState": {},
+    "annotations": []
+  },
+  "metadata": {},
+  "compat": {}
+}
+```
+
+This keeps the internal bundle and the file-sync transport explicitly distinct while
+preserving the same range-first source of truth.
+
 Do not replace protected internal model with these formats.
 
 ## Compatibility Risks

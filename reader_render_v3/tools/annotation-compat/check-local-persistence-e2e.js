@@ -130,9 +130,28 @@ async function main() {
   await reopenPage.click("#export-annotations");
   await reopenPage.waitForFunction(() => {
     const status = document.querySelector("#status");
-    return status && /Exported protected bundle/.test(status.textContent || "");
+    return status && /Exported protected sync file/.test(status.textContent || "");
   });
-  const exportedBundle = await reopenPage.locator("#annotation-import").inputValue();
+  const exportedSyncFile = await reopenPage.locator("#annotation-import").inputValue();
+  const parsedSyncFile = JSON.parse(exportedSyncFile);
+  const syncFileHasTextLikeFields = (parsedSyncFile.state?.annotations || []).some((annotation) => {
+    const metadata = annotation.metadata || {};
+    return (
+      Object.prototype.hasOwnProperty.call(annotation, "quote") ||
+      Object.prototype.hasOwnProperty.call(annotation, "contextBefore") ||
+      Object.prototype.hasOwnProperty.call(annotation, "contextAfter") ||
+      Object.prototype.hasOwnProperty.call(metadata, "quote") ||
+      Object.prototype.hasOwnProperty.call(metadata, "contextBefore") ||
+      Object.prototype.hasOwnProperty.call(metadata, "contextAfter")
+    );
+  });
+
+  await reopenPage.click("#export-snapshot-patch");
+  await reopenPage.waitForFunction(() => {
+    const status = document.querySelector("#status");
+    return status && /Exported production-compatible snapshot patch/.test(status.textContent || "");
+  });
+  const exportedSnapshotPatch = await reopenPage.locator("#compat-json").inputValue();
 
   await reopenPage.click("#clear-local-state");
   await reopenPage.waitForFunction(() => {
@@ -141,13 +160,27 @@ async function main() {
   });
   const afterClearMeta = await getMetaMap(reopenPage);
 
-  await reopenPage.fill("#annotation-import", exportedBundle);
+  await reopenPage.fill("#annotation-import", exportedSyncFile);
   await reopenPage.click("#import-annotations");
   await reopenPage.waitForFunction(() => {
     const status = document.querySelector("#status");
-    return status && /Imported protected bundle/.test(status.textContent || "");
+    return status && /Imported protected sync file/.test(status.textContent || "");
   });
   const afterImportMeta = await getMetaMap(reopenPage);
+
+  await reopenPage.click("#clear-local-state");
+  await reopenPage.waitForFunction(() => {
+    const status = document.querySelector("#status");
+    return status && /Cleared local protected state/.test(status.textContent || "");
+  });
+
+  await reopenPage.fill("#compat-json", exportedSnapshotPatch);
+  await reopenPage.click("#import-production-payload");
+  await reopenPage.waitForFunction(() => {
+    const status = document.querySelector("#status");
+    return status && /Imported production payload/.test(status.textContent || "");
+  });
+  const afterSnapshotImportMeta = await getMetaMap(reopenPage);
 
   const frameInfo = await reopenPage.evaluate(() => {
     const root = document.querySelector(".reader-frame");
@@ -174,6 +207,10 @@ async function main() {
     afterImportPage: afterImportMeta["Page"],
     afterImportAnnotations: afterImportMeta["Annotations"],
     afterImportCompatibility: afterImportMeta["Bundle compatibility"],
+    afterSnapshotImportPage: afterSnapshotImportMeta["Page"],
+    afterSnapshotImportAnnotations: afterSnapshotImportMeta["Annotations"],
+    afterSnapshotImportStatus: afterSnapshotImportMeta["Compat share import"],
+    syncFileHasTextLikeFields,
     frameInfo,
     debugRequests
   }, null, 2));

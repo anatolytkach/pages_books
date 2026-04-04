@@ -12,6 +12,13 @@ import {
 } from "./protected-share-state.js";
 import { importProductionPayloadToProtected } from "./protected-production-import.js";
 import { exportProtectedAnnotationsToProduction } from "./protected-production-export.js";
+import {
+  assessSyncFileImport,
+  buildProtectedSyncFileFromBundle,
+  buildProductionSnapshotPatchFromProtectedState,
+  convertProductionSnapshotFragmentToImportPayload,
+  convertProtectedSyncFileToProtectedBundle
+} from "./protected-sync-compat.js";
 
 function cloneJson(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
@@ -254,6 +261,59 @@ export function createProtectedAnnotationRepository({
         bookId,
         readingState
       });
+    },
+    async exportSyncFile(requestBookId = bookId, requestUserScope = userScope) {
+      const bundle = await this.loadAnnotations(requestBookId, requestUserScope);
+      const productionPayload = await this.exportProductionPayload();
+      return buildProtectedSyncFileFromBundle(bundle, {
+        metadata: {
+          transport: "file-sync",
+          annotationCount: store.all().length,
+          readingStateSaved: !!readingState
+        },
+        compat: {
+          productionSnapshotPatch: productionPayload.snapshotPatch,
+          productionNotes: productionPayload.productionNotes,
+          sharePayload: productionPayload.sharePayload
+        }
+      });
+    },
+    async importSyncFile(syncFile, options = {}) {
+      await this.ensureHydrated();
+      const compatibility = assessSyncFileImport(syncFile, persistenceManager.bookFingerprint);
+      if (!compatibility.compatible) {
+        const error = new Error(compatibility.warning || "Protected sync file is incompatible.");
+        error.compatibility = compatibility;
+        throw error;
+      }
+      const protectedBundle = convertProtectedSyncFileToProtectedBundle(syncFile);
+      await this.importBundle(protectedBundle, options);
+      return {
+        annotations: store.all(),
+        readingState,
+        compatibility
+      };
+    },
+    async exportProductionSnapshotPatch() {
+      await this.ensureHydrated();
+      const protectedBundle = await snapshotRepositoryState(userScope);
+      const productionPayload = await this.exportProductionPayload();
+      return buildProductionSnapshotPatchFromProtectedState({
+        protectedBundle,
+        productionPayload,
+        metadata: {
+          source: "integrated-protected-reader"
+        }
+      });
+    },
+    async importProductionSnapshotFragment(fragment, options = {}) {
+      await this.ensureHydrated();
+      const payload = convertProductionSnapshotFragmentToImportPayload(fragment);
+      const result = await this.importProductionPayload(payload, options);
+      return {
+        ...result,
+        importedKind: payload.kind
+      };
     },
     async clearPersistence() {
       await this.ensureHydrated();

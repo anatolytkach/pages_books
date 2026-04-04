@@ -36,7 +36,13 @@ Reading state is persisted on every page-changing snapshot, including page turns
 
 Integrated protected mode now persists a versioned local-first protected bundle that
 contains both reading state and annotations. That bundle is the internal source of truth
-for local reopen/reload continuity and for protected bundle export/import.
+for local reopen/reload continuity.
+
+On top of that internal state, integrated mode now also supports:
+
+- protected sync file export/import
+- production snapshot patch export
+- production snapshot fragment import
 
 ## Notes and share compatibility
 
@@ -95,7 +101,7 @@ Expected result:
 ## Still missing before rollout
 
 - production cutover policy
-- file-based sync adapter on top of the local-first bundle
+- live file handoff transport such as Google Drive upload/download around the protected sync file
 - shared cloud persistence for protected annotations
 - final production share backend hookup for all environments
 - production UI polish and rollout gating

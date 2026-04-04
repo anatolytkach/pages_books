@@ -134,6 +134,18 @@ This means production still carries two note containers:
 - legacy: `annotations`
 - current: `notes`
 
+## Protected File-Sync Implication
+
+For the protected reader, the correct compatibility strategy is now:
+
+- keep `protected-reader-state-v3` as local internal source of truth
+- build `protected-sync-file-v1` as the file-based handoff unit
+- generate production snapshot patches as compatibility outputs from protected state
+
+This avoids forcing the protected reader to adopt the production snapshot structure as
+its core model while still keeping future Drive file handoff compatible with the
+existing user workflow.
+
 Drive sync code is explicitly backward-compatible and prefers:
 
 1. `annotations`

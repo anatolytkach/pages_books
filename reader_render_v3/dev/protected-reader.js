@@ -90,6 +90,8 @@ const state = {
   sharePayloadParseStatus: entryConfig && entryConfig.compatShareImportStatus ? entryConfig.compatShareImportStatus : "none",
   artifactLoadStatus: "idle",
   persistenceDiagnostics: null,
+  fileSyncCompatibilityStatus: "none",
+  lastFileTransferResult: null,
   renderMode: "shape",
   metricsMode: "shape",
   debugGeometry: false
@@ -462,6 +464,8 @@ function renderRuntimeMeta() {
     ["Reading-state saved", persistenceDiagnostics ? (persistenceDiagnostics.readingStateSaved ? "yes" : "no") : "n/a"],
     ["Persisted annotation count", persistenceDiagnostics ? persistenceDiagnostics.annotationCount : "n/a"],
     ["Book fingerprint", persistenceDiagnostics ? persistenceDiagnostics.bookFingerprint : "n/a"],
+    ["File sync compatibility", state.fileSyncCompatibilityStatus],
+    ["Last file transfer", state.lastFileTransferResult || "none"],
     ["Artifact load status", state.artifactLoadStatus],
     ["Compat share import", state.compatShareImportStatus],
     ["Share payload parse", state.sharePayloadParseStatus],
@@ -656,6 +660,8 @@ async function loadArtifact(artifactRoot) {
   state.persistedReadingState = null;
   state.lastReadingStateSaveAt = null;
   state.readingStateRestoreApplied = false;
+  state.fileSyncCompatibilityStatus = "none";
+  state.lastFileTransferResult = null;
   state.sharePayloadParseStatus = state.entryConfig && state.entryConfig.compatShareImportStatus
     ? state.entryConfig.compatShareImportStatus
     : "none";
@@ -866,24 +872,39 @@ async function addNoteToHighlight() {
 async function exportAnnotations() {
   if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
   const payload = JSON.stringify(
-    await state.annotationRepository.exportBundle(state.bookSummary.bookId),
+    await state.annotationRepository.exportSyncFile(state.bookSummary.bookId),
     null,
     2
   );
   elements.annotationImport.value = payload;
   await navigator.clipboard.writeText(payload);
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
-  setStatus("Exported protected bundle.", "ok");
+  state.fileSyncCompatibilityStatus = "exact";
+  state.lastFileTransferResult = "protected-sync-export";
+  renderRuntimeMeta();
+  setStatus("Exported protected sync file.", "ok");
 }
 
 async function importAnnotations() {
   if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
   const payload = elements.annotationImport.value.trim();
-  if (!payload) throw new Error("Paste protected bundle JSON before importing.");
-  await state.annotationRepository.importBundle(payload);
-  state.readingStateSource = "protected-bundle-import";
+  if (!payload) throw new Error("Paste protected sync file JSON before importing.");
+  let result = null;
+  try {
+    result = await state.annotationRepository.importSyncFile(payload);
+  } catch (error) {
+    if (error && error.compatibility) {
+      state.fileSyncCompatibilityStatus = error.compatibility.status;
+      state.lastFileTransferResult = `protected-sync-import:${error.compatibility.status}`;
+      renderRuntimeMeta();
+    }
+    throw error;
+  }
+  state.readingStateSource = "protected-sync-file-import";
   state.selectedAnnotationId = null;
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
+  state.fileSyncCompatibilityStatus = result.compatibility.status;
+  state.lastFileTransferResult = `protected-sync-import:${result.compatibility.status}`;
   const importedReadingState = await state.annotationRepository.loadReadingState(state.bookSummary.bookId);
   if (importedReadingState && importedReadingState.restoreToken) {
     state.persistedReadingState = importedReadingState;
@@ -899,27 +920,30 @@ async function importAnnotations() {
     await requestAndApply("getRuntimeStatus");
   }
   renderAnnotationList();
-  setStatus("Imported protected bundle.", "ok");
+  renderRuntimeMeta();
+  setStatus("Imported protected sync file.", "ok");
 }
 
 async function importProductionPayload() {
   if (!state.annotationRepository || !state.compatBook) throw new Error("Nothing is loaded yet.");
   const payload = elements.compatJson.value.trim();
-  if (!payload) throw new Error("Paste production/share/snapshot JSON before importing.");
-  const result = await state.annotationRepository.importProductionPayload(payload, {
+  if (!payload) throw new Error("Paste production snapshot fragment JSON before importing.");
+  const result = await state.annotationRepository.importProductionSnapshotFragment(payload, {
     book: state.compatBook,
     preserveReadingStateIfMissing: true
   });
   state.lastCompatReport = result.report;
-  state.compatShareImportStatus = "manual-import";
+  state.compatShareImportStatus = "manual-snapshot-import";
   state.selectedAnnotationId = null;
   elements.annotationImport.value = JSON.stringify(
-    await state.annotationRepository.exportBundle(state.bookSummary.bookId),
+    await state.annotationRepository.exportSyncFile(state.bookSummary.bookId),
     null,
     2
   );
   elements.compatJson.value = JSON.stringify(result.report, null, 2);
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
+  state.fileSyncCompatibilityStatus = "production-snapshot-import";
+  state.lastFileTransferResult = "production-snapshot-import";
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
   setStatus(
@@ -950,9 +974,17 @@ async function exportSharePayload() {
 
 async function exportSnapshotPatch() {
   if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
-  const result = await state.annotationRepository.exportProductionPayload();
+  const result = await state.annotationRepository.exportProductionSnapshotPatch();
   elements.compatJson.value = JSON.stringify(result.snapshotPatch, null, 2);
-  state.lastCompatReport = result.report;
+  state.lastCompatReport = result.protectedSyncBundle && result.protectedSyncBundle.compat && result.protectedSyncBundle.compat.productionSnapshotPatch
+    ? {
+        total: result.protectedSyncBundle.metadata?.annotationCount || 0,
+        exact: 0,
+        approximate: 0,
+        unresolved: 0
+      }
+    : state.lastCompatReport;
+  state.lastFileTransferResult = "production-snapshot-export";
   await navigator.clipboard.writeText(elements.compatJson.value);
   renderRuntimeMeta();
   setStatus("Exported production-compatible snapshot patch.", "ok");
@@ -980,6 +1012,8 @@ async function clearLocalProtectedState() {
   state.readingStateSource = "default-start";
   state.readingStateRestoreApplied = false;
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
+  state.fileSyncCompatibilityStatus = "none";
+  state.lastFileTransferResult = "cleared";
   elements.annotationImport.value = "";
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
