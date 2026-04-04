@@ -105,3 +105,16 @@ Expected result:
 - shared cloud persistence for protected annotations
 - final production share backend hookup for all environments
 - production UI polish and rollout gating
+
+## Current transport workflow
+
+Integrated protected mode now supports:
+
+- export sync file
+- download sync file
+- load sync file from disk
+- import sync file
+- copy handoff state
+
+These transport actions work on top of protected local-first persistence and do not alter
+the default old-reader route or behavior.

@@ -433,3 +433,10 @@ The first real bridge now exists in:
 - `/Volumes/2T/se_ingest/pages_books/reader_render_v3/runtime/protected-production-export.js`
 
 This bridge is still limited by the lack of a full production-quality CFI generator on the protected side, but it is no longer speculative: import/export compatibility can now be exercised with exact/approximate/unresolved reporting.
+
+## File handoff direction
+
+Protected transport now treats production snapshot/share formats as compatibility edges.
+The portable protected sync file and its handoff metadata are the preferred future file
+units for Drive-style transport, while production snapshot patches remain external bridge
+formats for coexistence.

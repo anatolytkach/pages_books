@@ -5,6 +5,11 @@ import { createProtectedWorkerClient } from "../runtime/protected-worker-client.
 import { loadProtectedBook } from "../runtime/protected-book-model.js";
 import { parseRestoreToken } from "../runtime/protected-global-location.js";
 import { resolveProductionPayloadFromRoute } from "../integration/protected-reader-routing.js";
+import {
+  buildProtectedSyncTransport,
+  normalizeProtectedSyncTransportHandoff
+} from "../runtime/protected-sync-transport.js";
+import { downloadJsonFile, readTextFile } from "../runtime/protected-file-transfer.js";
 
 const entryConfig = window.__PROTECTED_READER_ENTRY__ || null;
 const DEFAULT_ARTIFACT =
@@ -48,6 +53,9 @@ const elements = {
   deleteAnnotation: document.querySelector("#delete-annotation"),
   exportAnnotations: document.querySelector("#export-annotations"),
   importAnnotations: document.querySelector("#import-annotations"),
+  downloadSyncFile: document.querySelector("#download-sync-file"),
+  loadSyncFile: document.querySelector("#load-sync-file"),
+  copyHandoffState: document.querySelector("#copy-handoff-state"),
   clearLocalState: document.querySelector("#clear-local-state"),
   importProductionPayload: document.querySelector("#import-production-payload"),
   exportProductionNotes: document.querySelector("#export-production-notes"),
@@ -55,7 +63,9 @@ const elements = {
   exportSnapshotPatch: document.querySelector("#export-snapshot-patch"),
   noteInput: document.querySelector("#note-input"),
   annotationImport: document.querySelector("#annotation-import"),
+  handoffState: document.querySelector("#handoff-state"),
   compatJson: document.querySelector("#compat-json"),
+  syncFileInput: document.querySelector("#sync-file-input"),
   annotationCount: document.querySelector("#annotation-count"),
   annotationList: document.querySelector("#annotation-list"),
   clearSelection: document.querySelector("#clear-selection"),
@@ -92,6 +102,8 @@ const state = {
   persistenceDiagnostics: null,
   fileSyncCompatibilityStatus: "none",
   lastFileTransferResult: null,
+  currentSyncTransport: null,
+  currentHandoffState: null,
   renderMode: "shape",
   metricsMode: "shape",
   debugGeometry: false
@@ -111,6 +123,14 @@ function setDlRows(container, rows) {
     dd.textContent = value == null ? "" : String(value);
     container.append(dt, dd);
   }
+}
+
+function setTextareaValue(element, value) {
+  if (element) element.value = value;
+}
+
+function getTextareaValue(element) {
+  return element ? element.value.trim() : "";
 }
 
 function getArtifactRootFromLocation() {
@@ -466,6 +486,8 @@ function renderRuntimeMeta() {
     ["Book fingerprint", persistenceDiagnostics ? persistenceDiagnostics.bookFingerprint : "n/a"],
     ["File sync compatibility", state.fileSyncCompatibilityStatus],
     ["Last file transfer", state.lastFileTransferResult || "none"],
+    ["Handoff state", state.currentHandoffState ? state.currentHandoffState.kind : "none"],
+    ["Handoff file", state.currentHandoffState && state.currentHandoffState.fileName ? state.currentHandoffState.fileName : "none"],
     ["Artifact load status", state.artifactLoadStatus],
     ["Compat share import", state.compatShareImportStatus],
     ["Share payload parse", state.sharePayloadParseStatus],
@@ -662,13 +684,16 @@ async function loadArtifact(artifactRoot) {
   state.readingStateRestoreApplied = false;
   state.fileSyncCompatibilityStatus = "none";
   state.lastFileTransferResult = null;
+  state.currentSyncTransport = null;
+  state.currentHandoffState = null;
   state.sharePayloadParseStatus = state.entryConfig && state.entryConfig.compatShareImportStatus
     ? state.entryConfig.compatShareImportStatus
     : "none";
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   elements.noteInput.value = "";
-  elements.annotationImport.value = "";
-  elements.compatJson.value = "";
+  setTextareaValue(elements.annotationImport, "");
+  setTextareaValue(elements.handoffState, "");
+  setTextareaValue(elements.compatJson, "");
   if (snapshot.bookSummary) state.bookSummary = snapshot.bookSummary;
   if (snapshot.tocItems) state.tocItems = snapshot.tocItems;
   const restored = await restoreReadingStateIfAvailable(bookId);
@@ -871,13 +896,12 @@ async function addNoteToHighlight() {
 
 async function exportAnnotations() {
   if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
-  const payload = JSON.stringify(
-    await state.annotationRepository.exportSyncFile(state.bookSummary.bookId),
-    null,
-    2
-  );
-  elements.annotationImport.value = payload;
-  await navigator.clipboard.writeText(payload);
+  const transport = await state.annotationRepository.exportSyncTransport(state.bookSummary.bookId);
+  state.currentSyncTransport = transport;
+  state.currentHandoffState = transport.handoffState;
+  setTextareaValue(elements.annotationImport, transport.serializedSyncFile);
+  setTextareaValue(elements.handoffState, transport.serializedHandoffState);
+  await navigator.clipboard.writeText(transport.serializedSyncFile);
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   state.fileSyncCompatibilityStatus = "exact";
   state.lastFileTransferResult = "protected-sync-export";
@@ -885,10 +909,50 @@ async function exportAnnotations() {
   setStatus("Exported protected sync file.", "ok");
 }
 
+async function downloadSyncFile() {
+  if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
+  const transport = state.currentSyncTransport || await state.annotationRepository.exportSyncTransport(state.bookSummary.bookId);
+  state.currentSyncTransport = transport;
+  state.currentHandoffState = transport.handoffState;
+  setTextareaValue(elements.annotationImport, transport.serializedSyncFile);
+  setTextareaValue(elements.handoffState, transport.serializedHandoffState);
+  const result = downloadJsonFile({
+    fileName: transport.fileName,
+    payload: transport.serializedSyncFile,
+    mimeType: transport.mimeType
+  });
+  state.lastFileTransferResult = `protected-sync-download:${result.fileName}`;
+  state.fileSyncCompatibilityStatus = "exact";
+  renderRuntimeMeta();
+  setStatus(`Downloaded protected sync file ${result.fileName}.`, "ok");
+}
+
+async function copyHandoffState() {
+  if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
+  const transport = state.currentSyncTransport || await state.annotationRepository.exportSyncTransport(state.bookSummary.bookId);
+  state.currentSyncTransport = transport;
+  state.currentHandoffState = transport.handoffState;
+  setTextareaValue(elements.annotationImport, transport.serializedSyncFile);
+  setTextareaValue(elements.handoffState, transport.serializedHandoffState);
+  await navigator.clipboard.writeText(transport.serializedHandoffState);
+  state.lastFileTransferResult = "protected-handoff-copy";
+  renderRuntimeMeta();
+  setStatus("Copied protected handoff state.", "ok");
+}
+
 async function importAnnotations() {
   if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
-  const payload = elements.annotationImport.value.trim();
+  const payload = getTextareaValue(elements.annotationImport);
   if (!payload) throw new Error("Paste protected sync file JSON before importing.");
+  const handoffPayload = getTextareaValue(elements.handoffState);
+  const handoffState = handoffPayload ? normalizeProtectedSyncTransportHandoff(handoffPayload) : null;
+  const assessed = await state.annotationRepository.assessSyncTransport(payload, handoffState);
+  state.fileSyncCompatibilityStatus = assessed.status;
+  if (!assessed.compatible) {
+    state.lastFileTransferResult = `protected-sync-import:${assessed.status}`;
+    renderRuntimeMeta();
+    throw new Error(assessed.warning || "Protected sync handoff is incompatible.");
+  }
   let result = null;
   try {
     result = await state.annotationRepository.importSyncFile(payload);
@@ -905,6 +969,14 @@ async function importAnnotations() {
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   state.fileSyncCompatibilityStatus = result.compatibility.status;
   state.lastFileTransferResult = `protected-sync-import:${result.compatibility.status}`;
+  state.currentHandoffState = handoffState;
+  state.currentSyncTransport = handoffState
+    ? buildProtectedSyncTransport({
+        syncFile: payload,
+        fileName: handoffState.fileName || "",
+        handoffMetadata: handoffState.metadata || {}
+      })
+    : null;
   const importedReadingState = await state.annotationRepository.loadReadingState(state.bookSummary.bookId);
   if (importedReadingState && importedReadingState.restoreToken) {
     state.persistedReadingState = importedReadingState;
@@ -924,9 +996,37 @@ async function importAnnotations() {
   setStatus("Imported protected sync file.", "ok");
 }
 
+async function loadSyncFileFromPicker() {
+  if (!elements.syncFileInput) throw new Error("File picker is unavailable.");
+  elements.syncFileInput.value = "";
+  elements.syncFileInput.click();
+}
+
+async function handleSyncFileChosen(event) {
+  const file = event && event.target && event.target.files ? event.target.files[0] : null;
+  if (!file) return;
+  const payload = await readTextFile(file);
+  const transport = buildProtectedSyncTransport({
+    syncFile: payload,
+    fileName: file.name,
+    handoffMetadata: {
+      source: "file-picker"
+    }
+  });
+  const compatibility = await state.annotationRepository.assessSyncTransport(payload, transport.handoffState);
+  state.currentSyncTransport = transport;
+  state.currentHandoffState = transport.handoffState;
+  setTextareaValue(elements.annotationImport, transport.serializedSyncFile);
+  setTextareaValue(elements.handoffState, transport.serializedHandoffState);
+  state.fileSyncCompatibilityStatus = compatibility.status;
+  state.lastFileTransferResult = `protected-sync-load:${compatibility.status}`;
+  renderRuntimeMeta();
+  setStatus(`Loaded protected sync file ${file.name}.`, compatibility.compatible ? "ok" : "warning");
+}
+
 async function importProductionPayload() {
   if (!state.annotationRepository || !state.compatBook) throw new Error("Nothing is loaded yet.");
-  const payload = elements.compatJson.value.trim();
+  const payload = getTextareaValue(elements.compatJson);
   if (!payload) throw new Error("Paste production snapshot fragment JSON before importing.");
   const result = await state.annotationRepository.importProductionSnapshotFragment(payload, {
     book: state.compatBook,
@@ -935,12 +1035,12 @@ async function importProductionPayload() {
   state.lastCompatReport = result.report;
   state.compatShareImportStatus = "manual-snapshot-import";
   state.selectedAnnotationId = null;
-  elements.annotationImport.value = JSON.stringify(
+  setTextareaValue(elements.annotationImport, JSON.stringify(
     await state.annotationRepository.exportSyncFile(state.bookSummary.bookId),
     null,
     2
-  );
-  elements.compatJson.value = JSON.stringify(result.report, null, 2);
+  ));
+  setTextareaValue(elements.compatJson, JSON.stringify(result.report, null, 2));
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   state.fileSyncCompatibilityStatus = "production-snapshot-import";
   state.lastFileTransferResult = "production-snapshot-import";
@@ -955,9 +1055,9 @@ async function importProductionPayload() {
 async function exportProductionNotes() {
   if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
   const result = await state.annotationRepository.exportProductionPayload();
-  elements.compatJson.value = JSON.stringify(result.productionNotes, null, 2);
+  setTextareaValue(elements.compatJson, JSON.stringify(result.productionNotes, null, 2));
   state.lastCompatReport = result.report;
-  await navigator.clipboard.writeText(elements.compatJson.value);
+  await navigator.clipboard.writeText(elements.compatJson ? elements.compatJson.value : "");
   renderRuntimeMeta();
   setStatus("Exported production-compatible notes array.", "ok");
 }
@@ -965,9 +1065,9 @@ async function exportProductionNotes() {
 async function exportSharePayload() {
   if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
   const result = await state.annotationRepository.exportProductionPayload();
-  elements.compatJson.value = JSON.stringify(result.sharePayload, null, 2);
+  setTextareaValue(elements.compatJson, JSON.stringify(result.sharePayload, null, 2));
   state.lastCompatReport = result.report;
-  await navigator.clipboard.writeText(elements.compatJson.value);
+  await navigator.clipboard.writeText(elements.compatJson ? elements.compatJson.value : "");
   renderRuntimeMeta();
   setStatus("Exported production-compatible share payload.", "ok");
 }
@@ -975,7 +1075,7 @@ async function exportSharePayload() {
 async function exportSnapshotPatch() {
   if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
   const result = await state.annotationRepository.exportProductionSnapshotPatch();
-  elements.compatJson.value = JSON.stringify(result.snapshotPatch, null, 2);
+  setTextareaValue(elements.compatJson, JSON.stringify(result.snapshotPatch, null, 2));
   state.lastCompatReport = result.protectedSyncBundle && result.protectedSyncBundle.compat && result.protectedSyncBundle.compat.productionSnapshotPatch
     ? {
         total: result.protectedSyncBundle.metadata?.annotationCount || 0,
@@ -985,7 +1085,7 @@ async function exportSnapshotPatch() {
       }
     : state.lastCompatReport;
   state.lastFileTransferResult = "production-snapshot-export";
-  await navigator.clipboard.writeText(elements.compatJson.value);
+  await navigator.clipboard.writeText(elements.compatJson ? elements.compatJson.value : "");
   renderRuntimeMeta();
   setStatus("Exported production-compatible snapshot patch.", "ok");
 }
@@ -1014,7 +1114,10 @@ async function clearLocalProtectedState() {
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   state.fileSyncCompatibilityStatus = "none";
   state.lastFileTransferResult = "cleared";
-  elements.annotationImport.value = "";
+  state.currentSyncTransport = null;
+  state.currentHandoffState = null;
+  setTextareaValue(elements.annotationImport, "");
+  setTextareaValue(elements.handoffState, "");
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
   setStatus("Cleared local protected state.", "ok");
@@ -1234,6 +1337,51 @@ async function boot() {
       setStatus(error.message || String(error), "error");
     }
   });
+
+  if (elements.downloadSyncFile) {
+    elements.downloadSyncFile.addEventListener("click", async () => {
+      try {
+        await downloadSyncFile();
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), "error");
+      }
+    });
+  }
+
+  if (elements.copyHandoffState) {
+    elements.copyHandoffState.addEventListener("click", async () => {
+      try {
+        await copyHandoffState();
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), "error");
+      }
+    });
+  }
+
+  if (elements.loadSyncFile) {
+    elements.loadSyncFile.addEventListener("click", async () => {
+      try {
+        await loadSyncFileFromPicker();
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), "error");
+      }
+    });
+  }
+
+  if (elements.syncFileInput) {
+    elements.syncFileInput.addEventListener("change", (event) => {
+      handleSyncFileChosen(event).catch((error) => {
+        console.error(error);
+        state.fileSyncCompatibilityStatus = "corrupt";
+        state.lastFileTransferResult = "protected-sync-load:corrupt";
+        renderRuntimeMeta();
+        setStatus(error.message || String(error), "error");
+      });
+    });
+  }
 
   if (elements.clearLocalState) {
     elements.clearLocalState.addEventListener("click", async () => {

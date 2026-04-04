@@ -1,9 +1,9 @@
 import {
   assessProtectedBundleCompatibility,
   createProtectedAnnotationBundle,
-  createProtectedBookFingerprint,
   normalizeProtectedAnnotationBundle
 } from "./protected-annotation-bundle.js";
+import { createProtectedBookFingerprint } from "./protected-book-fingerprint.js";
 import { createProtectedLocalStore } from "./protected-local-store.js";
 import { extractAnnotationsFromBundle, normalizePersistedAnnotations } from "./protected-annotation-persistence.js";
 import { extractReadingStateFromBundle, normalizePersistedReadingState } from "./protected-reading-state-store.js";

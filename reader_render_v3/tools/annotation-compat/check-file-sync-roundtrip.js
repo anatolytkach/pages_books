@@ -2,8 +2,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { normalizeProtectedAnnotationBundle, createProtectedBookFingerprint } from "../../runtime/protected-annotation-bundle.js";
-import { loadProtectedBook } from "../../runtime/protected-book-model.js";
+import { normalizeProtectedAnnotationBundle } from "../../runtime/protected-annotation-bundle.js";
+import { createProtectedBookFingerprintFromArtifactParts } from "../../runtime/protected-book-fingerprint.js";
 import {
   assessSyncFileImport,
   buildProtectedSyncFileFromBundle,
@@ -26,9 +26,20 @@ if (!inputPath || !artifactRoot) {
   process.exit(1);
 }
 
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
 const bundle = normalizeProtectedAnnotationBundle(JSON.parse(fs.readFileSync(path.resolve(inputPath), "utf8")));
-const book = await loadProtectedBook(path.resolve(artifactRoot));
-const bookFingerprint = createProtectedBookFingerprint(book);
+const resolvedArtifactRoot = path.resolve(artifactRoot);
+const manifest = readJson(path.join(resolvedArtifactRoot, "manifest.json"));
+const toc = readJson(path.join(resolvedArtifactRoot, manifest.tocPath));
+const locations = readJson(path.join(resolvedArtifactRoot, manifest.locationsPath));
+const bookFingerprint = createProtectedBookFingerprintFromArtifactParts({
+  manifest,
+  tocItems: toc.items || [],
+  locations
+});
 const syncFile = buildProtectedSyncFileFromBundle(bundle, {
   metadata: {
     source: "cli-check-file-sync-roundtrip"
@@ -50,7 +61,7 @@ const importedSnapshotPayload = convertProductionSnapshotFragmentToImportPayload
 console.log(JSON.stringify({
   ok: compatibility.compatible,
   input: path.resolve(inputPath),
-  artifact: path.resolve(artifactRoot),
+  artifact: resolvedArtifactRoot,
   syncFileKind: syncFile.kind,
   syncSchemaVersion: syncFile.schemaVersion,
   compatibility,

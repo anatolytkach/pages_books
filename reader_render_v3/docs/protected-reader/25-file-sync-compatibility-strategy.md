@@ -78,3 +78,9 @@ The intended future path is:
 5. production snapshot/share adapters remain compatibility edges for coexistence
 
 This keeps the model stable while making future Drive integration straightforward.
+
+## Transport and handoff
+
+The sync file now has a dedicated transport layer and companion handoff metadata. That
+layer carries file identity, compatibility diagnostics, and exchange metadata without
+changing the protected file format or the protected internal persistence model.

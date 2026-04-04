@@ -242,3 +242,9 @@ The current bridge resolves production payloads into protected annotations by:
 - returning exact vs approximate vs unresolved results explicitly
 
 Export back into production format currently prefers stored compatibility anchors from imported payloads. That keeps export honest while the protected side is still missing a true EPUB CFI generator.
+
+## File-sync boundary
+
+Protected file transport continues to use the protected range-first state as the source
+of truth. Production snapshot patches are built on demand from that state and are not
+embedded as the authoritative protected transport model.

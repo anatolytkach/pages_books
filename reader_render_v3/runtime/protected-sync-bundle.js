@@ -18,6 +18,18 @@ function sanitizeProductionCompatMetadata(value) {
   };
 }
 
+function sanitizeCompatSection(value) {
+  if (!value || typeof value !== "object") return {};
+  const production = value.production && typeof value.production === "object" ? value.production : {};
+  return {
+    production: {
+      snapshotPatchAvailable: !!production.snapshotPatchAvailable,
+      notesExportAvailable: !!production.notesExportAvailable,
+      sharePayloadAvailable: !!production.sharePayloadAvailable
+    }
+  };
+}
+
 function sanitizeAnnotationForSyncFile(annotation) {
   if (!annotation || typeof annotation !== "object") return null;
   const metadata = annotation.metadata && typeof annotation.metadata === "object"
@@ -69,7 +81,7 @@ export function normalizeProtectedSyncBundle(payload) {
     exportedAt: parsed.exportedAt ? new Date(parsed.exportedAt).toISOString() : new Date().toISOString(),
     state: buildProtectedFileState(parsed.state || {}),
     metadata: parsed.metadata && typeof parsed.metadata === "object" ? cloneJson(parsed.metadata) : {},
-    compat: parsed.compat && typeof parsed.compat === "object" ? cloneJson(parsed.compat) : {}
+    compat: sanitizeCompatSection(parsed.compat)
   };
 }
 
@@ -125,7 +137,7 @@ export function convertProtectedBundleToSyncBundle(bundle, options = {}) {
       ...(parsedState.metadata && typeof parsedState.metadata === "object" ? cloneJson(parsedState.metadata) : {}),
       ...(options.metadata && typeof options.metadata === "object" ? cloneJson(options.metadata) : {})
     },
-    compat: options.compat && typeof options.compat === "object" ? cloneJson(options.compat) : {}
+    compat: sanitizeCompatSection(options.compat)
   });
 }
 

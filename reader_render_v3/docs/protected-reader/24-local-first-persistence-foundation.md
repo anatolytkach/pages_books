@@ -181,3 +181,9 @@ This local-first layer is deliberately shaped like a future syncable file:
 
 So the next layer can add file-based sync or cloud sync adapters without replacing the
 reader’s internal model.
+
+## Transport relationship
+
+Local persisted state remains `protected-reader-state-v3`. File export now builds a
+separate `protected-sync-file-v1` plus `protected-sync-handoff-v1` on top of that
+state. Download/upload workflows are transport edges, not alternate persistence truths.

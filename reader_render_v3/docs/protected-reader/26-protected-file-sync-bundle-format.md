@@ -76,6 +76,12 @@ Import checks return explicit statuses such as:
 
 If a file is incompatible, it is not silently applied.
 
+For tooling and synthetic fixtures this means:
+
+- valid same-book fixture => `exact`
+- intentionally altered fingerprint => `fingerprint-mismatch`
+- broken JSON fixture => `corrupt`
+
 ## Relation To Local Persisted State
 
 Local persisted state remains:
@@ -118,3 +124,9 @@ This bundle format keeps:
 - optional production adapters at the edge
 
 That means future Google Drive handoff can upload/download the sync file without forcing another persistence redesign.
+
+## Handoff companion
+
+The sync file now travels with `protected-sync-handoff-v1`, a transport descriptor that
+contains file name, file size, reading-state summary, annotation count, and compatibility
+metadata only. It is safe to copy, store, or associate with a future Drive file record.

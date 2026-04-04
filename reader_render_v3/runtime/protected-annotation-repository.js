@@ -19,6 +19,10 @@ import {
   convertProductionSnapshotFragmentToImportPayload,
   convertProtectedSyncFileToProtectedBundle
 } from "./protected-sync-compat.js";
+import {
+  assessProtectedSyncTransportImport,
+  buildProtectedSyncTransport
+} from "./protected-sync-transport.js";
 
 function cloneJson(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
@@ -264,7 +268,6 @@ export function createProtectedAnnotationRepository({
     },
     async exportSyncFile(requestBookId = bookId, requestUserScope = userScope) {
       const bundle = await this.loadAnnotations(requestBookId, requestUserScope);
-      const productionPayload = await this.exportProductionPayload();
       return buildProtectedSyncFileFromBundle(bundle, {
         metadata: {
           transport: "file-sync",
@@ -272,10 +275,31 @@ export function createProtectedAnnotationRepository({
           readingStateSaved: !!readingState
         },
         compat: {
-          productionSnapshotPatch: productionPayload.snapshotPatch,
-          productionNotes: productionPayload.productionNotes,
-          sharePayload: productionPayload.sharePayload
+          production: {
+            snapshotPatchAvailable: true,
+            notesExportAvailable: true,
+            sharePayloadAvailable: true
+          }
         }
+      });
+    },
+    async exportSyncTransport(requestBookId = bookId, requestUserScope = userScope, options = {}) {
+      const syncFile = await this.exportSyncFile(requestBookId, requestUserScope);
+      return buildProtectedSyncTransport({
+        syncFile,
+        fileName: options.fileName,
+        handoffMetadata: {
+          source: "integrated-protected-reader",
+          userScope: requestUserScope
+        }
+      });
+    },
+    async assessSyncTransport(syncFile, handoffState = null) {
+      await this.ensureHydrated();
+      return assessProtectedSyncTransportImport({
+        syncFile,
+        handoffState,
+        bookFingerprint: persistenceManager.bookFingerprint
       });
     },
     async importSyncFile(syncFile, options = {}) {
