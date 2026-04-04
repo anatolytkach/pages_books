@@ -158,3 +158,29 @@ Then inspect:
 - `chunks/*.json` should use `renderLayer.glyphRuns`
 - no `internal/*.recon.json` network surface should exist
 - glyph bundles should carry a sealed substrate rather than a readable recon file
+
+## Annotation interaction with the opaque contract
+
+Highlights and notes now sit on top of the opaque render contract without changing it.
+
+They persist stable range descriptors and user-authored note text, not raw book text.
+When the dev shell restores an annotation, it does so through:
+
+- global offsets
+- chunk/page resolution
+- current layout geometry
+
+rather than by storing a text excerpt as the anchor of truth.
+
+## Worker isolation interaction
+
+The opaque render contract is now also consumed through a worker-oriented runtime path.
+
+That means the browser page script no longer needs to directly own:
+
+- protected book model loading
+- chunk parsing
+- layout preparation
+- copy reconstruction internals
+
+It instead receives prepared page packets and narrow action results.

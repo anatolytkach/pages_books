@@ -66,6 +66,9 @@
               <div class="toolbar-group">
                 <button type="button" id="copy-restore-token">Copy restore token</button>
                 <button type="button" id="copy-selection-range">Copy selection range</button>
+                <button type="button" id="create-highlight">Create highlight</button>
+                <button type="button" id="add-note-selection">Add note</button>
+                <button type="button" id="delete-annotation">Delete annotation</button>
                 <button type="button" id="clear-selection">Clear selection</button>
                 <button type="button" id="copy-selection">Copy selected text</button>
               </div>
@@ -75,6 +78,12 @@
                 <label for="restore-token-input">Restore token</label>
                 <input id="restore-token-input" name="restore-token" type="text" />
                 <button type="button" id="restore-token">Restore</button>
+              </div>
+            </div>
+            <div class="toolbar note-toolbar">
+              <div class="toolbar-group note-group">
+                <label for="note-input">Note text</label>
+                <textarea id="note-input" name="note-input" rows="2"></textarea>
               </div>
             </div>
           </div>
@@ -98,6 +107,23 @@
             <span id="selection-kind" class="muted">none</span>
           </div>
           <dl id="selection-meta" class="meta-grid"></dl>
+        </section>
+
+        <section class="card annotations-card">
+          <div class="section-head">
+            <h2>Annotations</h2>
+            <span id="annotation-count" class="muted">0 items</span>
+          </div>
+          <div class="annotation-toolbar">
+            <button type="button" id="add-note-highlight">Add note to highlight</button>
+            <button type="button" id="export-annotations">Export annotations</button>
+            <button type="button" id="import-annotations">Import annotations</button>
+          </div>
+          <label class="annotation-field" for="annotation-import">
+            <span>Annotation JSON</span>
+            <textarea id="annotation-import" name="annotation-import" rows="6"></textarea>
+          </label>
+          <div id="annotation-list" class="annotation-list"></div>
         </section>
       </main>
     </div>

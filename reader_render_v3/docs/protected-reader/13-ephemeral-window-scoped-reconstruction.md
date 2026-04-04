@@ -84,6 +84,17 @@ Copy now follows this narrow path:
 
 This preserves selection/copy UX without keeping a wide reconstruction cache around.
 
+## Highlight and note interaction
+
+The annotation layer intentionally does not expand reconstruction scope.
+
+Highlights and notes are stored as range descriptors. They do not retain a decoded book
+excerpt as their source of truth. When the UI needs to navigate back to an annotation,
+it resolves the saved range through global offsets and current page/chunk state.
+
+If a future UI wants a tiny preview excerpt, it should request it through the same
+scoped reconstruction rules rather than retaining a decoded text payload in annotation state.
+
 ## What became more expensive for an attacker
 
 Compared to the previous state, a runtime instrumentation attacker now faces:
@@ -110,6 +121,20 @@ Possible remaining attack points:
 
 The goal of this step is to reduce convenience and widen the work factor, not to make
 impossible promises about browser-side secrecy.
+
+## Worker boundary follow-up
+
+After the worker-isolation step, scoped reconstruction is now expected to run behind a
+worker protocol when the platform supports it.
+
+That adds another useful constraint:
+
+- main thread requests narrow copy/page data
+- worker executes scoped reconstruction
+- main thread receives only the result needed for the current action
+
+Fallback mode still exists, but it uses the same narrow API instead of reintroducing a
+wide convenience reconstruction layer in UI code.
 
 ## Local verification
 

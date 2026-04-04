@@ -59,7 +59,8 @@ function assertRuntimeContract(chunk, glyphPayload) {
 }
 
 export async function loadProtectedBook(artifactRoot) {
-  const rootUrl = new URL(artifactRoot, window.location.href).toString().replace(/\/$/, "");
+  const baseHref = (globalThis.location && globalThis.location.href) || "http://127.0.0.1:8788/";
+  const rootUrl = new URL(artifactRoot, baseHref).toString().replace(/\/$/, "");
   const manifestUrl = `${rootUrl}/manifest.json`;
   assertNoDebug(manifestUrl);
   const manifest = await fetchJson(manifestUrl);

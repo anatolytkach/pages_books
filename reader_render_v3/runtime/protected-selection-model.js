@@ -198,13 +198,13 @@ function offsetToLineX(line, offset) {
   return last.x + last.width;
 }
 
-export function buildSelectionHighlights(layout, selectionResult) {
-  if (!selectionResult || selectionResult.isCollapsed) return [];
+export function buildRangeHighlights(layout, startOffset, endOffset) {
+  if (startOffset == null || endOffset == null || endOffset <= startOffset) return [];
   const rects = [];
   for (const line of layout.lines) {
-    if (line.endOffset <= selectionResult.startOffset || line.startOffset >= selectionResult.endOffset) continue;
-    const from = Math.max(line.startOffset, selectionResult.startOffset);
-    const to = Math.min(line.endOffset, selectionResult.endOffset);
+    if (line.endOffset <= startOffset || line.startOffset >= endOffset) continue;
+    const from = Math.max(line.startOffset, startOffset);
+    const to = Math.min(line.endOffset, endOffset);
     if (to <= from) continue;
     const startX = offsetToLineX(line, from);
     const endX = offsetToLineX(line, to);
@@ -217,4 +217,9 @@ export function buildSelectionHighlights(layout, selectionResult) {
     });
   }
   return rects;
+}
+
+export function buildSelectionHighlights(layout, selectionResult) {
+  if (!selectionResult || selectionResult.isCollapsed) return [];
+  return buildRangeHighlights(layout, selectionResult.startOffset, selectionResult.endOffset);
 }

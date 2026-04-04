@@ -10,8 +10,8 @@ This step tightens the protected dev reader in two visible ways:
 The runtime now builds a word-boundary model from runtime-safe segment data only:
 
 - `chunk.selectionLayer.textSegments`
-- runtime-safe glyph `codePoint`
-- reconstructed in-memory run text
+- opaque glyph tokens
+- scoped in-memory reconstruction only for the inspected offset window
 
 No debug artifact is used, and no hidden DOM text is introduced.
 
@@ -78,4 +78,15 @@ Word-snapped selection now feeds directly into the global range model:
 - those descriptors can later cross chunk boundaries without introducing raw text leakage
 
 That means the current word-snapping work is already aligned with future
-highlights/notes persistence and restore flows.
+highlights/notes anchoring and restore flows.
+
+## Interaction with highlights and notes
+
+Annotations now use the snapped range, not raw drag offsets.
+
+That means:
+
+- created highlights land on whole-word boundaries
+- note anchors inherit the same snapped range
+- export/import of annotations stays stable because the stored descriptor is already
+  normalized to the user-visible selection semantics

@@ -6,6 +6,12 @@ import {
 } from "./protected-text-reconstruction.js";
 
 export async function copySelection({ chunkModel, selectionResult }) {
+  const payload = buildCopyPayload({ chunkModel, selectionResult });
+  await navigator.clipboard.writeText(payload.text);
+  return payload;
+}
+
+export function buildCopyPayload({ chunkModel, selectionResult }) {
   if (!selectionResult || selectionResult.isCollapsed) {
     throw new Error("Selection is empty.");
   }
@@ -16,11 +22,11 @@ export async function copySelection({ chunkModel, selectionResult }) {
     endOffset: selectionResult.endOffset
   });
   const text = reconstructSelectionRange(chunkModel, selectionResult, scope);
-  await navigator.clipboard.writeText(text);
   const diagnostics = getReconstructionScopeDiagnostics(scope);
   disposeReconstructionScope(scope);
   return {
     copied: true,
+    text,
     textLength: text.length,
     selectedChars: selectionResult.selectedChars,
     selectedBlocks: selectionResult.selectedBlocks,

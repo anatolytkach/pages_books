@@ -73,6 +73,16 @@ h2 {
   gap: 10px;
 }
 
+textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  font: inherit;
+  resize: vertical;
+  min-height: 72px;
+}
+
 .artifact-form input {
   width: 100%;
   padding: 12px 14px;
@@ -82,6 +92,11 @@ h2 {
 }
 
 .restore-toolbar {
+  margin-top: 8px;
+  justify-content: flex-start;
+}
+
+.note-toolbar {
   margin-top: 8px;
   justify-content: flex-start;
 }
@@ -103,6 +118,11 @@ h2 {
   width: 100%;
 }
 
+.note-group {
+  align-items: flex-start;
+  width: 100%;
+}
+
 .token-group input {
   min-width: 320px;
   flex: 1 1 320px;
@@ -112,10 +132,17 @@ h2 {
   font: inherit;
 }
 
+.note-group textarea {
+  min-width: 320px;
+  flex: 1 1 520px;
+  min-height: 56px;
+}
+
 .button-row,
 .toolbar,
 .toolbar-group,
-.section-head {
+.section-head,
+.annotation-toolbar {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -198,6 +225,60 @@ button:hover {
 .meta-grid dd {
   margin: 0;
   min-width: 0;
+}
+
+.annotations-card {
+  display: grid;
+  gap: 14px;
+}
+
+.annotation-field {
+  display: grid;
+  gap: 8px;
+}
+
+.annotation-list {
+  display: grid;
+  gap: 10px;
+}
+
+.annotation-item {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.annotation-item.is-selected {
+  border-color: rgba(10, 129, 117, 0.38);
+  background: rgba(10, 129, 117, 0.08);
+}
+
+.annotation-item-head,
+.annotation-item-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.annotation-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(243, 221, 111, 0.24);
+  color: #7a5d13;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.annotation-pill.note {
+  background: rgba(85, 126, 214, 0.14);
+  color: #35559a;
 }
 
 .reader-frame {

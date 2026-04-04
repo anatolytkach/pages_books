@@ -148,3 +148,13 @@ That means:
 After the window-scoped reconstruction step, text-mode painting is also expected to
 decode only the current visible page slice rather than materializing whole-chunk text
 as a convenience layer.
+
+## Annotation interaction
+
+The highlight/note foundation now reuses the same geometry model:
+
+- current selection uses hit-tested and word-snapped offsets
+- saved highlights project their stable ranges back into the current chunk/page
+- overlay rendering stays canvas-only
+
+This means annotations do not introduce a second text-oriented layout path.

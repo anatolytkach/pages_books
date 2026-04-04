@@ -1,0 +1,123 @@
+# 14 Highlights And Notes Foundation
+
+Updated: 2026-04-04
+
+## Goal of this step
+
+This step adds a real annotation foundation on top of the existing protected runtime:
+
+- global reading model
+- serializable ranges
+- cross-chunk range helpers
+- page navigation
+- restore tokens
+- fine-grained selection with word snapping
+
+The scope is intentionally dev-only and in-memory. It does not introduce production
+cutover or cloud persistence.
+
+## Annotation model
+
+Annotations are range-first, not text-first.
+
+Each annotation stores:
+
+- `annotationId`
+- `type`: `highlight` or `note`
+- `bookId`
+- `rangeDescriptor`
+- `color`
+- `createdAt`
+- `updatedAt`
+- optional metadata
+
+Notes additionally store:
+
+- `noteText`
+- optional `highlightId`
+
+The range descriptor remains the source of truth. Raw book text is not stored as the
+primary annotation anchor.
+
+## Store
+
+The dev runtime now has an in-memory annotation store that can:
+
+- add highlights
+- add notes
+- update notes
+- delete annotations
+- query annotations by global range
+- list notes attached to a highlight
+- export/import annotations as JSON
+
+This keeps the architecture ready for a later persistence step without binding the
+runtime to localStorage or a backend yet.
+
+## Rendering model
+
+Persistent highlights are rendered through the overlay canvas, not through DOM text.
+
+Layering now looks like this:
+
+1. saved highlights
+2. current active selection
+3. note markers
+
+Current selection stays soft gray.
+Saved highlights use a distinct warm highlight fill.
+Notes use a small marker placed near the start of the annotated range on the current chunk.
+
+## Range anchoring and restore
+
+Annotations are restored by stable ranges:
+
+- exact global offsets first
+- chunk and page resolution through the existing global location model
+- current chunk projection for overlay geometry
+
+This means a highlight survives:
+
+- leaving the current page
+- switching chunks
+- restoring back to the same range later in the session
+
+## Export and import
+
+The dev shell can now export and import annotations as JSON.
+
+The payload contains:
+
+- annotation ids
+- types
+- range descriptors
+- note text
+- metadata
+
+It does not contain:
+
+- book text dumps
+- reconstruction substrate
+- debug artifact payload
+
+## Current limitations
+
+This is not persistence yet.
+
+Still missing:
+
+- backend or cloud storage
+- cross-device sync
+- final note editor polish
+- annotation conflict handling
+- migration logic for changed chunking/layout in future formats
+
+But the data model and runtime behavior are now aligned with the next persistence step.
+
+## Worker interaction
+
+The current annotation store remains lightweight and UI-oriented, but highlight geometry
+projection can now be prepared through the worker runtime along with current page layout.
+
+This keeps annotation UX working without pulling reconstruction or full book/chunk models
+back into the main thread controller.

@@ -1,12 +1,5 @@
 import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
-import { buildGlyphRenderOps } from "./protected-shape-layout.js";
 import { renderGlyphOps } from "./protected-shape-renderer.js";
-import {
-  createReconstructionScope,
-  disposeReconstructionScope,
-  getReconstructionScopeDiagnostics,
-  reconstructRangeText
-} from "./protected-text-reconstruction.js";
 
 function clearCanvas(canvas, width, height) {
   canvas.width = width * 2;
@@ -58,14 +51,22 @@ function offsetToLineX(line, offset) {
 export function renderChunkToCanvas({
   canvas,
   overlayCanvas,
-  layout,
-  chunkModel,
-  renderMode = "text",
-  shapeRegistry = null,
+  renderPacket,
   debugGeometry = false,
-  highlightSpans,
-  pageWindow = null
+  offscreenCanvasStatus = "inactive"
 }) {
+  const {
+    layout,
+    pageWindow = null,
+    renderMode = "text",
+    textFragments = [],
+    glyphOps = [],
+    shapeRecords = [],
+    selectionHighlights = [],
+    annotationHighlights = [],
+    noteMarkers = [],
+    diagnostics = {}
+  } = renderPacket;
   const viewportHeight = pageWindow ? pageWindow.height : layout.height;
   const translateY = pageWindow ? layout.padding - pageWindow.top : 0;
   const ctx = clearCanvas(canvas, layout.width, viewportHeight);
@@ -73,76 +74,16 @@ export function renderChunkToCanvas({
   ctx.fillRect(0, 0, layout.width, viewportHeight);
   ctx.save();
   ctx.translate(0, translateY);
-  const activeShapeRegistry = shapeRegistry || createGlyphShapeRegistry(chunkModel.shapeBundle, chunkModel.glyphMap);
-  const visibleLines = pageWindow
-    ? layout.lines.filter((line) => line.lineIndex >= pageWindow.lineStartIndex && line.lineIndex <= pageWindow.lineEndIndex)
-    : layout.lines;
-
-  let diagnostics = {
-    renderMode,
-    glyphOps: 0,
-    shapeRecords: activeShapeRegistry.records.size,
-    shapeCoveragePercent: activeShapeRegistry.coveragePercent,
-    extractedShapeCount: activeShapeRegistry.extractedGlyphs,
-    syntheticShapeCount: activeShapeRegistry.syntheticGlyphs,
-    placeholderShapeCount: activeShapeRegistry.placeholderGlyphs,
-    extractedCoveragePercent: activeShapeRegistry.extractedCoveragePercent,
-    shapeSource: activeShapeRegistry.sourceCounts.extracted ? "extracted" :
-      activeShapeRegistry.sourceCounts.synthetic ? "synthetic" :
-      activeShapeRegistry.sourceCounts.placeholder ? "placeholder" : "none",
-    shapeSources: activeShapeRegistry.sourceCounts,
-    metricsBackend: layout.metricsBackend,
-    metricsMode: layout.metricsMode,
-    shapeMetricsCoveragePercent: layout.shapeMetricsCoveragePercent,
-    metricsFallbackCount: layout.metricsFallbackCount,
-    hitTestingBackend: layout.hitTestingBackend,
-    selectionPrecisionMode: layout.selectionPrecisionMode,
-    selectionCompatible: true,
-    hasShapeBundle: !!chunkModel.shapeBundle,
-    reconstructionPathMode: "window-scoped",
-    reconstructionCacheMode: "bounded-ephemeral",
-    reconstructionCacheSize: 0,
-    reconstructionExposureStatus: "sealed",
-    networkReconSurface: "narrowed",
-    fullChunkDecode: layout.reconstructionDiagnostics && layout.reconstructionDiagnostics.mode !== "none"
-      ? "not-retained"
-      : "forbidden",
-    reconstructionScope: layout.reconstructionDiagnostics ? layout.reconstructionDiagnostics.mode : "none"
-  };
 
   if (renderMode === "shape") {
-    const glyphOps = buildGlyphRenderOps({
-      layout,
-      chunkModel,
-      shapeRegistry: activeShapeRegistry,
-      renderMode
-    });
+    const activeShapeRegistry = createGlyphShapeRegistry({ shapeRecords }, new Map());
     renderGlyphOps(ctx, glyphOps, activeShapeRegistry);
-    diagnostics = {
-      ...diagnostics,
-      glyphOps: glyphOps.length,
-      reconstructionScope: "none"
-    };
   } else {
-    const reconstructionScope = createReconstructionScope({
-      chunkModel,
-      purpose: "page",
-      startOffset: pageWindow ? pageWindow.startOffset : 0,
-      endOffset: pageWindow ? pageWindow.endOffset : chunkModel.chunk.selectionLayer.textLength
-    });
-    for (const line of visibleLines) {
-      for (const fragment of line.fragments) {
-        ctx.font = fragment.font.css;
-        ctx.fillStyle = "#18212f";
-        const text = reconstructRangeText(chunkModel, fragment.startOffset, fragment.endOffset, reconstructionScope);
-        ctx.fillText(text, fragment.x, fragment.y + fragment.font.size);
-      }
+    for (const fragment of textFragments) {
+      ctx.font = fragment.fontCss;
+      ctx.fillStyle = "#18212f";
+      ctx.fillText(fragment.text, fragment.x, fragment.y);
     }
-    const reconstructionDiagnostics = getReconstructionScopeDiagnostics(reconstructionScope);
-    disposeReconstructionScope(reconstructionScope);
-    diagnostics.glyphOps = layout.lines.reduce((sum, line) => sum + line.fragments.reduce((count, fragment) => count + fragment.glyphCount, 0), 0);
-    diagnostics.reconstructionScope = reconstructionDiagnostics.mode;
-    diagnostics.reconstructionCacheSize = reconstructionDiagnostics.cacheEntries;
   }
   ctx.restore();
 
@@ -150,10 +91,21 @@ export function renderChunkToCanvas({
   overlay.clearRect(0, 0, layout.width, viewportHeight);
   overlay.save();
   overlay.translate(0, translateY);
-  overlay.fillStyle = "rgba(148, 154, 165, 0.24)";
+  overlay.fillStyle = "rgba(243, 221, 111, 0.34)";
+  for (const rect of annotationHighlights) {
+    drawHighlightRect(overlay, rect);
+  }
 
-  for (const span of highlightSpans || []) {
+  overlay.fillStyle = "rgba(148, 154, 165, 0.24)";
+  for (const span of selectionHighlights || []) {
     drawHighlightRect(overlay, span);
+  }
+
+  for (const marker of noteMarkers || []) {
+    overlay.fillStyle = marker.color === "blue" ? "rgba(85, 126, 214, 0.9)" : "rgba(177, 129, 24, 0.9)";
+    overlay.beginPath();
+    overlay.arc(marker.x, marker.y, 4, 0, Math.PI * 2);
+    overlay.fill();
   }
 
   if (debugGeometry) {
@@ -188,5 +140,8 @@ export function renderChunkToCanvas({
   }
   overlay.restore();
 
-  return diagnostics;
+  return {
+    ...diagnostics,
+    offscreenCanvas: offscreenCanvasStatus
+  };
 }

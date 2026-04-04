@@ -1,6 +1,18 @@
 import { createReconstructionScope, disposeReconstructionScope, reconstructRangeText } from "./protected-text-reconstruction.js";
 import { getShapeMetricsBackend, getTextMetricsBackend } from "./protected-shape-metrics.js";
 
+function createScratchContext() {
+  if (typeof OffscreenCanvas !== "undefined") {
+    const canvas = new OffscreenCanvas(1, 1);
+    return canvas.getContext("2d");
+  }
+  if (typeof document !== "undefined") {
+    const canvas = document.createElement("canvas");
+    return canvas.getContext("2d");
+  }
+  throw new Error("No canvas context is available for protected layout.");
+}
+
 export function fontSpecForStyle(styleTokenRecord = {}) {
   const headingLevel = styleTokenRecord.headingLevel || 0;
   const size =
@@ -82,8 +94,7 @@ export function layoutChunk({
   metricsMode = renderMode === "shape" ? "shape" : "text",
   shapeRegistry = null
 }) {
-  const scratch = document.createElement("canvas");
-  const ctx = scratch.getContext("2d");
+  const ctx = createScratchContext();
   const maxWidth = width - padding * 2;
   const blocks = [];
   const lines = [];

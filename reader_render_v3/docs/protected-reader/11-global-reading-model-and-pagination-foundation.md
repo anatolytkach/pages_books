@@ -136,3 +136,32 @@ This step provides that foundation while keeping the current constraints:
 - notes/annotations persistence
 - final pagination edge cases
 - richer restore heuristics if the underlying chunking ever changes
+
+## Annotation foundation on top of global ranges
+
+The next layer now uses this model directly for highlights and notes.
+
+Highlights are anchored by the existing serializable range descriptor, and notes attach
+to either the same range or a related highlight id. Page and chunk re-entry use the same
+global offsets and page-resolution helpers already described above.
+
+This keeps annotations aligned with:
+
+- global offsets
+- chunk/local offsets
+- location ids
+- restore anchors
+
+without adding a second competing coordinate system.
+
+## Worker-hosted page preparation
+
+Page navigation and restore flows can now be prepared behind a worker boundary.
+
+The same stable global offsets are still the source of truth, but:
+
+- chunk loading
+- page model preparation
+- restore resolution
+
+no longer need to live directly in the UI controller when worker mode is available.
