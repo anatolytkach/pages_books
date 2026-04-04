@@ -20,6 +20,7 @@ export function renderChunkToCanvas({
   chunkModel,
   renderMode = "text",
   shapeRegistry = null,
+  debugGeometry = false,
   highlightSpans
 }) {
   const ctx = clearCanvas(canvas, layout.width, layout.height);
@@ -41,6 +42,11 @@ export function renderChunkToCanvas({
       activeShapeRegistry.sourceCounts.placeholder ? "placeholder" : "none",
     shapeSources: activeShapeRegistry.sourceCounts,
     metricsBackend: layout.metricsBackend,
+    metricsMode: layout.metricsMode,
+    shapeMetricsCoveragePercent: layout.shapeMetricsCoveragePercent,
+    metricsFallbackCount: layout.metricsFallbackCount,
+    hitTestingBackend: layout.hitTestingBackend,
+    selectionPrecisionMode: layout.selectionPrecisionMode,
     selectionCompatible: true,
     hasShapeBundle: !!chunkModel.shapeBundle
   };
@@ -74,6 +80,25 @@ export function renderChunkToCanvas({
 
   for (const span of highlightSpans || []) {
     overlay.fillRect(span.x, span.y + 2, span.width, Math.max(12, span.height - 4));
+  }
+
+  if (debugGeometry) {
+    overlay.strokeStyle = "rgba(68, 102, 140, 0.28)";
+    overlay.lineWidth = 1;
+    for (const line of layout.lines) {
+      overlay.strokeRect(line.x, line.y, Math.max(2, line.width), Math.max(2, line.height));
+      for (const fragment of line.fragments) {
+        overlay.strokeStyle = "rgba(162, 120, 40, 0.22)";
+        overlay.strokeRect(fragment.x, fragment.y, Math.max(2, fragment.width), Math.max(2, fragment.height));
+        overlay.strokeStyle = "rgba(112, 112, 112, 0.18)";
+        for (const glyphBox of fragment.glyphBoxes || []) {
+          overlay.beginPath();
+          overlay.moveTo(fragment.x + glyphBox.x, fragment.y + 2);
+          overlay.lineTo(fragment.x + glyphBox.x, fragment.y + fragment.height - 2);
+          overlay.stroke();
+        }
+      }
+    }
   }
 
   return diagnostics;

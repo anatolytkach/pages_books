@@ -108,6 +108,12 @@ h2 {
   font: inherit;
 }
 
+.mode-picker input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
 .toolbar {
   flex-wrap: wrap;
   justify-content: space-between;

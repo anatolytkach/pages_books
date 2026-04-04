@@ -1,5 +1,5 @@
 import { reconstructRunText } from "./protected-text-reconstruction.js";
-import { getShapeMetricsBackend } from "./protected-shape-metrics.js";
+import { getShapeMetricsBackend, getTextMetricsBackend } from "./protected-shape-metrics.js";
 
 export function fontSpecForStyle(styleTokenRecord = {}) {
   const headingLevel = styleTokenRecord.headingLevel || 0;
@@ -39,26 +39,8 @@ function tokenizeWithOffsets(text, startOffset) {
   }];
 }
 
-function charPositions(ctx, text) {
-  const points = [0];
-  for (let index = 1; index <= text.length; index += 1) {
-    points.push(ctx.measureText(text.slice(0, index)).width);
-  }
-  return points;
-}
-
-function getTextMetricsBackend(ctx) {
-  return {
-    name: "text",
-    measureRun({ text }) {
-      const width = ctx.measureText(text).width;
-      return { width, charPositions: charPositions(ctx, text) };
-    }
-  };
-}
-
-function resolveMetricsBackend({ ctx, renderMode, shapeRegistry }) {
-  if (renderMode === "shape" && shapeRegistry) {
+function resolveMetricsBackend({ ctx, renderMode, metricsMode, shapeRegistry }) {
+  if (renderMode === "shape" && metricsMode === "shape" && shapeRegistry) {
     return getShapeMetricsBackend(shapeRegistry);
   }
   return getTextMetricsBackend(ctx);
@@ -79,6 +61,7 @@ export function layoutChunk({
   padding = 44,
   metricsBackend = null,
   renderMode = "text",
+  metricsMode = renderMode === "shape" ? "shape" : "text",
   shapeRegistry = null
 }) {
   const scratch = document.createElement("canvas");
@@ -88,7 +71,12 @@ export function layoutChunk({
   const lines = [];
   const orderedBlockIds = [];
   const segmentMap = segmentMapForChunk(chunkModel.chunk);
-  const backend = metricsBackend || resolveMetricsBackend({ ctx, renderMode, shapeRegistry });
+  const backend = metricsBackend || resolveMetricsBackend({ ctx, renderMode, metricsMode, shapeRegistry });
+  const metricsStats = {
+    glyphCount: 0,
+    extractedCount: 0,
+    fallbackCount: 0
+  };
   let cursorY = padding;
 
   for (const block of chunkModel.chunk.logicalBlockList) {
@@ -141,8 +129,13 @@ export function layoutChunk({
       });
       const widthPx = measure.width;
       const line = ensureLine(font.lineHeight);
-      line.height = Math.max(line.height, font.lineHeight);
+      line.height = Math.max(line.height, measure.lineHeight || font.lineHeight);
+      line.ascentPx = Math.max(line.ascentPx || 0, measure.ascentPx || 0);
+      line.descentPx = Math.max(line.descentPx || 0, measure.descentPx || 0);
       const currentWidth = line.fragments.reduce((sum, item) => sum + item.width, 0);
+      metricsStats.glyphCount += measure.glyphCount || glyphs.length;
+      metricsStats.extractedCount += measure.extractedCount || 0;
+      metricsStats.fallbackCount += measure.fallbackCount || 0;
 
       if (
         currentWidth > 0 &&
@@ -186,6 +179,7 @@ export function layoutChunk({
         startOffset: token.startOffset,
         endOffset: token.endOffset,
         charPositions: measure.charPositions,
+        glyphBoxes: measure.glyphBoxes || [],
         glyphCount: glyphs.length
       };
       line.fragments.push(fragment);
@@ -251,6 +245,14 @@ export function layoutChunk({
     lines,
     orderedBlockIds,
     metricsBackend: backend.name,
-    renderMode
+    renderMode,
+    metricsMode,
+    shapeMetricsCoveragePercent: metricsStats.glyphCount
+      ? Math.round((metricsStats.extractedCount / metricsStats.glyphCount) * 100)
+      : 0,
+    metricsFallbackCount: metricsStats.fallbackCount,
+    metricsGlyphCount: metricsStats.glyphCount,
+    hitTestingBackend: backend.name === "shape" ? "shape-geometry" : "text-geometry",
+    selectionPrecisionMode: backend.name === "shape" ? "path-aware-approx" : "text-metrics-approx"
   };
 }

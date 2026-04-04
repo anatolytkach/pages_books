@@ -136,6 +136,8 @@ export function buildSelectionResult({ chunkModel, layout, selectionState }) {
     isCollapsed: normalized.isCollapsed,
     chunkId: chunkModel.chunk.chunkId,
     locationId: chunkModel.chunkLocation ? chunkModel.chunkLocation.locationId : null,
+    hitTestingBackend: layout.hitTestingBackend || "text-geometry",
+    selectionPrecisionMode: layout.selectionPrecisionMode || "text-metrics-approx",
     startOffset,
     endOffset,
     selectedChars: Math.max(0, endOffset - startOffset),

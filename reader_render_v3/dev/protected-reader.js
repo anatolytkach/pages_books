@@ -29,6 +29,8 @@ const elements = {
   tocList: document.querySelector("#toc-list"),
   tocCount: document.querySelector("#toc-count"),
   renderMode: document.querySelector("#render-mode"),
+  metricsMode: document.querySelector("#metrics-mode"),
+  debugGeometry: document.querySelector("#debug-geometry"),
   runtimeMeta: document.querySelector("#runtime-meta"),
   selectionMeta: document.querySelector("#selection-meta"),
   selectionKind: document.querySelector("#selection-kind"),
@@ -50,6 +52,8 @@ const state = {
   currentShapeRegistry: null,
   currentRenderDiagnostics: null,
   renderMode: "text",
+  metricsMode: "text",
+  debugGeometry: false,
   selectionState: createSelectionState()
 };
 
@@ -84,16 +88,34 @@ function getRenderModeFromLocation() {
   return renderMode === "shape" ? "shape" : "text";
 }
 
+function getMetricsModeFromLocation(renderMode) {
+  const params = new URLSearchParams(window.location.search);
+  const metricsMode = params.get("metricsMode");
+  if (renderMode === "text") return "text";
+  return metricsMode === "text" ? "text" : "shape";
+}
+
+function getDebugGeometryFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("debugGeometry") === "1";
+}
+
 function syncLocationParams() {
   const url = new URL(window.location.href);
   url.searchParams.set("artifact", state.artifactRoot);
   url.searchParams.set("renderMode", state.renderMode);
+  url.searchParams.set("metricsMode", state.metricsMode);
+  if (state.debugGeometry) url.searchParams.set("debugGeometry", "1");
+  else url.searchParams.delete("debugGeometry");
   window.history.replaceState({}, "", url);
 }
 
 function syncArtifactInput() {
   elements.artifactInput.value = state.artifactRoot;
   elements.renderMode.value = state.renderMode;
+  elements.metricsMode.value = state.metricsMode;
+  elements.metricsMode.disabled = state.renderMode !== "shape";
+  elements.debugGeometry.checked = state.debugGeometry;
 }
 
 function renderBookMeta() {
@@ -145,6 +167,7 @@ function renderRuntimeMeta() {
     ["Blocks", chunk.logicalBlockList.length],
     ["Segments", buildChunkSelectionIndex(chunk).segmentCount],
     ["Render mode", state.renderMode],
+    ["Metrics mode", state.metricsMode],
     ["Metrics backend", diagnostics.metricsBackend || state.currentLayout?.metricsBackend || "n/a"],
     ["Glyph ops", diagnostics.glyphOps ?? "n/a"],
     ["Shape bundle", diagnostics.hasShapeBundle ? "yes" : "no"],
@@ -153,6 +176,11 @@ function renderRuntimeMeta() {
     ["Extracted", diagnostics.extractedShapeCount ?? 0],
     ["Synthetic fallback", diagnostics.syntheticShapeCount ?? 0],
     ["Extracted coverage", diagnostics.extractedCoveragePercent != null ? `${diagnostics.extractedCoveragePercent}%` : "n/a"],
+    ["Shape metrics coverage", diagnostics.shapeMetricsCoveragePercent != null ? `${diagnostics.shapeMetricsCoveragePercent}%` : "n/a"],
+    ["Fallback-to-text metrics", diagnostics.metricsFallbackCount ?? 0],
+    ["Hit-testing backend", diagnostics.hitTestingBackend || "n/a"],
+    ["Selection precision", diagnostics.selectionPrecisionMode || "n/a"],
+    ["Geometry overlay", state.debugGeometry ? "on" : "off"],
     ["Shape source", diagnostics.shapeSource || "none"]
   ]);
 }
@@ -191,6 +219,7 @@ function refreshCanvas() {
     chunkModel: state.currentChunkModel,
     renderMode: state.renderMode,
     shapeRegistry: state.currentShapeRegistry,
+    debugGeometry: state.debugGeometry,
     highlightSpans: buildSelectionHighlights(state.currentLayout, selectionResult)
   });
   renderRuntimeMeta();
@@ -202,14 +231,15 @@ async function openChunk(chunkIndex) {
   state.currentChunkIndex = boundedIndex;
   state.currentChunkModel = await loadProtectedChunkModel(state.book, boundedIndex);
   state.currentShapeRegistry = createGlyphShapeRegistry(
-    state.currentChunkModel.shapeBundle,
-    state.currentChunkModel.glyphMap
-  );
+      state.currentChunkModel.shapeBundle,
+      state.currentChunkModel.glyphMap
+    );
   state.currentLayout = layoutChunk({
     chunkModel: state.currentChunkModel,
     styles: state.book.styleMap,
     width: CANVAS_WIDTH,
     renderMode: state.renderMode,
+    metricsMode: state.metricsMode,
     shapeRegistry: state.currentShapeRegistry
   });
   state.selectionState = createSelectionState();
@@ -217,7 +247,7 @@ async function openChunk(chunkIndex) {
   refreshCanvas();
   syncActiveToc();
   setStatus(
-    `Opened ${state.currentChunkModel.chunk.chunkId} (${boundedIndex + 1}/${state.book.manifest.chunks.length}) in ${state.renderMode} mode.`,
+    `Opened ${state.currentChunkModel.chunk.chunkId} (${boundedIndex + 1}/${state.book.manifest.chunks.length}) in ${state.renderMode}/${state.metricsMode} mode.`,
     "ok"
   );
 }
@@ -320,6 +350,8 @@ function resetSelection() {
 async function boot() {
   state.artifactRoot = getArtifactRootFromLocation();
   state.renderMode = getRenderModeFromLocation();
+  state.metricsMode = getMetricsModeFromLocation(state.renderMode);
+  state.debugGeometry = getDebugGeometryFromLocation();
   syncArtifactInput();
 
   elements.artifactForm.addEventListener("submit", async (event) => {
@@ -343,6 +375,8 @@ async function boot() {
 
   elements.renderMode.addEventListener("change", async () => {
     state.renderMode = elements.renderMode.value === "shape" ? "shape" : "text";
+    if (state.renderMode === "text") state.metricsMode = "text";
+    else if (state.metricsMode !== "text" && state.metricsMode !== "shape") state.metricsMode = "shape";
     syncArtifactInput();
     syncLocationParams();
     if (!state.book || !state.currentChunkModel) {
@@ -359,15 +393,48 @@ async function boot() {
         styles: state.book.styleMap,
         width: CANVAS_WIDTH,
         renderMode: state.renderMode,
+        metricsMode: state.metricsMode,
         shapeRegistry: state.currentShapeRegistry
       });
       renderSelectionMeta();
       refreshCanvas();
-      setStatus(`Render mode switched to ${state.renderMode}.`, "ok");
+      setStatus(`Render mode switched to ${state.renderMode}/${state.metricsMode}.`, "ok");
     } catch (error) {
       console.error(error);
       setStatus(error.message || String(error), "error");
     }
+  });
+
+  elements.metricsMode.addEventListener("change", async () => {
+    state.metricsMode = elements.metricsMode.value === "text" ? "text" : "shape";
+    if (state.renderMode === "text") state.metricsMode = "text";
+    syncArtifactInput();
+    syncLocationParams();
+    if (!state.book || !state.currentChunkModel) return;
+    try {
+      state.currentLayout = layoutChunk({
+        chunkModel: state.currentChunkModel,
+        styles: state.book.styleMap,
+        width: CANVAS_WIDTH,
+        renderMode: state.renderMode,
+        metricsMode: state.metricsMode,
+        shapeRegistry: state.currentShapeRegistry
+      });
+      renderSelectionMeta();
+      refreshCanvas();
+      setStatus(`Metrics mode switched to ${state.metricsMode}.`, "ok");
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message || String(error), "error");
+    }
+  });
+
+  elements.debugGeometry.addEventListener("change", () => {
+    state.debugGeometry = elements.debugGeometry.checked;
+    syncLocationParams();
+    renderSelectionMeta();
+    refreshCanvas();
+    setStatus(`Geometry overlay ${state.debugGeometry ? "enabled" : "disabled"}.`, "ok");
   });
 
   elements.prevChunk.addEventListener("click", async () => {

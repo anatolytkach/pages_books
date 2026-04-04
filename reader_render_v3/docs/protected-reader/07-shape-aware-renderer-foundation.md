@@ -137,6 +137,8 @@ The shape metrics backend currently uses synthetic advance heuristics derived fr
 
 This is not yet typographically perfect, but it allows the layout engine to stop depending exclusively on browser text metrics.
 
+After the path-aware metrics step, shape mode prefers the shape metrics backend by default and falls back to text metrics only when needed.
+
 ## What shape mode already does
 
 In shape mode the runtime now:

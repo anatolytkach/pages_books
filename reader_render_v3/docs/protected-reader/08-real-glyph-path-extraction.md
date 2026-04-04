@@ -100,6 +100,12 @@ In shape mode, the dev runtime now:
 
 Selection and copy still operate from the runtime-safe logical layout and reconstruction model, not from debug files and not from DOM text.
 
+After the path-aware metrics step, shape mode can also pair this extracted-path painting with:
+
+- shape metrics backend
+- glyph-box based offset mapping
+- more precise hit-testing than the older text-metrics-only fallback
+
 ## What this changes relative to the previous step
 
 Before:

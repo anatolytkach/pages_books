@@ -64,6 +64,13 @@ The render backend may change, but selection continues to operate over the share
 
 Even after real extracted shapes are introduced, selection is intentionally allowed to stay on the current approximation backend until glyph-path metrics and hit-testing become precise enough to replace it safely.
 
+That transition has now started:
+
+- shape mode can run with text-metrics fallback
+- or with shape-aware metrics and glyph-box based offset mapping
+
+Selection still uses the same logical range model, but the start/end offsets chosen in shape mode can now come from a more precise geometry backend.
+
 ## Current selection interactions
 
 Implemented now:

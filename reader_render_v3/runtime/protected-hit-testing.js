@@ -1,3 +1,5 @@
+import { nearestOffsetFromGlyphBoxes } from "./protected-shape-offset-map.js";
+
 function findLine(layout, x, y) {
   return layout.lines.find((line) =>
     y >= line.y &&
@@ -8,6 +10,9 @@ function findLine(layout, x, y) {
 }
 
 function nearestOffsetInFragment(fragment, x) {
+  if (fragment.glyphBoxes && fragment.glyphBoxes.length) {
+    return nearestOffsetFromGlyphBoxes(fragment, x);
+  }
   if (!fragment.charPositions || !fragment.charPositions.length) {
     return fragment.startOffset;
   }
@@ -38,7 +43,9 @@ export function hitTestPosition(layout, x, y) {
         lineIndex: line.lineIndex,
         fragmentIndex: target.fragmentIndex,
         segmentId: target.segmentId,
-        offset: target.startOffset
+        offset: target.startOffset,
+        hitTestingBackend: layout.hitTestingBackend || "text-geometry",
+        precisionMode: layout.selectionPrecisionMode || "text-metrics-approx"
       };
     }
     target = line.fragments[line.fragments.length - 1] || null;
@@ -48,7 +55,9 @@ export function hitTestPosition(layout, x, y) {
       lineIndex: line.lineIndex,
       fragmentIndex: target.fragmentIndex,
       segmentId: target.segmentId,
-      offset: target.endOffset
+      offset: target.endOffset,
+      hitTestingBackend: layout.hitTestingBackend || "text-geometry",
+      precisionMode: layout.selectionPrecisionMode || "text-metrics-approx"
     };
   }
 
@@ -57,6 +66,8 @@ export function hitTestPosition(layout, x, y) {
     lineIndex: line.lineIndex,
     fragmentIndex: target.fragmentIndex,
     segmentId: target.segmentId,
-    offset: nearestOffsetInFragment(target, x)
+    offset: nearestOffsetInFragment(target, x),
+    hitTestingBackend: layout.hitTestingBackend || "text-geometry",
+    precisionMode: layout.selectionPrecisionMode || "text-metrics-approx"
   };
 }
