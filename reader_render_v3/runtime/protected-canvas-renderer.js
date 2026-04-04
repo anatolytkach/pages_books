@@ -13,6 +13,42 @@ function clearCanvas(canvas, width, height) {
   return ctx;
 }
 
+function drawHighlightRect(ctx, rect) {
+  const x = rect.x;
+  const y = rect.y + 2;
+  const width = rect.width;
+  const height = Math.max(12, rect.height - 4);
+  const radius = Math.min(6, Math.max(2, Math.floor(height / 3)));
+  if (typeof ctx.roundRect === "function") {
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, radius);
+    ctx.fill();
+    return;
+  }
+  ctx.fillRect(x, y, width, height);
+}
+
+function offsetToFragmentX(fragment, offset) {
+  const localOffset = Math.max(0, Math.min(fragment.endOffset - fragment.startOffset, offset - fragment.startOffset));
+  const positions = fragment.charPositions || [0, fragment.width || 0];
+  const localX = positions[Math.max(0, Math.min(localOffset, positions.length - 1))] ?? positions[positions.length - 1] ?? 0;
+  return fragment.x + localX;
+}
+
+function offsetToLineX(line, offset) {
+  if (!line.fragments.length) return line.x || 0;
+  const first = line.fragments[0];
+  const last = line.fragments[line.fragments.length - 1];
+  if (offset <= first.startOffset) return first.x;
+  if (offset >= last.endOffset) return last.x + last.width;
+  for (const fragment of line.fragments) {
+    if (offset >= fragment.startOffset && offset <= fragment.endOffset) {
+      return offsetToFragmentX(fragment, offset);
+    }
+  }
+  return last.x + last.width;
+}
+
 export function renderChunkToCanvas({
   canvas,
   overlayCanvas,
@@ -76,10 +112,10 @@ export function renderChunkToCanvas({
 
   const overlay = clearCanvas(overlayCanvas, layout.width, layout.height);
   overlay.clearRect(0, 0, layout.width, layout.height);
-  overlay.fillStyle = "rgba(120, 128, 140, 0.18)";
+  overlay.fillStyle = "rgba(148, 154, 165, 0.24)";
 
   for (const span of highlightSpans || []) {
-    overlay.fillRect(span.x, span.y + 2, span.width, Math.max(12, span.height - 4));
+    drawHighlightRect(overlay, span);
   }
 
   if (debugGeometry) {
@@ -97,6 +133,18 @@ export function renderChunkToCanvas({
           overlay.lineTo(fragment.x + glyphBox.x, fragment.y + fragment.height - 2);
           overlay.stroke();
         }
+      }
+    }
+
+    overlay.strokeStyle = "rgba(118, 78, 180, 0.18)";
+    for (const word of (chunkModel.wordBoundaryModel && chunkModel.wordBoundaryModel.words) || []) {
+      for (const line of layout.lines) {
+        if (word.endOffset <= line.startOffset || word.startOffset >= line.endOffset) continue;
+        const x = offsetToLineX(line, word.startOffset);
+        overlay.beginPath();
+        overlay.moveTo(x, line.y + 2);
+        overlay.lineTo(x, line.y + line.height - 2);
+        overlay.stroke();
       }
     }
   }

@@ -90,6 +90,14 @@ Selection and copy still use the same logical model:
 
 What changed is primarily the precision of choosing those offsets in shape mode.
 
+On top of that, the runtime now applies a word-boundary snapping pass:
+
+- raw hit-tested offsets remain available for internal diagnostics
+- user-visible selection resolves to snapped whole-word boundaries
+- copy uses snapped offsets, so it never emits half-word fragments caused by drag endpoints
+
+This keeps the geometry pipeline precise while making the UX behave more like a reading app.
+
 ## Debug geometry overlay
 
 Dev shell now supports an optional geometry overlay that can show:
@@ -97,6 +105,7 @@ Dev shell now supports an optional geometry overlay that can show:
 - line boxes
 - fragment boxes
 - glyph boundary ticks
+- word boundary markers
 
 This is graphics-only and does not expose hidden text.
 

@@ -1,5 +1,6 @@
 import { buildTocIndex, getChunkTocLabel } from "./protected-navigation-model.js";
-import { reconstructBlockText } from "./protected-text-reconstruction.js";
+import { reconstructBlockText, reconstructRunText } from "./protected-text-reconstruction.js";
+import { buildWordBoundaryModel } from "./protected-word-boundary.js";
 
 async function fetchJson(url) {
   const response = await fetch(url, { credentials: "same-origin" });
@@ -92,6 +93,14 @@ export async function loadProtectedChunkModel(book, chunkIndex) {
     runBySegmentKey.set(`${run.blockId}:${runIndex}`, run);
   }
 
+  const segmentTexts = textSegments.map((segment) => {
+    const run = runBySegmentKey.get(`${segment.blockId}:${segment.runIndex}`);
+    return {
+      ...segment,
+      text: run ? reconstructRunText(run, glyphMap) : ""
+    };
+  });
+
   const chunkLocation = (book.locations.chunks || []).find((item) => item.chunkId === chunk.chunkId) || null;
   const model = {
     chunk,
@@ -101,6 +110,8 @@ export async function loadProtectedChunkModel(book, chunkIndex) {
     runsByBlock,
     runBySegmentKey,
     textSegments,
+    segmentTexts,
+    wordBoundaryModel: buildWordBoundaryModel(segmentTexts),
     chunkLocation,
     tocLabel: getChunkTocLabel(chunkLocation),
     getBlockText(blockId) {

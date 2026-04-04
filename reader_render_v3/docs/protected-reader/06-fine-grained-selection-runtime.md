@@ -89,9 +89,15 @@ Current scope:
 Not yet implemented:
 
 - cross-chunk selection
-- word snapping
 - touch handles
 - glyph-perfect caret placement
+
+Word snapping is now enabled for the visible runtime selection:
+
+- raw pointer offsets are still collected internally
+- visible selection and copy are normalized to word boundaries
+- click selects a whole word
+- drag selection expands to whole-word boundaries
 
 ## Partial text reconstruction for copy
 
@@ -119,13 +125,14 @@ It does not use:
 
 ## Visualization
 
-Selection is visualized with overlay canvas rectangles that map to actual selected ranges:
+Selection is visualized with merged per-line highlight spans:
 
 - partial line spans
 - multiple lines
 - multiple blocks in one chunk
 
-The highlight is no longer whole-block only.
+The runtime still keeps fragment and glyph geometry internally, but default UI highlight is
+rendered as soft gray merged line rectangles rather than debug-style fragment boxes.
 
 ## Why this is still not Amazon-like precision
 

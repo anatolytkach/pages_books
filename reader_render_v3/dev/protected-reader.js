@@ -195,13 +195,18 @@ function renderSelectionMeta() {
   elements.selectionKind.textContent = selectionResult.selectionType;
   setDlRows(elements.selectionMeta, [
     ["Type", selectionResult.selectionType],
+    ["Selection mode", selectionResult.selectionMode || "n/a"],
+    ["Highlight mode", selectionResult.highlightMode || "n/a"],
     ["Chars", selectionResult.selectedChars],
     ["Blocks", selectionResult.selectedBlocks],
     ["Lines", selectionResult.selectedLines],
     ["Chunk", selectionResult.chunkId || "n/a"],
     ["Location", selectionResult.locationId || "n/a"],
-    ["Start", selectionResult.startOffset ?? "n/a"],
-    ["End", selectionResult.endOffset ?? "n/a"]
+    ["Raw start", selectionResult.rawStartOffset ?? "n/a"],
+    ["Raw end", selectionResult.rawEndOffset ?? "n/a"],
+    ["Snapped start", selectionResult.startOffset ?? "n/a"],
+    ["Snapped end", selectionResult.endOffset ?? "n/a"],
+    ["Word boundary hits", selectionResult.wordBoundaryHits ?? 0]
   ]);
 }
 

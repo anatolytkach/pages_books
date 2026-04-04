@@ -1,3 +1,5 @@
+import { snapSelectionOffsets } from "./protected-word-boundary.js";
+
 function comparePositions(a, b) {
   if (!a && !b) return 0;
   if (!a) return -1;
@@ -92,54 +94,69 @@ export function buildSelectionResult({ chunkModel, layout, selectionState }) {
   if (!normalized.start || !normalized.end) {
     return {
       selectionType: "none",
+      selectionMode: "word-snapped",
+      highlightMode: "merged-line",
       isCollapsed: true,
       blockIds: [],
       selectedBlocks: 0,
       selectedLines: 0,
       selectedChars: 0,
+      rawStartOffset: null,
+      rawEndOffset: null,
       startOffset: null,
       endOffset: null
     };
   }
 
-  const startOffset = normalized.start.offset;
-  const endOffset = normalized.end.offset;
+  const rawStartOffset = normalized.start.offset;
+  const rawEndOffset = normalized.end.offset;
+  const snapped = snapSelectionOffsets(chunkModel.wordBoundaryModel, rawStartOffset, rawEndOffset);
+  const startOffset = snapped.startOffset;
+  const endOffset = snapped.endOffset;
+  const isCollapsed = startOffset == null || endOffset == null || startOffset === endOffset;
   const selectedFragments = [];
   const selectedLineIndexes = new Set();
   const selectedBlockIds = new Set();
 
-  for (const line of layout.lines) {
-    if (line.endOffset <= startOffset || line.startOffset >= endOffset) continue;
-    let lineSelected = false;
-    for (const fragment of line.fragments) {
-      const from = Math.max(fragment.startOffset, startOffset);
-      const to = Math.min(fragment.endOffset, endOffset);
-      if (to <= from) continue;
-      lineSelected = true;
-      selectedBlockIds.add(fragment.blockId);
-      selectedFragments.push({
-        lineIndex: line.lineIndex,
-        blockId: fragment.blockId,
-        segmentId: fragment.segmentId,
-        startOffset: from,
-        endOffset: to
-      });
+  if (!isCollapsed) {
+    for (const line of layout.lines) {
+      if (line.endOffset <= startOffset || line.startOffset >= endOffset) continue;
+      let lineSelected = false;
+      for (const fragment of line.fragments) {
+        const from = Math.max(fragment.startOffset, startOffset);
+        const to = Math.min(fragment.endOffset, endOffset);
+        if (to <= from) continue;
+        lineSelected = true;
+        selectedBlockIds.add(fragment.blockId);
+        selectedFragments.push({
+          lineIndex: line.lineIndex,
+          blockId: fragment.blockId,
+          segmentId: fragment.segmentId,
+          startOffset: from,
+          endOffset: to
+        });
+      }
+      if (lineSelected) selectedLineIndexes.add(line.lineIndex);
     }
-    if (lineSelected) selectedLineIndexes.add(line.lineIndex);
   }
 
   const blockAnchors = (chunkModel.chunk.selectionLayer && chunkModel.chunk.selectionLayer.blockAnchors) || [];
   const blockAnchorMap = new Map(blockAnchors.map((item) => [item.blockId, item]));
 
   return {
-    selectionType: normalized.isCollapsed ? "caret" : "range",
-    isCollapsed: normalized.isCollapsed,
+    selectionType: isCollapsed ? "caret" : "range",
+    selectionMode: snapped.selectionMode || "word-snapped",
+    highlightMode: "merged-line",
+    isCollapsed,
     chunkId: chunkModel.chunk.chunkId,
     locationId: chunkModel.chunkLocation ? chunkModel.chunkLocation.locationId : null,
     hitTestingBackend: layout.hitTestingBackend || "text-geometry",
     selectionPrecisionMode: layout.selectionPrecisionMode || "text-metrics-approx",
+    rawStartOffset,
+    rawEndOffset,
     startOffset,
     endOffset,
+    wordBoundaryHits: snapped.wordBoundaryHits || 0,
     selectedChars: Math.max(0, endOffset - startOffset),
     selectedLines: selectedLineIndexes.size,
     selectedBlocks: selectedBlockIds.size,
@@ -153,53 +170,51 @@ export function buildSelectionResult({ chunkModel, layout, selectionState }) {
   };
 }
 
+function offsetToFragmentX(fragment, offset) {
+  const localOffset = Math.max(0, Math.min(fragment.endOffset - fragment.startOffset, offset - fragment.startOffset));
+  const positions = fragment.charPositions || [0, fragment.width || 0];
+  const localX = positions[Math.max(0, Math.min(localOffset, positions.length - 1))] ?? positions[positions.length - 1] ?? 0;
+  return fragment.x + localX;
+}
+
+function offsetToLineX(line, offset) {
+  if (!line.fragments.length) return line.x || 0;
+  const first = line.fragments[0];
+  const last = line.fragments[line.fragments.length - 1];
+  if (offset <= first.startOffset) return first.x;
+  if (offset >= last.endOffset) return last.x + last.width;
+  for (const fragment of line.fragments) {
+    if (offset >= fragment.startOffset && offset <= fragment.endOffset) {
+      return offsetToFragmentX(fragment, offset);
+    }
+  }
+  for (let index = 0; index < line.fragments.length - 1; index += 1) {
+    const left = line.fragments[index];
+    const right = line.fragments[index + 1];
+    if (offset >= left.endOffset && offset <= right.startOffset) {
+      return right.x;
+    }
+  }
+  return last.x + last.width;
+}
+
 export function buildSelectionHighlights(layout, selectionResult) {
   if (!selectionResult || selectionResult.isCollapsed) return [];
-  const byLine = new Map();
-
+  const rects = [];
   for (const line of layout.lines) {
-    const lineFragments = selectionResult.selectedFragments.filter((item) => item.lineIndex === line.lineIndex);
-    if (!lineFragments.length) continue;
-    const spans = [];
-    for (const fragment of line.fragments) {
-      const selected = lineFragments.find((item) =>
-        item.segmentId === fragment.segmentId &&
-        item.startOffset < fragment.endOffset &&
-        item.endOffset > fragment.startOffset
-      );
-      if (!selected) continue;
-      const startIndex = selected.startOffset - fragment.startOffset;
-      const endIndex = selected.endOffset - fragment.startOffset;
-      const startX = fragment.x + fragment.charPositions[startIndex];
-      const endX = fragment.x + fragment.charPositions[endIndex];
-      spans.push({
-        x: startX,
-        y: line.y,
-        width: Math.max(2, endX - startX),
-        height: line.height
-      });
-    }
-    if (spans.length) byLine.set(line.lineIndex, spans);
-  }
-
-  return Array.from(byLine.values())
-    .flatMap((spans) => {
-      const sorted = [...spans].sort((a, b) => a.x - b.x);
-      const merged = [];
-      for (const span of sorted) {
-        const prev = merged[merged.length - 1];
-        if (!prev) {
-          merged.push({ ...span });
-          continue;
-        }
-        const prevRight = prev.x + prev.width;
-        if (span.x <= prevRight + 3) {
-          prev.width = Math.max(prevRight, span.x + span.width) - prev.x;
-          prev.height = Math.max(prev.height, span.height);
-        } else {
-          merged.push({ ...span });
-        }
-      }
-      return merged;
+    if (line.endOffset <= selectionResult.startOffset || line.startOffset >= selectionResult.endOffset) continue;
+    const from = Math.max(line.startOffset, selectionResult.startOffset);
+    const to = Math.min(line.endOffset, selectionResult.endOffset);
+    if (to <= from) continue;
+    const startX = offsetToLineX(line, from);
+    const endX = offsetToLineX(line, to);
+    rects.push({
+      x: Math.min(startX, endX),
+      y: line.y,
+      width: Math.max(2, Math.abs(endX - startX)),
+      height: line.height,
+      lineIndex: line.lineIndex
     });
+  }
+  return rects;
 }
