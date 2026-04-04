@@ -13,9 +13,9 @@ function loadFont(fontFile) {
   return FONT_CACHE.get(fontFile);
 }
 
-function codePointToChar(codePoint) {
+function scalarToChar(scalar) {
   try {
-    return String.fromCodePoint(codePoint);
+    return String.fromCodePoint(scalar);
   } catch (_) {
     return "";
   }
@@ -33,7 +33,7 @@ function extractGlyphPath({ glyph, fontPolicy }) {
     };
   }
 
-  if (glyph.codePoint === 32) {
+  if (glyph.scalar === 32) {
     return {
       source: "synthetic",
       extractionStatus: "space-fallback",
@@ -45,7 +45,7 @@ function extractGlyphPath({ glyph, fontPolicy }) {
   }
 
   const font = loadFont(fontPolicy.fontFile);
-  const char = codePointToChar(glyph.codePoint);
+  const char = scalarToChar(glyph.scalar);
   if (!char) {
     return {
       source: "synthetic",

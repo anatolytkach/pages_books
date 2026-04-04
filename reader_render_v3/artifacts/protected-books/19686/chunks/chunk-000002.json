@@ -633,12 +633,12 @@
   ],
   "renderLayer": {
     "chunkGlyphsRef": "../glyphs/chunk-000002.glyphs.json",
-    "textRuns": [
+    "glyphRuns": [
       {
         "runId": "item1-b-0025-run-1",
         "blockId": "item1-b-0025",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -663,7 +663,7 @@
           "g-57a534b9f2b9",
           "g-1e032e976563"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -707,7 +707,7 @@
         "runId": "item1-b-0026-run-1",
         "blockId": "item1-b-0026",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -732,7 +732,7 @@
           "g-6383b667fce7",
           "g-a22a4bcd2af2"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -776,7 +776,7 @@
         "runId": "item1-b-0027-run-1",
         "blockId": "item1-b-0027",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -801,7 +801,7 @@
           "g-6383b667fce7",
           "g-57a534b9f2b9"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -845,7 +845,7 @@
         "runId": "item1-b-0028-run-1",
         "blockId": "item1-b-0028",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -870,7 +870,7 @@
           "g-6d9f3de230a5",
           "g-6383b667fce7"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -914,7 +914,7 @@
         "runId": "item1-b-0029-run-1",
         "blockId": "item1-b-0029",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -939,7 +939,7 @@
           "g-6383b667fce7",
           "g-a22a4bcd2af2"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -983,7 +983,7 @@
         "runId": "item1-b-0030-run-1",
         "blockId": "item1-b-0030",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1008,7 +1008,7 @@
           "g-6383b667fce7",
           "g-6383b667fce7"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1052,7 +1052,7 @@
         "runId": "item1-b-0031-run-1",
         "blockId": "item1-b-0031",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1077,7 +1077,7 @@
           "g-315d77b1516f",
           "g-6d9f3de230a5"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1121,7 +1121,7 @@
         "runId": "item1-b-0032-run-1",
         "blockId": "item1-b-0032",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1146,7 +1146,7 @@
           "g-6d9f3de230a5",
           "g-315d77b1516f"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1190,7 +1190,7 @@
         "runId": "item1-b-0033-run-1",
         "blockId": "item1-b-0033",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1215,7 +1215,7 @@
           "g-6383b667fce7",
           "g-6383b667fce7"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1259,7 +1259,7 @@
         "runId": "item1-b-0034-run-1",
         "blockId": "item1-b-0034",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1284,7 +1284,7 @@
           "g-8b8abd5605dd",
           "g-8b8abd5605dd"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1328,7 +1328,7 @@
         "runId": "item1-b-0035-run-1",
         "blockId": "item1-b-0035",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1353,7 +1353,7 @@
           "g-315d77b1516f",
           "g-10c5360838f2"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1397,7 +1397,7 @@
         "runId": "item1-b-0036-run-1",
         "blockId": "item1-b-0036",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1422,7 +1422,7 @@
           "g-6383b667fce7",
           "g-6383b667fce7"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1466,7 +1466,7 @@
         "runId": "item1-b-0037-run-1",
         "blockId": "item1-b-0037",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1491,7 +1491,7 @@
           "g-10c5360838f2",
           "g-8b8abd5605dd"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1535,7 +1535,7 @@
         "runId": "item1-b-0038-run-1",
         "blockId": "item1-b-0038",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1560,7 +1560,7 @@
           "g-10c5360838f2",
           "g-8b8abd5605dd"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1604,7 +1604,7 @@
         "runId": "item1-b-0039-run-1",
         "blockId": "item1-b-0039",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1629,7 +1629,7 @@
           "g-6d9f3de230a5",
           "g-8b8abd5605dd"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1673,7 +1673,7 @@
         "runId": "item1-b-0040-run-1",
         "blockId": "item1-b-0040",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1698,7 +1698,7 @@
           "g-57a534b9f2b9",
           "g-6383b667fce7"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1742,7 +1742,7 @@
         "runId": "item1-b-0041-run-1",
         "blockId": "item1-b-0041",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-a3b59b475c8d",
           "g-0ff42b742db4",
           "g-729214ee8d5c",
@@ -1767,7 +1767,7 @@
           "g-10c5360838f2",
           "g-6383b667fce7"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1811,7 +1811,7 @@
         "runId": "item1-b-0042-run-1",
         "blockId": "item1-b-0042",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-239eb1fd70c6",
           "g-01d5f5f972e1",
           "g-abea04e96e92",
@@ -1866,7 +1866,7 @@
           "g-48bacb6c4f26",
           "g-0bb21a8dcbcd"
         ],
-        "textLength": 53,
+        "glyphCount": 53,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1901,7 +1901,7 @@
         "runId": "item1-b-0043-run-1",
         "blockId": "item1-b-0043",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-e2803355590a",
           "g-1bbb3411c016",
           "g-b929aed29a62",
@@ -2467,7 +2467,7 @@
           "g-b124deeb402e",
           "g-ca6431788d1e"
         ],
-        "textLength": 564,
+        "glyphCount": 564,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -3516,6 +3516,736 @@
         "blockId": "item1-b-0043",
         "start": 480,
         "end": 1044
+      }
+    ],
+    "wordBoundaries": [
+      {
+        "start": 2,
+        "end": 9
+      },
+      {
+        "start": 10,
+        "end": 12
+      },
+      {
+        "start": 15,
+        "end": 17
+      },
+      {
+        "start": 18,
+        "end": 20
+      },
+      {
+        "start": 21,
+        "end": 23
+      },
+      {
+        "start": 27,
+        "end": 34
+      },
+      {
+        "start": 35,
+        "end": 37
+      },
+      {
+        "start": 40,
+        "end": 42
+      },
+      {
+        "start": 43,
+        "end": 45
+      },
+      {
+        "start": 46,
+        "end": 48
+      },
+      {
+        "start": 52,
+        "end": 59
+      },
+      {
+        "start": 60,
+        "end": 62
+      },
+      {
+        "start": 65,
+        "end": 67
+      },
+      {
+        "start": 68,
+        "end": 70
+      },
+      {
+        "start": 71,
+        "end": 73
+      },
+      {
+        "start": 77,
+        "end": 84
+      },
+      {
+        "start": 85,
+        "end": 87
+      },
+      {
+        "start": 90,
+        "end": 92
+      },
+      {
+        "start": 93,
+        "end": 95
+      },
+      {
+        "start": 96,
+        "end": 98
+      },
+      {
+        "start": 102,
+        "end": 109
+      },
+      {
+        "start": 110,
+        "end": 112
+      },
+      {
+        "start": 115,
+        "end": 117
+      },
+      {
+        "start": 118,
+        "end": 120
+      },
+      {
+        "start": 121,
+        "end": 123
+      },
+      {
+        "start": 127,
+        "end": 134
+      },
+      {
+        "start": 135,
+        "end": 137
+      },
+      {
+        "start": 140,
+        "end": 142
+      },
+      {
+        "start": 143,
+        "end": 145
+      },
+      {
+        "start": 146,
+        "end": 148
+      },
+      {
+        "start": 152,
+        "end": 159
+      },
+      {
+        "start": 160,
+        "end": 162
+      },
+      {
+        "start": 165,
+        "end": 167
+      },
+      {
+        "start": 168,
+        "end": 170
+      },
+      {
+        "start": 171,
+        "end": 173
+      },
+      {
+        "start": 177,
+        "end": 184
+      },
+      {
+        "start": 185,
+        "end": 187
+      },
+      {
+        "start": 190,
+        "end": 192
+      },
+      {
+        "start": 193,
+        "end": 195
+      },
+      {
+        "start": 196,
+        "end": 198
+      },
+      {
+        "start": 202,
+        "end": 209
+      },
+      {
+        "start": 210,
+        "end": 212
+      },
+      {
+        "start": 215,
+        "end": 217
+      },
+      {
+        "start": 218,
+        "end": 220
+      },
+      {
+        "start": 221,
+        "end": 223
+      },
+      {
+        "start": 227,
+        "end": 234
+      },
+      {
+        "start": 235,
+        "end": 237
+      },
+      {
+        "start": 240,
+        "end": 242
+      },
+      {
+        "start": 243,
+        "end": 245
+      },
+      {
+        "start": 246,
+        "end": 248
+      },
+      {
+        "start": 252,
+        "end": 259
+      },
+      {
+        "start": 260,
+        "end": 262
+      },
+      {
+        "start": 265,
+        "end": 267
+      },
+      {
+        "start": 268,
+        "end": 270
+      },
+      {
+        "start": 271,
+        "end": 273
+      },
+      {
+        "start": 277,
+        "end": 284
+      },
+      {
+        "start": 285,
+        "end": 287
+      },
+      {
+        "start": 290,
+        "end": 292
+      },
+      {
+        "start": 293,
+        "end": 295
+      },
+      {
+        "start": 296,
+        "end": 298
+      },
+      {
+        "start": 302,
+        "end": 309
+      },
+      {
+        "start": 310,
+        "end": 312
+      },
+      {
+        "start": 315,
+        "end": 317
+      },
+      {
+        "start": 318,
+        "end": 320
+      },
+      {
+        "start": 321,
+        "end": 323
+      },
+      {
+        "start": 327,
+        "end": 334
+      },
+      {
+        "start": 335,
+        "end": 337
+      },
+      {
+        "start": 340,
+        "end": 342
+      },
+      {
+        "start": 343,
+        "end": 345
+      },
+      {
+        "start": 346,
+        "end": 348
+      },
+      {
+        "start": 352,
+        "end": 359
+      },
+      {
+        "start": 360,
+        "end": 362
+      },
+      {
+        "start": 365,
+        "end": 367
+      },
+      {
+        "start": 368,
+        "end": 370
+      },
+      {
+        "start": 371,
+        "end": 373
+      },
+      {
+        "start": 377,
+        "end": 384
+      },
+      {
+        "start": 385,
+        "end": 387
+      },
+      {
+        "start": 390,
+        "end": 392
+      },
+      {
+        "start": 393,
+        "end": 395
+      },
+      {
+        "start": 396,
+        "end": 398
+      },
+      {
+        "start": 402,
+        "end": 409
+      },
+      {
+        "start": 410,
+        "end": 412
+      },
+      {
+        "start": 415,
+        "end": 417
+      },
+      {
+        "start": 418,
+        "end": 420
+      },
+      {
+        "start": 421,
+        "end": 423
+      },
+      {
+        "start": 425,
+        "end": 433
+      },
+      {
+        "start": 434,
+        "end": 439
+      },
+      {
+        "start": 440,
+        "end": 449
+      },
+      {
+        "start": 450,
+        "end": 456
+      },
+      {
+        "start": 457,
+        "end": 463
+      },
+      {
+        "start": 464,
+        "end": 477
+      },
+      {
+        "start": 480,
+        "end": 483
+      },
+      {
+        "start": 484,
+        "end": 490
+      },
+      {
+        "start": 491,
+        "end": 493
+      },
+      {
+        "start": 494,
+        "end": 501
+      },
+      {
+        "start": 502,
+        "end": 505
+      },
+      {
+        "start": 506,
+        "end": 510
+      },
+      {
+        "start": 511,
+        "end": 521
+      },
+      {
+        "start": 522,
+        "end": 526
+      },
+      {
+        "start": 527,
+        "end": 531
+      },
+      {
+        "start": 532,
+        "end": 536
+      },
+      {
+        "start": 537,
+        "end": 545
+      },
+      {
+        "start": 547,
+        "end": 550
+      },
+      {
+        "start": 552,
+        "end": 561
+      },
+      {
+        "start": 563,
+        "end": 565
+      },
+      {
+        "start": 567,
+        "end": 576
+      },
+      {
+        "start": 579,
+        "end": 585
+      },
+      {
+        "start": 586,
+        "end": 592
+      },
+      {
+        "start": 594,
+        "end": 595
+      },
+      {
+        "start": 597,
+        "end": 606
+      },
+      {
+        "start": 607,
+        "end": 611
+      },
+      {
+        "start": 613,
+        "end": 615
+      },
+      {
+        "start": 616,
+        "end": 619
+      },
+      {
+        "start": 620,
+        "end": 624
+      },
+      {
+        "start": 625,
+        "end": 627
+      },
+      {
+        "start": 628,
+        "end": 631
+      },
+      {
+        "start": 632,
+        "end": 641
+      },
+      {
+        "start": 643,
+        "end": 646
+      },
+      {
+        "start": 647,
+        "end": 651
+      },
+      {
+        "start": 652,
+        "end": 654
+      },
+      {
+        "start": 655,
+        "end": 665
+      },
+      {
+        "start": 666,
+        "end": 676
+      },
+      {
+        "start": 677,
+        "end": 679
+      },
+      {
+        "start": 680,
+        "end": 682
+      },
+      {
+        "start": 683,
+        "end": 686
+      },
+      {
+        "start": 687,
+        "end": 693
+      },
+      {
+        "start": 694,
+        "end": 700
+      },
+      {
+        "start": 701,
+        "end": 703
+      },
+      {
+        "start": 704,
+        "end": 707
+      },
+      {
+        "start": 708,
+        "end": 715
+      },
+      {
+        "start": 716,
+        "end": 720
+      },
+      {
+        "start": 721,
+        "end": 726
+      },
+      {
+        "start": 727,
+        "end": 730
+      },
+      {
+        "start": 731,
+        "end": 735
+      },
+      {
+        "start": 736,
+        "end": 738
+      },
+      {
+        "start": 739,
+        "end": 748
+      },
+      {
+        "start": 750,
+        "end": 752
+      },
+      {
+        "start": 754,
+        "end": 755
+      },
+      {
+        "start": 757,
+        "end": 763
+      },
+      {
+        "start": 764,
+        "end": 773
+      },
+      {
+        "start": 774,
+        "end": 782
+      },
+      {
+        "start": 783,
+        "end": 792
+      },
+      {
+        "start": 793,
+        "end": 796
+      },
+      {
+        "start": 797,
+        "end": 807
+      },
+      {
+        "start": 808,
+        "end": 813
+      },
+      {
+        "start": 814,
+        "end": 816
+      },
+      {
+        "start": 817,
+        "end": 820
+      },
+      {
+        "start": 821,
+        "end": 825
+      },
+      {
+        "start": 826,
+        "end": 828
+      },
+      {
+        "start": 829,
+        "end": 839
+      },
+      {
+        "start": 840,
+        "end": 850
+      },
+      {
+        "start": 851,
+        "end": 856
+      },
+      {
+        "start": 858,
+        "end": 861
+      },
+      {
+        "start": 863,
+        "end": 867
+      },
+      {
+        "start": 870,
+        "end": 872
+      },
+      {
+        "start": 873,
+        "end": 876
+      },
+      {
+        "start": 877,
+        "end": 883
+      },
+      {
+        "start": 884,
+        "end": 890
+      },
+      {
+        "start": 892,
+        "end": 893
+      },
+      {
+        "start": 894,
+        "end": 903
+      },
+      {
+        "start": 905,
+        "end": 913
+      },
+      {
+        "start": 915,
+        "end": 924
+      },
+      {
+        "start": 925,
+        "end": 928
+      },
+      {
+        "start": 929,
+        "end": 938
+      },
+      {
+        "start": 939,
+        "end": 947
+      },
+      {
+        "start": 948,
+        "end": 950
+      },
+      {
+        "start": 951,
+        "end": 954
+      },
+      {
+        "start": 955,
+        "end": 959
+      },
+      {
+        "start": 960,
+        "end": 962
+      },
+      {
+        "start": 963,
+        "end": 966
+      },
+      {
+        "start": 967,
+        "end": 977
+      },
+      {
+        "start": 978,
+        "end": 982
+      },
+      {
+        "start": 984,
+        "end": 987
+      },
+      {
+        "start": 988,
+        "end": 991
+      },
+      {
+        "start": 992,
+        "end": 997
+      },
+      {
+        "start": 998,
+        "end": 1006
+      },
+      {
+        "start": 1008,
+        "end": 1010
+      },
+      {
+        "start": 1011,
+        "end": 1020
+      },
+      {
+        "start": 1021,
+        "end": 1023
+      },
+      {
+        "start": 1024,
+        "end": 1025
+      },
+      {
+        "start": 1027,
+        "end": 1036
+      },
+      {
+        "start": 1038,
+        "end": 1043
       }
     ],
     "chunkRange": {

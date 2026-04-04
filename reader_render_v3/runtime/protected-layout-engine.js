@@ -1,4 +1,4 @@
-import { reconstructRunText } from "./protected-text-reconstruction.js";
+import { createReconstructionScope, disposeReconstructionScope, reconstructRangeText } from "./protected-text-reconstruction.js";
 import { getShapeMetricsBackend, getTextMetricsBackend } from "./protected-shape-metrics.js";
 
 export function fontSpecForStyle(styleTokenRecord = {}) {
@@ -22,25 +22,43 @@ export function fontSpecForStyle(styleTokenRecord = {}) {
   };
 }
 
-function tokenizeWithOffsets(text, startOffset) {
+function buildTokenSlices(segment, wordBoundaryModel) {
   const tokens = [];
-  const matches = String(text || "").matchAll(/\S+|\s+/g);
-  for (const match of matches) {
+  const words = ((wordBoundaryModel && wordBoundaryModel.words) || [])
+    .filter((item) => item.endOffset > segment.start && item.startOffset < segment.end)
+    .map((item) => ({
+      startOffset: Math.max(segment.start, item.startOffset),
+      endOffset: Math.min(segment.end, item.endOffset),
+      kind: "word"
+    }));
+  let cursor = segment.start;
+  for (const word of words) {
+    if (word.startOffset > cursor) {
+      tokens.push({
+        startOffset: cursor,
+        endOffset: word.startOffset,
+        kind: "gap"
+      });
+    }
+    tokens.push(word);
+    cursor = word.endOffset;
+  }
+  if (cursor < segment.end) {
     tokens.push({
-      text: match[0],
-      startOffset: startOffset + match.index,
-      endOffset: startOffset + match.index + match[0].length
+      startOffset: cursor,
+      endOffset: segment.end,
+      kind: "gap"
     });
   }
   return tokens.length ? tokens : [{
-    text: "",
-    startOffset,
-    endOffset: startOffset
+    startOffset: segment.start,
+    endOffset: segment.end,
+    kind: "gap"
   }];
 }
 
 function resolveMetricsBackend({ ctx, renderMode, metricsMode, shapeRegistry }) {
-  if (renderMode === "shape" && metricsMode === "shape" && shapeRegistry) {
+  if (shapeRegistry && !(renderMode === "shape" && metricsMode === "text")) {
     return getShapeMetricsBackend(shapeRegistry);
   }
   return getTextMetricsBackend(ctx);
@@ -72,6 +90,14 @@ export function layoutChunk({
   const orderedBlockIds = [];
   const segmentMap = segmentMapForChunk(chunkModel.chunk);
   const backend = metricsBackend || resolveMetricsBackend({ ctx, renderMode, metricsMode, shapeRegistry });
+  const reconstructionScope = backend.name === "text"
+    ? createReconstructionScope({
+        chunkModel,
+        purpose: "layout-fallback",
+        startOffset: 0,
+        endOffset: chunkModel.chunk.selectionLayer ? chunkModel.chunk.selectionLayer.textLength : 0
+      })
+    : null;
   const metricsStats = {
     glyphCount: 0,
     extractedCount: 0,
@@ -121,8 +147,11 @@ export function layoutChunk({
       glyphEndIndex
     }) {
       ctx.font = font.css;
+      const tokenText = backend.name === "text"
+        ? reconstructRangeText(chunkModel, token.startOffset, token.endOffset, reconstructionScope)
+        : "";
       const measure = backend.measureRun({
-        text: token.text,
+        text: tokenText,
         glyphs,
         font,
         ctx
@@ -156,7 +185,7 @@ export function layoutChunk({
         });
       }
 
-      if (!currentLine.fragments.length && /^\s+$/.test(token.text)) {
+      if (!currentLine.fragments.length && token.kind === "gap" && /^\s*$/.test(tokenText)) {
         return;
       }
 
@@ -170,7 +199,7 @@ export function layoutChunk({
         glyphEndIndex,
         styleToken,
         font,
-        text: token.text,
+        tokenKind: token.kind,
         sourceRef,
         x: padding + currentWidth,
         y: line.y,
@@ -190,8 +219,13 @@ export function layoutChunk({
       const style = styles.get(run.styleToken) || {};
       const font = fontSpecForStyle(style);
       const segment = segmentMap.get(`${block.blockId}:${runIndex}`) || null;
-      const runText = reconstructRunText(run, chunkModel.glyphMap);
-      const tokens = tokenizeWithOffsets(runText, segment ? segment.start : 0);
+      const tokens = buildTokenSlices(
+        segment || {
+          start: 0,
+          end: run.glyphCount || (run.glyphTokens || []).length
+        },
+        chunkModel.wordBoundaryModel
+      );
       tokens.forEach((token) => {
         const localStart = token.startOffset - (segment ? segment.start : 0);
         const localEnd = token.endOffset - (segment ? segment.start : 0);
@@ -201,9 +235,9 @@ export function layoutChunk({
           styleToken: run.styleToken,
           segmentId: segment ? segment.segmentId : `${block.blockId}:run:${runIndex}`,
           runKey: `${block.blockId}:${runIndex}`,
-          glyphs: (run.glyphIds || [])
+          glyphs: (run.glyphTokens || [])
             .slice(localStart, localEnd)
-            .map((glyphId) => chunkModel.glyphMap.get(glyphId))
+            .map((glyphToken) => chunkModel.glyphMap.get(glyphToken))
             .filter(Boolean),
           glyphStartIndex: localStart,
           glyphEndIndex: localEnd,
@@ -236,6 +270,19 @@ export function layoutChunk({
     cursorY += style.blockRole === "heading" ? 18 : style.blockRole === "verse" ? 14 : 12;
   }
 
+  const reconstructionDiagnostics = reconstructionScope
+    ? {
+        mode: reconstructionScope.purpose,
+        cacheEntries: reconstructionScope.cacheEntries || 0,
+        decodedChars: reconstructionScope.decodedChars || 0
+      }
+    : {
+        mode: "none",
+        cacheEntries: 0,
+        decodedChars: 0
+      };
+  disposeReconstructionScope(reconstructionScope);
+
   const height = Math.max(cursorY + padding, 640);
   return {
     width,
@@ -252,6 +299,7 @@ export function layoutChunk({
       : 0,
     metricsFallbackCount: metricsStats.fallbackCount,
     metricsGlyphCount: metricsStats.glyphCount,
+    reconstructionDiagnostics,
     hitTestingBackend: backend.name === "shape" ? "shape-geometry" : "text-geometry",
     selectionPrecisionMode: backend.name === "shape" ? "path-aware-approx" : "text-metrics-approx"
   };

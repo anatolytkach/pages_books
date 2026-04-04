@@ -68,3 +68,14 @@ This is closer to Kindle-like behavior, but not yet glyph-perfect:
 - cross-chunk selection is still out of scope
 - shape-mode line breaking and hit-testing still use approximations where exact shaping data is unavailable
 - highlight is line-merged, not contour-following around individual glyph shapes
+
+## Interaction With Global Reading Model
+
+Word-snapped selection now feeds directly into the global range model:
+
+- raw offsets stay local and transient
+- snapped offsets are used to build serializable range descriptors
+- those descriptors can later cross chunk boundaries without introducing raw text leakage
+
+That means the current word-snapping work is already aligned with future
+highlights/notes persistence and restore flows.

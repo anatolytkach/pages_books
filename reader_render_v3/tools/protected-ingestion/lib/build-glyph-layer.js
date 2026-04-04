@@ -32,45 +32,54 @@ function buildGlyphLayer({ bookId, chunkId, blocks, styleRegistry }) {
   const glyphByKey = new Map();
   const runtimeGlyphs = [];
   const debugGlyphs = [];
+  const internalGlyphs = [];
   const renderRuns = [];
 
   function glyphIdFor(char, styleToken) {
-    const codePoint = char.codePointAt(0);
+    const scalar = char.codePointAt(0);
     const key = `${char}::${styleToken}`;
     if (!glyphByKey.has(key)) {
       const glyphId = `g-${hash(`${seed}:${key}`, 12)}`;
-      const scriptBucket = scriptBucketForCodePoint(codePoint);
+      const scriptBucket = scriptBucketForCodePoint(scalar);
+      const reconRef = `r-${hash(`${seed}:recon:${key}`, 12)}`;
       const runtimeGlyph = {
         glyphId,
-        codePoint,
+        glyphToken: glyphId,
         styleToken,
-        fontFamilyCandidate: fontCandidateForCodePoint(codePoint),
+        fontFamilyCandidate: fontCandidateForCodePoint(scalar),
         scriptBucket,
         glyphClass: `${scriptBucket.toLowerCase()}-${styleToken}`,
         stableRenderClass: `${scriptBucket.toLowerCase()}-chunk-glyph`,
         shapeRef: `shape-${glyphId}`,
         shapeStatus: "synthetic"
       };
+      const internalGlyph = {
+        ...runtimeGlyph,
+        reconRef,
+        scalar
+      };
       const debugGlyph = {
         ...runtimeGlyph,
+        codePoint: scalar,
         char
       };
-      glyphByKey.set(key, { runtimeGlyph, debugGlyph });
+      glyphByKey.set(key, { runtimeGlyph, debugGlyph, internalGlyph });
       runtimeGlyphs.push(runtimeGlyph);
       debugGlyphs.push(debugGlyph);
+      internalGlyphs.push(internalGlyph);
     }
-    return glyphByKey.get(key).runtimeGlyph.glyphId;
+    return glyphByKey.get(key).runtimeGlyph.glyphToken;
   }
 
   blocks.forEach((block) => {
     block.runs.forEach((run, runIndex) => {
-      const glyphIds = Array.from(run.text).map((char) => glyphIdFor(char, run.styleToken));
+      const glyphTokens = Array.from(run.text).map((char) => glyphIdFor(char, run.styleToken));
       renderRuns.push({
         runId: `${block.blockId}-run-${runIndex + 1}`,
         blockId: block.blockId,
         styleToken: run.styleToken,
-        glyphIds,
-        textLength: run.text.length,
+        glyphTokens,
+        glyphCount: glyphTokens.length,
         sourceRef: block.sourceRef,
         linkTarget: run.linkTarget || "",
         styleSignals: styleRegistry[run.styleToken] || null
@@ -82,6 +91,7 @@ function buildGlyphLayer({ bookId, chunkId, blocks, styleRegistry }) {
     seed,
     runtimeGlyphs,
     debugGlyphs,
+    internalGlyphs,
     renderRuns
   };
 }

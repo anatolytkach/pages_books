@@ -1,6 +1,12 @@
 import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
 import { buildGlyphRenderOps } from "./protected-shape-layout.js";
 import { renderGlyphOps } from "./protected-shape-renderer.js";
+import {
+  createReconstructionScope,
+  disposeReconstructionScope,
+  getReconstructionScopeDiagnostics,
+  reconstructRangeText
+} from "./protected-text-reconstruction.js";
 
 function clearCanvas(canvas, width, height) {
   canvas.width = width * 2;
@@ -57,12 +63,20 @@ export function renderChunkToCanvas({
   renderMode = "text",
   shapeRegistry = null,
   debugGeometry = false,
-  highlightSpans
+  highlightSpans,
+  pageWindow = null
 }) {
-  const ctx = clearCanvas(canvas, layout.width, layout.height);
+  const viewportHeight = pageWindow ? pageWindow.height : layout.height;
+  const translateY = pageWindow ? layout.padding - pageWindow.top : 0;
+  const ctx = clearCanvas(canvas, layout.width, viewportHeight);
   ctx.fillStyle = "#fffdfa";
-  ctx.fillRect(0, 0, layout.width, layout.height);
+  ctx.fillRect(0, 0, layout.width, viewportHeight);
+  ctx.save();
+  ctx.translate(0, translateY);
   const activeShapeRegistry = shapeRegistry || createGlyphShapeRegistry(chunkModel.shapeBundle, chunkModel.glyphMap);
+  const visibleLines = pageWindow
+    ? layout.lines.filter((line) => line.lineIndex >= pageWindow.lineStartIndex && line.lineIndex <= pageWindow.lineEndIndex)
+    : layout.lines;
 
   let diagnostics = {
     renderMode,
@@ -84,7 +98,16 @@ export function renderChunkToCanvas({
     hitTestingBackend: layout.hitTestingBackend,
     selectionPrecisionMode: layout.selectionPrecisionMode,
     selectionCompatible: true,
-    hasShapeBundle: !!chunkModel.shapeBundle
+    hasShapeBundle: !!chunkModel.shapeBundle,
+    reconstructionPathMode: "window-scoped",
+    reconstructionCacheMode: "bounded-ephemeral",
+    reconstructionCacheSize: 0,
+    reconstructionExposureStatus: "sealed",
+    networkReconSurface: "narrowed",
+    fullChunkDecode: layout.reconstructionDiagnostics && layout.reconstructionDiagnostics.mode !== "none"
+      ? "not-retained"
+      : "forbidden",
+    reconstructionScope: layout.reconstructionDiagnostics ? layout.reconstructionDiagnostics.mode : "none"
   };
 
   if (renderMode === "shape") {
@@ -97,21 +120,36 @@ export function renderChunkToCanvas({
     renderGlyphOps(ctx, glyphOps, activeShapeRegistry);
     diagnostics = {
       ...diagnostics,
-      glyphOps: glyphOps.length
+      glyphOps: glyphOps.length,
+      reconstructionScope: "none"
     };
   } else {
-    for (const line of layout.lines) {
+    const reconstructionScope = createReconstructionScope({
+      chunkModel,
+      purpose: "page",
+      startOffset: pageWindow ? pageWindow.startOffset : 0,
+      endOffset: pageWindow ? pageWindow.endOffset : chunkModel.chunk.selectionLayer.textLength
+    });
+    for (const line of visibleLines) {
       for (const fragment of line.fragments) {
         ctx.font = fragment.font.css;
         ctx.fillStyle = "#18212f";
-        ctx.fillText(fragment.text || "", fragment.x, fragment.y + fragment.font.size);
+        const text = reconstructRangeText(chunkModel, fragment.startOffset, fragment.endOffset, reconstructionScope);
+        ctx.fillText(text, fragment.x, fragment.y + fragment.font.size);
       }
     }
+    const reconstructionDiagnostics = getReconstructionScopeDiagnostics(reconstructionScope);
+    disposeReconstructionScope(reconstructionScope);
     diagnostics.glyphOps = layout.lines.reduce((sum, line) => sum + line.fragments.reduce((count, fragment) => count + fragment.glyphCount, 0), 0);
+    diagnostics.reconstructionScope = reconstructionDiagnostics.mode;
+    diagnostics.reconstructionCacheSize = reconstructionDiagnostics.cacheEntries;
   }
+  ctx.restore();
 
-  const overlay = clearCanvas(overlayCanvas, layout.width, layout.height);
-  overlay.clearRect(0, 0, layout.width, layout.height);
+  const overlay = clearCanvas(overlayCanvas, layout.width, viewportHeight);
+  overlay.clearRect(0, 0, layout.width, viewportHeight);
+  overlay.save();
+  overlay.translate(0, translateY);
   overlay.fillStyle = "rgba(148, 154, 165, 0.24)";
 
   for (const span of highlightSpans || []) {
@@ -148,6 +186,7 @@ export function renderChunkToCanvas({
       }
     }
   }
+  overlay.restore();
 
   return diagnostics;
 }

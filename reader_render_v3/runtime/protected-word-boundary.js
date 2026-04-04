@@ -26,10 +26,20 @@ function compareEntries(a, b) {
   return a.offset - b.offset;
 }
 
-export function buildWordBoundaryModel(segmentTexts) {
+export function buildWordBoundaryModel(source) {
+  if (source && Array.isArray(source.wordBoundaries)) {
+    return {
+      words: source.wordBoundaries.map((item) => ({
+        startOffset: item.start,
+        endOffset: item.end
+      })),
+      charCount: typeof source.textLength === "number" ? source.textLength : 0
+    };
+  }
+
   const entries = [];
 
-  for (const segment of segmentTexts || []) {
+  for (const segment of source || []) {
     const text = String(segment.text || "");
     const chars = Array.from(text);
     for (let index = 0; index < chars.length; index += 1) {

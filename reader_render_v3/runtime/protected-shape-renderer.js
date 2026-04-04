@@ -1,5 +1,3 @@
-import { codePointToChar } from "./protected-text-reconstruction.js";
-
 export function renderGlyphOps(ctx, glyphOps, shapeRegistry) {
   for (const op of glyphOps) {
     const shapeRecord = shapeRegistry.records.get(op.shapeRef) || null;
@@ -18,8 +16,9 @@ export function renderGlyphOps(ctx, glyphOps, shapeRegistry) {
       ctx.scale(scale, scale);
       ctx.fill(extractedPath);
     } else if (shapeRecord && shapeRecord.primitiveType !== "space") {
-      ctx.font = `${op.fontSize}px ${op.fontFamilyCandidate || "Georgia, serif"}`;
-      ctx.fillText(codePointToChar(op.codePoint), op.x, op.baselineY);
+      const height = Math.max(2, op.height * 0.72);
+      const y = op.baselineY - height;
+      ctx.fillRect(op.x, y, Math.max(1.2, op.advance * 0.82), height);
     }
     ctx.restore();
   }

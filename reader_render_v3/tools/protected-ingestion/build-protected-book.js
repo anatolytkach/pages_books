@@ -12,6 +12,7 @@ const { extractFontAssets } = require("./lib/extract-font-assets");
 const { buildSelectionLayer } = require("./lib/build-selection-layer");
 const { buildGlyphLayer } = require("./lib/build-glyph-layer");
 const { buildShapeLayer } = require("./lib/build-shape-layer");
+const { buildReconstructionLayer } = require("./lib/build-reconstruction-layer");
 const { buildProtectedManifest } = require("./lib/build-protected-manifest");
 const { writeProtectedBook } = require("./lib/write-protected-book");
 
@@ -106,7 +107,7 @@ async function main() {
         })),
         renderLayer: {
           chunkGlyphsRef: `../glyphs/${chunk.chunkId}.glyphs.json`,
-          textRuns: glyphLayer.renderRuns
+          glyphRuns: glyphLayer.renderRuns
         },
         selectionLayer: selectionLayer.runtime
       });
@@ -114,11 +115,16 @@ async function main() {
       runtimeGlyphChunks.push({
         chunkId: chunk.chunkId,
         seed: glyphLayer.seed,
-        glyphs: Object.fromEntries(glyphLayer.runtimeGlyphs.map((glyph) => [glyph.glyphId, glyph]))
+        glyphs: Object.fromEntries(glyphLayer.runtimeGlyphs.map((glyph) => [glyph.glyphId, glyph])),
+        substrate: buildReconstructionLayer({
+          chunkId: chunk.chunkId,
+          seed: glyphLayer.seed,
+          internalGlyphs: glyphLayer.internalGlyphs
+        })
       });
       runtimeShapeChunks.push(buildShapeLayer({
         chunkId: chunk.chunkId,
-        runtimeGlyphs: glyphLayer.runtimeGlyphs,
+        internalGlyphs: glyphLayer.internalGlyphs,
         styleRegistry: styles.styleRegistry,
         fontAssets
       }));

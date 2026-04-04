@@ -4,7 +4,7 @@
   "glyphs": {
     "g-dfff20b6bec0": {
       "glyphId": "g-dfff20b6bec0",
-      "codePoint": 84,
+      "glyphToken": "g-dfff20b6bec0",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -15,7 +15,7 @@
     },
     "g-674f0f0dfc90": {
       "glyphId": "g-674f0f0dfc90",
-      "codePoint": 104,
+      "glyphToken": "g-674f0f0dfc90",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -26,7 +26,7 @@
     },
     "g-8b3b619b3386": {
       "glyphId": "g-8b3b619b3386",
-      "codePoint": 101,
+      "glyphToken": "g-8b3b619b3386",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -37,7 +37,7 @@
     },
     "g-c6075419e0da": {
       "glyphId": "g-c6075419e0da",
-      "codePoint": 32,
+      "glyphToken": "g-c6075419e0da",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -48,7 +48,7 @@
     },
     "g-397828a7724f": {
       "glyphId": "g-397828a7724f",
-      "codePoint": 80,
+      "glyphToken": "g-397828a7724f",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -59,7 +59,7 @@
     },
     "g-e2e58f4257b4": {
       "glyphId": "g-e2e58f4257b4",
-      "codePoint": 114,
+      "glyphToken": "g-e2e58f4257b4",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -70,7 +70,7 @@
     },
     "g-4230a620bea7": {
       "glyphId": "g-4230a620bea7",
-      "codePoint": 111,
+      "glyphToken": "g-4230a620bea7",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -81,7 +81,7 @@
     },
     "g-e9f23324e082": {
       "glyphId": "g-e9f23324e082",
-      "codePoint": 106,
+      "glyphToken": "g-e9f23324e082",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -92,7 +92,7 @@
     },
     "g-6fd4fe2096d3": {
       "glyphId": "g-6fd4fe2096d3",
-      "codePoint": 99,
+      "glyphToken": "g-6fd4fe2096d3",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -103,7 +103,7 @@
     },
     "g-2207077248c4": {
       "glyphId": "g-2207077248c4",
-      "codePoint": 116,
+      "glyphToken": "g-2207077248c4",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -114,7 +114,7 @@
     },
     "g-d9613f852d74": {
       "glyphId": "g-d9613f852d74",
-      "codePoint": 71,
+      "glyphToken": "g-d9613f852d74",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -125,7 +125,7 @@
     },
     "g-ae7fae34eedf": {
       "glyphId": "g-ae7fae34eedf",
-      "codePoint": 117,
+      "glyphToken": "g-ae7fae34eedf",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -136,7 +136,7 @@
     },
     "g-39202c4f641b": {
       "glyphId": "g-39202c4f641b",
-      "codePoint": 110,
+      "glyphToken": "g-39202c4f641b",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -147,7 +147,7 @@
     },
     "g-24ceab66453d": {
       "glyphId": "g-24ceab66453d",
-      "codePoint": 98,
+      "glyphToken": "g-24ceab66453d",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -158,7 +158,7 @@
     },
     "g-82350e2e3890": {
       "glyphId": "g-82350e2e3890",
-      "codePoint": 103,
+      "glyphToken": "g-82350e2e3890",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -169,7 +169,7 @@
     },
     "g-2f4c127b5a23": {
       "glyphId": "g-2f4c127b5a23",
-      "codePoint": 76,
+      "glyphToken": "g-2f4c127b5a23",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -180,7 +180,7 @@
     },
     "g-ff791097394e": {
       "glyphId": "g-ff791097394e",
-      "codePoint": 105,
+      "glyphToken": "g-ff791097394e",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -191,7 +191,7 @@
     },
     "g-dabd5960f2aa": {
       "glyphId": "g-dabd5960f2aa",
-      "codePoint": 97,
+      "glyphToken": "g-dabd5960f2aa",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -202,7 +202,7 @@
     },
     "g-d47f96ca04f4": {
       "glyphId": "g-d47f96ca04f4",
-      "codePoint": 121,
+      "glyphToken": "g-d47f96ca04f4",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -213,7 +213,7 @@
     },
     "g-837d6ee8969d": {
       "glyphId": "g-837d6ee8969d",
-      "codePoint": 65,
+      "glyphToken": "g-837d6ee8969d",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -224,7 +224,7 @@
     },
     "g-b2d1454839c4": {
       "glyphId": "g-b2d1454839c4",
-      "codePoint": 118,
+      "glyphToken": "g-b2d1454839c4",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -235,7 +235,7 @@
     },
     "g-f2b9535fba9f": {
       "glyphId": "g-f2b9535fba9f",
-      "codePoint": 70,
+      "glyphToken": "g-f2b9535fba9f",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -246,7 +246,7 @@
     },
     "g-1d2071ca2ca7": {
       "glyphId": "g-1d2071ca2ca7",
-      "codePoint": 100,
+      "glyphToken": "g-1d2071ca2ca7",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -257,7 +257,7 @@
     },
     "g-c2e0292f6cb1": {
       "glyphId": "g-c2e0292f6cb1",
-      "codePoint": 115,
+      "glyphToken": "g-c2e0292f6cb1",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -268,7 +268,7 @@
     },
     "g-90a8ff0a1504": {
       "glyphId": "g-90a8ff0a1504",
-      "codePoint": 112,
+      "glyphToken": "g-90a8ff0a1504",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -279,7 +279,7 @@
     },
     "g-07eb25baff2b": {
       "glyphId": "g-07eb25baff2b",
-      "codePoint": 102,
+      "glyphToken": "g-07eb25baff2b",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -290,7 +290,7 @@
     },
     "g-2f4bb558d276": {
       "glyphId": "g-2f4bb558d276",
-      "codePoint": 53,
+      "glyphToken": "g-2f4bb558d276",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -301,7 +301,7 @@
     },
     "g-1d79fa764a2d": {
       "glyphId": "g-1d79fa764a2d",
-      "codePoint": 48,
+      "glyphToken": "g-1d79fa764a2d",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -312,7 +312,7 @@
     },
     "g-9bb8552bd342": {
       "glyphId": "g-9bb8552bd342",
-      "codePoint": 49,
+      "glyphToken": "g-9bb8552bd342",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -323,7 +323,7 @@
     },
     "g-3d0515748dec": {
       "glyphId": "g-3d0515748dec",
-      "codePoint": 40,
+      "glyphToken": "g-3d0515748dec",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -334,7 +334,7 @@
     },
     "g-74b8b7df8525": {
       "glyphId": "g-74b8b7df8525",
-      "codePoint": 41,
+      "glyphToken": "g-74b8b7df8525",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -345,7 +345,7 @@
     },
     "g-c850ce4e4a97": {
       "glyphId": "g-c850ce4e4a97",
-      "codePoint": 51,
+      "glyphToken": "g-c850ce4e4a97",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -356,7 +356,7 @@
     },
     "g-f313963c3114": {
       "glyphId": "g-f313963c3114",
-      "codePoint": 108,
+      "glyphToken": "g-f313963c3114",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -367,7 +367,7 @@
     },
     "g-c5651bb898c6": {
       "glyphId": "g-c5651bb898c6",
-      "codePoint": 122,
+      "glyphToken": "g-c5651bb898c6",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -378,7 +378,7 @@
     },
     "g-d813983b32c3": {
       "glyphId": "g-d813983b32c3",
-      "codePoint": 119,
+      "glyphToken": "g-d813983b32c3",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -389,7 +389,7 @@
     },
     "g-cf0eda7a444e": {
       "glyphId": "g-cf0eda7a444e",
-      "codePoint": 77,
+      "glyphToken": "g-cf0eda7a444e",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -400,7 +400,7 @@
     },
     "g-4ce8db08a3c1": {
       "glyphId": "g-4ce8db08a3c1",
-      "codePoint": 120,
+      "glyphToken": "g-4ce8db08a3c1",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -411,7 +411,7 @@
     },
     "g-56f767e5cd26": {
       "glyphId": "g-56f767e5cd26",
-      "codePoint": 109,
+      "glyphToken": "g-56f767e5cd26",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -422,7 +422,7 @@
     },
     "g-d0d923bf663f": {
       "glyphId": "g-d0d923bf663f",
-      "codePoint": 73,
+      "glyphToken": "g-d0d923bf663f",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -433,7 +433,7 @@
     },
     "g-eeee1b17c6b5": {
       "glyphId": "g-eeee1b17c6b5",
-      "codePoint": 82,
+      "glyphToken": "g-eeee1b17c6b5",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -444,7 +444,7 @@
     },
     "g-1d124173f23e": {
       "glyphId": "g-1d124173f23e",
-      "codePoint": 83,
+      "glyphToken": "g-1d124173f23e",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -455,7 +455,7 @@
     },
     "g-92c207ece2c5": {
       "glyphId": "g-92c207ece2c5",
-      "codePoint": 46,
+      "glyphToken": "g-92c207ece2c5",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -466,7 +466,7 @@
     },
     "g-32811570fef7": {
       "glyphId": "g-32811570fef7",
-      "codePoint": 226,
+      "glyphToken": "g-32811570fef7",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -477,7 +477,7 @@
     },
     "g-4723be16c302": {
       "glyphId": "g-4723be16c302",
-      "codePoint": 8364,
+      "glyphToken": "g-4723be16c302",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Unknown",
@@ -488,7 +488,7 @@
     },
     "g-dc0fb30d4070": {
       "glyphId": "g-dc0fb30d4070",
-      "codePoint": 8482,
+      "glyphToken": "g-dc0fb30d4070",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Unknown",
@@ -499,7 +499,7 @@
     },
     "g-1844b0ec7d5a": {
       "glyphId": "g-1844b0ec7d5a",
-      "codePoint": 69,
+      "glyphToken": "g-1844b0ec7d5a",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -510,7 +510,7 @@
     },
     "g-56231927e66c": {
       "glyphId": "g-56231927e66c",
-      "codePoint": 78,
+      "glyphToken": "g-56231927e66c",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -521,7 +521,7 @@
     },
     "g-b05667d0b9ee": {
       "glyphId": "g-b05667d0b9ee",
-      "codePoint": 54,
+      "glyphToken": "g-b05667d0b9ee",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -532,7 +532,7 @@
     },
     "g-67c6a3a6fca0": {
       "glyphId": "g-67c6a3a6fca0",
-      "codePoint": 52,
+      "glyphToken": "g-67c6a3a6fca0",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -543,7 +543,7 @@
     },
     "g-321afe8f7d9e": {
       "glyphId": "g-321afe8f7d9e",
-      "codePoint": 45,
+      "glyphToken": "g-321afe8f7d9e",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -554,7 +554,7 @@
     },
     "g-d79867b2ee33": {
       "glyphId": "g-d79867b2ee33",
-      "codePoint": 50,
+      "glyphToken": "g-d79867b2ee33",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -565,7 +565,7 @@
     },
     "g-cbd2b3c895be": {
       "glyphId": "g-cbd2b3c895be",
-      "codePoint": 58,
+      "glyphToken": "g-cbd2b3c895be",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -576,7 +576,7 @@
     },
     "g-b18c33d9e50b": {
       "glyphId": "g-b18c33d9e50b",
-      "codePoint": 47,
+      "glyphToken": "g-b18c33d9e50b",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -587,7 +587,7 @@
     },
     "g-765f9c73b88e": {
       "glyphId": "g-765f9c73b88e",
-      "codePoint": 67,
+      "glyphToken": "g-765f9c73b88e",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -598,7 +598,7 @@
     },
     "g-e1bde9fe2c3f": {
       "glyphId": "g-e1bde9fe2c3f",
-      "codePoint": 85,
+      "glyphToken": "g-e1bde9fe2c3f",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -609,7 +609,7 @@
     },
     "g-86a0e4e44ecf": {
       "glyphId": "g-86a0e4e44ecf",
-      "codePoint": 55,
+      "glyphToken": "g-86a0e4e44ecf",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -620,7 +620,7 @@
     },
     "g-6fed25200a9c": {
       "glyphId": "g-6fed25200a9c",
-      "codePoint": 68,
+      "glyphToken": "g-6fed25200a9c",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -631,7 +631,7 @@
     },
     "g-07b0027cd410": {
       "glyphId": "g-07b0027cd410",
-      "codePoint": 107,
+      "glyphToken": "g-07b0027cd410",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -642,7 +642,7 @@
     },
     "g-b86802a85e06": {
       "glyphId": "g-b86802a85e06",
-      "codePoint": 44,
+      "glyphToken": "g-b86802a85e06",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -653,7 +653,7 @@
     },
     "g-10bb72deae05": {
       "glyphId": "g-10bb72deae05",
-      "codePoint": 75,
+      "glyphToken": "g-10bb72deae05",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -664,7 +664,7 @@
     },
     "g-f5d332e622bd": {
       "glyphId": "g-f5d332e622bd",
-      "codePoint": 57,
+      "glyphToken": "g-f5d332e622bd",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -675,7 +675,7 @@
     },
     "g-25e3fb24a341": {
       "glyphId": "g-25e3fb24a341",
-      "codePoint": 56,
+      "glyphToken": "g-25e3fb24a341",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -686,7 +686,7 @@
     },
     "g-a93a897f7df0": {
       "glyphId": "g-a93a897f7df0",
-      "codePoint": 87,
+      "glyphToken": "g-a93a897f7df0",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -697,7 +697,7 @@
     },
     "g-6f21005537a9": {
       "glyphId": "g-6f21005537a9",
-      "codePoint": 64,
+      "glyphToken": "g-6f21005537a9",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -708,7 +708,7 @@
     },
     "g-e203f8d5c2e2": {
       "glyphId": "g-e203f8d5c2e2",
-      "codePoint": 66,
+      "glyphToken": "g-e203f8d5c2e2",
       "styleToken": "paragraph",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -719,7 +719,7 @@
     },
     "g-83c3a44fd32f": {
       "glyphId": "g-83c3a44fd32f",
-      "codePoint": 83,
+      "glyphToken": "g-83c3a44fd32f",
       "styleToken": "heading-4",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -730,7 +730,7 @@
     },
     "g-3206547bab73": {
       "glyphId": "g-3206547bab73",
-      "codePoint": 101,
+      "glyphToken": "g-3206547bab73",
       "styleToken": "heading-4",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -741,7 +741,7 @@
     },
     "g-51d6985ca395": {
       "glyphId": "g-51d6985ca395",
-      "codePoint": 99,
+      "glyphToken": "g-51d6985ca395",
       "styleToken": "heading-4",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -752,7 +752,7 @@
     },
     "g-157753c39276": {
       "glyphId": "g-157753c39276",
-      "codePoint": 116,
+      "glyphToken": "g-157753c39276",
       "styleToken": "heading-4",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -763,7 +763,7 @@
     },
     "g-30923d336dbf": {
       "glyphId": "g-30923d336dbf",
-      "codePoint": 105,
+      "glyphToken": "g-30923d336dbf",
       "styleToken": "heading-4",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -774,7 +774,7 @@
     },
     "g-46b8cf112802": {
       "glyphId": "g-46b8cf112802",
-      "codePoint": 111,
+      "glyphToken": "g-46b8cf112802",
       "styleToken": "heading-4",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -785,7 +785,7 @@
     },
     "g-d6dc799b27fd": {
       "glyphId": "g-d6dc799b27fd",
-      "codePoint": 110,
+      "glyphToken": "g-d6dc799b27fd",
       "styleToken": "heading-4",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Latin",
@@ -796,7 +796,7 @@
     },
     "g-4134ab144ffa": {
       "glyphId": "g-4134ab144ffa",
-      "codePoint": 32,
+      "glyphToken": "g-4134ab144ffa",
       "styleToken": "heading-4",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -807,7 +807,7 @@
     },
     "g-e4420a4cc6db": {
       "glyphId": "g-e4420a4cc6db",
-      "codePoint": 52,
+      "glyphToken": "g-e4420a4cc6db",
       "styleToken": "heading-4",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -818,7 +818,7 @@
     },
     "g-fab3349512b8": {
       "glyphId": "g-fab3349512b8",
-      "codePoint": 46,
+      "glyphToken": "g-fab3349512b8",
       "styleToken": "heading-4",
       "fontFamilyCandidate": "Noto Serif",
       "scriptBucket": "Common",
@@ -827,5 +827,312 @@
       "shapeRef": "shape-g-fab3349512b8",
       "shapeStatus": "synthetic"
     }
+  },
+  "substrate": {
+    "version": 1,
+    "mode": "sealed-window-substrate-v1",
+    "laneSeed": "7fc66eb9f7286716",
+    "lanes": [
+      {
+        "slot": "slot-1fx87",
+        "vector": 1084694
+      },
+      {
+        "slot": "slot-1u111p",
+        "vector": 1086551
+      },
+      {
+        "slot": "slot-2fnmc3",
+        "vector": 1098709
+      },
+      {
+        "slot": "slot-2h8odq",
+        "vector": 6743
+      },
+      {
+        "slot": "slot-2kvmfb",
+        "vector": 1094564
+      },
+      {
+        "slot": "slot-4skrtd",
+        "vector": 38894
+      },
+      {
+        "slot": "slot-52o0f9",
+        "vector": 1051052
+      },
+      {
+        "slot": "slot-558u1j",
+        "vector": 1057689
+      },
+      {
+        "slot": "slot-56te4b",
+        "vector": 1081720
+      },
+      {
+        "slot": "slot-5anvab",
+        "vector": 1090343
+      },
+      {
+        "slot": "slot-6hgyxo",
+        "vector": 1099322
+      },
+      {
+        "slot": "slot-6w4s1",
+        "vector": 32521
+      },
+      {
+        "slot": "slot-6wfqvb",
+        "vector": 1062191
+      },
+      {
+        "slot": "slot-76ak16",
+        "vector": 1087074
+      },
+      {
+        "slot": "slot-78h2o",
+        "vector": 2523
+      },
+      {
+        "slot": "slot-7r4sms",
+        "vector": 1060575
+      },
+      {
+        "slot": "slot-8di3ce",
+        "vector": 1109420
+      },
+      {
+        "slot": "slot-8z2wzn",
+        "vector": 65383
+      },
+      {
+        "slot": "slot-91iwcy",
+        "vector": 1077185
+      },
+      {
+        "slot": "slot-adv4nb",
+        "vector": 1053857
+      },
+      {
+        "slot": "slot-am92ui",
+        "vector": 28906
+      },
+      {
+        "slot": "slot-b3sis9",
+        "vector": 1095771
+      },
+      {
+        "slot": "slot-b857u8",
+        "vector": 54254
+      },
+      {
+        "slot": "slot-bzkivt",
+        "vector": 1100910
+      },
+      {
+        "slot": "slot-cfkdxw",
+        "vector": 1092259
+      },
+      {
+        "slot": "slot-cfp81q",
+        "vector": 1093400
+      },
+      {
+        "slot": "slot-d6p9di",
+        "vector": 1105404
+      },
+      {
+        "slot": "slot-drr185",
+        "vector": 1065539
+      },
+      {
+        "slot": "slot-fde279",
+        "vector": 59064
+      },
+      {
+        "slot": "slot-fiqg9f",
+        "vector": 1049452
+      },
+      {
+        "slot": "slot-fq5374",
+        "vector": 1091955
+      },
+      {
+        "slot": "slot-fwgv1j",
+        "vector": 45625
+      },
+      {
+        "slot": "slot-hcfrp8",
+        "vector": 1083366
+      },
+      {
+        "slot": "slot-hjecjd",
+        "vector": 1102143
+      },
+      {
+        "slot": "slot-hnl1p7",
+        "vector": 1087089
+      },
+      {
+        "slot": "slot-hxo3eb",
+        "vector": 53672
+      },
+      {
+        "slot": "slot-id7a8c",
+        "vector": 1076200
+      },
+      {
+        "slot": "slot-inn10q",
+        "vector": 1076954
+      },
+      {
+        "slot": "slot-ivud63",
+        "vector": 22183
+      },
+      {
+        "slot": "slot-iwam3y",
+        "vector": 1069050
+      },
+      {
+        "slot": "slot-jfdhf2",
+        "vector": 53675
+      },
+      {
+        "slot": "slot-jln1og",
+        "vector": 1055625
+      },
+      {
+        "slot": "slot-k84j09",
+        "vector": 46608
+      },
+      {
+        "slot": "slot-kue33z",
+        "vector": 1091
+      },
+      {
+        "slot": "slot-l4llex",
+        "vector": 1067914
+      },
+      {
+        "slot": "slot-m54dlo",
+        "vector": 1085081
+      },
+      {
+        "slot": "slot-mvplld",
+        "vector": 1094170
+      },
+      {
+        "slot": "slot-o57ilr",
+        "vector": 1080929
+      },
+      {
+        "slot": "slot-o5ux25",
+        "vector": 40574
+      },
+      {
+        "slot": "slot-o7blsu",
+        "vector": 1088778
+      },
+      {
+        "slot": "slot-o9hvo4",
+        "vector": 1084319
+      },
+      {
+        "slot": "slot-oclj43",
+        "vector": 1091783
+      },
+      {
+        "slot": "slot-oqx0cc",
+        "vector": 1094247
+      },
+      {
+        "slot": "slot-ozaflc",
+        "vector": 1108102
+      },
+      {
+        "slot": "slot-p281jj",
+        "vector": 52127
+      },
+      {
+        "slot": "slot-p8rwbb",
+        "vector": 1078388
+      },
+      {
+        "slot": "slot-phkf3j",
+        "vector": 1065868
+      },
+      {
+        "slot": "slot-pomitn",
+        "vector": 31600
+      },
+      {
+        "slot": "slot-poy7bu",
+        "vector": 1107533
+      },
+      {
+        "slot": "slot-pxob8f",
+        "vector": 1051303
+      },
+      {
+        "slot": "slot-s0m1kw",
+        "vector": 58368
+      },
+      {
+        "slot": "slot-ssaxmy",
+        "vector": 1109201
+      },
+      {
+        "slot": "slot-swrfi5",
+        "vector": 1055101
+      },
+      {
+        "slot": "slot-tnzg0y",
+        "vector": 1078156
+      },
+      {
+        "slot": "slot-u6v67h",
+        "vector": 1096396
+      },
+      {
+        "slot": "slot-upfi3v",
+        "vector": 44554
+      },
+      {
+        "slot": "slot-uprsg8",
+        "vector": 1111538
+      },
+      {
+        "slot": "slot-vyhns1",
+        "vector": 35204
+      },
+      {
+        "slot": "slot-wxs2h6",
+        "vector": 1073357
+      },
+      {
+        "slot": "slot-xp8vig",
+        "vector": 45223
+      },
+      {
+        "slot": "slot-xz1yjr",
+        "vector": 1082372
+      },
+      {
+        "slot": "slot-ymsvxl",
+        "vector": 13513
+      },
+      {
+        "slot": "slot-ynx0tt",
+        "vector": 1079645
+      },
+      {
+        "slot": "slot-z0pxpe",
+        "vector": 53472
+      },
+      {
+        "slot": "slot-z9zwwu",
+        "vector": 10744
+      }
+    ]
   }
 }

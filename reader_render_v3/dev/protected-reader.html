@@ -37,32 +37,45 @@
 
       <main class="main">
         <section class="card controls-card">
-          <div class="toolbar">
-            <div class="toolbar-group">
-              <button type="button" id="prev-chunk">Prev chunk</button>
-              <button type="button" id="next-chunk">Next chunk</button>
-              <label class="mode-picker" for="render-mode">
-                <span>Render mode</span>
-                <select id="render-mode" name="render-mode">
-                  <option value="text">Text mode</option>
-                  <option value="shape">Shape mode</option>
-                </select>
-              </label>
-              <label class="mode-picker" for="metrics-mode">
-                <span>Metrics</span>
-                <select id="metrics-mode" name="metrics-mode">
-                  <option value="text">Text metrics</option>
-                  <option value="shape">Shape metrics</option>
-                </select>
-              </label>
-              <label class="mode-picker" for="debug-geometry">
-                <span>Geometry</span>
-                <input id="debug-geometry" name="debug-geometry" type="checkbox" />
-              </label>
+          <div class="controls-sticky-shell">
+            <div class="toolbar">
+              <div class="toolbar-group">
+                <button type="button" id="prev-page">Prev page</button>
+                <button type="button" id="next-page">Next page</button>
+                <button type="button" id="prev-chunk">Prev chunk</button>
+                <button type="button" id="next-chunk">Next chunk</button>
+                <label class="mode-picker" for="render-mode">
+                  <span>Render mode</span>
+                  <select id="render-mode" name="render-mode">
+                    <option value="text">Text mode</option>
+                    <option value="shape">Shape mode</option>
+                  </select>
+                </label>
+                <label class="mode-picker" for="metrics-mode">
+                  <span>Metrics</span>
+                  <select id="metrics-mode" name="metrics-mode">
+                    <option value="text">Text metrics</option>
+                    <option value="shape">Shape metrics</option>
+                  </select>
+                </label>
+                <label class="mode-picker" for="debug-geometry">
+                  <span>Geometry</span>
+                  <input id="debug-geometry" name="debug-geometry" type="checkbox" />
+                </label>
+              </div>
+              <div class="toolbar-group">
+                <button type="button" id="copy-restore-token">Copy restore token</button>
+                <button type="button" id="copy-selection-range">Copy selection range</button>
+                <button type="button" id="clear-selection">Clear selection</button>
+                <button type="button" id="copy-selection">Copy selected text</button>
+              </div>
             </div>
-            <div class="toolbar-group">
-              <button type="button" id="clear-selection">Clear selection</button>
-              <button type="button" id="copy-selection">Copy selected text</button>
+            <div class="toolbar restore-toolbar">
+              <div class="toolbar-group token-group">
+                <label for="restore-token-input">Restore token</label>
+                <input id="restore-token-input" name="restore-token" type="text" />
+                <button type="button" id="restore-token">Restore</button>
+              </div>
             </div>
           </div>
           <dl id="runtime-meta" class="meta-grid"></dl>

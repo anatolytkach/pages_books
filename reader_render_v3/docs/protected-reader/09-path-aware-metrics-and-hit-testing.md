@@ -86,7 +86,7 @@ Selection and copy still use the same logical model:
 - normalized `anchor/focus`
 - logical offsets
 - selection layer segments and ranges
-- reconstruction by runtime-safe `codePoint`
+- reconstruction by controlled internal scalar payload
 
 What changed is primarily the precision of choosing those offsets in shape mode.
 
@@ -126,3 +126,25 @@ Still missing:
 - fully path-driven line breaking
 - better shaping for complex scripts
 - final pagination tied to extracted glyph geometry
+
+This step now feeds a broader reading model:
+
+- page slices map back to global offsets
+- hit-tested offsets can be serialized into stable range descriptors
+- restore tokens can resolve back into chunk/page targets
+
+## Opaque render path boundary
+
+After the opaque-glyph contract update, shape-mode geometry is derived from runtime-safe
+glyph tokens and shape refs, not from a readable Unicode stream in the delivery payload.
+
+That means:
+
+- render path stays glyph-oriented and opaque
+- metrics and hit-testing work from shape geometry
+- reconstruction remains a separate controlled internal path used only when runtime
+  logic explicitly needs text for selection or copy
+
+After the window-scoped reconstruction step, text-mode painting is also expected to
+decode only the current visible page slice rather than materializing whole-chunk text
+as a convenience layer.

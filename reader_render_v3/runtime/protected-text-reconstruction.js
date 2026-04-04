@@ -1,4 +1,21 @@
-export function codePointToChar(codePoint) {
+function hashSlot(input) {
+  let hash = 0;
+  for (let index = 0; index < input.length; index += 1) {
+    hash = ((hash << 5) - hash + input.charCodeAt(index)) | 0;
+  }
+  return `slot-${Math.abs(hash).toString(36)}`;
+}
+
+function scalarMask(seed, glyphToken) {
+  const input = `${seed}:${glyphToken}:scalar-mask`;
+  let hash = 0;
+  for (let index = 0; index < input.length; index += 1) {
+    hash = ((hash << 5) - hash + input.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash) & 0x10ffff;
+}
+
+function codePointToChar(codePoint) {
   try {
     return String.fromCodePoint(codePoint);
   } catch (_) {
@@ -6,22 +23,71 @@ export function codePointToChar(codePoint) {
   }
 }
 
-export function reconstructRunText(run, glyphMap) {
-  return (run.glyphIds || [])
-    .map((glyphId) => {
-      const glyph = glyphMap.get(glyphId);
-      return glyph ? codePointToChar(glyph.codePoint) : "";
+export function createReconstructionScope({ chunkModel, purpose = "window", startOffset = 0, endOffset = 0 } = {}) {
+  return {
+    purpose,
+    chunkId: chunkModel ? chunkModel.chunk.chunkId : "",
+    startOffset,
+    endOffset,
+    decodedRanges: new Map(),
+    decodedChars: 0,
+    cacheEntries: 0
+  };
+}
+
+export function disposeReconstructionScope(scope) {
+  if (!scope) return;
+  if (scope.decodedRanges) scope.decodedRanges.clear();
+  scope.cacheEntries = 0;
+  scope.decodedChars = 0;
+}
+
+export function getReconstructionScopeDiagnostics(scope) {
+  if (!scope) {
+    return {
+      mode: "none",
+      cacheEntries: 0,
+      decodedChars: 0,
+      exposure: "sealed"
+    };
+  }
+  return {
+    mode: scope.purpose,
+    cacheEntries: scope.cacheEntries || 0,
+    decodedChars: scope.decodedChars || 0,
+    exposure: "sealed"
+  };
+}
+
+function getSubstrateLane(chunkModel, glyphToken) {
+  if (!chunkModel || !chunkModel.substrate || !chunkModel.substrateLaneMap) return null;
+  const slot = hashSlot(`${chunkModel.substrate.laneSeed}:${glyphToken}:lane-slot`);
+  return chunkModel.substrateLaneMap.get(slot) || null;
+}
+
+function decodeScalar(chunkModel, glyphToken) {
+  const lane = getSubstrateLane(chunkModel, glyphToken);
+  if (!lane) return null;
+  return lane.vector ^ scalarMask(chunkModel.substrate.laneSeed, glyphToken);
+}
+
+function decodeGlyphTokens(chunkModel, glyphTokens, scope) {
+  return glyphTokens
+    .map((glyphToken) => {
+      const scalar = decodeScalar(chunkModel, glyphToken);
+      if (scope) scope.decodedChars += 1;
+      return scalar != null ? codePointToChar(scalar) : "";
     })
     .join("");
 }
 
-export function reconstructBlockText(chunkModel, blockId) {
-  const runs = chunkModel.runsByBlock.get(blockId) || [];
-  return runs.map((run) => reconstructRunText(run, chunkModel.glyphMap)).join("");
-}
-
-export function reconstructRangeText(chunkModel, startOffset, endOffset) {
+export function reconstructRangeText(chunkModel, startOffset, endOffset, scope = null) {
   if (startOffset == null || endOffset == null || endOffset <= startOffset) return "";
+  const cacheKey = scope ? `${startOffset}:${endOffset}` : "";
+  if (scope && scope.decodedRanges.has(cacheKey)) {
+    return scope.decodedRanges.get(cacheKey);
+  }
+
   const segments = chunkModel.textSegments || [];
   let cursor = startOffset;
   let output = "";
@@ -37,12 +103,26 @@ export function reconstructRangeText(chunkModel, startOffset, endOffset) {
 
     const run = chunkModel.runBySegmentKey.get(`${segment.blockId}:${segment.runIndex}`);
     if (!run) continue;
-    const runText = reconstructRunText(run, chunkModel.glyphMap);
     const sliceStart = Math.max(startOffset, segment.start) - segment.start;
     const sliceEnd = Math.min(endOffset, segment.end) - segment.start;
-    output += runText.slice(sliceStart, sliceEnd);
+    const glyphTokens = (run.glyphTokens || []).slice(sliceStart, sliceEnd);
+    output += decodeGlyphTokens(chunkModel, glyphTokens, scope);
     cursor = Math.min(endOffset, segment.end);
   }
 
+  if (scope) {
+    scope.decodedRanges.set(cacheKey, output);
+    scope.cacheEntries = scope.decodedRanges.size;
+  }
   return output;
+}
+
+export function reconstructVisibleWindow(chunkModel, pageWindow, scope = null) {
+  if (!pageWindow) return "";
+  return reconstructRangeText(chunkModel, pageWindow.startOffset, pageWindow.endOffset, scope);
+}
+
+export function reconstructSelectionRange(chunkModel, selectionResult, scope = null) {
+  if (!selectionResult || selectionResult.isCollapsed) return "";
+  return reconstructRangeText(chunkModel, selectionResult.startOffset, selectionResult.endOffset, scope);
 }

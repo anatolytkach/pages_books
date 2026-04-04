@@ -15,7 +15,7 @@ function assertNoLeakage(value, where) {
     return;
   }
   for (const [key, next] of Object.entries(value)) {
-    if (key === "char" || key === "fullText" || key === "text") {
+    if (key === "char" || key === "fullText" || key === "text" || key === "codePoint") {
       throw new Error(`Runtime-safe chunk leakage field detected at ${where}.${key}`);
     }
     assertNoLeakage(next, `${where}.${key}`);
@@ -33,6 +33,7 @@ function loadProtectedChunk(rootPath, manifestChunk) {
   assertNoLeakage(chunk.selectionLayer, "chunk.selectionLayer");
   assertNoLeakage(glyphs.glyphs, "glyphs.glyphs");
   if (shapes) assertNoLeakage(shapes, "shapes");
+  if (glyphs.substrate) assertNoLeakage(glyphs.substrate, "glyphs.substrate");
 
   return {
     chunkPath,
@@ -40,7 +41,8 @@ function loadProtectedChunk(rootPath, manifestChunk) {
     shapesPath,
     chunk,
     glyphs,
-    shapes
+    shapes,
+    substrate: glyphs.substrate || null
   };
 }
 

@@ -1,13 +1,9 @@
 import { buildGlyphBoxes } from "./protected-shape-offset-map.js";
 
 function fallbackAdvanceEm(glyph) {
-  const cp = glyph.codePoint;
-  if (cp === 32) return 0.33;
-  if (/[ilI.,'`:;!]/.test(String.fromCodePoint(cp))) return 0.28;
-  if (/[MW@#%&]/.test(String.fromCodePoint(cp))) return 0.92;
-  if (/[A-Z]/.test(String.fromCodePoint(cp))) return 0.68;
-  if (/[0-9]/.test(String.fromCodePoint(cp))) return 0.56;
+  if (glyph.shapeStatus === "space" || glyph.glyphClass?.includes("common")) return 0.33;
   if (glyph.scriptBucket === "CJK") return 1.0;
+  if (glyph.glyphClass?.includes("latin") && glyph.styleToken?.includes("heading")) return 0.64;
   return 0.56;
 }
 

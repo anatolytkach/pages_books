@@ -81,6 +81,37 @@ h2 {
   font: inherit;
 }
 
+.restore-toolbar {
+  margin-top: 8px;
+  justify-content: flex-start;
+}
+
+.controls-sticky-shell {
+  position: sticky;
+  top: 20px;
+  z-index: 20;
+  margin: -20px -20px 12px;
+  padding: 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  border-radius: 22px 22px 0 0;
+  backdrop-filter: blur(14px);
+}
+
+.token-group {
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.token-group input {
+  min-width: 320px;
+  flex: 1 1 320px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  font: inherit;
+}
+
 .button-row,
 .toolbar,
 .toolbar-group,
@@ -176,7 +207,7 @@ button:hover {
   background: linear-gradient(180deg, #fffdfa 0%, #fbf7ef 100%);
   padding: 20px;
   min-height: 720px;
-  overflow: auto;
+  overflow: hidden;
 }
 
 #reader-canvas,

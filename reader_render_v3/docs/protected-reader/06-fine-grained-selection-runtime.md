@@ -134,6 +134,17 @@ Selection is visualized with merged per-line highlight spans:
 The runtime still keeps fragment and glyph geometry internally, but default UI highlight is
 rendered as soft gray merged line rectangles rather than debug-style fragment boxes.
 
+## Global range foundation
+
+The current selection model now feeds a global reading layer:
+
+- local snapped offsets can be converted to global book offsets
+- runtime-safe selection can be serialized as a stable range descriptor
+- the same descriptor can later be extended to cross-chunk highlights and notes
+
+Current dev shell also exposes restore-token and serialized-range controls built on top
+of the same offset model.
+
 ## Why this is still not Amazon-like precision
 
 The current runtime is still an approximation compared to Kindle Web:

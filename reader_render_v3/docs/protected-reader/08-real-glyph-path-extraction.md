@@ -57,7 +57,7 @@ Each runtime-safe shape record can now contain:
 
 - `shapeRef`
 - `glyphId`
-- `codePoint`
+- `glyphToken`
 - `styleToken`
 - `scriptBucket`
 - `source`
@@ -76,6 +76,26 @@ Current `pathData` format:
 - SVG path string
 
 This is runtime-safe and can be converted into `Path2D` in the browser.
+
+## Opaque runtime-safe contract
+
+The current runtime-safe delivery form no longer exposes direct Unicode in the
+shape layer.
+
+The path bundle is now keyed by:
+
+- chunk-local `glyphToken`
+- `shapeRef`
+- style and source metadata
+
+It no longer exposes:
+
+- `codePoint`
+- `char`
+- plain text strings
+
+If runtime text reconstruction is needed for selection or copy, it happens through
+the separate controlled internal reconstruction payload, not through `shapes/`.
 
 ## Extracted vs synthetic
 
@@ -98,7 +118,8 @@ In shape mode, the dev runtime now:
 - paints extracted glyphs through path-based drawing
 - uses synthetic fallback for remaining glyphs
 
-Selection and copy still operate from the runtime-safe logical layout and reconstruction model, not from debug files and not from DOM text.
+Selection and copy still operate from the runtime-safe logical layout and the
+controlled internal reconstruction model, not from debug files and not from DOM text.
 
 After the path-aware metrics step, shape mode can also pair this extracted-path painting with:
 

@@ -10,8 +10,38 @@ function buildSelectionLayer(chunk, options = {}) {
   const blockAnchors = [];
   const noteAnchors = [];
   const copyRanges = [];
+  const wordBoundaries = [];
   const parts = [];
   const chunkStart = options.globalStart || 0;
+
+  function pushWordBoundaries(text, baseOffset) {
+    const chars = Array.from(String(text || ""));
+    function isCoreWordChar(char) {
+      return /[\p{L}\p{N}]/u.test(char);
+    }
+    function isWordLike(char, index) {
+      if (!char) return false;
+      if (isCoreWordChar(char)) return true;
+      if ((char === "'" || char === "-") && index > 0 && index < chars.length - 1) {
+        return isCoreWordChar(chars[index - 1]) && isCoreWordChar(chars[index + 1]);
+      }
+      return false;
+    }
+    let index = 0;
+    while (index < chars.length) {
+      if (!isWordLike(chars[index], index)) {
+        index += 1;
+        continue;
+      }
+      const start = index;
+      index += 1;
+      while (index < chars.length && isWordLike(chars[index], index)) index += 1;
+      wordBoundaries.push({
+        start: baseOffset + start,
+        end: baseOffset + index
+      });
+    }
+  }
 
   chunk.blocks.forEach((block, blockIndex) => {
     if (parts.length) {
@@ -25,6 +55,7 @@ function buildSelectionLayer(chunk, options = {}) {
       cursor += text.length;
       const end = cursor;
       parts.push(text);
+      pushWordBoundaries(text, start);
       const segmentId = `${chunk.chunkId}-seg-${runtimeTextSegments.length + 1}`;
       runtimeTextSegments.push({
         segmentId,
@@ -104,6 +135,7 @@ function buildSelectionLayer(chunk, options = {}) {
     blockAnchors,
     noteAnchors,
     copyRanges,
+    wordBoundaries,
     chunkRange: {
       start: chunkStart,
       end: chunkStart + cursor
@@ -117,6 +149,7 @@ function buildSelectionLayer(chunk, options = {}) {
     blockAnchors,
     noteAnchors,
     copyRanges,
+    wordBoundaries,
     chunkRange: runtime.chunkRange
   };
 

@@ -11,7 +11,7 @@
     {
       "shapeRef": "shape-g-460f08ff8245",
       "glyphId": "g-460f08ff8245",
-      "codePoint": 67,
+      "glyphToken": "g-460f08ff8245",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -34,7 +34,7 @@
     {
       "shapeRef": "shape-g-e6a06b3333d1",
       "glyphId": "g-e6a06b3333d1",
-      "codePoint": 114,
+      "glyphToken": "g-e6a06b3333d1",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -57,7 +57,7 @@
     {
       "shapeRef": "shape-g-a093cef5aed9",
       "glyphId": "g-a093cef5aed9",
-      "codePoint": 101,
+      "glyphToken": "g-a093cef5aed9",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -80,7 +80,7 @@
     {
       "shapeRef": "shape-g-760c96905cae",
       "glyphId": "g-760c96905cae",
-      "codePoint": 97,
+      "glyphToken": "g-760c96905cae",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -103,7 +103,7 @@
     {
       "shapeRef": "shape-g-810122fc8e96",
       "glyphId": "g-810122fc8e96",
-      "codePoint": 116,
+      "glyphToken": "g-810122fc8e96",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -126,7 +126,7 @@
     {
       "shapeRef": "shape-g-f766b99d6f54",
       "glyphId": "g-f766b99d6f54",
-      "codePoint": 105,
+      "glyphToken": "g-f766b99d6f54",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -149,7 +149,7 @@
     {
       "shapeRef": "shape-g-890f296af09c",
       "glyphId": "g-890f296af09c",
-      "codePoint": 110,
+      "glyphToken": "g-890f296af09c",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -172,7 +172,7 @@
     {
       "shapeRef": "shape-g-95455b5451f1",
       "glyphId": "g-95455b5451f1",
-      "codePoint": 103,
+      "glyphToken": "g-95455b5451f1",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -195,7 +195,7 @@
     {
       "shapeRef": "shape-g-306b0d35dd6b",
       "glyphId": "g-306b0d35dd6b",
-      "codePoint": 32,
+      "glyphToken": "g-306b0d35dd6b",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "source": "synthetic",
@@ -218,7 +218,7 @@
     {
       "shapeRef": "shape-g-cb572e44a58d",
       "glyphId": "g-cb572e44a58d",
-      "codePoint": 104,
+      "glyphToken": "g-cb572e44a58d",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -241,7 +241,7 @@
     {
       "shapeRef": "shape-g-65d2ed8506e1",
       "glyphId": "g-65d2ed8506e1",
-      "codePoint": 119,
+      "glyphToken": "g-65d2ed8506e1",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -264,7 +264,7 @@
     {
       "shapeRef": "shape-g-5f37711d469e",
       "glyphId": "g-5f37711d469e",
-      "codePoint": 111,
+      "glyphToken": "g-5f37711d469e",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -287,7 +287,7 @@
     {
       "shapeRef": "shape-g-b98a6af7856a",
       "glyphId": "g-b98a6af7856a",
-      "codePoint": 107,
+      "glyphToken": "g-b98a6af7856a",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -310,7 +310,7 @@
     {
       "shapeRef": "shape-g-95cbc13bc645",
       "glyphId": "g-95cbc13bc645",
-      "codePoint": 115,
+      "glyphToken": "g-95cbc13bc645",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -333,7 +333,7 @@
     {
       "shapeRef": "shape-g-70fefc17b1f2",
       "glyphId": "g-70fefc17b1f2",
-      "codePoint": 102,
+      "glyphToken": "g-70fefc17b1f2",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -356,7 +356,7 @@
     {
       "shapeRef": "shape-g-efe3965076d4",
       "glyphId": "g-efe3965076d4",
-      "codePoint": 109,
+      "glyphToken": "g-efe3965076d4",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -379,7 +379,7 @@
     {
       "shapeRef": "shape-g-acc118a04a24",
       "glyphId": "g-acc118a04a24",
-      "codePoint": 112,
+      "glyphToken": "g-acc118a04a24",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -402,7 +402,7 @@
     {
       "shapeRef": "shape-g-b48a0b225968",
       "glyphId": "g-b48a0b225968",
-      "codePoint": 117,
+      "glyphToken": "g-b48a0b225968",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -425,7 +425,7 @@
     {
       "shapeRef": "shape-g-c899dd0ab6db",
       "glyphId": "g-c899dd0ab6db",
-      "codePoint": 98,
+      "glyphToken": "g-c899dd0ab6db",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -448,7 +448,7 @@
     {
       "shapeRef": "shape-g-271a100fe4c6",
       "glyphId": "g-271a100fe4c6",
-      "codePoint": 108,
+      "glyphToken": "g-271a100fe4c6",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -471,7 +471,7 @@
     {
       "shapeRef": "shape-g-3f6957c587c4",
       "glyphId": "g-3f6957c587c4",
-      "codePoint": 99,
+      "glyphToken": "g-3f6957c587c4",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -494,7 +494,7 @@
     {
       "shapeRef": "shape-g-1118c7e017f0",
       "glyphId": "g-1118c7e017f0",
-      "codePoint": 100,
+      "glyphToken": "g-1118c7e017f0",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -517,7 +517,7 @@
     {
       "shapeRef": "shape-g-5c017f2d66a0",
       "glyphId": "g-5c017f2d66a0",
-      "codePoint": 85,
+      "glyphToken": "g-5c017f2d66a0",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -540,7 +540,7 @@
     {
       "shapeRef": "shape-g-7996f8e28db4",
       "glyphId": "g-7996f8e28db4",
-      "codePoint": 83,
+      "glyphToken": "g-7996f8e28db4",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -563,7 +563,7 @@
     {
       "shapeRef": "shape-g-42fb9726a259",
       "glyphId": "g-42fb9726a259",
-      "codePoint": 121,
+      "glyphToken": "g-42fb9726a259",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -586,7 +586,7 @@
     {
       "shapeRef": "shape-g-d9c64e956456",
       "glyphId": "g-d9c64e956456",
-      "codePoint": 44,
+      "glyphToken": "g-d9c64e956456",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "source": "extracted",
@@ -609,7 +609,7 @@
     {
       "shapeRef": "shape-g-01d52f5d9124",
       "glyphId": "g-01d52f5d9124",
-      "codePoint": 70,
+      "glyphToken": "g-01d52f5d9124",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -632,7 +632,7 @@
     {
       "shapeRef": "shape-g-ab254207bf2d",
       "glyphId": "g-ab254207bf2d",
-      "codePoint": 40,
+      "glyphToken": "g-ab254207bf2d",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "source": "extracted",
@@ -655,7 +655,7 @@
     {
       "shapeRef": "shape-g-32dc2ce396fe",
       "glyphId": "g-32dc2ce396fe",
-      "codePoint": 33,
+      "glyphToken": "g-32dc2ce396fe",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "source": "extracted",
@@ -678,7 +678,7 @@
     {
       "shapeRef": "shape-g-7fad8fec475c",
       "glyphId": "g-7fad8fec475c",
-      "codePoint": 41,
+      "glyphToken": "g-7fad8fec475c",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "source": "extracted",
@@ -701,7 +701,7 @@
     {
       "shapeRef": "shape-g-dd54514046f5",
       "glyphId": "g-dd54514046f5",
-      "codePoint": 46,
+      "glyphToken": "g-dd54514046f5",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "source": "extracted",
@@ -724,7 +724,7 @@
     {
       "shapeRef": "shape-g-d86430b6d64d",
       "glyphId": "g-d86430b6d64d",
-      "codePoint": 71,
+      "glyphToken": "g-d86430b6d64d",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -747,7 +747,7 @@
     {
       "shapeRef": "shape-g-1d59ffe9bc7e",
       "glyphId": "g-1d59ffe9bc7e",
-      "codePoint": 84,
+      "glyphToken": "g-1d59ffe9bc7e",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -770,7 +770,7 @@
     {
       "shapeRef": "shape-g-b1e1d5b29d2c",
       "glyphId": "g-b1e1d5b29d2c",
-      "codePoint": 80,
+      "glyphToken": "g-b1e1d5b29d2c",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -793,7 +793,7 @@
     {
       "shapeRef": "shape-g-058dcd89a505",
       "glyphId": "g-058dcd89a505",
-      "codePoint": 106,
+      "glyphToken": "g-058dcd89a505",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -816,7 +816,7 @@
     {
       "shapeRef": "shape-g-d3388fa251c0",
       "glyphId": "g-d3388fa251c0",
-      "codePoint": 45,
+      "glyphToken": "g-d3388fa251c0",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "source": "extracted",
@@ -839,7 +839,7 @@
     {
       "shapeRef": "shape-g-5a612452df70",
       "glyphId": "g-5a612452df70",
-      "codePoint": 66,
+      "glyphToken": "g-5a612452df70",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -862,7 +862,7 @@
     {
       "shapeRef": "shape-g-5c91867a6e97",
       "glyphId": "g-5c91867a6e97",
-      "codePoint": 118,
+      "glyphToken": "g-5c91867a6e97",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -885,7 +885,7 @@
     {
       "shapeRef": "shape-g-282409a992fd",
       "glyphId": "g-282409a992fd",
-      "codePoint": 73,
+      "glyphToken": "g-282409a992fd",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -908,7 +908,7 @@
     {
       "shapeRef": "shape-g-33828b2d0f45",
       "glyphId": "g-33828b2d0f45",
-      "codePoint": 89,
+      "glyphToken": "g-33828b2d0f45",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -931,7 +931,7 @@
     {
       "shapeRef": "shape-g-c2e868fa7bf7",
       "glyphId": "g-c2e868fa7bf7",
-      "codePoint": 226,
+      "glyphToken": "g-c2e868fa7bf7",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -954,7 +954,7 @@
     {
       "shapeRef": "shape-g-1d799f864dcf",
       "glyphId": "g-1d799f864dcf",
-      "codePoint": 8364,
+      "glyphToken": "g-1d799f864dcf",
       "styleToken": "paragraph",
       "scriptBucket": "Unknown",
       "source": "extracted",
@@ -977,7 +977,7 @@
     {
       "shapeRef": "shape-g-10dbbff3d76c",
       "glyphId": "g-10dbbff3d76c",
-      "codePoint": 8221,
+      "glyphToken": "g-10dbbff3d76c",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "source": "extracted",
@@ -1000,7 +1000,7 @@
     {
       "shapeRef": "shape-g-4265caa764c7",
       "glyphId": "g-4265caa764c7",
-      "codePoint": 97,
+      "glyphToken": "g-4265caa764c7",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1023,7 +1023,7 @@
     {
       "shapeRef": "shape-g-edd867645a49",
       "glyphId": "g-edd867645a49",
-      "codePoint": 110,
+      "glyphToken": "g-edd867645a49",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1046,7 +1046,7 @@
     {
       "shapeRef": "shape-g-e2de5041e264",
       "glyphId": "g-e2de5041e264",
-      "codePoint": 121,
+      "glyphToken": "g-e2de5041e264",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1069,7 +1069,7 @@
     {
       "shapeRef": "shape-g-fb429467fae3",
       "glyphId": "g-fb429467fae3",
-      "codePoint": 116,
+      "glyphToken": "g-fb429467fae3",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1092,7 +1092,7 @@
     {
       "shapeRef": "shape-g-fc2d93852610",
       "glyphId": "g-fc2d93852610",
-      "codePoint": 104,
+      "glyphToken": "g-fc2d93852610",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1115,7 +1115,7 @@
     {
       "shapeRef": "shape-g-5552766045fb",
       "glyphId": "g-5552766045fb",
-      "codePoint": 105,
+      "glyphToken": "g-5552766045fb",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1138,7 +1138,7 @@
     {
       "shapeRef": "shape-g-5439a123092f",
       "glyphId": "g-5439a123092f",
-      "codePoint": 103,
+      "glyphToken": "g-5439a123092f",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1161,7 +1161,7 @@
     {
       "shapeRef": "shape-g-bd48c07a2697",
       "glyphId": "g-bd48c07a2697",
-      "codePoint": 82,
+      "glyphToken": "g-bd48c07a2697",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1184,7 +1184,7 @@
     {
       "shapeRef": "shape-g-e258e449f2ad",
       "glyphId": "g-e258e449f2ad",
-      "codePoint": 72,
+      "glyphToken": "g-e258e449f2ad",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1207,7 +1207,7 @@
     {
       "shapeRef": "shape-g-ba0dc88c91bc",
       "glyphId": "g-ba0dc88c91bc",
-      "codePoint": 69,
+      "glyphToken": "g-ba0dc88c91bc",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1230,7 +1230,7 @@
     {
       "shapeRef": "shape-g-2072b6c69855",
       "glyphId": "g-2072b6c69855",
-      "codePoint": 76,
+      "glyphToken": "g-2072b6c69855",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1253,7 +1253,7 @@
     {
       "shapeRef": "shape-g-6fde480adab7",
       "glyphId": "g-6fde480adab7",
-      "codePoint": 79,
+      "glyphToken": "g-6fde480adab7",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1276,7 +1276,7 @@
     {
       "shapeRef": "shape-g-050ddb7faceb",
       "glyphId": "g-050ddb7faceb",
-      "codePoint": 74,
+      "glyphToken": "g-050ddb7faceb",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1299,7 +1299,7 @@
     {
       "shapeRef": "shape-g-41803959316c",
       "glyphId": "g-41803959316c",
-      "codePoint": 78,
+      "glyphToken": "g-41803959316c",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1322,7 +1322,7 @@
     {
       "shapeRef": "shape-g-88ffa0b551b5",
       "glyphId": "g-88ffa0b551b5",
-      "codePoint": 80,
+      "glyphToken": "g-88ffa0b551b5",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1345,7 +1345,7 @@
     {
       "shapeRef": "shape-g-76769b7c5736",
       "glyphId": "g-76769b7c5736",
-      "codePoint": 108,
+      "glyphToken": "g-76769b7c5736",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1368,7 +1368,7 @@
     {
       "shapeRef": "shape-g-f71f02da8690",
       "glyphId": "g-f71f02da8690",
-      "codePoint": 101,
+      "glyphToken": "g-f71f02da8690",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1391,7 +1391,7 @@
     {
       "shapeRef": "shape-g-8b5b0e67f7d9",
       "glyphId": "g-8b5b0e67f7d9",
-      "codePoint": 115,
+      "glyphToken": "g-8b5b0e67f7d9",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1414,7 +1414,7 @@
     {
       "shapeRef": "shape-g-1732182ed3fb",
       "glyphId": "g-1732182ed3fb",
-      "codePoint": 32,
+      "glyphToken": "g-1732182ed3fb",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Common",
       "source": "synthetic",
@@ -1437,7 +1437,7 @@
     {
       "shapeRef": "shape-g-5aee088499d8",
       "glyphId": "g-5aee088499d8",
-      "codePoint": 114,
+      "glyphToken": "g-5aee088499d8",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1460,7 +1460,7 @@
     {
       "shapeRef": "shape-g-a4d9eb3becda",
       "glyphId": "g-a4d9eb3becda",
-      "codePoint": 100,
+      "glyphToken": "g-a4d9eb3becda",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1483,7 +1483,7 @@
     {
       "shapeRef": "shape-g-8eb685cd5755",
       "glyphId": "g-8eb685cd5755",
-      "codePoint": 98,
+      "glyphToken": "g-8eb685cd5755",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1506,7 +1506,7 @@
     {
       "shapeRef": "shape-g-551d717e5423",
       "glyphId": "g-551d717e5423",
-      "codePoint": 102,
+      "glyphToken": "g-551d717e5423",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1529,7 +1529,7 @@
     {
       "shapeRef": "shape-g-8753d97563fc",
       "glyphId": "g-8753d97563fc",
-      "codePoint": 111,
+      "glyphToken": "g-8753d97563fc",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1552,7 +1552,7 @@
     {
       "shapeRef": "shape-g-7775517a95f0",
       "glyphId": "g-7775517a95f0",
-      "codePoint": 117,
+      "glyphToken": "g-7775517a95f0",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1575,7 +1575,7 @@
     {
       "shapeRef": "shape-g-195c365b017c",
       "glyphId": "g-195c365b017c",
-      "codePoint": 119,
+      "glyphToken": "g-195c365b017c",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1598,7 +1598,7 @@
     {
       "shapeRef": "shape-g-857c6d242910",
       "glyphId": "g-857c6d242910",
-      "codePoint": 107,
+      "glyphToken": "g-857c6d242910",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "source": "extracted",
@@ -1621,7 +1621,7 @@
     {
       "shapeRef": "shape-g-3279d7839148",
       "glyphId": "g-3279d7839148",
-      "codePoint": 46,
+      "glyphToken": "g-3279d7839148",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Common",
       "source": "extracted",

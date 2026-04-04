@@ -25,10 +25,11 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
   const chunk = chunkInfo.chunk;
   const glyphs = glyphInfo.glyphs;
   const shapes = glyphInfo.shapes;
+  const substrate = glyphInfo.substrate || glyphInfo.glyphs.substrate;
   const chunkLocation = locations.chunks.find((item) => item.chunkId === chunk.chunkId);
 
-  if (!chunk.renderLayer || !Array.isArray(chunk.renderLayer.textRuns)) {
-    throw new Error(`Chunk ${chunk.chunkId} is missing renderLayer.textRuns`);
+  if (!chunk.renderLayer || !Array.isArray(chunk.renderLayer.glyphRuns)) {
+    throw new Error(`Chunk ${chunk.chunkId} is missing renderLayer.glyphRuns`);
   }
   if (!chunk.selectionLayer || !Array.isArray(chunk.selectionLayer.textSegments)) {
     throw new Error(`Chunk ${chunk.chunkId} is missing selectionLayer.textSegments`);
@@ -42,6 +43,9 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
   if ("text" in chunk.renderLayer) {
     throw new Error(`Chunk ${chunk.chunkId} leaks renderLayer.text`);
   }
+  if ("textRuns" in chunk.renderLayer) {
+    throw new Error(`Chunk ${chunk.chunkId} still exposes renderLayer.textRuns`);
+  }
   if (!glyphs.seed || !glyphs.glyphs || typeof glyphs.glyphs !== "object") {
     throw new Error(`Glyph file for ${chunk.chunkId} is missing seed or glyph table`);
   }
@@ -49,8 +53,17 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
   if (glyphValues.some((item) => "char" in item)) {
     throw new Error(`Glyph file for ${chunk.chunkId} leaks char fields`);
   }
-  if (glyphValues.some((item) => !("codePoint" in item) || !item.styleToken)) {
+  if (glyphValues.some((item) => "codePoint" in item)) {
+    throw new Error(`Glyph file for ${chunk.chunkId} leaks codePoint fields`);
+  }
+  if (glyphValues.some((item) => "reconRef" in item)) {
+    throw new Error(`Glyph file for ${chunk.chunkId} leaks reconstruction linkage`);
+  }
+  if (glyphValues.some((item) => !item.styleToken || !item.shapeRef || !item.glyphToken)) {
     throw new Error(`Glyph file for ${chunk.chunkId} has incomplete glyph records`);
+  }
+  if (!substrate || substrate.mode !== "sealed-window-substrate-v1" || !Array.isArray(substrate.lanes)) {
+    throw new Error(`Glyph file for ${chunk.chunkId} is missing sealed reconstruction substrate`);
   }
   if (shapes) {
     if (!Array.isArray(shapes.shapeRecords)) {
@@ -60,6 +73,9 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
     for (const shape of shapes.shapeRecords) {
       if (!shape.shapeRef || !shape.glyphId) {
         throw new Error(`Shapes file for ${chunk.chunkId} has incomplete shape linkage`);
+      }
+      if ("codePoint" in shape || "char" in shape || "text" in shape) {
+        throw new Error(`Shapes file for ${chunk.chunkId} leaks direct text fields`);
       }
       if (shape.source === "extracted") {
         if (!shape.pathData || typeof shape.pathData !== "string") {
@@ -85,10 +101,15 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
       }
     }
   }
-  for (const run of chunk.renderLayer.textRuns) {
-    for (const glyphId of run.glyphIds || []) {
-      if (!glyphs.glyphs[glyphId]) {
-        throw new Error(`Chunk ${chunk.chunkId} references missing glyph ${glyphId}`);
+  for (const entry of substrate.lanes) {
+    if (entry && ("codePoint" in entry || "char" in entry || "text" in entry || "glyphToken" in entry)) {
+      throw new Error(`Reconstruction substrate for ${chunk.chunkId} leaks direct text fields`);
+    }
+  }
+  for (const run of chunk.renderLayer.glyphRuns || []) {
+    for (const glyphToken of run.glyphTokens || []) {
+      if (!glyphs.glyphs[glyphToken]) {
+        throw new Error(`Chunk ${chunk.chunkId} references missing glyph ${glyphToken}`);
       }
     }
     if (!run.styleToken) {
@@ -114,6 +135,9 @@ function main() {
   }
 
   const root = resolveInput(input);
+  if (fs.existsSync(path.join(root, "internal"))) {
+    throw new Error("Artifact still exposes fetchable internal reconstruction directory.");
+  }
   const { manifest } = loadProtectedManifest(root);
   const { locations } = loadProtectedLocations(root, manifest);
   const { styles } = loadProtectedStyles(root, manifest);
@@ -128,10 +152,13 @@ function main() {
   const seeds = new Set();
 
   for (const manifestChunk of manifest.chunks) {
+    if ("reconstructionPath" in manifestChunk) {
+      throw new Error(`Manifest still exposes reconstructionPath for ${manifestChunk.chunkId}`);
+    }
     const chunkInfo = loadProtectedChunk(root, manifestChunk);
     validateChunk(chunkInfo, chunkInfo, locations);
     seeds.add(chunkInfo.glyphs.seed);
-    for (const run of chunkInfo.chunk.renderLayer.textRuns) {
+    for (const run of chunkInfo.chunk.renderLayer.glyphRuns || []) {
       if (!styleTokens.has(run.styleToken)) {
         throw new Error(`Unknown styleToken ${run.styleToken} in ${chunkInfo.chunk.chunkId}`);
       }

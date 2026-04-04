@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "mode": "protected-runtime-safe",
   "metadata": {
     "title": "Crome Yellow",
@@ -17,6 +17,13 @@
   "chunking": {
     "mode": "logical-deterministic",
     "viewportIndependent": true
+  },
+  "runtimeContract": {
+    "glyphMode": "opaque-chunk-local",
+    "renderPayload": "opaque-glyph-ops",
+    "reconstructionMode": "sealed-window-scoped",
+    "reconstructionSurface": "embedded-substrate",
+    "unicodeLeakage": "forbidden-in-runtime-safe-render-path"
   },
   "debugArtifactAvailable": false,
   "chunks": [

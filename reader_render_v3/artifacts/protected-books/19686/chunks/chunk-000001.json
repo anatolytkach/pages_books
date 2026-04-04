@@ -798,12 +798,12 @@
   ],
   "renderLayer": {
     "chunkGlyphsRef": "../glyphs/chunk-000001.glyphs.json",
-    "textRuns": [
+    "glyphRuns": [
       {
         "runId": "item1-b-0001-run-1",
         "blockId": "item1-b-0001",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-e10f6345190d",
           "g-ec179bbcfaa9",
           "g-bae2f49859a5",
@@ -862,7 +862,7 @@
           "g-bae2f49859a5",
           "g-940655dc8595"
         ],
-        "textLength": 57,
+        "glyphCount": 57,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -897,7 +897,7 @@
         "runId": "item1-b-0002-run-1",
         "blockId": "item1-b-0002",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-e10f6345190d",
           "g-ec179bbcfaa9",
           "g-2692b0da8194",
@@ -1161,7 +1161,7 @@
           "g-0062817eafa9",
           "g-bae2f49859a5"
         ],
-        "textLength": 262,
+        "glyphCount": 262,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1196,7 +1196,7 @@
         "runId": "item1-b-0003-run-1",
         "blockId": "item1-b-0003",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-e10f6345190d",
           "g-2692b0da8194",
           "g-b124d1f6c765",
@@ -1217,7 +1217,7 @@
           "g-1f2743a5ca0c",
           "g-eb22e0002bf4"
         ],
-        "textLength": 19,
+        "glyphCount": 19,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1252,7 +1252,7 @@
         "runId": "item1-b-0004-run-1",
         "blockId": "item1-b-0004",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-eae19232c253",
           "g-d95d30c99759",
           "g-2a444a31f744",
@@ -1289,7 +1289,7 @@
           "g-1f2743a5ca0c",
           "g-1decb1b827ae"
         ],
-        "textLength": 35,
+        "glyphCount": 35,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1324,7 +1324,7 @@
         "runId": "item1-b-0005-run-1",
         "blockId": "item1-b-0005",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-40d6c10939ce",
           "g-d95d30c99759",
           "g-b124d1f6c765",
@@ -1347,7 +1347,7 @@
           "g-bae2f49859a5",
           "g-940655dc8595"
         ],
-        "textLength": 21,
+        "glyphCount": 21,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1382,7 +1382,7 @@
         "runId": "item1-b-0006-run-1",
         "blockId": "item1-b-0006",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-bc07b2caceab",
           "g-bae2f49859a5",
           "g-896ec0bcf4f0",
@@ -1426,7 +1426,7 @@
           "g-cfe364a5dc5f",
           "g-fb1ce9ec84e9"
         ],
-        "textLength": 42,
+        "glyphCount": 42,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1461,7 +1461,7 @@
         "runId": "item1-b-0007-run-1",
         "blockId": "item1-b-0007",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-50d737bbefbd",
           "g-b2ff345eb46e",
           "g-1decb1b827ae",
@@ -1480,7 +1480,7 @@
           "g-0062817eafa9",
           "g-ec179bbcfaa9"
         ],
-        "textLength": 17,
+        "glyphCount": 17,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1515,7 +1515,7 @@
         "runId": "item1-b-0008-run-1",
         "blockId": "item1-b-0008",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-2998959887ea",
           "g-2998959887ea",
           "g-2998959887ea",
@@ -1572,7 +1572,7 @@
           "g-2998959887ea",
           "g-2998959887ea"
         ],
-        "textLength": 55,
+        "glyphCount": 55,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1607,7 +1607,7 @@
         "runId": "item1-b-0009-run-1",
         "blockId": "item1-b-0009",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-e10f6345190d",
           "g-ec179bbcfaa9",
           "g-2692b0da8194",
@@ -1654,7 +1654,7 @@
           "g-2a444a31f744",
           "g-940655dc8595"
         ],
-        "textLength": 45,
+        "glyphCount": 45,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1689,7 +1689,7 @@
         "runId": "item1-b-0010-run-1",
         "blockId": "item1-b-0010",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-5351cb3c9bc8",
           "g-b2ff345eb46e",
           "g-b9400f7e0795",
@@ -1705,7 +1705,7 @@
           "g-1f2743a5ca0c",
           "g-1decb1b827ae"
         ],
-        "textLength": 14,
+        "glyphCount": 14,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1740,7 +1740,7 @@
         "runId": "item1-b-0011-run-1",
         "blockId": "item1-b-0011",
         "styleToken": "paragraph",
-        "glyphIds": [
+        "glyphTokens": [
           "g-23c8fb74f9f1",
           "g-1f2743a5ca0c",
           "g-1decb1b827ae",
@@ -1750,7 +1750,7 @@
           "g-b124d1f6c765",
           "g-0062817eafa9"
         ],
-        "textLength": 8,
+        "glyphCount": 8,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1785,7 +1785,7 @@
         "runId": "item1-b-0012-run-1",
         "blockId": "item1-b-0012",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -1810,7 +1810,7 @@
           "g-bdfc1c4731fd",
           "g-820f0bdcb504"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1854,7 +1854,7 @@
         "runId": "item1-b-0013-run-1",
         "blockId": "item1-b-0013",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -1879,7 +1879,7 @@
           "g-bdfc1c4731fd",
           "g-820f0bdcb504"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1923,7 +1923,7 @@
         "runId": "item1-b-0014-run-1",
         "blockId": "item1-b-0014",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -1948,7 +1948,7 @@
           "g-bdfc1c4731fd",
           "g-6aa7cf37ca13"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -1992,7 +1992,7 @@
         "runId": "item1-b-0015-run-1",
         "blockId": "item1-b-0015",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -2017,7 +2017,7 @@
           "g-820f0bdcb504",
           "g-4e8f4a28356e"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -2061,7 +2061,7 @@
         "runId": "item1-b-0016-run-1",
         "blockId": "item1-b-0016",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -2086,7 +2086,7 @@
           "g-278ff8be77cf",
           "g-b3f4ff8175cc"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -2130,7 +2130,7 @@
         "runId": "item1-b-0017-run-1",
         "blockId": "item1-b-0017",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -2155,7 +2155,7 @@
           "g-357d65029bb9",
           "g-79df3da7fbea"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -2199,7 +2199,7 @@
         "runId": "item1-b-0018-run-1",
         "blockId": "item1-b-0018",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -2224,7 +2224,7 @@
           "g-b3f4ff8175cc",
           "g-79df3da7fbea"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -2268,7 +2268,7 @@
         "runId": "item1-b-0019-run-1",
         "blockId": "item1-b-0019",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -2293,7 +2293,7 @@
           "g-278ff8be77cf",
           "g-51119eb1df25"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -2337,7 +2337,7 @@
         "runId": "item1-b-0020-run-1",
         "blockId": "item1-b-0020",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -2362,7 +2362,7 @@
           "g-6aa7cf37ca13",
           "g-357d65029bb9"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -2406,7 +2406,7 @@
         "runId": "item1-b-0021-run-1",
         "blockId": "item1-b-0021",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -2431,7 +2431,7 @@
           "g-6aa7cf37ca13",
           "g-4e8f4a28356e"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -2475,7 +2475,7 @@
         "runId": "item1-b-0022-run-1",
         "blockId": "item1-b-0022",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -2500,7 +2500,7 @@
           "g-820f0bdcb504",
           "g-ca374678b051"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -2544,7 +2544,7 @@
         "runId": "item1-b-0023-run-1",
         "blockId": "item1-b-0023",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -2569,7 +2569,7 @@
           "g-820f0bdcb504",
           "g-4e8f4a28356e"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -2613,7 +2613,7 @@
         "runId": "item1-b-0024-run-1",
         "blockId": "item1-b-0024",
         "styleToken": "heading-5",
-        "glyphIds": [
+        "glyphTokens": [
           "g-8bf554b3c2f3",
           "g-bb3e88669496",
           "g-1d45126bcc33",
@@ -2638,7 +2638,7 @@
           "g-6aa7cf37ca13",
           "g-278ff8be77cf"
         ],
-        "textLength": 23,
+        "glyphCount": 23,
         "sourceRef": {
           "spineId": "item1",
           "spineIndex": 0,
@@ -3960,6 +3960,652 @@
         "rangeId": "chunk-000001-copy-24",
         "blockId": "item1-b-0024",
         "start": 897,
+        "end": 920
+      }
+    ],
+    "wordBoundaries": [
+      {
+        "start": 0,
+        "end": 3
+      },
+      {
+        "start": 4,
+        "end": 11
+      },
+      {
+        "start": 12,
+        "end": 21
+      },
+      {
+        "start": 22,
+        "end": 27
+      },
+      {
+        "start": 28,
+        "end": 33
+      },
+      {
+        "start": 34,
+        "end": 40
+      },
+      {
+        "start": 41,
+        "end": 43
+      },
+      {
+        "start": 44,
+        "end": 50
+      },
+      {
+        "start": 51,
+        "end": 57
+      },
+      {
+        "start": 59,
+        "end": 63
+      },
+      {
+        "start": 64,
+        "end": 69
+      },
+      {
+        "start": 70,
+        "end": 72
+      },
+      {
+        "start": 73,
+        "end": 76
+      },
+      {
+        "start": 77,
+        "end": 80
+      },
+      {
+        "start": 81,
+        "end": 84
+      },
+      {
+        "start": 85,
+        "end": 87
+      },
+      {
+        "start": 88,
+        "end": 94
+      },
+      {
+        "start": 95,
+        "end": 103
+      },
+      {
+        "start": 104,
+        "end": 106
+      },
+      {
+        "start": 107,
+        "end": 109
+      },
+      {
+        "start": 110,
+        "end": 114
+      },
+      {
+        "start": 115,
+        "end": 118
+      },
+      {
+        "start": 119,
+        "end": 123
+      },
+      {
+        "start": 124,
+        "end": 130
+      },
+      {
+        "start": 131,
+        "end": 133
+      },
+      {
+        "start": 134,
+        "end": 146
+      },
+      {
+        "start": 147,
+        "end": 157
+      },
+      {
+        "start": 159,
+        "end": 162
+      },
+      {
+        "start": 163,
+        "end": 166
+      },
+      {
+        "start": 167,
+        "end": 171
+      },
+      {
+        "start": 172,
+        "end": 174
+      },
+      {
+        "start": 176,
+        "end": 180
+      },
+      {
+        "start": 181,
+        "end": 183
+      },
+      {
+        "start": 184,
+        "end": 188
+      },
+      {
+        "start": 189,
+        "end": 191
+      },
+      {
+        "start": 192,
+        "end": 198
+      },
+      {
+        "start": 199,
+        "end": 201
+      },
+      {
+        "start": 202,
+        "end": 207
+      },
+      {
+        "start": 208,
+        "end": 211
+      },
+      {
+        "start": 212,
+        "end": 217
+      },
+      {
+        "start": 218,
+        "end": 220
+      },
+      {
+        "start": 221,
+        "end": 224
+      },
+      {
+        "start": 225,
+        "end": 232
+      },
+      {
+        "start": 233,
+        "end": 242
+      },
+      {
+        "start": 243,
+        "end": 250
+      },
+      {
+        "start": 251,
+        "end": 259
+      },
+      {
+        "start": 260,
+        "end": 264
+      },
+      {
+        "start": 265,
+        "end": 269
+      },
+      {
+        "start": 270,
+        "end": 275
+      },
+      {
+        "start": 276,
+        "end": 278
+      },
+      {
+        "start": 279,
+        "end": 285
+      },
+      {
+        "start": 286,
+        "end": 288
+      },
+      {
+        "start": 289,
+        "end": 293
+      },
+      {
+        "start": 296,
+        "end": 299
+      },
+      {
+        "start": 300,
+        "end": 309
+      },
+      {
+        "start": 310,
+        "end": 313
+      },
+      {
+        "start": 314,
+        "end": 321
+      },
+      {
+        "start": 323,
+        "end": 328
+      },
+      {
+        "start": 330,
+        "end": 335
+      },
+      {
+        "start": 336,
+        "end": 342
+      },
+      {
+        "start": 344,
+        "end": 352
+      },
+      {
+        "start": 354,
+        "end": 361
+      },
+      {
+        "start": 362,
+        "end": 364
+      },
+      {
+        "start": 365,
+        "end": 371
+      },
+      {
+        "start": 372,
+        "end": 379
+      },
+      {
+        "start": 381,
+        "end": 387
+      },
+      {
+        "start": 389,
+        "end": 395
+      },
+      {
+        "start": 396,
+        "end": 402
+      },
+      {
+        "start": 404,
+        "end": 411
+      },
+      {
+        "start": 412,
+        "end": 416
+      },
+      {
+        "start": 418,
+        "end": 426
+      },
+      {
+        "start": 427,
+        "end": 431
+      },
+      {
+        "start": 433,
+        "end": 438
+      },
+      {
+        "start": 440,
+        "end": 445
+      },
+      {
+        "start": 448,
+        "end": 456
+      },
+      {
+        "start": 458,
+        "end": 465
+      },
+      {
+        "start": 470,
+        "end": 475
+      },
+      {
+        "start": 476,
+        "end": 478
+      },
+      {
+        "start": 479,
+        "end": 482
+      },
+      {
+        "start": 483,
+        "end": 490
+      },
+      {
+        "start": 491,
+        "end": 500
+      },
+      {
+        "start": 501,
+        "end": 506
+      },
+      {
+        "start": 507,
+        "end": 512
+      },
+      {
+        "start": 513,
+        "end": 519
+      },
+      {
+        "start": 524,
+        "end": 528
+      },
+      {
+        "start": 529,
+        "end": 534
+      },
+      {
+        "start": 535,
+        "end": 542
+      },
+      {
+        "start": 543,
+        "end": 545
+      },
+      {
+        "start": 546,
+        "end": 551
+      },
+      {
+        "start": 552,
+        "end": 558
+      },
+      {
+        "start": 559,
+        "end": 561
+      },
+      {
+        "start": 562,
+        "end": 566
+      },
+      {
+        "start": 567,
+        "end": 569
+      },
+      {
+        "start": 571,
+        "end": 577
+      },
+      {
+        "start": 578,
+        "end": 585
+      },
+      {
+        "start": 587,
+        "end": 595
+      },
+      {
+        "start": 599,
+        "end": 606
+      },
+      {
+        "start": 607,
+        "end": 609
+      },
+      {
+        "start": 612,
+        "end": 614
+      },
+      {
+        "start": 615,
+        "end": 617
+      },
+      {
+        "start": 618,
+        "end": 620
+      },
+      {
+        "start": 624,
+        "end": 631
+      },
+      {
+        "start": 632,
+        "end": 634
+      },
+      {
+        "start": 637,
+        "end": 639
+      },
+      {
+        "start": 640,
+        "end": 642
+      },
+      {
+        "start": 643,
+        "end": 645
+      },
+      {
+        "start": 649,
+        "end": 656
+      },
+      {
+        "start": 657,
+        "end": 659
+      },
+      {
+        "start": 662,
+        "end": 664
+      },
+      {
+        "start": 665,
+        "end": 667
+      },
+      {
+        "start": 668,
+        "end": 670
+      },
+      {
+        "start": 674,
+        "end": 681
+      },
+      {
+        "start": 682,
+        "end": 684
+      },
+      {
+        "start": 687,
+        "end": 689
+      },
+      {
+        "start": 690,
+        "end": 692
+      },
+      {
+        "start": 693,
+        "end": 695
+      },
+      {
+        "start": 699,
+        "end": 706
+      },
+      {
+        "start": 707,
+        "end": 709
+      },
+      {
+        "start": 712,
+        "end": 714
+      },
+      {
+        "start": 715,
+        "end": 717
+      },
+      {
+        "start": 718,
+        "end": 720
+      },
+      {
+        "start": 724,
+        "end": 731
+      },
+      {
+        "start": 732,
+        "end": 734
+      },
+      {
+        "start": 737,
+        "end": 739
+      },
+      {
+        "start": 740,
+        "end": 742
+      },
+      {
+        "start": 743,
+        "end": 745
+      },
+      {
+        "start": 749,
+        "end": 756
+      },
+      {
+        "start": 757,
+        "end": 759
+      },
+      {
+        "start": 762,
+        "end": 764
+      },
+      {
+        "start": 765,
+        "end": 767
+      },
+      {
+        "start": 768,
+        "end": 770
+      },
+      {
+        "start": 774,
+        "end": 781
+      },
+      {
+        "start": 782,
+        "end": 784
+      },
+      {
+        "start": 787,
+        "end": 789
+      },
+      {
+        "start": 790,
+        "end": 792
+      },
+      {
+        "start": 793,
+        "end": 795
+      },
+      {
+        "start": 799,
+        "end": 806
+      },
+      {
+        "start": 807,
+        "end": 809
+      },
+      {
+        "start": 812,
+        "end": 814
+      },
+      {
+        "start": 815,
+        "end": 817
+      },
+      {
+        "start": 818,
+        "end": 820
+      },
+      {
+        "start": 824,
+        "end": 831
+      },
+      {
+        "start": 832,
+        "end": 834
+      },
+      {
+        "start": 837,
+        "end": 839
+      },
+      {
+        "start": 840,
+        "end": 842
+      },
+      {
+        "start": 843,
+        "end": 845
+      },
+      {
+        "start": 849,
+        "end": 856
+      },
+      {
+        "start": 857,
+        "end": 859
+      },
+      {
+        "start": 862,
+        "end": 864
+      },
+      {
+        "start": 865,
+        "end": 867
+      },
+      {
+        "start": 868,
+        "end": 870
+      },
+      {
+        "start": 874,
+        "end": 881
+      },
+      {
+        "start": 882,
+        "end": 884
+      },
+      {
+        "start": 887,
+        "end": 889
+      },
+      {
+        "start": 890,
+        "end": 892
+      },
+      {
+        "start": 893,
+        "end": 895
+      },
+      {
+        "start": 899,
+        "end": 906
+      },
+      {
+        "start": 907,
+        "end": 909
+      },
+      {
+        "start": 912,
+        "end": 914
+      },
+      {
+        "start": 915,
+        "end": 917
+      },
+      {
+        "start": 918,
         "end": 920
       }
     ],

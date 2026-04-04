@@ -101,7 +101,7 @@ function buildStyles(styles, fontPlan) {
 
 function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, runtimeShapeChunks, debugChunks, debugGlyphChunks, styles, fontPlan, debugArtifactEnabled }) {
   const manifest = {
-    version: 2,
+    version: 3,
     mode: "protected-runtime-safe",
     metadata: {
       title: book.metadata.title,
@@ -115,6 +115,13 @@ function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, 
     chunking: {
       mode: "logical-deterministic",
       viewportIndependent: true
+    },
+    runtimeContract: {
+      glyphMode: "opaque-chunk-local",
+      renderPayload: "opaque-glyph-ops",
+      reconstructionMode: "sealed-window-scoped",
+      reconstructionSurface: "embedded-substrate",
+      unicodeLeakage: "forbidden-in-runtime-safe-render-path"
     },
     debugArtifactAvailable: !!debugArtifactEnabled,
     chunks: runtimeChunks.map((chunk, index) => ({

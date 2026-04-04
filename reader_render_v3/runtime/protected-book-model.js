@@ -1,6 +1,6 @@
 import { buildTocIndex, getChunkTocLabel } from "./protected-navigation-model.js";
-import { reconstructBlockText, reconstructRunText } from "./protected-text-reconstruction.js";
 import { buildWordBoundaryModel } from "./protected-word-boundary.js";
+import { buildGlobalLocationModel } from "./protected-global-location.js";
 
 async function fetchJson(url) {
   const response = await fetch(url, { credentials: "same-origin" });
@@ -27,10 +27,34 @@ function assertNoLeakage(value, where) {
     return;
   }
   for (const [key, next] of Object.entries(value)) {
-    if (key === "char" || key === "fullText" || key === "text") {
+    if (key === "char" || key === "fullText" || key === "text" || key === "codePoint") {
       throw new Error(`Runtime-safe leakage field at ${where}.${key}`);
     }
     assertNoLeakage(next, `${where}.${key}`);
+  }
+}
+
+function buildSubstrateLaneMap(substrate) {
+  return new Map(((substrate && substrate.lanes) || []).map((lane) => [lane.slot, lane]));
+}
+
+function assertRuntimeContract(chunk, glyphPayload) {
+  if (!chunk.renderLayer || !Array.isArray(chunk.renderLayer.glyphRuns)) {
+    throw new Error(`Runtime-safe chunk ${chunk.chunkId} is missing glyphRuns.`);
+  }
+  if ("textRuns" in chunk.renderLayer) {
+    throw new Error(`Runtime-safe chunk ${chunk.chunkId} still exposes textRuns.`);
+  }
+  for (const glyph of Object.values(glyphPayload.glyphs || {})) {
+    if (!glyph.glyphToken || !glyph.shapeRef) {
+      throw new Error(`Runtime-safe chunk ${chunk.chunkId} has incomplete glyph token records.`);
+    }
+    if ("reconRef" in glyph) {
+      throw new Error(`Runtime-safe chunk ${chunk.chunkId} leaks reconstruction linkage.`);
+    }
+  }
+  if (!glyphPayload.substrate || glyphPayload.substrate.mode !== "sealed-window-substrate-v1") {
+    throw new Error(`Runtime-safe chunk ${chunk.chunkId} is missing sealed reconstruction substrate.`);
   }
 }
 
@@ -47,7 +71,7 @@ export async function loadProtectedBook(artifactRoot) {
     fetchJson(resolveUrl(manifestUrl, manifest.locationsPath)),
     fetchJson(resolveUrl(manifestUrl, manifest.stylesPath))
   ]);
-  return {
+  const book = {
     rootUrl,
     manifestUrl,
     manifest,
@@ -57,6 +81,8 @@ export async function loadProtectedBook(artifactRoot) {
     styleMap: new Map((styles.styleTokens || []).map((item) => [item.styleToken, item])),
     chunkCache: new Map()
   };
+  book.globalLocationModel = buildGlobalLocationModel(book);
+  return book;
 }
 
 export async function loadProtectedChunkModel(book, chunkIndex) {
@@ -79,6 +105,8 @@ export async function loadProtectedChunkModel(book, chunkIndex) {
   assertNoLeakage(chunk.selectionLayer, "chunk.selectionLayer");
   assertNoLeakage(glyphPayload.glyphs, "glyphs.glyphs");
   if (shapeBundle) assertNoLeakage(shapeBundle, "shapeBundle");
+  if (glyphPayload.substrate) assertNoLeakage(glyphPayload.substrate, "glyphPayload.substrate");
+  assertRuntimeContract(chunk, glyphPayload);
 
   const glyphMap = new Map(Object.entries(glyphPayload.glyphs || {}));
   const runsByBlock = new Map();
@@ -86,37 +114,27 @@ export async function loadProtectedChunkModel(book, chunkIndex) {
   const textSegments = [...(((chunk.selectionLayer && chunk.selectionLayer.textSegments) || []))].sort(
     (a, b) => a.start - b.start
   );
-  for (const run of chunk.renderLayer.textRuns || []) {
+  for (const run of chunk.renderLayer.glyphRuns || []) {
     if (!runsByBlock.has(run.blockId)) runsByBlock.set(run.blockId, []);
     const runIndex = runsByBlock.get(run.blockId).length;
     runsByBlock.get(run.blockId).push(run);
     runBySegmentKey.set(`${run.blockId}:${runIndex}`, run);
   }
 
-  const segmentTexts = textSegments.map((segment) => {
-    const run = runBySegmentKey.get(`${segment.blockId}:${segment.runIndex}`);
-    return {
-      ...segment,
-      text: run ? reconstructRunText(run, glyphMap) : ""
-    };
-  });
-
   const chunkLocation = (book.locations.chunks || []).find((item) => item.chunkId === chunk.chunkId) || null;
   const model = {
     chunk,
     glyphPayload,
     shapeBundle,
+    substrate: glyphPayload.substrate || null,
+    substrateLaneMap: buildSubstrateLaneMap(glyphPayload.substrate || null),
     glyphMap,
     runsByBlock,
     runBySegmentKey,
     textSegments,
-    segmentTexts,
-    wordBoundaryModel: buildWordBoundaryModel(segmentTexts),
+    wordBoundaryModel: buildWordBoundaryModel(chunk.selectionLayer),
     chunkLocation,
-    tocLabel: getChunkTocLabel(chunkLocation),
-    getBlockText(blockId) {
-      return reconstructBlockText(model, blockId);
-    }
+    tocLabel: getChunkTocLabel(chunkLocation)
   };
 
   book.chunkCache.set(manifestChunk.chunkId, model);

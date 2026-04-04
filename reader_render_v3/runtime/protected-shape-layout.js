@@ -6,16 +6,16 @@ export function buildGlyphRenderOps({ layout, chunkModel, shapeRegistry, renderM
       const run = chunkModel.runBySegmentKey.get(fragment.runKey);
       if (!run) continue;
       let cursorX = fragment.x;
-      const glyphIds = (run.glyphIds || []).slice(fragment.glyphStartIndex, fragment.glyphEndIndex);
-      for (let index = 0; index < glyphIds.length; index += 1) {
-        const glyphId = glyphIds[index];
-        const glyph = chunkModel.glyphMap.get(glyphId);
+      const glyphTokens = (run.glyphTokens || []).slice(fragment.glyphStartIndex, fragment.glyphEndIndex);
+      for (let index = 0; index < glyphTokens.length; index += 1) {
+        const glyphToken = glyphTokens[index];
+        const glyph = chunkModel.glyphMap.get(glyphToken);
         if (!glyph) continue;
         const advance = fragment.charPositions[index + 1] - fragment.charPositions[index];
         const shapeRecord = shapeRegistry.getByGlyph(glyph);
         ops.push({
-          glyphId,
-          codePoint: glyph.codePoint,
+          glyphId: glyph.glyphId,
+          glyphToken,
           styleToken: glyph.styleToken,
           fontFamilyCandidate: glyph.fontFamilyCandidate,
           scriptBucket: glyph.scriptBucket,

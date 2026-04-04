@@ -5,14 +5,14 @@ const { resolveFontPolicy } = require("./resolve-font-policy");
 const { extractGlyphPath } = require("./extract-glyph-paths");
 
 function glyphPrimitiveType(glyph, extraction) {
-  if (glyph.codePoint === 32) return "space";
+  if (glyph.scalar === 32) return "space";
   if (extraction.source === "extracted" && extraction.pathData) return "path";
   if (glyph.scriptBucket === "Common") return "common-box";
   return "ink-box";
 }
 
 function advanceEmForGlyph(glyph) {
-  const cp = glyph.codePoint;
+  const cp = glyph.scalar;
   if (cp === 32) return 0.33;
   if (/[ilI.,'`:;!]/.test(String.fromCodePoint(cp))) return 0.28;
   if (/[MW@#%&]/.test(String.fromCodePoint(cp))) return 0.92;
@@ -23,7 +23,7 @@ function advanceEmForGlyph(glyph) {
 }
 
 function bboxForGlyph(glyph, advanceEm) {
-  if (glyph.codePoint === 32) {
+  if (glyph.scalar === 32) {
     return { x: 0, y: 0, width: advanceEm, height: 0 };
   }
   return {
@@ -34,8 +34,8 @@ function bboxForGlyph(glyph, advanceEm) {
   };
 }
 
-function buildShapeLayer({ chunkId, runtimeGlyphs, styleRegistry, fontAssets }) {
-  const shapeRecords = runtimeGlyphs.map((glyph) => {
+function buildShapeLayer({ chunkId, internalGlyphs, styleRegistry, fontAssets }) {
+  const shapeRecords = internalGlyphs.map((glyph) => {
     const styleTokenRecord = styleRegistry[glyph.styleToken] || {};
     const fontPolicy = resolveFontPolicy({ glyph, styleTokenRecord, fontAssets });
     const extraction = extractGlyphPath({ glyph, fontPolicy });
@@ -43,7 +43,7 @@ function buildShapeLayer({ chunkId, runtimeGlyphs, styleRegistry, fontAssets }) 
     return {
       shapeRef: glyph.shapeRef,
       glyphId: glyph.glyphId,
-      codePoint: glyph.codePoint,
+      glyphToken: glyph.glyphToken,
       styleToken: glyph.styleToken,
       scriptBucket: glyph.scriptBucket,
       source: extraction.source,
