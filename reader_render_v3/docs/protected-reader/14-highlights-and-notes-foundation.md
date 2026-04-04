@@ -54,6 +54,8 @@ The dev runtime now has an in-memory annotation store that can:
 This keeps the architecture ready for a later persistence step without binding the
 runtime to localStorage or a backend yet.
 
+The integrated protected reader now mounts the same annotation model through a repository abstraction, with optional local browser persistence for the protected mode only.
+
 ## Rendering model
 
 Persistent highlights are rendered through the overlay canvas, not through DOM text.
@@ -121,6 +123,10 @@ projection can now be prepared through the worker runtime along with current pag
 
 This keeps annotation UX working without pulling reconstruction or full book/chunk models
 back into the main thread controller.
+
+After snapshot sanitization, annotation packets sent to main thread remain geometry- and
+range-based. They do not include automatic decoded quote previews or excerpt text from
+the book.
 
 ## Production compatibility direction
 

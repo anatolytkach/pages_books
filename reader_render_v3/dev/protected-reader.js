@@ -4,8 +4,21 @@ import { renderChunkToCanvas } from "../runtime/protected-canvas-renderer.js";
 import { createProtectedWorkerClient } from "../runtime/protected-worker-client.js";
 import { loadProtectedBook } from "../runtime/protected-book-model.js";
 import { parseRestoreToken } from "../runtime/protected-global-location.js";
+import { resolveProductionPayloadFromRoute } from "../integration/protected-reader-routing.js";
 
-const DEFAULT_ARTIFACT = "../artifacts/protected-books/19686";
+const entryConfig = window.__PROTECTED_READER_ENTRY__ || null;
+const DEFAULT_ARTIFACT =
+  (entryConfig && entryConfig.artifactRoot) ||
+  "../artifacts/protected-books/19686";
+
+function shouldForceWorkerUnavailable() {
+  if (entryConfig && entryConfig.forceWorkerUnavailable) return true;
+  const params = new URLSearchParams(window.location.search);
+  const value = String(params.get("worker") || params.get("protectedWorker") || "")
+    .trim()
+    .toLowerCase();
+  return ["disabled", "fail", "broken"].includes(value);
+}
 
 const elements = {
   artifactForm: document.querySelector("#artifact-form"),
@@ -57,14 +70,26 @@ const state = {
   tocItems: [],
   currentSnapshot: null,
   currentRenderDiagnostics: null,
-  workerClient: createProtectedWorkerClient(),
+  workerClient: createProtectedWorkerClient({
+    forceUnavailable: shouldForceWorkerUnavailable()
+  }),
   compatBook: null,
   annotationRepository: null,
   annotationStore: null,
   selectedAnnotationId: null,
   lastCompatReport: null,
-  renderMode: "text",
-  metricsMode: "text",
+  entryConfig,
+  integrationMode: !!(entryConfig && entryConfig.mode === "integration"),
+  readingStateSource: entryConfig && entryConfig.readingStateSource ? entryConfig.readingStateSource : "protected-session",
+  readingStateRestoreApplied: false,
+  persistedReadingState: null,
+  lastReadingStateSaveAt: null,
+  compatShareImportStatus: entryConfig && entryConfig.compatShareImportStatus ? entryConfig.compatShareImportStatus : "none",
+  compatShareWarnings: entryConfig && Array.isArray(entryConfig.compatShareWarnings) ? entryConfig.compatShareWarnings : [],
+  sharePayloadParseStatus: entryConfig && entryConfig.compatShareImportStatus ? entryConfig.compatShareImportStatus : "none",
+  artifactLoadStatus: "idle",
+  renderMode: "shape",
+  metricsMode: "shape",
   debugGeometry: false
 };
 
@@ -85,6 +110,7 @@ function setDlRows(container, rows) {
 }
 
 function getArtifactRootFromLocation() {
+  if (entryConfig && entryConfig.artifactRoot) return entryConfig.artifactRoot;
   const params = new URLSearchParams(window.location.search);
   const artifact = params.get("artifact");
   if (artifact) return artifact;
@@ -94,11 +120,14 @@ function getArtifactRootFromLocation() {
 }
 
 function getRenderModeFromLocation() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("renderMode") === "shape" ? "shape" : "text";
+  return "shape";
 }
 
 function getMetricsModeFromLocation(renderMode) {
+  if (entryConfig && entryConfig.metricsMode) {
+    if (renderMode === "text") return "text";
+    return entryConfig.metricsMode === "text" ? "text" : "shape";
+  }
   const params = new URLSearchParams(window.location.search);
   const metricsMode = params.get("metricsMode");
   if (renderMode === "text") return "text";
@@ -106,13 +135,21 @@ function getMetricsModeFromLocation(renderMode) {
 }
 
 function getDebugGeometryFromLocation() {
+  if (entryConfig && typeof entryConfig.debugGeometry === "boolean") return entryConfig.debugGeometry;
   const params = new URLSearchParams(window.location.search);
   return params.get("debugGeometry") === "1";
 }
 
 function syncLocationParams() {
   const url = new URL(window.location.href);
-  url.searchParams.set("artifact", state.artifactRoot);
+  if (state.integrationMode && state.entryConfig && state.entryConfig.bookId) {
+    url.searchParams.set("id", state.entryConfig.bookId);
+    url.searchParams.delete("i");
+    url.searchParams.set("reader", "protected");
+    url.searchParams.delete("artifact");
+  } else {
+    url.searchParams.set("artifact", state.artifactRoot);
+  }
   url.searchParams.set("renderMode", state.renderMode);
   url.searchParams.set("metricsMode", state.metricsMode);
   if (state.debugGeometry) url.searchParams.set("debugGeometry", "1");
@@ -122,9 +159,13 @@ function syncLocationParams() {
 
 function syncArtifactInput() {
   elements.artifactInput.value = state.artifactRoot;
-  elements.renderMode.value = state.renderMode;
+  state.renderMode = "shape";
+  elements.renderMode.value = "shape";
   elements.metricsMode.value = state.metricsMode;
-  elements.metricsMode.disabled = state.renderMode !== "shape";
+  elements.renderMode.disabled = true;
+  const textModeOption = elements.renderMode.querySelector('option[value="text"]');
+  if (textModeOption) textModeOption.disabled = true;
+  elements.metricsMode.disabled = false;
   elements.debugGeometry.checked = state.debugGeometry;
 }
 
@@ -152,6 +193,140 @@ function updateAnnotationControls() {
   elements.exportAnnotations.disabled = !state.annotationStore || !state.annotationStore.all().length;
 }
 
+async function syncRepositoryAnnotations() {
+  if (!state.annotationRepository || !state.annotationStore) return;
+  await state.annotationRepository.replaceAnnotations(state.annotationStore.all(), {
+    keepReadingState: true
+  });
+}
+
+async function autoImportCompatPayload() {
+  if (!state.integrationMode || !state.annotationRepository || !state.compatBook) return false;
+  const route = state.entryConfig && state.entryConfig.integrationRoute;
+  if (state.annotationStore && state.annotationStore.all().length) return false;
+  if (!route) return false;
+
+  let resolved = null;
+  try {
+    resolved = await resolveProductionPayloadFromRoute(route, { timeoutMs: 4000 });
+  } catch (error) {
+    resolved = {
+      mode: "error",
+      payload: null,
+      warnings: [error && error.message ? error.message : "Share payload resolution failed."]
+    };
+  }
+
+  state.compatShareImportStatus = resolved.mode || "none";
+  state.sharePayloadParseStatus = resolved.mode || "none";
+  state.compatShareWarnings = Array.isArray(resolved.warnings) ? resolved.warnings : [];
+
+  if (!resolved.payload) {
+    state.lastCompatReport = {
+      total: 0,
+      exact: 0,
+      approximate: 0,
+      unresolved: 0,
+      createdHighlights: 0,
+      createdNotes: 0,
+      warnings: state.compatShareWarnings
+    };
+    elements.compatJson.value = JSON.stringify(state.lastCompatReport, null, 2);
+    renderRuntimeMeta();
+    return false;
+  }
+
+  const result = await state.annotationRepository.importProductionPayload(resolved.payload, {
+    book: state.compatBook,
+    merge: false,
+    preserveReadingStateIfMissing: true
+  });
+  state.lastCompatReport = result.report;
+  state.compatShareImportStatus = resolved.mode || "loaded";
+  state.sharePayloadParseStatus = resolved.mode || "loaded";
+  elements.compatJson.value = JSON.stringify(result.report, null, 2);
+  renderAnnotationList();
+  renderRuntimeMeta();
+  return true;
+}
+
+async function restoreReadingStateIfAvailable(bookId) {
+  if (!state.annotationRepository || !state.compatBook) return null;
+  const effectiveBookId = bookId || (state.bookSummary && state.bookSummary.bookId) || state.annotationRepository.bookId;
+  const explicitRestoreToken = state.entryConfig && state.entryConfig.explicitRestoreToken
+    ? String(state.entryConfig.explicitRestoreToken).trim()
+    : "";
+  if (explicitRestoreToken) {
+    state.readingStateSource = "token";
+    state.readingStateRestoreApplied = true;
+    return {
+      snapshot: await state.workerClient.restoreFromToken({
+        token: explicitRestoreToken,
+        viewportHeight: getViewportHeight(),
+        annotations: getCurrentAnnotations()
+      }),
+      source: "token",
+      readingState: null
+    };
+  }
+  const readingState = await state.annotationRepository.loadReadingState(effectiveBookId);
+  if (readingState && readingState.restoreToken) {
+    state.readingStateSource = "protected-persisted";
+    state.readingStateRestoreApplied = true;
+    state.persistedReadingState = readingState;
+    state.lastReadingStateSaveAt = readingState.updatedAt || null;
+    return {
+      snapshot: await state.workerClient.restoreFromToken({
+        token: readingState.restoreToken,
+        viewportHeight: getViewportHeight(),
+        annotations: getCurrentAnnotations()
+      }),
+      source: "protected-persisted",
+      readingState
+    };
+  }
+
+  const fallbackCfi = state.entryConfig && state.entryConfig.fallbackCfi;
+  if (fallbackCfi) {
+    const result = await state.annotationRepository.importProductionPayload(
+      {
+        bookId: effectiveBookId,
+        notes: {},
+        positions: {
+          [effectiveBookId]: {
+            cfi: fallbackCfi,
+            updatedAt: Date.now()
+          }
+        }
+      },
+      { book: state.compatBook, merge: true }
+    );
+    const compatReadingState = result.report && result.report.readingState && result.report.readingState.protectedReadingState;
+    if (compatReadingState && compatReadingState.globalPosition) {
+      state.readingStateSource = "production-fallback";
+      state.readingStateRestoreApplied = true;
+      state.persistedReadingState = compatReadingState;
+      state.lastReadingStateSaveAt = compatReadingState.updatedAt || null;
+      return {
+        snapshot: await state.workerClient.goToChunk({
+          chunkIndex: compatReadingState.globalPosition.chunkOrder,
+          globalOffset: compatReadingState.globalPosition.globalOffset,
+          viewportHeight: getViewportHeight(),
+          annotations: getCurrentAnnotations()
+        }),
+        source: "production-fallback",
+        readingState: compatReadingState
+      };
+    }
+  }
+
+  state.readingStateSource = "default-start";
+  state.readingStateRestoreApplied = false;
+  state.persistedReadingState = null;
+  state.lastReadingStateSaveAt = null;
+  return null;
+}
+
 function renderBookMeta() {
   if (!state.bookSummary) return setDlRows(elements.bookMeta, []);
   const metadata = state.bookSummary.metadata || {};
@@ -159,6 +334,7 @@ function renderBookMeta() {
     ["Title", metadata.title || "(untitled)"],
     ["Creators", (metadata.creators || []).join(", ") || "unknown"],
     ["Languages", (metadata.languages || []).join(", ") || "unknown"],
+    ["Reader mode", state.integrationMode ? "protected" : "dev-shell"],
     ["Artifact", state.artifactRoot],
     ["Mode", state.bookSummary.mode],
     ["Chunks", state.bookSummary.chunkCount]
@@ -195,6 +371,21 @@ function renderToc() {
 
 function renderRuntimeMeta() {
   if (!state.currentSnapshot || !state.bookSummary) {
+    if (state.workerClient.mode !== "worker") {
+      setDlRows(elements.runtimeMeta, [
+        ["Reader mode", state.integrationMode ? "protected" : "dev-shell"],
+        ["Integration mode", state.integrationMode ? "active" : "inactive"],
+        ["Worker mode", state.workerClient.mode],
+        ["Worker protocol", "inactive"],
+        ["Artifact load status", state.artifactLoadStatus],
+        ["Protected mode", "unavailable"],
+        ["Fail-closed", "yes"],
+        ["Reason", state.workerClient.unavailableReason || "Protected mode is unavailable in this environment."],
+        ["Debug artifact usage", "false"],
+        ["DOM text leakage", "clean"]
+      ]);
+      return;
+    }
     setDlRows(elements.runtimeMeta, []);
     return;
   }
@@ -249,6 +440,18 @@ function renderRuntimeMeta() {
     ["Cross-chunk model", "enabled"],
     ["Restore token", state.currentSnapshot.restoreToken ? "available" : "n/a"],
     ["Annotations", state.annotationStore ? state.annotationStore.all().length : 0],
+    ["Reader mode", state.integrationMode ? "protected" : "dev-shell"],
+    ["Integration mode", state.integrationMode ? "active" : "inactive"],
+    ["Reading state source", state.readingStateSource],
+    ["Persisted page index", state.persistedReadingState && state.persistedReadingState.page ? state.persistedReadingState.page.pageIndex ?? "n/a" : "n/a"],
+    ["Persisted chunk id", state.persistedReadingState && state.persistedReadingState.globalPosition ? state.persistedReadingState.globalPosition.chunkId || "n/a" : "n/a"],
+    ["Persisted global offset", state.persistedReadingState && state.persistedReadingState.globalPosition ? state.persistedReadingState.globalPosition.globalOffset ?? "n/a" : "n/a"],
+    ["Last save timestamp", state.lastReadingStateSaveAt ? new Date(state.lastReadingStateSaveAt).toISOString() : "n/a"],
+    ["Restore applied", state.readingStateRestoreApplied ? "yes" : "no"],
+    ["Artifact load status", state.artifactLoadStatus],
+    ["Compat share import", state.compatShareImportStatus],
+    ["Share payload parse", state.sharePayloadParseStatus],
+    ["Annotation repository", state.annotationRepository ? "active" : "inactive"],
     ["Compat mode", state.annotationRepository ? "repository-active" : "inactive"],
     ["Last import report", state.lastCompatReport ? `${state.lastCompatReport.exact} exact / ${state.lastCompatReport.approximate} approx / ${state.lastCompatReport.unresolved} unresolved` : "none"],
     ["Geometry overlay", state.debugGeometry ? "on" : "off"],
@@ -391,7 +594,8 @@ async function persistReadingStateFromSnapshot(snapshot) {
   if (!state.annotationRepository || !snapshot || !snapshot.restoreToken || !state.bookSummary) return;
   const parsed = parseRestoreToken(snapshot.restoreToken);
   const previous = await state.annotationRepository.loadReadingState(state.bookSummary.bookId);
-  await state.annotationRepository.saveReadingState(state.bookSummary.bookId, {
+  const nextState = await state.annotationRepository.saveReadingState(state.bookSummary.bookId, {
+    restoreToken: snapshot.restoreToken,
     globalPosition: parsed.position || null,
     page: {
       pageIndex: parsed.pageIndex,
@@ -400,16 +604,24 @@ async function persistReadingStateFromSnapshot(snapshot) {
     compat: previous && previous.compat ? previous.compat : null,
     updatedAt: Date.now()
   });
+  state.persistedReadingState = nextState;
+  state.lastReadingStateSaveAt = nextState && nextState.updatedAt ? nextState.updatedAt : null;
 }
 
 async function loadArtifact(artifactRoot) {
+  if (state.workerClient.mode !== "worker") {
+    state.artifactLoadStatus = "secure-worker-unavailable";
+    renderRuntimeMeta();
+    throw new Error(state.workerClient.unavailableReason || "Protected mode is unavailable in this environment.");
+  }
   state.artifactRoot = artifactRoot;
+  state.artifactLoadStatus = "loading";
   syncArtifactInput();
   syncLocationParams();
   setStatus(`Loading runtime-safe artifact ${artifactRoot}...`);
   const snapshot = await state.workerClient.initBook({
     artifactRoot,
-    renderMode: state.renderMode,
+    renderMode: "shape",
     metricsMode: state.metricsMode,
     viewportHeight: getViewportHeight(),
     annotations: []
@@ -417,16 +629,41 @@ async function loadArtifact(artifactRoot) {
   const bookId = (snapshot.bookSummary && snapshot.bookSummary.bookId) ||
     "protected-book";
   state.compatBook = await loadProtectedBook(artifactRoot);
-  state.annotationRepository = createProtectedAnnotationRepository({ bookId });
+  state.annotationRepository = createProtectedAnnotationRepository({
+    bookId,
+    persistence: state.integrationMode ? state.entryConfig.repositoryPersistence || null : null
+  });
   state.annotationStore = state.annotationRepository.store;
   state.selectedAnnotationId = null;
   state.lastCompatReport = null;
+  state.persistedReadingState = null;
+  state.lastReadingStateSaveAt = null;
+  state.readingStateRestoreApplied = false;
+  state.sharePayloadParseStatus = state.entryConfig && state.entryConfig.compatShareImportStatus
+    ? state.entryConfig.compatShareImportStatus
+    : "none";
   elements.noteInput.value = "";
   elements.annotationImport.value = "";
   elements.compatJson.value = "";
-  applySnapshot(snapshot);
+  if (snapshot.bookSummary) state.bookSummary = snapshot.bookSummary;
+  if (snapshot.tocItems) state.tocItems = snapshot.tocItems;
+  const restored = await restoreReadingStateIfAvailable(bookId);
+  const finalSnapshot = restored && restored.snapshot ? {
+    ...restored.snapshot,
+    bookSummary: restored.snapshot.bookSummary || snapshot.bookSummary,
+    tocItems: restored.snapshot.tocItems || snapshot.tocItems
+  } : snapshot;
+  if (!restored) {
+    state.readingStateSource = "default-start";
+  }
+  applySnapshot(finalSnapshot);
+  state.artifactLoadStatus = "loaded";
+  await autoImportCompatPayload();
+  if (state.annotationStore && state.annotationStore.all().length) {
+    await requestAndApply("getRuntimeStatus");
+  }
   setStatus(
-    `Opened ${snapshot.chunkSummary.chunkId} (${snapshot.chunkSummary.order}/${snapshot.chunkSummary.total}) in ${state.renderMode}/${state.metricsMode} mode.`,
+    `Opened ${finalSnapshot.chunkSummary.chunkId} (${finalSnapshot.chunkSummary.order}/${finalSnapshot.chunkSummary.total}) in ${state.renderMode}/${state.metricsMode} mode.`,
     "ok"
   );
 }
@@ -547,6 +784,7 @@ async function createHighlightFromSelection() {
     }
   });
   state.selectedAnnotationId = annotation.annotationId;
+  await syncRepositoryAnnotations();
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
   setStatus(`Created highlight ${annotation.annotationId}.`, "ok");
@@ -566,6 +804,7 @@ async function addNoteToSelection() {
     color: "blue"
   });
   state.selectedAnnotationId = note.annotationId;
+  await syncRepositoryAnnotations();
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
   setStatus(`Added note ${note.annotationId}.`, "ok");
@@ -582,6 +821,7 @@ async function addNoteToHighlight() {
   if (existing) {
     state.annotationStore.updateNote(existing.annotationId, noteText);
     state.selectedAnnotationId = existing.annotationId;
+    await syncRepositoryAnnotations();
     renderAnnotationList();
     await requestAndApply("getRuntimeStatus");
     setStatus(`Updated note ${existing.annotationId}.`, "ok");
@@ -594,6 +834,7 @@ async function addNoteToHighlight() {
     color: "blue"
   });
   state.selectedAnnotationId = note.annotationId;
+  await syncRepositoryAnnotations();
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
   setStatus(`Added note ${note.annotationId}.`, "ok");
@@ -616,6 +857,7 @@ async function importAnnotations() {
   const payload = elements.annotationImport.value.trim();
   if (!payload) throw new Error("Paste annotation JSON before importing.");
   await state.annotationRepository.importBundle(payload);
+  state.readingStateSource = "protected-local-storage";
   state.selectedAnnotationId = null;
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
@@ -627,9 +869,11 @@ async function importProductionPayload() {
   const payload = elements.compatJson.value.trim();
   if (!payload) throw new Error("Paste production/share/snapshot JSON before importing.");
   const result = await state.annotationRepository.importProductionPayload(payload, {
-    book: state.compatBook
+    book: state.compatBook,
+    preserveReadingStateIfMissing: true
   });
   state.lastCompatReport = result.report;
+  state.compatShareImportStatus = "manual-import";
   state.selectedAnnotationId = null;
   elements.annotationImport.value = JSON.stringify(
     await state.annotationRepository.exportBundle(state.bookSummary.bookId),
@@ -681,6 +925,7 @@ async function deleteSelectedAnnotation() {
   state.annotationStore.delete(selectedAnnotation.annotationId);
   state.selectedAnnotationId = null;
   elements.noteInput.value = "";
+  await syncRepositoryAnnotations();
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
   setStatus(`Deleted annotation ${selectedAnnotation.annotationId}.`, "ok");
@@ -688,7 +933,7 @@ async function deleteSelectedAnnotation() {
 
 async function boot() {
   state.artifactRoot = getArtifactRootFromLocation();
-  state.renderMode = getRenderModeFromLocation();
+  state.renderMode = "shape";
   state.metricsMode = getMetricsModeFromLocation(state.renderMode);
   state.debugGeometry = getDebugGeometryFromLocation();
   syncArtifactInput();
@@ -713,9 +958,7 @@ async function boot() {
   });
 
   elements.renderMode.addEventListener("change", async () => {
-    state.renderMode = elements.renderMode.value === "shape" ? "shape" : "text";
-    if (state.renderMode === "text") state.metricsMode = "text";
-    else if (state.metricsMode !== "text" && state.metricsMode !== "shape") state.metricsMode = "shape";
+    state.renderMode = "shape";
     syncArtifactInput();
     syncLocationParams();
     if (!state.currentSnapshot) {
@@ -724,7 +967,7 @@ async function boot() {
     }
     try {
       const snapshot = await state.workerClient.updateRenderConfig({
-        renderMode: state.renderMode,
+        renderMode: "shape",
         metricsMode: state.metricsMode,
         viewportHeight: getViewportHeight(),
         annotations: getCurrentAnnotations()
@@ -739,13 +982,12 @@ async function boot() {
 
   elements.metricsMode.addEventListener("change", async () => {
     state.metricsMode = elements.metricsMode.value === "text" ? "text" : "shape";
-    if (state.renderMode === "text") state.metricsMode = "text";
     syncArtifactInput();
     syncLocationParams();
     if (!state.currentSnapshot) return;
     try {
       const snapshot = await state.workerClient.updateRenderConfig({
-        renderMode: state.renderMode,
+        renderMode: "shape",
         metricsMode: state.metricsMode,
         viewportHeight: getViewportHeight(),
         annotations: getCurrentAnnotations()
@@ -978,9 +1220,16 @@ async function boot() {
   });
 
   try {
+    if (state.workerClient.mode !== "worker") {
+      state.artifactLoadStatus = "secure-worker-unavailable";
+      renderRuntimeMeta();
+      setStatus(state.workerClient.unavailableReason || "Protected mode is unavailable in this environment.", "error");
+      return;
+    }
     await loadArtifact(state.artifactRoot);
   } catch (error) {
     console.error(error);
+    state.artifactLoadStatus = "failed";
     setStatus(error.message || String(error), "error");
   }
 }

@@ -1,5 +1,5 @@
 import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js";
-import { createWorkerResponse } from "./protected-worker-protocol.js";
+import { createWorkerResponse, sanitizeProtectedWorkerPayload } from "./protected-worker-protocol.js";
 
 const core = new ProtectedReaderRuntimeCore();
 
@@ -12,7 +12,7 @@ self.addEventListener("message", async (event) => {
       throw new Error(`Unsupported worker method: ${method}`);
     }
     const result = await core[method](payload || {});
-    self.postMessage(createWorkerResponse(id, true, result, null));
+    self.postMessage(createWorkerResponse(id, true, sanitizeProtectedWorkerPayload(method, result), null));
   } catch (error) {
     self.postMessage(createWorkerResponse(id, false, {}, {
       message: error && error.message ? error.message : String(error)

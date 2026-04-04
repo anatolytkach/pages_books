@@ -1,5 +1,9 @@
 import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js";
-import { PROTECTED_WORKER_METHODS, createWorkerRequest } from "./protected-worker-protocol.js";
+import {
+  PROTECTED_WORKER_METHODS,
+  createWorkerRequest,
+  sanitizeProtectedWorkerPayload
+} from "./protected-worker-protocol.js";
 
 class WorkerTransport {
   constructor() {
@@ -27,108 +31,103 @@ class WorkerTransport {
   }
 }
 
-class FallbackTransport {
-  constructor() {
-    this.core = new ProtectedReaderRuntimeCore();
-  }
-
-  async call(method, payload = {}) {
-    if (typeof this.core[method] !== "function") {
-      throw new Error(`Unsupported fallback method: ${method}`);
-    }
-    return this.core[method](payload);
-  }
-}
-
-export function createProtectedWorkerClient() {
+export function createProtectedWorkerClient(options = {}) {
   const offscreenAvailable = typeof OffscreenCanvas !== "undefined";
   let transport = null;
-  let mode = "fallback-main-thread";
+  let mode = "unavailable";
+  let unavailableReason = "Protected mode is unavailable in this environment.";
   try {
-    if (typeof Worker !== "undefined") {
+    if (options.forceUnavailable) {
+      unavailableReason = "Protected mode is unavailable in this environment.";
+    } else if (typeof Worker !== "undefined") {
       transport = new WorkerTransport();
       mode = "worker";
     } else {
-      transport = new FallbackTransport();
+      unavailableReason = "Protected mode requires a secure worker host.";
     }
-  } catch {
-    transport = new FallbackTransport();
+  } catch (error) {
+    unavailableReason =
+      (error && error.message) || "Protected mode requires a secure worker host.";
   }
 
-  function decorateResult(result) {
-    if (!result || mode === "worker") return result;
-    if (result.runtimeMeta) {
-      result.runtimeMeta = {
-        ...result.runtimeMeta,
-        workerMode: "fallback-main-thread",
-        reconstructionHost: "main-thread-fallback",
-        layoutHost: "main-thread-fallback",
-        copyHost: "main-thread-fallback",
-        renderPreparationHost: "main-thread-fallback"
-      };
+  function ensureSecureWorker() {
+    if (mode !== "worker" || !transport) {
+      throw new Error(unavailableReason);
     }
-    if (result.renderPacket && result.renderPacket.diagnostics) {
-      result.renderPacket.diagnostics = {
-        ...result.renderPacket.diagnostics,
-        reconstructionHost: "main-thread-fallback",
-        layoutHost: "main-thread-fallback",
-        copyHost: "main-thread-fallback",
-        renderPreparationHost: "main-thread-fallback"
-      };
-    }
-    return result;
+  }
+
+  function decorateResult(method, result) {
+    if (!result) return result;
+    return sanitizeProtectedWorkerPayload(method, result);
   }
 
   return {
     mode,
+    unavailableReason,
     offscreenCanvas: offscreenAvailable ? "available" : "not-available",
     async initBook(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.INIT_BOOK, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.INIT_BOOK, await transport.call(PROTECTED_WORKER_METHODS.INIT_BOOK, payload));
     },
     async goToChunk(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.GO_TO_CHUNK, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.GO_TO_CHUNK, await transport.call(PROTECTED_WORKER_METHODS.GO_TO_CHUNK, payload));
     },
     async goToToc(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.GO_TO_TOC, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.GO_TO_TOC, await transport.call(PROTECTED_WORKER_METHODS.GO_TO_TOC, payload));
     },
     async goToNextPage(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.GO_TO_NEXT_PAGE, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.GO_TO_NEXT_PAGE, await transport.call(PROTECTED_WORKER_METHODS.GO_TO_NEXT_PAGE, payload));
     },
     async goToPrevPage(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.GO_TO_PREV_PAGE, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.GO_TO_PREV_PAGE, await transport.call(PROTECTED_WORKER_METHODS.GO_TO_PREV_PAGE, payload));
     },
     async updateRenderConfig(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.UPDATE_RENDER_CONFIG, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.UPDATE_RENDER_CONFIG, await transport.call(PROTECTED_WORKER_METHODS.UPDATE_RENDER_CONFIG, payload));
     },
     async pointerDown(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.POINTER_DOWN, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.POINTER_DOWN, await transport.call(PROTECTED_WORKER_METHODS.POINTER_DOWN, payload));
     },
     async pointerMove(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.POINTER_MOVE, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.POINTER_MOVE, await transport.call(PROTECTED_WORKER_METHODS.POINTER_MOVE, payload));
     },
     async pointerUp(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.POINTER_UP, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.POINTER_UP, await transport.call(PROTECTED_WORKER_METHODS.POINTER_UP, payload));
     },
     async clearSelection(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.CLEAR_SELECTION, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.CLEAR_SELECTION, await transport.call(PROTECTED_WORKER_METHODS.CLEAR_SELECTION, payload));
     },
     async requestCopyPayload(payload) {
+      ensureSecureWorker();
       return transport.call(PROTECTED_WORKER_METHODS.REQUEST_COPY_PAYLOAD, payload);
     },
     async getRestoreToken(payload) {
+      ensureSecureWorker();
       return transport.call(PROTECTED_WORKER_METHODS.GET_RESTORE_TOKEN, payload);
     },
     async restoreFromToken(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.RESTORE_FROM_TOKEN, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.RESTORE_FROM_TOKEN, await transport.call(PROTECTED_WORKER_METHODS.RESTORE_FROM_TOKEN, payload));
     },
     async getSelectionRange(payload) {
+      ensureSecureWorker();
       return transport.call(PROTECTED_WORKER_METHODS.GET_SELECTION_RANGE, payload);
     },
     async goToAnnotation(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.GO_TO_ANNOTATION, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.GO_TO_ANNOTATION, await transport.call(PROTECTED_WORKER_METHODS.GO_TO_ANNOTATION, payload));
     },
     async getRuntimeStatus(payload) {
-      return decorateResult(await transport.call(PROTECTED_WORKER_METHODS.GET_RUNTIME_STATUS, payload));
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.GET_RUNTIME_STATUS, await transport.call(PROTECTED_WORKER_METHODS.GET_RUNTIME_STATUS, payload));
     }
   };
 }

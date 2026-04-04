@@ -93,3 +93,13 @@ The dev shell now uses:
 - import report diagnostics
 
 This allows practical compatibility checking before any production cutover.
+
+## Integrated reader usage
+
+The same bridge now also powers the feature-flagged protected integration route. It is used for:
+
+- production-style note/share import on open
+- production CFI reading-state fallback
+- protected annotation export back into production-compatible payloads
+
+`notesz` now goes through the same bridge after a post-bootstrap gzip/base64url decode step. This keeps compressed-share transport compatible without making share decoding a hard dependency for protected artifact startup.

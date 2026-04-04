@@ -142,6 +142,16 @@
 // Expect book id in either ?id=75586 or #75586 (hash).
 (function(){
   const params = new URLSearchParams(location.search);
+  const qReaderMode = params.get("reader");
+  if (qReaderMode === "protected") {
+    try {
+      var protectedUrl = new URL("/reader_render_v3/integration/protected-reader.html", window.location.origin);
+      protectedUrl.search = window.location.search || "";
+      protectedUrl.hash = window.location.hash || "";
+      window.location.replace(protectedUrl.toString());
+      return;
+    } catch (eProtectedRedirect) {}
+  }
   const AUTO_START_RETURN_KEY = "readerpub_catalog_return_v1";
   const qsource = params.get("source");
   const qentry = params.get("entry");

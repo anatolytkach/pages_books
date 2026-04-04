@@ -175,3 +175,12 @@ The production reader still persists reading state in CFI-oriented form:
 - Drive `positions[bookId].cfi`
 
 The protected global model should remain primary internally, but persistence integration must carry a compatibility bridge for production CFI state rather than inventing a completely separate external format.
+
+That bridge is now exercised by the feature-flagged integrated protected reader route, which can restore from protected tokens first and fall back to production CFI state when needed.
+
+The restore priority in integrated protected mode is now explicit:
+
+1. route restore token
+2. persisted protected reading state
+3. production CFI fallback
+4. default start

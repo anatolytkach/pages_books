@@ -58,8 +58,7 @@ export function renderChunkToCanvas({
   const {
     layout,
     pageWindow = null,
-    renderMode = "text",
-    textFragments = [],
+    renderMode = "shape",
     glyphOps = [],
     shapeRecords = [],
     selectionHighlights = [],
@@ -75,16 +74,11 @@ export function renderChunkToCanvas({
   ctx.save();
   ctx.translate(0, translateY);
 
-  if (renderMode === "shape") {
-    const activeShapeRegistry = createGlyphShapeRegistry({ shapeRecords }, new Map());
-    renderGlyphOps(ctx, glyphOps, activeShapeRegistry);
-  } else {
-    for (const fragment of textFragments) {
-      ctx.font = fragment.fontCss;
-      ctx.fillStyle = "#18212f";
-      ctx.fillText(fragment.text, fragment.x, fragment.y);
-    }
+  if (renderMode !== "shape") {
+    throw new Error("Protected render packets must stay shape-only in main thread.");
   }
+  const activeShapeRegistry = createGlyphShapeRegistry({ shapeRecords }, new Map());
+  renderGlyphOps(ctx, glyphOps, activeShapeRegistry);
   ctx.restore();
 
   const overlay = clearCanvas(overlayCanvas, layout.width, viewportHeight);

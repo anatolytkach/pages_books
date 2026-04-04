@@ -62,15 +62,15 @@ That means:
 
 ## Page rendering
 
-Text mode no longer depends on holding a full decoded chunk string.
+Protected main-thread rendering is now shape-only.
 
-Instead:
+That means:
 
-- layout can operate on glyph geometry and offset slices
-- visible page painting reconstructs only the fragment ranges that are currently needed
-- the page reconstruction scope is discarded after rendering
+- visible page painting no longer receives decoded fragment strings in snapshot packets
+- scoped reconstruction stays behind the worker boundary
+- only narrow action results such as copy payload may return decoded text
 
-Shape mode typically requires no text reconstruction at all for painting.
+Shape mode requires no text reconstruction at all for painting.
 
 ## Copy and selection
 
@@ -133,8 +133,8 @@ That adds another useful constraint:
 - worker executes scoped reconstruction
 - main thread receives only the result needed for the current action
 
-Fallback mode still exists, but it uses the same narrow API instead of reintroducing a
-wide convenience reconstruction layer in UI code.
+Protected mode no longer falls back to a weaker main-thread reconstruction path. If the
+secure worker boundary is unavailable, protected mode fails closed instead.
 
 ## Local verification
 

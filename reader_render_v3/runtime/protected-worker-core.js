@@ -31,8 +31,7 @@ import {
 import {
   createReconstructionScope,
   disposeReconstructionScope,
-  getReconstructionScopeDiagnostics,
-  reconstructRangeText
+  getReconstructionScopeDiagnostics
 } from "./protected-text-reconstruction.js";
 
 function summarizeBook(book) {
@@ -60,36 +59,6 @@ function summarizeChunk(core) {
   };
 }
 
-function buildTextFragments(chunkModel, layout, pageWindow) {
-  const scope = createReconstructionScope({
-    chunkModel,
-    purpose: "page",
-    startOffset: pageWindow ? pageWindow.startOffset : 0,
-    endOffset: pageWindow ? pageWindow.endOffset : chunkModel.chunk.selectionLayer.textLength
-  });
-  const visibleLines = pageWindow
-    ? layout.lines.filter((line) => line.lineIndex >= pageWindow.lineStartIndex && line.lineIndex <= pageWindow.lineEndIndex)
-    : layout.lines;
-  const textFragments = [];
-  for (const line of visibleLines) {
-    for (const fragment of line.fragments) {
-      textFragments.push({
-        x: fragment.x,
-        y: line.y + fragment.font.size,
-        fontCss: fragment.font.css,
-        text: reconstructRangeText(chunkModel, fragment.startOffset, fragment.endOffset, scope)
-      });
-    }
-  }
-  const diagnostics = getReconstructionScopeDiagnostics(scope);
-  disposeReconstructionScope(scope);
-  return {
-    textFragments,
-    reconstructionScope: diagnostics.mode,
-    reconstructionCacheSize: diagnostics.cacheEntries
-  };
-}
-
 function filterGlyphOpsForPage(glyphOps, pageWindow) {
   if (!pageWindow) return glyphOps;
   return glyphOps.filter((op) => op.lineIndex >= pageWindow.lineStartIndex && op.lineIndex <= pageWindow.lineEndIndex);
@@ -111,8 +80,8 @@ export class ProtectedReaderRuntimeCore {
     this.currentPaginationModel = null;
     this.currentPageIndex = 0;
     this.selectionState = createSelectionState();
-    this.renderMode = "text";
-    this.metricsMode = "text";
+    this.renderMode = "shape";
+    this.metricsMode = "shape";
     this.viewportHeight = 720;
   }
 
@@ -122,8 +91,8 @@ export class ProtectedReaderRuntimeCore {
   }
 
   async initBook({ artifactRoot, renderMode = "text", metricsMode = "text", viewportHeight = 720, annotations = [] }) {
-    this.renderMode = renderMode === "shape" ? "shape" : "text";
-    this.metricsMode = this.renderMode === "text" ? "text" : metricsMode === "text" ? "text" : "shape";
+    this.renderMode = "shape";
+    this.metricsMode = metricsMode === "text" ? "text" : "shape";
     this.viewportHeight = viewportHeight;
     this.book = await loadProtectedBook(artifactRoot);
     this.bookSummary = summarizeBook(this.book);
@@ -154,10 +123,14 @@ export class ProtectedReaderRuntimeCore {
       globalModel: this.book.globalLocationModel
     });
     if (globalOffset != null) {
-      const chunkStart = this.currentChunkModel.chunk.startOffset || 0;
+      const resolvedOffset = globalOffsetToLocal(this.book.globalLocationModel, globalOffset);
+      const localOffset =
+        resolvedOffset && resolvedOffset.chunkId === this.currentChunkModel.chunk.chunkId
+          ? resolvedOffset.localOffset
+          : 0;
       this.currentPageIndex = findPageIndexForOffset(
         this.currentPaginationModel,
-        Math.max(0, globalOffset - chunkStart)
+        Math.max(0, localOffset)
       );
     } else if (pageIndex != null) {
       this.currentPageIndex = Math.max(0, Math.min(pageIndex, this.currentPaginationModel.pages.length - 1));
@@ -206,8 +179,8 @@ export class ProtectedReaderRuntimeCore {
   }
 
   async updateRenderConfig({ renderMode, metricsMode, viewportHeight = this.viewportHeight, annotations = [] }) {
-    this.renderMode = renderMode === "shape" ? "shape" : "text";
-    this.metricsMode = this.renderMode === "text" ? "text" : metricsMode === "text" ? "text" : "shape";
+    this.renderMode = "shape";
+    this.metricsMode = metricsMode === "text" ? "text" : "shape";
     this.viewportHeight = viewportHeight;
     return this.goToChunk({
       chunkIndex: this.currentChunkIndex,
@@ -357,33 +330,23 @@ export class ProtectedReaderRuntimeCore {
         )
       : "";
 
-    let textFragments = [];
     let glyphOps = [];
     let shapeRecords = [];
     let reconstructionScope = "none";
     let reconstructionCacheSize = 0;
-    if (this.renderMode === "shape") {
-      glyphOps = filterGlyphOpsForPage(
-        buildGlyphRenderOps({
-          layout: this.currentLayout,
-          chunkModel: this.currentChunkModel,
-          shapeRegistry: this.currentShapeRegistry,
-          renderMode: this.renderMode
-        }),
-        page
-      );
-      shapeRecords = gatherShapeRecords(this.currentChunkModel.shapeBundle, glyphOps);
-    } else {
-      const textPayload = buildTextFragments(this.currentChunkModel, this.currentLayout, page);
-      textFragments = textPayload.textFragments;
-      reconstructionScope = textPayload.reconstructionScope;
-      reconstructionCacheSize = textPayload.reconstructionCacheSize;
-    }
+    glyphOps = filterGlyphOpsForPage(
+      buildGlyphRenderOps({
+        layout: this.currentLayout,
+        chunkModel: this.currentChunkModel,
+        shapeRegistry: this.currentShapeRegistry,
+        renderMode: this.renderMode
+      }),
+      page
+    );
+    shapeRecords = gatherShapeRecords(this.currentChunkModel.shapeBundle, glyphOps);
 
     const renderDiagnostics = {
-      glyphOps: this.renderMode === "shape"
-        ? glyphOps.length
-        : this.currentLayout.lines.reduce((sum, line) => sum + line.fragments.reduce((count, fragment) => count + fragment.glyphCount, 0), 0),
+      glyphOps: glyphOps.length,
       shapeRecords: this.currentShapeRegistry.records.size,
       shapeCoveragePercent: this.currentShapeRegistry.coveragePercent,
       extractedShapeCount: this.currentShapeRegistry.extractedGlyphs,
@@ -434,10 +397,9 @@ export class ProtectedReaderRuntimeCore {
       serializedRange: rangeDescriptor ? serializeRangeDescriptor(rangeDescriptor) : null,
       restoreToken,
       renderPacket: {
-        renderMode: this.renderMode,
+        renderMode: "shape",
         layout: this.currentLayout,
         pageWindow: page,
-        textFragments,
         glyphOps,
         shapeRecords,
         selectionHighlights,

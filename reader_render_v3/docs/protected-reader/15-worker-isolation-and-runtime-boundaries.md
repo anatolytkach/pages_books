@@ -14,7 +14,7 @@ It does aim to:
 - narrow the convenient instrumentation surface
 - reduce access to reconstruction internals in main thread
 - move layout and page preparation behind a worker boundary
-- keep a safe fallback when worker execution is not available
+- fail closed if a secure worker boundary is not available
 
 ## What now lives in the worker path
 
@@ -93,8 +93,9 @@ The packet can include:
 - saved highlight geometry
 - note marker geometry
 - glyph ops for shape mode
-- page-scoped text fragments for text mode
 - diagnostics
+
+The packet must not include decoded page or line text.
 
 That means reconstruction and layout preparation are no longer convenience functions
 in the UI controller.
@@ -122,18 +123,22 @@ Current state:
 - diagnostics report `OffscreenCanvas` as available or not available
 - this is a foundation step, not a full worker-painting cutover
 
-## Fallback
+## Fail-closed protected mode
 
-If a worker cannot be created, the client falls back to a main-thread runtime core.
+If a secure worker cannot be created, protected mode does not fall back to a weaker
+main-thread runtime.
 
-Important constraints still hold in fallback mode:
+Instead:
 
-- same narrow protocol surface
-- no debug artifact usage
-- no hidden DOM text
-- no convenience full-chunk decode API
+- protected mode reports `unavailable`
+- integrated UI shows a controlled error state
+- the old reader remains available as a separate route
 
-Fallback is reported explicitly in diagnostics as `fallback-main-thread`.
+This keeps protected mode from silently widening its reconstruction surface.
+
+## Integrated protected mode
+
+The same worker boundary is now reused by the feature-flagged protected reader integration path. Integration into the real `/books/reader/` lifecycle does not move reconstruction or layout prep back into the main thread.
 
 ## What this hardening helps with
 
@@ -143,6 +148,7 @@ This makes convenient instrumentation attacks more expensive because:
 - reconstruction helpers are not directly attached to UI state
 - layout and copy preparation move behind a request/response boundary
 - protocol methods are narrow and task-oriented
+- snapshot packets are shape-only and sanitized against text-like fields
 
 ## What it does not solve
 
