@@ -118,10 +118,18 @@
             <button type="button" id="add-note-highlight">Add note to highlight</button>
             <button type="button" id="export-annotations">Export annotations</button>
             <button type="button" id="import-annotations">Import annotations</button>
+            <button type="button" id="import-production-payload">Import production payload</button>
+            <button type="button" id="export-production-notes">Export production notes</button>
+            <button type="button" id="export-share-payload">Export share payload</button>
+            <button type="button" id="export-snapshot-patch">Export snapshot patch</button>
           </div>
           <label class="annotation-field" for="annotation-import">
             <span>Annotation JSON</span>
             <textarea id="annotation-import" name="annotation-import" rows="6"></textarea>
+          </label>
+          <label class="annotation-field" for="compat-json">
+            <span>Compatibility JSON / report</span>
+            <textarea id="compat-json" name="compat-json" rows="8"></textarea>
           </label>
           <div id="annotation-list" class="annotation-list"></div>
         </section>

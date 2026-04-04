@@ -1,7 +1,9 @@
-import { createAnnotationStore } from "../runtime/protected-annotation-store.js";
+import { createProtectedAnnotationRepository } from "../runtime/protected-annotation-repository.js";
 import { serializeRangeDescriptor } from "../runtime/protected-range-serialization.js";
 import { renderChunkToCanvas } from "../runtime/protected-canvas-renderer.js";
 import { createProtectedWorkerClient } from "../runtime/protected-worker-client.js";
+import { loadProtectedBook } from "../runtime/protected-book-model.js";
+import { parseRestoreToken } from "../runtime/protected-global-location.js";
 
 const DEFAULT_ARTIFACT = "../artifacts/protected-books/19686";
 
@@ -33,8 +35,13 @@ const elements = {
   deleteAnnotation: document.querySelector("#delete-annotation"),
   exportAnnotations: document.querySelector("#export-annotations"),
   importAnnotations: document.querySelector("#import-annotations"),
+  importProductionPayload: document.querySelector("#import-production-payload"),
+  exportProductionNotes: document.querySelector("#export-production-notes"),
+  exportSharePayload: document.querySelector("#export-share-payload"),
+  exportSnapshotPatch: document.querySelector("#export-snapshot-patch"),
   noteInput: document.querySelector("#note-input"),
   annotationImport: document.querySelector("#annotation-import"),
+  compatJson: document.querySelector("#compat-json"),
   annotationCount: document.querySelector("#annotation-count"),
   annotationList: document.querySelector("#annotation-list"),
   clearSelection: document.querySelector("#clear-selection"),
@@ -51,8 +58,11 @@ const state = {
   currentSnapshot: null,
   currentRenderDiagnostics: null,
   workerClient: createProtectedWorkerClient(),
+  compatBook: null,
+  annotationRepository: null,
   annotationStore: null,
   selectedAnnotationId: null,
+  lastCompatReport: null,
   renderMode: "text",
   metricsMode: "text",
   debugGeometry: false
@@ -239,6 +249,8 @@ function renderRuntimeMeta() {
     ["Cross-chunk model", "enabled"],
     ["Restore token", state.currentSnapshot.restoreToken ? "available" : "n/a"],
     ["Annotations", state.annotationStore ? state.annotationStore.all().length : 0],
+    ["Compat mode", state.annotationRepository ? "repository-active" : "inactive"],
+    ["Last import report", state.lastCompatReport ? `${state.lastCompatReport.exact} exact / ${state.lastCompatReport.approximate} approx / ${state.lastCompatReport.unresolved} unresolved` : "none"],
     ["Geometry overlay", state.debugGeometry ? "on" : "off"],
     ["Shape source", diagnostics.shapeSource || "none"]
   ]);
@@ -365,11 +377,29 @@ function applySnapshot(snapshot) {
   state.currentSnapshot = snapshot;
   if (snapshot.bookSummary) state.bookSummary = snapshot.bookSummary;
   if (snapshot.tocItems) state.tocItems = snapshot.tocItems;
+  persistReadingStateFromSnapshot(snapshot).catch((error) => {
+    console.error(error);
+  });
   renderBookMeta();
   renderToc();
   renderSelectionMeta();
   renderAnnotationList();
   refreshCanvas();
+}
+
+async function persistReadingStateFromSnapshot(snapshot) {
+  if (!state.annotationRepository || !snapshot || !snapshot.restoreToken || !state.bookSummary) return;
+  const parsed = parseRestoreToken(snapshot.restoreToken);
+  const previous = await state.annotationRepository.loadReadingState(state.bookSummary.bookId);
+  await state.annotationRepository.saveReadingState(state.bookSummary.bookId, {
+    globalPosition: parsed.position || null,
+    page: {
+      pageIndex: parsed.pageIndex,
+      pageCount: parsed.pageCount
+    },
+    compat: previous && previous.compat ? previous.compat : null,
+    updatedAt: Date.now()
+  });
 }
 
 async function loadArtifact(artifactRoot) {
@@ -386,10 +416,14 @@ async function loadArtifact(artifactRoot) {
   });
   const bookId = (snapshot.bookSummary && snapshot.bookSummary.bookId) ||
     "protected-book";
-  state.annotationStore = createAnnotationStore({ bookId });
+  state.compatBook = await loadProtectedBook(artifactRoot);
+  state.annotationRepository = createProtectedAnnotationRepository({ bookId });
+  state.annotationStore = state.annotationRepository.store;
   state.selectedAnnotationId = null;
+  state.lastCompatReport = null;
   elements.noteInput.value = "";
   elements.annotationImport.value = "";
+  elements.compatJson.value = "";
   applySnapshot(snapshot);
   setStatus(
     `Opened ${snapshot.chunkSummary.chunkId} (${snapshot.chunkSummary.order}/${snapshot.chunkSummary.total}) in ${state.renderMode}/${state.metricsMode} mode.`,
@@ -566,22 +600,79 @@ async function addNoteToHighlight() {
 }
 
 async function exportAnnotations() {
-  if (!state.annotationStore) throw new Error("Nothing is loaded yet.");
-  const payload = JSON.stringify(state.annotationStore.exportAnnotations(), null, 2);
+  if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
+  const payload = JSON.stringify(
+    await state.annotationRepository.exportBundle(state.bookSummary.bookId),
+    null,
+    2
+  );
   elements.annotationImport.value = payload;
   await navigator.clipboard.writeText(payload);
   setStatus("Exported annotations JSON.", "ok");
 }
 
 async function importAnnotations() {
-  if (!state.annotationStore) throw new Error("Nothing is loaded yet.");
+  if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
   const payload = elements.annotationImport.value.trim();
   if (!payload) throw new Error("Paste annotation JSON before importing.");
-  state.annotationStore.importAnnotations(payload);
+  await state.annotationRepository.importBundle(payload);
   state.selectedAnnotationId = null;
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
   setStatus("Imported annotations JSON.", "ok");
+}
+
+async function importProductionPayload() {
+  if (!state.annotationRepository || !state.compatBook) throw new Error("Nothing is loaded yet.");
+  const payload = elements.compatJson.value.trim();
+  if (!payload) throw new Error("Paste production/share/snapshot JSON before importing.");
+  const result = await state.annotationRepository.importProductionPayload(payload, {
+    book: state.compatBook
+  });
+  state.lastCompatReport = result.report;
+  state.selectedAnnotationId = null;
+  elements.annotationImport.value = JSON.stringify(
+    await state.annotationRepository.exportBundle(state.bookSummary.bookId),
+    null,
+    2
+  );
+  elements.compatJson.value = JSON.stringify(result.report, null, 2);
+  renderAnnotationList();
+  await requestAndApply("getRuntimeStatus");
+  setStatus(
+    `Imported production payload: ${result.report.exact} exact, ${result.report.approximate} approximate, ${result.report.unresolved} unresolved.`,
+    "ok"
+  );
+}
+
+async function exportProductionNotes() {
+  if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
+  const result = await state.annotationRepository.exportProductionPayload();
+  elements.compatJson.value = JSON.stringify(result.productionNotes, null, 2);
+  state.lastCompatReport = result.report;
+  await navigator.clipboard.writeText(elements.compatJson.value);
+  renderRuntimeMeta();
+  setStatus("Exported production-compatible notes array.", "ok");
+}
+
+async function exportSharePayload() {
+  if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
+  const result = await state.annotationRepository.exportProductionPayload();
+  elements.compatJson.value = JSON.stringify(result.sharePayload, null, 2);
+  state.lastCompatReport = result.report;
+  await navigator.clipboard.writeText(elements.compatJson.value);
+  renderRuntimeMeta();
+  setStatus("Exported production-compatible share payload.", "ok");
+}
+
+async function exportSnapshotPatch() {
+  if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
+  const result = await state.annotationRepository.exportProductionPayload();
+  elements.compatJson.value = JSON.stringify(result.snapshotPatch, null, 2);
+  state.lastCompatReport = result.report;
+  await navigator.clipboard.writeText(elements.compatJson.value);
+  renderRuntimeMeta();
+  setStatus("Exported production-compatible snapshot patch.", "ok");
 }
 
 async function deleteSelectedAnnotation() {
@@ -807,6 +898,42 @@ async function boot() {
   elements.importAnnotations.addEventListener("click", async () => {
     try {
       await importAnnotations();
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message || String(error), "error");
+    }
+  });
+
+  elements.importProductionPayload.addEventListener("click", async () => {
+    try {
+      await importProductionPayload();
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message || String(error), "error");
+    }
+  });
+
+  elements.exportProductionNotes.addEventListener("click", async () => {
+    try {
+      await exportProductionNotes();
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message || String(error), "error");
+    }
+  });
+
+  elements.exportSharePayload.addEventListener("click", async () => {
+    try {
+      await exportSharePayload();
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message || String(error), "error");
+    }
+  });
+
+  elements.exportSnapshotPatch.addEventListener("click", async () => {
+    try {
+      await exportSnapshotPatch();
     } catch (error) {
       console.error(error);
       setStatus(error.message || String(error), "error");

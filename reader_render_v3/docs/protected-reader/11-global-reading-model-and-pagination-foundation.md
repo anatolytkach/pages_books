@@ -165,3 +165,13 @@ The same stable global offsets are still the source of truth, but:
 - restore resolution
 
 no longer need to live directly in the UI controller when worker mode is available.
+
+## Production reading-state compatibility
+
+The production reader still persists reading state in CFI-oriented form:
+
+- `readerpub:lastcfi:${id}`
+- `previousLocationCfi`
+- Drive `positions[bookId].cfi`
+
+The protected global model should remain primary internally, but persistence integration must carry a compatibility bridge for production CFI state rather than inventing a completely separate external format.

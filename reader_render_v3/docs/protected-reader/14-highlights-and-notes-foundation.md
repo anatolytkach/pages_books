@@ -121,3 +121,22 @@ projection can now be prepared through the worker runtime along with current pag
 
 This keeps annotation UX working without pulling reconstruction or full book/chunk models
 back into the main thread controller.
+
+## Production compatibility direction
+
+This annotation foundation intentionally stays range-first. Compatibility with the existing production reader should be added through adapters, not by replacing the protected internal model.
+
+See:
+
+- `/Volumes/2T/se_ingest/pages_books/reader_render_v3/docs/protected-reader/16-production-reader-notes-compatibility-audit.md`
+- `/Volumes/2T/se_ingest/pages_books/reader_render_v3/docs/protected-reader/17-production-to-protected-annotation-mapping.md`
+
+The intended persistence path is:
+
+1. protected bundle as internal source of truth
+2. production note/share/sync export through compatibility adapters
+3. reading-state compatibility through explicit CFI bridge metadata where needed
+
+The first live version of that bridge now exists and is documented in:
+
+- `/Volumes/2T/se_ingest/pages_books/reader_render_v3/docs/protected-reader/18-cfi-to-protected-range-resolver-and-compat-bridge.md`
