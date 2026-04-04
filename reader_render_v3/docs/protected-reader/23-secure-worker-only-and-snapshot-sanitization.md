@@ -69,9 +69,9 @@ Forbidden keys now trigger a hard failure in worker protocol sanitization.
 
 Copy still works, but only through the narrow worker action result:
 
-1. main thread sends `requestCopyPayload`
+1. main thread sends `copyCurrentSelection`
 2. worker reconstructs only the current selection range
-3. worker returns only the copy payload needed for clipboard write
+3. worker returns only the clipboard payload needed for clipboard write
 4. main thread does not retain decoded page or chunk text in snapshot state
 
 This keeps copy usable without reopening a text-like snapshot surface.

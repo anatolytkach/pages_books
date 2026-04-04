@@ -34,6 +34,10 @@ The protected global/page model stays the source of truth.
 
 Reading state is persisted on every page-changing snapshot, including page turns, chunk transitions, go-to-annotation, and restore actions.
 
+Integrated protected mode now persists a versioned local-first protected bundle that
+contains both reading state and annotations. That bundle is the internal source of truth
+for local reopen/reload continuity and for protected bundle export/import.
+
 ## Notes and share compatibility
 
 Integrated protected mode parses the production-style open/share state:
@@ -91,6 +95,7 @@ Expected result:
 ## Still missing before rollout
 
 - production cutover policy
+- file-based sync adapter on top of the local-first bundle
 - shared cloud persistence for protected annotations
 - final production share backend hookup for all environments
 - production UI polish and rollout gating

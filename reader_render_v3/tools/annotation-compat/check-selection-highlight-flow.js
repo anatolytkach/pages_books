@@ -102,6 +102,13 @@ async function main() {
   });
   const afterHighlightStatus = await page.locator("#status").textContent();
   const afterHighlightMeta = await getMetaMap(page);
+  await page.fill("#note-input", "selection api smoke note");
+  await page.click("#add-note-selection");
+  await page.waitForFunction(() => {
+    const status = document.querySelector("#status");
+    return status && /Added note/.test(status.textContent || "");
+  });
+  const afterNoteStatus = await page.locator("#status").textContent();
   const initialAnnotationCount = await page.locator("#annotation-count").textContent();
 
   await page.click("#next-page");
@@ -124,6 +131,7 @@ async function main() {
     selectionMetaIncludesRange: /range/i.test(selectionMeta),
     afterCopyStatus: (afterCopyStatus || "").trim(),
     afterHighlightStatus: (afterHighlightStatus || "").trim(),
+    afterNoteStatus: (afterNoteStatus || "").trim(),
     initialAnnotationCount: (initialAnnotationCount || "").trim(),
     afterHighlightAnnotations: afterHighlightMeta["Annotations"],
     pageTwoPage: pageTwoMeta["Page"],

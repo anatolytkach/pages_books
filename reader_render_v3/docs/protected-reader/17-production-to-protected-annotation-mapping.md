@@ -163,14 +163,24 @@ Use native protected bundle as internal format:
 
 ```json
 {
-  "kind": "protected-annotations-v2",
+  "kind": "protected-reader-state-v3",
+  "schemaVersion": 3,
   "bookId": "19686",
+  "bookFingerprint": {
+    "fingerprint": "string",
+    "artifactVersion": 3
+  },
   "userScope": "default",
   "annotations": [],
   "readingState": {},
+  "updatedAt": "ISO string",
   "metadata": {}
 }
 ```
+
+This bundle is now the local-first persisted source of truth for integrated protected
+mode. Production formats remain adapter outputs rather than replacing the internal
+range-first model.
 
 ### Production compatibility bundle
 

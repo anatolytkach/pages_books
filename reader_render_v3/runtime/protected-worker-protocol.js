@@ -9,13 +9,22 @@ export const PROTECTED_WORKER_METHODS = {
   POINTER_MOVE: "pointerMove",
   POINTER_UP: "pointerUp",
   CLEAR_SELECTION: "clearSelection",
-  REQUEST_COPY_PAYLOAD: "requestCopyPayload",
+  COPY_CURRENT_SELECTION: "copyCurrentSelection",
+  CREATE_ANNOTATION_FROM_CURRENT_SELECTION: "createAnnotationFromCurrentSelection",
   GET_RESTORE_TOKEN: "getRestoreToken",
   RESTORE_FROM_TOKEN: "restoreFromToken",
   GET_SELECTION_RANGE: "getSelectionRange",
   GO_TO_ANNOTATION: "goToAnnotation",
   GET_RUNTIME_STATUS: "getRuntimeStatus"
 };
+
+const FORBIDDEN_GENERIC_TEXT_METHODS = new Set([
+  "requestCopyPayload",
+  "requestRangeText",
+  "getPageText",
+  "getChunkText",
+  "getVisibleText"
+]);
 
 const FORBIDDEN_SNAPSHOT_KEYS = new Set([
   "text",
@@ -39,6 +48,8 @@ const FORBIDDEN_SNAPSHOT_KEYS = new Set([
   "fullText"
 ]);
 
+const ANNOTATION_CONTEXT_LIMIT = 48;
+
 function assertNoForbiddenSnapshotKeys(value, path = "payload") {
   if (value == null) return;
   if (Array.isArray(value)) {
@@ -54,9 +65,105 @@ function assertNoForbiddenSnapshotKeys(value, path = "payload") {
   }
 }
 
+function assertAllowedObjectKeys(value, allowedKeys, path) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Protected worker payload must be an object: ${path}`);
+  }
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) {
+      throw new Error(`Unexpected field in protected worker payload: ${path}.${key}`);
+    }
+  }
+}
+
+function sanitizeCopyCurrentSelectionPayload(payload = {}) {
+  assertAllowedObjectKeys(
+    payload,
+    new Set(["success", "clipboardText", "selectedChars", "selectedBlocks", "selectedLines"]),
+    "payload"
+  );
+  if (payload.success !== true) {
+    throw new Error("COPY_CURRENT_SELECTION must succeed with a narrow payload.");
+  }
+  if (typeof payload.clipboardText !== "string") {
+    throw new Error("COPY_CURRENT_SELECTION must return clipboardText.");
+  }
+  return {
+    success: true,
+    clipboardText: payload.clipboardText,
+    selectedChars: Number(payload.selectedChars || 0),
+    selectedBlocks: Number(payload.selectedBlocks || 0),
+    selectedLines: Number(payload.selectedLines || 0)
+  };
+}
+
+function sanitizeAnnotationAnchor(anchor) {
+  assertAllowedObjectKeys(
+    anchor,
+    new Set(["chunkId", "startOffset", "endOffset", "restoreToken"]),
+    "payload.anchor"
+  );
+  return {
+    chunkId: String(anchor.chunkId || ""),
+    startOffset: Number(anchor.startOffset || 0),
+    endOffset: Number(anchor.endOffset || 0),
+    restoreToken: String(anchor.restoreToken || "")
+  };
+}
+
+function sanitizeCreateAnnotationPayload(payload = {}) {
+  const allowedKeys = new Set([
+    "annotationId",
+    "type",
+    "bookId",
+    "rangeDescriptor",
+    "color",
+    "createdAt",
+    "updatedAt",
+    "metadata",
+    "highlightId",
+    "noteText",
+    "anchor",
+    "quote",
+    "quoteHash",
+    "contextBefore",
+    "contextAfter",
+    "selectedChars",
+    "selectedBlocks",
+    "selectedLines"
+  ]);
+  assertAllowedObjectKeys(payload, allowedKeys, "payload");
+  if (payload.type !== "highlight" && payload.type !== "note") {
+    throw new Error("CREATE_ANNOTATION_FROM_CURRENT_SELECTION returned invalid annotation type.");
+  }
+  const contextBefore = String(payload.contextBefore || "");
+  const contextAfter = String(payload.contextAfter || "");
+  if (contextBefore.length > ANNOTATION_CONTEXT_LIMIT || contextAfter.length > ANNOTATION_CONTEXT_LIMIT) {
+    throw new Error("CREATE_ANNOTATION_FROM_CURRENT_SELECTION exceeded context limits.");
+  }
+  return {
+    ...payload,
+    anchor: sanitizeAnnotationAnchor(payload.anchor || {}),
+    quote: String(payload.quote || ""),
+    quoteHash: String(payload.quoteHash || ""),
+    contextBefore,
+    contextAfter,
+    selectedChars: Number(payload.selectedChars || 0),
+    selectedBlocks: Number(payload.selectedBlocks || 0),
+    selectedLines: Number(payload.selectedLines || 0),
+    noteText: payload.type === "note" ? String(payload.noteText || "") : undefined
+  };
+}
+
 export function sanitizeProtectedWorkerPayload(method, payload = {}) {
-  if (method === PROTECTED_WORKER_METHODS.REQUEST_COPY_PAYLOAD) {
-    return payload;
+  if (FORBIDDEN_GENERIC_TEXT_METHODS.has(method)) {
+    throw new Error(`Forbidden protected worker method: ${method}`);
+  }
+  if (method === PROTECTED_WORKER_METHODS.COPY_CURRENT_SELECTION) {
+    return sanitizeCopyCurrentSelectionPayload(payload);
+  }
+  if (method === PROTECTED_WORKER_METHODS.CREATE_ANNOTATION_FROM_CURRENT_SELECTION) {
+    return sanitizeCreateAnnotationPayload(payload);
   }
   assertNoForbiddenSnapshotKeys(payload, "payload");
   if (payload && payload.renderPacket) {
@@ -68,6 +175,9 @@ export function sanitizeProtectedWorkerPayload(method, payload = {}) {
 }
 
 export function createWorkerRequest(id, method, payload = {}) {
+  if (FORBIDDEN_GENERIC_TEXT_METHODS.has(method)) {
+    throw new Error(`Forbidden protected worker method: ${method}`);
+  }
   return {
     channel: "protected-reader-v1",
     id,

@@ -105,9 +105,13 @@ export function createProtectedWorkerClient(options = {}) {
       ensureSecureWorker();
       return decorateResult(PROTECTED_WORKER_METHODS.CLEAR_SELECTION, await transport.call(PROTECTED_WORKER_METHODS.CLEAR_SELECTION, payload));
     },
-    async requestCopyPayload(payload) {
+    async copyCurrentSelection(payload) {
       ensureSecureWorker();
-      return transport.call(PROTECTED_WORKER_METHODS.REQUEST_COPY_PAYLOAD, payload);
+      return transport.call(PROTECTED_WORKER_METHODS.COPY_CURRENT_SELECTION, payload);
+    },
+    async createAnnotationFromCurrentSelection(payload) {
+      ensureSecureWorker();
+      return transport.call(PROTECTED_WORKER_METHODS.CREATE_ANNOTATION_FROM_CURRENT_SELECTION, payload);
     },
     async getRestoreToken(payload) {
       ensureSecureWorker();

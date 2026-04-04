@@ -48,6 +48,7 @@ const elements = {
   deleteAnnotation: document.querySelector("#delete-annotation"),
   exportAnnotations: document.querySelector("#export-annotations"),
   importAnnotations: document.querySelector("#import-annotations"),
+  clearLocalState: document.querySelector("#clear-local-state"),
   importProductionPayload: document.querySelector("#import-production-payload"),
   exportProductionNotes: document.querySelector("#export-production-notes"),
   exportSharePayload: document.querySelector("#export-share-payload"),
@@ -88,6 +89,7 @@ const state = {
   compatShareWarnings: entryConfig && Array.isArray(entryConfig.compatShareWarnings) ? entryConfig.compatShareWarnings : [],
   sharePayloadParseStatus: entryConfig && entryConfig.compatShareImportStatus ? entryConfig.compatShareImportStatus : "none",
   artifactLoadStatus: "idle",
+  persistenceDiagnostics: null,
   renderMode: "shape",
   metricsMode: "shape",
   debugGeometry: false
@@ -198,6 +200,7 @@ async function syncRepositoryAnnotations() {
   await state.annotationRepository.replaceAnnotations(state.annotationStore.all(), {
     keepReadingState: true
   });
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
 }
 
 async function autoImportCompatPayload() {
@@ -232,6 +235,7 @@ async function autoImportCompatPayload() {
       warnings: state.compatShareWarnings
     };
     elements.compatJson.value = JSON.stringify(state.lastCompatReport, null, 2);
+    state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
     renderRuntimeMeta();
     return false;
   }
@@ -245,6 +249,7 @@ async function autoImportCompatPayload() {
   state.compatShareImportStatus = resolved.mode || "loaded";
   state.sharePayloadParseStatus = resolved.mode || "loaded";
   elements.compatJson.value = JSON.stringify(result.report, null, 2);
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   renderAnnotationList();
   renderRuntimeMeta();
   return true;
@@ -392,6 +397,7 @@ function renderRuntimeMeta() {
   const runtimeMeta = state.currentSnapshot.runtimeMeta || {};
   const diagnostics = runtimeMeta.renderDiagnostics || {};
   const runtimeContract = runtimeMeta.runtimeContract || {};
+  const persistenceDiagnostics = state.annotationRepository ? state.annotationRepository.getPersistenceDiagnostics() : (state.persistenceDiagnostics || null);
   const chunkSummary = runtimeMeta.chunkSummary || state.currentSnapshot.chunkSummary;
   const pageSummary = runtimeMeta.pageSummary || state.currentSnapshot.pageSummary;
   setDlRows(elements.runtimeMeta, [
@@ -448,6 +454,14 @@ function renderRuntimeMeta() {
     ["Persisted global offset", state.persistedReadingState && state.persistedReadingState.globalPosition ? state.persistedReadingState.globalPosition.globalOffset ?? "n/a" : "n/a"],
     ["Last save timestamp", state.lastReadingStateSaveAt ? new Date(state.lastReadingStateSaveAt).toISOString() : "n/a"],
     ["Restore applied", state.readingStateRestoreApplied ? "yes" : "no"],
+    ["Storage backend", persistenceDiagnostics ? persistenceDiagnostics.storageBackend : "inactive"],
+    ["Bundle schema version", persistenceDiagnostics ? persistenceDiagnostics.schemaVersion : "n/a"],
+    ["Bundle compatibility", persistenceDiagnostics ? persistenceDiagnostics.compatibilityStatus : "n/a"],
+    ["Bundle compatibility warning", persistenceDiagnostics && persistenceDiagnostics.compatibilityWarning ? persistenceDiagnostics.compatibilityWarning : "none"],
+    ["Persisted bundle updated", persistenceDiagnostics && persistenceDiagnostics.lastSavedAt ? new Date(persistenceDiagnostics.lastSavedAt).toISOString() : "n/a"],
+    ["Reading-state saved", persistenceDiagnostics ? (persistenceDiagnostics.readingStateSaved ? "yes" : "no") : "n/a"],
+    ["Persisted annotation count", persistenceDiagnostics ? persistenceDiagnostics.annotationCount : "n/a"],
+    ["Book fingerprint", persistenceDiagnostics ? persistenceDiagnostics.bookFingerprint : "n/a"],
     ["Artifact load status", state.artifactLoadStatus],
     ["Compat share import", state.compatShareImportStatus],
     ["Share payload parse", state.sharePayloadParseStatus],
@@ -606,6 +620,7 @@ async function persistReadingStateFromSnapshot(snapshot) {
   });
   state.persistedReadingState = nextState;
   state.lastReadingStateSaveAt = nextState && nextState.updatedAt ? nextState.updatedAt : null;
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
 }
 
 async function loadArtifact(artifactRoot) {
@@ -631,9 +646,11 @@ async function loadArtifact(artifactRoot) {
   state.compatBook = await loadProtectedBook(artifactRoot);
   state.annotationRepository = createProtectedAnnotationRepository({
     bookId,
+    book: state.compatBook,
     persistence: state.integrationMode ? state.entryConfig.repositoryPersistence || null : null
   });
   state.annotationStore = state.annotationRepository.store;
+  await state.annotationRepository.ensureHydrated();
   state.selectedAnnotationId = null;
   state.lastCompatReport = null;
   state.persistedReadingState = null;
@@ -642,6 +659,7 @@ async function loadArtifact(artifactRoot) {
   state.sharePayloadParseStatus = state.entryConfig && state.entryConfig.compatShareImportStatus
     ? state.entryConfig.compatShareImportStatus
     : "none";
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   elements.noteInput.value = "";
   elements.annotationImport.value = "";
   elements.compatJson.value = "";
@@ -662,9 +680,12 @@ async function loadArtifact(artifactRoot) {
   if (state.annotationStore && state.annotationStore.all().length) {
     await requestAndApply("getRuntimeStatus");
   }
+  const persistenceWarning = state.persistenceDiagnostics && state.persistenceDiagnostics.compatibilityWarning
+    ? ` Warning: ${state.persistenceDiagnostics.compatibilityWarning}`
+    : "";
   setStatus(
-    `Opened ${finalSnapshot.chunkSummary.chunkId} (${finalSnapshot.chunkSummary.order}/${finalSnapshot.chunkSummary.total}) in ${state.renderMode}/${state.metricsMode} mode.`,
-    "ok"
+    `Opened ${finalSnapshot.chunkSummary.chunkId} (${finalSnapshot.chunkSummary.order}/${finalSnapshot.chunkSummary.total}) in ${state.renderMode}/${state.metricsMode} mode.${persistenceWarning}`,
+    persistenceWarning ? "warning" : "ok"
   );
 }
 
@@ -726,8 +747,8 @@ async function handleCopySelection() {
     setStatus("Create a non-empty selection before copying.", "error");
     return;
   }
-  const result = await state.workerClient.requestCopyPayload();
-  await navigator.clipboard.writeText(result.text);
+  const result = await state.workerClient.copyCurrentSelection();
+  await navigator.clipboard.writeText(result.clipboardText);
   setStatus(
     `Copied selection: ${result.selectedChars} chars across ${result.selectedBlocks} block(s) and ${result.selectedLines} line(s).`,
     "ok"
@@ -771,17 +792,16 @@ async function handleCopySelectionRange() {
 }
 
 async function createHighlightFromSelection() {
-  const rangeDescriptor = state.currentSnapshot && state.currentSnapshot.rangeDescriptor;
-  if (!state.annotationStore || !rangeDescriptor) {
+  if (!state.annotationStore || !state.currentSnapshot || !state.currentSnapshot.rangeDescriptor) {
     throw new Error("Create a selection before creating a highlight.");
   }
-  const annotation = state.annotationStore.createHighlight({
-    rangeDescriptor,
-    color: "amber",
-    metadata: {
-      locationId: rangeDescriptor.start.locationId,
-      selectionMode: rangeDescriptor.selectionMode
-    }
+  const annotation = await state.workerClient.createAnnotationFromCurrentSelection({
+    type: "highlight"
+  });
+  state.annotationStore.importAnnotations({
+    kind: "protected-annotations-v1",
+    bookId: state.annotationStore.bookId,
+    annotations: [...state.annotationStore.all(), annotation]
   });
   state.selectedAnnotationId = annotation.annotationId;
   await syncRepositoryAnnotations();
@@ -792,16 +812,19 @@ async function createHighlightFromSelection() {
 }
 
 async function addNoteToSelection() {
-  const rangeDescriptor = state.currentSnapshot && state.currentSnapshot.rangeDescriptor;
-  if (!rangeDescriptor) throw new Error("Create a selection before adding a note.");
+  if (!state.currentSnapshot || !state.currentSnapshot.rangeDescriptor) {
+    throw new Error("Create a selection before adding a note.");
+  }
   const noteText = elements.noteInput.value.trim();
   if (!noteText) throw new Error("Enter note text before adding a note.");
-  const highlight = await createHighlightFromSelection();
-  const note = state.annotationStore.createNote({
-    rangeDescriptor: highlight.rangeDescriptor,
-    noteText,
-    highlightId: highlight.annotationId,
-    color: "blue"
+  const note = await state.workerClient.createAnnotationFromCurrentSelection({
+    type: "note",
+    noteText
+  });
+  state.annotationStore.importAnnotations({
+    kind: "protected-annotations-v1",
+    bookId: state.annotationStore.bookId,
+    annotations: [...state.annotationStore.all(), note]
   });
   state.selectedAnnotationId = note.annotationId;
   await syncRepositoryAnnotations();
@@ -849,19 +872,34 @@ async function exportAnnotations() {
   );
   elements.annotationImport.value = payload;
   await navigator.clipboard.writeText(payload);
-  setStatus("Exported annotations JSON.", "ok");
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
+  setStatus("Exported protected bundle.", "ok");
 }
 
 async function importAnnotations() {
   if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
   const payload = elements.annotationImport.value.trim();
-  if (!payload) throw new Error("Paste annotation JSON before importing.");
+  if (!payload) throw new Error("Paste protected bundle JSON before importing.");
   await state.annotationRepository.importBundle(payload);
-  state.readingStateSource = "protected-local-storage";
+  state.readingStateSource = "protected-bundle-import";
   state.selectedAnnotationId = null;
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
+  const importedReadingState = await state.annotationRepository.loadReadingState(state.bookSummary.bookId);
+  if (importedReadingState && importedReadingState.restoreToken) {
+    state.persistedReadingState = importedReadingState;
+    state.lastReadingStateSaveAt = importedReadingState.updatedAt || null;
+    state.readingStateRestoreApplied = true;
+    const snapshot = await state.workerClient.restoreFromToken({
+      token: importedReadingState.restoreToken,
+      viewportHeight: getViewportHeight(),
+      annotations: getCurrentAnnotations()
+    });
+    applySnapshot(snapshot);
+  } else {
+    await requestAndApply("getRuntimeStatus");
+  }
   renderAnnotationList();
-  await requestAndApply("getRuntimeStatus");
-  setStatus("Imported annotations JSON.", "ok");
+  setStatus("Imported protected bundle.", "ok");
 }
 
 async function importProductionPayload() {
@@ -881,6 +919,7 @@ async function importProductionPayload() {
     2
   );
   elements.compatJson.value = JSON.stringify(result.report, null, 2);
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
   setStatus(
@@ -926,9 +965,25 @@ async function deleteSelectedAnnotation() {
   state.selectedAnnotationId = null;
   elements.noteInput.value = "";
   await syncRepositoryAnnotations();
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
   setStatus(`Deleted annotation ${selectedAnnotation.annotationId}.`, "ok");
+}
+
+async function clearLocalProtectedState() {
+  if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
+  await state.annotationRepository.clearPersistence();
+  state.selectedAnnotationId = null;
+  state.persistedReadingState = null;
+  state.lastReadingStateSaveAt = null;
+  state.readingStateSource = "default-start";
+  state.readingStateRestoreApplied = false;
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
+  elements.annotationImport.value = "";
+  renderAnnotationList();
+  await requestAndApply("getRuntimeStatus");
+  setStatus("Cleared local protected state.", "ok");
 }
 
 async function boot() {
@@ -1145,6 +1200,17 @@ async function boot() {
       setStatus(error.message || String(error), "error");
     }
   });
+
+  if (elements.clearLocalState) {
+    elements.clearLocalState.addEventListener("click", async () => {
+      try {
+        await clearLocalProtectedState();
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), "error");
+      }
+    });
+  }
 
   elements.importProductionPayload.addEventListener("click", async () => {
     try {

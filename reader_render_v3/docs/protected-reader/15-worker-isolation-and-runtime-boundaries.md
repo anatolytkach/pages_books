@@ -64,7 +64,8 @@ Current message families include:
 - `pointerMove`
 - `pointerUp`
 - `clearSelection`
-- `requestCopyPayload`
+- `copyCurrentSelection`
+- `createAnnotationFromCurrentSelection`
 - `getRestoreToken`
 - `restoreFromToken`
 - `getSelectionRange`
@@ -104,9 +105,9 @@ in the UI controller.
 
 Copy now follows a narrower path:
 
-1. UI requests copy payload
+1. UI requests `copyCurrentSelection`
 2. worker reconstructs only the selected range
-3. worker returns only the copy payload text and minimal diagnostics
+3. worker returns only clipboard text and minimal selection counts
 4. main thread writes to clipboard
 
 The main thread does not keep a reconstruction helper or full-chunk text cache.

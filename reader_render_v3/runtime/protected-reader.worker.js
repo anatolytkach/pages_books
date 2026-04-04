@@ -8,6 +8,9 @@ self.addEventListener("message", async (event) => {
   if (message.channel !== "protected-reader-v1") return;
   const { id, method, payload } = message;
   try {
+    if (method === "requestCopyPayload") {
+      throw new Error("Forbidden protected worker method: requestCopyPayload");
+    }
     if (typeof core[method] !== "function") {
       throw new Error(`Unsupported worker method: ${method}`);
     }

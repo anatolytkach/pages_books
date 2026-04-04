@@ -15,8 +15,11 @@ import { layoutChunk } from "./protected-layout-engine.js";
 import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
 import { buildGlyphRenderOps } from "./protected-shape-layout.js";
 import { hitTestPosition } from "./protected-hit-testing.js";
-import { buildCopyPayload } from "./protected-copy-engine.js";
 import { buildVisibleAnnotationOverlay } from "./protected-highlight-renderer.js";
+import {
+  buildAnnotationFromCurrentSelection,
+  buildCopyCurrentSelectionResult
+} from "./protected-selection-action-engine.js";
 import {
   beginSelection,
   buildChunkSelectionIndex,
@@ -219,21 +222,34 @@ export class ProtectedReaderRuntimeCore {
     return this.buildSnapshot({ annotations });
   }
 
-  requestCopyPayload() {
+  copyCurrentSelection() {
     const selectionResult = buildSelectionResult({
       chunkModel: this.currentChunkModel,
       layout: this.currentLayout,
       selectionState: this.selectionState
     });
-    const payload = buildCopyPayload({
+    return buildCopyCurrentSelectionResult({
       chunkModel: this.currentChunkModel,
       selectionResult
     });
-    return {
-      ...payload,
-      fullChunkDecode: "forbidden",
-      host: "worker"
-    };
+  }
+
+  createAnnotationFromCurrentSelection({ type, noteText = "" } = {}) {
+    const selectionResult = buildSelectionResult({
+      chunkModel: this.currentChunkModel,
+      layout: this.currentLayout,
+      selectionState: this.selectionState
+    });
+    return buildAnnotationFromCurrentSelection({
+      bookId: this.book.globalLocationModel.bookId,
+      globalModel: this.book.globalLocationModel,
+      chunkModel: this.currentChunkModel,
+      layout: this.currentLayout,
+      selectionResult,
+      page: this.getCurrentPage(),
+      type,
+      noteText
+    });
   }
 
   getRestoreToken() {

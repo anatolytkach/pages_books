@@ -13,8 +13,9 @@ This step adds a real annotation foundation on top of the existing protected run
 - restore tokens
 - fine-grained selection with word snapping
 
-The scope is intentionally dev-only and in-memory. It does not introduce production
-cutover or cloud persistence.
+The scope started as dev-only and in-memory. It still does not introduce production
+cutover or cloud persistence, but the integrated protected reader now persists the same
+annotation model through a local-first repository layer.
 
 ## Annotation model
 
@@ -52,9 +53,10 @@ The dev runtime now has an in-memory annotation store that can:
 - export/import annotations as JSON
 
 This keeps the architecture ready for a later persistence step without binding the
-runtime to localStorage or a backend yet.
+annotation source of truth to DOM state or a production backend.
 
-The integrated protected reader now mounts the same annotation model through a repository abstraction, with optional local browser persistence for the protected mode only.
+The integrated protected reader now mounts the same annotation model through a repository
+abstraction backed by a versioned local-first protected bundle.
 
 ## Rendering model
 
@@ -84,27 +86,28 @@ This means a highlight survives:
 - switching chunks
 - restoring back to the same range later in the session
 
-## Export and import
+## Export, import, and persistence
 
-The dev shell can now export and import annotations as JSON.
+The dev shell can now export and import a protected persisted bundle as JSON.
 
 The payload contains:
 
+- bundle schema/version
+- book identity and fingerprint
 - annotation ids
 - types
 - range descriptors
+- reading state
 - note text
 - metadata
 
-It does not contain:
+It still does not contain:
 
 - book text dumps
 - reconstruction substrate
 - debug artifact payload
 
 ## Current limitations
-
-This is not persistence yet.
 
 Still missing:
 
@@ -114,7 +117,8 @@ Still missing:
 - annotation conflict handling
 - migration logic for changed chunking/layout in future formats
 
-But the data model and runtime behavior are now aligned with the next persistence step.
+But the data model and runtime behavior are now aligned with a local-first persistence
+step and a later file-sync/backend step.
 
 ## Worker interaction
 

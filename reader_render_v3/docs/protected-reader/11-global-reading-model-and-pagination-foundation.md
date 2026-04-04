@@ -184,3 +184,7 @@ The restore priority in integrated protected mode is now explicit:
 2. persisted protected reading state
 3. production CFI fallback
 4. default start
+
+The persisted protected reading state now lives inside the same versioned protected
+bundle as annotations, rather than in ad-hoc unrelated keys. That keeps reading
+position, notes, and future file-sync/export behavior aligned around one source of truth.
