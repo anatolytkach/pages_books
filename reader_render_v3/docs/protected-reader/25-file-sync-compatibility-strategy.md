@@ -84,3 +84,8 @@ This keeps the model stable while making future Drive integration straightforwar
 The sync file now has a dedicated transport layer and companion handoff metadata. That
 layer carries file identity, compatibility diagnostics, and exchange metadata without
 changing the protected file format or the protected internal persistence model.
+
+## Drive backend
+
+Google Drive can now act as a remote transport backend around the same protected sync
+file. The remote file is a replica of protected local state, not a replacement for it.

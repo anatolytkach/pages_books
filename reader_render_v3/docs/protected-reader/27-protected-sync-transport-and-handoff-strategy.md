@@ -29,6 +29,10 @@ The next file-based sync step can upload/download:
 
 That makes Drive integration a transport concern instead of a model redesign.
 
+The current implementation now follows that path directly: Google Drive stores one
+protected sync file per `bookId + userScope` and uses explicit upload/download/apply
+actions instead of trying to become the live reading-state authority.
+
 ## Explicit Non-Goals
 
 - no Google Drive API calls

@@ -10,6 +10,8 @@ import {
   normalizeProtectedSyncTransportHandoff
 } from "../runtime/protected-sync-transport.js";
 import { downloadJsonFile, readTextFile } from "../runtime/protected-file-transfer.js";
+import { createProtectedDriveTransport } from "../runtime/protected-drive-transport.js";
+import { createInitialProtectedDriveState, mergeProtectedDriveState } from "../runtime/protected-drive-state.js";
 
 const entryConfig = window.__PROTECTED_READER_ENTRY__ || null;
 const DEFAULT_ARTIFACT =
@@ -56,6 +58,10 @@ const elements = {
   downloadSyncFile: document.querySelector("#download-sync-file"),
   loadSyncFile: document.querySelector("#load-sync-file"),
   copyHandoffState: document.querySelector("#copy-handoff-state"),
+  checkDriveStatus: document.querySelector("#check-drive-status"),
+  uploadDriveFile: document.querySelector("#upload-drive-file"),
+  downloadDriveFile: document.querySelector("#download-drive-file"),
+  applyDriveFile: document.querySelector("#apply-drive-file"),
   clearLocalState: document.querySelector("#clear-local-state"),
   importProductionPayload: document.querySelector("#import-production-payload"),
   exportProductionNotes: document.querySelector("#export-production-notes"),
@@ -104,6 +110,8 @@ const state = {
   lastFileTransferResult: null,
   currentSyncTransport: null,
   currentHandoffState: null,
+  driveTransport: null,
+  driveState: createInitialProtectedDriveState(),
   renderMode: "shape",
   metricsMode: "shape",
   debugGeometry: false
@@ -131,6 +139,20 @@ function setTextareaValue(element, value) {
 
 function getTextareaValue(element) {
   return element ? element.value.trim() : "";
+}
+
+function getLocalStateUpdatedAt() {
+  const diagnostics = state.annotationRepository
+    ? state.annotationRepository.getPersistenceDiagnostics()
+    : state.persistenceDiagnostics;
+  return diagnostics && diagnostics.lastSavedAt ? diagnostics.lastSavedAt : null;
+}
+
+function ensureDriveTransport() {
+  if (!state.driveTransport) {
+    state.driveTransport = createProtectedDriveTransport();
+  }
+  return state.driveTransport;
 }
 
 function getArtifactRootFromLocation() {
@@ -488,6 +510,17 @@ function renderRuntimeMeta() {
     ["Last file transfer", state.lastFileTransferResult || "none"],
     ["Handoff state", state.currentHandoffState ? state.currentHandoffState.kind : "none"],
     ["Handoff file", state.currentHandoffState && state.currentHandoffState.fileName ? state.currentHandoffState.fileName : "none"],
+    ["Drive transport", state.driveState.transportStatus],
+    ["Drive configured", state.driveState.configured ? "yes" : "no"],
+    ["Drive authorized", state.driveState.authorized ? "yes" : "no"],
+    ["Drive remote file", state.driveState.remotePresent ? "yes" : "no"],
+    ["Drive file id", state.driveState.remoteFileId || "none"],
+    ["Drive modified", state.driveState.remoteModifiedAt || "n/a"],
+    ["Drive freshness", state.driveState.freshness || "unknown"],
+    ["Drive upload", state.driveState.lastUploadResult || "none"],
+    ["Drive download", state.driveState.lastDownloadResult || "none"],
+    ["Drive apply", state.driveState.lastApplyResult || "none"],
+    ["Drive warning", state.driveState.lastWarning || "none"],
     ["Artifact load status", state.artifactLoadStatus],
     ["Compat share import", state.compatShareImportStatus],
     ["Share payload parse", state.sharePayloadParseStatus],
@@ -686,6 +719,7 @@ async function loadArtifact(artifactRoot) {
   state.lastFileTransferResult = null;
   state.currentSyncTransport = null;
   state.currentHandoffState = null;
+  state.driveState = createInitialProtectedDriveState();
   state.sharePayloadParseStatus = state.entryConfig && state.entryConfig.compatShareImportStatus
     ? state.entryConfig.compatShareImportStatus
     : "none";
@@ -714,6 +748,11 @@ async function loadArtifact(artifactRoot) {
   const persistenceWarning = state.persistenceDiagnostics && state.persistenceDiagnostics.compatibilityWarning
     ? ` Warning: ${state.persistenceDiagnostics.compatibilityWarning}`
     : "";
+  try {
+    await refreshDriveStatus({ interactive: false });
+  } catch (error) {
+    console.error(error);
+  }
   setStatus(
     `Opened ${finalSnapshot.chunkSummary.chunkId} (${finalSnapshot.chunkSummary.order}/${finalSnapshot.chunkSummary.total}) in ${state.renderMode}/${state.metricsMode} mode.${persistenceWarning}`,
     persistenceWarning ? "warning" : "ok"
@@ -1022,6 +1061,157 @@ async function handleSyncFileChosen(event) {
   state.lastFileTransferResult = `protected-sync-load:${compatibility.status}`;
   renderRuntimeMeta();
   setStatus(`Loaded protected sync file ${file.name}.`, compatibility.compatible ? "ok" : "warning");
+}
+
+async function refreshDriveStatus({ interactive = false } = {}) {
+  if (!state.bookSummary || !state.annotationRepository) {
+    state.driveState = mergeProtectedDriveState(state.driveState, {
+      transportStatus: "idle"
+    });
+    renderRuntimeMeta();
+    return state.driveState;
+  }
+  const transport = ensureDriveTransport();
+  state.driveState = mergeProtectedDriveState(state.driveState, {
+    transportStatus: interactive ? "connecting" : "checking",
+    lastWarning: ""
+  });
+  renderRuntimeMeta();
+  try {
+    const result = await transport.getRemoteStatus({
+      bookId: state.bookSummary.bookId,
+      userScope: state.annotationRepository.userScope,
+      localUpdatedAt: getLocalStateUpdatedAt(),
+      interactive
+    });
+    state.driveState = mergeProtectedDriveState(state.driveState, {
+      configured: !!(result.availability && result.availability.configured),
+      authorized: !!(result.availability && result.availability.authorized),
+      transportStatus:
+        result.availability && !result.availability.configured
+          ? "unavailable"
+          : result.availability && !result.availability.authorized
+            ? "unauthorized"
+            : "idle",
+      remotePresent: !!(result.remoteFile && result.remoteFile.fileId),
+      remoteFileId: result.remoteFile && result.remoteFile.fileId ? result.remoteFile.fileId : "",
+      remoteFileName: result.remoteFile && result.remoteFile.name ? result.remoteFile.name : "",
+      remoteModifiedAt: result.remoteFile && result.remoteFile.modifiedAt ? result.remoteFile.modifiedAt : "",
+      remoteSize: result.remoteFile && result.remoteFile.size ? result.remoteFile.size : 0,
+      freshness: result.freshness || "unknown",
+      lastWarning: ""
+    });
+    renderRuntimeMeta();
+    return state.driveState;
+  } catch (error) {
+    state.driveState = mergeProtectedDriveState(state.driveState, {
+      transportStatus: "error",
+      lastWarning: error && error.message ? error.message : "Drive status check failed."
+    });
+    renderRuntimeMeta();
+    throw error;
+  }
+}
+
+async function uploadSyncFileToDrive() {
+  if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
+  const transport = ensureDriveTransport();
+  const syncTransport = await state.annotationRepository.exportSyncTransport(state.bookSummary.bookId);
+  state.currentSyncTransport = syncTransport;
+  state.currentHandoffState = syncTransport.handoffState;
+  setTextareaValue(elements.annotationImport, syncTransport.serializedSyncFile);
+  setTextareaValue(elements.handoffState, syncTransport.serializedHandoffState);
+  state.driveState = mergeProtectedDriveState(state.driveState, {
+    transportStatus: "uploading",
+    lastWarning: ""
+  });
+  renderRuntimeMeta();
+  const result = await transport.uploadSyncFile({
+    syncTransport,
+    interactive: true,
+    localUpdatedAt: getLocalStateUpdatedAt()
+  });
+  state.driveState = mergeProtectedDriveState(state.driveState, {
+    configured: true,
+    authorized: true,
+    transportStatus: "uploaded",
+    remotePresent: true,
+    remoteFileId: result.remoteFile.fileId,
+    remoteFileName: result.remoteFile.name,
+    remoteModifiedAt: result.remoteFile.modifiedAt,
+    remoteSize: result.remoteFile.size,
+    freshness: result.freshness || "same",
+    lastUploadResult: `${result.action}:${result.remoteFile.fileId}`,
+    lastWarning: ""
+  });
+  renderRuntimeMeta();
+  setStatus(`Drive ${result.action}: ${result.remoteFile.name}.`, "ok");
+  return result;
+}
+
+async function downloadSyncFileFromDrive() {
+  if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
+  const transport = ensureDriveTransport();
+  state.driveState = mergeProtectedDriveState(state.driveState, {
+    transportStatus: "downloading",
+    lastWarning: ""
+  });
+  renderRuntimeMeta();
+  const result = await transport.downloadSyncFile({
+    bookId: state.bookSummary.bookId,
+    userScope: state.annotationRepository.userScope,
+    bookFingerprint: state.annotationRepository.persistenceManager.bookFingerprint,
+    localUpdatedAt: getLocalStateUpdatedAt(),
+    interactive: true
+  });
+  state.driveState = mergeProtectedDriveState(state.driveState, {
+    configured: true,
+    authorized: true,
+    transportStatus: result.compatibility.compatible ? "downloaded" : "error",
+    remotePresent: !!(result.remoteFile && result.remoteFile.fileId),
+    remoteFileId: result.remoteFile && result.remoteFile.fileId ? result.remoteFile.fileId : "",
+    remoteFileName: result.remoteFile && result.remoteFile.name ? result.remoteFile.name : "",
+    remoteModifiedAt: result.remoteFile && result.remoteFile.modifiedAt ? result.remoteFile.modifiedAt : "",
+    remoteSize: result.remoteFile && result.remoteFile.size ? result.remoteFile.size : 0,
+    freshness: result.freshness || "unknown",
+    lastDownloadResult: result.compatibility.status,
+    pendingRemoteSyncFile: result.serializedSyncFile || null,
+    pendingRemoteHandoffState: result.handoffState || null,
+    lastWarning: result.compatibility.warning || ""
+  });
+  if (result.serializedSyncFile) {
+    setTextareaValue(elements.annotationImport, result.serializedSyncFile);
+  }
+  if (result.handoffState) {
+    setTextareaValue(elements.handoffState, JSON.stringify(result.handoffState, null, 2));
+  }
+  state.fileSyncCompatibilityStatus = result.compatibility.status;
+  renderRuntimeMeta();
+  if (!result.compatibility.compatible) {
+    setStatus(result.compatibility.warning || "Downloaded Drive state is incompatible.", "warning");
+    return result;
+  }
+  setStatus("Downloaded protected sync file from Google Drive.", "ok");
+  return result;
+}
+
+async function applyDownloadedDriveState() {
+  const payload = state.driveState.pendingRemoteSyncFile || getTextareaValue(elements.annotationImport);
+  if (!payload) throw new Error("Download a Drive sync file before applying it.");
+  const handoffState = state.driveState.pendingRemoteHandoffState || (getTextareaValue(elements.handoffState)
+    ? normalizeProtectedSyncTransportHandoff(getTextareaValue(elements.handoffState))
+    : null);
+  await importAnnotations();
+  state.driveState = mergeProtectedDriveState(state.driveState, {
+    transportStatus: "applied",
+    lastApplyResult: "applied",
+    pendingRemoteSyncFile: null,
+    pendingRemoteHandoffState: null,
+    lastWarning: ""
+  });
+  renderRuntimeMeta();
+  setStatus("Applied downloaded Drive state.", "ok");
+  return handoffState;
 }
 
 async function importProductionPayload() {
@@ -1355,6 +1545,66 @@ async function boot() {
         await copyHandoffState();
       } catch (error) {
         console.error(error);
+        setStatus(error.message || String(error), "error");
+      }
+    });
+  }
+
+  if (elements.checkDriveStatus) {
+    elements.checkDriveStatus.addEventListener("click", async () => {
+      try {
+        await refreshDriveStatus({ interactive: true });
+        setStatus("Checked Google Drive transport status.", "ok");
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), "error");
+      }
+    });
+  }
+
+  if (elements.uploadDriveFile) {
+    elements.uploadDriveFile.addEventListener("click", async () => {
+      try {
+        await uploadSyncFileToDrive();
+      } catch (error) {
+        console.error(error);
+        state.driveState = mergeProtectedDriveState(state.driveState, {
+          transportStatus: "error",
+          lastWarning: error && error.message ? error.message : "Drive upload failed."
+        });
+        renderRuntimeMeta();
+        setStatus(error.message || String(error), "error");
+      }
+    });
+  }
+
+  if (elements.downloadDriveFile) {
+    elements.downloadDriveFile.addEventListener("click", async () => {
+      try {
+        await downloadSyncFileFromDrive();
+      } catch (error) {
+        console.error(error);
+        state.driveState = mergeProtectedDriveState(state.driveState, {
+          transportStatus: "error",
+          lastWarning: error && error.message ? error.message : "Drive download failed."
+        });
+        renderRuntimeMeta();
+        setStatus(error.message || String(error), "error");
+      }
+    });
+  }
+
+  if (elements.applyDriveFile) {
+    elements.applyDriveFile.addEventListener("click", async () => {
+      try {
+        await applyDownloadedDriveState();
+      } catch (error) {
+        console.error(error);
+        state.driveState = mergeProtectedDriveState(state.driveState, {
+          transportStatus: "error",
+          lastWarning: error && error.message ? error.message : "Drive apply failed."
+        });
+        renderRuntimeMeta();
         setStatus(error.message || String(error), "error");
       }
     });

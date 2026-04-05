@@ -115,6 +115,10 @@ Integrated protected mode now supports:
 - load sync file from disk
 - import sync file
 - copy handoff state
+- check Drive availability
+- upload sync file to Drive
+- download sync file from Drive
+- apply downloaded Drive state
 
 These transport actions work on top of protected local-first persistence and do not alter
 the default old-reader route or behavior.

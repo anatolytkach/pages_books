@@ -1,7 +1,6 @@
 import {
   createReconstructionScope,
   disposeReconstructionScope,
-  reconstructRangeText,
   reconstructSelectionRange
 } from "./protected-text-reconstruction.js";
 import { createRestoreDescriptor, buildSerializableRange } from "./protected-range-serialization.js";
@@ -9,9 +8,7 @@ import { serializeRestoreToken } from "./protected-global-location.js";
 import { createHighlightAnnotation } from "./protected-annotation-model.js";
 import { createNoteAnnotation } from "./protected-note-model.js";
 
-export const ANNOTATION_CONTEXT_LIMIT = 48;
-
-function stableQuoteHash(input) {
+function stableSelectionHash(input) {
   const value = String(input || "");
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -61,35 +58,6 @@ function buildSelectionAnchor({ globalModel, chunkModel, layout, selectionResult
   };
 }
 
-function reconstructSelectionContext({ chunkModel, selectionResult, scope }) {
-  const beforeStart = Math.max(0, selectionResult.startOffset - ANNOTATION_CONTEXT_LIMIT);
-  const afterEnd = Math.min(chunkModel.chunk.textLength || selectionResult.endOffset, selectionResult.endOffset + ANNOTATION_CONTEXT_LIMIT);
-  return {
-    quote: reconstructSelectionRange(chunkModel, selectionResult, scope),
-    contextBefore: reconstructRangeText(chunkModel, beforeStart, selectionResult.startOffset, scope).slice(-ANNOTATION_CONTEXT_LIMIT),
-    contextAfter: reconstructRangeText(chunkModel, selectionResult.endOffset, afterEnd, scope).slice(0, ANNOTATION_CONTEXT_LIMIT)
-  };
-}
-
-export function buildCopyCurrentSelectionResult({ chunkModel, selectionResult }) {
-  if (!selectionResult || selectionResult.isCollapsed) {
-    throw new Error("Selection is empty.");
-  }
-  const scope = buildSelectionScope(chunkModel, selectionResult, "copy-current-selection");
-  try {
-    const clipboardText = reconstructSelectionRange(chunkModel, selectionResult, scope);
-    return {
-      success: true,
-      clipboardText,
-      selectedChars: selectionResult.selectedChars,
-      selectedBlocks: selectionResult.selectedBlocks,
-      selectedLines: selectionResult.selectedLines
-    };
-  } finally {
-    disposeReconstructionScope(scope);
-  }
-}
-
 export function buildAnnotationFromCurrentSelection({
   bookId,
   globalModel,
@@ -108,61 +76,51 @@ export function buildAnnotationFromCurrentSelection({
   if (type !== "highlight" && type !== "note") {
     throw new Error(`Unsupported annotation type: ${type}`);
   }
-  const scope = buildSelectionScope(chunkModel, selectionResult, "annotation-current-selection");
-  try {
-    const { rangeDescriptor, anchor } = buildSelectionAnchor({
-      globalModel,
-      chunkModel,
-      layout,
-      selectionResult,
-      page
-    });
-    const { quote, contextBefore, contextAfter } = reconstructSelectionContext({
-      chunkModel,
-      selectionResult,
-      scope
-    });
-    const quoteHash = stableQuoteHash(quote);
-    const metadata = {
-      anchor,
-      quoteHash,
-      contextBefore,
-      contextAfter,
-      selectedChars: selectionResult.selectedChars,
-      selectedBlocks: selectionResult.selectedBlocks,
-      selectedLines: selectionResult.selectedLines,
-      selectionMode: rangeDescriptor.selectionMode,
-      locationId: rangeDescriptor.start.locationId,
-      source: "worker-current-selection"
-    };
-    const annotation = type === "highlight"
-      ? createHighlightAnnotation({
-          bookId,
-          rangeDescriptor,
-          color: highlightColor,
-          metadata
-        })
-      : createNoteAnnotation({
-          bookId,
-          rangeDescriptor,
-          noteText,
-          color: noteColor,
-          metadata
-        });
+  const { rangeDescriptor, anchor } = buildSelectionAnchor({
+    globalModel,
+    chunkModel,
+    layout,
+    selectionResult,
+    page
+  });
+  const quoteHash = stableSelectionHash(JSON.stringify({
+    bookId,
+    chunkId: anchor.chunkId,
+    startOffset: anchor.startOffset,
+    endOffset: anchor.endOffset
+  }));
+  const metadata = {
+    anchor,
+    quoteHash,
+    selectedChars: selectionResult.selectedChars,
+    selectedBlocks: selectionResult.selectedBlocks,
+    selectedLines: selectionResult.selectedLines,
+    selectionMode: rangeDescriptor.selectionMode,
+    locationId: rangeDescriptor.start.locationId,
+    source: "worker-current-selection"
+  };
+  const annotation = type === "highlight"
+    ? createHighlightAnnotation({
+        bookId,
+        rangeDescriptor,
+        color: highlightColor,
+        metadata
+      })
+    : createNoteAnnotation({
+        bookId,
+        rangeDescriptor,
+        noteText,
+        color: noteColor,
+        metadata
+      });
 
-    return {
-      ...annotation,
-      anchor,
-      quote,
-      quoteHash,
-      contextBefore,
-      contextAfter,
-      selectedChars: selectionResult.selectedChars,
-      selectedBlocks: selectionResult.selectedBlocks,
-      selectedLines: selectionResult.selectedLines,
-      noteText: type === "note" ? String(noteText || "").trim() : undefined
-    };
-  } finally {
-    disposeReconstructionScope(scope);
-  }
+  return {
+    ...annotation,
+    anchor,
+    quoteHash,
+    selectedChars: selectionResult.selectedChars,
+    selectedBlocks: selectionResult.selectedBlocks,
+    selectedLines: selectionResult.selectedLines,
+    noteText: type === "note" ? String(noteText || "").trim() : undefined
+  };
 }

@@ -3,8 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="google-drive-client-id" content="" />
     <title>ReaderPub Protected Reader</title>
     <link rel="stylesheet" href="../dev/protected-reader.css" />
+    <script src="/books/shared/drive-sync.js"></script>
   </head>
   <body data-reader-surface="integrated">
     <div class="app">
@@ -128,6 +130,10 @@
             <button type="button" id="import-annotations">Import protected sync file</button>
             <button type="button" id="load-sync-file">Load sync file from file</button>
             <button type="button" id="copy-handoff-state">Copy handoff state</button>
+            <button type="button" id="check-drive-status">Check Drive</button>
+            <button type="button" id="upload-drive-file">Upload to Drive</button>
+            <button type="button" id="download-drive-file">Download from Drive</button>
+            <button type="button" id="apply-drive-file">Apply downloaded Drive state</button>
             <button type="button" id="clear-local-state">Clear local protected state</button>
             <button type="button" id="import-production-payload">Import production snapshot fragment</button>
             <button type="button" id="export-production-notes">Export production notes</button>

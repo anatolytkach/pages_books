@@ -17,8 +17,7 @@ import { buildGlyphRenderOps } from "./protected-shape-layout.js";
 import { hitTestPosition } from "./protected-hit-testing.js";
 import { buildVisibleAnnotationOverlay } from "./protected-highlight-renderer.js";
 import {
-  buildAnnotationFromCurrentSelection,
-  buildCopyCurrentSelectionResult
+  buildAnnotationFromCurrentSelection
 } from "./protected-selection-action-engine.js";
 import {
   beginSelection,
@@ -34,8 +33,10 @@ import {
 import {
   createReconstructionScope,
   disposeReconstructionScope,
-  getReconstructionScopeDiagnostics
+  getReconstructionScopeDiagnostics,
+  reconstructSelectionRange
 } from "./protected-text-reconstruction.js";
+import { assertNoForbiddenTextLikeFields } from "./protected-worker-protocol.js";
 
 function summarizeBook(book) {
   return {
@@ -91,6 +92,29 @@ export class ProtectedReaderRuntimeCore {
   getCurrentPage() {
     if (!this.currentPaginationModel) return null;
     return this.currentPaginationModel.pages[this.currentPageIndex] || null;
+  }
+
+  buildCurrentSelectionCopyResponse(selectionResult) {
+    if (!selectionResult || selectionResult.isCollapsed) {
+      throw new Error("Selection is empty.");
+    }
+    const scope = createReconstructionScope({
+      chunkModel: this.currentChunkModel,
+      purpose: "copy-current-selection",
+      startOffset: selectionResult.startOffset,
+      endOffset: selectionResult.endOffset
+    });
+    try {
+      return {
+        success: true,
+        clipboardText: reconstructSelectionRange(this.currentChunkModel, selectionResult, scope),
+        selectedChars: selectionResult.selectedChars,
+        selectedBlocks: selectionResult.selectedBlocks,
+        selectedLines: selectionResult.selectedLines
+      };
+    } finally {
+      disposeReconstructionScope(scope);
+    }
   }
 
   async initBook({ artifactRoot, renderMode = "text", metricsMode = "text", viewportHeight = 720, annotations = [] }) {
@@ -228,10 +252,12 @@ export class ProtectedReaderRuntimeCore {
       layout: this.currentLayout,
       selectionState: this.selectionState
     });
-    return buildCopyCurrentSelectionResult({
-      chunkModel: this.currentChunkModel,
-      selectionResult
-    });
+    const payload = this.buildCurrentSelectionCopyResponse(selectionResult);
+    assertNoForbiddenTextLikeFields(
+      { ...payload, clipboardText: undefined },
+      "copyCurrentSelection.metadata"
+    );
+    return payload;
   }
 
   createAnnotationFromCurrentSelection({ type, noteText = "" } = {}) {
@@ -240,7 +266,7 @@ export class ProtectedReaderRuntimeCore {
       layout: this.currentLayout,
       selectionState: this.selectionState
     });
-    return buildAnnotationFromCurrentSelection({
+    const payload = buildAnnotationFromCurrentSelection({
       bookId: this.book.globalLocationModel.bookId,
       globalModel: this.book.globalLocationModel,
       chunkModel: this.currentChunkModel,
@@ -250,6 +276,8 @@ export class ProtectedReaderRuntimeCore {
       type,
       noteText
     });
+    assertNoForbiddenTextLikeFields(payload, "createAnnotationFromCurrentSelection");
+    return payload;
   }
 
   getRestoreToken() {
@@ -394,7 +422,7 @@ export class ProtectedReaderRuntimeCore {
       renderPreparationHost: "worker"
     };
 
-    return {
+    const snapshot = {
       bookSummary: includeBook ? this.bookSummary : null,
       tocItems: includeBook ? this.book.tocItems : null,
       chunkSummary,
@@ -442,5 +470,7 @@ export class ProtectedReaderRuntimeCore {
         renderPreparationHost: "worker"
       }
     };
+    assertNoForbiddenTextLikeFields(snapshot, "snapshot");
+    return snapshot;
   }
 }

@@ -48,12 +48,10 @@ const FORBIDDEN_SNAPSHOT_KEYS = new Set([
   "fullText"
 ]);
 
-const ANNOTATION_CONTEXT_LIMIT = 48;
-
-function assertNoForbiddenSnapshotKeys(value, path = "payload") {
+export function assertNoForbiddenTextLikeFields(value, path = "payload") {
   if (value == null) return;
   if (Array.isArray(value)) {
-    value.forEach((item, index) => assertNoForbiddenSnapshotKeys(item, `${path}[${index}]`));
+    value.forEach((item, index) => assertNoForbiddenTextLikeFields(item, `${path}[${index}]`));
     return;
   }
   if (typeof value !== "object") return;
@@ -61,7 +59,7 @@ function assertNoForbiddenSnapshotKeys(value, path = "payload") {
     if (FORBIDDEN_SNAPSHOT_KEYS.has(key)) {
       throw new Error(`Forbidden text-like field in protected snapshot: ${path}.${key}`);
     }
-    assertNoForbiddenSnapshotKeys(next, `${path}.${key}`);
+    assertNoForbiddenTextLikeFields(next, `${path}.${key}`);
   }
 }
 
@@ -124,10 +122,7 @@ function sanitizeCreateAnnotationPayload(payload = {}) {
     "highlightId",
     "noteText",
     "anchor",
-    "quote",
     "quoteHash",
-    "contextBefore",
-    "contextAfter",
     "selectedChars",
     "selectedBlocks",
     "selectedLines"
@@ -136,18 +131,11 @@ function sanitizeCreateAnnotationPayload(payload = {}) {
   if (payload.type !== "highlight" && payload.type !== "note") {
     throw new Error("CREATE_ANNOTATION_FROM_CURRENT_SELECTION returned invalid annotation type.");
   }
-  const contextBefore = String(payload.contextBefore || "");
-  const contextAfter = String(payload.contextAfter || "");
-  if (contextBefore.length > ANNOTATION_CONTEXT_LIMIT || contextAfter.length > ANNOTATION_CONTEXT_LIMIT) {
-    throw new Error("CREATE_ANNOTATION_FROM_CURRENT_SELECTION exceeded context limits.");
-  }
+  assertNoForbiddenTextLikeFields(payload.metadata || {}, "payload.metadata");
   return {
     ...payload,
     anchor: sanitizeAnnotationAnchor(payload.anchor || {}),
-    quote: String(payload.quote || ""),
     quoteHash: String(payload.quoteHash || ""),
-    contextBefore,
-    contextAfter,
     selectedChars: Number(payload.selectedChars || 0),
     selectedBlocks: Number(payload.selectedBlocks || 0),
     selectedLines: Number(payload.selectedLines || 0),
@@ -165,7 +153,7 @@ export function sanitizeProtectedWorkerPayload(method, payload = {}) {
   if (method === PROTECTED_WORKER_METHODS.CREATE_ANNOTATION_FROM_CURRENT_SELECTION) {
     return sanitizeCreateAnnotationPayload(payload);
   }
-  assertNoForbiddenSnapshotKeys(payload, "payload");
+  assertNoForbiddenTextLikeFields(payload, "payload");
   if (payload && payload.renderPacket) {
     if (payload.renderPacket.renderMode && payload.renderPacket.renderMode !== "shape") {
       throw new Error("Protected worker snapshot must not expose non-shape render packets.");

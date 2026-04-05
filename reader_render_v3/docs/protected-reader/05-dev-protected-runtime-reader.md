@@ -60,7 +60,6 @@ Runtime helpers used by the dev shell:
 - `reader_render_v3/runtime/protected-canvas-renderer.js`
 - `reader_render_v3/runtime/protected-hit-testing.js`
 - `reader_render_v3/runtime/protected-selection-model.js`
-- `reader_render_v3/runtime/protected-copy-engine.js`
 - `reader_render_v3/runtime/protected-text-reconstruction.js`
 - `reader_render_v3/runtime/protected-glyph-shape-registry.js`
 - `reader_render_v3/runtime/protected-shape-metrics.js`

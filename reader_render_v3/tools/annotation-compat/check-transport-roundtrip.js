@@ -2,7 +2,7 @@
 
 const { chromium } = require("/tmp/reader_render_v3_pw/node_modules/playwright-core");
 
-const URL = "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
+const TARGET_URL = process.env.READER_V3_URL || "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
 const STORAGE_PREFIX = "reader_render_v3:integration";
 
 async function getMetaMap(page) {
@@ -79,14 +79,14 @@ async function main() {
   const context = await browser.newContext({
     acceptDownloads: true
   });
-  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "http://127.0.0.1:8788" });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(TARGET_URL).origin });
   const page = await context.newPage();
   const debugRequests = [];
   page.on("request", (req) => {
     if (req.url().includes("/debug/")) debugRequests.push(req.url());
   });
 
-  await page.goto(URL, { waitUntil: "networkidle" });
+  await page.goto(TARGET_URL, { waitUntil: "networkidle" });
   await clearProtectedLocalState(page);
   await page.reload({ waitUntil: "networkidle" });
   await waitReady(page);

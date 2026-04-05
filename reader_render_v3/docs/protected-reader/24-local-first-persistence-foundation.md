@@ -187,3 +187,6 @@ reader’s internal model.
 Local persisted state remains `protected-reader-state-v3`. File export now builds a
 separate `protected-sync-file-v1` plus `protected-sync-handoff-v1` on top of that
 state. Download/upload workflows are transport edges, not alternate persistence truths.
+
+Google Drive transport follows the same rule: remote files are copies of the local-first
+protected state, not the primary store used for opening or rendering a book.

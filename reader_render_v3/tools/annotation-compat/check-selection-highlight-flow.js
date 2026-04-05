@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const { chromium } = require("/tmp/reader_render_v3_pw/node_modules/playwright-core");
+const URL = process.env.READER_V3_URL || "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
 
 async function getMetaMap(page) {
   return await page.evaluate(() => {
@@ -15,6 +16,49 @@ async function getMetaMap(page) {
     }
     return out;
   });
+}
+
+async function getPageState(page) {
+  return await page.evaluate(() => {
+    const dl = document.querySelector("#runtime-meta");
+    const out = {};
+    if (dl) {
+      const children = [...dl.children];
+      for (let i = 0; i < children.length; i += 2) {
+        const dt = children[i];
+        const dd = children[i + 1];
+        if (dt && dd) out[dt.textContent.trim()] = dd.textContent.trim();
+      }
+    }
+    return {
+      page: out["Page"] || "n/a",
+      globalOffset: out["Global offset"] || "n/a",
+      order: out["Order"] || "n/a",
+      status: (document.querySelector("#status")?.textContent || "").trim()
+    };
+  });
+}
+
+async function waitForExactPage(page, expectedPage, previousGlobalOffset = null) {
+  await page.waitForFunction(
+    ({ expectedPage, previousGlobalOffset }) => {
+      const dl = document.querySelector("#runtime-meta");
+      if (!dl) return false;
+      const children = [...dl.children];
+      const values = {};
+      for (let i = 0; i < children.length; i += 2) {
+        const dt = children[i];
+        const dd = children[i + 1];
+        if (dt && dd) values[dt.textContent.trim()] = dd.textContent.trim();
+      }
+      const pageValue = values["Page"] || "";
+      const globalOffsetValue = values["Global offset"] || "";
+      if (pageValue !== expectedPage) return false;
+      if (previousGlobalOffset == null) return true;
+      return globalOffsetValue !== previousGlobalOffset;
+    },
+    { expectedPage, previousGlobalOffset }
+  );
 }
 
 async function waitReady(page) {
@@ -71,14 +115,14 @@ async function main() {
   });
 
   const page = await browser.newPage();
-  const url = "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
   const debugRequests = [];
   page.on("request", (req) => {
     if (req.url().includes("/debug/")) debugRequests.push(req.url());
   });
 
-  await page.goto(url, { waitUntil: "networkidle" });
+  await page.goto(URL, { waitUntil: "networkidle" });
   await waitReady(page);
+  const initialState = await getPageState(page);
 
   const selected = await ensureRangeSelection(page);
   if (!selected) throw new Error("Failed to create a range selection in the protected reader.");
@@ -112,30 +156,30 @@ async function main() {
   const initialAnnotationCount = await page.locator("#annotation-count").textContent();
 
   await page.click("#next-page");
-  await page.waitForFunction(() => {
-    const dl = document.querySelector("#runtime-meta");
-    return dl && (dl.textContent || "").includes("2 / 2");
-  });
+  await waitForExactPage(page, "2 / 2", initialState.globalOffset);
   const pageTwoMeta = await getMetaMap(page);
+  const pageTwoState = await getPageState(page);
 
   await page.click("#prev-page");
-  await page.waitForFunction(() => {
-    const dl = document.querySelector("#runtime-meta");
-    return dl && (dl.textContent || "").includes("1 / 2");
-  });
+  await waitForExactPage(page, "1 / 2", pageTwoState.globalOffset);
   const backMeta = await getMetaMap(page);
+  const backState = await getPageState(page);
   const backAnnotationCount = await page.locator("#annotation-count").textContent();
   const annotationItems = await page.locator(".annotation-item").count();
 
   console.log(JSON.stringify({
     selectionMetaIncludesRange: /range/i.test(selectionMeta),
+    initialPage: initialState.page,
+    initialGlobalOffset: initialState.globalOffset,
     afterCopyStatus: (afterCopyStatus || "").trim(),
     afterHighlightStatus: (afterHighlightStatus || "").trim(),
     afterNoteStatus: (afterNoteStatus || "").trim(),
     initialAnnotationCount: (initialAnnotationCount || "").trim(),
     afterHighlightAnnotations: afterHighlightMeta["Annotations"],
     pageTwoPage: pageTwoMeta["Page"],
+    pageTwoGlobalOffset: pageTwoState.globalOffset,
     backPage: backMeta["Page"],
+    backGlobalOffset: backState.globalOffset,
     backAnnotationCount: (backAnnotationCount || "").trim(),
     annotationItems,
     debugRequests

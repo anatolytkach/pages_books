@@ -16,6 +16,7 @@ const CONTENT_DIR = path.join(ROOT, "books", "content");
 const PORT = Number(process.env.PORT || 8788);
 const HOST = process.env.HOST || "127.0.0.1";
 const PROD_ORIGIN = process.env.READERPUB_PREVIEW_UPSTREAM || "https://reader.pub";
+const GOOGLE_DRIVE_CLIENT_ID = process.env.READERPUB_GOOGLE_CLIENT_ID || process.env.GOOGLE_DRIVE_CLIENT_ID || "";
 
 const MIME = new Map([
   [".html", "text/html; charset=utf-8"],
@@ -68,8 +69,23 @@ async function serveFile(res, filePath, route) {
       send(res, 404, "Not found", { "content-type": "text/plain; charset=utf-8", "x-reader-route": "not-found" });
       return;
     }
+    const contentType = mimeType(filePath);
+    if (contentType.startsWith("text/html")) {
+      let html = await fs.readFile(filePath, "utf-8");
+      if (GOOGLE_DRIVE_CLIENT_ID) {
+        html = html.replace(
+          /<meta\s+name="google-drive-client-id"\s+content="[^"]*"\s*\/?>/i,
+          `<meta name="google-drive-client-id" content="${GOOGLE_DRIVE_CLIENT_ID}" />`
+        );
+      }
+      send(res, 200, html, {
+        "content-type": contentType,
+        "x-reader-route": route,
+      });
+      return;
+    }
     res.writeHead(200, {
-      "content-type": mimeType(filePath),
+      "content-type": contentType,
       "cache-control": "no-store",
       "x-reader-worker": "1",
       "x-reader-route": route,

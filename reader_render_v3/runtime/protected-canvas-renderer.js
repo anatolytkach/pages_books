@@ -1,5 +1,6 @@
 import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
 import { renderGlyphOps } from "./protected-shape-renderer.js";
+import { assertNoForbiddenTextLikeFields } from "./protected-worker-protocol.js";
 
 function clearCanvas(canvas, width, height) {
   canvas.width = width * 2;
@@ -55,6 +56,7 @@ export function renderChunkToCanvas({
   debugGeometry = false,
   offscreenCanvasStatus = "inactive"
 }) {
+  assertNoForbiddenTextLikeFields(renderPacket, "renderPacket");
   const {
     layout,
     pageWindow = null,
