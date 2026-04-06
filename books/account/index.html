@@ -365,8 +365,39 @@
         document.getElementById('tenantAlerts').innerHTML = `<div class="panel" style="border-color:${type === 'error' ? '#f5c6cb' : '#a3d9d0'}; color:${type === 'error' ? '#c0392b' : '#028f80'}; padding:12px 16px;">${esc(msg)}</div>`;
       }
 
-      let platformAccess = { is_superuser: false, admin_tenants: [] };
+      let platformAccess = { is_superuser: false, admin_tenants: [], publishing_tenants: [], can_publish: false };
       let platformTenants = [];
+      let lastRosterUpdateSignal = null;
+
+      function titleizeRole(value) {
+        return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+      }
+
+      function notifyOrganizationRosterChanged() {
+        try {
+          localStorage.setItem('readerpub:tenant-roster-updated', JSON.stringify({ at: Date.now() }));
+        } catch {}
+      }
+
+      function readOrganizationRosterSignal() {
+        try {
+          return localStorage.getItem('readerpub:tenant-roster-updated');
+        } catch {
+          return null;
+        }
+      }
+
+      function applyPublishingNavVisibility() {
+        const publicationsBtn = document.querySelector('[data-tab="publications"]');
+        const publicationsTab = document.getElementById('tab-publications');
+        if (!platformAccess.can_publish) {
+          if (publicationsBtn) publicationsBtn.style.display = 'none';
+          if (publicationsTab) publicationsTab.innerHTML = '<div class="empty-state">Publishing is not available for this account.</div>';
+          if (window.location.hash.replace('#', '') === 'publications') {
+            window.location.hash = 'library';
+          }
+        }
+      }
 
       // Profile
       const user = session.user;
@@ -443,50 +474,57 @@
 
       // My Publications (books I published)
       const $pubs = document.getElementById('publicationsList');
-      try {
-        const published = await apiFetch('GET', '/publish/books').catch(() => []);
 
-        if (!published.length) {
-          $pubs.innerHTML = '<div class="empty-state">You haven\'t published any books yet. <a href="/books/publish/">Publish your first book</a>.</div>';
-        } else {
-          $pubs.innerHTML = `<div class="book-grid">${published.map(book => `
-            <a class="book-card" href="${esc((() => {
-              const params = new URLSearchParams();
-              params.set('id', String(book.content_id || ''));
-              const sourceSlug = String(book?.tenant?.slug || book?.tenants?.slug || '').trim();
-              if (sourceSlug) params.set('source', sourceSlug);
-              return `/books/reader/?${params.toString()}`;
-            })())}">
-              <div class="book-card-cover">
-                ${book.cover_url ? `<img src="${esc(book.cover_url)}" alt="" />` : ''}
-              </div>
-              <div class="book-card-title">${esc(book.title)}</div>
-              <div class="book-card-meta">${esc(book.author || '')}</div>
-              <div class="book-card-meta" style="color:var(--accent);font-size:11px;">${esc(book.status)}</div>
-            </a>
-          `).join('')}</div>`;
-        }
-      } catch (err) {
-        $pubs.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
-      }
-
-      // My Tenants
+      // My Organizations
       const $tenants = document.getElementById('tenantsList');
       const inviteToken = new URLSearchParams(window.location.search).get('invite');
 
       try {
         platformAccess = await apiFetch('GET', '/me/platform-access');
       } catch {
-        platformAccess = { is_superuser: false, admin_tenants: [] };
+        platformAccess = { is_superuser: false, admin_tenants: [], publishing_tenants: [], can_publish: false };
+      }
+      applyPublishingNavVisibility();
+
+      try {
+        if (!platformAccess.can_publish) {
+          $pubs.innerHTML = '<div class="empty-state">Publishing is not available for this account.</div>';
+        } else {
+          const published = await apiFetch('GET', '/publish/books').catch(() => []);
+          if (!published.length) {
+            $pubs.innerHTML = '<div class="empty-state">You haven\'t published any books yet. <a href="/books/publish/">Publish your first book</a>.</div>';
+          } else {
+            $pubs.innerHTML = `<div class="book-grid">${published.map(book => `
+              <a class="book-card" href="${esc((() => {
+                const params = new URLSearchParams();
+                params.set('id', String(book.content_id || ''));
+                const sourceSlug = String(book?.tenant?.slug || book?.tenants?.slug || '').trim();
+                if (sourceSlug) params.set('source', sourceSlug);
+                return `/books/reader/?${params.toString()}`;
+              })())}">
+                <div class="book-card-cover">
+                  ${book.cover_url ? `<img src="${esc(book.cover_url)}" alt="" />` : ''}
+                </div>
+                <div class="book-card-title">${esc(book.title)}</div>
+                <div class="book-card-meta">${esc(book.author || '')}</div>
+                <div class="book-card-meta" style="color:var(--accent);font-size:11px;">${esc(book.status)}</div>
+              </a>
+            `).join('')}</div>`;
+          }
+        }
+      } catch (err) {
+        $pubs.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
       }
 
       if (inviteToken) {
         try {
           const accepted = await apiFetch('POST', '/invitations/accept', { token: inviteToken });
           showTenantAlert(`Invitation accepted for ${accepted.tenant?.name || 'organization'}.`);
+          notifyOrganizationRosterChanged();
           const nextUrl = new URL(window.location.href);
           nextUrl.searchParams.delete('invite');
           history.replaceState(null, '', nextUrl.toString());
+          await refreshTenantView({ force: true });
         } catch (err) {
           showTenantAlert(`Invite could not be accepted: ${err.message}`, 'error');
         }
@@ -499,7 +537,7 @@
         return `
           <div style="padding:10px 0; border-top:1px solid var(--border);">
             <div style="font-weight:600;">${esc(displayName)}</div>
-            <div style="color:var(--muted); font-size:13px;">Role: ${esc(member.role)} • Joined ${esc(formatDate(member.created_at))}</div>
+            <div style="color:var(--muted); font-size:13px;">Role: ${esc(titleizeRole(member.role))} • Joined ${esc(formatDate(member.created_at))}</div>
           </div>`;
       }
 
@@ -517,7 +555,7 @@
             <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
               <div>
                 <div style="font-weight:600;">${esc(invite.email)} <span style="color:${expired ? '#c0392b' : 'var(--accent)'}; font-size:12px;">${esc(statusLabel)}</span></div>
-                <div style="color:var(--muted); font-size:13px;">Role: ${esc(invite.role)} • Invited ${esc(formatDate(invite.created_at))}</div>
+                <div style="color:var(--muted); font-size:13px;">Role: ${esc(titleizeRole(invite.role))} • Invited ${esc(formatDate(invite.created_at))}</div>
               </div>
               ${tenantSlug ? `<button class="btn btn-secondary invite-delete-btn" data-tenant-slug="${esc(tenantSlug)}" data-invite-id="${esc(String(invite.id))}" style="height:32px; padding:0 12px;">Delete</button>` : ''}
             </div>
@@ -595,12 +633,10 @@
             if (!adminMemberships.length) {
               $tenants.innerHTML = memberships.map(m => {
                 const t = m.tenants || m.tenant || m;
-                const canPublish = ['owner', 'admin', 'publisher'].includes(String(m.role || ''));
                 return `
                   <div class="panel" style="margin-bottom:12px;">
                     <strong>${esc(t.name)}</strong>
-                    <span style="color:var(--muted); font-size:13px; margin-left:8px;">${esc(m.role)} — ${esc(t.tenant_type)}</span>
-                    <div style="margin-top:8px; color:var(--muted); font-size:13px;">${canPublish ? 'Publishing enabled' : 'Reader access only'}</div>
+                    <span style="color:var(--muted); font-size:13px; margin-left:8px;">${esc(titleizeRole(m.role))}</span>
                   </div>`;
               }).join('');
               return;
@@ -665,6 +701,7 @@
         if (!force) {
           return;
         }
+        lastRosterUpdateSignal = readOrganizationRosterSignal();
         if (platformAccess.is_superuser) {
           await loadPlatformTenants();
         } else {
@@ -672,15 +709,29 @@
         }
       }
 
+      async function refreshTenantViewIfRosterChanged() {
+        if (!document.getElementById('tab-tenants').classList.contains('active')) return;
+        const signal = readOrganizationRosterSignal();
+        if (!signal || signal === lastRosterUpdateSignal) return;
+        await refreshTenantView({ force: true });
+      }
+
       window.addEventListener('storage', (event) => {
         if (event.key !== 'readerpub:tenant-roster-updated' || !event.newValue) return;
-        if (!document.getElementById('tab-tenants').classList.contains('active')) return;
-        refreshTenantView({ force: true });
+        refreshTenantViewIfRosterChanged();
       });
 
       window.addEventListener('pageshow', () => {
-        if (document.getElementById('tab-tenants').classList.contains('active')) {
-          refreshTenantView({ force: true });
+        refreshTenantViewIfRosterChanged();
+      });
+
+      window.addEventListener('focus', () => {
+        refreshTenantViewIfRosterChanged();
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          refreshTenantViewIfRosterChanged();
         }
       });
 

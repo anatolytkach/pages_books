@@ -1656,12 +1656,13 @@
           return "";
         }
 
-        function getSupabaseAccessToken() {
+        function readSupabaseAccessTokenFromStorage(storage) {
+          if (!storage) return "";
           try {
-            for (let i = 0; i < localStorage.length; i += 1) {
-              const key = localStorage.key(i);
+            for (let i = 0; i < storage.length; i += 1) {
+              const key = storage.key(i);
               if (!/^sb-.*-auth-token$/i.test(String(key || ""))) continue;
-              const raw = localStorage.getItem(key);
+              const raw = storage.getItem(key);
               const token = extractAccessTokenFromSessionShape(raw);
               if (token) return token;
             }
@@ -1669,6 +1670,10 @@
             return "";
           }
           return "";
+        }
+
+        function getSupabaseAccessToken() {
+          return readSupabaseAccessTokenFromStorage(localStorage) || readSupabaseAccessTokenFromStorage(sessionStorage) || "";
         }
 
         async function getMemberCatalogBooks() {

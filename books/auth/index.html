@@ -493,8 +493,8 @@
         signupForm.style.display = tab === 'signup' ? '' : 'none';
         authHeading.textContent = 'Confirm Invitation';
         authSubtitle.textContent = tab === 'signin'
-          ? 'Sign in with the invited email address to confirm this invitation.'
-          : 'Create your account with the invited email address below to confirm this invitation.';
+          ? 'Sign in with the invited email address to accept this invitation.'
+          : 'Create your account with the invited email address below to accept this invitation.';
       }
 
       function setActiveTab(tab) {
@@ -586,13 +586,26 @@
         }
       }
 
+      function describeInvite(details) {
+        const organizationName = details?.tenant?.name || 'reader.pub';
+        const role = String(details?.role || '').trim().replace(/_/g, ' ');
+        const inviteType = String(details?.invite_type || '').trim();
+        if (inviteType === 'self_publisher') {
+          return `You were invited to create your publishing account for ${organizationName}. Create your account with the invited email address below to accept ownership.`;
+        }
+        if (inviteType === 'platform_superuser') {
+          return 'You were invited to become a reader.pub superuser. Create your account with the invited email address below to accept this invitation.';
+        }
+        const roleLabel = role ? ` as ${role}` : '';
+        return `You were invited to join ${organizationName}${roleLabel}. Create your account with the invited email address below to accept this membership invitation.`;
+      }
+
       function applyInviteDetails(details) {
         if (!details) return;
         inviteDetails = details;
         const invitedEmail = String(details.email || '').trim();
-        const inviteName = details.tenant?.name || 'reader.pub';
         authHeading.textContent = 'Confirm Invitation';
-        authSubtitle.textContent = `You were invited to join ${inviteName}. Create your account with the invited email address below.`;
+        authSubtitle.textContent = describeInvite(details);
         lockInviteMode('signup');
         if (invitedEmail) {
           const signupEmail = document.getElementById('signup-email');
@@ -602,6 +615,11 @@
           signupEmail.readOnly = true;
           signinEmail.readOnly = true;
         }
+      }
+
+      function isInviteSessionMismatch(session) {
+        if (!inviteToken || !inviteDetails?.email || !session?.user?.email) return false;
+        return String(session.user.email || '').trim().toLowerCase() !== String(inviteDetails.email || '').trim().toLowerCase();
       }
 
       // ── Check if already signed in ─────────────────
@@ -620,6 +638,13 @@
         }
         const { data: { session } } = await sb.auth.getSession();
         if (session) {
+          if (isInviteSessionMismatch(session)) {
+            await sb.auth.signOut().catch(() => {});
+            hideAlert();
+            showAlert(`This invitation is for ${inviteDetails.email}. Sign in or create an account with that email to continue.`, 'success');
+            setActiveTab('signin');
+            return;
+          }
           try {
             await ensureInviteAccepted();
           } catch (err) {

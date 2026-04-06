@@ -422,7 +422,6 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:8px;">
           <h2 style="margin:0;" id="booksHeading">Publishing Books</h2>
           <div style="display:flex; gap:8px;">
-            <button class="btn btn-secondary" id="showTenantBtn">Organization</button>
             <button class="btn" id="uploadBtn">+ Upload Book</button>
           </div>
         </div>
@@ -440,7 +439,7 @@
         <h2 id="uploadHeading">Upload Book</h2>
         <div class="panel">
           <div class="tenant-picker">
-            <label for="uploadTenantSelect">Publishing Organization</label>
+            <label for="uploadTenantSelect">Publishing Destination</label>
             <select id="uploadTenantSelect"></select>
             <div class="tenant-help" id="uploadTenantHelp"></div>
           </div>
@@ -460,14 +459,6 @@
         <button class="btn btn-secondary" id="backToList">&larr; Back to My Books</button>
       </div>
 
-      <!-- ── Tenant view ───────────────── -->
-      <div id="view-tenant" class="view">
-        <h2>Organization</h2>
-        <div id="tenantContent">
-          <!-- Loaded dynamically -->
-        </div>
-        <button class="btn btn-secondary" id="backFromTenant" style="margin-top:16px;">&larr; Back to My Books</button>
-      </div>
 
       <!-- ── Edit metadata view ─────────── -->
       <div id="view-edit" class="view">
@@ -476,7 +467,7 @@
         <div class="panel">
           <div id="bookStatus"></div>
           <div class="tenant-picker">
-            <label for="editTenantSelect">Publishing Organization</label>
+            <label for="editTenantSelect">Publishing Destination</label>
             <select id="editTenantSelect"></select>
             <div class="tenant-help" id="editTenantHelp"></div>
           </div>
@@ -607,7 +598,6 @@
         list: document.getElementById('view-list'),
         upload: document.getElementById('view-upload'),
         edit: document.getElementById('view-edit'),
-        tenant: document.getElementById('view-tenant'),
       };
 
       function showView(name) {
@@ -626,8 +616,10 @@
       let myBooks = [];
       let genres = [];
       let editingBookId = null;
-      let platformAccess = { is_superuser: false, admin_tenants: [] };
-      let adminTenants = [];
+      let platformAccess = { is_superuser: false, admin_tenants: [], publishing_tenants: [], can_publish: false };
+      let publishingOrganizations = [];
+      let editorSavedState = false;
+      const PERSONAL_PUBLISH_TARGET = '__personal__';
       let selectedUploadTenantId = '';
       let selectedEditTenantId = '';
 
@@ -643,54 +635,69 @@
           heading.textContent = 'Publishing Books';
           uploadHeading.textContent = 'Upload Book';
           uploadBtn.textContent = '+ Upload Book';
-          intro.textContent = 'Books on this page are published through an organization or self-publisher tenant. Personal publishing is reserved for superusers.';
+          intro.textContent = 'You can publish here either to your personal manual path or to an organization you administer.';
           return;
         }
 
-        heading.textContent = 'Organization Books';
-        uploadHeading.textContent = 'Upload To Organization';
-        uploadBtn.textContent = '+ Upload To Organization';
-        intro.textContent = 'You can publish only through your organization or self-publisher tenant. Personal publishing is not available on this account.';
+        heading.textContent = 'Publishing Books';
+        uploadHeading.textContent = 'Upload Book';
+        uploadBtn.textContent = '+ Upload Book';
+        intro.textContent = 'You can publish here to an allowed organization or self-publisher destination. Personal publishing is not available on this account.';
       }
 
-      function adminTenantLabel(item) {
-        const tenant = item.tenant || item.tenants || {};
-        const name = tenant.name || tenant.slug || item.tenant_id || 'Organization';
-        const slug = tenant.slug ? ` (${tenant.slug})` : '';
+      function organizationLabel(item) {
+        const organization = item.tenant || item.tenants || {};
+        const name = organization.name || organization.slug || item.tenant_id || 'Organization';
+        const slug = organization.slug ? ` (${organization.slug})` : '';
         return `${name}${slug}`;
       }
 
       function getTenantById(tenantId) {
-        return adminTenants.find((item) => String(item.tenant_id || '') === String(tenantId || '')) || null;
+        return publishingOrganizations.find((item) => String(item.tenant_id || '') === String(tenantId || '')) || null;
       }
 
       function populateTenantSelect(selectId, helpId, selectedId) {
         const select = document.getElementById(selectId);
         const help = document.getElementById(helpId);
         if (!select || !help) return;
-        if (!adminTenants.length) {
-          select.innerHTML = '<option value="">No publishing organizations available</option>';
-          select.disabled = true;
-          help.textContent = 'You need tenant-admin access before you can upload or publish.';
+        if (!publishingOrganizations.length) {
+          if (platformAccess.is_superuser) {
+            select.innerHTML = `<option value="${PERSONAL_PUBLISH_TARGET}">Personal publishing</option>`;
+            select.disabled = false;
+            help.textContent = 'Books published here will use the manual personal path.';
+          } else {
+            select.innerHTML = '<option value="">No publishing organizations available</option>';
+            select.disabled = true;
+            help.textContent = 'You need organization publishing access before you can upload or publish.';
+          }
           return;
         }
         select.disabled = false;
-        select.innerHTML = adminTenants.map((item) => {
-          const tenant = item.tenant || {};
-          const value = tenant.id || item.tenant_id;
+        const options = [];
+        if (platformAccess.is_superuser) {
+          const selected = String(selectedId || '') === PERSONAL_PUBLISH_TARGET ? ' selected' : '';
+          options.push(`<option value="${PERSONAL_PUBLISH_TARGET}"${selected}>Personal publishing</option>`);
+        }
+        select.innerHTML = options.concat(publishingOrganizations.map((item) => {
+          const organization = item.tenant || {};
+          const value = organization.id || item.tenant_id;
           const selected = String(value) === String(selectedId || '') ? ' selected' : '';
-          return `<option value="${esc(value)}"${selected}>${esc(adminTenantLabel(item))}</option>`;
-        }).join('');
-        const tenant = getTenantById(selectedId || select.value);
-        help.textContent = tenant ? `Books published here will use source "${tenant.tenant?.slug || ''}".` : '';
+          return `<option value="${esc(value)}"${selected}>${esc(organizationLabel(item))}</option>`;
+        })).join('');
+        const organization = getTenantById(selectedId || select.value);
+        if (String(selectedId || select.value) === PERSONAL_PUBLISH_TARGET) {
+          help.textContent = 'Books published here will use the manual personal path.';
+        } else {
+          help.textContent = organization ? `Books published here will use source "${organization.tenant?.slug || ''}".` : '';
+        }
       }
 
       function syncTenantSelectors() {
-        if (!selectedUploadTenantId && adminTenants.length) {
-          selectedUploadTenantId = adminTenants[0].tenant_id;
+        if (!selectedUploadTenantId) {
+          selectedUploadTenantId = platformAccess.is_superuser ? PERSONAL_PUBLISH_TARGET : (publishingOrganizations[0]?.tenant_id || '');
         }
-        if (!selectedEditTenantId && adminTenants.length) {
-          selectedEditTenantId = adminTenants[0].tenant_id;
+        if (!selectedEditTenantId) {
+          selectedEditTenantId = platformAccess.is_superuser ? PERSONAL_PUBLISH_TARGET : (publishingOrganizations[0]?.tenant_id || '');
         }
         populateTenantSelect('uploadTenantSelect', 'uploadTenantHelp', selectedUploadTenantId);
         populateTenantSelect('editTenantSelect', 'editTenantHelp', selectedEditTenantId);
@@ -700,11 +707,40 @@
         try {
           platformAccess = await apiFetch('GET', '/me/platform-access');
         } catch {
-          platformAccess = { is_superuser: false, admin_tenants: [] };
+          platformAccess = { is_superuser: false, admin_tenants: [], publishing_tenants: [], can_publish: false };
         }
-        adminTenants = Array.isArray(platformAccess.admin_tenants) ? platformAccess.admin_tenants : [];
+        publishingOrganizations = Array.isArray(platformAccess.publishing_tenants) ? platformAccess.publishing_tenants : [];
         syncTenantSelectors();
         applyPublishingModeCopy();
+      }
+
+      function canAccessPublishingUi() {
+        return !!platformAccess.can_publish;
+      }
+
+      function getSelectedPublishingOrganization(selectedId) {
+        if (String(selectedId || '') === PERSONAL_PUBLISH_TARGET) return null;
+        return getTenantById(selectedId);
+      }
+
+      function updatePublishButtonState(book = null) {
+        const publishBtn = document.getElementById('publishBtn');
+        if (!publishBtn) return;
+        const title = document.getElementById('meta-title').value.trim();
+        const author = document.getElementById('meta-author').value.trim();
+        const genre = document.getElementById('meta-genre').value;
+        const annotation = document.getElementById('meta-annotation').value.trim();
+        const hasRequiredMetadata = !!(title && author && genre && annotation);
+        const organizationReady = platformAccess.is_superuser
+          ? String(selectedEditTenantId || '') === PERSONAL_PUBLISH_TARGET || !!getSelectedPublishingOrganization(selectedEditTenantId)
+          : !!getSelectedPublishingOrganization(selectedEditTenantId);
+        const statusReady = !book || book.status === 'ready';
+        publishBtn.disabled = !canAccessPublishingUi() || !editorSavedState || !statusReady || !hasRequiredMetadata || !organizationReady;
+      }
+
+      function applyPublishingAccessState() {
+        const uploadBtn = document.getElementById('uploadBtn');
+        if (uploadBtn) uploadBtn.style.display = canAccessPublishingUi() ? '' : 'none';
       }
 
       async function loadGenres() {
@@ -724,12 +760,16 @@
       async function loadMyBooks() {
         const $list = document.getElementById('bookList');
         try {
+          if (!canAccessPublishingUi()) {
+            $list.innerHTML = '<div class="empty-state"><p>Publishing is not available for this account.</p></div>';
+            return;
+          }
           myBooks = await apiFetch('GET', '/publish/books');
           if (!myBooks.length) {
             $list.innerHTML = `
               <div class="empty-state">
                 <p>You don't have any published books here yet.</p>
-                <p>${platformAccess.is_superuser ? 'Click <strong>Upload Book</strong> to get started.' : 'Click <strong>Upload To Organization</strong> to publish through your organization or self-publisher tenant.'}</p>
+                <p>${platformAccess.is_superuser ? 'Click <strong>Upload Book</strong> to get started.' : 'Click <strong>Upload Book</strong> to publish to one of your allowed organization destinations.'}</p>
               </div>`;
             return;
           }
@@ -781,12 +821,14 @@
           const $status = document.getElementById('bookStatus');
           $status.innerHTML = `<span class="status-badge ${book.status}">${book.status}</span>`;
 
-          const $publishBtn = document.getElementById('publishBtn');
-          $publishBtn.disabled = (book.status !== 'ready');
+          editorSavedState = true;
           if (book.published_by_tenant_id) {
             selectedEditTenantId = book.published_by_tenant_id;
-            syncTenantSelectors();
+          } else if (platformAccess.is_superuser) {
+            selectedEditTenantId = PERSONAL_PUBLISH_TARGET;
           }
+          syncTenantSelectors();
+          updatePublishButtonState(book);
 
           // Show delete button for draft/failed books
           const $deleteBtn = document.getElementById('deleteBtn');
@@ -818,6 +860,10 @@
 
       // ── Upload flow ────────────────────────
       document.getElementById('uploadBtn').addEventListener('click', () => {
+        if (!canAccessPublishingUi()) {
+          showAlert($alert, 'Publishing is not available for this account.');
+          return;
+        }
         showView('upload');
         hideAlert($alert);
       });
@@ -861,9 +907,10 @@
       async function handleFile(file) {
         hideAlert($alert);
         const name = file.name.toLowerCase();
-        const tenant = getTenantById(selectedUploadTenantId);
-        if (!tenant) {
-          showAlert($alert, 'Choose a publishing organization first.');
+        const organization = getSelectedPublishingOrganization(selectedUploadTenantId);
+        const isPersonalPublishing = String(selectedUploadTenantId || '') === PERSONAL_PUBLISH_TARGET;
+        if (!isPersonalPublishing && !organization) {
+          showAlert($alert, 'Choose a publishing destination first.');
           return;
         }
 
@@ -886,8 +933,10 @@
         try {
           const form = new FormData();
           form.append('file', file);
-          form.append('tenant_id', tenant.tenant_id);
-          if (tenant.tenant?.slug) form.append('tenant_slug', tenant.tenant.slug);
+          if (organization) {
+            form.append('tenant_id', organization.tenant_id);
+            if (organization.tenant?.slug) form.append('tenant_slug', organization.tenant.slug);
+          }
 
           // Use XMLHttpRequest for progress tracking
           const result = await new Promise((resolve, reject) => {
@@ -979,9 +1028,9 @@
           await apiFetch('PATCH', `/publish/books/${editingBookId}/metadata`, { body: metadata });
           showAlert($editAlert, 'Saved.', 'success');
 
-          // Re-check if publishable
           const book = await apiFetch('GET', `/publish/books/${editingBookId}`);
-          document.getElementById('publishBtn').disabled = (book.status !== 'ready');
+          editorSavedState = true;
+          updatePublishButtonState(book);
         } catch (err) {
           showAlert($editAlert, err.message);
         } finally {
@@ -998,18 +1047,21 @@
         btn.innerHTML = '<span class="spinner"></span>';
 
         try {
-          const tenant = getTenantById(selectedEditTenantId);
-          if (!tenant) throw new Error('Choose a publishing organization before publishing.');
-          await apiFetch('POST', `/publish/books/${editingBookId}/publish`, {
-            body: {
-              visibility: document.getElementById('meta-visibility').value || 'public',
-              tenant_id: tenant.tenant_id,
-              tenant_slug: tenant.tenant?.slug || '',
-            },
-          });
+          const organization = getSelectedPublishingOrganization(selectedEditTenantId);
+          const isPersonalPublishing = String(selectedEditTenantId || '') === PERSONAL_PUBLISH_TARGET;
+          if (!isPersonalPublishing && !organization) throw new Error('Choose a publishing destination before publishing.');
+          const body = {
+            visibility: document.getElementById('meta-visibility').value || 'public',
+          };
+          if (organization) {
+            body.tenant_id = organization.tenant_id;
+            body.tenant_slug = organization.tenant?.slug || '';
+          }
+          await apiFetch('POST', `/publish/books/${editingBookId}/publish`, { body });
           showAlert($editAlert, 'Book published!', 'success');
           const $status = document.getElementById('bookStatus');
           $status.innerHTML = '<span class="status-badge published">published</span>';
+          editorSavedState = true;
           btn.disabled = true;
           btn.textContent = 'Published';
         } catch (err) {
@@ -1018,100 +1070,6 @@
           btn.textContent = 'Publish';
         }
       });
-
-      // ── Tenant management ─────────────────
-      document.getElementById('showTenantBtn').addEventListener('click', () => {
-        showView('tenant');
-        loadTenantView();
-      });
-
-      document.getElementById('backFromTenant').addEventListener('click', () => {
-        showView('list');
-      });
-
-      async function loadTenantView() {
-        const $content = document.getElementById('tenantContent');
-        $content.innerHTML = '<div class="empty-state"><span class="spinner dark"></span> Loading...</div>';
-
-        try {
-          const memberships = await apiFetch('GET', '/me/tenants');
-          if (!memberships.length) {
-            $content.innerHTML = `
-              <div class="panel">
-                <p style="color:var(--muted); margin:0;">You do not currently administer a publishing organization. Ask a platform superuser for a self-publisher invite or for assignment to an existing organization.</p>
-              </div>`;
-          } else {
-            // Show tenant info + members + invite form
-            const m = memberships.find((item) => ['owner', 'admin'].includes(item.role)) || memberships[0];
-            const tenant = m.tenants || m.tenant || m;
-            const slug = tenant.slug;
-            const canManageMembers = ['owner', 'admin'].includes(String(m.role || ''));
-
-            let membersHtml = '';
-            let members = [];
-            if (canManageMembers) {
-              try {
-              members = await apiFetch('GET', `/tenants/${slug}/members`);
-              membersHtml = members.map(mem => {
-                const profile = mem.user_profiles || {};
-                return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);">
-                  <div>
-                    <strong>${esc(profile.display_name || 'User')}</strong>
-                    <span style="color:var(--muted); font-size:13px; margin-left:8px;">${esc(mem.role)}</span>
-                  </div>
-                </div>`;
-              }).join('');
-              } catch { membersHtml = '<div style="color:var(--muted); font-size:14px;">Could not load members.</div>'; }
-            } else {
-              membersHtml = '<div style="color:var(--muted); font-size:14px;">You have reader access in this organization.</div>';
-            }
-
-            $content.innerHTML = `
-              <div class="panel">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                  <div>
-                    <h3 style="font-family:'Playfair Display',serif; margin:0;">${esc(tenant.name)}</h3>
-                    <div style="color:var(--muted); font-size:13px;">${esc(tenant.tenant_type)} &middot; ${esc(slug)}</div>
-                  </div>
-                  <span class="status-badge ready">${esc(m.role)}</span>
-                </div>
-
-                <h4 style="margin:20px 0 12px; font-size:15px; color:var(--muted);">Members (${members.length})</h4>
-                ${membersHtml}
-                ${canManageMembers ? `
-                  <h4 style="margin:20px 0 12px; font-size:15px; color:var(--muted);">Invite Collaborator</h4>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <input type="email" id="invite-email" placeholder="colleague@email.com" />
-                    </div>
-                  </div>
-                  <div style="color:var(--muted); font-size:13px; margin:-4px 0 12px;">Invited users join as readers only. They cannot publish books.</div>
-                  <button class="btn" id="inviteBtn">Send Reader Invite</button>
-                ` : ''}
-              </div>`;
-
-            if (canManageMembers) {
-              document.getElementById('inviteBtn').addEventListener('click', async () => {
-                const email = document.getElementById('invite-email').value.trim();
-                if (!email) { showAlert($alert, 'Enter an email address.'); return; }
-                const btn = document.getElementById('inviteBtn');
-                btn.disabled = true;
-                try {
-                  await apiFetch('POST', `/tenants/${slug}/invite`, { body: { email } });
-                  document.getElementById('invite-email').value = '';
-                  showAlert($alert, 'Invitation sent!', 'success');
-                } catch (err) {
-                  showAlert($alert, err.message);
-                } finally {
-                  btn.disabled = false;
-                }
-              });
-            }
-          }
-        } catch (err) {
-          $content.innerHTML = `<div class="empty-state">Failed to load: ${esc(err.message)}</div>`;
-        }
-      }
 
       // ── Delete ────────────────────────────
       document.getElementById('deleteBtn').addEventListener('click', async () => {
@@ -1201,6 +1159,10 @@
       // ── Init ───────────────────────────────
       await loadGenres();
       await loadPlatformAccess();
+      applyPublishingAccessState();
+      if (!canAccessPublishingUi()) {
+        window.location.replace('/books/account/#library');
+      }
       await loadMyBooks();
 
       document.getElementById('uploadTenantSelect').addEventListener('change', (e) => {
@@ -1210,7 +1172,20 @@
 
       document.getElementById('editTenantSelect').addEventListener('change', (e) => {
         selectedEditTenantId = e.target.value;
+        updatePublishButtonState();
         syncTenantSelectors();
+      });
+
+      ['meta-title', 'meta-author', 'meta-genre', 'meta-annotation', 'meta-visibility', 'meta-year', 'meta-isbn', 'meta-language'].forEach((id) => {
+        const field = document.getElementById(id);
+        field?.addEventListener('input', () => {
+          editorSavedState = false;
+          updatePublishButtonState();
+        });
+        field?.addEventListener('change', () => {
+          editorSavedState = false;
+          updatePublishButtonState();
+        });
       });
     </script>
   </body>
