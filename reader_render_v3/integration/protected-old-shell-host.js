@@ -342,17 +342,29 @@ function closeOverlayById(id) {
   panel.setAttribute("aria-hidden", "true");
 }
 
-function closeShellOverlay(id) {
-  const panel = document.getElementById(id);
-  if (!panel) return;
+function closeAllShellOverlays() {
   try {
-    const closeButton = panel.querySelector(".overlay-close");
-    if (closeButton && typeof closeButton.click === "function") {
-      closeButton.click();
+    if (typeof window.__fbCloseOverlays === "function") {
+      window.__fbCloseOverlays();
       return;
     }
   } catch (error) {}
-  closeOverlayById(id);
+  [
+    "overlay-toc",
+    "overlay-bookmarks",
+    "overlay-notes",
+    "overlay-menu",
+    "overlay-mybooks",
+    "overlay-voice"
+  ].forEach((id) => closeOverlayById(id));
+  const backdrop = document.getElementById("overlay-backdrop");
+  if (backdrop) {
+    backdrop.classList.add("hidden");
+    backdrop.setAttribute("aria-hidden", "true");
+  }
+  try {
+    document.body.classList.remove("overlay-open");
+  } catch (error) {}
 }
 
 function isAutomationMode() {
@@ -566,7 +578,7 @@ function renderToc(summary) {
     link.addEventListener("click", async (event) => {
       event.preventDefault();
       await invokeBridge("goToToc", item.id);
-      closeShellOverlay("overlay-toc");
+      closeAllShellOverlays();
     });
     li.append(link);
     list.append(li);
@@ -606,7 +618,7 @@ function renderBookmarks(summary) {
     link.addEventListener("click", async (event) => {
       event.preventDefault();
       await invokeBridge("restoreFromToken", bookmark.restoreToken);
-      closeShellOverlay("overlay-bookmarks");
+      closeAllShellOverlays();
     });
     wrap.append(link);
 
@@ -659,7 +671,7 @@ function createOldStyleNoteItem(annotation) {
   link.addEventListener("click", async (event) => {
     event.preventDefault();
     await invokeBridge("goToAnnotation", annotation.annotationId);
-    closeShellOverlay("overlay-notes");
+    closeAllShellOverlays();
   });
   wrap.append(link);
 
@@ -678,7 +690,7 @@ function createOldStyleNoteItem(annotation) {
     event.preventDefault();
     event.stopPropagation();
     await invokeBridge("goToAnnotation", annotation.annotationId);
-    closeShellOverlay("overlay-notes");
+    closeAllShellOverlays();
   });
   li.append(go);
   return li;

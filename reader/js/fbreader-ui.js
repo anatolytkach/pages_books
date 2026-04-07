@@ -1269,6 +1269,7 @@
 
     // Expose for deep-linking (e.g., ?mybooks=1)
     window.__fbOpenOverlay = open;
+    window.__fbCloseOverlays = closeAll;
     try {
       var p = new URLSearchParams(window.location.search || "");
       var wantMyBooks = (p.get("mybooks") === "1" || p.get("mybooks") === "true");
