@@ -313,7 +313,10 @@ function installStyles() {
 
 function openNotesOverlay() {
   const openNotes = document.getElementById("openNotes");
-  if (openNotes) openNotes.click();
+  if (openNotes && typeof openNotes.click === "function") {
+    openNotes.click();
+    return;
+  }
   openOverlayById("overlay-notes");
 }
 
@@ -337,6 +340,19 @@ function closeOverlayById(id) {
   if (!panel) return;
   panel.classList.add("hidden");
   panel.setAttribute("aria-hidden", "true");
+}
+
+function closeShellOverlay(id) {
+  const panel = document.getElementById(id);
+  if (!panel) return;
+  try {
+    const closeButton = panel.querySelector(".overlay-close");
+    if (closeButton && typeof closeButton.click === "function") {
+      closeButton.click();
+      return;
+    }
+  } catch (error) {}
+  closeOverlayById(id);
 }
 
 function isAutomationMode() {
@@ -550,7 +566,7 @@ function renderToc(summary) {
     link.addEventListener("click", async (event) => {
       event.preventDefault();
       await invokeBridge("goToToc", item.id);
-      closeOverlayById("overlay-toc");
+      closeShellOverlay("overlay-toc");
     });
     li.append(link);
     list.append(li);
@@ -590,7 +606,7 @@ function renderBookmarks(summary) {
     link.addEventListener("click", async (event) => {
       event.preventDefault();
       await invokeBridge("restoreFromToken", bookmark.restoreToken);
-      closeOverlayById("overlay-bookmarks");
+      closeShellOverlay("overlay-bookmarks");
     });
     wrap.append(link);
 
@@ -643,7 +659,7 @@ function createOldStyleNoteItem(annotation) {
   link.addEventListener("click", async (event) => {
     event.preventDefault();
     await invokeBridge("goToAnnotation", annotation.annotationId);
-    closeOverlayById("overlay-notes");
+    closeShellOverlay("overlay-notes");
   });
   wrap.append(link);
 
@@ -662,7 +678,7 @@ function createOldStyleNoteItem(annotation) {
     event.preventDefault();
     event.stopPropagation();
     await invokeBridge("goToAnnotation", annotation.annotationId);
-    closeOverlayById("overlay-notes");
+    closeShellOverlay("overlay-notes");
   });
   li.append(go);
   return li;
@@ -1318,35 +1334,7 @@ function bindShellControls() {
     await clearSearch();
   });
 
-  const openNotes = document.getElementById("openNotes");
-  const openBookmarks = document.getElementById("openBookmarks");
-  openNotes && openNotes.addEventListener("click", () => openOverlayById("overlay-notes"));
-  openBookmarks && openBookmarks.addEventListener("click", (event) => {
-    event.preventDefault();
-    openOverlayById("overlay-bookmarks");
-  });
   bindSelectionToolbar();
-  const slider = document.getElementById("slider");
-  slider && slider.addEventListener("click", (event) => {
-    event.preventDefault();
-    openOverlayById("overlay-menu");
-  });
-  const menuButtons = [...document.querySelectorAll("#menuList [data-menu]")];
-  menuButtons.forEach((button) => {
-    button.addEventListener("click", (event) => {
-      const target = event.currentTarget.getAttribute("data-menu");
-      if (target === "toc") openOverlayById("overlay-toc");
-      if (target === "notes") openOverlayById("overlay-notes");
-      if (target === "bookmarks") openOverlayById("overlay-bookmarks");
-    });
-  });
-  const closeButtons = [...document.querySelectorAll(".overlay-close")];
-  closeButtons.forEach((button) => {
-    button.addEventListener("click", (event) => {
-      const panel = event.currentTarget.closest(".overlay-panel");
-      if (panel) closeOverlayById(panel.id);
-    });
-  });
 
   const host = document.getElementById("protectedOldShellHost");
   if (host) installTouchSwipe(host);

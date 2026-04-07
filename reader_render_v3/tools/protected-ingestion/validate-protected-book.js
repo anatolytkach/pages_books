@@ -127,6 +127,23 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
   }
 }
 
+function validateTocCoverage(manifest, locations, toc) {
+  const chunks = Array.isArray(locations && locations.chunks) ? locations.chunks : [];
+  const covered = new Set();
+  for (const chunk of chunks) {
+    const tocAnchors = Array.isArray(chunk && chunk.tocAnchors) ? chunk.tocAnchors : [];
+    for (const anchor of tocAnchors) {
+      if (anchor && anchor.tocId) covered.add(String(anchor.tocId));
+    }
+  }
+  const tocItems = Array.isArray(toc && toc.items) ? toc.items : [];
+  const missing = tocItems.filter((item) => item && item.href && !covered.has(String(item.id || "")));
+  if (missing.length) {
+    const sample = missing.slice(0, 5).map((item) => `${item.id}:${item.label}`).join(", ");
+    throw new Error(`locations.json is missing TOC anchor coverage for ${missing.length} items (${sample})`);
+  }
+}
+
 function main() {
   const input = getArg("--input");
   if (!input) {
@@ -141,6 +158,7 @@ function main() {
   const { manifest } = loadProtectedManifest(root);
   const { locations } = loadProtectedLocations(root, manifest);
   const { styles } = loadProtectedStyles(root, manifest);
+  const toc = JSON.parse(fs.readFileSync(path.join(root, manifest.tocPath || "toc.json"), "utf8"));
   const styleTokens = new Set(styles.styleTokens.map((item) => item.styleToken));
 
   if (!Array.isArray(styles.styleTokens) || !styles.styleTokens.length) {
@@ -149,6 +167,7 @@ function main() {
   if (!Array.isArray(locations.chunks) || !locations.chunks.length) {
     throw new Error("locations.json has no chunks");
   }
+  validateTocCoverage(manifest, locations, toc);
   const seeds = new Set();
 
   for (const manifestChunk of manifest.chunks) {

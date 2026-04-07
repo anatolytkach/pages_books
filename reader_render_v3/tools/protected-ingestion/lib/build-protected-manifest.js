@@ -1,17 +1,60 @@
 #!/usr/bin/env node
 "use strict";
 
+function splitHrefTarget(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { path: "", fragment: "" };
+  const hashIndex = raw.indexOf("#");
+  if (hashIndex < 0) return { path: raw, fragment: "" };
+  return {
+    path: raw.slice(0, hashIndex),
+    fragment: raw.slice(hashIndex + 1)
+  };
+}
+
+function normalizePathTail(value) {
+  const raw = String(value || "").trim().replace(/\\/g, "/");
+  if (!raw) return "";
+  const noOrigin = raw.replace(/^https?:\/\/[^/]+/i, "");
+  const noLeading = noOrigin.replace(/^\/+/, "");
+  const parts = noLeading.split("/").filter(Boolean);
+  if (!parts.length) return "";
+  const oebpsIndex = parts.lastIndexOf("OEBPS");
+  if (oebpsIndex >= 0) return parts.slice(oebpsIndex).join("/");
+  return parts.join("/");
+}
+
+function sourceRefMatchesToc(sourceRef, tocItem, inlineIds = []) {
+  const { path, fragment } = splitHrefTarget(tocItem && tocItem.href);
+  const tocHref = normalizePathTail(path || (tocItem && tocItem.spineHref));
+  const sourceHref = normalizePathTail(sourceRef && sourceRef.href);
+  if (!tocHref || !sourceHref) return false;
+  const hrefMatches =
+    sourceHref === tocHref ||
+    sourceHref.endsWith(`/${tocHref}`) ||
+    tocHref.endsWith(`/${sourceHref}`);
+  if (!hrefMatches) return false;
+  if (!fragment) return true;
+  const nodeId = String(sourceRef && sourceRef.nodeId || "").trim();
+  if (nodeId && nodeId === fragment) return true;
+  return Array.isArray(inlineIds) && inlineIds.some((value) => String(value || "").trim() === fragment);
+}
+
 function buildTocAnchors(tocItems, chunk) {
   const anchors = [];
   const seen = new Set();
+  const blockAnchors = Array.isArray(chunk && chunk.selectionLayer && chunk.selectionLayer.blockAnchors)
+    ? chunk.selectionLayer.blockAnchors
+    : [];
 
   for (const item of tocItems) {
-    const match = chunk.logicalBlockList.find((block) => {
-      const hrefMatch = item.spineHref && block.sourceRef && block.sourceRef.href === item.spineHref;
-      const fragmentMatch = item.fragment && block.sourceRef && block.sourceRef.nodeId === item.fragment;
-      if (item.fragment) return hrefMatch && fragmentMatch;
-      return hrefMatch;
-    });
+    const blockMatch = chunk.logicalBlockList.find((block) =>
+      sourceRefMatchesToc(block && block.sourceRef, item, block && block.inlineIds)
+    ) || null;
+    const anchorMatch = blockAnchors.find((anchor) =>
+      sourceRefMatchesToc(anchor && anchor.sourceRef, item, anchor && anchor.inlineIds)
+    ) || null;
+    const match = blockMatch || (anchorMatch ? { blockId: anchorMatch.blockId } : null);
     if (!match) continue;
     const key = `${item.id}:${match.blockId}`;
     if (seen.has(key)) continue;
@@ -21,7 +64,8 @@ function buildTocAnchors(tocItems, chunk) {
       label: item.label,
       href: item.href,
       blockId: match.blockId,
-      locationId: `${chunk.chunkId}:${match.blockId}`
+      locationId: `${chunk.chunkId}:${match.blockId}`,
+      sourceRef: (anchorMatch && anchorMatch.sourceRef) || (blockMatch && blockMatch.sourceRef) || null
     });
   }
 
@@ -66,6 +110,22 @@ function buildLocations(chunks, tocItems) {
   };
 }
 
+function buildTocCoverage(chunks, tocItems) {
+  const coverage = new Map();
+  for (const chunk of chunks) {
+    const tocAnchors = buildTocAnchors(tocItems, chunk);
+    for (const anchor of tocAnchors) {
+      if (anchor && anchor.tocId && !coverage.has(anchor.tocId)) {
+        coverage.set(anchor.tocId, {
+          chunkId: chunk.chunkId,
+          blockId: anchor.blockId
+        });
+      }
+    }
+  }
+  return coverage;
+}
+
 function normalizeStyleToken(style) {
   return {
     styleToken: style.styleToken,
@@ -100,6 +160,12 @@ function buildStyles(styles, fontPlan) {
 }
 
 function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, runtimeShapeChunks, debugChunks, debugGlyphChunks, styles, fontPlan, debugArtifactEnabled }) {
+  const tocCoverage = buildTocCoverage(runtimeChunks, toc);
+  const missingToc = toc.filter((item) => item && item.href && !tocCoverage.has(item.id));
+  if (missingToc.length) {
+    const sample = missingToc.slice(0, 5).map((item) => `${item.id}:${item.label}`).join(", ");
+    throw new Error(`Protected build could not map ${missingToc.length} TOC items to chunk anchors (${sample})`);
+  }
   const manifest = {
     version: 3,
     mode: "protected-runtime-safe",

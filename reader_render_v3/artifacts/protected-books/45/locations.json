@@ -307,7 +307,59 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-1",
+          "label": "ANNE OF GREEN GABLES",
+          "href": "6125613721684729113_45-h-0.htm.html#pgepubid00000",
+          "blockId": "pg-header-b-0008",
+          "locationId": "chunk-000001:pg-header-b-0008",
+          "sourceRef": {
+            "spineId": "pg-header",
+            "spineIndex": 1,
+            "href": "OEBPS/6125613721684729113_45-h-0.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-0.htm.html",
+            "nodeTag": "h1",
+            "nodeIndex": 7,
+            "nodeId": "pgepubid00000",
+            "nodeClass": ""
+          }
+        },
+        {
+          "tocId": "toc-2",
+          "label": "CONTENTS",
+          "href": "6125613721684729113_45-h-0.htm.html#pgepubid00001",
+          "blockId": "pg-header-b-0010",
+          "locationId": "chunk-000001:pg-header-b-0010",
+          "sourceRef": {
+            "spineId": "pg-header",
+            "spineIndex": 1,
+            "href": "OEBPS/6125613721684729113_45-h-0.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-0.htm.html",
+            "nodeTag": "h2",
+            "nodeIndex": 9,
+            "nodeId": "pgepubid00001",
+            "nodeClass": ""
+          }
+        },
+        {
+          "tocId": "toc-3",
+          "label": "ANNE OF GREEN GABLES",
+          "href": "6125613721684729113_45-h-1.htm.html#pgepubid00002",
+          "blockId": "item3-b-0001",
+          "locationId": "chunk-000001:item3-b-0001",
+          "sourceRef": {
+            "spineId": "item3",
+            "spineIndex": 2,
+            "href": "OEBPS/6125613721684729113_45-h-1.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-1.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00002",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000001",
         "startOffset": 0,
@@ -365,7 +417,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-4",
+          "label": "CHAPTER I. Mrs. Rachel Lynde Is Surprised",
+          "href": "6125613721684729113_45-h-1.htm.html#pgepubid00003",
+          "blockId": "item3-b-0002",
+          "locationId": "chunk-000002:item3-b-0002",
+          "sourceRef": {
+            "spineId": "item3",
+            "spineIndex": 2,
+            "href": "OEBPS/6125613721684729113_45-h-1.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-1.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 1,
+            "nodeId": "pgepubid00003",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000002",
         "startOffset": 830,
@@ -415,7 +485,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-5",
+          "label": "CHAPTER II. Matthew Cuthbert Is Surprised",
+          "href": "6125613721684729113_45-h-2.htm.html#pgepubid00004",
+          "blockId": "item4-b-0001",
+          "locationId": "chunk-000003:item4-b-0001",
+          "sourceRef": {
+            "spineId": "item4",
+            "spineIndex": 3,
+            "href": "OEBPS/6125613721684729113_45-h-2.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-2.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00004",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000003",
         "startOffset": 16341,
@@ -465,7 +553,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-6",
+          "label": "CHAPTER III. Marilla Cuthbert Is Surprised",
+          "href": "6125613721684729113_45-h-3.htm.html#pgepubid00005",
+          "blockId": "item5-b-0001",
+          "locationId": "chunk-000004:item5-b-0001",
+          "sourceRef": {
+            "spineId": "item5",
+            "spineIndex": 4,
+            "href": "OEBPS/6125613721684729113_45-h-3.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-3.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00005",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000004",
         "startOffset": 42573,
@@ -515,7 +621,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-7",
+          "label": "CHAPTER IV. Morning at Green Gables",
+          "href": "6125613721684729113_45-h-4.htm.html#pgepubid00006",
+          "blockId": "item6-b-0001",
+          "locationId": "chunk-000005:item6-b-0001",
+          "sourceRef": {
+            "spineId": "item6",
+            "spineIndex": 5,
+            "href": "OEBPS/6125613721684729113_45-h-4.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-4.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00006",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000005",
         "startOffset": 54347,
@@ -565,7 +689,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-8",
+          "label": "CHAPTER V. Anne’s History",
+          "href": "6125613721684729113_45-h-5.htm.html#pgepubid00007",
+          "blockId": "item7-b-0001",
+          "locationId": "chunk-000006:item7-b-0001",
+          "sourceRef": {
+            "spineId": "item7",
+            "spineIndex": 6,
+            "href": "OEBPS/6125613721684729113_45-h-5.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-5.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00007",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000006",
         "startOffset": 66592,
@@ -615,7 +757,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-9",
+          "label": "CHAPTER VI. Marilla Makes Up Her Mind",
+          "href": "6125613721684729113_45-h-6.htm.html#pgepubid00008",
+          "blockId": "item8-b-0001",
+          "locationId": "chunk-000007:item8-b-0001",
+          "sourceRef": {
+            "spineId": "item8",
+            "spineIndex": 7,
+            "href": "OEBPS/6125613721684729113_45-h-6.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-6.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00008",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000007",
         "startOffset": 77629,
@@ -665,7 +825,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-10",
+          "label": "CHAPTER VII. Anne Says Her Prayers",
+          "href": "6125613721684729113_45-h-7.htm.html#pgepubid00009",
+          "blockId": "item9-b-0001",
+          "locationId": "chunk-000008:item9-b-0001",
+          "sourceRef": {
+            "spineId": "item9",
+            "spineIndex": 8,
+            "href": "OEBPS/6125613721684729113_45-h-7.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-7.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00009",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000008",
         "startOffset": 88004,
@@ -715,7 +893,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-11",
+          "label": "CHAPTER VIII. Anne’s Bringing-up Is Begun",
+          "href": "6125613721684729113_45-h-8.htm.html#pgepubid00010",
+          "blockId": "item10-b-0001",
+          "locationId": "chunk-000009:item10-b-0001",
+          "sourceRef": {
+            "spineId": "item10",
+            "spineIndex": 9,
+            "href": "OEBPS/6125613721684729113_45-h-8.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-8.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00010",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000009",
         "startOffset": 94470,
@@ -765,7 +961,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-12",
+          "label": "CHAPTER IX. Mrs. Rachel Lynde Is Properly Horrified",
+          "href": "6125613721684729113_45-h-9.htm.html#pgepubid00011",
+          "blockId": "item11-b-0001",
+          "locationId": "chunk-000010:item11-b-0001",
+          "sourceRef": {
+            "spineId": "item11",
+            "spineIndex": 10,
+            "href": "OEBPS/6125613721684729113_45-h-9.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-9.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00011",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000010",
         "startOffset": 110064,
@@ -815,7 +1029,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-13",
+          "label": "CHAPTER X. Anne’s Apology",
+          "href": "6125613721684729113_45-h-10.htm.html#pgepubid00012",
+          "blockId": "item12-b-0001",
+          "locationId": "chunk-000011:item12-b-0001",
+          "sourceRef": {
+            "spineId": "item12",
+            "spineIndex": 11,
+            "href": "OEBPS/6125613721684729113_45-h-10.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-10.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00012",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000011",
         "startOffset": 123359,
@@ -865,7 +1097,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-14",
+          "label": "CHAPTER XI. Anne’s Impressions of Sunday-school",
+          "href": "6125613721684729113_45-h-11.htm.html#pgepubid00013",
+          "blockId": "item13-b-0001",
+          "locationId": "chunk-000012:item13-b-0001",
+          "sourceRef": {
+            "spineId": "item13",
+            "spineIndex": 12,
+            "href": "OEBPS/6125613721684729113_45-h-11.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-11.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00013",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000012",
         "startOffset": 136817,
@@ -915,7 +1165,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-15",
+          "label": "CHAPTER XII. A Solemn Vow and Promise",
+          "href": "6125613721684729113_45-h-12.htm.html#pgepubid00014",
+          "blockId": "item14-b-0001",
+          "locationId": "chunk-000013:item14-b-0001",
+          "sourceRef": {
+            "spineId": "item14",
+            "spineIndex": 13,
+            "href": "OEBPS/6125613721684729113_45-h-12.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-12.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00014",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000013",
         "startOffset": 146676,
@@ -965,7 +1233,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-16",
+          "label": "CHAPTER XIII. The Delights of Anticipation",
+          "href": "6125613721684729113_45-h-13.htm.html#pgepubid00015",
+          "blockId": "item15-b-0001",
+          "locationId": "chunk-000014:item15-b-0001",
+          "sourceRef": {
+            "spineId": "item15",
+            "spineIndex": 14,
+            "href": "OEBPS/6125613721684729113_45-h-13.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-13.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00015",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000014",
         "startOffset": 157626,
@@ -1015,7 +1301,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-17",
+          "label": "CHAPTER XIV. Anne’s Confession",
+          "href": "6125613721684729113_45-h-14.htm.html#pgepubid00016",
+          "blockId": "item16-b-0001",
+          "locationId": "chunk-000015:item16-b-0001",
+          "sourceRef": {
+            "spineId": "item16",
+            "spineIndex": 15,
+            "href": "OEBPS/6125613721684729113_45-h-14.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-14.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00016",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000015",
         "startOffset": 167544,
@@ -1065,7 +1369,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-18",
+          "label": "CHAPTER XV. A Tempest in the School Teapot",
+          "href": "6125613721684729113_45-h-15.htm.html#pgepubid00017",
+          "blockId": "item17-b-0001",
+          "locationId": "chunk-000016:item17-b-0001",
+          "sourceRef": {
+            "spineId": "item17",
+            "spineIndex": 16,
+            "href": "OEBPS/6125613721684729113_45-h-15.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-15.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00017",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000016",
         "startOffset": 183901,
@@ -1115,7 +1437,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-19",
+          "label": "CHAPTER XVI. Diana Is Invited to Tea with Tragic Results",
+          "href": "6125613721684729113_45-h-16.htm.html#pgepubid00018",
+          "blockId": "item18-b-0001",
+          "locationId": "chunk-000017:item18-b-0001",
+          "sourceRef": {
+            "spineId": "item18",
+            "spineIndex": 17,
+            "href": "OEBPS/6125613721684729113_45-h-16.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-16.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00018",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000017",
         "startOffset": 212465,
@@ -1165,7 +1505,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-20",
+          "label": "CHAPTER XVII. A New Interest in Life",
+          "href": "6125613721684729113_45-h-17.htm.html#pgepubid00019",
+          "blockId": "item19-b-0001",
+          "locationId": "chunk-000018:item19-b-0001",
+          "sourceRef": {
+            "spineId": "item19",
+            "spineIndex": 18,
+            "href": "OEBPS/6125613721684729113_45-h-17.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-17.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00019",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000018",
         "startOffset": 233816,
@@ -1215,7 +1573,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-21",
+          "label": "CHAPTER XVIII. Anne to the Rescue",
+          "href": "6125613721684729113_45-h-18.htm.html#pgepubid00020",
+          "blockId": "item20-b-0001",
+          "locationId": "chunk-000019:item20-b-0001",
+          "sourceRef": {
+            "spineId": "item20",
+            "spineIndex": 19,
+            "href": "OEBPS/6125613721684729113_45-h-18.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-18.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00020",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000019",
         "startOffset": 244893,
@@ -1265,7 +1641,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-22",
+          "label": "CHAPTER XIX. A Concert, a Catastrophe, and a Confession",
+          "href": "6125613721684729113_45-h-19.htm.html#pgepubid00021",
+          "blockId": "item21-b-0001",
+          "locationId": "chunk-000020:item21-b-0001",
+          "sourceRef": {
+            "spineId": "item21",
+            "spineIndex": 20,
+            "href": "OEBPS/6125613721684729113_45-h-19.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-19.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00021",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000020",
         "startOffset": 263146,
@@ -1315,7 +1709,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-23",
+          "label": "CHAPTER XX. A Good Imagination Gone Wrong",
+          "href": "6125613721684729113_45-h-20.htm.html#pgepubid00022",
+          "blockId": "item22-b-0001",
+          "locationId": "chunk-000021:item22-b-0001",
+          "sourceRef": {
+            "spineId": "item22",
+            "spineIndex": 21,
+            "href": "OEBPS/6125613721684729113_45-h-20.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-20.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00022",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000021",
         "startOffset": 284945,
@@ -1365,7 +1777,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-24",
+          "label": "CHAPTER XXI. A New Departure in Flavorings",
+          "href": "6125613721684729113_45-h-21.htm.html#pgepubid00023",
+          "blockId": "item23-b-0001",
+          "locationId": "chunk-000022:item23-b-0001",
+          "sourceRef": {
+            "spineId": "item23",
+            "spineIndex": 22,
+            "href": "OEBPS/6125613721684729113_45-h-21.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-21.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00023",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000022",
         "startOffset": 297111,
@@ -1415,7 +1845,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-25",
+          "label": "CHAPTER XXII. Anne Is Invited Out to Tea",
+          "href": "6125613721684729113_45-h-22.htm.html#pgepubid00024",
+          "blockId": "item24-b-0001",
+          "locationId": "chunk-000023:item24-b-0001",
+          "sourceRef": {
+            "spineId": "item24",
+            "spineIndex": 23,
+            "href": "OEBPS/6125613721684729113_45-h-22.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-22.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00024",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000023",
         "startOffset": 316980,
@@ -1465,7 +1913,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-26",
+          "label": "CHAPTER XXIII. Anne Comes to Grief in an Affair of Honor",
+          "href": "6125613721684729113_45-h-23.htm.html#pgepubid00025",
+          "blockId": "item25-b-0001",
+          "locationId": "chunk-000024:item25-b-0001",
+          "sourceRef": {
+            "spineId": "item25",
+            "spineIndex": 24,
+            "href": "OEBPS/6125613721684729113_45-h-23.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-23.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00025",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000024",
         "startOffset": 325026,
@@ -1515,7 +1981,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-27",
+          "label": "CHAPTER XXIV. Miss Stacy and Her Pupils Get Up a Concert",
+          "href": "6125613721684729113_45-h-24.htm.html#pgepubid00026",
+          "blockId": "item26-b-0001",
+          "locationId": "chunk-000025:item26-b-0001",
+          "sourceRef": {
+            "spineId": "item26",
+            "spineIndex": 25,
+            "href": "OEBPS/6125613721684729113_45-h-24.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-24.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00026",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000025",
         "startOffset": 337632,
@@ -1565,7 +2049,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-28",
+          "label": "CHAPTER XXV. Matthew Insists on Puffed Sleeves",
+          "href": "6125613721684729113_45-h-25.htm.html#pgepubid00027",
+          "blockId": "item27-b-0001",
+          "locationId": "chunk-000026:item27-b-0001",
+          "sourceRef": {
+            "spineId": "item27",
+            "spineIndex": 26,
+            "href": "OEBPS/6125613721684729113_45-h-25.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-25.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00027",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000026",
         "startOffset": 345982,
@@ -1615,7 +2117,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-29",
+          "label": "CHAPTER XXVI. The Story Club Is Formed",
+          "href": "6125613721684729113_45-h-26.htm.html#pgepubid00028",
+          "blockId": "item28-b-0001",
+          "locationId": "chunk-000027:item28-b-0001",
+          "sourceRef": {
+            "spineId": "item28",
+            "spineIndex": 27,
+            "href": "OEBPS/6125613721684729113_45-h-26.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-26.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00028",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000027",
         "startOffset": 365002,
@@ -1665,7 +2185,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-30",
+          "label": "CHAPTER XXVII. Vanity and Vexation of Spirit",
+          "href": "6125613721684729113_45-h-27.htm.html#pgepubid00029",
+          "blockId": "item29-b-0001",
+          "locationId": "chunk-000028:item29-b-0001",
+          "sourceRef": {
+            "spineId": "item29",
+            "spineIndex": 28,
+            "href": "OEBPS/6125613721684729113_45-h-27.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-27.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00029",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000028",
         "startOffset": 379359,
@@ -1715,7 +2253,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-31",
+          "label": "CHAPTER XXVIII. An Unfortunate Lily Maid",
+          "href": "6125613721684729113_45-h-28.htm.html#pgepubid00030",
+          "blockId": "item30-b-0001",
+          "locationId": "chunk-000029:item30-b-0001",
+          "sourceRef": {
+            "spineId": "item30",
+            "spineIndex": 29,
+            "href": "OEBPS/6125613721684729113_45-h-28.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-28.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00030",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000029",
         "startOffset": 392858,
@@ -1765,7 +2321,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-32",
+          "label": "CHAPTER XXIX. An Epoch in Anne’s Life",
+          "href": "6125613721684729113_45-h-29.htm.html#pgepubid00031",
+          "blockId": "item31-b-0001",
+          "locationId": "chunk-000030:item31-b-0001",
+          "sourceRef": {
+            "spineId": "item31",
+            "spineIndex": 30,
+            "href": "OEBPS/6125613721684729113_45-h-29.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-29.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00031",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000030",
         "startOffset": 408446,
@@ -1815,7 +2389,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-33",
+          "label": "CHAPTER XXX. The Queen’s Class Is Organized",
+          "href": "6125613721684729113_45-h-30.htm.html#pgepubid00032",
+          "blockId": "item32-b-0001",
+          "locationId": "chunk-000031:item32-b-0001",
+          "sourceRef": {
+            "spineId": "item32",
+            "spineIndex": 31,
+            "href": "OEBPS/6125613721684729113_45-h-30.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-30.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00032",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000031",
         "startOffset": 425435,
@@ -1865,7 +2457,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-34",
+          "label": "CHAPTER XXXI. Where the Brook and River Meet",
+          "href": "6125613721684729113_45-h-31.htm.html#pgepubid00033",
+          "blockId": "item33-b-0001",
+          "locationId": "chunk-000032:item33-b-0001",
+          "sourceRef": {
+            "spineId": "item33",
+            "spineIndex": 32,
+            "href": "OEBPS/6125613721684729113_45-h-31.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-31.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00033",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000032",
         "startOffset": 448481,
@@ -1915,7 +2525,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-35",
+          "label": "CHAPTER XXXII. The Pass List Is Out",
+          "href": "6125613721684729113_45-h-32.htm.html#pgepubid00034",
+          "blockId": "item34-b-0001",
+          "locationId": "chunk-000033:item34-b-0001",
+          "sourceRef": {
+            "spineId": "item34",
+            "spineIndex": 33,
+            "href": "OEBPS/6125613721684729113_45-h-32.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-32.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00034",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000033",
         "startOffset": 460792,
@@ -1965,7 +2593,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-36",
+          "label": "CHAPTER XXXIII. The Hotel Concert",
+          "href": "6125613721684729113_45-h-33.htm.html#pgepubid00035",
+          "blockId": "item35-b-0001",
+          "locationId": "chunk-000034:item35-b-0001",
+          "sourceRef": {
+            "spineId": "item35",
+            "spineIndex": 34,
+            "href": "OEBPS/6125613721684729113_45-h-33.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-33.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00035",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000034",
         "startOffset": 475088,
@@ -2015,7 +2661,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-37",
+          "label": "CHAPTER XXXIV. A Queen’s Girl",
+          "href": "6125613721684729113_45-h-34.htm.html#pgepubid00036",
+          "blockId": "item36-b-0001",
+          "locationId": "chunk-000035:item36-b-0001",
+          "sourceRef": {
+            "spineId": "item36",
+            "spineIndex": 35,
+            "href": "OEBPS/6125613721684729113_45-h-34.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-34.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00036",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000035",
         "startOffset": 493590,
@@ -2065,7 +2729,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-38",
+          "label": "CHAPTER XXXV. The Winter at Queen’s",
+          "href": "6125613721684729113_45-h-35.htm.html#pgepubid00037",
+          "blockId": "item37-b-0001",
+          "locationId": "chunk-000036:item37-b-0001",
+          "sourceRef": {
+            "spineId": "item37",
+            "spineIndex": 36,
+            "href": "OEBPS/6125613721684729113_45-h-35.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-35.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00037",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000036",
         "startOffset": 507268,
@@ -2115,7 +2797,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-39",
+          "label": "CHAPTER XXXVI. The Glory and the Dream",
+          "href": "6125613721684729113_45-h-36.htm.html#pgepubid00038",
+          "blockId": "item38-b-0001",
+          "locationId": "chunk-000037:item38-b-0001",
+          "sourceRef": {
+            "spineId": "item38",
+            "spineIndex": 37,
+            "href": "OEBPS/6125613721684729113_45-h-36.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-36.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00038",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000037",
         "startOffset": 516395,
@@ -2165,7 +2865,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-40",
+          "label": "CHAPTER XXXVII. The Reaper Whose Name Is Death",
+          "href": "6125613721684729113_45-h-37.htm.html#pgepubid00039",
+          "blockId": "item39-b-0001",
+          "locationId": "chunk-000038:item39-b-0001",
+          "sourceRef": {
+            "spineId": "item39",
+            "spineIndex": 38,
+            "href": "OEBPS/6125613721684729113_45-h-37.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-37.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00039",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000038",
         "startOffset": 526719,
@@ -2215,7 +2933,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-41",
+          "label": "CHAPTER XXXVIII. The Bend in the Road",
+          "href": "6125613721684729113_45-h-38.htm.html#pgepubid00040",
+          "blockId": "item40-b-0001",
+          "locationId": "chunk-000039:item40-b-0001",
+          "sourceRef": {
+            "spineId": "item40",
+            "spineIndex": 39,
+            "href": "OEBPS/6125613721684729113_45-h-38.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-38.htm.html",
+            "nodeTag": "div",
+            "nodeIndex": 0,
+            "nodeId": "pgepubid00040",
+            "nodeClass": "chapter"
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000039",
         "startOffset": 539124,
@@ -2501,7 +3237,25 @@
           "linkTargets": []
         }
       ],
-      "tocAnchors": [],
+      "tocAnchors": [
+        {
+          "tocId": "toc-42",
+          "label": "THE FULL PROJECT GUTENBERG LICENSE",
+          "href": "6125613721684729113_45-h-39.htm.html#pg-footer-heading",
+          "blockId": "pg-footer-b-0005",
+          "locationId": "chunk-000042:pg-footer-b-0005",
+          "sourceRef": {
+            "spineId": "pg-footer",
+            "spineIndex": 40,
+            "href": "OEBPS/6125613721684729113_45-h-39.htm.html",
+            "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/45/OEBPS/6125613721684729113_45-h-39.htm.html",
+            "nodeTag": "h2",
+            "nodeIndex": 4,
+            "nodeId": "pg-footer-heading",
+            "nodeClass": ""
+          }
+        }
+      ],
       "restoreAnchor": {
         "locationId": "loc:chunk-000042",
         "startOffset": 555676,
