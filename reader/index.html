@@ -209,6 +209,17 @@
     return;
   }
 
+  const storedCatalogReturn = (function(){
+    try {
+      return sessionStorage.getItem(AUTO_START_RETURN_KEY) || "";
+    } catch (eStorage) {
+      return "";
+    }
+  })();
+
+  const catalogReturnTarget = qCatalogReturn || storedCatalogReturn || "";
+  const isAutostartReader = qAutostart === "1" && !!catalogReturnTarget;
+  const entry = (qentry && qentry.trim()) || "";
   if (window.__readerpubProtectedOldShellMode) {
     try {
       window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__ = {
@@ -242,17 +253,6 @@
     }
   } catch (e1) {}
 
-  const storedCatalogReturn = (function(){
-    try {
-      return sessionStorage.getItem(AUTO_START_RETURN_KEY) || "";
-    } catch (eStorage) {
-      return "";
-    }
-  })();
-
-  const catalogReturnTarget = qCatalogReturn || storedCatalogReturn || "";
-  const isAutostartReader = qAutostart === "1" && !!catalogReturnTarget;
-  const entry = (qentry && qentry.trim()) || "";
   const shouldShowCatalogEntryHint = entry === "catalog";
   const isDemoEntry = entry === "hero";
   let catalogEntryHintShown = false;

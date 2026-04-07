@@ -104,6 +104,20 @@ async function serveR2Object(env, key, route) {
   });
 }
 
+async function serveProtectedArtifactObject(env, key, route) {
+  const response = await serveR2Object(env, key, route);
+  if (response.status !== 200) return response;
+  const headers = new Headers(response.headers);
+  headers.set("access-control-allow-origin", "*");
+  headers.set("access-control-allow-methods", "GET, HEAD, OPTIONS");
+  headers.set("access-control-allow-headers", "content-type");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function decodePathSegment(value) {
   try {
     return decodeURIComponent(String(value || ""));
@@ -229,6 +243,18 @@ export default {
         `content/${rawSuffix}`,
         "r2-content",
       );
+    }
+
+    if (path.startsWith("/books/protected-content/")) {
+      const rawSuffix = path.slice("/books/protected-content/".length);
+      const decodedSuffix = decodePathSegment(rawSuffix);
+      const primaryKey = `protected-content/${decodedSuffix}`;
+      const fallbackKey = `protected-content/${rawSuffix}`;
+      const primary = await serveProtectedArtifactObject(env, primaryKey, "r2-protected-content");
+      if (primary.status !== 404 || !fallbackKey || fallbackKey === primaryKey) {
+        return primary;
+      }
+      return serveProtectedArtifactObject(env, fallbackKey, "r2-protected-content");
     }
 
     if (path.startsWith("/books/reader/api/")) {

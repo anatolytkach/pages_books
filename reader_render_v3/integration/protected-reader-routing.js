@@ -43,6 +43,24 @@ function resolveReaderBasePath(url) {
   return "/books/reader/";
 }
 
+function resolveProtectedArtifactRoot(url, bookId) {
+  const artifactSource = String(
+    url.searchParams.get("protectedArtifactSource") ||
+      url.searchParams.get("artifactSource") ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+  if (artifactSource === "r2" && bookId) {
+    const hostname = String(url && url.hostname ? url.hostname : "").trim().toLowerCase();
+    const baseOrigin = hostname.endsWith(".pages.dev") ? "https://reader.pub" : url.origin;
+    return `${baseOrigin}/books/protected-content/${encodeURIComponent(bookId)}`;
+  }
+  return bookId
+    ? `/reader_render_v3/artifacts/protected-books/${encodeURIComponent(bookId)}`
+    : "/reader_render_v3/artifacts/protected-books/19686";
+}
+
 export function parseProtectedIntegrationRoute(input = window.location.href) {
   const baseOrigin =
     typeof window !== "undefined" && window.location && window.location.origin
@@ -57,9 +75,7 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
     String(url.searchParams.get("rt") || "").trim() ||
     "";
   const readerBasePath = resolveReaderBasePath(url);
-  const artifactRoot = bookId
-    ? `/reader_render_v3/artifacts/protected-books/${encodeURIComponent(bookId)}`
-    : "/reader_render_v3/artifacts/protected-books/19686";
+  const artifactRoot = resolveProtectedArtifactRoot(url, bookId);
 
   const oldReaderUrl = new URL(readerBasePath, url.origin);
   const protectedUrl = new URL(readerBasePath, url.origin);

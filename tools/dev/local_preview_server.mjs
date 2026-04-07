@@ -13,6 +13,7 @@ const READER1_DIR = path.join(ROOT, "reader1");
 const READER_RENDER_V3_DIR = path.join(ROOT, "reader_render_v3");
 const INDEX_DIR = path.join(ROOT, "reader_lang_indexes");
 const CONTENT_DIR = path.join(ROOT, "books", "content");
+const PROTECTED_CONTENT_DIR = path.join(ROOT, "reader_render_v3", "artifacts", "protected-books");
 const PORT = Number(process.env.PORT || 8788);
 const HOST = process.env.HOST || "127.0.0.1";
 const PROD_ORIGIN = process.env.READERPUB_PREVIEW_UPSTREAM || "https://reader.pub";
@@ -156,6 +157,12 @@ function routeLocalPath(urlPath) {
   if (urlPath.startsWith("/books/content/")) {
     return { file: safeJoin(CONTENT_DIR, urlPath.slice("/books/content".length)), route: "r2-content" };
   }
+  if (urlPath.startsWith("/books/protected-content/")) {
+    return {
+      file: safeJoin(PROTECTED_CONTENT_DIR, urlPath.slice("/books/protected-content".length)),
+      route: "r2-protected-content"
+    };
+  }
   if (urlPath === "/books/reader/" || urlPath === "/books/reader/index.html") {
     return { file: path.join(READER_DIR, "index.html"), route: "reader" };
   }
@@ -224,6 +231,9 @@ const server = http.createServer(async (req, res) => {
   }
   if (pathname.startsWith("/books/content/") && !existsSync(routed.file)) {
     return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content");
+  }
+  if (pathname.startsWith("/books/protected-content/") && !existsSync(routed.file)) {
+    return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content");
   }
   if (pathname.startsWith("/books/api/") && !existsSync(routed.file)) {
     return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-api");

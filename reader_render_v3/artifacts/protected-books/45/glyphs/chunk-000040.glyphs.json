@@ -1,0 +1,613 @@
+{
+  "chunkId": "chunk-000040",
+  "seed": "61048a9b67acf22f",
+  "glyphs": {
+    "g-0f7dfbea14f0": {
+      "glyphId": "g-0f7dfbea14f0",
+      "glyphToken": "g-0f7dfbea14f0",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
+      "shapeRef": "shape-g-0f7dfbea14f0",
+      "shapeStatus": "synthetic"
+    },
+    "g-03d6b59c00c8": {
+      "glyphId": "g-03d6b59c00c8",
+      "glyphToken": "g-03d6b59c00c8",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
+      "shapeRef": "shape-g-03d6b59c00c8",
+      "shapeStatus": "synthetic"
+    },
+    "g-67df12af4142": {
+      "glyphId": "g-67df12af4142",
+      "glyphToken": "g-67df12af4142",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-67df12af4142",
+      "shapeStatus": "synthetic"
+    },
+    "g-9e81aa21b2d6": {
+      "glyphId": "g-9e81aa21b2d6",
+      "glyphToken": "g-9e81aa21b2d6",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-9e81aa21b2d6",
+      "shapeStatus": "synthetic"
+    },
+    "g-bc16ac6f4bff": {
+      "glyphId": "g-bc16ac6f4bff",
+      "glyphToken": "g-bc16ac6f4bff",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-bc16ac6f4bff",
+      "shapeStatus": "synthetic"
+    },
+    "g-d6cc41940788": {
+      "glyphId": "g-d6cc41940788",
+      "glyphToken": "g-d6cc41940788",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-d6cc41940788",
+      "shapeStatus": "synthetic"
+    },
+    "g-a4584027ae41": {
+      "glyphId": "g-a4584027ae41",
+      "glyphToken": "g-a4584027ae41",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-a4584027ae41",
+      "shapeStatus": "synthetic"
+    },
+    "g-3df4a38dd47d": {
+      "glyphId": "g-3df4a38dd47d",
+      "glyphToken": "g-3df4a38dd47d",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-3df4a38dd47d",
+      "shapeStatus": "synthetic"
+    },
+    "g-40752c067322": {
+      "glyphId": "g-40752c067322",
+      "glyphToken": "g-40752c067322",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-40752c067322",
+      "shapeStatus": "synthetic"
+    },
+    "g-19c799532126": {
+      "glyphId": "g-19c799532126",
+      "glyphToken": "g-19c799532126",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-19c799532126",
+      "shapeStatus": "synthetic"
+    },
+    "g-4a4d9caaa001": {
+      "glyphId": "g-4a4d9caaa001",
+      "glyphToken": "g-4a4d9caaa001",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-4a4d9caaa001",
+      "shapeStatus": "synthetic"
+    },
+    "g-611bc3e6c2dd": {
+      "glyphId": "g-611bc3e6c2dd",
+      "glyphToken": "g-611bc3e6c2dd",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-611bc3e6c2dd",
+      "shapeStatus": "synthetic"
+    },
+    "g-53db79621371": {
+      "glyphId": "g-53db79621371",
+      "glyphToken": "g-53db79621371",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-53db79621371",
+      "shapeStatus": "synthetic"
+    },
+    "g-2204f628daea": {
+      "glyphId": "g-2204f628daea",
+      "glyphToken": "g-2204f628daea",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-2204f628daea",
+      "shapeStatus": "synthetic"
+    },
+    "g-cdc4692a89ff": {
+      "glyphId": "g-cdc4692a89ff",
+      "glyphToken": "g-cdc4692a89ff",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-cdc4692a89ff",
+      "shapeStatus": "synthetic"
+    },
+    "g-442b18773ea8": {
+      "glyphId": "g-442b18773ea8",
+      "glyphToken": "g-442b18773ea8",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-442b18773ea8",
+      "shapeStatus": "synthetic"
+    },
+    "g-1a59f89ff16b": {
+      "glyphId": "g-1a59f89ff16b",
+      "glyphToken": "g-1a59f89ff16b",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-1a59f89ff16b",
+      "shapeStatus": "synthetic"
+    },
+    "g-92a80499bdd2": {
+      "glyphId": "g-92a80499bdd2",
+      "glyphToken": "g-92a80499bdd2",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-92a80499bdd2",
+      "shapeStatus": "synthetic"
+    },
+    "g-d021287fd5dd": {
+      "glyphId": "g-d021287fd5dd",
+      "glyphToken": "g-d021287fd5dd",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-d021287fd5dd",
+      "shapeStatus": "synthetic"
+    },
+    "g-91725bd352e7": {
+      "glyphId": "g-91725bd352e7",
+      "glyphToken": "g-91725bd352e7",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-91725bd352e7",
+      "shapeStatus": "synthetic"
+    },
+    "g-d15c369a4af9": {
+      "glyphId": "g-d15c369a4af9",
+      "glyphToken": "g-d15c369a4af9",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-d15c369a4af9",
+      "shapeStatus": "synthetic"
+    },
+    "g-57db707439ba": {
+      "glyphId": "g-57db707439ba",
+      "glyphToken": "g-57db707439ba",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-57db707439ba",
+      "shapeStatus": "synthetic"
+    },
+    "g-614c3b3b7a60": {
+      "glyphId": "g-614c3b3b7a60",
+      "glyphToken": "g-614c3b3b7a60",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-614c3b3b7a60",
+      "shapeStatus": "synthetic"
+    },
+    "g-9f1a33d433bb": {
+      "glyphId": "g-9f1a33d433bb",
+      "glyphToken": "g-9f1a33d433bb",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-9f1a33d433bb",
+      "shapeStatus": "synthetic"
+    },
+    "g-ce63989ee354": {
+      "glyphId": "g-ce63989ee354",
+      "glyphToken": "g-ce63989ee354",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-ce63989ee354",
+      "shapeStatus": "synthetic"
+    },
+    "g-5b541a64c08a": {
+      "glyphId": "g-5b541a64c08a",
+      "glyphToken": "g-5b541a64c08a",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-5b541a64c08a",
+      "shapeStatus": "synthetic"
+    },
+    "g-8cb759db2680": {
+      "glyphId": "g-8cb759db2680",
+      "glyphToken": "g-8cb759db2680",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-8cb759db2680",
+      "shapeStatus": "synthetic"
+    },
+    "g-d22b7076022f": {
+      "glyphId": "g-d22b7076022f",
+      "glyphToken": "g-d22b7076022f",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-d22b7076022f",
+      "shapeStatus": "synthetic"
+    },
+    "g-50977b786717": {
+      "glyphId": "g-50977b786717",
+      "glyphToken": "g-50977b786717",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-50977b786717",
+      "shapeStatus": "synthetic"
+    },
+    "g-9998028d6244": {
+      "glyphId": "g-9998028d6244",
+      "glyphToken": "g-9998028d6244",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-9998028d6244",
+      "shapeStatus": "synthetic"
+    },
+    "g-d08639f84a2a": {
+      "glyphId": "g-d08639f84a2a",
+      "glyphToken": "g-d08639f84a2a",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-d08639f84a2a",
+      "shapeStatus": "synthetic"
+    },
+    "g-0b4d2e6fb1bf": {
+      "glyphId": "g-0b4d2e6fb1bf",
+      "glyphToken": "g-0b4d2e6fb1bf",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-0b4d2e6fb1bf",
+      "shapeStatus": "synthetic"
+    },
+    "g-5f0a5eadd3bd": {
+      "glyphId": "g-5f0a5eadd3bd",
+      "glyphToken": "g-5f0a5eadd3bd",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-5f0a5eadd3bd",
+      "shapeStatus": "synthetic"
+    },
+    "g-ca4a08e61030": {
+      "glyphId": "g-ca4a08e61030",
+      "glyphToken": "g-ca4a08e61030",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-ca4a08e61030",
+      "shapeStatus": "synthetic"
+    },
+    "g-eed2f8092799": {
+      "glyphId": "g-eed2f8092799",
+      "glyphToken": "g-eed2f8092799",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-eed2f8092799",
+      "shapeStatus": "synthetic"
+    },
+    "g-52d6958c01dd": {
+      "glyphId": "g-52d6958c01dd",
+      "glyphToken": "g-52d6958c01dd",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-52d6958c01dd",
+      "shapeStatus": "synthetic"
+    },
+    "g-cdcb34e66c42": {
+      "glyphId": "g-cdcb34e66c42",
+      "glyphToken": "g-cdcb34e66c42",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
+      "shapeRef": "shape-g-cdcb34e66c42",
+      "shapeStatus": "synthetic"
+    },
+    "g-918a32172e9e": {
+      "glyphId": "g-918a32172e9e",
+      "glyphToken": "g-918a32172e9e",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-918a32172e9e",
+      "shapeStatus": "synthetic"
+    },
+    "g-38bc92f3b87f": {
+      "glyphId": "g-38bc92f3b87f",
+      "glyphToken": "g-38bc92f3b87f",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "shapeRef": "shape-g-38bc92f3b87f",
+      "shapeStatus": "synthetic"
+    },
+    "g-92399f1518e3": {
+      "glyphId": "g-92399f1518e3",
+      "glyphToken": "g-92399f1518e3",
+      "styleToken": "paragraph",
+      "fontFamilyCandidate": "Noto Serif",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
+      "shapeRef": "shape-g-92399f1518e3",
+      "shapeStatus": "synthetic"
+    }
+  },
+  "substrate": {
+    "version": 1,
+    "mode": "sealed-window-substrate-v1",
+    "laneSeed": "61048a9b67acf22f",
+    "lanes": [
+      {
+        "slot": "slot-36xzzs",
+        "vector": 1100550
+      },
+      {
+        "slot": "slot-3bwygs",
+        "vector": 15241
+      },
+      {
+        "slot": "slot-3in26u",
+        "vector": 37330
+      },
+      {
+        "slot": "slot-4ixune",
+        "vector": 9822
+      },
+      {
+        "slot": "slot-5nowk7",
+        "vector": 4440
+      },
+      {
+        "slot": "slot-600gta",
+        "vector": 1096383
+      },
+      {
+        "slot": "slot-6jvg5b",
+        "vector": 1102565
+      },
+      {
+        "slot": "slot-6ty2sd",
+        "vector": 34666
+      },
+      {
+        "slot": "slot-7d9emr",
+        "vector": 1101905
+      },
+      {
+        "slot": "slot-8fmhu0",
+        "vector": 41764
+      },
+      {
+        "slot": "slot-b8gggp",
+        "vector": 1113069
+      },
+      {
+        "slot": "slot-bqtoxb",
+        "vector": 29680
+      },
+      {
+        "slot": "slot-cm2vym",
+        "vector": 33936
+      },
+      {
+        "slot": "slot-cwyd2j",
+        "vector": 1054003
+      },
+      {
+        "slot": "slot-dag4oo",
+        "vector": 1054339
+      },
+      {
+        "slot": "slot-dwpnem",
+        "vector": 41368
+      },
+      {
+        "slot": "slot-f69kng",
+        "vector": 21022
+      },
+      {
+        "slot": "slot-gd2oz2",
+        "vector": 1095500
+      },
+      {
+        "slot": "slot-hblgyd",
+        "vector": 2502
+      },
+      {
+        "slot": "slot-idngkv",
+        "vector": 25612
+      },
+      {
+        "slot": "slot-j6ssph",
+        "vector": 1059964
+      },
+      {
+        "slot": "slot-jj78d3",
+        "vector": 65141
+      },
+      {
+        "slot": "slot-kbmp60",
+        "vector": 1102607
+      },
+      {
+        "slot": "slot-kyircp",
+        "vector": 1077174
+      },
+      {
+        "slot": "slot-lo89sh",
+        "vector": 11471
+      },
+      {
+        "slot": "slot-mov60q",
+        "vector": 56351
+      },
+      {
+        "slot": "slot-nfjka1",
+        "vector": 17573
+      },
+      {
+        "slot": "slot-psewmi",
+        "vector": 59601
+      },
+      {
+        "slot": "slot-qbsyo9",
+        "vector": 20703
+      },
+      {
+        "slot": "slot-qd7jxl",
+        "vector": 13067
+      },
+      {
+        "slot": "slot-rb4jkh",
+        "vector": 1086781
+      },
+      {
+        "slot": "slot-seur7i",
+        "vector": 28196
+      },
+      {
+        "slot": "slot-tg4tby",
+        "vector": 1853
+      },
+      {
+        "slot": "slot-u24cfx",
+        "vector": 22267
+      },
+      {
+        "slot": "slot-v510ez",
+        "vector": 28930
+      },
+      {
+        "slot": "slot-wip053",
+        "vector": 1107249
+      },
+      {
+        "slot": "slot-wkaasd",
+        "vector": 50950
+      },
+      {
+        "slot": "slot-wxh6y7",
+        "vector": 1049495
+      },
+      {
+        "slot": "slot-zcc8la",
+        "vector": 1074204
+      },
+      {
+        "slot": "slot-zeg50f",
+        "vector": 1066854
+      }
+    ]
+  }
+}
