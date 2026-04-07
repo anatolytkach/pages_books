@@ -11,6 +11,12 @@ const SYSTEM_FONT_DIRS = [
 ];
 
 const POLICY_FONT_FILES = {
+  "Arial": {
+    regular: "/System/Library/Fonts/Supplemental/Arial.ttf",
+    italic: "/System/Library/Fonts/Supplemental/Arial Italic.ttf",
+    bold: "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    boldItalic: "/System/Library/Fonts/Supplemental/Arial Bold Italic.ttf"
+  },
   "Times New Roman": {
     regular: "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
     italic: "/System/Library/Fonts/Supplemental/Times New Roman Italic.ttf",

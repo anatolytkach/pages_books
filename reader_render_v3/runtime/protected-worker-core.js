@@ -881,19 +881,6 @@ export class ProtectedReaderRuntimeCore {
             currentSearchMatch.endOffset
           )
         : [];
-    if (annotationOverlay.focusHighlights.length === 0 && this.focusedTocTarget && page) {
-      const tocFocusRect = buildApproximateFocusedOffsetRect(
-        this,
-        this.focusedTocTarget.startGlobal,
-        this.focusedTocTarget.endGlobal,
-        page,
-        "blue",
-        this.focusedTocTarget.tocId || ""
-      );
-      if (tocFocusRect) {
-        annotationOverlay.focusHighlights.push(tocFocusRect);
-      }
-    }
     const chunk = this.currentChunkModel.chunk;
     const location = this.currentChunkModel.chunkLocation;
     const derivedActiveAnchor = page
@@ -942,7 +929,8 @@ export class ProtectedReaderRuntimeCore {
         layout: this.currentLayout,
         chunkModel: this.currentChunkModel,
         shapeRegistry: this.currentShapeRegistry,
-        renderMode: this.renderMode
+        renderMode: this.renderMode,
+        styleMap: this.book && this.book.styleMap ? this.book.styleMap : null
       }),
       page
     );

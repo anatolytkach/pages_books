@@ -1,11 +1,12 @@
-export function renderGlyphOps(ctx, glyphOps, shapeRegistry) {
+export function renderGlyphOps(ctx, glyphOps, shapeRegistry, options = {}) {
+  const defaultFillStyle = options.defaultFillStyle || "#18212f";
   for (const op of glyphOps) {
     const shapeRecord = shapeRegistry.records.get(op.shapeRef) || null;
     const extractedPath = shapeRecord && shapeRecord.source === "extracted"
       ? shapeRegistry.getPath2D(shapeRecord)
       : null;
     ctx.save();
-    ctx.fillStyle = "#18212f";
+    ctx.fillStyle = op.fillStyle || defaultFillStyle;
     if (shapeRecord && shapeRecord.primitiveType === "space") {
       ctx.restore();
       continue;

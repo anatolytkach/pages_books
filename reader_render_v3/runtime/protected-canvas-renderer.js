@@ -72,8 +72,17 @@ export function renderChunkToCanvas({
   } = renderPacket;
   const viewportHeight = pageWindow ? pageWindow.height : layout.height;
   const translateY = pageWindow ? layout.padding - pageWindow.top : 0;
+  const currentTheme =
+    typeof document !== "undefined" &&
+    document &&
+    document.documentElement &&
+    document.documentElement.dataset &&
+    document.documentElement.dataset.theme === "dark"
+      ? "dark"
+      : "light";
+  const defaultInk = currentTheme === "dark" ? "#e7edf6" : "#1a0dab";
   const ctx = clearCanvas(canvas, layout.width, viewportHeight);
-  ctx.fillStyle = "#fffdfa";
+  ctx.fillStyle = "#fcfaf8";
   ctx.fillRect(0, 0, layout.width, viewportHeight);
   ctx.save();
   ctx.translate(0, translateY);
@@ -82,7 +91,7 @@ export function renderChunkToCanvas({
     throw new Error("Protected render packets must stay shape-only in main thread.");
   }
   const activeShapeRegistry = createGlyphShapeRegistry({ shapeRecords }, new Map());
-  renderGlyphOps(ctx, glyphOps, activeShapeRegistry);
+  renderGlyphOps(ctx, glyphOps, activeShapeRegistry, { defaultFillStyle: defaultInk });
   ctx.restore();
 
   const overlay = clearCanvas(overlayCanvas, layout.width, viewportHeight);

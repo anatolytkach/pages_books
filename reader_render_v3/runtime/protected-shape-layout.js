@@ -1,4 +1,4 @@
-export function buildGlyphRenderOps({ layout, chunkModel, shapeRegistry, renderMode }) {
+export function buildGlyphRenderOps({ layout, chunkModel, shapeRegistry, renderMode, styleMap = null }) {
   const ops = [];
 
   for (const line of layout.lines) {
@@ -13,6 +13,9 @@ export function buildGlyphRenderOps({ layout, chunkModel, shapeRegistry, renderM
         if (!glyph) continue;
         const advance = fragment.charPositions[index + 1] - fragment.charPositions[index];
         const shapeRecord = shapeRegistry.getByGlyph(glyph);
+        const styleTokenRecord = styleMap && typeof styleMap.get === "function"
+          ? (styleMap.get(glyph.styleToken) || null)
+          : null;
         ops.push({
           glyphId: glyph.glyphId,
           glyphToken,
@@ -21,7 +24,7 @@ export function buildGlyphRenderOps({ layout, chunkModel, shapeRegistry, renderM
           scriptBucket: glyph.scriptBucket,
           x: cursorX,
           y: line.y,
-          baselineY: line.y + fragment.font.size,
+          baselineY: Number(fragment.baselineY || (line.y + fragment.font.size)),
           fontSize: fragment.font.size,
           advance,
           width: advance,
@@ -34,6 +37,7 @@ export function buildGlyphRenderOps({ layout, chunkModel, shapeRegistry, renderM
           shapeRef: glyph.shapeRef,
           shapeStatus: glyph.shapeStatus,
           shapeSource: shapeRecord ? shapeRecord.source : "missing",
+          fillStyle: fragment.fillStyle || (styleTokenRecord && styleTokenRecord.textColor) || "",
           renderMode
         });
         cursorX += advance;

@@ -50,6 +50,9 @@ function buildSelectionLayer(chunk, options = {}) {
     }
     const blockStart = cursor;
     block.runs.forEach((run, runIndex) => {
+      if (run.hardBreak && !run.text) {
+        return;
+      }
       const start = cursor;
       const text = run.text;
       cursor += text.length;

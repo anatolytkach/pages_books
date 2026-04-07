@@ -32,6 +32,14 @@ function fontPolicyForScript(scriptBucket, fontPlan) {
     null;
 }
 
+function defaultFontFamilyFor(scriptBucket, blockType) {
+  if (blockType === "pre") return "Courier New";
+  if (scriptBucket === "Latin" || scriptBucket === "Common") return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+  if (scriptBucket === "Greek" || scriptBucket === "Cyrillic") return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+  if (scriptBucket === "CJK") return "Noto Serif CJK";
+  return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+}
+
 function blockRoleFor(blockType) {
   if (/^heading-\d$/.test(blockType)) return "heading";
   if (blockType === "list-item") return "list";
@@ -46,6 +54,9 @@ function styleTokenFrom(run, block) {
   if (run.styleState.bold) parts.push("bold");
   if (run.styleState.italic) parts.push("italic");
   if (run.styleState.superscript) parts.push("sup");
+  if (run.styleState.dropCap) parts.push("dropcap");
+  if (Number(run.styleState.fontScale || 1) !== 1) parts.push(`scale-${String(Math.round(Number(run.styleState.fontScale || 1) * 100)).padStart(3, "0")}`);
+  if (Number(run.styleState.letterSpacingEm || 0) > 0) parts.push("track");
   if (run.linkTarget) parts.push("link");
   return parts.join("-");
 }
@@ -62,6 +73,10 @@ function extractStyleSignals(blocks, options = {}) {
       const fontPolicy = fontPolicyForScript(scriptBucket, fontPlan);
       const isHeading = /^heading-(\d)$/.test(block.blockType);
       const headingLevelMatch = block.blockType.match(/^heading-(\d)$/);
+      const requestedFamily =
+        run.styleState.fontFamily ||
+        (block.blockPresentation && block.blockPresentation.fontFamily) ||
+        defaultFontFamilyFor(scriptBucket, block.blockType);
       if (!styleRegistry[token]) {
         styleRegistry[token] = {
           styleToken: token,
@@ -74,10 +89,21 @@ function extractStyleSignals(blocks, options = {}) {
           boldItalic: !!run.styleState.bold && !!run.styleState.italic,
           linkLike: !!run.linkTarget,
           scriptBucket,
-          fontFamilyCandidate: fontPolicy ? fontPolicy.fontSource : "Appropriate Noto family",
-          fontRole: isHeading ? "display-serif" : block.blockType === "pre" ? "monospace-fallback" : "body-serif",
+          fontFamilyCandidate: requestedFamily || (fontPolicy ? fontPolicy.fontSource : defaultFontFamilyFor(scriptBucket, block.blockType)),
+          fontRole: isHeading ? "display-sans" : block.blockType === "pre" ? "monospace-fallback" : "body-sans",
           fontStyle: run.styleState.italic ? "italic" : "normal",
           fontWeight: run.styleState.bold ? "bold" : "regular",
+          fontSizeScale: Number(run.styleState.fontScale || (block.blockPresentation && block.blockPresentation.fontSizeScale) || 1) || 1,
+          lineHeightFactor: Number(run.styleState.lineHeightFactor || (block.blockPresentation && block.blockPresentation.lineHeightFactor) || 1.5) || 1.5,
+          letterSpacingEm: Number(run.styleState.letterSpacingEm || (block.blockPresentation && block.blockPresentation.letterSpacingEm) || 0) || 0,
+          trailingSpacingEm: Number(run.styleState.trailingSpacingEm || 0) || 0,
+          wordSpacingEm: Number((block.blockPresentation && block.blockPresentation.wordSpacingEm) || 0) || 0,
+          textColor: run.styleState.color || "",
+          dropCap: !!run.styleState.dropCap,
+          textAlign: (block.blockPresentation && block.blockPresentation.textAlign) || "justify",
+          textIndentEm: Number((block.blockPresentation && block.blockPresentation.textIndentEm) || 0) || 0,
+          marginTopEm: Number((block.blockPresentation && block.blockPresentation.marginTopEm) || 0) || 0,
+          marginBottomEm: Number((block.blockPresentation && block.blockPresentation.marginBottomEm) || 0) || 0,
           policyStatus: fontPolicy ? "planned" : "incomplete",
           policyGaps: fontPolicy ? (fontPolicy.gaps || []) : [{ style: "all", note: "No font plan assignment found." }]
         };

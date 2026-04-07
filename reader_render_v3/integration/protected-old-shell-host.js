@@ -17,7 +17,9 @@ const HOST_STATE = {
   bookmarks: [],
   lastTocSignature: "",
   lastTocActiveId: "",
-  lastTocCount: 0
+  lastTocCount: 0,
+  fontScaleSynced: false,
+  lastAppliedFontScale: 0
 };
 
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
@@ -326,6 +328,28 @@ function setShellLoading(active) {
   if (active) HOST_STATE.loadingCount += 1;
   else HOST_STATE.loadingCount = Math.max(0, HOST_STATE.loadingCount - 1);
   loader.style.display = HOST_STATE.loadingCount > 0 ? "block" : "none";
+}
+
+function getShellPreferredFontScale() {
+  try {
+    const settings = window.reader && window.reader.settings ? window.reader.settings : null;
+    const pct = settings &&
+      settings.styles &&
+      settings.styles.fontSize
+        ? parseInt(String(settings.styles.fontSize).replace(/[^0-9]/g, ""), 10)
+        : settings && settings.fontSizePct
+          ? parseInt(String(settings.fontSizePct).replace(/[^0-9]/g, ""), 10)
+          : 0;
+    if (Number.isFinite(pct) && pct > 0) return Math.max(0.8, Math.min(1.6, Number((pct / 100).toFixed(2))));
+  } catch (error) {}
+  try {
+    const ua = (navigator && navigator.userAgent) ? navigator.userAgent : "";
+    const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+    const vw = (window.visualViewport && window.visualViewport.width) ? window.visualViewport.width : window.innerWidth;
+    const isMobileViewport = !!vw && vw <= 1024;
+    return (isMobileUA || isMobileViewport) ? 1.24 : 1.1;
+  } catch (error) {}
+  return 1.1;
 }
 
 function openOverlayById(id) {
@@ -1049,6 +1073,23 @@ function updateFromSummary(summary) {
   if (summary.ready) {
     HOST_STATE.loadingCount = 0;
     setShellLoading(false);
+    const preferredFontScale = getShellPreferredFontScale();
+    const currentFontScale = Number(summary.fontScale || 1) || 1;
+    const shouldResync =
+      Math.abs(preferredFontScale - currentFontScale) >= 0.01 &&
+      Math.abs(preferredFontScale - Number(HOST_STATE.lastAppliedFontScale || 0)) >= 0.01;
+    if (shouldResync) {
+      HOST_STATE.fontScaleSynced = true;
+      HOST_STATE.lastAppliedFontScale = preferredFontScale;
+      window.setTimeout(() => {
+        invokeBridge("setFontScale", preferredFontScale).catch(() => {
+          HOST_STATE.fontScaleSynced = false;
+          HOST_STATE.lastAppliedFontScale = 0;
+        });
+      }, 0);
+    } else if (!HOST_STATE.fontScaleSynced) {
+      HOST_STATE.fontScaleSynced = true;
+    }
   }
   setTitle(summary);
   renderStatus(summary);

@@ -73,6 +73,20 @@ function buildGlyphLayer({ bookId, chunkId, blocks, styleRegistry }) {
 
   blocks.forEach((block) => {
     block.runs.forEach((run, runIndex) => {
+      if (run.hardBreak) {
+        renderRuns.push({
+          runId: `${block.blockId}-run-${runIndex + 1}`,
+          blockId: block.blockId,
+          styleToken: run.styleToken,
+          glyphTokens: [],
+          glyphCount: 0,
+          hardBreak: true,
+          sourceRef: block.sourceRef,
+          linkTarget: run.linkTarget || "",
+          styleSignals: styleRegistry[run.styleToken] || null
+        });
+        return;
+      }
       const glyphTokens = Array.from(run.text).map((char) => glyphIdFor(char, run.styleToken));
       renderRuns.push({
         runId: `${block.blockId}-run-${runIndex + 1}`,
@@ -80,6 +94,7 @@ function buildGlyphLayer({ bookId, chunkId, blocks, styleRegistry }) {
         styleToken: run.styleToken,
         glyphTokens,
         glyphCount: glyphTokens.length,
+        hardBreak: false,
         sourceRef: block.sourceRef,
         linkTarget: run.linkTarget || "",
         styleSignals: styleRegistry[run.styleToken] || null

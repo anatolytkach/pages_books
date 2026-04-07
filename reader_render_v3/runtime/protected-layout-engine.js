@@ -15,23 +15,30 @@ function createScratchContext() {
 
 export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
   const headingLevel = styleTokenRecord.headingLevel || 0;
-  const baseSize =
-    headingLevel === 1 ? 34 :
-    headingLevel === 2 ? 30 :
-    headingLevel === 3 ? 26 :
-    headingLevel === 4 ? 22 :
-    headingLevel >= 5 ? 18 :
-    styleTokenRecord.blockRole === "quote" ? 20 :
-    styleTokenRecord.blockRole === "verse" ? 18 :
-    17;
-  const size = Math.max(12, Math.round(baseSize * Math.max(0.75, Math.min(1.75, fontScale || 1))));
+  const baseSize = styleTokenRecord.blockRole === "quote" ? 17 : styleTokenRecord.blockRole === "verse" ? 15 : 16;
+  const explicitScale = Number(styleTokenRecord.fontSizeScale || 0) || 0;
+  const semanticScale =
+    explicitScale > 0 ? explicitScale :
+    headingLevel === 1 ? 3 :
+    headingLevel === 2 ? 1.5 :
+    headingLevel === 3 ? 1.3 :
+    headingLevel === 4 ? 1.2 :
+    headingLevel >= 5 ? 1.1 :
+    styleTokenRecord.blockRole === "verse" ? 0.9 :
+    1;
+  const size = Math.max(11, Math.round(baseSize * semanticScale * Math.max(0.75, Math.min(1.75, fontScale || 1))));
   const weight = styleTokenRecord.fontWeight === "bold" ? "700" : "400";
   const italic = styleTokenRecord.fontStyle === "italic" ? "italic " : "";
-  const family = styleTokenRecord.fontFamilyCandidate || "Georgia, serif";
+  const family = styleTokenRecord.fontFamilyCandidate || "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+  const lineHeightFactor = Math.max(0.8, Math.min(2.4, Number(styleTokenRecord.lineHeightFactor || 1.55) || 1.55));
   return {
     size,
-    lineHeight: Math.round(size * 1.55),
-    css: `${italic}${weight} ${size}px ${family}`
+    lineHeight: Math.round(size * lineHeightFactor),
+    css: `${italic}${weight} ${size}px ${family}`,
+    letterSpacingPx: Math.round(size * (Number(styleTokenRecord.letterSpacingEm || 0) || 0) * 1000) / 1000,
+    trailingSpacingPx: Math.round(size * (Number(styleTokenRecord.trailingSpacingEm || 0) || 0) * 1000) / 1000,
+    wordSpacingPx: Math.round(size * (Number(styleTokenRecord.wordSpacingEm || 0) || 0) * 1000) / 1000,
+    fillStyle: styleTokenRecord.textColor || ""
   };
 }
 
@@ -99,6 +106,22 @@ function justifyLineToWidth(line, targetWidth) {
     }
   }
   line.width = currentWidth + availableExtra;
+}
+
+function alignLineWithinWidth(line, width, align = "left") {
+  if (!line || !Array.isArray(line.fragments) || !line.fragments.length) return;
+  if (align !== "center" && align !== "right") return;
+  const currentWidth = Number(line.width || 0);
+  const maxWidth = Number(width || currentWidth);
+  if (!Number.isFinite(currentWidth) || !Number.isFinite(maxWidth) || currentWidth <= 0 || maxWidth <= currentWidth) return;
+  const offsetX = align === "center"
+    ? Math.round((maxWidth - currentWidth) / 2)
+    : Math.round(maxWidth - currentWidth);
+  if (offsetX <= 0) return;
+  line.x += offsetX;
+  for (const fragment of line.fragments) {
+    fragment.x += offsetX;
+  }
 }
 
 function resolveMetricsBackend({ ctx, renderMode, metricsMode, shapeRegistry }) {
@@ -177,18 +200,68 @@ export function layoutChunk({
 
   for (const block of chunkModel.chunk.logicalBlockList) {
     const runs = chunkModel.runsByBlock.get(block.blockId) || [];
+    const blockPresentation = block.blockPresentation || {};
+    const blockMarginTop = Math.max(0, Math.round((Number(blockPresentation.marginTopEm || 0) || 0) * 18));
+    const blockMarginBottom = Math.max(0, Math.round((Number(blockPresentation.marginBottomEm || 0) || 0) * 18));
+    const firstLineIndentPx = Math.max(0, Math.round((Number(blockPresentation.textIndentEm || 0) || 0) * 17));
+    const blockTextAlign = String(blockPresentation.textAlign || "justify").toLowerCase();
+    if (blockPresentation.pageBreakBefore && (pageSlot > 0 || columnIndex > 0 || columnCursorY > 0)) {
+      pageSlot += 1;
+      columnIndex = 0;
+      columnCursorY = 0;
+    }
+    if (columnCursorY > 0 && blockMarginTop > 0) {
+      if ((columnCursorY + blockMarginTop) > columnInnerHeight) {
+        advanceFlow(blockMarginTop);
+      } else {
+        columnCursorY += blockMarginTop;
+      }
+    }
     const blockTop = pageSlot * pageSlotHeight + padding + columnCursorY;
     const blockFragments = [];
     let currentLine = null;
+    let blockLineCount = 0;
+    let dropCapWrap = null;
 
     function commitLine() {
       if (!currentLine || !currentLine.fragments.length) return;
+      const dropCapFragment = currentLine.fragments.find((fragment) => /dropcap/.test(String(fragment.styleToken || ""))) || null;
+      if (dropCapFragment) {
+        const textFragments = currentLine.fragments.filter((fragment) => fragment !== dropCapFragment);
+        const wrappedLineHeight = textFragments.length
+          ? Math.max(...textFragments.map((fragment) => Number(fragment.font && fragment.font.lineHeight || fragment.height || 0)).filter(Boolean))
+          : Math.max(18, Math.round(Number(dropCapFragment.font && dropCapFragment.font.size || 56) * 0.38));
+        currentLine.height = wrappedLineHeight;
+        const dropCapFontSize = Number(dropCapFragment.font && dropCapFragment.font.size || 0);
+        const dropCapNaturalWidth = Number(dropCapFragment.width || 0);
+        dropCapWrap = {
+          pageSlot,
+          columnIndex,
+          width: Math.max(
+            Math.round(dropCapNaturalWidth + 4),
+            Math.round(dropCapFontSize * 0.56)
+          ),
+          bottomY: currentLine.y + Math.max(
+            Math.round(wrappedLineHeight * 2.08),
+            Math.round(Number(dropCapFragment.font && dropCapFragment.font.lineHeight || dropCapFragment.height || 0) * 0.9)
+          )
+        };
+      } else if (
+        dropCapWrap &&
+        dropCapWrap.pageSlot === pageSlot &&
+        dropCapWrap.columnIndex === columnIndex &&
+        (currentLine.y + currentLine.height) >= Number(dropCapWrap.bottomY || 0)
+      ) {
+        dropCapWrap = null;
+      }
       currentLine.width = currentLine.fragments.reduce((sum, item) => sum + item.width, 0);
       currentLine.startOffset = Math.min(...currentLine.fragments.map((item) => item.startOffset));
       currentLine.endOffset = Math.max(...currentLine.fragments.map((item) => item.endOffset));
       currentLine.lineIndex = lines.length;
+      currentLine.maxWidth = Number(currentLine.maxWidth || columnWidth);
       lines.push(currentLine);
       columnCursorY += currentLine.height;
+      blockLineCount += 1;
       currentLine = null;
     }
 
@@ -197,12 +270,21 @@ export function layoutChunk({
         advanceFlow(lineHeight);
       }
       if (currentLine) return currentLine;
+      const currentY = (pageSlot * pageSlotHeight) + padding + columnCursorY;
+      const wrapActive = !!(
+        dropCapWrap &&
+        dropCapWrap.pageSlot === pageSlot &&
+        dropCapWrap.columnIndex === columnIndex &&
+        currentY < Number(dropCapWrap.bottomY || 0)
+      );
+      const wrapInset = wrapActive ? Number(dropCapWrap.width || 0) : 0;
       currentLine = {
         blockId: block.blockId,
-        x: padding + (columnIndex * (columnWidth + columnGap)),
-        y: (pageSlot * pageSlotHeight) + padding + columnCursorY,
+        x: padding + (columnIndex * (columnWidth + columnGap)) + (blockLineCount === 0 ? firstLineIndentPx : 0) + wrapInset,
+        y: currentY,
         height: lineHeight,
         width: 0,
+        maxWidth: Math.max(120, columnWidth - (blockLineCount === 0 ? firstLineIndentPx : 0) - wrapInset),
         pageSlot,
         columnIndex,
         fragments: []
@@ -236,6 +318,11 @@ export function layoutChunk({
       line.height = Math.max(line.height, measure.lineHeight || font.lineHeight);
       line.ascentPx = Math.max(line.ascentPx || 0, measure.ascentPx || 0);
       line.descentPx = Math.max(line.descentPx || 0, measure.descentPx || 0);
+      const spacingPx =
+        token.kind === "gap"
+          ? Number(font.wordSpacingPx || 0)
+          : Number(font.letterSpacingPx || 0) + Number(font.trailingSpacingPx || 0);
+      const adjustedWidthPx = widthPx + (spacingPx > 0 ? spacingPx : 0);
       const currentWidth = line.fragments.reduce((sum, item) => sum + item.width, 0);
       metricsStats.glyphCount += measure.glyphCount || glyphs.length;
       metricsStats.extractedCount += measure.extractedCount || 0;
@@ -243,8 +330,8 @@ export function layoutChunk({
 
       if (
         currentWidth > 0 &&
-        widthPx > 0 &&
-        currentWidth + widthPx > columnWidth
+        adjustedWidthPx > 0 &&
+        currentWidth + adjustedWidthPx > Number(line.maxWidth || columnWidth)
       ) {
         commitLine();
         return placeToken({
@@ -278,19 +365,25 @@ export function layoutChunk({
         sourceRef,
         x: line.x + currentWidth,
         y: line.y,
-        width: widthPx,
+        width: adjustedWidthPx,
         height: font.lineHeight,
+        baselineY: line.y + font.size,
         startOffset: token.startOffset,
         endOffset: token.endOffset,
         charPositions: measure.charPositions,
         glyphBoxes: measure.glyphBoxes || [],
-        glyphCount: glyphs.length
+        glyphCount: glyphs.length,
+        fillStyle: font.fillStyle || ""
       };
       line.fragments.push(fragment);
       blockFragments.push(fragment);
     }
 
     runs.forEach((run, runIndex) => {
+      if (run.hardBreak) {
+        commitLine();
+        return;
+      }
       const style = styles.get(run.styleToken) || {};
       const font = fontSpecForStyle(style, fontScale);
       const segment = segmentMap.get(`${block.blockId}:${runIndex}`) || null;
@@ -323,9 +416,25 @@ export function layoutChunk({
 
     commitLine();
     const blockLines = lines.filter((line) => line.blockId === block.blockId);
-    if (block.blockType === "paragraph" && blockLines.length > 1) {
+    if (blockTextAlign === "center" || blockTextAlign === "right") {
+      for (const line of blockLines) {
+        alignLineWithinWidth(line, Number(line.maxWidth || columnWidth), blockTextAlign);
+      }
+    } else if (block.blockType === "paragraph" && blockLines.length > 1 && blockTextAlign === "justify") {
       for (let index = 0; index < blockLines.length - 1; index += 1) {
-        justifyLineToWidth(blockLines[index], columnWidth);
+        justifyLineToWidth(blockLines[index], Number(blockLines[index].maxWidth || columnWidth));
+      }
+    }
+    for (const line of blockLines) {
+      const dropCapFragment = line.fragments.find((fragment) => /dropcap/.test(String(fragment.styleToken || ""))) || null;
+      if (!dropCapFragment) continue;
+      for (const fragment of line.fragments) {
+        if (fragment === dropCapFragment) {
+          fragment.baselineY = line.y + fragment.font.size;
+          continue;
+        }
+        const shift = Math.max(0, Math.round((line.height - fragment.font.lineHeight) * 0.72));
+        fragment.baselineY = line.y + fragment.font.size + shift;
       }
     }
     const blockHeight = blockLines.length
@@ -347,7 +456,7 @@ export function layoutChunk({
     });
     orderedBlockIds.push(block.blockId);
     const style = styles.get(runs[0] ? runs[0].styleToken : "paragraph") || {};
-    const blockGap = style.blockRole === "heading" ? 18 : style.blockRole === "verse" ? 14 : 12;
+    const blockGap = blockMarginBottom || (style.blockRole === "heading" ? 18 : style.blockRole === "verse" ? 14 : 12);
     if (columnCursorY > 0 && (columnCursorY + blockGap) > columnInnerHeight) {
       advanceFlow(blockGap);
     } else {

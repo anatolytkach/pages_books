@@ -40,6 +40,14 @@ function sourceRefMatchesToc(sourceRef, tocItem, inlineIds = []) {
   return Array.isArray(inlineIds) && inlineIds.some((value) => String(value || "").trim() === fragment);
 }
 
+function normalizeLabel(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[^\p{L}\p{N}\s.'’:-]/gu, "")
+    .trim();
+}
+
 function buildTocAnchors(tocItems, chunk) {
   const anchors = [];
   const seen = new Set();
@@ -51,10 +59,21 @@ function buildTocAnchors(tocItems, chunk) {
     const blockMatch = chunk.logicalBlockList.find((block) =>
       sourceRefMatchesToc(block && block.sourceRef, item, block && block.inlineIds)
     ) || null;
+    const labelMatch = blockMatch || chunk.logicalBlockList.find((block) => {
+      const sourceHref = normalizePathTail(block && block.sourceRef && block.sourceRef.href);
+      const tocHref = normalizePathTail(item && (item.spineHref || splitHrefTarget(item && item.href).path));
+      if (!sourceHref || !tocHref) return false;
+      const hrefMatches =
+        sourceHref === tocHref ||
+        sourceHref.endsWith(`/${tocHref}`) ||
+        tocHref.endsWith(`/${sourceHref}`);
+      if (!hrefMatches) return false;
+      return normalizeLabel(block && block.labelHint) === normalizeLabel(item && item.label);
+    }) || null;
     const anchorMatch = blockAnchors.find((anchor) =>
       sourceRefMatchesToc(anchor && anchor.sourceRef, item, anchor && anchor.inlineIds)
     ) || null;
-    const match = blockMatch || (anchorMatch ? { blockId: anchorMatch.blockId } : null);
+    const match = blockMatch || labelMatch || (anchorMatch ? { blockId: anchorMatch.blockId } : null);
     if (!match) continue;
     const key = `${item.id}:${match.blockId}`;
     if (seen.has(key)) continue;
@@ -142,6 +161,17 @@ function normalizeStyleToken(style) {
     fontRole: style.fontRole,
     fontStyle: style.fontStyle,
     fontWeight: style.fontWeight,
+    fontSizeScale: style.fontSizeScale,
+    lineHeightFactor: style.lineHeightFactor,
+    letterSpacingEm: style.letterSpacingEm,
+    trailingSpacingEm: style.trailingSpacingEm,
+    wordSpacingEm: style.wordSpacingEm,
+    textColor: style.textColor,
+    dropCap: style.dropCap,
+    textAlign: style.textAlign,
+    textIndentEm: style.textIndentEm,
+    marginTopEm: style.marginTopEm,
+    marginBottomEm: style.marginBottomEm,
     policyStatus: style.policyStatus,
     policyGaps: style.policyGaps
   };

@@ -62,8 +62,8 @@ async function main() {
   }
 
   const config = {
-    maxCharacters: parseNumber("--maxCharacters", 1200),
-    maxBlocks: parseNumber("--maxBlocks", 24)
+    maxCharacters: parseNumber("--maxCharacters", 64000),
+    maxBlocks: parseNumber("--maxBlocks", 900)
   };
 
   const resolvedInput = resolveInput(input);
@@ -100,9 +100,11 @@ async function main() {
           blockId: block.blockId,
           blockType: block.blockType,
           textLength: block.text.length,
+          labelHint: String(block.text || "").slice(0, 180),
           sourceRef: block.sourceRef,
           linkTargets: block.linkTargets,
           inlineIds: block.inlineIds,
+          blockPresentation: block.blockPresentation,
           styleSignals: block.styleSignals
         })),
         renderLayer: {
@@ -138,9 +140,11 @@ async function main() {
             blockId: block.blockId,
             blockType: block.blockType,
             text: block.text,
+            labelHint: String(block.text || "").slice(0, 180),
             sourceRef: block.sourceRef,
             linkTargets: block.linkTargets,
-            inlineIds: block.inlineIds
+            inlineIds: block.inlineIds,
+            blockPresentation: block.blockPresentation
           }))
         });
 

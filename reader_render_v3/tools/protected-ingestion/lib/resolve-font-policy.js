@@ -13,6 +13,9 @@ function styleVariantFor(styleTokenRecord = {}) {
 
 function policyFamilyCandidates(styleTokenRecord = {}, glyph) {
   const requested = styleTokenRecord.fontFamilyCandidate || glyph.fontFamilyCandidate || "Noto Serif";
+  if (/system-ui|-apple-system|blinkmacsystemfont|segoe ui|roboto|arial/i.test(requested)) {
+    return ["Arial", "Helvetica", "Times New Roman", "Georgia"];
+  }
   if (/noto serif cjk/i.test(requested)) return ["Times New Roman", "Georgia"];
   if (/noto serif/i.test(requested)) return ["Times New Roman", "Georgia"];
   return [requested, "Times New Roman", "Georgia"];
