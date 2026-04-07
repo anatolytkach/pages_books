@@ -117,6 +117,78 @@ function getCurrentChunkGlobalStart(core) {
   );
 }
 
+function splitHrefTarget(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { path: "", fragment: "" };
+  const hashIndex = raw.indexOf("#");
+  if (hashIndex < 0) return { path: raw, fragment: "" };
+  return {
+    path: raw.slice(0, hashIndex),
+    fragment: raw.slice(hashIndex + 1)
+  };
+}
+
+function normalizePathTail(value) {
+  const raw = String(value || "").trim().replace(/\\/g, "/");
+  if (!raw) return "";
+  const noOrigin = raw.replace(/^https?:\/\/[^/]+/i, "");
+  const noLeading = noOrigin.replace(/^\/+/, "");
+  const parts = noLeading.split("/").filter(Boolean);
+  if (!parts.length) return "";
+  const oebpsIndex = parts.lastIndexOf("OEBPS");
+  if (oebpsIndex >= 0) return parts.slice(oebpsIndex).join("/");
+  return parts.join("/");
+}
+
+function sourceRefMatchesToc(sourceRef, tocItem) {
+  const { path, fragment } = splitHrefTarget(tocItem && tocItem.href);
+  const tocHref = normalizePathTail(path);
+  const sourceHref = normalizePathTail(sourceRef && sourceRef.href);
+  if (!tocHref || !sourceHref) return false;
+  const hrefMatches =
+    sourceHref === tocHref ||
+    sourceHref.endsWith(`/${tocHref}`) ||
+    tocHref.endsWith(`/${sourceHref}`);
+  if (!hrefMatches) return false;
+  const nodeId = String(sourceRef && sourceRef.nodeId || "").trim();
+  return !fragment || !nodeId || nodeId === fragment;
+}
+
+function findFallbackTocMatchForChunk(core, localOffset = 0) {
+  if (!core || !core.book || !Array.isArray(core.book.tocItems) || !core.currentChunkModel || !core.currentChunkModel.chunk) {
+    return null;
+  }
+  const blockAnchors = Array.isArray(core.currentChunkModel.chunk.selectionLayer && core.currentChunkModel.chunk.selectionLayer.blockAnchors)
+    ? core.currentChunkModel.chunk.selectionLayer.blockAnchors
+    : [];
+  const orderedAnchors = blockAnchors
+    .filter(Boolean)
+    .slice()
+    .sort((left, right) => Number(left.start || 0) - Number(right.start || 0));
+  let matchedAnchor = null;
+  for (const anchor of orderedAnchors) {
+    const start = Number(anchor.start || 0);
+    if (start <= Number(localOffset || 0)) {
+      matchedAnchor = anchor;
+    } else {
+      break;
+    }
+  }
+  matchedAnchor = matchedAnchor || orderedAnchors[0] || null;
+  if (!matchedAnchor || !matchedAnchor.sourceRef) return null;
+  const tocItem = core.book.tocItems.find((item) => sourceRefMatchesToc(matchedAnchor.sourceRef, item)) || null;
+  if (!tocItem) return null;
+  return {
+    tocId: tocItem.id,
+    label: tocItem.label || tocItem.id || "",
+    href: tocItem.href || "",
+    blockBoundary: {
+      startOffset: Number(matchedAnchor.start || 0),
+      endOffset: Number(matchedAnchor.end || (Number(matchedAnchor.start || 0) + 1))
+    }
+  };
+}
+
 function buildApproximateFocusedAnnotationRect(core, annotation, page) {
   if (!annotation || !page || !core.currentLayout || !core.currentChunkModel || !core.currentChunkModel.chunk) return null;
   const startGlobal = annotation.rangeDescriptor && annotation.rangeDescriptor.start
@@ -365,25 +437,74 @@ export class ProtectedReaderRuntimeCore {
 
   async goToToc({ tocId, annotations = [] }) {
     const tocItem = (this.book && this.book.tocItems || []).find((item) => item.id === tocId) || null;
-    const chunkIndex = findChunkIndexForToc(this.book.manifest, this.book.locations, tocItem);
-    if (chunkIndex < 0) throw new Error(`TOC item ${tocId} has no mapped chunk.`);
-    const globalOffset = findGlobalOffsetForToc(this.book.manifest, this.book.locations, tocItem);
-    const chunkLocation = this.book.locations && Array.isArray(this.book.locations.chunks)
+    let chunkIndex = findChunkIndexForToc(this.book.manifest, this.book.locations, tocItem);
+    let globalOffset = findGlobalOffsetForToc(this.book.manifest, this.book.locations, tocItem);
+    let chunkLocation = this.book.locations && Array.isArray(this.book.locations.chunks)
       ? this.book.locations.chunks[chunkIndex] || null
       : null;
-    const tocAnchor = chunkLocation && Array.isArray(chunkLocation.tocAnchors)
-      ? chunkLocation.tocAnchors.find((anchor) =>
-          anchor && (anchor.tocId === tocId || anchor.href === (tocItem && tocItem.href))
-        ) || null
-      : null;
-    const blockBoundary = chunkLocation && Array.isArray(chunkLocation.blockBoundaries)
-      ? chunkLocation.blockBoundaries.find((boundary) =>
-          boundary && (
-            boundary.blockId === (tocAnchor && tocAnchor.blockId) ||
-            boundary.locationId === (tocAnchor && tocAnchor.locationId)
-          )
-        ) || null
-      : null;
+    let blockBoundary = null;
+
+    if ((chunkIndex < 0 || globalOffset == null) && tocItem) {
+      for (let index = 0; index < this.book.manifest.chunks.length; index += 1) {
+        const candidateModel = await loadProtectedChunkModel(this.book, index);
+        const blockAnchors = Array.isArray(candidateModel && candidateModel.chunk && candidateModel.chunk.selectionLayer && candidateModel.chunk.selectionLayer.blockAnchors)
+          ? candidateModel.chunk.selectionLayer.blockAnchors
+          : [];
+        const logicalBlocks = Array.isArray(candidateModel && candidateModel.chunk && candidateModel.chunk.logicalBlockList)
+          ? candidateModel.chunk.logicalBlockList
+          : [];
+        const matchedBlockAnchor = blockAnchors.find((anchor) => sourceRefMatchesToc(anchor && anchor.sourceRef, tocItem)) || null;
+        const matchedLogicalBlock = logicalBlocks.find((block) => sourceRefMatchesToc(block && block.sourceRef, tocItem)) || null;
+        const matchedSourceRef = (candidateModel.chunk.sourceRefs || []).find((sourceRef) => sourceRefMatchesToc(sourceRef, tocItem)) || null;
+        if (!matchedBlockAnchor && !matchedLogicalBlock && !matchedSourceRef) continue;
+        chunkIndex = index;
+        chunkLocation = candidateModel.chunkLocation || (
+          this.book.locations && Array.isArray(this.book.locations.chunks)
+            ? this.book.locations.chunks[index] || null
+            : null
+        );
+        blockBoundary = matchedBlockAnchor
+          ? {
+              startOffset: Number(matchedBlockAnchor.start || 0),
+              endOffset: Number(matchedBlockAnchor.end || (Number(matchedBlockAnchor.start || 0) + 1))
+            }
+          : matchedLogicalBlock
+            ? {
+                startOffset: 0,
+                endOffset: Number(matchedLogicalBlock.textLength || 1)
+              }
+            : null;
+        globalOffset = chunkLocation
+          ? Number(chunkLocation.startOffset || 0) + Number(blockBoundary ? blockBoundary.startOffset : 0)
+          : Number(candidateModel.chunk.startOffset || 0);
+        break;
+      }
+    }
+
+    if (chunkIndex < 0) throw new Error(`TOC item ${tocId} has no mapped chunk.`);
+    if (!chunkLocation) {
+      chunkLocation = this.book.locations && Array.isArray(this.book.locations.chunks)
+        ? this.book.locations.chunks[chunkIndex] || null
+        : null;
+    }
+    if (globalOffset == null) {
+      globalOffset = chunkLocation ? Number(chunkLocation.startOffset || 0) : 0;
+    }
+    if (!blockBoundary) {
+      const tocAnchor = chunkLocation && Array.isArray(chunkLocation.tocAnchors)
+        ? chunkLocation.tocAnchors.find((anchor) =>
+            anchor && (anchor.tocId === tocId || anchor.href === (tocItem && tocItem.href))
+          ) || null
+        : null;
+      blockBoundary = chunkLocation && Array.isArray(chunkLocation.blockBoundaries)
+        ? chunkLocation.blockBoundaries.find((boundary) =>
+            boundary && (
+              boundary.blockId === (tocAnchor && tocAnchor.blockId) ||
+              boundary.locationId === (tocAnchor && tocAnchor.locationId)
+            )
+          ) || null
+        : null;
+    }
     this.focusedTocTarget = {
       tocId,
       label: tocItem && tocItem.label ? tocItem.label : "",
@@ -775,9 +896,22 @@ export class ProtectedReaderRuntimeCore {
     }
     const chunk = this.currentChunkModel.chunk;
     const location = this.currentChunkModel.chunkLocation;
-    const activeAnchor = page
-      ? getActiveTocAnchorForPosition(this.book.locations, this.currentChunkIndex, activeOffset)
+    const derivedActiveAnchor = page
+      ? (
+          getActiveTocAnchorForPosition(this.book.locations, this.currentChunkIndex, activeOffset) ||
+          findFallbackTocMatchForChunk(this, activeOffset)
+        )
       : null;
+    const focusedTocAnchor = page && this.focusedTocTarget &&
+      Number(this.focusedTocTarget.startGlobal || 0) >= Number(page.globalStartOffset || 0) &&
+      Number(this.focusedTocTarget.startGlobal || 0) < Number(page.globalEndOffset || 0)
+        ? {
+            tocId: this.focusedTocTarget.tocId || "",
+            label: this.focusedTocTarget.label || "",
+            href: ""
+          }
+        : null;
+    const activeAnchor = focusedTocAnchor || derivedActiveAnchor;
     const chunkSummary = {
       chunkId: chunk.chunkId,
       order: this.currentChunkIndex + 1,

@@ -14,7 +14,10 @@ const HOST_STATE = {
   pollTimer: null,
   turnCleanupTimer: null,
   loadingCount: 0,
-  bookmarks: []
+  bookmarks: [],
+  lastTocSignature: "",
+  lastTocActiveId: "",
+  lastTocCount: 0
 };
 
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
@@ -501,9 +504,40 @@ function renderStatus(summary) {
 function renderToc(summary) {
   const tocView = document.getElementById("tocView");
   if (!tocView) return;
+  const items = Array.isArray(summary && summary.tocItems) ? summary.tocItems : [];
+  const activeItem = items.find((item) => item && item.active);
+  const activeId = activeItem && activeItem.id ? String(activeItem.id) : "";
+  const signature = items.map((item) => {
+    const id = item && item.id ? String(item.id) : "";
+    const label = item && item.label ? String(item.label) : "";
+    const href = item && item.href ? String(item.href) : "";
+    return `${id}|${label}|${href}`;
+  }).join("||");
+  const existingLinks = tocView.querySelectorAll("a.toc_link[data-toc-id]");
+  if (
+    signature &&
+    HOST_STATE.lastTocSignature === signature &&
+    HOST_STATE.lastTocCount === items.length &&
+    existingLinks.length === items.length
+  ) {
+    const previousActiveId = HOST_STATE.lastTocActiveId || "";
+    if (previousActiveId !== activeId) {
+      if (previousActiveId) {
+        const previousLink = tocView.querySelector(`a.toc_link[data-toc-id="${CSS.escape(previousActiveId)}"]`);
+        const previousItemNode = previousLink && previousLink.closest("li");
+        if (previousItemNode) previousItemNode.classList.remove("currentChapter");
+      }
+      if (activeId) {
+        const nextLink = tocView.querySelector(`a.toc_link[data-toc-id="${CSS.escape(activeId)}"]`);
+        const nextItemNode = nextLink && nextLink.closest("li");
+        if (nextItemNode) nextItemNode.classList.add("currentChapter");
+      }
+    }
+    HOST_STATE.lastTocActiveId = activeId;
+    return;
+  }
   tocView.replaceChildren();
   const list = document.createElement("ul");
-  const items = Array.isArray(summary && summary.tocItems) ? summary.tocItems : [];
   for (const item of items) {
     const li = document.createElement("li");
     li.className = "list_item";
@@ -522,6 +556,9 @@ function renderToc(summary) {
     list.append(li);
   }
   tocView.append(list);
+  HOST_STATE.lastTocSignature = signature;
+  HOST_STATE.lastTocActiveId = activeId;
+  HOST_STATE.lastTocCount = items.length;
 }
 
 function buildBookmarkLabel(bookmark) {

@@ -70,6 +70,37 @@ function buildTokenSlices(segment, wordBoundaryModel) {
   }];
 }
 
+function justifyLineToWidth(line, targetWidth) {
+  if (!line || !Array.isArray(line.fragments) || line.fragments.length < 2) return;
+  const currentWidth = Number(line.width || 0);
+  const availableExtra = Math.round(Number(targetWidth || 0) - currentWidth);
+  if (!Number.isFinite(availableExtra) || availableExtra <= 6) return;
+  const gapFragments = line.fragments.filter((fragment) =>
+    fragment &&
+    fragment.tokenKind === "gap" &&
+    Number(fragment.width || 0) > 0.5
+  );
+  if (!gapFragments.length) return;
+  const extraPerGap = availableExtra / gapFragments.length;
+  let offsetX = 0;
+  for (const fragment of line.fragments) {
+    fragment.x += offsetX;
+    if (gapFragments.includes(fragment)) {
+      fragment.width += extraPerGap;
+      if (Array.isArray(fragment.charPositions) && fragment.charPositions.length > 1) {
+        const lastIndex = fragment.charPositions.length - 1;
+        fragment.charPositions = fragment.charPositions.map((value, index) => {
+          if (index === 0) return value;
+          const ratio = index / lastIndex;
+          return value + (extraPerGap * ratio);
+        });
+      }
+      offsetX += extraPerGap;
+    }
+  }
+  line.width = currentWidth + availableExtra;
+}
+
 function resolveMetricsBackend({ ctx, renderMode, metricsMode, shapeRegistry }) {
   if (shapeRegistry && !(renderMode === "shape" && metricsMode === "text")) {
     return getShapeMetricsBackend(shapeRegistry);
@@ -245,7 +276,7 @@ export function layoutChunk({
         font,
         tokenKind: token.kind,
         sourceRef,
-        x: padding + currentWidth,
+        x: line.x + currentWidth,
         y: line.y,
         width: widthPx,
         height: font.lineHeight,
@@ -292,6 +323,11 @@ export function layoutChunk({
 
     commitLine();
     const blockLines = lines.filter((line) => line.blockId === block.blockId);
+    if (block.blockType === "paragraph" && blockLines.length > 1) {
+      for (let index = 0; index < blockLines.length - 1; index += 1) {
+        justifyLineToWidth(blockLines[index], columnWidth);
+      }
+    }
     const blockHeight = blockLines.length
       ? (blockLines[blockLines.length - 1].y + blockLines[blockLines.length - 1].height) - blockTop
       : 0;

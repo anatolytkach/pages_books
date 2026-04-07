@@ -5,6 +5,11 @@ const { chromium } = require("/tmp/reader_render_v3_pw/node_modules/playwright-c
 const URL =
   process.argv.find((item) => item.startsWith("--url="))?.slice("--url=".length) ||
   "http://127.0.0.1:8790/reader/?id=19686&reader=protected&protectedUx=old-shell&protectedDrive=disabled&protectedAutomation=1&renderMode=shape&metricsMode=shape";
+const INDEXES = (() => {
+  const raw = process.argv.find((item) => item.startsWith("--indexes="))?.slice("--indexes=".length) || "";
+  if (!raw) return [1, 2, 3, 4];
+  return raw.split(",").map((value) => Number(value.trim())).filter((value) => Number.isInteger(value) && value >= 0);
+})();
 
 async function main() {
   const browser = await chromium.launch({
@@ -29,6 +34,26 @@ async function main() {
       const frame = document.querySelector("#protectedOldShellFrame");
       const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
       const summary = bridge && bridge.getSummary ? bridge.getSummary() : null;
+      const snapshot = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_STATE__?.currentSnapshot || null : null;
+      const renderPacket = snapshot && snapshot.renderPacket ? snapshot.renderPacket : null;
+      const pageWindow = renderPacket && renderPacket.pageWindow ? renderPacket.pageWindow : null;
+      const layout = renderPacket && renderPacket.layout ? renderPacket.layout : null;
+      const layoutLines = layout && Array.isArray(layout.lines) ? layout.lines : [];
+      const visibleLines = pageWindow
+        ? layoutLines.filter((line) => line && line.lineIndex >= pageWindow.lineStartIndex && line.lineIndex <= pageWindow.lineEndIndex)
+        : [];
+      const firstMeasuredLines = visibleLines
+        .filter((line) => Array.isArray(line.fragments) && line.fragments.length)
+        .slice(0, 4)
+        .map((line) => {
+          const last = line.fragments[line.fragments.length - 1];
+          return {
+            lineIndex: Number(line.lineIndex || 0),
+            left: Math.round(Number(line.x || 0)),
+            width: Math.round(Number(line.width || 0)),
+            right: Math.round(Number((last && last.x) || 0) + Number((last && last.width) || 0))
+          };
+        });
       return summary ? {
         page: summary.globalPageLabel,
         chapter: summary.chapterLabel,
@@ -36,6 +61,12 @@ async function main() {
         offset: summary.globalOffsetLabel,
         pageStart: summary.pageGlobalStartOffset,
         pageEnd: summary.pageGlobalEndOffset,
+        viewportWidth: summary.viewportWidth,
+        columnCount: summary.columnCount,
+        lineRange: summary.currentPageLineRange,
+        lineCount: summary.currentPageLineCount,
+        layoutFingerprint: summary.pageLayoutFingerprint,
+        measuredLines: firstMeasuredLines,
         focusCount: summary.focusHighlightCount,
         activeToc: (summary.tocItems || []).filter((item) => item.active).map((item) => item.label)
       } : null;
@@ -74,13 +105,12 @@ async function main() {
 
   const report = [];
   report.push({ step: "start", summary: await getSummary() });
-  report.push({ step: "toc-2", ...(await clickToc(1)) });
-  report.push({ step: "toc-3", ...(await clickToc(2)) });
-  report.push({ step: "toc-4", ...(await clickToc(3)) });
-  report.push({ step: "toc-5", ...(await clickToc(4)) });
-  report.push({ step: "direct-toc-3", summary: await bridgeGoToToc("toc-3") });
-  report.push({ step: "direct-toc-4", summary: await bridgeGoToToc("toc-4") });
-  report.push({ step: "direct-toc-5", summary: await bridgeGoToToc("toc-5") });
+  for (const index of INDEXES) {
+    report.push({ step: `toc-${index + 1}`, ...(await clickToc(index)) });
+  }
+  for (const index of INDEXES) {
+    report.push({ step: `direct-toc-${index + 1}`, summary: await bridgeGoToToc(`toc-${index + 1}`) });
+  }
 
   console.log(JSON.stringify(report, null, 2));
   await browser.close();
