@@ -412,11 +412,6 @@ body[data-shell-mode="embedded-old-shell"] #overlay-canvas {
   left: 0;
 }
 
-html[data-theme="dark"] body[data-shell-mode="embedded-old-shell"] #reader-canvas,
-html[data-theme="dark"] body[data-shell-mode="embedded-old-shell"] #overlay-canvas {
-  filter: invert(0.92) hue-rotate(180deg);
-}
-
 body[data-shell-mode="embedded-old-shell"] .runtime-note {
   display: none;
 }

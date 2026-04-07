@@ -110,6 +110,25 @@ export function buildSelectionResult({ chunkModel, layout, selectionState }) {
 
   const rawStartOffset = normalized.start.offset;
   const rawEndOffset = normalized.end.offset;
+  if (normalized.isCollapsed) {
+    return {
+      selectionType: "caret",
+      selectionMode: "raw-caret",
+      highlightMode: "none",
+      isCollapsed: true,
+      blockIds: [],
+      selectedBlocks: 0,
+      selectedLines: 0,
+      selectedChars: 0,
+      rawStartOffset,
+      rawEndOffset,
+      startOffset: rawStartOffset,
+      endOffset: rawEndOffset,
+      start: normalized.start,
+      end: normalized.end,
+      anchors: []
+    };
+  }
   const snapped = snapSelectionOffsets(chunkModel.wordBoundaryModel, rawStartOffset, rawEndOffset);
   const startOffset = snapped.startOffset;
   const endOffset = snapped.endOffset;

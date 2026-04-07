@@ -80,9 +80,9 @@ export function renderChunkToCanvas({
     document.documentElement.dataset.theme === "dark"
       ? "dark"
       : "light";
-  const defaultInk = currentTheme === "dark" ? "#e7edf6" : "#1a0dab";
+  const defaultInk = currentTheme === "dark" ? "#ffffff" : "#000000";
   const ctx = clearCanvas(canvas, layout.width, viewportHeight);
-  ctx.fillStyle = "#fcfaf8";
+  ctx.fillStyle = currentTheme === "dark" ? "#101926" : "#fcfaf8";
   ctx.fillRect(0, 0, layout.width, viewportHeight);
   ctx.save();
   ctx.translate(0, translateY);

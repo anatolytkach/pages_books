@@ -6,7 +6,7 @@ export function renderGlyphOps(ctx, glyphOps, shapeRegistry, options = {}) {
       ? shapeRegistry.getPath2D(shapeRecord)
       : null;
     ctx.save();
-    ctx.fillStyle = op.fillStyle || defaultFillStyle;
+    ctx.fillStyle = defaultFillStyle;
     if (shapeRecord && shapeRecord.primitiveType === "space") {
       ctx.restore();
       continue;

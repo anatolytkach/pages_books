@@ -120,7 +120,19 @@ const state = {
   fontScale: 1,
   renderMode: "shape",
   metricsMode: "shape",
-  debugGeometry: false
+  debugGeometry: false,
+  pointerGesture: {
+    active: false,
+    selectionStarted: false,
+    pointerId: null,
+    shiftKey: false,
+    startClientX: 0,
+    startClientY: 0,
+    startCanvasPoint: null,
+    moveScheduled: false,
+    pendingMovePoint: null
+  },
+  pointerRequestChain: Promise.resolve()
 };
 
 if (isEmbeddedOldShellMode()) {
@@ -139,6 +151,10 @@ function isDriveUiDisabled() {
 
 function isAutomationSafeMode() {
   return !!(state.entryConfig && state.entryConfig.automationSafe);
+}
+
+function supportsPointerEvents() {
+  return typeof window !== "undefined" && typeof window.PointerEvent !== "undefined";
 }
 
 function getCurrentBookAuthor() {
@@ -190,6 +206,7 @@ function applyEmbeddedTheme(theme) {
   state.theme = theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.theme = state.theme;
   document.body.dataset.theme = state.theme;
+  refreshCanvas();
   notifyEmbeddedBridge();
 }
 
@@ -497,6 +514,13 @@ function getViewportConfig() {
 }
 
 function getSelectionBounds() {
+  const pageWindow =
+    state.currentSnapshot &&
+    state.currentSnapshot.renderPacket &&
+    state.currentSnapshot.renderPacket.pageWindow
+      ? state.currentSnapshot.renderPacket.pageWindow
+      : null;
+  const pageTop = pageWindow ? Number(pageWindow.top || 0) : 0;
   const highlights =
     state.currentSnapshot &&
     state.currentSnapshot.renderPacket &&
@@ -511,9 +535,9 @@ function getSelectionBounds() {
   for (const highlight of highlights) {
     if (!highlight) continue;
     left = Math.min(left, Number(highlight.x || 0));
-    top = Math.min(top, Number(highlight.y || 0));
+    top = Math.min(top, Number(highlight.y || 0) - pageTop);
     right = Math.max(right, Number(highlight.x || 0) + Number(highlight.width || 0));
-    bottom = Math.max(bottom, Number(highlight.y || 0) + Number(highlight.height || 0));
+    bottom = Math.max(bottom, Number(highlight.y || 0) - pageTop + Number(highlight.height || 0));
   }
   if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(right) || !Number.isFinite(bottom)) {
     return null;
@@ -1136,6 +1160,145 @@ async function handleMouseDown(event) {
     x: point.x,
     y: point.y,
     shiftKey: event.shiftKey
+  });
+}
+
+function resetPointerGesture() {
+  state.pointerGesture = {
+    active: false,
+    selectionStarted: false,
+    pointerId: null,
+    shiftKey: false,
+    startClientX: 0,
+    startClientY: 0,
+    startCanvasPoint: null,
+    moveScheduled: false,
+    pendingMovePoint: null
+  };
+}
+
+function enqueuePointerRequest(task) {
+  const next = state.pointerRequestChain
+    .catch(() => {})
+    .then(task);
+  state.pointerRequestChain = next.catch(() => {});
+  return next;
+}
+
+function schedulePointerMove(point) {
+  const gesture = state.pointerGesture;
+  if (!gesture.active) return;
+  gesture.pendingMovePoint = point;
+  if (gesture.moveScheduled) return;
+  gesture.moveScheduled = true;
+  enqueuePointerRequest(async () => {
+    while (gesture.active && gesture.pendingMovePoint) {
+      const nextPoint = gesture.pendingMovePoint;
+      gesture.pendingMovePoint = null;
+      await requestAndApply("pointerMove", {
+        x: nextPoint.x,
+        y: nextPoint.y
+      });
+    }
+    gesture.moveScheduled = false;
+  }).catch((error) => {
+    gesture.moveScheduled = false;
+    console.error(error);
+    setStatus(error.message || String(error), "error");
+  });
+}
+
+function handlePointerDown(event) {
+  if (!state.currentSnapshot) return;
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  event.preventDefault();
+  if (elements.canvas.setPointerCapture && event.pointerId != null) {
+    try {
+      elements.canvas.setPointerCapture(event.pointerId);
+    } catch (_) {}
+  }
+  state.pointerGesture = {
+    active: true,
+    selectionStarted: true,
+    pointerId: event.pointerId ?? "mouse",
+    shiftKey: !!event.shiftKey,
+    startClientX: Number(event.clientX || 0),
+    startClientY: Number(event.clientY || 0),
+    startCanvasPoint: getCanvasPoint(event)
+  };
+  const startPoint = state.pointerGesture.startCanvasPoint;
+  enqueuePointerRequest(async () => {
+    await requestAndApply("pointerDown", {
+      x: startPoint.x,
+      y: startPoint.y,
+      shiftKey: !!event.shiftKey
+    });
+  }).catch((error) => {
+    console.error(error);
+    setStatus(error.message || String(error), "error");
+  });
+}
+
+function handlePointerMove(event) {
+  if (!state.currentSnapshot) return;
+  const gesture = state.pointerGesture;
+  if (!gesture.active) return;
+  if (gesture.pointerId != null && event.pointerId != null && gesture.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  const point = getCanvasPoint(event);
+  schedulePointerMove(point);
+}
+
+function handlePointerUp(event) {
+  if (!state.currentSnapshot) return;
+  const gesture = state.pointerGesture;
+  if (!gesture.active) return;
+  if (gesture.pointerId != null && event.pointerId != null && gesture.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  const point = getCanvasPoint(event);
+  if (elements.canvas.releasePointerCapture && event.pointerId != null) {
+    try {
+      elements.canvas.releasePointerCapture(event.pointerId);
+    } catch (_) {}
+  }
+  resetPointerGesture();
+  enqueuePointerRequest(async () => {
+    await requestAndApply("pointerUp", {
+      x: point.x,
+      y: point.y
+    });
+  }).catch((error) => {
+    console.error(error);
+    setStatus(error.message || String(error), "error");
+  });
+}
+
+function handleMouseGestureStart(event) {
+  if (state.pointerGesture.active) return;
+  handlePointerDown({
+    ...event,
+    pointerType: "mouse",
+    pointerId: "mouse"
+  });
+}
+
+function handleMouseGestureMove(event) {
+  const gesture = state.pointerGesture;
+  if (!gesture.active || (gesture.pointerId !== "mouse" && gesture.pointerId !== null)) return;
+  handlePointerMove({
+    ...event,
+    pointerType: "mouse",
+    pointerId: "mouse"
+  });
+}
+
+function handleMouseGestureEnd(event) {
+  const gesture = state.pointerGesture;
+  if (!gesture.active || (gesture.pointerId !== "mouse" && gesture.pointerId !== null)) return;
+  handlePointerUp({
+    ...event,
+    pointerType: "mouse",
+    pointerId: "mouse"
   });
 }
 
@@ -2215,26 +2378,24 @@ async function boot() {
     }
   });
 
-  elements.canvas.addEventListener("mousedown", (event) => {
-    if (event.button !== 0) return;
-    handleMouseDown(event).catch((error) => {
-      console.error(error);
-      setStatus(error.message || String(error), "error");
+  if (supportsPointerEvents()) {
+    elements.canvas.addEventListener("pointerdown", handlePointerDown);
+    elements.canvas.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", () => {
+      resetPointerGesture();
     });
-  });
-  elements.canvas.addEventListener("mousemove", (event) => {
-    handleMouseMove(event).catch((error) => {
-      console.error(error);
-      setStatus(error.message || String(error), "error");
+  } else {
+    elements.canvas.addEventListener("mousedown", (event) => {
+      if (event.button !== 0) return;
+      handleMouseGestureStart(event);
     });
-  });
-  window.addEventListener("mouseup", (event) => {
-    if (event.button !== 0) return;
-    handleMouseUp(event).catch((error) => {
-      console.error(error);
-      setStatus(error.message || String(error), "error");
+    elements.canvas.addEventListener("mousemove", handleMouseGestureMove);
+    window.addEventListener("mouseup", (event) => {
+      if (event.button !== 0) return;
+      handleMouseGestureEnd(event);
     });
-  });
+  }
 
   let viewportSyncTimer = null;
   const scheduleViewportSync = () => {

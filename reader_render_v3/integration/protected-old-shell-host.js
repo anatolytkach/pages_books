@@ -19,7 +19,11 @@ const HOST_STATE = {
   lastTocActiveId: "",
   lastTocCount: 0,
   fontScaleSynced: false,
-  lastAppliedFontScale: 0
+  lastAppliedFontScale: 0,
+  selectionToolbarTimer: null,
+  lastSelectionSignature: "",
+  selectionStableCount: 0,
+  pendingSelectionToolbar: null
 };
 
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
@@ -154,10 +158,17 @@ function installStyles() {
       border: 0;
       background: transparent;
       color: transparent;
-      cursor: pointer;
+      cursor: default;
+      pointer-events: none;
     }
     .protected-nav-edge.prev { left: 0; }
     .protected-nav-edge.next { right: 0; }
+    @media (hover: none) and (pointer: coarse) {
+      .protected-nav-edge {
+        pointer-events: auto;
+        cursor: pointer;
+      }
+    }
     #protectedShellActionBar {
       position: fixed;
       left: 50%;
@@ -917,6 +928,19 @@ function hideSelectionToolbar() {
   toolbar.setAttribute("aria-hidden", "true");
 }
 
+function scheduleSelectionToolbarFromSummary(frame, fallbackX = 160, fallbackY = 160) {
+  if (HOST_STATE.selectionToolbarTimer) {
+    window.clearTimeout(HOST_STATE.selectionToolbarTimer);
+    HOST_STATE.selectionToolbarTimer = null;
+  }
+  HOST_STATE.selectionToolbarTimer = window.setTimeout(() => {
+    HOST_STATE.selectionToolbarTimer = null;
+    const summary = getBridgeSummaryFromFrame(frame);
+    if (!summary || !summary.selectionActive || Number(summary.selectedChars || 0) <= 0) return;
+    showSelectionToolbarForSummary(summary, fallbackX, fallbackY);
+  }, 40);
+}
+
 function showSelectionToolbar(clientX, clientY) {
   const toolbar = document.getElementById("selectionToolbar");
   if (!toolbar) return;
@@ -1061,6 +1085,42 @@ function attachProtectedSurfaceInteractions(frame) {
       event.stopPropagation();
     }, true);
     doc.addEventListener("pointerdown", () => hideSelectionToolbar(), true);
+    doc.addEventListener("pointerdown", () => {
+      HOST_STATE.pendingSelectionToolbar = null;
+    }, true);
+    doc.addEventListener("mouseup", (event) => {
+      if (event.button !== 0) return;
+      const target = event.target;
+      const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
+      if (!inProtectedSurface) return;
+      HOST_STATE.pendingSelectionToolbar = {
+        x: event.clientX,
+        y: event.clientY,
+        source: "mouse"
+      };
+    }, true);
+    doc.addEventListener("pointerup", (event) => {
+      if (event.button != null && event.button !== 0) return;
+      const target = event.target;
+      const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
+      if (!inProtectedSurface) return;
+      HOST_STATE.pendingSelectionToolbar = {
+        x: event.clientX,
+        y: event.clientY,
+        source: "pointer"
+      };
+    }, true);
+    doc.addEventListener("touchend", (event) => {
+      const target = event.target;
+      const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
+      if (!inProtectedSurface) return;
+      const touch = event.changedTouches && event.changedTouches[0] ? event.changedTouches[0] : null;
+      HOST_STATE.pendingSelectionToolbar = {
+        x: touch ? touch.clientX : 160,
+        y: touch ? touch.clientY : 160,
+        source: "touch"
+      };
+    }, true);
     installTouchSwipe(doc);
   };
   frame.addEventListener("load", wire);
@@ -1104,9 +1164,35 @@ function updateFromSummary(summary) {
   syncTopControls();
   updateBookmarkControl(summary);
   buildEngineBadge();
+  const selectionSignature =
+    summary.selectionActive && Number(summary.selectedChars || 0) > 0 && summary.selectionBounds
+      ? [
+          Number(summary.selectionBounds.left || 0).toFixed(1),
+          Number(summary.selectionBounds.top || 0).toFixed(1),
+          Number(summary.selectionBounds.right || 0).toFixed(1),
+          Number(summary.selectionBounds.bottom || 0).toFixed(1),
+          Number(summary.selectedChars || 0)
+        ].join(":")
+      : "";
+  if (!selectionSignature) {
+    HOST_STATE.lastSelectionSignature = "";
+    HOST_STATE.selectionStableCount = 0;
+  } else if (selectionSignature === HOST_STATE.lastSelectionSignature) {
+    HOST_STATE.selectionStableCount += 1;
+  } else {
+    HOST_STATE.lastSelectionSignature = selectionSignature;
+    HOST_STATE.selectionStableCount = 1;
+  }
   const actionStatus = document.getElementById("protectedShellActionStatus");
   if (actionStatus) {
     actionStatus.textContent = summary.statusText || `Page ${summary.globalPageLabel || summary.pageLabel || "n/a"}`;
+  }
+  const toolbar = document.getElementById("selectionToolbar");
+  const toolbarHidden = !toolbar || toolbar.classList.contains("hidden") || toolbar.getAttribute("aria-hidden") === "true";
+  if (toolbarHidden && HOST_STATE.selectionStableCount >= 2 && selectionSignature && HOST_STATE.pendingSelectionToolbar) {
+    const pending = HOST_STATE.pendingSelectionToolbar;
+    HOST_STATE.pendingSelectionToolbar = null;
+    scheduleSelectionToolbarFromSummary(HOST_STATE.frame, pending.x, pending.y);
   }
 }
 
@@ -1125,14 +1211,17 @@ async function invokeBridge(method, ...args) {
   if (!bridge || typeof bridge[method] !== "function") {
     throw new Error(`Protected bridge method unavailable: ${method}`);
   }
-  setShellLoading(true);
+  const fastUiMethod = method === "setTheme";
+  if (!fastUiMethod) setShellLoading(true);
   try {
     const result = await bridge[method](...args);
     updateFromSummary(result);
     return result;
   } finally {
-    HOST_STATE.loadingCount = 0;
-    setShellLoading(false);
+    if (!fastUiMethod) {
+      HOST_STATE.loadingCount = 0;
+      setShellLoading(false);
+    }
   }
 }
 
@@ -1276,7 +1365,10 @@ function bindShellControls() {
   theme && theme.addEventListener("click", async (event) => {
     event.preventDefault();
     const currentTheme = HOST_STATE.lastSummary && HOST_STATE.lastSummary.theme === "dark" ? "dark" : "light";
-    await invokeBridge("setTheme", currentTheme === "dark" ? "light" : "dark");
+    const nextTheme = currentTheme === "dark" ? "light" : "dark";
+    document.body.classList.toggle("protected-theme-dark", nextTheme === "dark");
+    document.body.classList.toggle("dark-ui", nextTheme === "dark");
+    await invokeBridge("setTheme", nextTheme);
   });
   bookmark && bookmark.addEventListener("click", (event) => {
     event.preventDefault();
