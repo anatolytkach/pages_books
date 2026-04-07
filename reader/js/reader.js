@@ -6853,6 +6853,7 @@ if (doc) {
 	}
 
 	function updatePageCount(loc) {
+		if (window.__readerpubProtectedOldShellMode) return;
 		if (!pageCountEl) return;
 		if (!loc) loc = getCurrentLocationSafe();
 		if (!loc) {

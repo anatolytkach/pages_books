@@ -11,7 +11,7 @@ This is the real reader route with an explicit switch, not a replacement of the 
 ## Coexistence model
 
 - old reader remains default and unchanged
-- protected reader is reachable only when explicitly requested
+- protected reader is reachable only when explicitly requested and eligible
 - dev shell remains available separately for isolated debugging
 
 ## Integration files
@@ -98,6 +98,34 @@ Expected result:
 - status reports protected mode unavailable
 - old reader link remains usable
 
+## Internal rollout readiness
+
+Integrated protected mode now includes an explicit internal rollout layer:
+
+- eligibility is checked before protected runtime import
+- rollout policy can allowlist or denylist books
+- `?reader=protected` no longer means "always open protected"
+- ineligible protected requests redirect back to the old reader with a reason
+- worker-unavailable remains fail-closed and does not redirect to a weaker runtime
+
+Useful internal flags:
+
+- `protectedRollout=on|off`
+- `protectedAllowAll=1|0`
+- `protectedBooks=19686,123`
+- `protectedDenyBooks=19686`
+
+Useful internal smoke URLs:
+
+- allowed protected book:
+  - `/books/reader/?id=19686&reader=protected`
+- rollout disabled:
+  - `/books/reader/?id=19686&reader=protected&protectedRollout=off`
+- denylisted:
+  - `/books/reader/?id=19686&reader=protected&protectedDenyBooks=19686`
+- worker unavailable:
+  - `/books/reader/?id=19686&reader=protected&worker=disabled`
+
 ## Still missing before rollout
 
 - production cutover policy
@@ -122,3 +150,31 @@ Integrated protected mode now supports:
 
 These transport actions work on top of protected local-first persistence and do not alter
 the default old-reader route or behavior.
+
+## Published staging behavior
+
+For internal live testing, the protected route is expected on a Pages preview deployment:
+
+- `/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape`
+
+The canonical production route:
+
+- `/books/reader/?id=19686`
+
+remains the old reader default. The published preview route exists only for controlled
+internal rollout checks.
+
+## Old-shell protected-engine mode
+
+There is now a second controlled protected open mode intended for UX integration checks:
+
+- `/reader/?id=19686&reader=protected&protectedUx=old-shell&protectedDrive=disabled&protectedAutomation=1&renderMode=shape&metricsMode=shape`
+
+This mode keeps:
+
+- old reader shell as the outer UX
+- protected engine as the embedded reading surface
+
+It exists so browser automation can verify real user-shell behavior without manual
+Drive/OAuth interaction. The embedded protected surface remains worker-backed and
+canvas-only.

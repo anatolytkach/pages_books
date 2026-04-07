@@ -63,8 +63,10 @@ export function renderChunkToCanvas({
     renderMode = "shape",
     glyphOps = [],
     shapeRecords = [],
+    searchHighlights = [],
     selectionHighlights = [],
     annotationHighlights = [],
+    focusHighlights = [],
     noteMarkers = [],
     diagnostics = {}
   } = renderPacket;
@@ -92,9 +94,19 @@ export function renderChunkToCanvas({
     drawHighlightRect(overlay, rect);
   }
 
+  overlay.fillStyle = "rgba(97, 194, 250, 0.36)";
+  for (const rect of searchHighlights || []) {
+    drawHighlightRect(overlay, rect);
+  }
+
   overlay.fillStyle = "rgba(148, 154, 165, 0.24)";
   for (const span of selectionHighlights || []) {
     drawHighlightRect(overlay, span);
+  }
+
+  overlay.fillStyle = "rgba(255, 176, 64, 0.52)";
+  for (const rect of focusHighlights || []) {
+    drawHighlightRect(overlay, rect);
   }
 
   for (const marker of noteMarkers || []) {

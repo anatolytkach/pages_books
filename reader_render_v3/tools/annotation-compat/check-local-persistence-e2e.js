@@ -2,7 +2,17 @@
 
 const { chromium } = require("/tmp/reader_render_v3_pw/node_modules/playwright-core");
 
-const URL = "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
+function getArgValue(name) {
+  for (const item of process.argv.slice(2)) {
+    if (item.startsWith(`--${name}=`)) return item.slice(name.length + 3);
+  }
+  return "";
+}
+
+const URL =
+  getArgValue("url") ||
+  process.env.READER_V3_URL ||
+  "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
 const STORAGE_PREFIX = "reader_render_v3:integration";
 
 async function getMetaMap(page) {
@@ -20,11 +30,49 @@ async function getMetaMap(page) {
   });
 }
 
+async function getPageState(page) {
+  const meta = await getMetaMap(page);
+  return {
+    page: meta["Page"] || "n/a",
+    globalOffset: meta["Global offset"] || "n/a",
+    order: meta["Order"] || "n/a"
+  };
+}
+
+async function waitForStateChange(page, previousState, timeout = 30000) {
+  await page.waitForFunction(
+    ({ previousPage, previousOrder, previousGlobalOffset }) => {
+      const dl = document.querySelector("#runtime-meta");
+      if (!dl) return false;
+      const children = [...dl.children];
+      const values = {};
+      for (let index = 0; index < children.length; index += 2) {
+        const dt = children[index];
+        const dd = children[index + 1];
+        if (dt && dd) values[dt.textContent.trim()] = dd.textContent.trim();
+      }
+      return (
+        (values["Page"] || "") !== previousPage ||
+        (values["Order"] || "") !== previousOrder ||
+        (values["Global offset"] || "") !== previousGlobalOffset
+      );
+    },
+    {
+      previousPage: previousState.page,
+      previousOrder: previousState.order,
+      previousGlobalOffset: previousState.globalOffset
+    },
+    { timeout }
+  );
+}
+
 async function waitReady(page) {
-  await page.waitForSelector("#runtime-meta dt");
   await page.waitForFunction(() => {
-    const status = document.querySelector("#status");
-    return status && /Opened /.test(status.textContent || "");
+    return (
+      window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+      !!document.querySelector("#runtime-meta dt") &&
+      /Opened /.test(document.querySelector("#status")?.textContent || "")
+    );
   });
 }
 
@@ -84,9 +132,10 @@ async function main() {
     if (req.url().includes("/debug/")) debugRequests.push(req.url());
   });
 
-  await page.goto(URL, { waitUntil: "networkidle" });
+  await page.goto(URL, { waitUntil: "domcontentloaded" });
+  await waitReady(page);
   await clearProtectedLocalState(page);
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
   await waitReady(page);
 
   const selected = await ensureRangeSelection(page);
@@ -107,14 +156,12 @@ async function main() {
   });
 
   const afterNoteMeta = await getMetaMap(page);
+  const beforeNextState = await getPageState(page);
   await page.click("#next-page");
-  await page.waitForFunction(() => {
-    const dl = document.querySelector("#runtime-meta");
-    return dl && (dl.textContent || "").includes("2 / 2");
-  });
+  await waitForStateChange(page, beforeNextState);
   const afterNextMeta = await getMetaMap(page);
 
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
   await waitReady(page);
   const afterReloadMeta = await getMetaMap(page);
 
@@ -123,7 +170,7 @@ async function main() {
   reopenPage.on("request", (req) => {
     if (req.url().includes("/debug/")) debugRequests.push(req.url());
   });
-  await reopenPage.goto(URL, { waitUntil: "networkidle" });
+  await reopenPage.goto(URL, { waitUntil: "domcontentloaded" });
   await waitReady(reopenPage);
   const afterReopenMeta = await getMetaMap(reopenPage);
 
@@ -194,10 +241,13 @@ async function main() {
     copyStatus: (copyStatus || "").trim(),
     afterNoteAnnotations: afterNoteMeta["Annotations"],
     afterNextPage: afterNextMeta["Page"],
+    afterNextGlobalOffset: afterNextMeta["Global offset"],
     afterReloadPage: afterReloadMeta["Page"],
+    afterReloadGlobalOffset: afterReloadMeta["Global offset"],
     afterReloadAnnotations: afterReloadMeta["Annotations"],
     afterReloadSource: afterReloadMeta["Reading state source"],
     afterReopenPage: afterReopenMeta["Page"],
+    afterReopenGlobalOffset: afterReopenMeta["Global offset"],
     afterReopenAnnotations: afterReopenMeta["Annotations"],
     bundleSchemaVersion: afterReopenMeta["Bundle schema version"],
     storageBackend: afterReopenMeta["Storage backend"],
@@ -205,6 +255,7 @@ async function main() {
     afterClearAnnotations: afterClearMeta["Annotations"],
     afterClearReadingStateSaved: afterClearMeta["Reading-state saved"],
     afterImportPage: afterImportMeta["Page"],
+    afterImportGlobalOffset: afterImportMeta["Global offset"],
     afterImportAnnotations: afterImportMeta["Annotations"],
     afterImportCompatibility: afterImportMeta["Bundle compatibility"],
     afterSnapshotImportPage: afterSnapshotImportMeta["Page"],

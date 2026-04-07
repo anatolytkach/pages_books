@@ -143,7 +143,19 @@
 (function(){
   const params = new URLSearchParams(location.search);
   const qReaderMode = params.get("reader");
-  if (qReaderMode === "protected") {
+  const qProtectedUx = String(params.get("protectedUx") || params.get("ux") || "").trim().toLowerCase();
+  if (qReaderMode === "protected" && qProtectedUx === "old-shell") {
+    try {
+      const hashId = String(location.hash || "").replace(/^#/, "");
+      window.__readerpubProtectedOldShellMode = true;
+      window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__ = {
+        bookId: String(params.get("id") || params.get("i") || (/^\d+$/.test(hashId) ? hashId : "") || "").trim(),
+        source: String(params.get("source") || "").trim(),
+        entry: String(params.get("entry") || "").trim(),
+        url: window.location.href
+      };
+    } catch (eProtectedShell) {}
+  } else if (qReaderMode === "protected") {
     try {
       var protectedUrl = new URL("/reader_render_v3/integration/protected-reader.html", window.location.origin);
       protectedUrl.search = window.location.search || "";
@@ -194,6 +206,25 @@
         </div>
       </div>`;
     }
+    return;
+  }
+
+  if (window.__readerpubProtectedOldShellMode) {
+    try {
+      window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__ = {
+        bookId: id,
+        source: source || "",
+        entry: entry,
+        url: window.location.href,
+        catalogReturnTarget: catalogReturnTarget,
+        isAutostartReader: isAutostartReader
+      };
+      window.dispatchEvent(
+        new CustomEvent("readerpub:protected-old-shell-config", {
+          detail: window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__
+        })
+      );
+    } catch (eProtectedConfig) {}
     return;
   }
 
@@ -562,6 +593,7 @@
 <!--
 -->
 <!-- <script src="js/hooks/extensions/highlight.js"></script> -->
+<script type="module" src="/reader_render_v3/integration/protected-old-shell-host.js"></script>
 </head>
 <body class="ui-hidden" role="application" aria-label="Reader">
 <div id="container">

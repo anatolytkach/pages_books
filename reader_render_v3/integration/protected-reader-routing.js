@@ -35,8 +35,20 @@ function normalizeSource(url, bookId) {
   return lastSource && lastSource !== "gutenberg" ? lastSource : "";
 }
 
+function resolveReaderBasePath(url) {
+  const hostname = String(url && url.hostname ? url.hostname : "").trim().toLowerCase();
+  const pathname = String(url && url.pathname ? url.pathname : "").trim();
+  if (pathname.startsWith("/reader/")) return "/reader/";
+  if (hostname.endsWith(".pages.dev")) return "/reader/";
+  return "/books/reader/";
+}
+
 export function parseProtectedIntegrationRoute(input = window.location.href) {
-  const url = input instanceof URL ? new URL(input.toString()) : new URL(String(input), window.location.origin);
+  const baseOrigin =
+    typeof window !== "undefined" && window.location && window.location.origin
+      ? window.location.origin
+      : "http://127.0.0.1";
+  const url = input instanceof URL ? new URL(input.toString()) : new URL(String(input), baseOrigin);
   const bookId = normalizeBookId(url);
   const source = normalizeSource(url, bookId);
   const shareState = parseProductionShareState(url);
@@ -44,12 +56,13 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
     String(url.searchParams.get("restoreToken") || "").trim() ||
     String(url.searchParams.get("rt") || "").trim() ||
     "";
+  const readerBasePath = resolveReaderBasePath(url);
   const artifactRoot = bookId
     ? `/reader_render_v3/artifacts/protected-books/${encodeURIComponent(bookId)}`
     : "/reader_render_v3/artifacts/protected-books/19686";
 
-  const oldReaderUrl = new URL("/books/reader/", url.origin);
-  const protectedUrl = new URL("/books/reader/", url.origin);
+  const oldReaderUrl = new URL(readerBasePath, url.origin);
+  const protectedUrl = new URL(readerBasePath, url.origin);
 
   if (bookId) {
     oldReaderUrl.searchParams.set("id", bookId);
@@ -80,17 +93,50 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
   }
 
   const lastCfi = bookId ? String(getStoredValue(`readerpub:lastcfi:${bookId}`) || "").trim() : "";
+  const uxValue = String(
+    url.searchParams.get("protectedUx") ||
+      url.searchParams.get("ux") ||
+      url.searchParams.get("shell") ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+  const driveValue = String(
+    url.searchParams.get("protectedDrive") ||
+      url.searchParams.get("driveMode") ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+  const embeddedValue = String(
+    url.searchParams.get("embedded") ||
+      url.searchParams.get("embeddedMode") ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+  const automationSafe =
+    String(url.searchParams.get("protectedAutomation") || "").trim() === "1" ||
+    String(url.searchParams.get("automationSafe") || "").trim() === "1";
 
   return {
     kind: "protected-reader-integration-route-v1",
     url: url.toString(),
+    query: Object.fromEntries(url.searchParams.entries()),
     bookId,
     source,
     artifactRoot,
     shareState,
     lastCfi,
+    readerBasePath,
     oldReaderUrl: `${oldReaderUrl.pathname}${oldReaderUrl.search}${oldReaderUrl.hash}`,
     protectedReaderUrl: `${protectedUrl.pathname}${protectedUrl.search}${protectedUrl.hash}`,
+    explicitProtectedRequest: String(url.searchParams.get("reader") || "").trim() === "protected",
+    uxShellMode: uxValue === "old-shell" ? "old-shell" : "standalone",
+    embeddedMode: embeddedValue === "old-shell" ? "old-shell" : "none",
+    driveMode:
+      driveValue === "disabled" ? "disabled" : driveValue === "optional" ? "optional" : "full",
+    automationSafe,
     explicitRestoreToken,
     forceWorkerUnavailable: ["disabled", "fail", "broken"].includes(
       String(url.searchParams.get("worker") || url.searchParams.get("protectedWorker") || "")

@@ -85,6 +85,36 @@ export function createProtectedWorkerClient(options = {}) {
       ensureSecureWorker();
       return decorateResult(PROTECTED_WORKER_METHODS.GO_TO_PREV_PAGE, await transport.call(PROTECTED_WORKER_METHODS.GO_TO_PREV_PAGE, payload));
     },
+    async selectAutomationSample(payload) {
+      ensureSecureWorker();
+      return decorateResult(
+        PROTECTED_WORKER_METHODS.SELECT_AUTOMATION_SAMPLE,
+        await transport.call(PROTECTED_WORKER_METHODS.SELECT_AUTOMATION_SAMPLE, payload)
+      );
+    },
+    async setFontScale(payload) {
+      ensureSecureWorker();
+      return decorateResult(
+        PROTECTED_WORKER_METHODS.SET_FONT_SCALE,
+        await transport.call(PROTECTED_WORKER_METHODS.SET_FONT_SCALE, payload)
+      );
+    },
+    async searchBook(payload) {
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.SEARCH_BOOK, await transport.call(PROTECTED_WORKER_METHODS.SEARCH_BOOK, payload));
+    },
+    async searchNextResult(payload) {
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.SEARCH_NEXT_RESULT, await transport.call(PROTECTED_WORKER_METHODS.SEARCH_NEXT_RESULT, payload));
+    },
+    async searchPrevResult(payload) {
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.SEARCH_PREV_RESULT, await transport.call(PROTECTED_WORKER_METHODS.SEARCH_PREV_RESULT, payload));
+    },
+    async clearSearch(payload) {
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.CLEAR_SEARCH, await transport.call(PROTECTED_WORKER_METHODS.CLEAR_SEARCH, payload));
+    },
     async updateRenderConfig(payload) {
       ensureSecureWorker();
       return decorateResult(PROTECTED_WORKER_METHODS.UPDATE_RENDER_CONFIG, await transport.call(PROTECTED_WORKER_METHODS.UPDATE_RENDER_CONFIG, payload));

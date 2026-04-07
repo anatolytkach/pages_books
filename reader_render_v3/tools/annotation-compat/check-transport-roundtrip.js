@@ -2,7 +2,17 @@
 
 const { chromium } = require("/tmp/reader_render_v3_pw/node_modules/playwright-core");
 
-const TARGET_URL = process.env.READER_V3_URL || "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
+function getArgValue(name) {
+  for (const item of process.argv.slice(2)) {
+    if (item.startsWith(`--${name}=`)) return item.slice(name.length + 3);
+  }
+  return "";
+}
+
+const TARGET_URL =
+  getArgValue("url") ||
+  process.env.READER_V3_URL ||
+  "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
 const STORAGE_PREFIX = "reader_render_v3:integration";
 
 async function getMetaMap(page) {
@@ -20,11 +30,58 @@ async function getMetaMap(page) {
   });
 }
 
+async function getPageState(page) {
+  const meta = await getMetaMap(page);
+  return {
+    page: meta["Page"] || "n/a",
+    globalOffset: meta["Global offset"] || "n/a",
+    order: meta["Order"] || "n/a"
+  };
+}
+
+async function waitForStateChange(page, previousState, timeout = 30000) {
+  await page.waitForFunction(
+    ({ previousPage, previousOrder, previousGlobalOffset }) => {
+      const dl = document.querySelector("#runtime-meta");
+      if (!dl) return false;
+      const children = [...dl.children];
+      const values = {};
+      for (let index = 0; index < children.length; index += 2) {
+        const dt = children[index];
+        const dd = children[index + 1];
+        if (dt && dd) values[dt.textContent.trim()] = dd.textContent.trim();
+      }
+      return (
+        (values["Page"] || "") !== previousPage ||
+        (values["Order"] || "") !== previousOrder ||
+        (values["Global offset"] || "") !== previousGlobalOffset
+      );
+    },
+    {
+      previousPage: previousState.page,
+      previousOrder: previousState.order,
+      previousGlobalOffset: previousState.globalOffset
+    },
+    { timeout }
+  );
+}
+
 async function waitReady(page) {
-  await page.waitForSelector("#runtime-meta dt");
   await page.waitForFunction(() => {
-    const status = document.querySelector("#status");
-    return status && /Opened /.test(status.textContent || "");
+    return (
+      window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+      !!document.querySelector("#runtime-meta dt") &&
+      /Opened /.test(document.querySelector("#status")?.textContent || "")
+    );
+  });
+}
+
+async function waitIntegrationReady(page) {
+  await page.waitForFunction(() => {
+    return (
+      window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+      !!document.querySelector("#runtime-meta dt")
+    );
   });
 }
 
@@ -86,9 +143,10 @@ async function main() {
     if (req.url().includes("/debug/")) debugRequests.push(req.url());
   });
 
-  await page.goto(TARGET_URL, { waitUntil: "networkidle" });
+  await page.goto(TARGET_URL, { waitUntil: "domcontentloaded" });
+  await waitIntegrationReady(page);
   await clearProtectedLocalState(page);
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
   await waitReady(page);
 
   const selected = await ensureRangeSelection(page);
@@ -99,8 +157,9 @@ async function main() {
   await page.fill("#note-input", "transport handoff note");
   await page.click("#add-note-highlight");
   await page.waitForFunction(() => /Added note /.test(document.querySelector("#status")?.textContent || ""));
+  const beforeNextState = await getPageState(page);
   await page.click("#next-page");
-  await page.waitForFunction(() => (document.querySelector("#runtime-meta")?.textContent || "").includes("2 / 2"));
+  await waitForStateChange(page, beforeNextState);
 
   await page.click("#export-annotations");
   await page.waitForFunction(() => /Exported protected sync file/.test(document.querySelector("#status")?.textContent || ""));
@@ -171,6 +230,7 @@ async function main() {
     handoffCopiedMatchesTextarea: copiedHandoff.trim() === handoffBeforeDownload.trim(),
     loadedCompatibility: afterLoadMeta["File sync compatibility"],
     importedPage: afterImportMeta["Page"],
+    importedGlobalOffset: afterImportMeta["Global offset"],
     importedAnnotations: afterImportMeta["Annotations"],
     importedSource: afterImportMeta["Reading state source"],
     lastFileTransfer: afterImportMeta["Last file transfer"],

@@ -190,3 +190,9 @@ state. Download/upload workflows are transport edges, not alternate persistence 
 
 Google Drive transport follows the same rule: remote files are copies of the local-first
 protected state, not the primary store used for opening or rendering a book.
+
+## Rollout relationship
+
+Internal rollout readiness is evaluated before protected mode opens. Persisted state and
+Drive availability can influence warnings or import status, but they do not become a
+hard prerequisite for opening an otherwise eligible protected book.

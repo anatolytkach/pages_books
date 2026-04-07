@@ -2,7 +2,17 @@
 
 const { chromium } = require("/tmp/reader_render_v3_pw/node_modules/playwright-core");
 
-const URL = process.env.READER_V3_URL || "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
+function getArgValue(name) {
+  for (const item of process.argv.slice(2)) {
+    if (item.startsWith(`--${name}=`)) return item.slice(name.length + 3);
+  }
+  return "";
+}
+
+const URL =
+  getArgValue("url") ||
+  process.env.READER_V3_URL ||
+  "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
 
 async function getMetaMap(page) {
   return await page.evaluate(() => {
@@ -20,8 +30,13 @@ async function getMetaMap(page) {
 }
 
 async function waitReady(page) {
-  await page.waitForSelector("#runtime-meta dt");
-  await page.waitForFunction(() => /Opened /.test(document.querySelector("#status")?.textContent || ""));
+  await page.waitForFunction(() => {
+    return (
+      window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+      !!document.querySelector("#runtime-meta dt") &&
+      /Opened /.test(document.querySelector("#status")?.textContent || "")
+    );
+  });
 }
 
 async function main() {
@@ -36,7 +51,7 @@ async function main() {
     if (req.url().includes("/debug/")) debugRequests.push(req.url());
   });
 
-  await page.goto(URL, { waitUntil: "networkidle" });
+  await page.goto(URL, { waitUntil: "domcontentloaded" });
   await waitReady(page);
   await page.click("#check-drive-status");
   await page.waitForTimeout(600);

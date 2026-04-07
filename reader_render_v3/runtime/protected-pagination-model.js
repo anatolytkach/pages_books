@@ -39,6 +39,27 @@ export function buildPaginationModel({ chunkModel, layout, viewportHeight, globa
   const lines = layout.lines || [];
   const pages = [];
   const effectiveHeight = Math.max(260, viewportHeight || 640);
+  if (layout && layout.pageSlotCount && lines.some((line) => Number.isInteger(line.pageSlot))) {
+    const grouped = new Map();
+    for (const line of lines) {
+      const slot = Number.isInteger(line.pageSlot) ? line.pageSlot : 0;
+      if (!grouped.has(slot)) grouped.set(slot, []);
+      grouped.get(slot).push(line);
+    }
+    const orderedSlots = [...grouped.keys()].sort((a, b) => a - b);
+    orderedSlots.forEach((slot, index) => {
+      const page = ensurePage(grouped.get(slot) || [], index, effectiveHeight, chunkModel, globalModel);
+      page.top = slot * effectiveHeight;
+      page.pageSlot = slot;
+      pages.push(page);
+    });
+    const pageCount = Math.max(1, pages.length);
+    for (const page of pages) page.pageCount = pageCount;
+    return {
+      viewportHeight: effectiveHeight,
+      pages
+    };
+  }
   let current = [];
   let currentTop = lines.length ? lines[0].y : 0;
 

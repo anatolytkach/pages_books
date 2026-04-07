@@ -19,6 +19,7 @@
 - Google Drive stores a remote copy of the protected sync file
 - apply from Drive is explicit
 - no page rendering or reading lifecycle depends on Drive roundtrips
+- rollout eligibility must not depend on Drive availability
 
 ## Minimal Conflict Policy
 
@@ -38,11 +39,16 @@
 
 ## Live Verification Status
 
-In the current local environment, the integrated protected reader reaches the Drive UI path
-but stops before login because Google Drive is not configured for this build:
+Live internal smoke has now confirmed:
 
-- `/books/shared/drive-sync.js` is loaded
-- `meta[name="google-drive-client-id"]` is present
-- its `content` is empty
+- OAuth path reaches Google correctly once a valid client id is configured
+- upload updates the remote protected sync file
+- download returns `exact` compatibility
+- apply restores local protected state from Drive
 
-So the live barrier is configuration, not reader bootstrap or transport wiring.
+Drive remains an operational dependency only for transport. It is not part of rollout
+eligibility for opening the protected reader.
+
+On published staging routes, Drive UI must remain graceful even when the browser session is
+not authorized. That state is reported as availability/authorization metadata, not as a
+reader-open blocker.

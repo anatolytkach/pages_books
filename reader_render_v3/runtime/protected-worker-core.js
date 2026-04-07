@@ -1,5 +1,9 @@
 import { loadProtectedBook, loadProtectedChunkModel } from "./protected-book-model.js";
-import { findChunkIndexForToc } from "./protected-navigation-model.js";
+import {
+  findChunkIndexForToc,
+  findGlobalOffsetForToc,
+  getActiveTocAnchorForPosition
+} from "./protected-navigation-model.js";
 import { buildPaginationModel, findPageIndexForOffset } from "./protected-pagination-model.js";
 import {
   buildSerializableRange,
@@ -34,9 +38,11 @@ import {
   createReconstructionScope,
   disposeReconstructionScope,
   getReconstructionScopeDiagnostics,
+  reconstructRangeText,
   reconstructSelectionRange
 } from "./protected-text-reconstruction.js";
 import { assertNoForbiddenTextLikeFields } from "./protected-worker-protocol.js";
+import { buildRangeHighlights } from "./protected-selection-model.js";
 
 function summarizeBook(book) {
   return {
@@ -52,12 +58,17 @@ function summarizeBook(book) {
 function summarizeChunk(core) {
   const chunk = core.currentChunkModel.chunk;
   const location = core.currentChunkModel.chunkLocation;
+  const page = core.getCurrentPage();
+  const activeAnchor = page
+    ? getActiveTocAnchorForPosition(core.book.locations, core.currentChunkIndex, page.startOffset)
+    : null;
   return {
     chunkId: chunk.chunkId,
     order: core.currentChunkIndex + 1,
     total: core.book.manifest.chunks.length,
     locationId: location ? location.locationId : null,
-    tocLabel: core.currentChunkModel.tocLabel || "none",
+    tocId: activeAnchor ? activeAnchor.tocId || "" : "",
+    tocLabel: activeAnchor ? activeAnchor.label || core.currentChunkModel.tocLabel || "none" : core.currentChunkModel.tocLabel || "none",
     blocks: chunk.logicalBlockList.length,
     segments: buildChunkSelectionIndex(chunk).segmentCount
   };
@@ -73,6 +84,118 @@ function gatherShapeRecords(shapeBundle, glyphOps) {
   return ((shapeBundle && shapeBundle.shapeRecords) || []).filter((record) => refs.has(record.shapeRef));
 }
 
+function buildAutomationSelectionPosition(line, offset) {
+  const fragment =
+    line.fragments.find((item) => offset >= item.startOffset && offset <= item.endOffset) ||
+    line.fragments[0] ||
+    null;
+  if (!fragment) return null;
+  return {
+    blockId: fragment.blockId,
+    lineIndex: line.lineIndex,
+    fragmentIndex: fragment.fragmentIndex,
+    segmentId: fragment.segmentId,
+    offset,
+    hitTestingBackend: "automation-sample",
+    precisionMode: "automation-sample"
+  };
+}
+
+function getCurrentChunkGlobalStart(core) {
+  return Number(
+    core &&
+    core.currentChunkModel &&
+    core.currentChunkModel.chunkLocation &&
+    Number.isFinite(Number(core.currentChunkModel.chunkLocation.startOffset))
+      ? Number(core.currentChunkModel.chunkLocation.startOffset)
+      : core &&
+          core.currentChunkModel &&
+          core.currentChunkModel.chunk &&
+          Number.isFinite(Number(core.currentChunkModel.chunk.startOffset))
+        ? Number(core.currentChunkModel.chunk.startOffset)
+        : 0
+  );
+}
+
+function buildApproximateFocusedAnnotationRect(core, annotation, page) {
+  if (!annotation || !page || !core.currentLayout || !core.currentChunkModel || !core.currentChunkModel.chunk) return null;
+  const startGlobal = annotation.rangeDescriptor && annotation.rangeDescriptor.start
+    ? Number(annotation.rangeDescriptor.start.globalOffset || 0)
+    : null;
+  const endGlobal = annotation.rangeDescriptor && annotation.rangeDescriptor.end
+    ? Number(annotation.rangeDescriptor.end.globalOffset || 0)
+    : null;
+  if (startGlobal == null || endGlobal == null) return null;
+  const chunkStart = getCurrentChunkGlobalStart(core);
+  const localStart = Math.max(0, startGlobal - chunkStart);
+  const localEnd = Math.max(localStart + 1, endGlobal - chunkStart);
+  if (localEnd <= page.startOffset || localStart >= page.endOffset) return null;
+  const visibleLines = (core.currentLayout.lines || []).filter((line) =>
+    line.lineIndex >= page.lineStartIndex &&
+    line.lineIndex <= page.lineEndIndex &&
+    Array.isArray(line.fragments) &&
+    line.fragments.length
+  );
+  if (!visibleLines.length) return null;
+  const span = Math.max(1, page.endOffset - page.startOffset);
+  const relative = Math.max(0, Math.min(0.999, (Math.max(page.startOffset, localStart) - page.startOffset) / span));
+  const targetIndex = Math.max(0, Math.min(visibleLines.length - 1, Math.floor(relative * visibleLines.length)));
+  const line = visibleLines[targetIndex];
+  const first = line.fragments[0];
+  const last = line.fragments[line.fragments.length - 1];
+  const x = Math.max(12, (first && Number.isFinite(first.x) ? first.x : 24) - 6);
+  const width = Math.max(
+    42,
+    ((last && Number.isFinite(last.x) ? last.x : x) + (last && Number.isFinite(last.width) ? last.width : 140)) - x + 10
+  );
+  return {
+    x,
+    y: Math.max(0, (line.y || 0) - 3),
+    width,
+    height: Math.max(18, (line.height || 0) + 6),
+    lineIndex: line.lineIndex,
+    annotationId: annotation.annotationId,
+    color: annotation.color || "amber"
+  };
+}
+
+function buildApproximateFocusedOffsetRect(core, startGlobal, endGlobal, page, color = "blue", targetId = "") {
+  if (!page || !core.currentLayout || !core.currentChunkModel || !core.currentChunkModel.chunk) return null;
+  if (startGlobal == null || endGlobal == null) return null;
+  const chunkStart = getCurrentChunkGlobalStart(core);
+  const localStart = Math.max(0, Number(startGlobal || 0) - chunkStart);
+  const localEnd = Math.max(localStart + 1, Number(endGlobal || 0) - chunkStart);
+  if (localEnd <= page.startOffset || localStart >= page.endOffset) return null;
+  const visibleLines = (core.currentLayout.lines || []).filter((line) =>
+    line.lineIndex >= page.lineStartIndex &&
+    line.lineIndex <= page.lineEndIndex &&
+    Array.isArray(line.fragments) &&
+    line.fragments.length
+  );
+  if (!visibleLines.length) return null;
+  const matchingLine =
+    visibleLines.find((line) => localStart >= Number(line.startOffset || 0) && localStart < Number(line.endOffset || 0)) ||
+    visibleLines.find((line) => localStart <= Number(line.startOffset || 0)) ||
+    visibleLines[0];
+  if (!matchingLine) return null;
+  const first = matchingLine.fragments[0];
+  const last = matchingLine.fragments[matchingLine.fragments.length - 1];
+  const x = Math.max(12, (first && Number.isFinite(first.x) ? first.x : 24) - 6);
+  const width = Math.max(
+    42,
+    ((last && Number.isFinite(last.x) ? last.x : x) + (last && Number.isFinite(last.width) ? last.width : 140)) - x + 10
+  );
+  return {
+    x,
+    y: Math.max(0, (matchingLine.y || 0) - 3),
+    width,
+    height: Math.max(18, (matchingLine.height || 0) + 6),
+    lineIndex: matchingLine.lineIndex,
+    annotationId: targetId,
+    color
+  };
+}
+
 export class ProtectedReaderRuntimeCore {
   constructor() {
     this.book = null;
@@ -83,15 +206,78 @@ export class ProtectedReaderRuntimeCore {
     this.currentLayout = null;
     this.currentPaginationModel = null;
     this.currentPageIndex = 0;
+    this.fontScale = 1;
+    this.bookPaginationSummary = {
+      chunkPageCounts: [],
+      totalPages: 0,
+      totalChunks: 0
+    };
+    this.focusedAnnotationId = null;
+    this.focusedTocTarget = null;
     this.selectionState = createSelectionState();
+    this.searchState = {
+      query: "",
+      matches: [],
+      currentIndex: -1
+    };
     this.renderMode = "shape";
     this.metricsMode = "shape";
+    this.viewportWidth = 760;
     this.viewportHeight = 720;
+  }
+
+  getLayoutWidth() {
+    return Math.max(420, Math.min(1400, Number(this.viewportWidth || 760)));
   }
 
   getCurrentPage() {
     if (!this.currentPaginationModel) return null;
     return this.currentPaginationModel.pages[this.currentPageIndex] || null;
+  }
+
+  getCurrentSearchMatch() {
+    if (!this.searchState || !Array.isArray(this.searchState.matches)) return null;
+    if (this.searchState.currentIndex < 0 || this.searchState.currentIndex >= this.searchState.matches.length) return null;
+    return this.searchState.matches[this.searchState.currentIndex] || null;
+  }
+
+  clearSearchState() {
+    this.searchState = {
+      query: "",
+      matches: [],
+      currentIndex: -1
+    };
+  }
+
+  async rebuildBookPaginationSummary() {
+    if (!this.book) return;
+    const chunkPageCounts = [];
+    for (let index = 0; index < this.book.manifest.chunks.length; index += 1) {
+      const chunkModel = await loadProtectedChunkModel(this.book, index);
+      const shapeRegistry = createGlyphShapeRegistry(chunkModel.shapeBundle, chunkModel.glyphMap);
+      const layout = layoutChunk({
+        chunkModel,
+        styles: this.book.styleMap,
+        width: this.getLayoutWidth(),
+        viewportHeight: this.viewportHeight,
+        fontScale: this.fontScale,
+        renderMode: this.renderMode,
+        metricsMode: this.metricsMode,
+        shapeRegistry
+      });
+      const pagination = buildPaginationModel({
+        chunkModel,
+        layout,
+        viewportHeight: this.viewportHeight,
+        globalModel: this.book.globalLocationModel
+      });
+      chunkPageCounts.push(Math.max(1, (pagination.pages || []).length));
+    }
+    this.bookPaginationSummary = {
+      chunkPageCounts,
+      totalPages: chunkPageCounts.reduce((sum, value) => sum + value, 0),
+      totalChunks: this.book.manifest.chunks.length
+    };
   }
 
   buildCurrentSelectionCopyResponse(selectionResult) {
@@ -117,12 +303,15 @@ export class ProtectedReaderRuntimeCore {
     }
   }
 
-  async initBook({ artifactRoot, renderMode = "text", metricsMode = "text", viewportHeight = 720, annotations = [] }) {
+  async initBook({ artifactRoot, renderMode = "text", metricsMode = "text", viewportWidth = 760, viewportHeight = 720, annotations = [] }) {
     this.renderMode = "shape";
     this.metricsMode = metricsMode === "text" ? "text" : "shape";
+    this.viewportWidth = viewportWidth;
     this.viewportHeight = viewportHeight;
+    this.fontScale = 1;
     this.book = await loadProtectedBook(artifactRoot);
     this.bookSummary = summarizeBook(this.book);
+    await this.rebuildBookPaginationSummary();
     return this.goToChunk({ chunkIndex: 0, annotations, includeBook: true });
   }
 
@@ -138,7 +327,9 @@ export class ProtectedReaderRuntimeCore {
     this.currentLayout = layoutChunk({
       chunkModel: this.currentChunkModel,
       styles: this.book.styleMap,
-      width: 760,
+      width: this.getLayoutWidth(),
+      viewportHeight: this.viewportHeight,
+      fontScale: this.fontScale,
       renderMode: this.renderMode,
       metricsMode: this.metricsMode,
       shapeRegistry: this.currentShapeRegistry
@@ -165,6 +356,10 @@ export class ProtectedReaderRuntimeCore {
       this.currentPageIndex = 0;
     }
     this.selectionState = createSelectionState();
+    this.focusedAnnotationId = null;
+    if (!this.focusedTocTarget || this.focusedTocTarget.chunkIndex !== boundedIndex) {
+      this.focusedTocTarget = null;
+    }
     return this.buildSnapshot({ annotations, includeBook });
   }
 
@@ -172,10 +367,37 @@ export class ProtectedReaderRuntimeCore {
     const tocItem = (this.book && this.book.tocItems || []).find((item) => item.id === tocId) || null;
     const chunkIndex = findChunkIndexForToc(this.book.manifest, this.book.locations, tocItem);
     if (chunkIndex < 0) throw new Error(`TOC item ${tocId} has no mapped chunk.`);
-    return this.goToChunk({ chunkIndex, annotations });
+    const globalOffset = findGlobalOffsetForToc(this.book.manifest, this.book.locations, tocItem);
+    const chunkLocation = this.book.locations && Array.isArray(this.book.locations.chunks)
+      ? this.book.locations.chunks[chunkIndex] || null
+      : null;
+    const tocAnchor = chunkLocation && Array.isArray(chunkLocation.tocAnchors)
+      ? chunkLocation.tocAnchors.find((anchor) =>
+          anchor && (anchor.tocId === tocId || anchor.href === (tocItem && tocItem.href))
+        ) || null
+      : null;
+    const blockBoundary = chunkLocation && Array.isArray(chunkLocation.blockBoundaries)
+      ? chunkLocation.blockBoundaries.find((boundary) =>
+          boundary && (
+            boundary.blockId === (tocAnchor && tocAnchor.blockId) ||
+            boundary.locationId === (tocAnchor && tocAnchor.locationId)
+          )
+        ) || null
+      : null;
+    this.focusedTocTarget = {
+      tocId,
+      label: tocItem && tocItem.label ? tocItem.label : "",
+      chunkIndex,
+      startGlobal: globalOffset,
+      endGlobal: blockBoundary
+        ? Number(chunkLocation.startOffset || 0) + Number(blockBoundary.endOffset || (Number(blockBoundary.startOffset || 0) + 1))
+        : Number(globalOffset || 0) + 1
+    };
+    return this.goToChunk({ chunkIndex, globalOffset, annotations });
   }
 
   async goToNextPage({ annotations = [] }) {
+    this.focusedTocTarget = null;
     if (this.currentPageIndex < this.currentPaginationModel.pages.length - 1) {
       this.currentPageIndex += 1;
       this.selectionState = createSelectionState();
@@ -188,6 +410,7 @@ export class ProtectedReaderRuntimeCore {
   }
 
   async goToPrevPage({ annotations = [] }) {
+    this.focusedTocTarget = null;
     if (this.currentPageIndex > 0) {
       this.currentPageIndex -= 1;
       this.selectionState = createSelectionState();
@@ -205,15 +428,151 @@ export class ProtectedReaderRuntimeCore {
     return this.buildSnapshot({ annotations });
   }
 
-  async updateRenderConfig({ renderMode, metricsMode, viewportHeight = this.viewportHeight, annotations = [] }) {
-    this.renderMode = "shape";
-    this.metricsMode = metricsMode === "text" ? "text" : "shape";
-    this.viewportHeight = viewportHeight;
+  async selectAutomationSample({ annotations = [] } = {}) {
+    const page = this.getCurrentPage();
+    if (!this.currentLayout || !page) {
+      throw new Error("Reader is not ready for automation selection.");
+    }
+    const visibleLines = (this.currentLayout.lines || []).filter((line) =>
+      line.lineIndex >= page.lineStartIndex &&
+      line.lineIndex <= page.lineEndIndex &&
+      Array.isArray(line.fragments) &&
+      line.fragments.length
+    );
+    for (const line of visibleLines) {
+      const lineLength = Math.max(0, line.endOffset - line.startOffset);
+      if (lineLength < 8) continue;
+      const startOffset = Math.min(line.endOffset - 4, line.startOffset + 2);
+      const endOffset = Math.min(line.endOffset, startOffset + Math.min(36, Math.max(8, lineLength - 2)));
+      if (endOffset <= startOffset) continue;
+      const anchor = buildAutomationSelectionPosition(line, startOffset);
+      const focus = buildAutomationSelectionPosition(line, endOffset);
+      if (!anchor || !focus) continue;
+      this.selectionState = {
+        anchor,
+        focus,
+        dragging: false,
+        selectionType: "range"
+      };
+      return this.buildSnapshot({ annotations });
+    }
+    throw new Error("No automation-selectable sample range is available on the current page.");
+  }
+
+  async setFontScale({ fontScale = 1, annotations = [] } = {}) {
+    this.fontScale = Math.max(0.8, Math.min(1.6, Number(fontScale || 1)));
+    await this.rebuildBookPaginationSummary();
     return this.goToChunk({
       chunkIndex: this.currentChunkIndex,
       pageIndex: this.currentPageIndex,
       annotations
     });
+  }
+
+  async updateRenderConfig({
+    renderMode,
+    metricsMode,
+    viewportWidth = this.viewportWidth,
+    viewportHeight = this.viewportHeight,
+    fontScale = this.fontScale,
+    annotations = []
+  }) {
+    this.renderMode = "shape";
+    this.metricsMode = metricsMode === "text" ? "text" : "shape";
+    this.viewportWidth = viewportWidth;
+    this.viewportHeight = viewportHeight;
+    this.fontScale = Math.max(0.8, Math.min(1.6, Number(fontScale || 1)));
+    await this.rebuildBookPaginationSummary();
+    return this.goToChunk({
+      chunkIndex: this.currentChunkIndex,
+      pageIndex: this.currentPageIndex,
+      annotations
+    });
+  }
+
+  async searchBook({ query = "", annotations = [] } = {}) {
+    const normalizedQuery = String(query || "").trim();
+    if (!normalizedQuery) {
+      this.clearSearchState();
+      return this.buildSnapshot({ annotations });
+    }
+    const queryLower = normalizedQuery.toLowerCase();
+    const matches = [];
+    for (let chunkIndex = 0; chunkIndex < this.book.manifest.chunks.length; chunkIndex += 1) {
+      const manifestChunk = this.book.manifest.chunks[chunkIndex] || {};
+      const chunkModel = await loadProtectedChunkModel(this.book, chunkIndex);
+      const textEndOffset = chunkModel.textSegments.length
+        ? chunkModel.textSegments[chunkModel.textSegments.length - 1].end
+        : 0;
+      const scope = createReconstructionScope({
+        chunkModel,
+        purpose: "search-book",
+        startOffset: 0,
+        endOffset: textEndOffset
+      });
+      try {
+        const text = reconstructRangeText(chunkModel, 0, textEndOffset, scope);
+        const lower = text.toLowerCase();
+        let cursor = 0;
+        while (cursor < lower.length) {
+          const foundAt = lower.indexOf(queryLower, cursor);
+          if (foundAt < 0) break;
+          matches.push({
+            chunkIndex,
+            chunkId: chunkModel.chunk.chunkId,
+            startOffset: foundAt,
+            endOffset: foundAt + normalizedQuery.length,
+            globalStartOffset: Number(manifestChunk.startOffset || 0) + foundAt,
+            globalEndOffset: Number(manifestChunk.startOffset || 0) + foundAt + normalizedQuery.length
+          });
+          cursor = foundAt + Math.max(1, normalizedQuery.length);
+        }
+      } finally {
+        disposeReconstructionScope(scope);
+      }
+    }
+    this.searchState = {
+      query: normalizedQuery,
+      matches,
+      currentIndex: matches.length ? 0 : -1
+    };
+    if (!matches.length) {
+      return this.buildSnapshot({ annotations });
+    }
+    const match = matches[0];
+    return this.goToChunk({
+      chunkIndex: match.chunkIndex,
+      globalOffset: match.globalStartOffset,
+      annotations
+    });
+  }
+
+  async searchNextResult({ annotations = [] } = {}) {
+    if (!this.searchState.matches.length) return this.buildSnapshot({ annotations });
+    this.searchState.currentIndex = (this.searchState.currentIndex + 1) % this.searchState.matches.length;
+    const match = this.getCurrentSearchMatch();
+    return this.goToChunk({
+      chunkIndex: match.chunkIndex,
+      globalOffset: match.globalStartOffset,
+      annotations
+    });
+  }
+
+  async searchPrevResult({ annotations = [] } = {}) {
+    if (!this.searchState.matches.length) return this.buildSnapshot({ annotations });
+    const count = this.searchState.matches.length;
+    this.searchState.currentIndex = (this.searchState.currentIndex - 1 + count) % count;
+    const match = this.getCurrentSearchMatch();
+    return this.goToChunk({
+      chunkIndex: match.chunkIndex,
+      globalOffset: match.globalStartOffset,
+      annotations
+    });
+  }
+
+  clearSearch({ annotations = [] } = {}) {
+    this.clearSearchState();
+    return this.buildSnapshot({ annotations });
   }
 
   pointerDown({ x, y, shiftKey = false, annotations = [] }) {
@@ -330,12 +689,15 @@ export class ProtectedReaderRuntimeCore {
   }
 
   async goToAnnotation({ rangeDescriptor, annotations = [] }) {
+    this.focusedTocTarget = null;
     if (!rangeDescriptor || !rangeDescriptor.start) throw new Error("Annotation range is missing.");
     const resolved = globalOffsetToLocal(this.book.globalLocationModel, rangeDescriptor.start.globalOffset);
     if (!resolved) throw new Error("Unable to resolve annotation target.");
     const chunkIndex = this.book.manifest.chunks.findIndex((item) => item.chunkId === resolved.chunkId);
     if (chunkIndex < 0) throw new Error(`Unable to locate chunk ${resolved.chunkId}.`);
-    return this.goToChunk({ chunkIndex, globalOffset: rangeDescriptor.start.globalOffset, annotations });
+    const snapshot = await this.goToChunk({ chunkIndex, globalOffset: rangeDescriptor.start.globalOffset, annotations });
+    this.focusedAnnotationId = rangeDescriptor.annotationId || null;
+    return this.buildSnapshot({ annotations, includeBook: !!snapshot.bookSummary });
   }
 
   getRuntimeStatus({ annotations = [] } = {}) {
@@ -360,9 +722,72 @@ export class ProtectedReaderRuntimeCore {
       annotations,
       chunkModel: this.currentChunkModel,
       layout: this.currentLayout,
-      pageWindow: page
+      pageWindow: {
+        ...page,
+        focusedAnnotationId: this.focusedAnnotationId
+      }
     });
-    const chunkSummary = summarizeChunk(this);
+    const activeOffset = this.focusedTocTarget &&
+      this.focusedTocTarget.chunkIndex === this.currentChunkIndex &&
+      page &&
+      this.focusedTocTarget.startGlobal >= Number(page.globalStartOffset || 0) &&
+      this.focusedTocTarget.startGlobal < Number(page.globalEndOffset || 0)
+        ? Number(this.focusedTocTarget.startGlobal || 0) - getCurrentChunkGlobalStart(this)
+        : Number(page ? page.startOffset : 0);
+    if (this.focusedAnnotationId && annotationOverlay.focusHighlights.length === 0 && page) {
+      const focusedAnnotation = (annotations || []).find((annotation) => annotation.annotationId === this.focusedAnnotationId) || null;
+      const fallbackFocusRect = buildApproximateFocusedAnnotationRect(this, focusedAnnotation, page);
+      if (fallbackFocusRect) {
+        annotationOverlay.focusHighlights.push(fallbackFocusRect);
+      }
+    }
+    const chunkPageCounts = this.bookPaginationSummary.chunkPageCounts || [];
+    const globalPageBeforeChunk = chunkPageCounts
+      .slice(0, this.currentChunkIndex)
+      .reduce((sum, value) => sum + value, 0);
+    const globalPageIndex = globalPageBeforeChunk + this.currentPageIndex + 1;
+    const globalPageCount = this.bookPaginationSummary.totalPages || this.currentPaginationModel.pages.length;
+    const currentSearchMatch = this.getCurrentSearchMatch();
+    const searchHighlights =
+      currentSearchMatch &&
+      currentSearchMatch.chunkId === this.currentChunkModel.chunk.chunkId &&
+      page &&
+      currentSearchMatch.endOffset > page.startOffset &&
+      currentSearchMatch.startOffset < page.endOffset
+        ? buildRangeHighlights(
+            this.currentLayout,
+            currentSearchMatch.startOffset,
+            currentSearchMatch.endOffset
+          )
+        : [];
+    if (annotationOverlay.focusHighlights.length === 0 && this.focusedTocTarget && page) {
+      const tocFocusRect = buildApproximateFocusedOffsetRect(
+        this,
+        this.focusedTocTarget.startGlobal,
+        this.focusedTocTarget.endGlobal,
+        page,
+        "blue",
+        this.focusedTocTarget.tocId || ""
+      );
+      if (tocFocusRect) {
+        annotationOverlay.focusHighlights.push(tocFocusRect);
+      }
+    }
+    const chunk = this.currentChunkModel.chunk;
+    const location = this.currentChunkModel.chunkLocation;
+    const activeAnchor = page
+      ? getActiveTocAnchorForPosition(this.book.locations, this.currentChunkIndex, activeOffset)
+      : null;
+    const chunkSummary = {
+      chunkId: chunk.chunkId,
+      order: this.currentChunkIndex + 1,
+      total: this.book.manifest.chunks.length,
+      locationId: location ? location.locationId : null,
+      tocId: activeAnchor ? activeAnchor.tocId || "" : "",
+      tocLabel: activeAnchor ? activeAnchor.label || this.currentChunkModel.tocLabel || "none" : this.currentChunkModel.tocLabel || "none",
+      blocks: chunk.logicalBlockList.length,
+      segments: buildChunkSelectionIndex(chunk).segmentCount
+    };
     const restoreToken = page
       ? serializeRestoreToken(
           createRestoreDescriptor({
@@ -430,6 +855,8 @@ export class ProtectedReaderRuntimeCore {
         ? {
             pageIndex: this.currentPageIndex,
             pageCount: this.currentPaginationModel.pages.length,
+            globalPageIndex,
+            globalPageCount,
             globalStartOffset: page.globalStartOffset,
             globalEndOffset: page.globalEndOffset,
             startOffset: page.startOffset,
@@ -446,8 +873,10 @@ export class ProtectedReaderRuntimeCore {
         pageWindow: page,
         glyphOps,
         shapeRecords,
+        searchHighlights,
         selectionHighlights,
         annotationHighlights: annotationOverlay.visibleHighlights,
+        focusHighlights: annotationOverlay.focusHighlights,
         noteMarkers: annotationOverlay.noteMarkers,
         diagnostics: renderDiagnostics
       },
@@ -456,10 +885,31 @@ export class ProtectedReaderRuntimeCore {
         chunkSummary,
         pageSummary: page
           ? {
-              pageLabel: `${this.currentPageIndex + 1} / ${this.currentPaginationModel.pages.length}`,
+            pageLabel: `${this.currentPageIndex + 1} / ${this.currentPaginationModel.pages.length}`,
+              globalPageLabel: `${globalPageIndex} / ${globalPageCount}`,
               globalOffsetLabel: `${page.globalStartOffset}..${page.globalEndOffset}`
             }
           : null,
+        typographySummary: {
+          fontScale: this.fontScale,
+          viewportWidth: this.getLayoutWidth(),
+          viewportHeight: this.viewportHeight,
+          columnCount: this.currentLayout && this.currentLayout.columnCount ? this.currentLayout.columnCount : 1,
+          columnWidth: this.currentLayout && this.currentLayout.columnWidth ? this.currentLayout.columnWidth : this.getLayoutWidth(),
+          pageSlotCount: this.currentLayout && this.currentLayout.pageSlotCount ? this.currentLayout.pageSlotCount : this.currentPaginationModel.pages.length
+        },
+        focusSummary: {
+          annotationId: this.focusedAnnotationId || "",
+          highlightCount: Array.isArray(annotationOverlay.focusHighlights)
+            ? annotationOverlay.focusHighlights.length
+            : 0
+        },
+        searchSummary: {
+          active: !!(this.searchState && this.searchState.query),
+          query: this.searchState ? this.searchState.query : "",
+          totalMatches: this.searchState && Array.isArray(this.searchState.matches) ? this.searchState.matches.length : 0,
+          currentMatch: this.searchState && this.searchState.currentIndex >= 0 ? this.searchState.currentIndex + 1 : 0
+        },
         runtimeContract: this.book.manifest.runtimeContract || {},
         renderDiagnostics,
         workerMode: "enabled",

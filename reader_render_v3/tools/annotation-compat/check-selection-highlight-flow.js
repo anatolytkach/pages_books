@@ -1,7 +1,27 @@
 #!/usr/bin/env node
 
 const { chromium } = require("/tmp/reader_render_v3_pw/node_modules/playwright-core");
-const URL = process.env.READER_V3_URL || "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
+
+function getArgValue(name) {
+  for (const item of process.argv.slice(2)) {
+    if (item.startsWith(`--${name}=`)) return item.slice(name.length + 3);
+  }
+  return "";
+}
+
+const URL =
+  getArgValue("url") ||
+  process.env.READER_V3_URL ||
+  "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
+
+function parsePageLabel(label = "") {
+  const match = String(label).trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (!match) return null;
+  return {
+    index: Number(match[1]),
+    total: Number(match[2])
+  };
+}
 
 async function getMetaMap(page) {
   return await page.evaluate(() => {
@@ -39,9 +59,9 @@ async function getPageState(page) {
   });
 }
 
-async function waitForExactPage(page, expectedPage, previousGlobalOffset = null) {
+async function waitForExactPage(page, expectedPage, previousGlobalOffset = null, expectedOrder = null) {
   await page.waitForFunction(
-    ({ expectedPage, previousGlobalOffset }) => {
+    ({ expectedPage, previousGlobalOffset, expectedOrder }) => {
       const dl = document.querySelector("#runtime-meta");
       if (!dl) return false;
       const children = [...dl.children];
@@ -53,19 +73,50 @@ async function waitForExactPage(page, expectedPage, previousGlobalOffset = null)
       }
       const pageValue = values["Page"] || "";
       const globalOffsetValue = values["Global offset"] || "";
+      const orderValue = values["Order"] || "";
       if (pageValue !== expectedPage) return false;
+      if (expectedOrder != null && orderValue !== expectedOrder) return false;
       if (previousGlobalOffset == null) return true;
       return globalOffsetValue !== previousGlobalOffset;
     },
-    { expectedPage, previousGlobalOffset }
+    { expectedPage, previousGlobalOffset, expectedOrder }
+  );
+}
+
+async function waitForStateChange(page, previousState, timeout = 30000) {
+  await page.waitForFunction(
+    ({ previousPage, previousOrder, previousGlobalOffset }) => {
+      const dl = document.querySelector("#runtime-meta");
+      if (!dl) return false;
+      const children = [...dl.children];
+      const values = {};
+      for (let i = 0; i < children.length; i += 2) {
+        const dt = children[i];
+        const dd = children[i + 1];
+        if (dt && dd) values[dt.textContent.trim()] = dd.textContent.trim();
+      }
+      return (
+        (values["Page"] || "") !== previousPage ||
+        (values["Order"] || "") !== previousOrder ||
+        (values["Global offset"] || "") !== previousGlobalOffset
+      );
+    },
+    {
+      previousPage: previousState.page,
+      previousOrder: previousState.order,
+      previousGlobalOffset: previousState.globalOffset
+    },
+    { timeout }
   );
 }
 
 async function waitReady(page) {
-  await page.waitForSelector("#runtime-meta dt");
   await page.waitForFunction(() => {
-    const status = document.querySelector("#status");
-    return status && /Opened /.test(status.textContent || "");
+    return (
+      window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+      !!document.querySelector("#runtime-meta dt") &&
+      /Opened /.test(document.querySelector("#status")?.textContent || "")
+    );
   });
 }
 
@@ -120,7 +171,7 @@ async function main() {
     if (req.url().includes("/debug/")) debugRequests.push(req.url());
   });
 
-  await page.goto(URL, { waitUntil: "networkidle" });
+  await page.goto(URL, { waitUntil: "domcontentloaded" });
   await waitReady(page);
   const initialState = await getPageState(page);
 
@@ -156,12 +207,21 @@ async function main() {
   const initialAnnotationCount = await page.locator("#annotation-count").textContent();
 
   await page.click("#next-page");
-  await waitForExactPage(page, "2 / 2", initialState.globalOffset);
+  const initialPage = parsePageLabel(initialState.page);
+  if (initialPage && initialPage.total >= 2) {
+    await waitForExactPage(
+      page,
+      `${Math.min(initialPage.index + 1, initialPage.total)} / ${initialPage.total}`,
+      initialState.globalOffset
+    );
+  } else {
+    await waitForStateChange(page, initialState);
+  }
   const pageTwoMeta = await getMetaMap(page);
   const pageTwoState = await getPageState(page);
 
   await page.click("#prev-page");
-  await waitForExactPage(page, "1 / 2", pageTwoState.globalOffset);
+  await waitForExactPage(page, initialState.page, pageTwoState.globalOffset, initialState.order);
   const backMeta = await getMetaMap(page);
   const backState = await getPageState(page);
   const backAnnotationCount = await page.locator("#annotation-count").textContent();

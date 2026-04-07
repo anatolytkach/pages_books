@@ -112,14 +112,91 @@ const state = {
   currentHandoffState: null,
   driveTransport: null,
   driveState: createInitialProtectedDriveState(),
+  rolloutStatus: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.rolloutStatus || null : null,
+  rolloutEligibility: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.eligibility || null : null,
+  rolloutPolicy: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.rollout || null : null,
+  pilotStatus: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.pilot || null : null,
+  theme: "light",
+  fontScale: 1,
   renderMode: "shape",
   metricsMode: "shape",
   debugGeometry: false
 };
 
+if (isEmbeddedOldShellMode()) {
+  document.documentElement.dataset.shellMode = "embedded-old-shell";
+  document.body.dataset.shellMode = "embedded-old-shell";
+  document.body.dataset.driveMode = state.entryConfig && state.entryConfig.driveMode ? state.entryConfig.driveMode : "full";
+}
+
+function isEmbeddedOldShellMode() {
+  return !!(state.entryConfig && state.entryConfig.embeddedMode === "old-shell");
+}
+
+function isDriveUiDisabled() {
+  return !!(state.entryConfig && state.entryConfig.driveMode === "disabled");
+}
+
+function isAutomationSafeMode() {
+  return !!(state.entryConfig && state.entryConfig.automationSafe);
+}
+
+function getCurrentBookAuthor() {
+  const metadata = state.bookSummary && state.bookSummary.metadata ? state.bookSummary.metadata : {};
+  const creators = Array.isArray(metadata.creators) ? metadata.creators.filter(Boolean) : [];
+  return creators.join(", ");
+}
+
+function getCoverHintFromLocation() {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    return String(params.get("cover") || "").trim();
+  } catch (error) {
+    return "";
+  }
+}
+
+function buildGeneratedCoverDataUrl(title, author) {
+  const safeTitle = String(title || "").trim() || "Protected Book";
+  const safeAuthor = String(author || "").trim() || "ReaderPub";
+  const titleLine = safeTitle.length > 36 ? `${safeTitle.slice(0, 33)}...` : safeTitle;
+  const authorLine = safeAuthor.length > 30 ? `${safeAuthor.slice(0, 27)}...` : safeAuthor;
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="420" height="640" viewBox="0 0 420 640">
+      <defs>
+        <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#16324f" />
+          <stop offset="100%" stop-color="#c98b4f" />
+        </linearGradient>
+      </defs>
+      <rect width="420" height="640" rx="32" fill="url(#g)" />
+      <rect x="30" y="30" width="360" height="580" rx="24" fill="rgba(255,255,255,0.10)" />
+      <text x="48" y="128" fill="#f8f5ef" font-family="Georgia, serif" font-size="18" opacity="0.72">Protected Edition</text>
+      <text x="48" y="236" fill="#ffffff" font-family="Georgia, serif" font-size="36" font-weight="700">${titleLine.replace(/[<&>]/g, "")}</text>
+      <text x="48" y="288" fill="#f4e6d3" font-family="Georgia, serif" font-size="22">${authorLine.replace(/[<&>]/g, "")}</text>
+    </svg>
+  `.trim();
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function getCurrentBookCoverUrl() {
+  const hinted = getCoverHintFromLocation();
+  if (hinted) return hinted;
+  const metadata = state.bookSummary && state.bookSummary.metadata ? state.bookSummary.metadata : {};
+  return buildGeneratedCoverDataUrl(metadata.title || "", getCurrentBookAuthor());
+}
+
+function applyEmbeddedTheme(theme) {
+  state.theme = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = state.theme;
+  document.body.dataset.theme = state.theme;
+  notifyEmbeddedBridge();
+}
+
 function setStatus(message, tone = "idle") {
   elements.status.textContent = message;
   elements.status.dataset.state = tone;
+  notifyEmbeddedBridge();
 }
 
 function setDlRows(container, rows) {
@@ -153,6 +230,195 @@ function ensureDriveTransport() {
     state.driveTransport = createProtectedDriveTransport();
   }
   return state.driveTransport;
+}
+
+function buildBridgeSummary() {
+  const annotations = state.annotationStore ? state.annotationStore.all() : [];
+  const runtimeMeta =
+    state.currentSnapshot && state.currentSnapshot.runtimeMeta ? state.currentSnapshot.runtimeMeta : null;
+  const chunkSummary =
+    runtimeMeta && runtimeMeta.chunkSummary
+      ? runtimeMeta.chunkSummary
+      : state.currentSnapshot && state.currentSnapshot.chunkSummary
+        ? state.currentSnapshot.chunkSummary
+        : null;
+  const pageSummary =
+    runtimeMeta && runtimeMeta.pageSummary
+      ? {
+          ...(state.currentSnapshot && state.currentSnapshot.pageSummary ? state.currentSnapshot.pageSummary : {}),
+          ...runtimeMeta.pageSummary
+        }
+      : state.currentSnapshot && state.currentSnapshot.pageSummary
+        ? state.currentSnapshot.pageSummary
+        : null;
+  const pageWindow =
+    state.currentSnapshot && state.currentSnapshot.renderPacket
+      ? state.currentSnapshot.renderPacket.pageWindow || null
+      : null;
+  const layoutLines =
+    state.currentSnapshot &&
+    state.currentSnapshot.renderPacket &&
+    state.currentSnapshot.renderPacket.layout &&
+    Array.isArray(state.currentSnapshot.renderPacket.layout.lines)
+      ? state.currentSnapshot.renderPacket.layout.lines
+      : [];
+  const visibleLines = pageWindow
+    ? layoutLines.filter((line) => line && line.lineIndex >= pageWindow.lineStartIndex && line.lineIndex <= pageWindow.lineEndIndex)
+    : [];
+  const layoutFingerprint = visibleLines.length
+    ? visibleLines
+        .slice(0, 4)
+        .map((line) => [
+          Number(line.lineIndex || 0),
+          Math.round(Number(line.x || 0)),
+          Math.round(Number(line.y || 0)),
+          Math.round(Number(line.height || 0)),
+          Number(line.pageSlot || 0),
+          Number(line.columnIndex || 0)
+        ].join(":"))
+        .join("|")
+    : "";
+  return {
+    ready: !!state.currentSnapshot,
+    integrationMode: !!state.integrationMode,
+    embeddedMode: isEmbeddedOldShellMode(),
+    readerMode: state.integrationMode ? "protected" : "dev-shell",
+    bookId: state.bookSummary ? state.bookSummary.bookId : "",
+    bookTitle: state.bookSummary && state.bookSummary.metadata ? state.bookSummary.metadata.title || "" : "",
+    bookAuthor: getCurrentBookAuthor(),
+    coverUrl: getCurrentBookCoverUrl(),
+    chapterLabel: chunkSummary ? chunkSummary.tocLabel || "" : "",
+    chunkLabel: chunkSummary ? `${chunkSummary.chunkId} (${chunkSummary.order}/${chunkSummary.total})` : "",
+    chunkOrder: chunkSummary ? Number(chunkSummary.order || 0) : 0,
+    chunkTotal: chunkSummary ? Number(chunkSummary.total || 0) : 0,
+    localPageLabel: pageSummary ? pageSummary.pageLabel || "" : "",
+    pageLabel: pageSummary ? pageSummary.pageLabel || "" : "",
+    globalPageLabel: pageSummary ? pageSummary.globalPageLabel || pageSummary.pageLabel || "" : "",
+    globalPageIndex: pageSummary ? Number(pageSummary.globalPageIndex || 0) : 0,
+    globalPageCount: pageSummary ? Number(pageSummary.globalPageCount || 0) : 0,
+    restoreToken: state.currentSnapshot ? state.currentSnapshot.restoreToken || "" : "",
+    currentPageLineCount:
+      pageWindow
+        ? Math.max(
+            0,
+            Number(pageWindow.lineEndIndex || 0) -
+              Number(pageWindow.lineStartIndex || 0) +
+              1
+          )
+        : 0,
+    currentPageLineRange: pageWindow
+      ? `${Number(pageWindow.lineStartIndex || 0)}..${Number(pageWindow.lineEndIndex || 0)}`
+      : "",
+    pageLayoutFingerprint: layoutFingerprint,
+    globalOffsetLabel: pageSummary ? pageSummary.globalOffsetLabel || "" : "",
+    pageGlobalStartOffset: pageSummary ? Number(pageSummary.globalStartOffset || 0) : 0,
+    pageGlobalEndOffset: pageSummary ? Number(pageSummary.globalEndOffset || 0) : 0,
+    fontScale:
+      runtimeMeta && runtimeMeta.typographySummary
+        ? Number(runtimeMeta.typographySummary.fontScale || 1)
+        : state.fontScale,
+    viewportWidth:
+      runtimeMeta && runtimeMeta.typographySummary
+        ? Number(runtimeMeta.typographySummary.viewportWidth || getViewportWidth())
+        : getViewportWidth(),
+    viewportHeight:
+      runtimeMeta && runtimeMeta.typographySummary
+        ? Number(runtimeMeta.typographySummary.viewportHeight || getViewportHeight())
+        : getViewportHeight(),
+    columnCount:
+      runtimeMeta && runtimeMeta.typographySummary
+        ? Number(runtimeMeta.typographySummary.columnCount || 1)
+        : 1,
+    focusedAnnotationId:
+      runtimeMeta && runtimeMeta.focusSummary
+        ? runtimeMeta.focusSummary.annotationId || ""
+        : "",
+    focusHighlightCount:
+      runtimeMeta && runtimeMeta.focusSummary
+        ? Number(runtimeMeta.focusSummary.highlightCount || 0)
+        : 0,
+    canGoPrev: !!(
+      state.currentSnapshot &&
+      (
+        (state.currentSnapshot.pageSummary && state.currentSnapshot.pageSummary.pageIndex > 0) ||
+        (state.currentSnapshot.chunkSummary && state.currentSnapshot.chunkSummary.order > 1)
+      )
+    ),
+    canGoNext: !!(
+      state.currentSnapshot &&
+      (
+        (state.currentSnapshot.pageSummary && state.currentSnapshot.pageSummary.pageIndex < (state.currentSnapshot.pageSummary.pageCount - 1)) ||
+        (state.currentSnapshot.chunkSummary && state.currentSnapshot.chunkSummary.order < state.currentSnapshot.chunkSummary.total)
+      )
+    ),
+    selectionActive: !!(state.currentSnapshot && state.currentSnapshot.rangeDescriptor),
+    selectionBounds: getSelectionBounds(),
+    selectedChars:
+      state.currentSnapshot && state.currentSnapshot.selectionResult
+        ? Number(state.currentSnapshot.selectionResult.selectedChars || 0)
+        : 0,
+    selectedLines:
+      state.currentSnapshot && state.currentSnapshot.selectionResult
+        ? Number(state.currentSnapshot.selectionResult.selectedLines || 0)
+        : 0,
+    selectedBlocks:
+      state.currentSnapshot && state.currentSnapshot.selectionResult
+        ? Number(state.currentSnapshot.selectionResult.selectedBlocks || 0)
+        : 0,
+    annotationCount: annotations.length,
+    annotations: annotations.map((annotation) => ({
+      annotationId: annotation.annotationId,
+      type: annotation.type,
+      noteText: annotation.noteText || "",
+      globalRange: `${annotation.rangeDescriptor.start.globalOffset}..${annotation.rangeDescriptor.end.globalOffset}`
+    })),
+    tocItems: (state.tocItems || []).map((item) => ({
+      id: item.id,
+      label: item.label || item.id,
+      href: item.href || "",
+      active: !!(runtimeMeta && runtimeMeta.chunkSummary && runtimeMeta.chunkSummary.tocId && runtimeMeta.chunkSummary.tocId === item.id)
+    })),
+    statusText: elements.status ? elements.status.textContent || "" : "",
+    theme: state.theme,
+    searchSummary:
+      runtimeMeta && runtimeMeta.searchSummary
+        ? {
+            active: !!runtimeMeta.searchSummary.active,
+            query: runtimeMeta.searchSummary.query || "",
+            totalMatches: Number(runtimeMeta.searchSummary.totalMatches || 0),
+            currentMatch: Number(runtimeMeta.searchSummary.currentMatch || 0)
+          }
+        : { active: false, query: "", totalMatches: 0, currentMatch: 0 },
+    driveStatus: {
+      transport: state.driveState.transportStatus,
+      configured: !!state.driveState.configured,
+      authorized: !!state.driveState.authorized
+    },
+    runtimeMeta: state.rolloutStatus
+      ? {
+          rolloutDecision: state.rolloutStatus.action,
+          eligibilityStatus: state.rolloutEligibility ? state.rolloutEligibility.status : "n/a",
+          pilotStatus: state.pilotStatus ? state.pilotStatus.status : "n/a"
+        }
+      : null
+  };
+}
+
+function notifyEmbeddedBridge() {
+  if (!isEmbeddedOldShellMode()) return;
+  const summary = buildBridgeSummary();
+  window.__PROTECTED_READER_BRIDGE__ = window.__PROTECTED_READER_BRIDGE__ || {};
+  window.__PROTECTED_READER_BRIDGE__.getSummary = buildBridgeSummary;
+  try {
+    window.parent.postMessage(
+      {
+        channel: "protected-old-shell-v1",
+        type: "state-changed",
+        summary
+      },
+      window.location.origin
+    );
+  } catch (error) {}
 }
 
 function getArtifactRootFromLocation() {
@@ -217,6 +483,49 @@ function syncArtifactInput() {
 
 function getViewportHeight() {
   return Math.max(420, (elements.readerFrame ? elements.readerFrame.clientHeight : 0) - 40 || 720);
+}
+
+function getViewportWidth() {
+  return Math.max(420, Math.round((elements.readerFrame ? elements.readerFrame.clientWidth : 0) || 760));
+}
+
+function getViewportConfig() {
+  return {
+    viewportWidth: getViewportWidth(),
+    viewportHeight: getViewportHeight()
+  };
+}
+
+function getSelectionBounds() {
+  const highlights =
+    state.currentSnapshot &&
+    state.currentSnapshot.renderPacket &&
+    Array.isArray(state.currentSnapshot.renderPacket.selectionHighlights)
+      ? state.currentSnapshot.renderPacket.selectionHighlights
+      : [];
+  if (!highlights.length) return null;
+  let left = Number.POSITIVE_INFINITY;
+  let top = Number.POSITIVE_INFINITY;
+  let right = Number.NEGATIVE_INFINITY;
+  let bottom = Number.NEGATIVE_INFINITY;
+  for (const highlight of highlights) {
+    if (!highlight) continue;
+    left = Math.min(left, Number(highlight.x || 0));
+    top = Math.min(top, Number(highlight.y || 0));
+    right = Math.max(right, Number(highlight.x || 0) + Number(highlight.width || 0));
+    bottom = Math.max(bottom, Number(highlight.y || 0) + Number(highlight.height || 0));
+  }
+  if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(right) || !Number.isFinite(bottom)) {
+    return null;
+  }
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top)
+  };
 }
 
 function getCurrentAnnotations() {
@@ -311,7 +620,7 @@ async function restoreReadingStateIfAvailable(bookId) {
     return {
       snapshot: await state.workerClient.restoreFromToken({
         token: explicitRestoreToken,
-        viewportHeight: getViewportHeight(),
+        ...getViewportConfig(),
         annotations: getCurrentAnnotations()
       }),
       source: "token",
@@ -327,7 +636,7 @@ async function restoreReadingStateIfAvailable(bookId) {
     return {
       snapshot: await state.workerClient.restoreFromToken({
         token: readingState.restoreToken,
-        viewportHeight: getViewportHeight(),
+        ...getViewportConfig(),
         annotations: getCurrentAnnotations()
       }),
       source: "protected-persisted",
@@ -360,7 +669,7 @@ async function restoreReadingStateIfAvailable(bookId) {
         snapshot: await state.workerClient.goToChunk({
           chunkIndex: compatReadingState.globalPosition.chunkOrder,
           globalOffset: compatReadingState.globalPosition.globalOffset,
-          viewportHeight: getViewportHeight(),
+          ...getViewportConfig(),
           annotations: getCurrentAnnotations()
         }),
         source: "production-fallback",
@@ -424,6 +733,15 @@ function renderRuntimeMeta() {
       setDlRows(elements.runtimeMeta, [
         ["Reader mode", state.integrationMode ? "protected" : "dev-shell"],
         ["Integration mode", state.integrationMode ? "active" : "inactive"],
+        ["Rollout enabled", state.rolloutStatus && state.rolloutStatus.rolloutEnabled ? "yes" : "no"],
+        ["Eligibility status", state.rolloutEligibility ? state.rolloutEligibility.status : "n/a"],
+        ["Rollout decision", state.rolloutStatus ? state.rolloutStatus.action : "n/a"],
+        ["Pilot status", state.pilotStatus ? state.pilotStatus.status : "n/a"],
+        ["Pilot certified", state.pilotStatus && state.pilotStatus.pilotCertified ? "yes" : "no"],
+        ["Protected artifact", state.rolloutStatus && state.rolloutStatus.artifactAvailable ? "yes" : "no"],
+        ["Worker available", state.rolloutStatus && state.rolloutStatus.workerAvailable ? "yes" : "no"],
+        ["Book allowed", state.rolloutStatus && state.rolloutStatus.bookAllowed ? "yes" : "no"],
+        ["Fallback reason", state.rolloutStatus && state.rolloutStatus.fallbackReason ? state.rolloutStatus.fallbackReason : "none"],
         ["Worker mode", state.workerClient.mode],
         ["Worker protocol", "inactive"],
         ["Artifact load status", state.artifactLoadStatus],
@@ -449,6 +767,7 @@ function renderRuntimeMeta() {
     ["Chunk", chunkSummary ? chunkSummary.chunkId : "n/a"],
     ["Order", chunkSummary ? `${chunkSummary.order} / ${chunkSummary.total}` : "n/a"],
     ["Page", pageSummary ? pageSummary.pageLabel : "n/a"],
+    ["Search", runtimeMeta.searchSummary && runtimeMeta.searchSummary.active ? `${runtimeMeta.searchSummary.currentMatch}/${runtimeMeta.searchSummary.totalMatches}` : "inactive"],
     ["Location", chunkSummary ? chunkSummary.locationId : "n/a"],
     ["Global offset", pageSummary ? pageSummary.globalOffsetLabel : "n/a"],
     ["TOC", chunkSummary ? chunkSummary.tocLabel : "none"],
@@ -492,6 +811,20 @@ function renderRuntimeMeta() {
     ["Annotations", state.annotationStore ? state.annotationStore.all().length : 0],
     ["Reader mode", state.integrationMode ? "protected" : "dev-shell"],
     ["Integration mode", state.integrationMode ? "active" : "inactive"],
+    ["Rollout enabled", state.rolloutStatus && state.rolloutStatus.rolloutEnabled ? "yes" : "no"],
+    ["Eligibility status", state.rolloutEligibility ? state.rolloutEligibility.status : "n/a"],
+    ["Rollout decision", state.rolloutStatus ? state.rolloutStatus.action : "n/a"],
+    ["Pilot status", state.pilotStatus ? state.pilotStatus.status : "n/a"],
+    ["Pilot certified", state.pilotStatus && state.pilotStatus.pilotCertified ? "yes" : "no"],
+    ["Pilot recommended", state.pilotStatus && state.pilotStatus.recommended ? "yes" : "no"],
+    ["Pilot scope", state.pilotStatus ? state.pilotStatus.userScope : "n/a"],
+    ["Book allowed", state.rolloutStatus && state.rolloutStatus.bookAllowed ? "yes" : "no"],
+    ["Allowlisted", state.rolloutStatus && state.rolloutStatus.allowlisted ? "yes" : "no"],
+    ["Denylisted", state.rolloutStatus && state.rolloutStatus.denylisted ? "yes" : "no"],
+    ["Protected artifact", state.rolloutStatus && state.rolloutStatus.artifactAvailable ? "yes" : "no"],
+    ["Worker available", state.rolloutStatus && state.rolloutStatus.workerAvailable ? "yes" : "no"],
+    ["Fallback reason", state.rolloutStatus && state.rolloutStatus.fallbackReason ? state.rolloutStatus.fallbackReason : "none"],
+    ["Rollout warnings", state.rolloutStatus && state.rolloutStatus.warnings && state.rolloutStatus.warnings.length ? state.rolloutStatus.warnings.join(", ") : "none"],
     ["Reading state source", state.readingStateSource],
     ["Persisted page index", state.persistedReadingState && state.persistedReadingState.page ? state.persistedReadingState.page.pageIndex ?? "n/a" : "n/a"],
     ["Persisted chunk id", state.persistedReadingState && state.persistedReadingState.globalPosition ? state.persistedReadingState.globalPosition.chunkId || "n/a" : "n/a"],
@@ -635,6 +968,7 @@ function renderAnnotationList() {
   }
 
   updateAnnotationControls();
+  notifyEmbeddedBridge();
 }
 
 function refreshCanvas() {
@@ -653,6 +987,9 @@ function applySnapshot(snapshot) {
   state.currentSnapshot = snapshot;
   if (snapshot.bookSummary) state.bookSummary = snapshot.bookSummary;
   if (snapshot.tocItems) state.tocItems = snapshot.tocItems;
+  if (snapshot.runtimeMeta && snapshot.runtimeMeta.typographySummary) {
+    state.fontScale = Number(snapshot.runtimeMeta.typographySummary.fontScale || 1);
+  }
   persistReadingStateFromSnapshot(snapshot).catch((error) => {
     console.error(error);
   });
@@ -661,6 +998,7 @@ function applySnapshot(snapshot) {
   renderSelectionMeta();
   renderAnnotationList();
   refreshCanvas();
+  notifyEmbeddedBridge();
 }
 
 async function persistReadingStateFromSnapshot(snapshot) {
@@ -697,7 +1035,7 @@ async function loadArtifact(artifactRoot) {
     artifactRoot,
     renderMode: "shape",
     metricsMode: state.metricsMode,
-    viewportHeight: getViewportHeight(),
+    ...getViewportConfig(),
     annotations: []
   });
   const bookId = (snapshot.bookSummary && snapshot.bookSummary.bookId) ||
@@ -748,10 +1086,21 @@ async function loadArtifact(artifactRoot) {
   const persistenceWarning = state.persistenceDiagnostics && state.persistenceDiagnostics.compatibilityWarning
     ? ` Warning: ${state.persistenceDiagnostics.compatibilityWarning}`
     : "";
-  try {
-    await refreshDriveStatus({ interactive: false });
-  } catch (error) {
-    console.error(error);
+  if (!isDriveUiDisabled()) {
+    try {
+      await refreshDriveStatus({ interactive: false });
+    } catch (error) {
+      console.error(error);
+    }
+  } else {
+    state.driveState = mergeProtectedDriveState(state.driveState, {
+      transportStatus: "disabled",
+      configured: false,
+      authorized: false,
+      remotePresent: false,
+      lastWarning: "drive-disabled-for-embedded-old-shell"
+    });
+    renderRuntimeMeta();
   }
   setStatus(
     `Opened ${finalSnapshot.chunkSummary.chunkId} (${finalSnapshot.chunkSummary.order}/${finalSnapshot.chunkSummary.total}) in ${state.renderMode}/${state.metricsMode} mode.${persistenceWarning}`,
@@ -772,7 +1121,7 @@ function getCanvasPoint(event) {
 
 async function requestAndApply(method, payload = {}) {
   const snapshot = await state.workerClient[method]({
-    viewportHeight: getViewportHeight(),
+    ...getViewportConfig(),
     annotations: getCurrentAnnotations(),
     ...payload
   });
@@ -818,7 +1167,11 @@ async function handleCopySelection() {
     return;
   }
   const result = await state.workerClient.copyCurrentSelection();
-  await navigator.clipboard.writeText(result.clipboardText);
+  try {
+    await navigator.clipboard.writeText(result.clipboardText);
+  } catch (error) {
+    if (!isAutomationSafeMode()) throw error;
+  }
   setStatus(
     `Copied selection: ${result.selectedChars} chars across ${result.selectedBlocks} block(s) and ${result.selectedLines} line(s).`,
     "ok"
@@ -844,7 +1197,7 @@ async function handleRestoreToken() {
   const token = elements.restoreTokenInput.value.trim();
   const snapshot = await state.workerClient.restoreFromToken({
     token,
-    viewportHeight: getViewportHeight(),
+    ...getViewportConfig(),
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
@@ -1023,7 +1376,7 @@ async function importAnnotations() {
     state.readingStateRestoreApplied = true;
     const snapshot = await state.workerClient.restoreFromToken({
       token: importedReadingState.restoreToken,
-      viewportHeight: getViewportHeight(),
+      ...getViewportConfig(),
       annotations: getCurrentAnnotations()
     });
     applySnapshot(snapshot);
@@ -1064,6 +1417,17 @@ async function handleSyncFileChosen(event) {
 }
 
 async function refreshDriveStatus({ interactive = false } = {}) {
+  if (isDriveUiDisabled()) {
+    state.driveState = mergeProtectedDriveState(state.driveState, {
+      configured: false,
+      authorized: false,
+      remotePresent: false,
+      transportStatus: "disabled",
+      lastWarning: "drive-disabled-for-embedded-old-shell"
+    });
+    renderRuntimeMeta();
+    return state.driveState;
+  }
   if (!state.bookSummary || !state.annotationRepository) {
     state.driveState = mergeProtectedDriveState(state.driveState, {
       transportStatus: "idle"
@@ -1114,6 +1478,7 @@ async function refreshDriveStatus({ interactive = false } = {}) {
 }
 
 async function uploadSyncFileToDrive() {
+  if (isDriveUiDisabled()) throw new Error("Drive transport is disabled for this protected shell mode.");
   if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
   const transport = ensureDriveTransport();
   const syncTransport = await state.annotationRepository.exportSyncTransport(state.bookSummary.bookId);
@@ -1150,6 +1515,7 @@ async function uploadSyncFileToDrive() {
 }
 
 async function downloadSyncFileFromDrive() {
+  if (isDriveUiDisabled()) throw new Error("Drive transport is disabled for this protected shell mode.");
   if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
   const transport = ensureDriveTransport();
   state.driveState = mergeProtectedDriveState(state.driveState, {
@@ -1196,6 +1562,7 @@ async function downloadSyncFileFromDrive() {
 }
 
 async function applyDownloadedDriveState() {
+  if (isDriveUiDisabled()) throw new Error("Drive transport is disabled for this protected shell mode.");
   const payload = state.driveState.pendingRemoteSyncFile || getTextareaValue(elements.annotationImport);
   if (!payload) throw new Error("Download a Drive sync file before applying it.");
   const handoffState = state.driveState.pendingRemoteHandoffState || (getTextareaValue(elements.handoffState)
@@ -1313,12 +1680,162 @@ async function clearLocalProtectedState() {
   setStatus("Cleared local protected state.", "ok");
 }
 
+async function bridgeNextPage() {
+  const snapshot = await state.workerClient.goToNextPage({
+    ...getViewportConfig(),
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgePrevPage() {
+  const snapshot = await state.workerClient.goToPrevPage({
+    ...getViewportConfig(),
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgeGoToToc(tocId) {
+  const snapshot = await state.workerClient.goToToc({
+    tocId,
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgeGoToAnnotation(annotationId) {
+  if (!state.annotationStore) throw new Error("Annotations are unavailable.");
+  const annotation = state.annotationStore.get(annotationId);
+  if (!annotation) throw new Error(`Unknown annotation ${annotationId}.`);
+  const snapshot = await state.workerClient.goToAnnotation({
+    rangeDescriptor: {
+      ...annotation.rangeDescriptor,
+      annotationId: annotation.annotationId
+    },
+    annotations: getCurrentAnnotations()
+  });
+  state.selectedAnnotationId = annotation.annotationId;
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgeRestoreFromToken(token) {
+  const snapshot = await state.workerClient.restoreFromToken({
+    token: String(token || ""),
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgeCopySelection() {
+  await handleCopySelection();
+  return buildBridgeSummary();
+}
+
+async function bridgeCreateHighlight() {
+  await createHighlightFromSelection();
+  return buildBridgeSummary();
+}
+
+async function bridgeAddNoteToSelection(noteText = "") {
+  elements.noteInput.value = String(noteText || "");
+  await addNoteToSelection();
+  return buildBridgeSummary();
+}
+
+async function bridgeSelectAutomationSample() {
+  if (!isAutomationSafeMode()) {
+    throw new Error("Automation selection is unavailable outside automation-safe mode.");
+  }
+  const snapshot = await state.workerClient.selectAutomationSample({
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgeSearchBook(query = "") {
+  const snapshot = await state.workerClient.searchBook({
+    query: String(query || ""),
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgeSearchNextResult() {
+  const snapshot = await state.workerClient.searchNextResult({
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgeSearchPrevResult() {
+  const snapshot = await state.workerClient.searchPrevResult({
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgeClearSearch() {
+  const snapshot = await state.workerClient.clearSearch({
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgeSetTheme(theme = "light") {
+  applyEmbeddedTheme(theme);
+  return buildBridgeSummary();
+}
+
+async function bridgeSetFontScale(fontScale = 1) {
+  const snapshot = await state.workerClient.setFontScale({
+    fontScale,
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+function installEmbeddedBridge() {
+  window.__PROTECTED_READER_BRIDGE__ = {
+    getSummary: buildBridgeSummary,
+    nextPage: bridgeNextPage,
+    prevPage: bridgePrevPage,
+    goToToc: bridgeGoToToc,
+    goToAnnotation: bridgeGoToAnnotation,
+    restoreFromToken: bridgeRestoreFromToken,
+    copySelection: bridgeCopySelection,
+    selectAutomationSample: bridgeSelectAutomationSample,
+    createHighlight: bridgeCreateHighlight,
+    addNoteToSelection: bridgeAddNoteToSelection,
+    searchBook: bridgeSearchBook,
+    searchNextResult: bridgeSearchNextResult,
+    searchPrevResult: bridgeSearchPrevResult,
+    clearSearch: bridgeClearSearch,
+    setTheme: bridgeSetTheme,
+    setFontScale: bridgeSetFontScale
+  };
+  notifyEmbeddedBridge();
+}
+
 async function boot() {
   state.artifactRoot = getArtifactRootFromLocation();
   state.renderMode = "shape";
   state.metricsMode = getMetricsModeFromLocation(state.renderMode);
   state.debugGeometry = getDebugGeometryFromLocation();
+  applyEmbeddedTheme("light");
   syncArtifactInput();
+  if (isEmbeddedOldShellMode()) installEmbeddedBridge();
 
   elements.artifactForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1351,7 +1868,7 @@ async function boot() {
       const snapshot = await state.workerClient.updateRenderConfig({
         renderMode: "shape",
         metricsMode: state.metricsMode,
-        viewportHeight: getViewportHeight(),
+        ...getViewportConfig(),
         annotations: getCurrentAnnotations()
       });
       applySnapshot(snapshot);
@@ -1371,7 +1888,7 @@ async function boot() {
       const snapshot = await state.workerClient.updateRenderConfig({
         renderMode: "shape",
         metricsMode: state.metricsMode,
-        viewportHeight: getViewportHeight(),
+        ...getViewportConfig(),
         annotations: getCurrentAnnotations()
       });
       applySnapshot(snapshot);
@@ -1392,7 +1909,7 @@ async function boot() {
   elements.prevPage.addEventListener("click", async () => {
     try {
       const snapshot = await state.workerClient.goToPrevPage({
-        viewportHeight: getViewportHeight(),
+        ...getViewportConfig(),
         annotations: getCurrentAnnotations()
       });
       applySnapshot(snapshot);
@@ -1405,7 +1922,7 @@ async function boot() {
   elements.nextPage.addEventListener("click", async () => {
     try {
       const snapshot = await state.workerClient.goToNextPage({
-        viewportHeight: getViewportHeight(),
+        ...getViewportConfig(),
         annotations: getCurrentAnnotations()
       });
       applySnapshot(snapshot);
@@ -1699,6 +2216,7 @@ async function boot() {
   });
 
   elements.canvas.addEventListener("mousedown", (event) => {
+    if (event.button !== 0) return;
     handleMouseDown(event).catch((error) => {
       console.error(error);
       setStatus(error.message || String(error), "error");
@@ -1711,11 +2229,44 @@ async function boot() {
     });
   });
   window.addEventListener("mouseup", (event) => {
+    if (event.button !== 0) return;
     handleMouseUp(event).catch((error) => {
       console.error(error);
       setStatus(error.message || String(error), "error");
     });
   });
+
+  let viewportSyncTimer = null;
+  const scheduleViewportSync = () => {
+    if (!state.currentSnapshot || state.workerClient.mode !== "worker") return;
+    if (viewportSyncTimer) window.clearTimeout(viewportSyncTimer);
+    viewportSyncTimer = window.setTimeout(async () => {
+      viewportSyncTimer = null;
+      try {
+        const snapshot = await state.workerClient.updateRenderConfig({
+          renderMode: "shape",
+          metricsMode: state.metricsMode,
+          fontScale: state.fontScale,
+          ...getViewportConfig(),
+          annotations: getCurrentAnnotations()
+        });
+        applySnapshot(snapshot);
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), "error");
+      }
+    }, 120);
+  };
+  window.addEventListener("resize", scheduleViewportSync, { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", scheduleViewportSync, { passive: true });
+  }
+  if (typeof ResizeObserver !== "undefined" && elements.readerFrame) {
+    const readerFrameObserver = new ResizeObserver(() => {
+      scheduleViewportSync();
+    });
+    readerFrameObserver.observe(elements.readerFrame);
+  }
 
   try {
     if (state.workerClient.mode !== "worker") {

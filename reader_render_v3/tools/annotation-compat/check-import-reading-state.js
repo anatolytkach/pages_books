@@ -3,6 +3,13 @@
 const fs = require("fs");
 const { chromium } = require("/tmp/reader_render_v3_pw/node_modules/playwright-core");
 
+function getArgValue(name) {
+  for (const item of process.argv.slice(2)) {
+    if (item.startsWith(`--${name}=`)) return item.slice(name.length + 3);
+  }
+  return "";
+}
+
 async function getMetaMap(page) {
   return await page.evaluate(() => {
     const dl = document.querySelector("#runtime-meta");
@@ -19,16 +26,21 @@ async function getMetaMap(page) {
 }
 
 async function waitReady(page) {
-  await page.waitForSelector("#runtime-meta dt");
   await page.waitForFunction(() => {
-    const status = document.querySelector("#status");
-    return status && /Opened /.test(status.textContent || "");
+    return (
+      window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+      !!document.querySelector("#runtime-meta dt") &&
+      /Opened /.test(document.querySelector("#status")?.textContent || "")
+    );
   });
 }
 
 async function main() {
   const payload = fs.readFileSync("/tmp/reader_render_v3_prod_notes.json", "utf8");
-  const url = "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
+  const url =
+    getArgValue("url") ||
+    process.env.READER_V3_URL ||
+    "http://127.0.0.1:8788/books/reader/?id=19686&reader=protected&renderMode=shape&metricsMode=shape";
 
   const browser = await chromium.launch({
     headless: true,
@@ -41,7 +53,7 @@ async function main() {
     if (req.url().includes("/debug/")) debugRequests.push(req.url());
   });
 
-  await page.goto(url, { waitUntil: "networkidle" });
+  await page.goto(url, { waitUntil: "domcontentloaded" });
   await waitReady(page);
 
   await page.click("#next-page");
@@ -59,7 +71,7 @@ async function main() {
   });
   const afterImport = await getMetaMap(page);
 
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
   await waitReady(page);
   const afterReload = await getMetaMap(page);
 

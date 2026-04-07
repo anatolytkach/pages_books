@@ -13,9 +13,9 @@ function createScratchContext() {
   throw new Error("No canvas context is available for protected layout.");
 }
 
-export function fontSpecForStyle(styleTokenRecord = {}) {
+export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
   const headingLevel = styleTokenRecord.headingLevel || 0;
-  const size =
+  const baseSize =
     headingLevel === 1 ? 34 :
     headingLevel === 2 ? 30 :
     headingLevel === 3 ? 26 :
@@ -24,6 +24,7 @@ export function fontSpecForStyle(styleTokenRecord = {}) {
     styleTokenRecord.blockRole === "quote" ? 20 :
     styleTokenRecord.blockRole === "verse" ? 18 :
     17;
+  const size = Math.max(12, Math.round(baseSize * Math.max(0.75, Math.min(1.75, fontScale || 1))));
   const weight = styleTokenRecord.fontWeight === "bold" ? "700" : "400";
   const italic = styleTokenRecord.fontStyle === "italic" ? "italic " : "";
   const family = styleTokenRecord.fontFamilyCandidate || "Georgia, serif";
@@ -88,14 +89,24 @@ export function layoutChunk({
   chunkModel,
   styles,
   width,
+  viewportHeight = 720,
   padding = 44,
+  fontScale = 1,
   metricsBackend = null,
   renderMode = "text",
   metricsMode = renderMode === "shape" ? "shape" : "text",
   shapeRegistry = null
 }) {
   const ctx = createScratchContext();
-  const maxWidth = width - padding * 2;
+  const contentWidth = Math.max(260, width - padding * 2);
+  const effectiveViewportHeight = Math.max(420, Number(viewportHeight || 720));
+  const columnCount = width >= 1120 ? 2 : 1;
+  const columnGap = columnCount > 1 ? 48 : 0;
+  const columnWidth = columnCount > 1
+    ? Math.max(220, Math.floor((contentWidth - columnGap) / 2))
+    : contentWidth;
+  const pageSlotHeight = effectiveViewportHeight;
+  const columnInnerHeight = Math.max(260, pageSlotHeight - padding * 2);
   const blocks = [];
   const lines = [];
   const orderedBlockIds = [];
@@ -114,11 +125,28 @@ export function layoutChunk({
     extractedCount: 0,
     fallbackCount: 0
   };
-  let cursorY = padding;
+  let pageSlot = 0;
+  let columnIndex = 0;
+  let columnCursorY = 0;
+
+  function advanceFlow(requiredHeight = 0) {
+    const nextColumn = columnIndex + 1;
+    if (columnCount > 1 && nextColumn < columnCount) {
+      columnIndex = nextColumn;
+      columnCursorY = 0;
+      return;
+    }
+    pageSlot += 1;
+    columnIndex = 0;
+    columnCursorY = 0;
+    if (requiredHeight > columnInnerHeight) {
+      columnCursorY = 0;
+    }
+  }
 
   for (const block of chunkModel.chunk.logicalBlockList) {
     const runs = chunkModel.runsByBlock.get(block.blockId) || [];
-    const blockTop = cursorY;
+    const blockTop = pageSlot * pageSlotHeight + padding + columnCursorY;
     const blockFragments = [];
     let currentLine = null;
 
@@ -129,18 +157,23 @@ export function layoutChunk({
       currentLine.endOffset = Math.max(...currentLine.fragments.map((item) => item.endOffset));
       currentLine.lineIndex = lines.length;
       lines.push(currentLine);
-      cursorY += currentLine.height;
+      columnCursorY += currentLine.height;
       currentLine = null;
     }
 
     function ensureLine(lineHeight) {
+      if (!currentLine && columnCursorY > 0 && (columnCursorY + lineHeight) > columnInnerHeight) {
+        advanceFlow(lineHeight);
+      }
       if (currentLine) return currentLine;
       currentLine = {
         blockId: block.blockId,
-        x: padding,
-        y: cursorY,
+        x: padding + (columnIndex * (columnWidth + columnGap)),
+        y: (pageSlot * pageSlotHeight) + padding + columnCursorY,
         height: lineHeight,
         width: 0,
+        pageSlot,
+        columnIndex,
         fragments: []
       };
       return currentLine;
@@ -180,7 +213,7 @@ export function layoutChunk({
       if (
         currentWidth > 0 &&
         widthPx > 0 &&
-        currentWidth + widthPx > maxWidth
+        currentWidth + widthPx > columnWidth
       ) {
         commitLine();
         return placeToken({
@@ -228,7 +261,7 @@ export function layoutChunk({
 
     runs.forEach((run, runIndex) => {
       const style = styles.get(run.styleToken) || {};
-      const font = fontSpecForStyle(style);
+      const font = fontSpecForStyle(style, fontScale);
       const segment = segmentMap.get(`${block.blockId}:${runIndex}`) || null;
       const tokens = buildTokenSlices(
         segment || {
@@ -267,9 +300,9 @@ export function layoutChunk({
       blockId: block.blockId,
       blockType: block.blockType,
       styleToken: runs[0] ? runs[0].styleToken : "paragraph",
-      x: padding,
+      x: padding + (columnIndex * (columnWidth + columnGap)),
       y: blockTop,
-      width: maxWidth,
+      width: columnWidth,
       height: Math.max(blockHeight, 24),
       lineCount: blockLines.length,
       textLength: blockTextLength,
@@ -278,7 +311,12 @@ export function layoutChunk({
     });
     orderedBlockIds.push(block.blockId);
     const style = styles.get(runs[0] ? runs[0].styleToken : "paragraph") || {};
-    cursorY += style.blockRole === "heading" ? 18 : style.blockRole === "verse" ? 14 : 12;
+    const blockGap = style.blockRole === "heading" ? 18 : style.blockRole === "verse" ? 14 : 12;
+    if (columnCursorY > 0 && (columnCursorY + blockGap) > columnInnerHeight) {
+      advanceFlow(blockGap);
+    } else {
+      columnCursorY += blockGap;
+    }
   }
 
   const reconstructionDiagnostics = reconstructionScope
@@ -294,14 +332,21 @@ export function layoutChunk({
       };
   disposeReconstructionScope(reconstructionScope);
 
-  const height = Math.max(cursorY + padding, 640);
+  const totalPageSlots = Math.max(1, pageSlot + 1);
+  const height = Math.max((totalPageSlots * pageSlotHeight), 640);
   return {
     width,
     height,
     padding,
+    viewportHeight: effectiveViewportHeight,
     blocks,
     lines,
     orderedBlockIds,
+    columnCount,
+    columnWidth,
+    columnGap,
+    pageSlotHeight,
+    pageSlotCount: totalPageSlots,
     metricsBackend: backend.name,
     renderMode,
     metricsMode,
@@ -310,6 +355,7 @@ export function layoutChunk({
       : 0,
     metricsFallbackCount: metricsStats.fallbackCount,
     metricsGlyphCount: metricsStats.glyphCount,
+    fontScale,
     reconstructionDiagnostics,
     hitTestingBackend: backend.name === "shape" ? "shape-geometry" : "text-geometry",
     selectionPrecisionMode: backend.name === "shape" ? "path-aware-approx" : "text-metrics-approx"

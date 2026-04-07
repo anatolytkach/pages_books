@@ -137,6 +137,10 @@ Instead:
 
 This keeps protected mode from silently widening its reconstruction surface.
 
+Internal rollout readiness builds on this rule. If rollout policy allows protected mode
+but the worker boundary is unavailable, the outcome remains fail-closed protected
+unavailable rather than a redirect into a weaker protected fallback.
+
 ## Integrated protected mode
 
 The same worker boundary is now reused by the feature-flagged protected reader integration path. Integration into the real `/books/reader/` lifecycle does not move reconstruction or layout prep back into the main thread.
