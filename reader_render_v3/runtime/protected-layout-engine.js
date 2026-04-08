@@ -43,6 +43,72 @@ export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
 }
 
 function buildTokenSlices(segment, wordBoundaryModel) {
+  return buildTokenSlicesWithText(segment, wordBoundaryModel, "");
+}
+
+function isCoreWordChar(char) {
+  return /[\p{L}\p{N}]/u.test(String(char || ""));
+}
+
+function isWordConnector(char, chars, index) {
+  if (!char) return false;
+  if (!["'", "’", "-", "‑"].includes(char)) return false;
+  return index > 0 && index < chars.length - 1 && isCoreWordChar(chars[index - 1]) && isCoreWordChar(chars[index + 1]);
+}
+
+function tokenizeTextSpan(text, startOffset) {
+  const rawText = String(text || "");
+  if (!rawText) return [];
+  const chars = Array.from(rawText);
+  const tokens = [];
+  let cursor = 0;
+  while (cursor < chars.length) {
+    const char = chars[cursor];
+    const start = cursor;
+    if (/\s/u.test(char)) {
+      cursor += 1;
+      while (cursor < chars.length && /\s/u.test(chars[cursor])) cursor += 1;
+      tokens.push({
+        startOffset: startOffset + start,
+        endOffset: startOffset + cursor,
+        kind: "gap"
+      });
+      continue;
+    }
+    if (isCoreWordChar(char)) {
+      cursor += 1;
+      while (
+        cursor < chars.length &&
+        (isCoreWordChar(chars[cursor]) || isWordConnector(chars[cursor], chars, cursor))
+      ) {
+        cursor += 1;
+      }
+      tokens.push({
+        startOffset: startOffset + start,
+        endOffset: startOffset + cursor,
+        kind: "word"
+      });
+      continue;
+    }
+    cursor += 1;
+    while (
+      cursor < chars.length &&
+      !/\s/u.test(chars[cursor]) &&
+      !isCoreWordChar(chars[cursor]) &&
+      !isWordConnector(chars[cursor], chars, cursor)
+    ) {
+      cursor += 1;
+    }
+    tokens.push({
+      startOffset: startOffset + start,
+      endOffset: startOffset + cursor,
+      kind: "punctuation"
+    });
+  }
+  return tokens;
+}
+
+function buildTokenSlicesWithText(segment, wordBoundaryModel, text = "") {
   const tokens = [];
   const words = ((wordBoundaryModel && wordBoundaryModel.words) || [])
     .filter((item) => item.endOffset > segment.start && item.startOffset < segment.end)
@@ -54,21 +120,36 @@ function buildTokenSlices(segment, wordBoundaryModel) {
   let cursor = segment.start;
   for (const word of words) {
     if (word.startOffset > cursor) {
-      tokens.push({
-        startOffset: cursor,
-        endOffset: word.startOffset,
-        kind: "gap"
-      });
+      const relativeStart = Math.max(0, cursor - segment.start);
+      const relativeEnd = Math.max(relativeStart, word.startOffset - segment.start);
+      const interstitialText = text ? Array.from(String(text || "")).slice(relativeStart, relativeEnd).join("") : "";
+      const interstitialTokens = tokenizeTextSpan(interstitialText, cursor);
+      if (interstitialTokens.length) {
+        tokens.push(...interstitialTokens);
+      } else {
+        tokens.push({
+          startOffset: cursor,
+          endOffset: word.startOffset,
+          kind: "gap"
+        });
+      }
     }
     tokens.push(word);
     cursor = word.endOffset;
   }
   if (cursor < segment.end) {
-    tokens.push({
-      startOffset: cursor,
-      endOffset: segment.end,
-      kind: "gap"
-    });
+    const relativeStart = Math.max(0, cursor - segment.start);
+    const trailingText = text ? Array.from(String(text || "")).slice(relativeStart).join("") : "";
+    const trailingTokens = tokenizeTextSpan(trailingText, cursor);
+    if (trailingTokens.length) {
+      tokens.push(...trailingTokens);
+    } else {
+      tokens.push({
+        startOffset: cursor,
+        endOffset: segment.end,
+        kind: "gap"
+      });
+    }
   }
   return tokens.length ? tokens : [{
     startOffset: segment.start,
@@ -78,29 +159,7 @@ function buildTokenSlices(segment, wordBoundaryModel) {
 }
 
 function buildTokenSlicesFromText(segment, text = "") {
-  const rawText = String(text || "");
-  if (!rawText) {
-    return [{
-      startOffset: segment.start,
-      endOffset: segment.end,
-      kind: "gap"
-    }];
-  }
-  const tokens = [];
-  let cursor = 0;
-  while (cursor < rawText.length) {
-    const isGap = /\s/.test(rawText[cursor]);
-    const start = cursor;
-    cursor += 1;
-    while (cursor < rawText.length && /\s/.test(rawText[cursor]) === isGap) {
-      cursor += 1;
-    }
-    tokens.push({
-      startOffset: segment.start + start,
-      endOffset: segment.start + cursor,
-      kind: isGap ? "gap" : "word"
-    });
-  }
+  const tokens = tokenizeTextSpan(text, segment.start);
   return tokens.length ? tokens : [{
     startOffset: segment.start,
     endOffset: segment.end,
@@ -230,14 +289,12 @@ export function layoutChunk({
       Array.isArray(chunkModel.wordBoundaryModel.words) &&
       chunkModel.wordBoundaryModel.words.length
     );
-  const reconstructionScope = (backend.name === "text" || !hasWordBoundaries)
-    ? createReconstructionScope({
-        chunkModel,
-        purpose: "layout-fallback",
-        startOffset: 0,
-        endOffset: chunkModel.chunk.selectionLayer ? chunkModel.chunk.selectionLayer.textLength : 0
-      })
-    : null;
+  const reconstructionScope = createReconstructionScope({
+    chunkModel,
+    purpose: "layout-fallback",
+    startOffset: 0,
+    endOffset: chunkModel.chunk.selectionLayer ? chunkModel.chunk.selectionLayer.textLength : 0
+  });
   const metricsStats = {
     glyphCount: 0,
     extractedCount: 0,
@@ -470,12 +527,13 @@ export function layoutChunk({
         start: 0,
         end: run.glyphCount || (run.glyphTokens || []).length
       };
-      const segmentText = !hasWordBoundaries && reconstructionScope
+      const segmentText = reconstructionScope
         ? reconstructRangeText(chunkModel, effectiveSegment.start, effectiveSegment.end, reconstructionScope)
         : "";
-      const tokens = buildTokenSlices(
+      const tokens = buildTokenSlicesWithText(
         effectiveSegment,
-        chunkModel.wordBoundaryModel
+        chunkModel.wordBoundaryModel,
+        segmentText
       );
       const effectiveTokens = (!hasWordBoundaries && segmentText)
         ? buildTokenSlicesFromText(effectiveSegment, segmentText)

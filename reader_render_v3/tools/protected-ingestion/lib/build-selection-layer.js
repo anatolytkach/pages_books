@@ -40,7 +40,7 @@ function buildSelectionLayer(chunk, options = {}) {
     function isWordLike(char, index) {
       if (!char) return false;
       if (isCoreWordChar(char)) return true;
-      if ((char === "'" || char === "-") && index > 0 && index < chars.length - 1) {
+      if ((char === "'" || char === "’" || char === "-" || char === "‑") && index > 0 && index < chars.length - 1) {
         return isCoreWordChar(chars[index - 1]) && isCoreWordChar(chars[index + 1]);
       }
       return false;
