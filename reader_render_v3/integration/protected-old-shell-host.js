@@ -27,7 +27,11 @@ const HOST_STATE = {
   selectionStableCount: 0,
   pendingSelectionToolbar: null,
   cachedSelectionActionState: null,
-  suppressSelectionToolbarUntil: 0
+  suppressSelectionToolbarUntil: 0,
+  turnPreviewSyncTimer: null,
+  turnPreviewPromise: null,
+  lastTurnPreviewKey: "",
+  turnInFlight: false
 };
 
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
@@ -39,6 +43,7 @@ function installStyles() {
   style.textContent = `
     body.protected-old-shell {
       overflow: hidden;
+      -webkit-tap-highlight-color: transparent !important;
     }
     body.protected-old-shell #ttsToggleDesktop,
     body.protected-old-shell #ttsToggleMobile,
@@ -47,31 +52,32 @@ function installStyles() {
     }
     body.protected-old-shell #viewerStack {
       overflow: hidden;
+      -webkit-tap-highlight-color: transparent !important;
+    }
+    body.protected-old-shell #viewer,
+    body.protected-old-shell #viewerStack.swiping #viewer {
+      background: transparent !important;
     }
     body.protected-old-shell #viewer-prev,
     body.protected-old-shell #viewer-next {
       display: block;
       pointer-events: none;
-      transition: opacity 160ms ease;
+      -webkit-tap-highlight-color: transparent !important;
     }
     body.protected-old-shell #viewer-prev .protected-turn-layer,
     body.protected-old-shell #viewer-next .protected-turn-layer {
       position: absolute;
       inset: 0;
-      display: flex;
-      align-items: stretch;
-      justify-content: stretch;
+      display: block;
+      overflow: hidden;
       background: transparent;
     }
     body.protected-old-shell #viewer-prev .protected-turn-layer canvas,
     body.protected-old-shell #viewer-next .protected-turn-layer canvas {
-      width: 100%;
-      height: 100%;
+      position: absolute;
       display: block;
-      flex: 1 1 auto;
     }
     body.protected-old-shell #swipe-shadow {
-      transition: opacity 160ms ease;
     }
     body.protected-old-shell #viewerStack.swiping #swipe-shadow {
       opacity: 1 !important;
@@ -106,14 +112,41 @@ function installStyles() {
       inset: 0;
       z-index: 5;
       overflow: hidden;
-      background: linear-gradient(180deg, #fffdfa 0%, #fbf7ef 100%);
+      background: transparent;
+      -webkit-tap-highlight-color: transparent !important;
     }
     #protectedOldShellFrame {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       border: 0;
       display: block;
       background: transparent;
+    }
+    #protectedOldShellCurrentLayer {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+    }
+    #protectedOldShellCurrentLayer .protected-turn-layer {
+      position: absolute;
+      inset: 0;
+      display: block;
+      background: transparent;
+    }
+    #protectedOldShellCurrentLayer .protected-turn-layer canvas {
+      position: absolute;
+      display: block;
+    }
+    body.protected-old-shell #viewerStack.swiping.shadow-left #protectedOldShellCurrentLayer {
+      box-shadow: none;
+    }
+    body.protected-old-shell #viewerStack.swiping.shadow-right #protectedOldShellCurrentLayer {
+      box-shadow: none;
     }
     @keyframes protected-page-turn-next {
       0% { opacity: 1; filter: none; }
@@ -199,7 +232,7 @@ function installStyles() {
       background: #101926 !important;
     }
     body.protected-old-shell.protected-theme-dark #protectedOldShellHost {
-      background: #101926;
+      background: transparent;
     }
     body.protected-old-shell.protected-theme-dark #book-title,
     body.protected-old-shell.protected-theme-dark #chapter-title,
@@ -308,6 +341,8 @@ function installStyles() {
     }
     body.protected-old-shell #prev,
     body.protected-old-shell #next {
+      appearance: none;
+      -webkit-appearance: none;
       width: 78px;
       z-index: 9;
       opacity: 0;
@@ -318,6 +353,31 @@ function installStyles() {
       text-indent: -10000px;
       overflow: hidden;
       transition: opacity 160ms ease;
+      outline: none !important;
+      box-shadow: none !important;
+      -webkit-tap-highlight-color: transparent !important;
+      tap-highlight-color: transparent !important;
+      touch-action: manipulation;
+    }
+    .protected-nav-edge {
+      appearance: none;
+      -webkit-appearance: none;
+      -webkit-tap-highlight-color: transparent !important;
+      user-select: none;
+      -webkit-user-select: none;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    body.protected-old-shell #prev:focus,
+    body.protected-old-shell #next:focus,
+    body.protected-old-shell #prev:focus-visible,
+    body.protected-old-shell #next:focus-visible,
+    .protected-nav-edge:focus,
+    .protected-nav-edge:focus-visible,
+    .protected-nav-edge:active {
+      outline: none !important;
+      box-shadow: none !important;
+      -webkit-tap-highlight-color: transparent !important;
     }
     body.protected-old-shell #prev::before,
     body.protected-old-shell #next::before {
@@ -942,18 +1002,45 @@ function buildEngineBadge() {
   return badge;
 }
 
-function clearPageTurnPreview() {
+function getCurrentTurnLayer() {
+  return document.getElementById("protectedOldShellCurrentLayer");
+}
+
+function clearPageTurnPreview({ clearNeighbors = false } = {}) {
   const stack = document.getElementById("viewerStack");
   const prevLayer = document.getElementById("viewer-prev");
   const nextLayer = document.getElementById("viewer-next");
   const shadow = document.getElementById("swipe-shadow");
-  if (prevLayer) prevLayer.replaceChildren();
-  if (nextLayer) nextLayer.replaceChildren();
+  const currentLayer = getCurrentTurnLayer();
+  const frame = HOST_STATE.frame;
+  if (clearNeighbors) {
+    if (prevLayer) {
+      prevLayer.replaceChildren();
+      prevLayer.dataset.previewKey = "";
+    }
+    if (nextLayer) {
+      nextLayer.replaceChildren();
+      nextLayer.dataset.previewKey = "";
+    }
+  }
   if (prevLayer) prevLayer.style.opacity = "0";
   if (nextLayer) nextLayer.style.opacity = "0";
+  if (currentLayer) {
+    currentLayer.replaceChildren();
+    currentLayer.style.opacity = "0";
+    currentLayer.style.visibility = "hidden";
+    currentLayer.style.transform = "";
+    currentLayer.style.transition = "";
+  }
+  if (frame) {
+    frame.style.pointerEvents = "auto";
+    frame.style.opacity = "1";
+    frame.style.visibility = "visible";
+  }
   if (shadow) {
     shadow.style.opacity = "0";
     shadow.style.left = "";
+    shadow.style.transition = "";
   }
   if (stack) stack.classList.remove("swiping", "swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right", "swipe-undim");
   document.documentElement.style.setProperty("--swipe-overlay-alpha", "0.000");
@@ -962,12 +1049,19 @@ function clearPageTurnPreview() {
     window.clearTimeout(HOST_STATE.turnCleanupTimer);
     HOST_STATE.turnCleanupTimer = null;
   }
+  if (!HOST_STATE.turnInFlight) {
+    scheduleNeighborPreviewSync();
+    ensureNeighborLayersMounted();
+  }
 }
 
-function cloneProtectedCanvases() {
-  const frame = HOST_STATE.frame;
-  if (!frame || !frame.contentDocument) return [];
-  const canvases = [...frame.contentDocument.querySelectorAll(".reader-frame canvas")];
+function updateCurrentTurnLayerTransform(dx) {
+  const currentLayer = getCurrentTurnLayer();
+  if (!currentLayer) return;
+  currentLayer.style.transform = `translate3d(${Math.round(dx)}px, 0, 0)`;
+}
+
+function cloneCanvasesFromNodes(canvases) {
   return canvases.map((source) => {
     const target = document.createElement("canvas");
     const width = source.width || Math.round(source.getBoundingClientRect().width || 0);
@@ -980,38 +1074,264 @@ function cloneProtectedCanvases() {
     const ctx = target.getContext("2d");
     if (!ctx) return null;
     ctx.drawImage(source, 0, 0, width, height);
+    const computed = window.getComputedStyle(source);
+    target.style.position = computed.position || "absolute";
+    target.style.left = computed.left || "0px";
+    target.style.top = computed.top || "0px";
+    target.style.width = computed.width || `${Math.round(source.getBoundingClientRect().width || 0)}px`;
+    target.style.height = computed.height || `${Math.round(source.getBoundingClientRect().height || 0)}px`;
+    target.style.transform = computed.transform && computed.transform !== "none" ? computed.transform : "";
+    target.style.transformOrigin = computed.transformOrigin || "";
     return target;
   }).filter(Boolean);
 }
 
-function primePageTurnPreview(direction) {
-  const stack = document.getElementById("viewerStack");
-  const layerId = direction === "prev" ? "viewer-prev" : "viewer-next";
-  const layer = document.getElementById(layerId);
-  const oppositeLayer = document.getElementById(direction === "prev" ? "viewer-next" : "viewer-prev");
-  if (!layer || !stack) return;
-  const canvases = cloneProtectedCanvases();
-  if (!canvases.length) return;
+function cloneProtectedCanvases() {
+  const frame = HOST_STATE.frame;
+  if (!frame || !frame.contentDocument) return [];
+  const doc = frame.contentDocument;
+  const primaryCanvases = [
+    doc.getElementById("reader-canvas"),
+    doc.getElementById("overlay-canvas")
+  ].filter(Boolean);
+  return cloneCanvasesFromNodes(primaryCanvases);
+}
+
+function cloneEmbeddedPreviewCanvases(direction) {
+  const frame = HOST_STATE.frame;
+  if (!frame || !frame.contentDocument) return [];
+  const root = frame.contentDocument.getElementById(`protected-turn-preview-${direction}`);
+  if (!root) return [];
+  const canvases = [...root.querySelectorAll("canvas")];
+  if (!canvases.length) return [];
+  return cloneCanvasesFromNodes(canvases);
+}
+
+function getExpectedTurnPreviewKey(summary = HOST_STATE.lastSummary) {
+  if (!summary) return "";
+  return [
+    Number(summary.pageGlobalStartOffset || 0),
+    Number(summary.chunkOrder || 0),
+    summary.theme || "light",
+    Number(summary.viewportWidth || 0),
+    Number(summary.viewportHeight || 0)
+  ].join("|");
+}
+
+function buildTurnLayer(canvases) {
   const wrap = document.createElement("div");
   wrap.className = "protected-turn-layer";
   canvases.forEach((canvas) => wrap.append(canvas));
-  layer.replaceChildren(wrap);
-  layer.style.opacity = "1";
-  if (oppositeLayer) oppositeLayer.style.opacity = "0";
+  return wrap;
+}
+
+function getNeighborLayerCanvasCount(direction) {
+  const layer = document.getElementById(direction === "prev" ? "viewer-prev" : "viewer-next");
+  return layer ? layer.querySelectorAll("canvas").length : 0;
+}
+
+function hasFreshNeighborLayer(direction, expectedKey = getExpectedTurnPreviewKey()) {
+  const layer = document.getElementById(direction === "prev" ? "viewer-prev" : "viewer-next");
+  if (!layer) return false;
+  const canvasCount = layer.querySelectorAll("canvas").length;
+  if (!canvasCount) return false;
+  if (!expectedKey) return true;
+  return String(layer.dataset.previewKey || "") === String(expectedKey);
+}
+
+function invalidateNeighborLayers() {
+  const prevLayer = document.getElementById("viewer-prev");
+  const nextLayer = document.getElementById("viewer-next");
+  if (prevLayer) {
+    prevLayer.replaceChildren();
+    prevLayer.dataset.previewKey = "";
+    prevLayer.style.opacity = "0";
+  }
+  if (nextLayer) {
+    nextLayer.replaceChildren();
+    nextLayer.dataset.previewKey = "";
+    nextLayer.style.opacity = "0";
+  }
+}
+
+function syncNeighborPreviewLayers({ requireFresh = false, direction = null } = {}) {
+  const prevLayer = document.getElementById("viewer-prev");
+  const nextLayer = document.getElementById("viewer-next");
+  if (!prevLayer || !nextLayer) return false;
+  const frame = HOST_STATE.frame;
+  const doc = frame && frame.contentDocument ? frame.contentDocument : null;
+  const expectedKey = getExpectedTurnPreviewKey();
+  const prevRoot = doc ? doc.getElementById("protected-turn-preview-prev") : null;
+  const nextRoot = doc ? doc.getElementById("protected-turn-preview-next") : null;
+  const prevReady = !!(prevRoot && prevRoot.dataset.ready === "1" && (!requireFresh || !expectedKey || prevRoot.dataset.previewKey === expectedKey));
+  const nextReady = !!(nextRoot && nextRoot.dataset.ready === "1" && (!requireFresh || !expectedKey || nextRoot.dataset.previewKey === expectedKey));
+  const prevCanvases = prevReady ? cloneEmbeddedPreviewCanvases("prev") : [];
+  const nextCanvases = nextReady ? cloneEmbeddedPreviewCanvases("next") : [];
+  let updated = false;
+  if (prevCanvases.length) {
+    prevLayer.replaceChildren(buildTurnLayer(prevCanvases));
+    prevLayer.dataset.previewKey = prevRoot && prevRoot.dataset.previewKey ? prevRoot.dataset.previewKey : "";
+    updated = true;
+  }
+  if (nextCanvases.length) {
+    nextLayer.replaceChildren(buildTurnLayer(nextCanvases));
+    nextLayer.dataset.previewKey = nextRoot && nextRoot.dataset.previewKey ? nextRoot.dataset.previewKey : "";
+    updated = true;
+  }
+  const existingPrev = prevLayer.querySelectorAll("canvas").length;
+  const existingNext = nextLayer.querySelectorAll("canvas").length;
+  if (requireFresh && expectedKey) {
+    const prevFresh = prevLayer.dataset.previewKey === expectedKey && existingPrev > 0;
+    const nextFresh = nextLayer.dataset.previewKey === expectedKey && existingNext > 0;
+    if (direction === "prev") return prevFresh;
+    if (direction === "next") return nextFresh;
+    return prevFresh && nextFresh;
+  }
+  return updated || existingPrev > 0 || existingNext > 0;
+}
+
+function scheduleNeighborPreviewSync() {
+  if (HOST_STATE.turnPreviewSyncTimer) {
+    window.clearTimeout(HOST_STATE.turnPreviewSyncTimer);
+    HOST_STATE.turnPreviewSyncTimer = null;
+  }
+  HOST_STATE.turnPreviewSyncTimer = window.setTimeout(() => {
+    HOST_STATE.turnPreviewSyncTimer = null;
+    void prepareAndSyncNeighborPreviews();
+  }, 40);
+}
+
+function ensureNeighborLayersMounted(remainingAttempts = 6) {
+  if (getNeighborLayerCanvasCount("prev") > 0 || getNeighborLayerCanvasCount("next") > 0) return;
+  if (HOST_STATE.turnNeighborMountTimer) {
+    window.clearTimeout(HOST_STATE.turnNeighborMountTimer);
+    HOST_STATE.turnNeighborMountTimer = null;
+  }
+  const run = async () => {
+    let ready = syncNeighborPreviewLayers({ requireFresh: true });
+    if (!ready) {
+      ready = await prepareAndSyncNeighborPreviews();
+    }
+    if (!ready) {
+      syncNeighborPreviewLayers({ requireFresh: false });
+    }
+    if (
+      remainingAttempts > 1 &&
+      getNeighborLayerCanvasCount("prev") === 0 &&
+      getNeighborLayerCanvasCount("next") === 0
+    ) {
+      HOST_STATE.turnNeighborMountTimer = window.setTimeout(() => {
+        HOST_STATE.turnNeighborMountTimer = null;
+        ensureNeighborLayersMounted(remainingAttempts - 1);
+      }, 120);
+    }
+  };
+  void run();
+}
+
+async function prepareAndSyncNeighborPreviews(direction = null) {
+  if (HOST_STATE.turnPreviewPromise) {
+    return HOST_STATE.turnPreviewPromise;
+  }
+  HOST_STATE.turnPreviewPromise = (async () => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await invokeBridgeRaw("preparePageTurnPreviews");
+      } catch (_error) {}
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < 180) {
+        if (syncNeighborPreviewLayers({ requireFresh: true, direction })) return true;
+        await new Promise((resolve) => window.setTimeout(resolve, 16));
+      }
+    }
+    return syncNeighborPreviewLayers({ requireFresh: true, direction });
+  })();
+  try {
+    return await HOST_STATE.turnPreviewPromise;
+  } finally {
+    HOST_STATE.turnPreviewPromise = null;
+  }
+}
+
+async function waitForLivePageToSettle(expectedSummary, timeoutMs = 700) {
+  const expectedStartOffset = Number(expectedSummary && expectedSummary.pageGlobalStartOffset || 0);
+  const expectedChunkOrder = Number(expectedSummary && expectedSummary.chunkOrder || 0);
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const frameSummary = getBridgeSummaryFromFrame(HOST_STATE.frame);
+    const liveCanvases = cloneProtectedCanvases();
+    const ready =
+      !!frameSummary &&
+      liveCanvases.length > 0 &&
+      Number(frameSummary.pageGlobalStartOffset || 0) === expectedStartOffset &&
+      Number(frameSummary.chunkOrder || 0) === expectedChunkOrder;
+    if (ready) return true;
+    await new Promise((resolve) => window.setTimeout(resolve, 16));
+  }
+  return false;
+}
+
+function updatePageTurnPresentation(dx) {
+  const stack = document.getElementById("viewerStack");
+  const shadow = document.getElementById("swipe-shadow");
+  const currentLayer = getCurrentTurnLayer();
+  const prevLayer = document.getElementById("viewer-prev");
+  const nextLayer = document.getElementById("viewer-next");
+  if (!stack || !currentLayer || !dx) return;
+  const width = Math.max(1, stack.getBoundingClientRect().width || window.innerWidth || 1);
+  const shadowWidth = Math.max(6, shadow ? shadow.getBoundingClientRect().width || 6 : 6);
+  const direction = dx > 0 ? "prev" : "next";
+  if (!hasFreshNeighborLayer(direction)) {
+    syncNeighborPreviewLayers({ requireFresh: false, direction });
+  }
   stack.classList.add("swiping");
   stack.classList.toggle("swipe-reveal-prev", direction === "prev");
   stack.classList.toggle("swipe-reveal-next", direction === "next");
   stack.classList.toggle("shadow-left", direction === "prev");
   stack.classList.toggle("shadow-right", direction === "next");
   stack.classList.remove("swipe-undim");
-  document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right");
+  stack.classList.add("swiping");
   const isDark = document.body.classList.contains("dark-ui") || document.body.classList.contains("protected-theme-dark");
   document.documentElement.style.setProperty("--swipe-overlay-alpha", isDark ? "0.400" : "0.100");
-  const shadow = document.getElementById("swipe-shadow");
+  document.documentElement.classList.add("fb-swipe-margins");
+  document.documentElement.classList.remove("fb-swipe-underlay-left", "fb-swipe-underlay-right");
+  document.documentElement.classList.add(direction === "prev" ? "fb-swipe-underlay-left" : "fb-swipe-underlay-right");
+  if (prevLayer) prevLayer.style.opacity = direction === "prev" ? "1" : "0";
+  if (nextLayer) nextLayer.style.opacity = direction === "next" ? "1" : "0";
+  updateCurrentTurnLayerTransform(dx);
   if (shadow) {
     shadow.style.opacity = "1";
-    shadow.style.left = direction === "prev" ? "0px" : "calc(100% - 6px)";
+    shadow.style.left = direction === "prev"
+      ? `${Math.max(0, Math.round(dx) - shadowWidth)}px`
+      : `${Math.min(width - shadowWidth, width + Math.round(dx))}px`;
   }
+}
+
+function settleTurnPreview(direction) {
+  const stack = document.getElementById("viewerStack");
+  const shadow = document.getElementById("swipe-shadow");
+  const currentLayer = getCurrentTurnLayer();
+  const prevLayer = document.getElementById("viewer-prev");
+  const nextLayer = document.getElementById("viewer-next");
+  if (currentLayer) {
+    currentLayer.style.opacity = "0";
+    currentLayer.style.visibility = "hidden";
+    currentLayer.style.transform = "";
+    currentLayer.style.transition = "";
+  }
+  if (prevLayer) prevLayer.style.opacity = direction === "prev" ? "1" : "0";
+  if (nextLayer) nextLayer.style.opacity = direction === "next" ? "1" : "0";
+  if (shadow) {
+    shadow.style.opacity = "0";
+    shadow.style.left = "";
+    shadow.style.transition = "";
+  }
+  if (stack) {
+    stack.classList.remove("swiping", "shadow-left", "shadow-right", "swipe-undim");
+    stack.classList.remove("swipe-reveal-prev", "swipe-reveal-next");
+  }
+  document.documentElement.style.setProperty("--swipe-overlay-alpha", "0.000");
+  document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right");
 }
 
 async function openProtectedNoteComposer() {
@@ -1495,6 +1815,35 @@ function updateFromSummary(summary) {
     HOST_STATE.pendingSelectionToolbar = null;
     scheduleSelectionToolbarFromSummary(HOST_STATE.frame, pending.x, pending.y);
   }
+  const previewKey = [
+    Number(summary.pageGlobalStartOffset || 0),
+    Number(summary.chunkOrder || 0),
+    summary.theme || "light",
+    Number(summary.viewportWidth || 0),
+    Number(summary.viewportHeight || 0)
+  ].join("|");
+  if (previewKey !== HOST_STATE.lastTurnPreviewKey) {
+    HOST_STATE.lastTurnPreviewKey = previewKey;
+    if (!HOST_STATE.turnInFlight) {
+      invalidateNeighborLayers();
+      void prepareAndSyncNeighborPreviews().then(() => {
+        ensureNeighborLayersMounted();
+      });
+    }
+  } else {
+    const stack = document.getElementById("viewerStack");
+    const swiping = !!(stack && stack.classList.contains("swiping"));
+    const hostHasNeighbors = getNeighborLayerCanvasCount("prev") > 0 || getNeighborLayerCanvasCount("next") > 0;
+    if (!swiping) {
+      if (!syncNeighborPreviewLayers({ requireFresh: true })) {
+        syncNeighborPreviewLayers({ requireFresh: false });
+        scheduleNeighborPreviewSync();
+      }
+      if (!hostHasNeighbors) {
+        ensureNeighborLayersMounted();
+      }
+    }
+  }
 }
 
 function getBridge() {
@@ -1577,23 +1926,116 @@ function installNoteComposerCloseHook() {
   };
 }
 
-function animatePageTurn(direction) {
-  const host = document.getElementById("protectedOldShellHost");
-  clearPageTurnPreview();
-  primePageTurnPreview(direction);
-  HOST_STATE.turnCleanupTimer = window.setTimeout(() => {
-    clearPageTurnPreview();
-  }, 180);
+async function ensurePageTurnPreviewsReady() {
+  if (syncNeighborPreviewLayers({ requireFresh: true })) return true;
+  return prepareAndSyncNeighborPreviews();
+}
+
+function beginPageTurnPreview() {
+  return beginPageTurnPreviewFromCanvases(cloneProtectedCanvases());
+}
+
+function beginPageTurnPreviewFromCanvases(liveCanvases) {
+  const currentLayer = getCurrentTurnLayer();
+  const frame = HOST_STATE.frame;
+  if (!currentLayer || !frame || !liveCanvases.length) return false;
+  currentLayer.replaceChildren(buildTurnLayer(liveCanvases));
+  currentLayer.style.visibility = "visible";
+  currentLayer.style.opacity = "1";
+  currentLayer.style.transition = "none";
+  currentLayer.style.transform = "translate3d(0px, 0, 0)";
+  frame.style.pointerEvents = "none";
+  frame.style.opacity = "0";
+  frame.style.visibility = "hidden";
+  return true;
+}
+
+function animatePageTurnTo(dx, durationMs = 280) {
+  const currentLayer = getCurrentTurnLayer();
+  if (!currentLayer) return;
+  currentLayer.style.transition = `transform ${durationMs}ms ease-out`;
+  window.requestAnimationFrame(() => {
+    updatePageTurnPresentation(dx);
+  });
 }
 
 async function performPageTurn(direction) {
-  animatePageTurn(direction);
+  if (HOST_STATE.turnInFlight) {
+    window.__protectedTurnDebug = {
+      ...(window.__protectedTurnDebug || {}),
+      blockedAt: Date.now(),
+      blockedDirection: direction,
+      stage: "blocked-turn-in-flight"
+    };
+    return;
+  }
+  HOST_STATE.turnInFlight = true;
+  window.__protectedTurnDebug = {
+    count: Number((window.__protectedTurnDebug && window.__protectedTurnDebug.count) || 0) + 1,
+    direction,
+    startedAt: Date.now(),
+    stage: "prepare-start"
+  };
+  let neighborsReady = syncNeighborPreviewLayers({ requireFresh: true, direction });
+  if (!neighborsReady) {
+    neighborsReady = await prepareAndSyncNeighborPreviews(direction);
+  }
+  window.__protectedTurnDebug.stage = neighborsReady ? "prepare-done" : "prepare-background";
+  const prepared = beginPageTurnPreview();
+  window.__protectedTurnDebug.prepared = prepared;
+  window.__protectedTurnDebug.currentCanvasCount = document.getElementById("protectedOldShellCurrentLayer")
+    ? document.getElementById("protectedOldShellCurrentLayer").querySelectorAll("canvas").length
+    : 0;
+  const stack = document.getElementById("viewerStack");
+  const width = Math.max(1, stack ? stack.getBoundingClientRect().width || window.innerWidth || 1 : (window.innerWidth || 1));
+  const targetDx = direction === "prev" ? width : -width;
+  const animationPromise = new Promise((resolve) => {
+    if (!prepared) {
+      window.__protectedTurnDebug.stage = "prepare-failed";
+      resolve();
+      return;
+    }
+    window.__protectedTurnDebug.stage = "animating";
+    updatePageTurnPresentation(direction === "prev" ? 1 : -1);
+    animatePageTurnTo(targetDx, 280);
+    HOST_STATE.turnCleanupTimer = window.setTimeout(resolve, 300);
+  });
+  let nextSummary = null;
+  const bridgePromise = invokeBridgeRaw(direction === "prev" ? "prevPage" : "nextPage")
+    .then((result) => {
+      nextSummary = result || null;
+      if (nextSummary) updateFromSummary(nextSummary);
+      return result;
+    });
   try {
-    await invokeBridge(direction === "prev" ? "prevPage" : "nextPage");
+    await animationPromise;
+    settleTurnPreview(direction);
+    await bridgePromise;
+    if (nextSummary) {
+      await waitForLivePageToSettle(nextSummary);
+    }
+    clearPageTurnPreview({ clearNeighbors: false });
   } finally {
-    window.setTimeout(() => {
-      clearPageTurnPreview();
-    }, 40);
+    window.__protectedTurnDebug.stage = "cleanup";
+    HOST_STATE.turnInFlight = false;
+    window.__protectedTurnDebug.finishedAt = Date.now();
+    window.__protectedTurnDebug.turnInFlight = false;
+    if (nextSummary) {
+      HOST_STATE.lastTurnPreviewKey = getExpectedTurnPreviewKey(nextSummary);
+      invalidateNeighborLayers();
+      void prepareAndSyncNeighborPreviews()
+        .then((refreshed) => {
+          if (refreshed) {
+            syncNeighborPreviewLayers({ requireFresh: true });
+            ensureNeighborLayersMounted();
+          } else {
+            scheduleNeighborPreviewSync();
+          }
+        })
+        .catch(() => {
+          scheduleNeighborPreviewSync();
+        });
+    }
   }
 }
 
@@ -1609,13 +2051,65 @@ function installTouchSwipe(target) {
   if (!target || target.__protectedSwipeBound) return;
   target.__protectedSwipeBound = true;
   let gesture = null;
+  window.__protectedTouchDebug = window.__protectedTouchDebug || {};
+
+  function scheduleTouchRevealActivation(direction) {
+    if (!gesture || Math.abs(gesture.dx || 0) <= 24) return;
+    if (gesture.activationTimer) return;
+    gesture.activationTimer = window.setTimeout(() => {
+      if (!gesture) return;
+      gesture.activationTimer = null;
+      syncNeighborPreviewLayers({ requireFresh: !!gesture.prepared, direction });
+      const hasNeighborLayer = hasFreshNeighborLayer(direction);
+      if (!gesture.previewVisible && hasNeighborLayer) {
+        gesture.previewVisible = beginPageTurnPreviewFromCanvases(
+          gesture.frozenCanvases && gesture.frozenCanvases.length
+            ? gesture.frozenCanvases
+            : cloneProtectedCanvases()
+        );
+      }
+      if (gesture.previewVisible && hasNeighborLayer) {
+        updatePageTurnPresentation(gesture.dx || 0);
+        return;
+      }
+      scheduleTouchRevealActivation(direction);
+    }, 32);
+  }
 
   function onStart(event) {
     const touch = event.touches ? event.touches[0] : null;
     if (!touch || overlaysVisible()) return;
+    if (HOST_STATE.frame) HOST_STATE.frame.style.pointerEvents = "none";
+    const prepared = syncNeighborPreviewLayers({ requireFresh: true });
+    if (!prepared) syncNeighborPreviewLayers({ requireFresh: false });
     gesture = {
       x: touch.clientX,
-      y: touch.clientY
+      y: touch.clientY,
+      dx: 0,
+      prepared,
+      direction: null,
+      previewVisible: false,
+      frozenCanvases: cloneProtectedCanvases(),
+      activationTimer: null,
+      preparingDirection: null,
+      preparing: null
+    };
+    if (!prepared) {
+      gesture.preparingDirection = "both";
+      gesture.preparing = prepareAndSyncNeighborPreviews().then((ready) => {
+        if (!gesture) return;
+        if (ready) gesture.prepared = true;
+        syncNeighborPreviewLayers({ requireFresh: !!ready });
+      }).catch(() => {}).finally(() => {
+        if (gesture && gesture.preparingDirection === "both") gesture.preparingDirection = null;
+      });
+    }
+    window.__protectedTouchDebug.start = {
+      x: gesture.x,
+      y: gesture.y,
+      prepared,
+      nextNeighborCount: getNeighborLayerCanvasCount("next"),
+      prevNeighborCount: getNeighborLayerCanvasCount("prev")
     };
   }
 
@@ -1625,8 +2119,87 @@ function installTouchSwipe(target) {
     if (!touch) return;
     const dx = touch.clientX - gesture.x;
     const dy = touch.clientY - gesture.y;
+    window.__protectedTouchDebug.move = {
+      dx,
+      dy,
+      nextNeighborCount: getNeighborLayerCanvasCount("next"),
+      prevNeighborCount: getNeighborLayerCanvasCount("prev"),
+      previewVisible: !!gesture.previewVisible,
+      prepared: !!gesture.prepared
+    };
     if (Math.abs(dx) > 24 && Math.abs(dx) > Math.abs(dy)) {
       event.preventDefault();
+      gesture.dx = dx;
+      const direction = dx < 0 ? "next" : "prev";
+      gesture.direction = direction;
+      if (!gesture.prepared) {
+        syncNeighborPreviewLayers({ requireFresh: false, direction });
+      }
+      if (!gesture.prepared && syncNeighborPreviewLayers({ requireFresh: true, direction })) {
+        gesture.prepared = true;
+      }
+      if (!gesture.prepared && gesture.preparingDirection !== direction) {
+        gesture.preparingDirection = direction;
+        gesture.preparing = prepareAndSyncNeighborPreviews(direction).then((ready) => {
+          if (gesture && gesture.direction === direction) {
+            if (ready) {
+              gesture.prepared = true;
+            }
+            if (!(ready && syncNeighborPreviewLayers({ requireFresh: true, direction }))) {
+              syncNeighborPreviewLayers({ requireFresh: false, direction });
+            }
+            if (
+              !gesture.previewVisible &&
+              Math.abs(gesture.dx || 0) > 24 &&
+              hasFreshNeighborLayer(direction)
+            ) {
+              gesture.previewVisible = beginPageTurnPreviewFromCanvases(
+                gesture.frozenCanvases && gesture.frozenCanvases.length
+                  ? gesture.frozenCanvases
+                  : cloneProtectedCanvases()
+              );
+            }
+            if (gesture.previewVisible) updatePageTurnPresentation(gesture.dx || 0);
+            else scheduleTouchRevealActivation(direction);
+          }
+        }).catch(() => {}).finally(() => {
+          if (gesture && gesture.preparingDirection === direction) gesture.preparingDirection = null;
+        });
+      }
+      const hasNeighborLayer = hasFreshNeighborLayer(direction);
+      if (!gesture.previewVisible) {
+        gesture.previewVisible = beginPageTurnPreviewFromCanvases(
+          gesture.frozenCanvases && gesture.frozenCanvases.length
+            ? gesture.frozenCanvases
+            : cloneProtectedCanvases()
+        );
+      }
+      if (!gesture.previewVisible) {
+        scheduleTouchRevealActivation(direction);
+      }
+      window.__protectedTouchDebug.moveQualified = {
+        dx,
+        dy,
+        direction,
+        hasNeighborLayer,
+        previewVisible: !!gesture.previewVisible,
+        prepared: !!gesture.prepared,
+        frozenCanvasCount: gesture.frozenCanvases ? gesture.frozenCanvases.length : 0
+      };
+      if (gesture.previewVisible) {
+        if (hasNeighborLayer || gesture.prepared) {
+          if (!syncNeighborPreviewLayers({
+            requireFresh: !!gesture.prepared,
+            direction
+          }) && !getNeighborLayerCanvasCount(direction)) {
+            syncNeighborPreviewLayers({ requireFresh: false, direction });
+          }
+          updatePageTurnPresentation(dx);
+        } else {
+          updateCurrentTurnLayerTransform(dx);
+          scheduleTouchRevealActivation(direction);
+        }
+      }
     }
   }
 
@@ -1634,13 +2207,29 @@ function installTouchSwipe(target) {
     if (!gesture) return;
     const touch = event.changedTouches ? event.changedTouches[0] : null;
     if (!touch) {
+      if (HOST_STATE.frame) HOST_STATE.frame.style.pointerEvents = "auto";
       gesture = null;
       return;
     }
     const dx = touch.clientX - gesture.x;
     const dy = touch.clientY - gesture.y;
+    const previewVisible = gesture.previewVisible;
+    if (gesture.activationTimer) {
+      window.clearTimeout(gesture.activationTimer);
+      gesture.activationTimer = null;
+    }
     gesture = null;
-    if (Math.abs(dx) < 58 || Math.abs(dx) < Math.abs(dy) * 1.35) return;
+    if (Math.abs(dx) < 58 || Math.abs(dx) < Math.abs(dy) * 1.35) {
+      if (previewVisible) {
+        animatePageTurnTo(0, 150);
+        window.setTimeout(() => {
+          clearPageTurnPreview({ clearNeighbors: false });
+        }, 170);
+      } else if (HOST_STATE.frame) {
+        HOST_STATE.frame.style.pointerEvents = "auto";
+      }
+      return;
+    }
     event.preventDefault();
     if (dx < 0) {
       await performPageTurn("next");
@@ -1653,6 +2242,8 @@ function installTouchSwipe(target) {
   target.addEventListener("touchmove", onMove, { passive: false, capture: true });
   target.addEventListener("touchend", onEnd, { passive: false, capture: true });
   target.addEventListener("touchcancel", () => {
+    clearPageTurnPreview({ clearNeighbors: false });
+    if (HOST_STATE.frame) HOST_STATE.frame.style.pointerEvents = "auto";
     gesture = null;
   }, { passive: true, capture: true });
 }
@@ -1661,8 +2252,31 @@ function bindShellControls() {
   if (document.body.dataset.protectedShellBound === "yes") return;
   document.body.dataset.protectedShellBound = "yes";
 
-  const prev = document.getElementById("prev");
-  const next = document.getElementById("next");
+  const replaceControlNode = (id) => {
+    const node = document.getElementById(id);
+    if (!node || !node.parentNode) return node;
+    const clone = node.cloneNode(true);
+    node.parentNode.replaceChild(clone, node);
+    return clone;
+  };
+
+  const prev = replaceControlNode("prev");
+  const next = replaceControlNode("next");
+  [prev, next].forEach((node) => {
+    if (!node) return;
+    node.tabIndex = -1;
+    node.style.outline = "none";
+    node.style.boxShadow = "none";
+    node.style.userSelect = "none";
+    node.style.webkitUserSelect = "none";
+    node.style.webkitTapHighlightColor = "transparent";
+    node.addEventListener("mouseup", () => {
+      try { node.blur(); } catch (error) {}
+    }, true);
+    node.addEventListener("touchend", () => {
+      try { node.blur(); } catch (error) {}
+    }, true);
+  });
   prev && prev.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -1843,7 +2457,7 @@ function ensureProtectedHost() {
     await performPageTurn("next");
   });
 
-  host.append(frame, prev, next);
+  host.append(frame, currentLayer, prev, next);
   viewer.append(host);
   HOST_STATE.frame = frame;
   setShellLoading(true);
@@ -1857,6 +2471,8 @@ function ensureProtectedHost() {
       if (!bridge || typeof bridge.getSummary !== "function") return;
       updateFromSummary(bridge.getSummary());
     }, 180);
+    void prepareAndSyncNeighborPreviews();
+    ensureNeighborLayersMounted();
   });
 }
 
@@ -1973,3 +2589,5 @@ window.addEventListener(
   },
   { once: true }
 );
+  const currentLayer = document.createElement("div");
+  currentLayer.id = "protectedOldShellCurrentLayer";

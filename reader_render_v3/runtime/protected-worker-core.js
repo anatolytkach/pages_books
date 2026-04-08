@@ -549,6 +549,56 @@ export class ProtectedReaderRuntimeCore {
     return this.buildSnapshot({ annotations });
   }
 
+  captureRuntimeState() {
+    return {
+      currentChunkIndex: this.currentChunkIndex,
+      currentChunkModel: this.currentChunkModel,
+      currentShapeRegistry: this.currentShapeRegistry,
+      currentLayout: this.currentLayout,
+      currentPaginationModel: this.currentPaginationModel,
+      currentPageIndex: this.currentPageIndex,
+      selectionState: this.selectionState,
+      focusedAnnotationId: this.focusedAnnotationId,
+      focusedTocTarget: this.focusedTocTarget,
+      searchState: this.searchState
+    };
+  }
+
+  restoreRuntimeState(savedState) {
+    if (!savedState) return;
+    this.currentChunkIndex = savedState.currentChunkIndex;
+    this.currentChunkModel = savedState.currentChunkModel;
+    this.currentShapeRegistry = savedState.currentShapeRegistry;
+    this.currentLayout = savedState.currentLayout;
+    this.currentPaginationModel = savedState.currentPaginationModel;
+    this.currentPageIndex = savedState.currentPageIndex;
+    this.selectionState = savedState.selectionState;
+    this.focusedAnnotationId = savedState.focusedAnnotationId;
+    this.focusedTocTarget = savedState.focusedTocTarget;
+    this.searchState = savedState.searchState;
+  }
+
+  async previewNeighborPage({ direction = "next", annotations = [] } = {}) {
+    const normalizedDirection = direction === "prev" ? "prev" : "next";
+    const hasPrev =
+      this.currentPageIndex > 0 ||
+      this.currentChunkIndex > 0;
+    const hasNext =
+      this.currentPageIndex < this.currentPaginationModel.pages.length - 1 ||
+      this.currentChunkIndex < this.book.manifest.chunks.length - 1;
+    if ((normalizedDirection === "prev" && !hasPrev) || (normalizedDirection === "next" && !hasNext)) {
+      return null;
+    }
+    const savedState = this.captureRuntimeState();
+    try {
+      return normalizedDirection === "prev"
+        ? await this.goToPrevPage({ annotations })
+        : await this.goToNextPage({ annotations });
+    } finally {
+      this.restoreRuntimeState(savedState);
+    }
+  }
+
   async selectAutomationSample({ annotations = [] } = {}) {
     const page = this.getCurrentPage();
     if (!this.currentLayout || !page) {

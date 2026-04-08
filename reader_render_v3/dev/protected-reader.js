@@ -133,7 +133,9 @@ const state = {
     moveScheduled: false,
     pendingMovePoint: null
   },
-  pointerRequestChain: Promise.resolve()
+  pointerRequestChain: Promise.resolve(),
+  turnPreviewRefreshToken: 0,
+  turnPreviewRefreshPromise: Promise.resolve()
 };
 
 let pendingSelectionRangeDescriptor = null;
@@ -606,6 +608,140 @@ function getSelectionBounds() {
 
 function getCurrentAnnotations() {
   return state.annotationStore ? state.annotationStore.all() : [];
+}
+
+function ensureTurnPreviewRoot(direction) {
+  const normalizedDirection = direction === "prev" ? "prev" : "next";
+  const rootId = `protected-turn-preview-${normalizedDirection}`;
+  let root = document.getElementById(rootId);
+  if (root) return root;
+  root = document.createElement("div");
+  root.id = rootId;
+  root.dataset.direction = normalizedDirection;
+  root.dataset.ready = "0";
+  root.setAttribute("aria-hidden", "true");
+  root.style.position = "absolute";
+  root.style.inset = "0";
+  root.style.visibility = "hidden";
+  root.style.opacity = "0";
+  root.style.pointerEvents = "none";
+  root.style.overflow = "hidden";
+  root.style.zIndex = "-1";
+  (elements.readerFrame || document.body).append(root);
+  return root;
+}
+
+function renderSnapshotIntoTurnPreview(snapshot, direction, previewKey = getTurnPreviewKey()) {
+  const root = ensureTurnPreviewRoot(direction);
+  root.replaceChildren();
+  if (!snapshot || !snapshot.renderPacket) {
+    root.dataset.ready = "1";
+    root.dataset.previewKey = previewKey;
+    root.dataset.pageLabel = "";
+    return;
+  }
+  const wrap = document.createElement("div");
+  wrap.className = "protected-turn-preview-layer";
+  wrap.style.position = "absolute";
+  wrap.style.inset = "0";
+  wrap.style.display = "block";
+  wrap.style.overflow = "hidden";
+  const canvas = document.createElement("canvas");
+  const overlayCanvas = document.createElement("canvas");
+  canvas.style.position = "absolute";
+  canvas.style.top = "0";
+  canvas.style.left = "0";
+  overlayCanvas.style.position = "absolute";
+  overlayCanvas.style.top = "0";
+  overlayCanvas.style.left = "0";
+  renderChunkToCanvas({
+    canvas,
+    overlayCanvas,
+    renderPacket: snapshot.renderPacket,
+    debugGeometry: false,
+    offscreenCanvasStatus: state.workerClient.offscreenCanvas === "available" ? "inactive" : "not-available"
+  });
+  wrap.append(canvas, overlayCanvas);
+  root.append(wrap);
+  root.dataset.ready = "1";
+  root.dataset.previewKey = previewKey;
+  root.dataset.pageLabel =
+    snapshot.pageSummary && snapshot.pageSummary.globalPageLabel
+      ? String(snapshot.pageSummary.globalPageLabel)
+      : snapshot.pageSummary && snapshot.pageSummary.pageLabel
+        ? String(snapshot.pageSummary.pageLabel)
+        : "";
+}
+
+function commitTurnPreview(snapshot, direction, previewKey) {
+  const root = ensureTurnPreviewRoot(direction);
+  renderSnapshotIntoTurnPreview(snapshot, direction, previewKey);
+  return root;
+}
+
+function getTurnPreviewKey() {
+  const summary = buildBridgeSummary();
+  return [
+    Number(summary.pageGlobalStartOffset || 0),
+    Number(summary.chunkOrder || 0),
+    summary.theme || state.theme,
+    Number(summary.viewportWidth || 0),
+    Number(summary.viewportHeight || 0)
+  ].join("|");
+}
+
+async function refreshTurnPreview(direction, refreshKey) {
+  if (!state.currentSnapshot || !isEmbeddedOldShellMode()) return;
+  window.__PROTECTED_TURN_PREVIEW_DEBUG__ = window.__PROTECTED_TURN_PREVIEW_DEBUG__ || {};
+  window.__PROTECTED_TURN_PREVIEW_DEBUG__[direction] = {
+    stage: "start",
+    refreshKey
+  };
+  try {
+    const snapshot = await state.workerClient.previewNeighborPage({
+      direction,
+      annotations: getCurrentAnnotations()
+    });
+    window.__PROTECTED_TURN_PREVIEW_DEBUG__[direction] = {
+      stage: "snapshot",
+      refreshKey,
+      hasSnapshot: !!snapshot,
+      hasRenderPacket: !!(snapshot && snapshot.renderPacket)
+    };
+    const root = commitTurnPreview(snapshot, direction, refreshKey);
+    window.__PROTECTED_TURN_PREVIEW_DEBUG__[direction] = {
+      stage: "rendered",
+      refreshKey,
+      ready: root.dataset.ready || "",
+      canvasCount: root.querySelectorAll("canvas").length
+    };
+  } catch (_error) {
+    window.__PROTECTED_TURN_PREVIEW_DEBUG__[direction] = {
+      stage: "error",
+      refreshKey,
+      message: _error && _error.message ? _error.message : String(_error)
+    };
+    const root = ensureTurnPreviewRoot(direction);
+    if (!root.querySelector("canvas")) {
+      commitTurnPreview(null, direction, refreshKey);
+    }
+  }
+}
+
+async function refreshTurnPreviews() {
+  if (!isEmbeddedOldShellMode() || !state.currentSnapshot) return;
+  const refreshKey = getTurnPreviewKey();
+  const run = async () => {
+    state.turnPreviewRefreshToken += 1;
+    await Promise.all([
+      refreshTurnPreview("prev", refreshKey),
+      refreshTurnPreview("next", refreshKey)
+    ]);
+  };
+  state.turnPreviewRefreshPromise = state.turnPreviewRefreshPromise
+    .catch(() => {})
+    .then(run);
+  await state.turnPreviewRefreshPromise;
 }
 
 function getSelectedAnnotation() {
@@ -1154,6 +1290,7 @@ async function loadArtifact(artifactRoot) {
     state.readingStateSource = "default-start";
   }
   applySnapshot(finalSnapshot);
+  await refreshTurnPreviews();
   state.artifactLoadStatus = "loaded";
   await autoImportCompatPayload();
   if (state.annotationStore && state.annotationStore.all().length) {
@@ -1982,6 +2119,7 @@ async function bridgeNextPage() {
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
+  void refreshTurnPreviews().catch(() => {});
   return buildBridgeSummary();
 }
 
@@ -1991,6 +2129,12 @@ async function bridgePrevPage() {
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
+  void refreshTurnPreviews().catch(() => {});
+  return buildBridgeSummary();
+}
+
+async function bridgePreparePageTurnPreviews() {
+  await refreshTurnPreviews();
   return buildBridgeSummary();
 }
 
@@ -2000,6 +2144,7 @@ async function bridgeGoToToc(tocId) {
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
+  await refreshTurnPreviews();
   return buildBridgeSummary();
 }
 
@@ -2016,6 +2161,7 @@ async function bridgeGoToAnnotation(annotationId) {
   });
   state.selectedAnnotationId = annotation.annotationId;
   applySnapshot(snapshot);
+  await refreshTurnPreviews();
   return buildBridgeSummary();
 }
 
@@ -2025,6 +2171,7 @@ async function bridgeRestoreFromToken(token) {
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
+  await refreshTurnPreviews();
   return buildBridgeSummary();
 }
 
@@ -2158,6 +2305,7 @@ async function bridgeClearSearch() {
 
 async function bridgeSetTheme(theme = "light") {
   applyEmbeddedTheme(theme);
+  await refreshTurnPreviews();
   return buildBridgeSummary();
 }
 
@@ -2167,6 +2315,7 @@ async function bridgeSetFontScale(fontScale = 1) {
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
+  await refreshTurnPreviews();
   return buildBridgeSummary();
 }
 
@@ -2176,6 +2325,7 @@ function installEmbeddedBridge() {
     getDebugLayoutState: buildDebugLayoutState,
     nextPage: bridgeNextPage,
     prevPage: bridgePrevPage,
+    preparePageTurnPreviews: bridgePreparePageTurnPreviews,
     goToToc: bridgeGoToToc,
     goToAnnotation: bridgeGoToAnnotation,
     restoreFromToken: bridgeRestoreFromToken,

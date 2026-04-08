@@ -4,6 +4,7 @@ export const PROTECTED_WORKER_METHODS = {
   GO_TO_TOC: "goToToc",
   GO_TO_NEXT_PAGE: "goToNextPage",
   GO_TO_PREV_PAGE: "goToPrevPage",
+  PREVIEW_NEIGHBOR_PAGE: "previewNeighborPage",
   SELECT_AUTOMATION_SAMPLE: "selectAutomationSample",
   SET_FONT_SCALE: "setFontScale",
   SEARCH_BOOK: "searchBook",

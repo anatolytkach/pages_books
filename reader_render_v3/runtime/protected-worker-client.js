@@ -85,6 +85,13 @@ export function createProtectedWorkerClient(options = {}) {
       ensureSecureWorker();
       return decorateResult(PROTECTED_WORKER_METHODS.GO_TO_PREV_PAGE, await transport.call(PROTECTED_WORKER_METHODS.GO_TO_PREV_PAGE, payload));
     },
+    async previewNeighborPage(payload) {
+      ensureSecureWorker();
+      return decorateResult(
+        PROTECTED_WORKER_METHODS.PREVIEW_NEIGHBOR_PAGE,
+        await transport.call(PROTECTED_WORKER_METHODS.PREVIEW_NEIGHBOR_PAGE, payload)
+      );
+    },
     async selectAutomationSample(payload) {
       ensureSecureWorker();
       return decorateResult(
