@@ -2,8 +2,9 @@ import { createProtectedAnnotationRepository } from "../runtime/protected-annota
 import { serializeRangeDescriptor } from "../runtime/protected-range-serialization.js";
 import { renderChunkToCanvas } from "../runtime/protected-canvas-renderer.js";
 import { createProtectedWorkerClient } from "../runtime/protected-worker-client.js";
-import { loadProtectedBook } from "../runtime/protected-book-model.js";
+import { loadProtectedBook, loadProtectedChunkModel } from "../runtime/protected-book-model.js";
 import { parseRestoreToken } from "../runtime/protected-global-location.js";
+import { reconstructCrossChunkRangeText } from "../runtime/protected-cross-chunk-model.js";
 import { resolveProductionPayloadFromRoute } from "../integration/protected-reader-routing.js";
 import {
   buildProtectedSyncTransport,
@@ -134,6 +135,8 @@ const state = {
   },
   pointerRequestChain: Promise.resolve()
 };
+
+let pendingSelectionRangeDescriptor = null;
 
 if (isEmbeddedOldShellMode()) {
   document.documentElement.dataset.shellMode = "embedded-old-shell";
@@ -387,6 +390,9 @@ function buildBridgeSummary() {
       annotationId: annotation.annotationId,
       type: annotation.type,
       noteText: annotation.noteText || "",
+      quote: annotation && annotation.metadata && annotation.metadata.compatQuote
+        ? String(annotation.metadata.compatQuote)
+        : "",
       globalRange: `${annotation.rangeDescriptor.start.globalOffset}..${annotation.rangeDescriptor.end.globalOffset}`
     })),
     tocItems: (state.tocItems || []).map((item) => ({
@@ -418,6 +424,52 @@ function buildBridgeSummary() {
           pilotStatus: state.pilotStatus ? state.pilotStatus.status : "n/a"
         }
       : null
+  };
+}
+
+function buildDebugLayoutState() {
+  const layout =
+    state.currentSnapshot &&
+    state.currentSnapshot.renderPacket &&
+    state.currentSnapshot.renderPacket.layout
+      ? state.currentSnapshot.renderPacket.layout
+      : null;
+  const pageWindow =
+    state.currentSnapshot &&
+    state.currentSnapshot.renderPacket &&
+    state.currentSnapshot.renderPacket.pageWindow
+      ? state.currentSnapshot.renderPacket.pageWindow
+      : null;
+  if (!layout || !pageWindow || !Array.isArray(layout.lines)) {
+    return {
+      ready: false,
+      lines: []
+    };
+  }
+  const lines = layout.lines
+    .filter((line) => line && line.lineIndex >= pageWindow.lineStartIndex && line.lineIndex <= pageWindow.lineEndIndex)
+    .map((line) => ({
+      lineIndex: Number(line.lineIndex || 0),
+      width: Number(line.width || 0),
+      maxWidth: Number(line.maxWidth || 0),
+      widthRatio: Number(line.maxWidth || 0) > 0 ? Number(line.width || 0) / Number(line.maxWidth || 1) : 0,
+      x: Number(line.x || 0),
+      y: Number(line.y || 0),
+      fragmentCount: Array.isArray(line.fragments) ? line.fragments.length : 0,
+      tokenKinds: Array.isArray(line.fragments) ? line.fragments.map((fragment) => String(fragment.tokenKind || "")) : [],
+      preview: Array.isArray(line.fragments)
+        ? line.fragments.map((fragment) => ({
+            tokenKind: String(fragment.tokenKind || ""),
+            width: Number(fragment.width || 0),
+            glyphCount: Number(fragment.glyphCount || 0)
+          }))
+        : []
+    }));
+  return {
+    ready: true,
+    pageLabel: buildBridgeSummary().pageLabel,
+    globalPageLabel: buildBridgeSummary().globalPageLabel,
+    lines
   };
 }
 
@@ -1172,6 +1224,7 @@ function resetPointerGesture() {
     startClientX: 0,
     startClientY: 0,
     startCanvasPoint: null,
+    moved: false,
     moveScheduled: false,
     pendingMovePoint: null
   };
@@ -1225,6 +1278,8 @@ function handlePointerDown(event) {
     startClientX: Number(event.clientX || 0),
     startClientY: Number(event.clientY || 0),
     startCanvasPoint: getCanvasPoint(event)
+    ,
+    moved: false
   };
   const startPoint = state.pointerGesture.startCanvasPoint;
   enqueuePointerRequest(async () => {
@@ -1246,6 +1301,9 @@ function handlePointerMove(event) {
   if (gesture.pointerId != null && event.pointerId != null && gesture.pointerId !== event.pointerId) return;
   event.preventDefault();
   const point = getCanvasPoint(event);
+  const deltaX = Math.abs(Number(event.clientX || 0) - Number(gesture.startClientX || 0));
+  const deltaY = Math.abs(Number(event.clientY || 0) - Number(gesture.startClientY || 0));
+  if (deltaX > 3 || deltaY > 3) gesture.moved = true;
   schedulePointerMove(point);
 }
 
@@ -1256,6 +1314,10 @@ function handlePointerUp(event) {
   if (gesture.pointerId != null && event.pointerId != null && gesture.pointerId !== event.pointerId) return;
   event.preventDefault();
   const point = getCanvasPoint(event);
+  const shouldDismissFocusedAnnotation =
+    !gesture.moved &&
+    !!(state.currentSnapshot && state.currentSnapshot.runtimeMeta && state.currentSnapshot.runtimeMeta.focusSummary &&
+      state.currentSnapshot.runtimeMeta.focusSummary.annotationId);
   if (elements.canvas.releasePointerCapture && event.pointerId != null) {
     try {
       elements.canvas.releasePointerCapture(event.pointerId);
@@ -1263,6 +1325,10 @@ function handlePointerUp(event) {
   }
   resetPointerGesture();
   enqueuePointerRequest(async () => {
+    if (shouldDismissFocusedAnnotation) {
+      await requestAndApply("clearSelection");
+      return;
+    }
     await requestAndApply("pointerUp", {
       x: point.x,
       y: point.y
@@ -1417,6 +1483,46 @@ async function addNoteToSelection() {
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
   setStatus(`Added note ${note.annotationId}.`, "ok");
+}
+
+async function addNoteFromRangeDescriptor(rangeDescriptor, noteText = "", quoteText = "") {
+  if (!rangeDescriptor || !rangeDescriptor.start || !rangeDescriptor.end) {
+    throw new Error("Create a selection before adding a note.");
+  }
+  const normalizedText = String(noteText || "").trim();
+  if (!normalizedText) throw new Error("Enter note text before adding a note.");
+  let normalizedQuote = String(quoteText || "").replace(/\s+/g, " ").trim();
+  if (!normalizedQuote && state.book && state.book.globalLocationModel) {
+    try {
+      normalizedQuote = String(
+        await reconstructCrossChunkRangeText({
+          book: state.book,
+          globalModel: state.book.globalLocationModel,
+          rangeDescriptor,
+          loadChunkModel: loadProtectedChunkModel
+        })
+      ).replace(/\s+/g, " ").trim();
+    } catch (_error) {
+      normalizedQuote = "";
+    }
+  }
+  const note = state.annotationStore.createNote({
+    rangeDescriptor,
+    noteText: normalizedText,
+    metadata: normalizedQuote
+      ? { compatQuote: normalizedQuote }
+      : {}
+  });
+  state.selectedAnnotationId = note.annotationId;
+  await syncRepositoryAnnotations();
+  renderAnnotationList();
+  const snapshot = await state.workerClient.goToAnnotation({
+    rangeDescriptor,
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  setStatus(`Added note ${note.annotationId}.`, "ok");
+  return note;
 }
 
 async function addNoteToHighlight() {
@@ -1823,6 +1929,33 @@ async function deleteSelectedAnnotation() {
   setStatus(`Deleted annotation ${selectedAnnotation.annotationId}.`, "ok");
 }
 
+async function deleteAnnotationById(annotationId) {
+  const targetId = String(annotationId || "").trim();
+  if (!targetId) throw new Error("Annotation id is required.");
+  const annotation = state.annotationStore ? state.annotationStore.get(targetId) : null;
+  if (!annotation) throw new Error(`Unknown annotation ${targetId}.`);
+  const shouldClearFocusedSelection =
+    !!(state.currentSnapshot && state.currentSnapshot.runtimeMeta && state.currentSnapshot.runtimeMeta.focusSummary &&
+      state.currentSnapshot.runtimeMeta.focusSummary.annotationId === targetId);
+  state.annotationStore.delete(targetId);
+  if (state.selectedAnnotationId === targetId) {
+    state.selectedAnnotationId = null;
+    elements.noteInput.value = "";
+  }
+  await syncRepositoryAnnotations();
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
+  renderAnnotationList();
+  if (shouldClearFocusedSelection) {
+    const snapshot = await state.workerClient.clearSelection({
+      annotations: getCurrentAnnotations()
+    });
+    applySnapshot(snapshot);
+  } else {
+    await requestAndApply("getRuntimeStatus");
+  }
+  setStatus(`Deleted annotation ${targetId}.`, "ok");
+}
+
 async function clearLocalProtectedState() {
   if (!state.annotationRepository || !state.bookSummary) throw new Error("Nothing is loaded yet.");
   await state.annotationRepository.clearPersistence();
@@ -1900,6 +2033,35 @@ async function bridgeCopySelection() {
   return buildBridgeSummary();
 }
 
+async function bridgeExportSelectionForUserAction() {
+  if (!state.currentSnapshot) {
+    throw new Error("Nothing is loaded yet.");
+  }
+  if (!state.currentSnapshot.selectionResult || state.currentSnapshot.selectionResult.isCollapsed) {
+    throw new Error("Create a non-empty selection first.");
+  }
+  return state.workerClient.copyCurrentSelection();
+}
+
+async function bridgeCaptureSelectionForUserAction() {
+  if (!state.currentSnapshot || !state.currentSnapshot.selectionResult || state.currentSnapshot.selectionResult.isCollapsed) {
+    pendingSelectionRangeDescriptor = null;
+    return { hasSelection: false };
+  }
+  pendingSelectionRangeDescriptor = state.currentSnapshot.rangeDescriptor
+    ? JSON.parse(JSON.stringify(state.currentSnapshot.rangeDescriptor))
+    : null;
+  const exported = await state.workerClient.copyCurrentSelection();
+  return {
+    hasSelection: !!pendingSelectionRangeDescriptor,
+    rangeDescriptor: pendingSelectionRangeDescriptor
+      ? JSON.parse(JSON.stringify(pendingSelectionRangeDescriptor))
+      : null,
+    clipboardText: exported && exported.clipboardText ? String(exported.clipboardText) : "",
+    selectedChars: exported ? Number(exported.selectedChars || 0) : 0
+  };
+}
+
 async function bridgeCreateHighlight() {
   await createHighlightFromSelection();
   return buildBridgeSummary();
@@ -1908,6 +2070,45 @@ async function bridgeCreateHighlight() {
 async function bridgeAddNoteToSelection(noteText = "") {
   elements.noteInput.value = String(noteText || "");
   await addNoteToSelection();
+  return buildBridgeSummary();
+}
+
+async function bridgeCaptureSelectionForNote() {
+  pendingSelectionRangeDescriptor = state.currentSnapshot && state.currentSnapshot.rangeDescriptor
+    ? JSON.parse(JSON.stringify(state.currentSnapshot.rangeDescriptor))
+    : null;
+  return {
+    hasSelection: !!pendingSelectionRangeDescriptor,
+    summary: buildBridgeSummary()
+  };
+}
+
+async function bridgeAddNoteFromCapturedSelection(noteText = "") {
+  if (!pendingSelectionRangeDescriptor) {
+    throw new Error("Create a selection before adding a note.");
+  }
+  const rangeDescriptor = pendingSelectionRangeDescriptor;
+  pendingSelectionRangeDescriptor = null;
+  elements.noteInput.value = String(noteText || "");
+  await addNoteFromRangeDescriptor(rangeDescriptor, String(noteText || ""));
+  return buildBridgeSummary();
+}
+
+async function bridgeAddNoteFromRangeDescriptor(rangeDescriptor, noteText = "", quoteText = "") {
+  await addNoteFromRangeDescriptor(rangeDescriptor, String(noteText || ""), String(quoteText || ""));
+  return buildBridgeSummary();
+}
+
+async function bridgeClearSelection() {
+  const snapshot = await state.workerClient.clearSelection({
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function bridgeDeleteAnnotation(annotationId) {
+  await deleteAnnotationById(annotationId);
   return buildBridgeSummary();
 }
 
@@ -1972,15 +2173,23 @@ async function bridgeSetFontScale(fontScale = 1) {
 function installEmbeddedBridge() {
   window.__PROTECTED_READER_BRIDGE__ = {
     getSummary: buildBridgeSummary,
+    getDebugLayoutState: buildDebugLayoutState,
     nextPage: bridgeNextPage,
     prevPage: bridgePrevPage,
     goToToc: bridgeGoToToc,
     goToAnnotation: bridgeGoToAnnotation,
     restoreFromToken: bridgeRestoreFromToken,
     copySelection: bridgeCopySelection,
+    exportSelectionForUserAction: bridgeExportSelectionForUserAction,
+    captureSelectionForUserAction: bridgeCaptureSelectionForUserAction,
+    captureSelectionForNote: bridgeCaptureSelectionForNote,
     selectAutomationSample: bridgeSelectAutomationSample,
     createHighlight: bridgeCreateHighlight,
     addNoteToSelection: bridgeAddNoteToSelection,
+    addNoteFromCapturedSelection: bridgeAddNoteFromCapturedSelection,
+    addNoteFromRangeDescriptor: bridgeAddNoteFromRangeDescriptor,
+    deleteAnnotation: bridgeDeleteAnnotation,
+    clearSelection: bridgeClearSelection,
     searchBook: bridgeSearchBook,
     searchNextResult: bridgeSearchNextResult,
     searchPrevResult: bridgeSearchPrevResult,

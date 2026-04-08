@@ -14,6 +14,24 @@ function buildSelectionLayer(chunk, options = {}) {
   const parts = [];
   const chunkStart = options.globalStart || 0;
 
+  function normalizeRanges(items, keyPrefix = "range") {
+    return items
+      .filter((item) => item && typeof item.start === "number" && typeof item.end === "number" && item.end > item.start)
+      .sort((left, right) => {
+        if (left.start !== right.start) return left.start - right.start;
+        return left.end - right.end;
+      })
+      .filter((item, index, list) => {
+        if (index === 0) return true;
+        const prev = list[index - 1];
+        return !(prev.start === item.start && prev.end === item.end);
+      })
+      .map((item, index) => ({
+        ...item,
+        anchorId: item.anchorId || `${chunk.chunkId}-${keyPrefix}-${index + 1}`
+      }));
+  }
+
   function pushWordBoundaries(text, baseOffset) {
     const chars = Array.from(String(text || ""));
     function isCoreWordChar(char) {
@@ -131,14 +149,29 @@ function buildSelectionLayer(chunk, options = {}) {
     });
   });
 
+  const normalizedWordBoundaries = wordBoundaries
+    .filter((item) => item && typeof item.start === "number" && typeof item.end === "number" && item.end > item.start)
+    .sort((left, right) => {
+      if (left.start !== right.start) return left.start - right.start;
+      return left.end - right.end;
+    })
+    .filter((item, index, list) => {
+      if (index === 0) return true;
+      const prev = list[index - 1];
+      return !(prev.start === item.start && prev.end === item.end);
+    });
+
+  const normalizedBlockAnchors = normalizeRanges(blockAnchors, "block");
+  const normalizedNoteAnchors = normalizeRanges(noteAnchors, "note");
+
   const runtime = {
     textLength: cursor,
     textSegments: runtimeTextSegments,
     ranges: runtimeRanges,
-    blockAnchors,
-    noteAnchors,
+    blockAnchors: normalizedBlockAnchors,
+    noteAnchors: normalizedNoteAnchors,
     copyRanges,
-    wordBoundaries,
+    wordBoundaries: normalizedWordBoundaries,
     chunkRange: {
       start: chunkStart,
       end: chunkStart + cursor
@@ -149,10 +182,10 @@ function buildSelectionLayer(chunk, options = {}) {
     fullText: parts.join(""),
     textSegments: debugTextSegments,
     ranges: debugRanges,
-    blockAnchors,
-    noteAnchors,
+    blockAnchors: normalizedBlockAnchors,
+    noteAnchors: normalizedNoteAnchors,
     copyRanges,
-    wordBoundaries,
+    wordBoundaries: normalizedWordBoundaries,
     chunkRange: runtime.chunkRange
   };
 

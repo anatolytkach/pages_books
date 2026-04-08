@@ -27,6 +27,11 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
   const shapes = glyphInfo.shapes;
   const substrate = glyphInfo.substrate || glyphInfo.glyphs.substrate;
   const chunkLocation = locations.chunks.find((item) => item.chunkId === chunk.chunkId);
+  const selectionLayer = chunk.selectionLayer || {};
+  const textSegments = Array.isArray(selectionLayer.textSegments) ? selectionLayer.textSegments : [];
+  const wordBoundaries = Array.isArray(selectionLayer.wordBoundaries) ? selectionLayer.wordBoundaries : [];
+  const blockAnchors = Array.isArray(selectionLayer.blockAnchors) ? selectionLayer.blockAnchors : [];
+  const noteAnchors = Array.isArray(selectionLayer.noteAnchors) ? selectionLayer.noteAnchors : [];
 
   if (!chunk.renderLayer || !Array.isArray(chunk.renderLayer.glyphRuns)) {
     throw new Error(`Chunk ${chunk.chunkId} is missing renderLayer.glyphRuns`);
@@ -39,6 +44,12 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
   }
   if ("fullText" in chunk.selectionLayer) {
     throw new Error(`Chunk ${chunk.chunkId} leaks selectionLayer.fullText`);
+  }
+  if (!Array.isArray(selectionLayer.wordBoundaries) || !selectionLayer.wordBoundaries.length) {
+    throw new Error(`Chunk ${chunk.chunkId} is missing selectionLayer.wordBoundaries`);
+  }
+  if (!selectionLayer.chunkRange || typeof selectionLayer.chunkRange.start !== "number" || typeof selectionLayer.chunkRange.end !== "number") {
+    throw new Error(`Chunk ${chunk.chunkId} is missing selectionLayer.chunkRange`);
   }
   if ("text" in chunk.renderLayer) {
     throw new Error(`Chunk ${chunk.chunkId} leaks renderLayer.text`);
@@ -124,6 +135,78 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
   }
   if (typeof chunkLocation.startOffset !== "number" || typeof chunkLocation.endOffset !== "number") {
     throw new Error(`locations.json chunk ${chunk.chunkId} has invalid offsets`);
+  }
+
+  const textLength = Number(selectionLayer.textLength || 0);
+  const chunkStart = Number(selectionLayer.chunkRange.start || 0);
+  const chunkEnd = Number(selectionLayer.chunkRange.end || 0);
+  if (chunkEnd - chunkStart !== textLength) {
+    throw new Error(`Chunk ${chunk.chunkId} has inconsistent chunkRange/textLength`);
+  }
+
+  let lastSegmentEnd = 0;
+  for (const segment of textSegments) {
+    if (typeof segment.start !== "number" || typeof segment.end !== "number" || segment.end < segment.start) {
+      throw new Error(`Chunk ${chunk.chunkId} has invalid text segment bounds`);
+    }
+    if (segment.start < lastSegmentEnd) {
+      throw new Error(`Chunk ${chunk.chunkId} has overlapping textSegments`);
+    }
+    const segmentLength = Number(segment.textLength || 0);
+    if (segment.end - segment.start !== segmentLength) {
+      throw new Error(`Chunk ${chunk.chunkId} text segment ${segment.segmentId || "unknown"} has inconsistent textLength`);
+    }
+    lastSegmentEnd = segment.end;
+  }
+  if (textSegments.length && lastSegmentEnd > textLength) {
+    throw new Error(`Chunk ${chunk.chunkId} textSegments exceed chunk textLength`);
+  }
+
+  let lastWordEnd = 0;
+  for (const word of wordBoundaries) {
+    if (typeof word.start !== "number" || typeof word.end !== "number" || word.end <= word.start) {
+      throw new Error(`Chunk ${chunk.chunkId} has invalid word boundary`);
+    }
+    if (word.start < lastWordEnd) {
+      throw new Error(`Chunk ${chunk.chunkId} has overlapping word boundaries`);
+    }
+    if (word.end > textLength) {
+      throw new Error(`Chunk ${chunk.chunkId} word boundary exceeds textLength`);
+    }
+    lastWordEnd = word.end;
+  }
+
+  const textCoverage = textSegments.reduce((sum, segment) => sum + Math.max(0, Number(segment.end || 0) - Number(segment.start || 0)), 0);
+  const wordCoverage = wordBoundaries.reduce((sum, word) => sum + Math.max(0, Number(word.end || 0) - Number(word.start || 0)), 0);
+  if (textCoverage > 0 && wordCoverage <= 0) {
+    throw new Error(`Chunk ${chunk.chunkId} has zero word-boundary coverage`);
+  }
+  if (textCoverage > 0) {
+    const coverageRatio = wordCoverage / textCoverage;
+    if (coverageRatio < 0.45) {
+      throw new Error(`Chunk ${chunk.chunkId} has suspiciously low word-boundary coverage (${coverageRatio.toFixed(3)})`);
+    }
+  }
+
+  for (const anchor of blockAnchors) {
+    if (typeof anchor.start !== "number" || typeof anchor.end !== "number" || anchor.end < anchor.start) {
+      throw new Error(`Chunk ${chunk.chunkId} has invalid block anchor`);
+    }
+    if (anchor.end > textLength) {
+      throw new Error(`Chunk ${chunk.chunkId} block anchor exceeds textLength`);
+    }
+    if (!anchor.blockId) {
+      throw new Error(`Chunk ${chunk.chunkId} block anchor missing blockId`);
+    }
+  }
+
+  for (const anchor of noteAnchors) {
+    if (typeof anchor.start !== "number" || typeof anchor.end !== "number" || anchor.end < anchor.start) {
+      throw new Error(`Chunk ${chunk.chunkId} has invalid note anchor`);
+    }
+    if (anchor.end > textLength) {
+      throw new Error(`Chunk ${chunk.chunkId} note anchor exceeds textLength`);
+    }
   }
 }
 

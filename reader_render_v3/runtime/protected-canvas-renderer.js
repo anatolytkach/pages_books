@@ -113,7 +113,7 @@ export function renderChunkToCanvas({
     drawHighlightRect(overlay, span);
   }
 
-  overlay.fillStyle = "rgba(255, 176, 64, 0.52)";
+  overlay.fillStyle = "rgba(59, 168, 255, 0.46)";
   for (const rect of focusHighlights || []) {
     drawHighlightRect(overlay, rect);
   }

@@ -698,6 +698,7 @@ export class ProtectedReaderRuntimeCore {
 
   pointerDown({ x, y, shiftKey = false, annotations = [] }) {
     const position = hitTestPosition(this.currentLayout, x, y);
+    this.focusedAnnotationId = null;
     if (!position) return this.buildSnapshot({ annotations });
     this.selectionState = shiftKey && (this.selectionState.anchor || this.selectionState.focus)
       ? extendSelection(this.selectionState, position)
@@ -723,6 +724,7 @@ export class ProtectedReaderRuntimeCore {
 
   clearSelection({ annotations = [] }) {
     this.selectionState = clearSelection();
+    this.focusedAnnotationId = null;
     return this.buildSnapshot({ annotations });
   }
 

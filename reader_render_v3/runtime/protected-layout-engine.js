@@ -77,6 +77,37 @@ function buildTokenSlices(segment, wordBoundaryModel) {
   }];
 }
 
+function buildTokenSlicesFromText(segment, text = "") {
+  const rawText = String(text || "");
+  if (!rawText) {
+    return [{
+      startOffset: segment.start,
+      endOffset: segment.end,
+      kind: "gap"
+    }];
+  }
+  const tokens = [];
+  let cursor = 0;
+  while (cursor < rawText.length) {
+    const isGap = /\s/.test(rawText[cursor]);
+    const start = cursor;
+    cursor += 1;
+    while (cursor < rawText.length && /\s/.test(rawText[cursor]) === isGap) {
+      cursor += 1;
+    }
+    tokens.push({
+      startOffset: segment.start + start,
+      endOffset: segment.start + cursor,
+      kind: isGap ? "gap" : "word"
+    });
+  }
+  return tokens.length ? tokens : [{
+    startOffset: segment.start,
+    endOffset: segment.end,
+    kind: "gap"
+  }];
+}
+
 function justifyLineToWidth(line, targetWidth) {
   if (!line || !Array.isArray(line.fragments) || line.fragments.length < 2) return;
   const currentWidth = Number(line.width || 0);
@@ -87,25 +118,51 @@ function justifyLineToWidth(line, targetWidth) {
     fragment.tokenKind === "gap" &&
     Number(fragment.width || 0) > 0.5
   );
-  if (!gapFragments.length) return;
-  const extraPerGap = availableExtra / gapFragments.length;
+  const adjustableFragments = gapFragments.length
+    ? gapFragments
+    : line.fragments.filter((fragment, index) =>
+        index > 0 &&
+        fragment &&
+        fragment.tokenKind !== "gap" &&
+        fragment.tokenKind !== "punctuation"
+      );
+  if (!adjustableFragments.length) return;
+  const extraPerGap = availableExtra / adjustableFragments.length;
   let offsetX = 0;
   for (const fragment of line.fragments) {
     fragment.x += offsetX;
-    if (gapFragments.includes(fragment)) {
-      fragment.width += extraPerGap;
-      if (Array.isArray(fragment.charPositions) && fragment.charPositions.length > 1) {
-        const lastIndex = fragment.charPositions.length - 1;
-        fragment.charPositions = fragment.charPositions.map((value, index) => {
-          if (index === 0) return value;
-          const ratio = index / lastIndex;
-          return value + (extraPerGap * ratio);
-        });
+    if (adjustableFragments.includes(fragment)) {
+      if (gapFragments.length) {
+        fragment.width += extraPerGap;
+        if (Array.isArray(fragment.charPositions) && fragment.charPositions.length > 1) {
+          const lastIndex = fragment.charPositions.length - 1;
+          fragment.charPositions = fragment.charPositions.map((value, index) => {
+            if (index === 0) return value;
+            const ratio = index / lastIndex;
+            return value + (extraPerGap * ratio);
+          });
+        }
       }
       offsetX += extraPerGap;
     }
   }
   line.width = currentWidth + availableExtra;
+}
+
+function shouldJustifyParagraphLine(line, blockLines, index) {
+  if (!line || !Array.isArray(blockLines) || !blockLines.length) return false;
+  const maxWidth = Number(line.maxWidth || 0);
+  const width = Number(line.width || 0);
+  if (!Number.isFinite(maxWidth) || maxWidth <= 0 || !Number.isFinite(width) || width <= 0) return false;
+  const visibleFragments = Array.isArray(line.fragments)
+    ? line.fragments.filter((fragment) => fragment && Number(fragment.width || 0) > 0.5)
+    : [];
+  const wordLikeFragments = visibleFragments.filter((fragment) => fragment.tokenKind === "word");
+  const gapLikeFragments = visibleFragments.filter((fragment) => fragment.tokenKind === "gap");
+  if (wordLikeFragments.length <= 1 || gapLikeFragments.length === 0) return false;
+  const isLastLine = index === blockLines.length - 1;
+  if (isLastLine) return false;
+  return true;
 }
 
 function alignLineWithinWidth(line, width, align = "left") {
@@ -166,7 +223,14 @@ export function layoutChunk({
   const orderedBlockIds = [];
   const segmentMap = segmentMapForChunk(chunkModel.chunk);
   const backend = metricsBackend || resolveMetricsBackend({ ctx, renderMode, metricsMode, shapeRegistry });
-  const reconstructionScope = backend.name === "text"
+  const hasWordBoundaries =
+    !!(
+      chunkModel &&
+      chunkModel.wordBoundaryModel &&
+      Array.isArray(chunkModel.wordBoundaryModel.words) &&
+      chunkModel.wordBoundaryModel.words.length
+    );
+  const reconstructionScope = (backend.name === "text" || !hasWordBoundaries)
     ? createReconstructionScope({
         chunkModel,
         purpose: "layout-fallback",
@@ -205,6 +269,10 @@ export function layoutChunk({
     const blockMarginBottom = Math.max(0, Math.round((Number(blockPresentation.marginBottomEm || 0) || 0) * 18));
     const firstLineIndentPx = Math.max(0, Math.round((Number(blockPresentation.textIndentEm || 0) || 0) * 17));
     const blockTextAlign = String(blockPresentation.textAlign || "justify").toLowerCase();
+    const paragraphShouldJustify =
+      block.blockType === "paragraph" &&
+      blockTextAlign !== "center" &&
+      blockTextAlign !== "right";
     if (blockPresentation.pageBreakBefore && (pageSlot > 0 || columnIndex > 0 || columnCursorY > 0)) {
       pageSlot += 1;
       columnIndex = 0;
@@ -225,6 +293,17 @@ export function layoutChunk({
 
     function commitLine() {
       if (!currentLine || !currentLine.fragments.length) return;
+      while (
+        currentLine.fragments.length &&
+        currentLine.fragments[currentLine.fragments.length - 1] &&
+        currentLine.fragments[currentLine.fragments.length - 1].tokenKind === "gap"
+      ) {
+        currentLine.fragments.pop();
+      }
+      if (!currentLine.fragments.length) {
+        currentLine = null;
+        return;
+      }
       const dropCapFragment = currentLine.fragments.find((fragment) => /dropcap/.test(String(fragment.styleToken || ""))) || null;
       if (dropCapFragment) {
         const textFragments = currentLine.fragments.filter((fragment) => fragment !== dropCapFragment);
@@ -387,16 +466,23 @@ export function layoutChunk({
       const style = styles.get(run.styleToken) || {};
       const font = fontSpecForStyle(style, fontScale);
       const segment = segmentMap.get(`${block.blockId}:${runIndex}`) || null;
+      const effectiveSegment = segment || {
+        start: 0,
+        end: run.glyphCount || (run.glyphTokens || []).length
+      };
+      const segmentText = !hasWordBoundaries && reconstructionScope
+        ? reconstructRangeText(chunkModel, effectiveSegment.start, effectiveSegment.end, reconstructionScope)
+        : "";
       const tokens = buildTokenSlices(
-        segment || {
-          start: 0,
-          end: run.glyphCount || (run.glyphTokens || []).length
-        },
+        effectiveSegment,
         chunkModel.wordBoundaryModel
       );
-      tokens.forEach((token) => {
-        const localStart = token.startOffset - (segment ? segment.start : 0);
-        const localEnd = token.endOffset - (segment ? segment.start : 0);
+      const effectiveTokens = (!hasWordBoundaries && segmentText)
+        ? buildTokenSlicesFromText(effectiveSegment, segmentText)
+        : tokens;
+      effectiveTokens.forEach((token) => {
+        const localStart = token.startOffset - effectiveSegment.start;
+        const localEnd = token.endOffset - effectiveSegment.start;
         placeToken({
           token,
           font,
@@ -420,9 +506,11 @@ export function layoutChunk({
       for (const line of blockLines) {
         alignLineWithinWidth(line, Number(line.maxWidth || columnWidth), blockTextAlign);
       }
-    } else if (block.blockType === "paragraph" && blockLines.length > 1 && blockTextAlign === "justify") {
-      for (let index = 0; index < blockLines.length - 1; index += 1) {
-        justifyLineToWidth(blockLines[index], Number(blockLines[index].maxWidth || columnWidth));
+    } else if (paragraphShouldJustify && blockLines.length) {
+      for (let index = 0; index < blockLines.length; index += 1) {
+        const line = blockLines[index];
+        if (!shouldJustifyParagraphLine(line, blockLines, index)) continue;
+        justifyLineToWidth(line, Number(line.maxWidth || columnWidth));
       }
     }
     for (const line of blockLines) {

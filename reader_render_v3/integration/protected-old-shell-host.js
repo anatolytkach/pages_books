@@ -18,12 +18,16 @@ const HOST_STATE = {
   lastTocSignature: "",
   lastTocActiveId: "",
   lastTocCount: 0,
+  lastNotesSignature: "",
+  lastNotesCount: 0,
   fontScaleSynced: false,
   lastAppliedFontScale: 0,
   selectionToolbarTimer: null,
   lastSelectionSignature: "",
   selectionStableCount: 0,
-  pendingSelectionToolbar: null
+  pendingSelectionToolbar: null,
+  cachedSelectionActionState: null,
+  suppressSelectionToolbarUntil: 0
 };
 
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
@@ -47,19 +51,8 @@ function installStyles() {
     body.protected-old-shell #viewer-prev,
     body.protected-old-shell #viewer-next {
       display: block;
-      opacity: 0;
       pointer-events: none;
-      transition: opacity 160ms ease, transform 180ms ease;
-    }
-    body.protected-old-shell.turn-preview-next #viewer-next,
-    body.protected-old-shell.turn-preview-prev #viewer-prev {
-      opacity: 1;
-    }
-    body.protected-old-shell.turn-preview-next #viewer-next {
-      transform: translateX(18px) scale(0.992);
-    }
-    body.protected-old-shell.turn-preview-prev #viewer-prev {
-      transform: translateX(-18px) scale(0.992);
+      transition: opacity 160ms ease;
     }
     body.protected-old-shell #viewer-prev .protected-turn-layer,
     body.protected-old-shell #viewer-next .protected-turn-layer {
@@ -68,15 +61,7 @@ function installStyles() {
       display: flex;
       align-items: stretch;
       justify-content: stretch;
-      background: rgba(12, 21, 33, 0.24);
-    }
-    body.protected-old-shell #viewer-prev .protected-turn-layer::after,
-    body.protected-old-shell #viewer-next .protected-turn-layer::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(12, 21, 33, 0.16) 0%, rgba(12, 21, 33, 0.34) 100%);
-      pointer-events: none;
+      background: transparent;
     }
     body.protected-old-shell #viewer-prev .protected-turn-layer canvas,
     body.protected-old-shell #viewer-next .protected-turn-layer canvas {
@@ -84,15 +69,12 @@ function installStyles() {
       height: 100%;
       display: block;
       flex: 1 1 auto;
-      filter: saturate(0.94) brightness(0.88);
     }
     body.protected-old-shell #swipe-shadow {
-      opacity: 0;
       transition: opacity 160ms ease;
     }
-    body.protected-old-shell.turn-preview-next #swipe-shadow,
-    body.protected-old-shell.turn-preview-prev #swipe-shadow {
-      opacity: 0.94;
+    body.protected-old-shell #viewerStack.swiping #swipe-shadow {
+      opacity: 1 !important;
     }
     #protectedOldShellStatus {
       display: none;
@@ -126,12 +108,6 @@ function installStyles() {
       overflow: hidden;
       background: linear-gradient(180deg, #fffdfa 0%, #fbf7ef 100%);
     }
-    #protectedOldShellHost.is-turning-next #protectedOldShellFrame {
-      animation: protected-page-turn-next 180ms ease;
-    }
-    #protectedOldShellHost.is-turning-prev #protectedOldShellFrame {
-      animation: protected-page-turn-prev 180ms ease;
-    }
     #protectedOldShellFrame {
       width: 100%;
       height: 100%;
@@ -153,18 +129,21 @@ function installStyles() {
       position: absolute;
       top: 0;
       bottom: 0;
-      width: min(14vw, 110px);
+      width: var(--viewer-side, 28px);
       z-index: 7;
       border: 0;
       background: transparent;
       color: transparent;
       cursor: default;
       pointer-events: none;
+      display: none;
     }
     .protected-nav-edge.prev { left: 0; }
     .protected-nav-edge.next { right: 0; }
     @media (hover: none) and (pointer: coarse) {
       .protected-nav-edge {
+        display: block;
+        width: max(var(--viewer-side, 12px), var(--arrow-hit, 24px));
         pointer-events: auto;
         cursor: pointer;
       }
@@ -212,8 +191,15 @@ function installStyles() {
     body.protected-old-shell.protected-theme-dark {
       background: #101926;
     }
+    body.protected-old-shell.protected-theme-dark #main,
+    body.protected-old-shell.protected-theme-dark #viewerStack,
+    body.protected-old-shell.protected-theme-dark #viewer,
+    body.protected-old-shell.protected-theme-dark #viewer-prev,
+    body.protected-old-shell.protected-theme-dark #viewer-next {
+      background: #101926 !important;
+    }
     body.protected-old-shell.protected-theme-dark #protectedOldShellHost {
-      background: linear-gradient(180deg, #0f1825 0%, #142131 100%);
+      background: #101926;
     }
     body.protected-old-shell.protected-theme-dark #book-title,
     body.protected-old-shell.protected-theme-dark #chapter-title,
@@ -320,6 +306,76 @@ function installStyles() {
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
+    body.protected-old-shell #prev,
+    body.protected-old-shell #next {
+      width: 78px;
+      z-index: 9;
+      opacity: 0;
+      color: transparent;
+      background: transparent !important;
+      font-size: 0 !important;
+      line-height: 0 !important;
+      text-indent: -10000px;
+      overflow: hidden;
+      transition: opacity 160ms ease;
+    }
+    body.protected-old-shell #prev::before,
+    body.protected-old-shell #next::before {
+      content: none;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 160ms ease;
+    }
+    body.protected-old-shell #prev::after,
+    body.protected-old-shell #next::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-top: 3px solid rgba(149, 149, 149, 0.96);
+      border-right: 3px solid rgba(149, 149, 149, 0.96);
+      top: 50%;
+      left: 50%;
+      margin-top: -8px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 160ms ease;
+    }
+    body.protected-old-shell #next::after {
+      margin-left: -12px;
+      transform: rotate(45deg);
+    }
+    body.protected-old-shell #prev::after {
+      margin-left: -4px;
+      transform: rotate(-135deg);
+    }
+    body.protected-old-shell.protected-theme-dark #prev::after,
+    body.protected-old-shell.protected-theme-dark #next::after {
+      border-top-color: rgba(214, 222, 232, 0.96);
+      border-right-color: rgba(214, 222, 232, 0.96);
+    }
+    html.is-desktop body.protected-old-shell #prev:hover,
+    html.is-desktop body.protected-old-shell #next:hover,
+    html.is-desktop body.protected-old-shell #prev:active,
+    html.is-desktop body.protected-old-shell #next:active,
+    html.is-desktop body.protected-old-shell #prev.active,
+    html.is-desktop body.protected-old-shell #next.active {
+      opacity: 1;
+    }
+    html.is-desktop body.protected-old-shell #prev:hover::before,
+    html.is-desktop body.protected-old-shell #next:hover::before,
+    html.is-desktop body.protected-old-shell #prev:active::before,
+    html.is-desktop body.protected-old-shell #next:active::before,
+    html.is-desktop body.protected-old-shell #prev.active::before,
+    html.is-desktop body.protected-old-shell #next.active::before,
+    html.is-desktop body.protected-old-shell #prev:hover::after,
+    html.is-desktop body.protected-old-shell #next:hover::after,
+    html.is-desktop body.protected-old-shell #prev:active::after,
+    html.is-desktop body.protected-old-shell #next:active::after,
+    html.is-desktop body.protected-old-shell #prev.active::after,
+    html.is-desktop body.protected-old-shell #next.active::after {
+      opacity: 1;
+    }
   `;
   document.head.append(style);
 }
@@ -339,6 +395,34 @@ function setShellLoading(active) {
   if (active) HOST_STATE.loadingCount += 1;
   else HOST_STATE.loadingCount = Math.max(0, HOST_STATE.loadingCount - 1);
   loader.style.display = HOST_STATE.loadingCount > 0 ? "block" : "none";
+}
+
+function setHostActionStatus(message) {
+  const actionStatus = document.getElementById("protectedShellActionStatus");
+  if (actionStatus && message) actionStatus.textContent = String(message);
+}
+
+async function copyTextToClipboard(text) {
+  const normalized = String(text || "");
+  if (!normalized) throw new Error("Create a non-empty selection first.");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(normalized);
+    return;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = normalized;
+  textarea.setAttribute("readonly", "readonly");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  textarea.style.top = "-1000px";
+  textarea.style.left = "-1000px";
+  document.body.append(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+  const ok = document.execCommand("copy");
+  textarea.remove();
+  if (!ok) throw new Error("Unable to copy selection.");
 }
 
 function getShellPreferredFontScale() {
@@ -699,45 +783,78 @@ function createOldStyleNoteItem(annotation) {
   wrap.style.minWidth = "0";
   wrap.style.width = "100%";
 
+  async function openNote(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
+    await invokeBridge("goToAnnotation", annotation.annotationId);
+  }
+
   const link = document.createElement("a");
   link.className = "bookmark_link";
   link.href = "#";
-  link.textContent = annotation.noteText || `${annotation.type} · ${annotation.globalRange}`;
-  link.addEventListener("click", async (event) => {
-    event.preventDefault();
-    await invokeBridge("goToAnnotation", annotation.annotationId);
-    closeAllShellOverlays();
-  });
+  link.textContent = annotation.quote || "…";
+  link.addEventListener("click", openNote);
   wrap.append(link);
 
   const comment = document.createElement("div");
   comment.className = "bookmark-comment";
-  comment.textContent = annotation.globalRange;
+  comment.textContent = annotation.noteText || "";
   wrap.append(comment);
   li.append(wrap);
 
-  const go = document.createElement("button");
-  go.type = "button";
-  go.className = "bookmark-delete";
-  go.setAttribute("aria-label", "Go to note");
-  go.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5l8 7-8 7"></path></svg>';
-  go.addEventListener("click", async (event) => {
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "bookmark-delete";
+  remove.setAttribute("aria-label", "Delete note");
+  remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16"></path><path d="M9 7V5h6v2"></path><rect x="6" y="7" width="12" height="13" rx="2"></rect><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>';
+  remove.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    await invokeBridge("goToAnnotation", annotation.annotationId);
-    closeAllShellOverlays();
+    await invokeBridge("deleteAnnotation", annotation.annotationId);
   });
-  li.append(go);
+  li.append(remove);
+  li.addEventListener("click", openNote);
   return li;
 }
 
 function renderNotes(summary) {
   const notes = document.getElementById("notes");
   if (!notes) return;
-  notes.replaceChildren();
   const annotations = Array.isArray(summary && summary.annotations) ? summary.annotations : [];
-  const noteAnnotations = annotations.filter((annotation) => annotation.type === "note");
+  const noteAnnotations = annotations
+    .filter((annotation) => annotation.type === "note")
+    .slice()
+    .sort((left, right) => {
+      const leftOffset = left && left.globalRange
+        ? Number(String(left.globalRange).split("..")[0] || 0)
+        : 0;
+      const rightOffset = right && right.globalRange
+        ? Number(String(right.globalRange).split("..")[0] || 0)
+        : 0;
+      return rightOffset - leftOffset;
+    });
+  const signature = noteAnnotations.map((annotation) => {
+    const id = annotation && annotation.annotationId ? String(annotation.annotationId) : "";
+    const quote = annotation && annotation.quote ? String(annotation.quote) : "";
+    const noteText = annotation && annotation.noteText ? String(annotation.noteText) : "";
+    return `${id}|${quote}|${noteText}`;
+  }).join("||");
+  const existingItems = notes.querySelectorAll(".list_item[data-annotation-id]");
+  if (
+    signature &&
+    HOST_STATE.lastNotesSignature === signature &&
+    HOST_STATE.lastNotesCount === noteAnnotations.length &&
+    existingItems.length === noteAnnotations.length
+  ) {
+    return;
+  }
+  notes.replaceChildren();
   noteAnnotations.forEach((annotation) => notes.append(createOldStyleNoteItem(annotation)));
+  HOST_STATE.lastNotesSignature = signature;
+  HOST_STATE.lastNotesCount = noteAnnotations.length;
   const copyNotes = document.getElementById("copyNotesLinkBtn");
   if (copyNotes) copyNotes.style.display = "none";
 }
@@ -826,13 +943,21 @@ function buildEngineBadge() {
 }
 
 function clearPageTurnPreview() {
+  const stack = document.getElementById("viewerStack");
   const prevLayer = document.getElementById("viewer-prev");
   const nextLayer = document.getElementById("viewer-next");
+  const shadow = document.getElementById("swipe-shadow");
   if (prevLayer) prevLayer.replaceChildren();
   if (nextLayer) nextLayer.replaceChildren();
-  document.body.classList.remove("turn-preview-next", "turn-preview-prev");
-  const shadow = document.getElementById("swipe-shadow");
-  if (shadow) shadow.style.opacity = "0";
+  if (prevLayer) prevLayer.style.opacity = "0";
+  if (nextLayer) nextLayer.style.opacity = "0";
+  if (shadow) {
+    shadow.style.opacity = "0";
+    shadow.style.left = "";
+  }
+  if (stack) stack.classList.remove("swiping", "swipe-reveal-prev", "swipe-reveal-next", "shadow-left", "shadow-right", "swipe-undim");
+  document.documentElement.style.setProperty("--swipe-overlay-alpha", "0.000");
+  document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right");
   if (HOST_STATE.turnCleanupTimer) {
     window.clearTimeout(HOST_STATE.turnCleanupTimer);
     HOST_STATE.turnCleanupTimer = null;
@@ -860,19 +985,33 @@ function cloneProtectedCanvases() {
 }
 
 function primePageTurnPreview(direction) {
+  const stack = document.getElementById("viewerStack");
   const layerId = direction === "prev" ? "viewer-prev" : "viewer-next";
   const layer = document.getElementById(layerId);
-  if (!layer) return;
+  const oppositeLayer = document.getElementById(direction === "prev" ? "viewer-next" : "viewer-prev");
+  if (!layer || !stack) return;
   const canvases = cloneProtectedCanvases();
   if (!canvases.length) return;
   const wrap = document.createElement("div");
   wrap.className = "protected-turn-layer";
   canvases.forEach((canvas) => wrap.append(canvas));
   layer.replaceChildren(wrap);
-  document.body.classList.remove("turn-preview-next", "turn-preview-prev");
-  document.body.classList.add(direction === "prev" ? "turn-preview-prev" : "turn-preview-next");
+  layer.style.opacity = "1";
+  if (oppositeLayer) oppositeLayer.style.opacity = "0";
+  stack.classList.add("swiping");
+  stack.classList.toggle("swipe-reveal-prev", direction === "prev");
+  stack.classList.toggle("swipe-reveal-next", direction === "next");
+  stack.classList.toggle("shadow-left", direction === "prev");
+  stack.classList.toggle("shadow-right", direction === "next");
+  stack.classList.remove("swipe-undim");
+  document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right");
+  const isDark = document.body.classList.contains("dark-ui") || document.body.classList.contains("protected-theme-dark");
+  document.documentElement.style.setProperty("--swipe-overlay-alpha", isDark ? "0.400" : "0.100");
   const shadow = document.getElementById("swipe-shadow");
-  if (shadow) shadow.style.opacity = "0.8";
+  if (shadow) {
+    shadow.style.opacity = "1";
+    shadow.style.left = direction === "prev" ? "0px" : "calc(100% - 6px)";
+  }
 }
 
 async function openProtectedNoteComposer() {
@@ -886,6 +1025,17 @@ async function openProtectedNoteComposer() {
     return;
   }
   hideSelectionToolbar();
+  let capture = HOST_STATE.cachedSelectionActionState;
+  if (!capture || !capture.hasSelection || !capture.rangeDescriptor) {
+    capture = await invokeBridgeRaw("captureSelectionForUserAction");
+  }
+  if (!capture || !capture.hasSelection) {
+    throw new Error("Create a non-empty selection before adding a note.");
+  }
+  const rangeDescriptor = capture.rangeDescriptor ? JSON.parse(JSON.stringify(capture.rangeDescriptor)) : null;
+  if (!rangeDescriptor) {
+    throw new Error("Selection anchor is unavailable for note creation.");
+  }
   backdrop && backdrop.classList.remove("hidden");
   sheet.classList.remove("hidden");
   input.value = "";
@@ -898,26 +1048,48 @@ async function openProtectedNoteComposer() {
     const close = () => {
       backdrop && backdrop.classList.add("hidden");
       sheet.classList.add("hidden");
-      save.removeEventListener("click", onSave);
-      cancel.removeEventListener("click", onCancel);
-      backdrop && backdrop.removeEventListener("click", onCancel);
+      save.removeEventListener("click", onSave, true);
+      cancel.removeEventListener("click", onCancel, true);
+      backdrop && backdrop.removeEventListener("click", onCancel, true);
       resolve();
     };
-    const onCancel = (event) => {
+    const onCancel = async (event) => {
       event && event.preventDefault();
+      event && event.stopPropagation && event.stopPropagation();
+      event && event.stopImmediatePropagation && event.stopImmediatePropagation();
+      try {
+        const nextSummary = await invokeBridgeRaw("clearSelection");
+        if (nextSummary) updateFromSummary(nextSummary);
+      } catch (error) {}
+      HOST_STATE.cachedSelectionActionState = null;
+      HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
       close();
     };
     const onSave = async (event) => {
       event && event.preventDefault();
+      event && event.stopPropagation && event.stopPropagation();
+      event && event.stopImmediatePropagation && event.stopImmediatePropagation();
       try {
-        await invokeBridge("addNoteToSelection", input.value || "");
-      } finally {
+        await invokeBridge(
+          "addNoteFromRangeDescriptor",
+          rangeDescriptor,
+          input.value || "",
+          capture && capture.clipboardText ? capture.clipboardText : ""
+        );
+        HOST_STATE.cachedSelectionActionState = null;
+        HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
         close();
+      } catch (error) {
+        setHostActionStatus(error && error.message ? error.message : "Unable to add note.");
+        try {
+          input.focus();
+        } catch (focusError) {}
+        return;
       }
     };
-    save.addEventListener("click", onSave);
-    cancel.addEventListener("click", onCancel);
-    backdrop && backdrop.addEventListener("click", onCancel);
+    save.addEventListener("click", onSave, true);
+    cancel.addEventListener("click", onCancel, true);
+    backdrop && backdrop.addEventListener("click", onCancel, true);
   });
 }
 
@@ -926,6 +1098,10 @@ function hideSelectionToolbar() {
   if (!toolbar) return;
   toolbar.classList.add("hidden");
   toolbar.setAttribute("aria-hidden", "true");
+  HOST_STATE.pendingSelectionToolbar = null;
+  HOST_STATE.cachedSelectionActionState = null;
+  HOST_STATE.lastSelectionSignature = "";
+  HOST_STATE.selectionStableCount = 0;
 }
 
 function scheduleSelectionToolbarFromSummary(frame, fallbackX = 160, fallbackY = 160) {
@@ -949,6 +1125,17 @@ function showSelectionToolbar(clientX, clientY) {
   toolbar.style.left = `${Math.max(12, clientX - 70)}px`;
   toolbar.style.top = `${Math.max(12, clientY - 64)}px`;
   toolbar.style.visibility = "visible";
+}
+
+async function primeSelectionActionState() {
+  try {
+    const bridgeState = await invokeBridgeRaw("captureSelectionForUserAction");
+    HOST_STATE.cachedSelectionActionState = bridgeState || null;
+    return HOST_STATE.cachedSelectionActionState;
+  } catch (error) {
+    HOST_STATE.cachedSelectionActionState = null;
+    return null;
+  }
 }
 
 function showSelectionToolbarForSummary(summary, fallbackX = 160, fallbackY = 160) {
@@ -1007,36 +1194,120 @@ function showSelectionToolbarForSummary(summary, fallbackX = 160, fallbackY = 16
   toolbar.style.left = `${chosen.x}px`;
   toolbar.style.top = `${chosen.y}px`;
   toolbar.style.visibility = "visible";
+  void primeSelectionActionState();
+}
+
+function openExternalUrl(url) {
+  try {
+    window.open(url, "_blank", "noopener");
+  } catch (error) {
+    window.location.href = url;
+  }
 }
 
 function bindSelectionToolbar() {
   const toolbar = document.getElementById("selectionToolbar");
   if (!toolbar || toolbar.__protectedBound) return;
   toolbar.__protectedBound = true;
-  toolbar.addEventListener("click", async (event) => {
-    const button = event.target && event.target.closest ? event.target.closest("[data-action]") : null;
-    if (!button) return;
-    event.preventDefault();
-    const action = button.getAttribute("data-action");
+async function handleAction(action) {
+    if (!action) return;
     if (action === "note") {
       await openProtectedNoteComposer();
       hideSelectionToolbar();
       return;
     }
     if (action === "copy") {
-      await invokeBridge("copySelection");
+      const cached = HOST_STATE.cachedSelectionActionState || await primeSelectionActionState();
+      const selectionText = cached && cached.clipboardText ? String(cached.clipboardText) : "";
+      await copyTextToClipboard(selectionText);
+      await invokeBridge("clearSelection");
+      HOST_STATE.cachedSelectionActionState = null;
+      HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
+      setHostActionStatus("Copied selection.");
       hideSelectionToolbar();
       return;
     }
-    if (action === "search") {
-      const searchOpen = document.getElementById("searchOpen");
-      searchOpen && searchOpen.click();
+    if (action === "search" || action === "translate" || action === "share") {
+      const exported = HOST_STATE.cachedSelectionActionState || await primeSelectionActionState();
+      const selectionText = exported && exported.clipboardText ? String(exported.clipboardText) : "";
+      if (!selectionText) {
+        setHostActionStatus("Create a non-empty selection first.");
+        hideSelectionToolbar();
+        return;
+      }
+      if (action === "search") {
+        openExternalUrl(`https://www.google.com/search?q=${encodeURIComponent(selectionText)}`);
+      } else if (action === "translate") {
+        openExternalUrl(`https://translate.google.com/?sl=auto&tl=en&text=${encodeURIComponent(selectionText)}&op=translate`);
+      } else if (action === "share") {
+        try {
+          if (navigator.share) {
+            await navigator.share({ text: selectionText });
+          } else if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(selectionText);
+            setHostActionStatus("Copied selection for sharing.");
+          }
+        } catch (error) {
+          setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
+        }
+      }
+      hideSelectionToolbar();
+      return;
+    }
+    hideSelectionToolbar();
+  }
+
+  function toolbarActionFromEvent(event) {
+    const direct = event && event.target && event.target.closest ? event.target.closest("[data-action]") : null;
+    if (direct) return direct.getAttribute("data-action");
+    return "";
+  }
+
+  async function maybeHandleToolbarAction(event, viaClick = false) {
+    const action = toolbarActionFromEvent(event);
+    if (!action) return;
+    try {
+      if (toolbar.__protectedActionLock && Date.now() - toolbar.__protectedActionLock < 500) return;
+      toolbar.__protectedActionLock = Date.now();
+    } catch (error) {}
+    try {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+    } catch (error) {}
+    try {
+      await handleAction(action);
+    } catch (error) {
+      setHostActionStatus(error && error.message ? error.message : "Selection action failed.");
       hideSelectionToolbar();
     }
-  });
+    if (viaClick) {
+      try { toolbar.__protectedActionLock = Date.now(); } catch (error) {}
+    }
+  }
+
+  toolbar.addEventListener("pointerdown", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true });
+  toolbar.addEventListener("touchstart", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true, passive: false });
+  toolbar.addEventListener("pointerup", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true });
+  toolbar.addEventListener("touchend", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true, passive: false });
+  toolbar.addEventListener("click", (event) => { maybeHandleToolbarAction(event, true); });
   document.addEventListener("pointerdown", (event) => {
     if (toolbar.contains(event.target)) return;
     hideSelectionToolbar();
+    const target = event.target;
+    const withinProtectedOverlay = !!(
+      target &&
+      target.closest &&
+      target.closest("#overlay-notes .list_item, #overlay-notes .bookmark-delete, #overlay-notes .bookmark_link, #commentSheet")
+    );
+    const summary = HOST_STATE.lastSummary;
+    const primaryButton = event.button == null || event.button === 0;
+    if (withinProtectedOverlay || !summary || !summary.focusedAnnotationId || !primaryButton) return;
+    void invokeBridgeRaw("clearSelection")
+      .then((nextSummary) => {
+        if (nextSummary) updateFromSummary(nextSummary);
+      })
+      .catch(() => {});
   }, true);
 }
 
@@ -1087,6 +1358,30 @@ function attachProtectedSurfaceInteractions(frame) {
     doc.addEventListener("pointerdown", () => hideSelectionToolbar(), true);
     doc.addEventListener("pointerdown", () => {
       HOST_STATE.pendingSelectionToolbar = null;
+      HOST_STATE.cachedSelectionActionState = null;
+    }, true);
+    doc.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
+      const summary = getBridgeSummaryFromFrame(frame);
+      const primaryButton = event.button == null || event.button === 0;
+      if (!inProtectedSurface || !summary || !summary.focusedAnnotationId || !primaryButton) return;
+      void invokeBridgeRaw("clearSelection")
+        .then((nextSummary) => {
+          if (nextSummary) updateFromSummary(nextSummary);
+        })
+        .catch(() => {});
+    }, true);
+    doc.addEventListener("click", (event) => {
+      const target = event.target;
+      const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
+      const summary = getBridgeSummaryFromFrame(frame);
+      if (!inProtectedSurface || !summary || !summary.focusedAnnotationId) return;
+      void invokeBridgeRaw("clearSelection")
+        .then((nextSummary) => {
+          if (nextSummary) updateFromSummary(nextSummary);
+        })
+        .catch(() => {});
     }, true);
     doc.addEventListener("mouseup", (event) => {
       if (event.button !== 0) return;
@@ -1189,7 +1484,13 @@ function updateFromSummary(summary) {
   }
   const toolbar = document.getElementById("selectionToolbar");
   const toolbarHidden = !toolbar || toolbar.classList.contains("hidden") || toolbar.getAttribute("aria-hidden") === "true";
-  if (toolbarHidden && HOST_STATE.selectionStableCount >= 2 && selectionSignature && HOST_STATE.pendingSelectionToolbar) {
+  if (
+    toolbarHidden &&
+    Date.now() >= Number(HOST_STATE.suppressSelectionToolbarUntil || 0) &&
+    HOST_STATE.selectionStableCount >= 2 &&
+    selectionSignature &&
+    HOST_STATE.pendingSelectionToolbar
+  ) {
     const pending = HOST_STATE.pendingSelectionToolbar;
     HOST_STATE.pendingSelectionToolbar = null;
     scheduleSelectionToolbarFromSummary(HOST_STATE.frame, pending.x, pending.y);
@@ -1225,6 +1526,14 @@ async function invokeBridge(method, ...args) {
   }
 }
 
+async function invokeBridgeRaw(method, ...args) {
+  const bridge = getBridge();
+  if (!bridge || typeof bridge[method] !== "function") {
+    throw new Error(`Protected bridge method unavailable: ${method}`);
+  }
+  return bridge[method](...args);
+}
+
 function ensureActionBar() {
   if (!isDevPanelEnabled()) return null;
   let bar = document.getElementById("protectedShellActionBar");
@@ -1254,18 +1563,38 @@ function ensureActionBar() {
   return bar;
 }
 
+function installNoteComposerCloseHook() {
+  window.__fbOnNoteCommentClosed = async ({ reason } = {}) => {
+    const normalizedReason = String(reason || "close");
+    if (normalizedReason === "save") return;
+    hideSelectionToolbar();
+    HOST_STATE.cachedSelectionActionState = null;
+    HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
+    try {
+      const nextSummary = await invokeBridgeRaw("clearSelection");
+      if (nextSummary) updateFromSummary(nextSummary);
+    } catch (error) {}
+  };
+}
+
 function animatePageTurn(direction) {
   const host = document.getElementById("protectedOldShellHost");
-  if (!host) return;
   clearPageTurnPreview();
   primePageTurnPreview(direction);
-  host.classList.remove("is-turning-next", "is-turning-prev");
-  host.offsetHeight;
-  host.classList.add(direction === "prev" ? "is-turning-prev" : "is-turning-next");
   HOST_STATE.turnCleanupTimer = window.setTimeout(() => {
-    host.classList.remove("is-turning-next", "is-turning-prev");
     clearPageTurnPreview();
   }, 180);
+}
+
+async function performPageTurn(direction) {
+  animatePageTurn(direction);
+  try {
+    await invokeBridge(direction === "prev" ? "prevPage" : "nextPage");
+  } finally {
+    window.setTimeout(() => {
+      clearPageTurnPreview();
+    }, 40);
+  }
 }
 
 function overlaysVisible() {
@@ -1314,12 +1643,10 @@ function installTouchSwipe(target) {
     if (Math.abs(dx) < 58 || Math.abs(dx) < Math.abs(dy) * 1.35) return;
     event.preventDefault();
     if (dx < 0) {
-      animatePageTurn("next");
-      await invokeBridge("nextPage");
+      await performPageTurn("next");
       return;
     }
-    animatePageTurn("prev");
-    await invokeBridge("prevPage");
+    await performPageTurn("prev");
   }
 
   target.addEventListener("touchstart", onStart, { passive: true, capture: true });
@@ -1338,25 +1665,25 @@ function bindShellControls() {
   const next = document.getElementById("next");
   prev && prev.addEventListener("click", async (event) => {
     event.preventDefault();
-    animatePageTurn("prev");
-    await invokeBridge("prevPage");
-  });
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+    await performPageTurn("prev");
+  }, true);
   next && next.addEventListener("click", async (event) => {
     event.preventDefault();
-    animatePageTurn("next");
-    await invokeBridge("nextPage");
-  });
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+    await performPageTurn("next");
+  }, true);
 
   document.addEventListener("keydown", async (event) => {
     if (!HOST_STATE.frame) return;
     if (event.key === "ArrowLeft") {
       event.preventDefault();
-      animatePageTurn("prev");
-      await invokeBridge("prevPage");
+      await performPageTurn("prev");
     } else if (event.key === "ArrowRight") {
       event.preventDefault();
-      animatePageTurn("next");
-      await invokeBridge("nextPage");
+      await performPageTurn("next");
     }
   });
 
@@ -1504,8 +1831,7 @@ function ensureProtectedHost() {
   prev.className = "protected-nav-edge prev";
   prev.textContent = "Prev";
   prev.addEventListener("click", async () => {
-    animatePageTurn("prev");
-    await invokeBridge("prevPage");
+    await performPageTurn("prev");
   });
 
   const next = document.createElement("button");
@@ -1514,8 +1840,7 @@ function ensureProtectedHost() {
   next.className = "protected-nav-edge next";
   next.textContent = "Next";
   next.addEventListener("click", async () => {
-    animatePageTurn("next");
-    await invokeBridge("nextPage");
+    await performPageTurn("next");
   });
 
   host.append(frame, prev, next);
@@ -1574,6 +1899,7 @@ async function bootOldShellProtectedHost() {
   window.__PROTECTED_OLD_SHELL_HOST_BOOT_STARTED = true;
   if (!window.__readerpubProtectedOldShellMode) return;
   installStyles();
+  installNoteComposerCloseHook();
   document.body.classList.remove("ui-hidden");
   document.body.classList.add("protected-old-shell");
   document.body.classList.toggle("protected-dev-panel", isDevPanelEnabled());
