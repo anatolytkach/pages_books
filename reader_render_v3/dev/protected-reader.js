@@ -1325,7 +1325,7 @@ function getCanvasPoint(event) {
   const rect = elements.canvas.getBoundingClientRect();
   const page = state.currentSnapshot ? state.currentSnapshot.renderPacket.pageWindow : null;
   const layout = state.currentSnapshot ? state.currentSnapshot.renderPacket.layout : null;
-  const yOffset = page ? page.top - (layout ? layout.padding : 0) : 0;
+  const yOffset = page ? page.top - (layout ? (layout.paddingY ?? layout.padding) : 0) : 0;
   return {
     x: event.clientX - rect.left,
     y: event.clientY - rect.top + yOffset

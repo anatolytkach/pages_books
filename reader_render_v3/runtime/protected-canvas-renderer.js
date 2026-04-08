@@ -71,7 +71,7 @@ export function renderChunkToCanvas({
     diagnostics = {}
   } = renderPacket;
   const viewportHeight = pageWindow ? pageWindow.height : layout.height;
-  const translateY = pageWindow ? layout.padding - pageWindow.top : 0;
+  const translateY = pageWindow ? ((layout.paddingY ?? layout.padding) - pageWindow.top) : 0;
   const currentTheme =
     typeof document !== "undefined" &&
     document &&

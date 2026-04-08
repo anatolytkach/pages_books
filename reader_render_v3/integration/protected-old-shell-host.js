@@ -132,7 +132,7 @@ function installStyles() {
     body.protected-old-shell #swipe-shadow {
     }
     body.protected-old-shell #viewerStack.swiping #swipe-shadow {
-      opacity: 1 !important;
+      opacity: 0 !important;
     }
     #protectedOldShellStatus {
       display: none;
@@ -194,11 +194,14 @@ function installStyles() {
       position: absolute;
       display: block;
     }
-    body.protected-old-shell #viewerStack.swiping.shadow-left #protectedOldShellCurrentLayer {
+    body.protected-old-shell #viewerStack.swiping #protectedOldShellCurrentLayer {
       box-shadow: none;
     }
     body.protected-old-shell #viewerStack.swiping.shadow-right #protectedOldShellCurrentLayer {
-      box-shadow: none;
+      box-shadow: 6px 0 10px rgba(0,0,0,0.28);
+    }
+    body.protected-old-shell #viewerStack.swiping.shadow-left #protectedOldShellCurrentLayer {
+      box-shadow: -6px 0 10px rgba(0,0,0,0.28);
     }
     @keyframes protected-page-turn-next {
       0% { opacity: 1; filter: none; }
@@ -1343,8 +1346,7 @@ function updatePageTurnPresentation(dx) {
   stack.classList.toggle("shadow-right", direction === "next");
   stack.classList.remove("swipe-undim");
   stack.classList.add("swiping");
-  const isDark = document.body.classList.contains("dark-ui") || document.body.classList.contains("protected-theme-dark");
-  document.documentElement.style.setProperty("--swipe-overlay-alpha", isDark ? "0.400" : "0.100");
+  updateSwipeOverlayAlpha(dx, width);
   document.documentElement.classList.add("fb-swipe-margins");
   document.documentElement.classList.remove("fb-swipe-underlay-left", "fb-swipe-underlay-right");
   document.documentElement.classList.add(direction === "prev" ? "fb-swipe-underlay-left" : "fb-swipe-underlay-right");
@@ -1357,6 +1359,12 @@ function updatePageTurnPresentation(dx) {
       ? `${Math.max(0, Math.round(dx) - shadowWidth)}px`
       : `${Math.min(width - shadowWidth, width + Math.round(dx))}px`;
   }
+}
+
+function updateCurrentTurnAnimationOnly(dx) {
+  const currentLayer = getCurrentTurnLayer();
+  if (!currentLayer || !dx) return;
+  updateCurrentTurnLayerTransform(dx);
 }
 
 function settleTurnPreview(direction) {
@@ -1384,6 +1392,43 @@ function settleTurnPreview(direction) {
   }
   document.documentElement.style.setProperty("--swipe-overlay-alpha", "0.000");
   document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right");
+}
+
+function getSwipeOverlayMax() {
+  try {
+    const css = window.getComputedStyle(document.body || document.documentElement);
+    const raw = parseFloat(css.getPropertyValue("--swipe-overlay-max"));
+    if (Number.isFinite(raw) && raw >= 0) return raw;
+  } catch (_error) {}
+  return 0.10;
+}
+
+function setSwipeOverlayAlpha(alpha) {
+  try {
+    let value = Number(alpha);
+    if (!Number.isFinite(value) || value < 0) value = 0;
+    document.documentElement.style.setProperty("--swipe-overlay-alpha", value.toFixed(3));
+  } catch (_error) {}
+}
+
+function updateSwipeOverlayAlpha(dx, width) {
+  try {
+    const w = Math.max(1, Number(width) || 0);
+    if (!w) {
+      setSwipeOverlayAlpha(0);
+      return;
+    }
+    const half = w * 0.5;
+    const traveled = Math.abs(Number(dx) || 0);
+    let fadeProgress = 0;
+    if (traveled > half) {
+      fadeProgress = Math.min(1, Math.max(0, (traveled - half) / half));
+    }
+    const alpha = getSwipeOverlayMax() * (1 - fadeProgress);
+    setSwipeOverlayAlpha(alpha);
+  } catch (_error) {
+    setSwipeOverlayAlpha(0);
+  }
 }
 
 async function openProtectedNoteComposer() {
@@ -2007,7 +2052,7 @@ function animatePageTurnTo(dx, durationMs = 280) {
   if (!currentLayer) return;
   currentLayer.style.transition = `transform ${durationMs}ms ease-out`;
   window.requestAnimationFrame(() => {
-    updatePageTurnPresentation(dx);
+    updateCurrentTurnAnimationOnly(dx);
   });
 }
 

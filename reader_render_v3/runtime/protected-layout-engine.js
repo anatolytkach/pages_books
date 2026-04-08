@@ -260,7 +260,7 @@ export function layoutChunk({
   styles,
   width,
   viewportHeight = 720,
-  padding = 44,
+  padding = null,
   fontScale = 1,
   metricsBackend = null,
   renderMode = "text",
@@ -268,15 +268,30 @@ export function layoutChunk({
   shapeRegistry = null
 }) {
   const ctx = createScratchContext();
-  const contentWidth = Math.max(260, width - padding * 2);
+  const effectiveWidth = Math.max(1, Number(width || 0));
+  const resolvedPaddingX =
+    padding == null
+      ? (
+        effectiveWidth >= 1024
+          ? 51
+          : effectiveWidth >= 768
+            ? 32
+            : 16
+      )
+      : Number(padding || 0);
+  const resolvedPaddingY =
+    padding == null
+      ? 20
+      : Number(padding || 0);
+  const contentWidth = Math.max(260, effectiveWidth - resolvedPaddingX * 2);
   const effectiveViewportHeight = Math.max(420, Number(viewportHeight || 720));
-  const columnCount = width >= 1120 ? 2 : 1;
-  const columnGap = columnCount > 1 ? 48 : 0;
+  const columnCount = effectiveWidth >= 1120 ? 2 : 1;
+  const columnGap = columnCount > 1 ? (effectiveWidth >= 1024 ? 102 : 48) : 0;
   const columnWidth = columnCount > 1
     ? Math.max(220, Math.floor((contentWidth - columnGap) / 2))
     : contentWidth;
   const pageSlotHeight = effectiveViewportHeight;
-  const columnInnerHeight = Math.max(260, pageSlotHeight - padding * 2);
+  const columnInnerHeight = Math.max(260, pageSlotHeight - resolvedPaddingY * 2);
   const blocks = [];
   const lines = [];
   const orderedBlockIds = [];
@@ -342,7 +357,7 @@ export function layoutChunk({
         columnCursorY += blockMarginTop;
       }
     }
-    const blockTop = pageSlot * pageSlotHeight + padding + columnCursorY;
+    const blockTop = pageSlot * pageSlotHeight + resolvedPaddingY + columnCursorY;
     const blockFragments = [];
     let currentLine = null;
     let blockLineCount = 0;
@@ -406,7 +421,7 @@ export function layoutChunk({
         advanceFlow(lineHeight);
       }
       if (currentLine) return currentLine;
-      const currentY = (pageSlot * pageSlotHeight) + padding + columnCursorY;
+      const currentY = (pageSlot * pageSlotHeight) + resolvedPaddingY + columnCursorY;
       const wrapActive = !!(
         dropCapWrap &&
         dropCapWrap.pageSlot === pageSlot &&
@@ -416,7 +431,7 @@ export function layoutChunk({
       const wrapInset = wrapActive ? Number(dropCapWrap.width || 0) : 0;
       currentLine = {
         blockId: block.blockId,
-        x: padding + (columnIndex * (columnWidth + columnGap)) + (blockLineCount === 0 ? firstLineIndentPx : 0) + wrapInset,
+        x: resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + (blockLineCount === 0 ? firstLineIndentPx : 0) + wrapInset,
         y: currentY,
         height: lineHeight,
         width: 0,
@@ -591,7 +606,7 @@ export function layoutChunk({
       blockId: block.blockId,
       blockType: block.blockType,
       styleToken: runs[0] ? runs[0].styleToken : "paragraph",
-      x: padding + (columnIndex * (columnWidth + columnGap)),
+      x: resolvedPaddingX + (columnIndex * (columnWidth + columnGap)),
       y: blockTop,
       width: columnWidth,
       height: Math.max(blockHeight, 24),
@@ -628,7 +643,9 @@ export function layoutChunk({
   return {
     width,
     height,
-    padding,
+    padding: resolvedPaddingY,
+    paddingX: resolvedPaddingX,
+    paddingY: resolvedPaddingY,
     viewportHeight: effectiveViewportHeight,
     blocks,
     lines,

@@ -1070,7 +1070,11 @@ export class ProtectedReaderRuntimeCore {
           viewportHeight: this.viewportHeight,
           columnCount: this.currentLayout && this.currentLayout.columnCount ? this.currentLayout.columnCount : 1,
           columnWidth: this.currentLayout && this.currentLayout.columnWidth ? this.currentLayout.columnWidth : this.getLayoutWidth(),
-          pageSlotCount: this.currentLayout && this.currentLayout.pageSlotCount ? this.currentLayout.pageSlotCount : this.currentPaginationModel.pages.length
+          pageSlotCount: this.currentLayout && this.currentLayout.pageSlotCount ? this.currentLayout.pageSlotCount : this.currentPaginationModel.pages.length,
+          padding: this.currentLayout && Number.isFinite(this.currentLayout.padding) ? this.currentLayout.padding : 0,
+          paddingX: this.currentLayout && Number.isFinite(this.currentLayout.paddingX) ? this.currentLayout.paddingX : 0,
+          paddingY: this.currentLayout && Number.isFinite(this.currentLayout.paddingY) ? this.currentLayout.paddingY : 0,
+          columnGap: this.currentLayout && Number.isFinite(this.currentLayout.columnGap) ? this.currentLayout.columnGap : 0
         },
         focusSummary: {
           annotationId: this.focusedAnnotationId || "",
