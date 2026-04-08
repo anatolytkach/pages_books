@@ -36,6 +36,55 @@ const HOST_STATE = {
 
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
 
+function isTouchShellMode() {
+  try {
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
+  } catch (_error) {}
+  try {
+    if (navigator && Number(navigator.maxTouchPoints || 0) > 0) return true;
+  } catch (_error) {}
+  try {
+    const ua = String((navigator && navigator.userAgent) || "");
+    if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) return true;
+  } catch (_error) {}
+  try {
+    const vw = Math.max(
+      Number(window.innerWidth || 0),
+      Number((document.documentElement && document.documentElement.clientWidth) || 0)
+    );
+    if (vw && vw <= 1024) return true;
+  } catch (_error) {}
+  return false;
+}
+
+function showShellUi() {
+  try {
+    if (typeof window.__fbShowUi === "function") {
+      window.__fbShowUi();
+      return;
+    }
+  } catch (_error) {}
+  document.body.classList.remove("ui-hidden");
+}
+
+function hideShellUi() {
+  try {
+    if (typeof window.__fbHideUi === "function") {
+      window.__fbHideUi();
+      return;
+    }
+  } catch (_error) {}
+  document.body.classList.add("ui-hidden");
+}
+
+function toggleShellUi() {
+  if (document.body.classList.contains("ui-hidden")) {
+    showShellUi();
+    return;
+  }
+  hideShellUi();
+}
+
 function installStyles() {
   if (document.getElementById(HOST_STYLE_ID)) return;
   const style = document.createElement("style");
@@ -53,6 +102,9 @@ function installStyles() {
     body.protected-old-shell #viewerStack {
       overflow: hidden;
       -webkit-tap-highlight-color: transparent !important;
+    }
+    body.protected-old-shell #fb-tap-layer {
+      display: none !important;
     }
     body.protected-old-shell #viewer,
     body.protected-old-shell #viewerStack.swiping #viewer {
@@ -2080,13 +2132,48 @@ function installTouchSwipe(target) {
     const touch = event.touches ? event.touches[0] : null;
     if (!touch || overlaysVisible()) return;
     if (HOST_STATE.frame) HOST_STATE.frame.style.pointerEvents = "none";
+    let hostRect = target.getBoundingClientRect ? target.getBoundingClientRect() : null;
+    let width = hostRect ? hostRect.width : 0;
+    let relX = hostRect ? touch.clientX - hostRect.left : 0;
+    if (!(width > 0)) {
+      try {
+        width = Number((window.visualViewport && window.visualViewport.width) || 0);
+      } catch (_error) {
+        width = 0;
+      }
+    }
+    if (!(width > 0)) {
+      try {
+        width = Math.max(
+          Number(window.innerWidth || 0),
+          Number((document.documentElement && document.documentElement.clientWidth) || 0)
+        );
+      } catch (_error) {
+        width = 0;
+      }
+    }
+    if (!(hostRect && typeof hostRect.left === "number")) {
+      relX = touch.clientX;
+    }
+    let tapZone = "center";
+    if (width > 0) {
+      const centerWidth = width * 0.6;
+      const leftCut = (width - centerWidth) / 2;
+      const rightCut = leftCut + centerWidth;
+      if (relX < leftCut) tapZone = "left";
+      else if (relX > rightCut) tapZone = "right";
+    }
     const prepared = syncNeighborPreviewLayers({ requireFresh: true });
     if (!prepared) syncNeighborPreviewLayers({ requireFresh: false });
     gesture = {
       x: touch.clientX,
       y: touch.clientY,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      startAt: Date.now(),
       dx: 0,
       prepared,
+      tapZone,
       direction: null,
       previewVisible: false,
       frozenCanvases: cloneProtectedCanvases(),
@@ -2213,12 +2300,26 @@ function installTouchSwipe(target) {
     }
     const dx = touch.clientX - gesture.x;
     const dy = touch.clientY - gesture.y;
+    const totalDx = touch.clientX - gesture.startX;
+    const totalDy = touch.clientY - gesture.startY;
+    const durationMs = Date.now() - Number(gesture.startAt || 0);
     const previewVisible = gesture.previewVisible;
+    const tapZone = gesture.tapZone || "center";
     if (gesture.activationTimer) {
       window.clearTimeout(gesture.activationTimer);
       gesture.activationTimer = null;
     }
     gesture = null;
+    window.__protectedTouchDebug.end = {
+      dx,
+      dy,
+      totalDx,
+      totalDy,
+      durationMs,
+      previewVisible,
+      tapZone,
+      overlaysVisible: overlaysVisible()
+    };
     if (Math.abs(dx) < 58 || Math.abs(dx) < Math.abs(dy) * 1.35) {
       if (previewVisible) {
         animatePageTurnTo(0, 150);
@@ -2227,6 +2328,36 @@ function installTouchSwipe(target) {
         }, 170);
       } else if (HOST_STATE.frame) {
         HOST_STATE.frame.style.pointerEvents = "auto";
+      }
+      const isTap =
+        Math.abs(totalDx) <= 22 &&
+        Math.abs(totalDy) <= 22 &&
+        durationMs <= 900 &&
+        !previewVisible &&
+        !overlaysVisible();
+      if (isTap) {
+        window.__protectedTouchDebug.tap = {
+          tapZone,
+          bodyHiddenBefore: !!(document.body && document.body.classList && document.body.classList.contains("ui-hidden"))
+        };
+        if (tapZone === "center") {
+          event.preventDefault();
+          toggleShellUi();
+          window.__protectedTouchDebug.tap.bodyHiddenAfter = !!(document.body && document.body.classList && document.body.classList.contains("ui-hidden"));
+          return;
+        }
+        if (tapZone === "left") {
+          event.preventDefault();
+          await performPageTurn("prev");
+          window.__protectedTouchDebug.tap.turn = "prev";
+          return;
+        }
+        if (tapZone === "right") {
+          event.preventDefault();
+          await performPageTurn("next");
+          window.__protectedTouchDebug.tap.turn = "next";
+          return;
+        }
       }
       return;
     }
@@ -2516,9 +2647,10 @@ async function bootOldShellProtectedHost() {
   if (!window.__readerpubProtectedOldShellMode) return;
   installStyles();
   installNoteComposerCloseHook();
-  document.body.classList.remove("ui-hidden");
   document.body.classList.add("protected-old-shell");
   document.body.classList.toggle("protected-dev-panel", isDevPanelEnabled());
+  if (isTouchShellMode()) hideShellUi();
+  else showShellUi();
   setShellLoading(true);
 
   const route = parseProtectedIntegrationRoute(window.location.href);
