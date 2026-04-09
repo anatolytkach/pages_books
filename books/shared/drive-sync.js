@@ -63,6 +63,19 @@
     return null;
   }
 
+  function isDemoEntry() {
+    try {
+      var ctx = window.__readerpubEntryContext || null;
+      return !!(ctx && ctx.isDemoEntry);
+    } catch (e) {}
+    return false;
+  }
+
+  function currentDemoBookId() {
+    if (!isDemoEntry()) return "";
+    return currentBookId();
+  }
+
   function loadPendingReaderSync() {
     var storage = getStorage();
     if (!storage) return null;
@@ -405,9 +418,11 @@
     var s = normalizeSnapshot(snapshot || {});
     var out = [];
     var books = s.books || {};
+    var demoBookId = currentDemoBookId();
     Object.keys(books).forEach(function (id) {
       var item = books[id];
       if (!item || !item.id) return;
+      if (demoBookId && String(item.id) === demoBookId) return;
       out.push({
         id: String(item.id),
         title: String(item.title || ("Book " + item.id)),
@@ -453,6 +468,7 @@
     var storage = getStorage();
     var snapshot = normalizeSnapshot({});
     var ts = nowTs();
+    var demoBookId = currentDemoBookId();
     if (!storage) return snapshot;
 
     function coerceArray(value) {
@@ -511,6 +527,7 @@
         if (!key || key.indexOf("epubjsreader:") !== 0) continue;
         var m = key.match(/:\/books\/content\/([^/]+)\//);
         if (!m || !m[1]) continue;
+        if (demoBookId && String(m[1]) === demoBookId) continue;
         var bid = ensureBook(m[1], null);
         if (!bid) continue;
 
@@ -538,7 +555,7 @@
 
     try {
       var lastId = storage.getItem("readerpub:lastid");
-      if (lastId) ensureBook(lastId, { openedAt: ts });
+      if (lastId && (!demoBookId || String(lastId) !== demoBookId)) ensureBook(lastId, { openedAt: ts });
     } catch (e2) {}
     try {
       var lang = String(storage.getItem(TTS_LANG_LOCAL_KEY) || "").trim();
@@ -630,6 +647,7 @@
   }
 
   function buildReaderPayload(reader, meta) {
+    if (isDemoEntry()) return null;
     var id = (meta && meta.id) ? String(meta.id) : currentBookId();
     if (!id) return null;
     var title = (meta && meta.title) ? String(meta.title) : "";
@@ -681,6 +699,7 @@
   }
 
   function syncCurrentReaderState(reader, meta, options) {
+    if (isDemoEntry()) return Promise.resolve(false);
     var payload = buildReaderPayload(reader, meta);
     if (!payload || !payload.id) return Promise.resolve(false);
     var opts = options || {};
@@ -723,6 +742,7 @@
 
   var _syncTimer = null;
   function scheduleCurrentReaderStateSync(reader, meta, delayMs) {
+    if (isDemoEntry()) return;
     var delay = (typeof delayMs === "number" && delayMs >= 0) ? delayMs : 900;
     if (_syncTimer) {
       try { clearTimeout(_syncTimer); } catch (e0) {}

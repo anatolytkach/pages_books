@@ -98,14 +98,6 @@
       "targetPath": "/books/content/manual/10/",
       "publicPathMode": "target"
     },
-    "77763": {
-      "source": "manual",
-      "sourceBookId": "11",
-      "localContentPath": "/books/content/77763/",
-      "publicContentPath": "/books/content/manual/11/",
-      "targetPath": "/books/content/manual/11/",
-      "publicPathMode": "target"
-    },
     "77766": {
       "source": "manual",
       "sourceBookId": "12",

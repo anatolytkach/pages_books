@@ -1,0 +1,2343 @@
+{
+  "chunkId": "chunk-000021",
+  "sourceRefs": [
+    {
+      "spineId": "item1",
+      "spineIndex": 0,
+      "href": "c/10eccbb7894c.html",
+      "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+      "nodeTag": "p",
+      "nodeIndex": 121,
+      "nodeId": "",
+      "nodeClass": ""
+    },
+    {
+      "spineId": "item1",
+      "spineIndex": 0,
+      "href": "c/10eccbb7894c.html",
+      "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+      "nodeTag": "p",
+      "nodeIndex": 122,
+      "nodeId": "",
+      "nodeClass": ""
+    },
+    {
+      "spineId": "item1",
+      "spineIndex": 0,
+      "href": "c/10eccbb7894c.html",
+      "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+      "nodeTag": "p",
+      "nodeIndex": 123,
+      "nodeId": "",
+      "nodeClass": ""
+    }
+  ],
+  "logicalBlockList": [
+    {
+      "blockId": "item1-b-0122",
+      "blockType": "paragraph",
+      "textLength": 427,
+      "sourceRef": {
+        "spineId": "item1",
+        "spineIndex": 0,
+        "href": "c/10eccbb7894c.html",
+        "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+        "nodeTag": "p",
+        "nodeIndex": 121,
+        "nodeId": "",
+        "nodeClass": ""
+      },
+      "linkTargets": [],
+      "inlineIds": [],
+      "styleSignals": {
+        "hasBold": false,
+        "hasItalic": false,
+        "hasSuperscript": false,
+        "hasLinks": false
+      }
+    },
+    {
+      "blockId": "item1-b-0123",
+      "blockType": "paragraph",
+      "textLength": 524,
+      "sourceRef": {
+        "spineId": "item1",
+        "spineIndex": 0,
+        "href": "c/10eccbb7894c.html",
+        "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+        "nodeTag": "p",
+        "nodeIndex": 122,
+        "nodeId": "",
+        "nodeClass": ""
+      },
+      "linkTargets": [],
+      "inlineIds": [],
+      "styleSignals": {
+        "hasBold": false,
+        "hasItalic": false,
+        "hasSuperscript": false,
+        "hasLinks": false
+      }
+    },
+    {
+      "blockId": "item1-b-0124",
+      "blockType": "paragraph",
+      "textLength": 245,
+      "sourceRef": {
+        "spineId": "item1",
+        "spineIndex": 0,
+        "href": "c/10eccbb7894c.html",
+        "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+        "nodeTag": "p",
+        "nodeIndex": 123,
+        "nodeId": "",
+        "nodeClass": ""
+      },
+      "linkTargets": [],
+      "inlineIds": [],
+      "styleSignals": {
+        "hasBold": false,
+        "hasItalic": false,
+        "hasSuperscript": false,
+        "hasLinks": false
+      }
+    }
+  ],
+  "renderLayer": {
+    "chunkGlyphsRef": "../glyphs/chunk-000021.glyphs.json",
+    "glyphRuns": [
+      {
+        "runId": "item1-b-0122-run-1",
+        "blockId": "item1-b-0122",
+        "styleToken": "paragraph",
+        "glyphTokens": [
+          "g-52df522bd645",
+          "g-e253490317a2",
+          "g-95b56cad4f5b",
+          "g-b9548acd4fd3",
+          "g-727b028e99d1",
+          "g-8378ff4dc6f3",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-28406223f631",
+          "g-83a0527fa224",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-2f0cbfc50a8e",
+          "g-246eb69505f9",
+          "g-727b028e99d1",
+          "g-e253490317a2",
+          "g-d911b49f1948",
+          "g-f2fa13aa0293",
+          "g-3a0dd2c3e6fe",
+          "g-9e98a9f16d5e",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-727b028e99d1",
+          "g-23b7d62adb2c",
+          "g-727b028e99d1",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-83a0527fa224",
+          "g-23b7d62adb2c",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-2f0cbfc50a8e",
+          "g-95b56cad4f5b",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-83a0527fa224",
+          "g-e253490317a2",
+          "g-46a483324f65",
+          "g-5df3f5a1d79a",
+          "g-46a483324f65",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-95b56cad4f5b",
+          "g-83a0527fa224",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-5df3f5a1d79a",
+          "g-5bb7276aeec2",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-23b7d62adb2c",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-9efd96e3f84a",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-23b7d62adb2c",
+          "g-83a0527fa224",
+          "g-246eb69505f9",
+          "g-60aa8a0a3fb4",
+          "g-5df3f5a1d79a",
+          "g-8378ff4dc6f3",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-83a0527fa224",
+          "g-23b7d62adb2c",
+          "g-23b7d62adb2c",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-9efd96e3f84a",
+          "g-e253490317a2",
+          "g-e253490317a2",
+          "g-434f20c75fac",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-83a0527fa224",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-9e98a9f16d5e",
+          "g-5df3f5a1d79a",
+          "g-1c1902bf5164",
+          "g-1c1902bf5164",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-17c26aaed28b",
+          "g-24b9cc76ca75",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-8378ff4dc6f3",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-9efd96e3f84a",
+          "g-1c1902bf5164",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-d911b49f1948",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-2f0cbfc50a8e",
+          "g-83a0527fa224",
+          "g-9e98a9f16d5e",
+          "g-246eb69505f9",
+          "g-727b028e99d1",
+          "g-e253490317a2",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-17c26aaed28b",
+          "g-24b9cc76ca75",
+          "g-23b7d62adb2c",
+          "g-83a0527fa224",
+          "g-246eb69505f9",
+          "g-60aa8a0a3fb4",
+          "g-5df3f5a1d79a",
+          "g-8378ff4dc6f3",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-9e98a9f16d5e",
+          "g-9efd96e3f84a",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-60aa8a0a3fb4",
+          "g-5df3f5a1d79a",
+          "g-8378ff4dc6f3",
+          "g-727b028e99d1",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-727b028e99d1",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-ff842a234469",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-246eb69505f9",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-17c26aaed28b",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-727b028e99d1",
+          "g-60aa8a0a3fb4",
+          "g-434f20c75fac",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-5df3f5a1d79a",
+          "g-1c1902bf5164",
+          "g-3a0dd2c3e6fe",
+          "g-e253490317a2",
+          "g-5df3f5a1d79a",
+          "g-246eb69505f9",
+          "g-83a0527fa224",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-9e98a9f16d5e",
+          "g-9efd96e3f84a",
+          "g-8378ff4dc6f3",
+          "g-00e01b012992",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-9efd96e3f84a",
+          "g-5bb7276aeec2",
+          "g-9efd96e3f84a",
+          "g-246eb69505f9",
+          "g-60aa8a0a3fb4",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-17c26aaed28b",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-9e98a9f16d5e",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-8378ff4dc6f3",
+          "g-8378ff4dc6f3",
+          "g-727b028e99d1",
+          "g-1c1902bf5164",
+          "g-1c1902bf5164",
+          "g-5df3f5a1d79a",
+          "g-246eb69505f9",
+          "g-60aa8a0a3fb4",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-246eb69505f9",
+          "g-434f20c75fac",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-5df3f5a1d79a",
+          "g-5bb7276aeec2",
+          "g-727b028e99d1",
+          "g-1c1902bf5164",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-e253490317a2",
+          "g-e253490317a2",
+          "g-9efd96e3f84a",
+          "g-434f20c75fac",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-17c26aaed28b",
+          "g-24b9cc76ca75",
+          "g-727b028e99d1",
+          "g-d209e45ff98e",
+          "g-83a0527fa224",
+          "g-5df3f5a1d79a",
+          "g-23b7d62adb2c",
+          "g-9e98a9f16d5e",
+          "g-727b028e99d1",
+          "g-2f0cbfc50a8e",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-8378ff4dc6f3",
+          "g-60aa8a0a3fb4",
+          "g-83a0527fa224",
+          "g-5bb7276aeec2",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-d911b49f1948",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-83a0527fa224",
+          "g-3a0dd2c3e6fe",
+          "g-5bb7276aeec2",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-727b028e99d1",
+          "g-d209e45ff98e",
+          "g-83a0527fa224",
+          "g-5df3f5a1d79a",
+          "g-23b7d62adb2c",
+          "g-9e98a9f16d5e",
+          "g-727b028e99d1",
+          "g-2f0cbfc50a8e",
+          "g-3a0dd2c3e6fe",
+          "g-c142996b768a",
+          "g-24b9cc76ca75",
+          "g-1927fb28fa46",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-434f20c75fac",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-9e98a9f16d5e",
+          "g-9efd96e3f84a",
+          "g-60aa8a0a3fb4",
+          "g-60aa8a0a3fb4",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-0f3d3610d616",
+          "g-f3ddda33ed39",
+          "g-49f7aace7018",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-f3ddda33ed39",
+          "g-c79ba6653035",
+          "g-3f598c0df193",
+          "g-105ecd4210b5",
+          "g-105ecd4210b5",
+          "g-105ecd4210b5",
+          "g-786c54052503",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-23b7d62adb2c",
+          "g-9efd96e3f84a",
+          "g-e253490317a2",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-8378ff4dc6f3",
+          "g-83a0527fa224",
+          "g-60aa8a0a3fb4",
+          "g-9efd96e3f84a",
+          "g-e253490317a2",
+          "g-60aa8a0a3fb4",
+          "g-434f20c75fac",
+          "g-24b9cc76ca75",
+          "g-5df3f5a1d79a",
+          "g-9e98a9f16d5e",
+          "g-23b7d62adb2c",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-9e98a9f16d5e",
+          "g-9efd96e3f84a",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-d911b49f1948",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-02ee85949dea",
+          "g-24b9cc76ca75",
+          "g-727b028e99d1",
+          "g-02ee85949dea",
+          "g-727b028e99d1",
+          "g-9e98a9f16d5e",
+          "g-23b7d62adb2c",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-83a0527fa224",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-8d54b39721fb",
+          "g-b37132080651",
+          "g-e67fd6edef9e",
+          "g-c142996b768a"
+        ],
+        "glyphCount": 427,
+        "sourceRef": {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 121,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        "linkTarget": "",
+        "styleSignals": {
+          "styleToken": "paragraph",
+          "blockType": "paragraph",
+          "blockRole": "body",
+          "headingLevel": 0,
+          "bold": false,
+          "italic": false,
+          "superscript": false,
+          "boldItalic": false,
+          "linkLike": false,
+          "scriptBucket": "Latin",
+          "fontFamilyCandidate": "Noto Serif",
+          "fontRole": "body-serif",
+          "fontStyle": "normal",
+          "fontWeight": "regular",
+          "policyStatus": "planned",
+          "policyGaps": []
+        }
+      },
+      {
+        "runId": "item1-b-0123-run-1",
+        "blockId": "item1-b-0123",
+        "styleToken": "paragraph",
+        "glyphTokens": [
+          "g-6fb0cc6a5117",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-933bcbbf7e93",
+          "g-95b56cad4f5b",
+          "g-83a0527fa224",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-5df3f5a1d79a",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-95b56cad4f5b",
+          "g-9e98a9f16d5e",
+          "g-9e98a9f16d5e",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-95b56cad4f5b",
+          "g-9e98a9f16d5e",
+          "g-23b7d62adb2c",
+          "g-60aa8a0a3fb4",
+          "g-434f20c75fac",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-d911b49f1948",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-60aa8a0a3fb4",
+          "g-9efd96e3f84a",
+          "g-636c1daac703",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-d911b49f1948",
+          "g-83a0527fa224",
+          "g-60aa8a0a3fb4",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-d911b49f1948",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-00e01b012992",
+          "g-9efd96e3f84a",
+          "g-e253490317a2",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-727b028e99d1",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-00e01b012992",
+          "g-9efd96e3f84a",
+          "g-e253490317a2",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-246eb69505f9",
+          "g-60aa8a0a3fb4",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-60aa8a0a3fb4",
+          "g-60aa8a0a3fb4",
+          "g-24b9cc76ca75",
+          "g-c79ba6653035",
+          "g-105ecd4210b5",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-17c26aaed28b",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-ea1d556487c1",
+          "g-2f0cbfc50a8e",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-e67fd6edef9e",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-1c1902bf5164",
+          "g-c142996b768a",
+          "g-24b9cc76ca75",
+          "g-b47af588cfa0",
+          "g-95b56cad4f5b",
+          "g-9e98a9f16d5e",
+          "g-23b7d62adb2c",
+          "g-60aa8a0a3fb4",
+          "g-5df3f5a1d79a",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-8378ff4dc6f3",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-d209e45ff98e",
+          "g-83a0527fa224",
+          "g-5df3f5a1d79a",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-9e98a9f16d5e",
+          "g-727b028e99d1",
+          "g-2f0cbfc50a8e",
+          "g-3a0dd2c3e6fe",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-2f0cbfc50a8e",
+          "g-95b56cad4f5b",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-83a0527fa224",
+          "g-2f0cbfc50a8e",
+          "g-5df3f5a1d79a",
+          "g-17c26aaed28b",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-9e98a9f16d5e",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-ff842a234469",
+          "g-727b028e99d1",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-5df3f5a1d79a",
+          "g-5bb7276aeec2",
+          "g-727b028e99d1",
+          "g-e253490317a2",
+          "g-9efd96e3f84a",
+          "g-246eb69505f9",
+          "g-60aa8a0a3fb4",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-727b028e99d1",
+          "g-17c26aaed28b",
+          "g-17c26aaed28b",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-3a0dd2c3e6fe",
+          "g-3f598c0df193",
+          "g-24b9cc76ca75",
+          "g-9e98a9f16d5e",
+          "g-83a0527fa224",
+          "g-8378ff4dc6f3",
+          "g-00e01b012992",
+          "g-24b9cc76ca75",
+          "g-23b7d62adb2c",
+          "g-9efd96e3f84a",
+          "g-23b7d62adb2c",
+          "g-727b028e99d1",
+          "g-e253490317a2",
+          "g-636c1daac703",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-ff842a234469",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-9e98a9f16d5e",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-434f20c75fac",
+          "g-24b9cc76ca75",
+          "g-17c26aaed28b",
+          "g-727b028e99d1",
+          "g-727b028e99d1",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-9e98a9f16d5e",
+          "g-727b028e99d1",
+          "g-727b028e99d1",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-ff842a234469",
+          "g-727b028e99d1",
+          "g-727b028e99d1",
+          "g-23b7d62adb2c",
+          "g-24b9cc76ca75",
+          "g-83a0527fa224",
+          "g-23b7d62adb2c",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-1c1902bf5164",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-d209e45ff98e",
+          "g-83a0527fa224",
+          "g-5df3f5a1d79a",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-9e98a9f16d5e",
+          "g-727b028e99d1",
+          "g-2f0cbfc50a8e",
+          "g-3a0dd2c3e6fe",
+          "g-1c1902bf5164",
+          "g-c142996b768a",
+          "g-24b9cc76ca75",
+          "g-3c1940c65e8e",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-2f0cbfc50a8e",
+          "g-95b56cad4f5b",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-95b56cad4f5b",
+          "g-60aa8a0a3fb4",
+          "g-5df3f5a1d79a",
+          "g-8378ff4dc6f3",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-60aa8a0a3fb4",
+          "g-95b56cad4f5b",
+          "g-8378ff4dc6f3",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-00e01b012992",
+          "g-9efd96e3f84a",
+          "g-46a483324f65",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-2f0cbfc50a8e",
+          "g-95b56cad4f5b",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-8378ff4dc6f3",
+          "g-727b028e99d1",
+          "g-5df3f5a1d79a",
+          "g-46a483324f65",
+          "g-727b028e99d1",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-e253490317a2",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-17c26aaed28b",
+          "g-5df3f5a1d79a",
+          "g-e253490317a2",
+          "g-9e98a9f16d5e",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-17c26aaed28b",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-95b56cad4f5b",
+          "g-9e98a9f16d5e",
+          "g-23b7d62adb2c",
+          "g-60aa8a0a3fb4",
+          "g-5df3f5a1d79a",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-8378ff4dc6f3",
+          "g-727b028e99d1",
+          "g-c142996b768a",
+          "g-24b9cc76ca75",
+          "g-6fb0cc6a5117",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-e67fd6edef9e",
+          "g-9e16d46a2d84",
+          "g-2e57fda12e4b",
+          "g-771263edfa41",
+          "g-24b9cc76ca75",
+          "g-771263edfa41",
+          "g-dc7dba717232",
+          "g-2e57fda12e4b",
+          "g-c173e3b7f427",
+          "g-6fb0cc6a5117",
+          "g-8d54b39721fb",
+          "g-dc7dba717232",
+          "g-2e57fda12e4b",
+          "g-e67fd6edef9e",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-727b028e99d1",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-e253490317a2",
+          "g-9e98a9f16d5e",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-83a0527fa224",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-17c26aaed28b",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-95b56cad4f5b",
+          "g-9e98a9f16d5e",
+          "g-23b7d62adb2c",
+          "g-60aa8a0a3fb4",
+          "g-5df3f5a1d79a",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-8378ff4dc6f3",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-17c26aaed28b",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-434f20c75fac",
+          "g-24b9cc76ca75",
+          "g-23b7d62adb2c",
+          "g-9efd96e3f84a",
+          "g-e253490317a2",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-8378ff4dc6f3",
+          "g-83a0527fa224",
+          "g-60aa8a0a3fb4",
+          "g-9efd96e3f84a",
+          "g-e253490317a2",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-46a483324f65",
+          "g-5df3f5a1d79a",
+          "g-1c1902bf5164",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-00e01b012992",
+          "g-3a0dd2c3e6fe",
+          "g-3a0dd2c3e6fe",
+          "g-23b7d62adb2c",
+          "g-210842fe882c",
+          "g-9a7d304e2760",
+          "g-9a7d304e2760",
+          "g-636c1daac703",
+          "g-636c1daac703",
+          "g-636c1daac703",
+          "g-c142996b768a",
+          "g-d911b49f1948",
+          "g-83a0527fa224",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-2f0cbfc50a8e",
+          "g-246eb69505f9",
+          "g-727b028e99d1",
+          "g-e253490317a2",
+          "g-d911b49f1948",
+          "g-c142996b768a",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-d911b49f1948",
+          "g-9a7d304e2760",
+          "g-17c26aaed28b",
+          "g-83a0527fa224",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-e253490317a2",
+          "g-9efd96e3f84a",
+          "g-5df3f5a1d79a",
+          "g-1c1902bf5164",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-d911b49f1948",
+          "g-9a7d304e2760",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1"
+        ],
+        "glyphCount": 524,
+        "sourceRef": {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 122,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        "linkTarget": "",
+        "styleSignals": {
+          "styleToken": "paragraph",
+          "blockType": "paragraph",
+          "blockRole": "body",
+          "headingLevel": 0,
+          "bold": false,
+          "italic": false,
+          "superscript": false,
+          "boldItalic": false,
+          "linkLike": false,
+          "scriptBucket": "Latin",
+          "fontFamilyCandidate": "Noto Serif",
+          "fontRole": "body-serif",
+          "fontStyle": "normal",
+          "fontWeight": "regular",
+          "policyStatus": "planned",
+          "policyGaps": []
+        }
+      },
+      {
+        "runId": "item1-b-0124-run-1",
+        "blockId": "item1-b-0124",
+        "styleToken": "paragraph",
+        "glyphTokens": [
+          "g-3c1940c65e8e",
+          "g-00e01b012992",
+          "g-5df3f5a1d79a",
+          "g-60aa8a0a3fb4",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-2f0cbfc50a8e",
+          "g-95b56cad4f5b",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-2f0cbfc50a8e",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-2f0cbfc50a8e",
+          "g-95b56cad4f5b",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-95b56cad4f5b",
+          "g-60aa8a0a3fb4",
+          "g-5df3f5a1d79a",
+          "g-8378ff4dc6f3",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-8378ff4dc6f3",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-3a0dd2c3e6fe",
+          "g-e253490317a2",
+          "g-5df3f5a1d79a",
+          "g-246eb69505f9",
+          "g-83a0527fa224",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-17c26aaed28b",
+          "g-e253490317a2",
+          "g-95b56cad4f5b",
+          "g-9e98a9f16d5e",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-00e01b012992",
+          "g-9efd96e3f84a",
+          "g-46a483324f65",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-2f0cbfc50a8e",
+          "g-95b56cad4f5b",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-9e98a9f16d5e",
+          "g-727b028e99d1",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-95b56cad4f5b",
+          "g-60aa8a0a3fb4",
+          "g-5df3f5a1d79a",
+          "g-8378ff4dc6f3",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-d209e45ff98e",
+          "g-83a0527fa224",
+          "g-5df3f5a1d79a",
+          "g-e253490317a2",
+          "g-727b028e99d1",
+          "g-9e98a9f16d5e",
+          "g-727b028e99d1",
+          "g-2f0cbfc50a8e",
+          "g-3a0dd2c3e6fe",
+          "g-1c1902bf5164",
+          "g-3f598c0df193",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-727b028e99d1",
+          "g-24b9cc76ca75",
+          "g-ff842a234469",
+          "g-2f0cbfc50a8e",
+          "g-95b56cad4f5b",
+          "g-636c1daac703",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-17c26aaed28b",
+          "g-24b9cc76ca75",
+          "g-2f0cbfc50a8e",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-23b7d62adb2c",
+          "g-e253490317a2",
+          "g-95b56cad4f5b",
+          "g-00e01b012992",
+          "g-5df3f5a1d79a",
+          "g-246eb69505f9",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-d911b49f1948",
+          "g-9efd96e3f84a",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-3a0dd2c3e6fe",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-8378ff4dc6f3",
+          "g-8378ff4dc6f3",
+          "g-727b028e99d1",
+          "g-23b7d62adb2c",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-d911b49f1948",
+          "g-24b9cc76ca75",
+          "g-83a0527fa224",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-95b56cad4f5b",
+          "g-60aa8a0a3fb4",
+          "g-5df3f5a1d79a",
+          "g-8378ff4dc6f3",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-5bb7276aeec2",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-5df3f5a1d79a",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-17c26aaed28b",
+          "g-e253490317a2",
+          "g-95b56cad4f5b",
+          "g-9e98a9f16d5e",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-95b56cad4f5b",
+          "g-e253490317a2",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-5df3f5a1d79a",
+          "g-2f0cbfc50a8e",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-83a0527fa224",
+          "g-8378ff4dc6f3",
+          "g-00e01b012992",
+          "g-24b9cc76ca75",
+          "g-1c1902bf5164",
+          "g-3a0dd2c3e6fe",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-00e01b012992",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-9efd96e3f84a",
+          "g-23b7d62adb2c",
+          "g-23b7d62adb2c",
+          "g-e253490317a2",
+          "g-95b56cad4f5b",
+          "g-9efd96e3f84a",
+          "g-8378ff4dc6f3",
+          "g-00e01b012992",
+          "g-24b9cc76ca75",
+          "g-83a0527fa224",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-636c1daac703",
+          "g-5df3f5a1d79a",
+          "g-3a0dd2c3e6fe",
+          "g-00e01b012992",
+          "g-24b9cc76ca75",
+          "g-95b56cad4f5b",
+          "g-17c26aaed28b",
+          "g-17c26aaed28b",
+          "g-727b028e99d1",
+          "g-e253490317a2",
+          "g-1c1902bf5164",
+          "g-24b9cc76ca75",
+          "g-3a0dd2c3e6fe",
+          "g-95b56cad4f5b",
+          "g-24b9cc76ca75",
+          "g-5bb7276aeec2",
+          "g-95b56cad4f5b",
+          "g-2f0cbfc50a8e",
+          "g-9efd96e3f84a",
+          "g-3a0dd2c3e6fe",
+          "g-727b028e99d1",
+          "g-c142996b768a"
+        ],
+        "glyphCount": 245,
+        "sourceRef": {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 123,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        "linkTarget": "",
+        "styleSignals": {
+          "styleToken": "paragraph",
+          "blockType": "paragraph",
+          "blockRole": "body",
+          "headingLevel": 0,
+          "bold": false,
+          "italic": false,
+          "superscript": false,
+          "boldItalic": false,
+          "linkLike": false,
+          "scriptBucket": "Latin",
+          "fontFamilyCandidate": "Noto Serif",
+          "fontRole": "body-serif",
+          "fontStyle": "normal",
+          "fontWeight": "regular",
+          "policyStatus": "planned",
+          "policyGaps": []
+        }
+      }
+    ]
+  },
+  "selectionLayer": {
+    "textLength": 1200,
+    "textSegments": [
+      {
+        "segmentId": "chunk-000021-seg-1",
+        "blockId": "item1-b-0122",
+        "runIndex": 0,
+        "start": 0,
+        "end": 427,
+        "textLength": 427,
+        "styleToken": "paragraph",
+        "linkTarget": "",
+        "sourceNodeId": "",
+        "sourceRef": {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 121,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      },
+      {
+        "segmentId": "chunk-000021-seg-2",
+        "blockId": "item1-b-0123",
+        "runIndex": 0,
+        "start": 429,
+        "end": 953,
+        "textLength": 524,
+        "styleToken": "paragraph",
+        "linkTarget": "",
+        "sourceNodeId": "",
+        "sourceRef": {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 122,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      },
+      {
+        "segmentId": "chunk-000021-seg-3",
+        "blockId": "item1-b-0124",
+        "runIndex": 0,
+        "start": 955,
+        "end": 1200,
+        "textLength": 245,
+        "styleToken": "paragraph",
+        "linkTarget": "",
+        "sourceNodeId": "",
+        "sourceRef": {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 123,
+          "nodeId": "",
+          "nodeClass": ""
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "rangeId": "chunk-000021-range-1",
+        "kind": "run",
+        "start": 0,
+        "end": 427,
+        "textLength": 427,
+        "blockId": "item1-b-0122"
+      },
+      {
+        "rangeId": "chunk-000021-range-2",
+        "kind": "run",
+        "start": 429,
+        "end": 953,
+        "textLength": 524,
+        "blockId": "item1-b-0123"
+      },
+      {
+        "rangeId": "chunk-000021-range-3",
+        "kind": "run",
+        "start": 955,
+        "end": 1200,
+        "textLength": 245,
+        "blockId": "item1-b-0124"
+      }
+    ],
+    "blockAnchors": [
+      {
+        "anchorId": "chunk-000021-block-1",
+        "blockId": "item1-b-0122",
+        "start": 0,
+        "end": 427,
+        "sourceRef": {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 121,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        "inlineIds": [],
+        "linkTargets": []
+      },
+      {
+        "anchorId": "chunk-000021-block-2",
+        "blockId": "item1-b-0123",
+        "start": 429,
+        "end": 953,
+        "sourceRef": {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 122,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        "inlineIds": [],
+        "linkTargets": []
+      },
+      {
+        "anchorId": "chunk-000021-block-3",
+        "blockId": "item1-b-0124",
+        "start": 955,
+        "end": 1200,
+        "sourceRef": {
+          "spineId": "item1",
+          "spineIndex": 0,
+          "href": "c/10eccbb7894c.html",
+          "filePath": "/Volumes/2T/se_ingest/pages_books/books/content/19686/c/10eccbb7894c.html",
+          "nodeTag": "p",
+          "nodeIndex": 123,
+          "nodeId": "",
+          "nodeClass": ""
+        },
+        "inlineIds": [],
+        "linkTargets": []
+      }
+    ],
+    "noteAnchors": [],
+    "copyRanges": [
+      {
+        "rangeId": "chunk-000021-copy-1",
+        "blockId": "item1-b-0122",
+        "start": 0,
+        "end": 427
+      },
+      {
+        "rangeId": "chunk-000021-copy-2",
+        "blockId": "item1-b-0123",
+        "start": 429,
+        "end": 953
+      },
+      {
+        "rangeId": "chunk-000021-copy-3",
+        "blockId": "item1-b-0124",
+        "start": 955,
+        "end": 1200
+      }
+    ],
+    "wordBoundaries": [
+      {
+        "start": 0,
+        "end": 7
+      },
+      {
+        "start": 8,
+        "end": 20
+      },
+      {
+        "start": 21,
+        "end": 28
+      },
+      {
+        "start": 29,
+        "end": 33
+      },
+      {
+        "start": 34,
+        "end": 37
+      },
+      {
+        "start": 38,
+        "end": 44
+      },
+      {
+        "start": 45,
+        "end": 52
+      },
+      {
+        "start": 53,
+        "end": 60
+      },
+      {
+        "start": 61,
+        "end": 65
+      },
+      {
+        "start": 66,
+        "end": 72
+      },
+      {
+        "start": 73,
+        "end": 79
+      },
+      {
+        "start": 80,
+        "end": 87
+      },
+      {
+        "start": 88,
+        "end": 91
+      },
+      {
+        "start": 92,
+        "end": 101
+      },
+      {
+        "start": 102,
+        "end": 104
+      },
+      {
+        "start": 105,
+        "end": 110
+      },
+      {
+        "start": 111,
+        "end": 114
+      },
+      {
+        "start": 115,
+        "end": 118
+      },
+      {
+        "start": 119,
+        "end": 126
+      },
+      {
+        "start": 127,
+        "end": 129
+      },
+      {
+        "start": 130,
+        "end": 140
+      },
+      {
+        "start": 141,
+        "end": 144
+      },
+      {
+        "start": 145,
+        "end": 151
+      },
+      {
+        "start": 152,
+        "end": 154
+      },
+      {
+        "start": 155,
+        "end": 161
+      },
+      {
+        "start": 162,
+        "end": 168
+      },
+      {
+        "start": 169,
+        "end": 172
+      },
+      {
+        "start": 173,
+        "end": 181
+      },
+      {
+        "start": 182,
+        "end": 187
+      },
+      {
+        "start": 188,
+        "end": 192
+      },
+      {
+        "start": 193,
+        "end": 196
+      },
+      {
+        "start": 197,
+        "end": 199
+      },
+      {
+        "start": 200,
+        "end": 206
+      },
+      {
+        "start": 207,
+        "end": 218
+      },
+      {
+        "start": 219,
+        "end": 221
+      },
+      {
+        "start": 222,
+        "end": 229
+      },
+      {
+        "start": 230,
+        "end": 238
+      },
+      {
+        "start": 239,
+        "end": 243
+      },
+      {
+        "start": 244,
+        "end": 254
+      },
+      {
+        "start": 255,
+        "end": 257
+      },
+      {
+        "start": 258,
+        "end": 261
+      },
+      {
+        "start": 262,
+        "end": 268
+      },
+      {
+        "start": 269,
+        "end": 274
+      },
+      {
+        "start": 275,
+        "end": 277
+      },
+      {
+        "start": 278,
+        "end": 287
+      },
+      {
+        "start": 288,
+        "end": 297
+      },
+      {
+        "start": 298,
+        "end": 306
+      },
+      {
+        "start": 307,
+        "end": 316
+      },
+      {
+        "start": 318,
+        "end": 322
+      },
+      {
+        "start": 323,
+        "end": 328
+      },
+      {
+        "start": 329,
+        "end": 338
+      },
+      {
+        "start": 341,
+        "end": 342
+      },
+      {
+        "start": 343,
+        "end": 345
+      },
+      {
+        "start": 347,
+        "end": 348
+      },
+      {
+        "start": 349,
+        "end": 352
+      },
+      {
+        "start": 354,
+        "end": 357
+      },
+      {
+        "start": 358,
+        "end": 370
+      },
+      {
+        "start": 371,
+        "end": 380
+      },
+      {
+        "start": 381,
+        "end": 383
+      },
+      {
+        "start": 384,
+        "end": 395
+      },
+      {
+        "start": 396,
+        "end": 399
+      },
+      {
+        "start": 400,
+        "end": 406
+      },
+      {
+        "start": 407,
+        "end": 413
+      },
+      {
+        "start": 414,
+        "end": 418
+      },
+      {
+        "start": 419,
+        "end": 422
+      },
+      {
+        "start": 423,
+        "end": 426
+      },
+      {
+        "start": 429,
+        "end": 432
+      },
+      {
+        "start": 433,
+        "end": 443
+      },
+      {
+        "start": 444,
+        "end": 446
+      },
+      {
+        "start": 447,
+        "end": 456
+      },
+      {
+        "start": 457,
+        "end": 459
+      },
+      {
+        "start": 460,
+        "end": 469
+      },
+      {
+        "start": 470,
+        "end": 474
+      },
+      {
+        "start": 475,
+        "end": 478
+      },
+      {
+        "start": 479,
+        "end": 483
+      },
+      {
+        "start": 484,
+        "end": 494
+      },
+      {
+        "start": 495,
+        "end": 504
+      },
+      {
+        "start": 505,
+        "end": 508
+      },
+      {
+        "start": 509,
+        "end": 519
+      },
+      {
+        "start": 520,
+        "end": 529
+      },
+      {
+        "start": 530,
+        "end": 532
+      },
+      {
+        "start": 533,
+        "end": 536
+      },
+      {
+        "start": 537,
+        "end": 539
+      },
+      {
+        "start": 540,
+        "end": 546
+      },
+      {
+        "start": 547,
+        "end": 549
+      },
+      {
+        "start": 550,
+        "end": 553
+      },
+      {
+        "start": 554,
+        "end": 560
+      },
+      {
+        "start": 561,
+        "end": 567
+      },
+      {
+        "start": 569,
+        "end": 579
+      },
+      {
+        "start": 580,
+        "end": 592
+      },
+      {
+        "start": 593,
+        "end": 596
+      },
+      {
+        "start": 597,
+        "end": 600
+      },
+      {
+        "start": 601,
+        "end": 608
+      },
+      {
+        "start": 609,
+        "end": 612
+      },
+      {
+        "start": 613,
+        "end": 615
+      },
+      {
+        "start": 616,
+        "end": 621
+      },
+      {
+        "start": 622,
+        "end": 623
+      },
+      {
+        "start": 624,
+        "end": 636
+      },
+      {
+        "start": 637,
+        "end": 643
+      },
+      {
+        "start": 645,
+        "end": 649
+      },
+      {
+        "start": 650,
+        "end": 659
+      },
+      {
+        "start": 660,
+        "end": 663
+      },
+      {
+        "start": 664,
+        "end": 668
+      },
+      {
+        "start": 669,
+        "end": 673
+      },
+      {
+        "start": 674,
+        "end": 676
+      },
+      {
+        "start": 677,
+        "end": 681
+      },
+      {
+        "start": 682,
+        "end": 685
+      },
+      {
+        "start": 686,
+        "end": 690
+      },
+      {
+        "start": 691,
+        "end": 693
+      },
+      {
+        "start": 694,
+        "end": 698
+      },
+      {
+        "start": 699,
+        "end": 704
+      },
+      {
+        "start": 705,
+        "end": 717
+      },
+      {
+        "start": 719,
+        "end": 721
+      },
+      {
+        "start": 722,
+        "end": 724
+      },
+      {
+        "start": 725,
+        "end": 728
+      },
+      {
+        "start": 729,
+        "end": 736
+      },
+      {
+        "start": 737,
+        "end": 746
+      },
+      {
+        "start": 747,
+        "end": 749
+      },
+      {
+        "start": 750,
+        "end": 759
+      },
+      {
+        "start": 760,
+        "end": 765
+      },
+      {
+        "start": 766,
+        "end": 768
+      },
+      {
+        "start": 769,
+        "end": 773
+      },
+      {
+        "start": 774,
+        "end": 777
+      },
+      {
+        "start": 778,
+        "end": 786
+      },
+      {
+        "start": 787,
+        "end": 794
+      },
+      {
+        "start": 795,
+        "end": 807
+      },
+      {
+        "start": 808,
+        "end": 810
+      },
+      {
+        "start": 811,
+        "end": 821
+      },
+      {
+        "start": 823,
+        "end": 825
+      },
+      {
+        "start": 826,
+        "end": 830
+      },
+      {
+        "start": 831,
+        "end": 840
+      },
+      {
+        "start": 841,
+        "end": 843
+      },
+      {
+        "start": 844,
+        "end": 853
+      },
+      {
+        "start": 854,
+        "end": 857
+      },
+      {
+        "start": 858,
+        "end": 864
+      },
+      {
+        "start": 865,
+        "end": 867
+      },
+      {
+        "start": 868,
+        "end": 878
+      },
+      {
+        "start": 879,
+        "end": 882
+      },
+      {
+        "start": 883,
+        "end": 886
+      },
+      {
+        "start": 887,
+        "end": 897
+      },
+      {
+        "start": 898,
+        "end": 903
+      },
+      {
+        "start": 904,
+        "end": 909
+      },
+      {
+        "start": 910,
+        "end": 914
+      },
+      {
+        "start": 917,
+        "end": 920
+      },
+      {
+        "start": 921,
+        "end": 930
+      },
+      {
+        "start": 931,
+        "end": 934
+      },
+      {
+        "start": 935,
+        "end": 946
+      },
+      {
+        "start": 947,
+        "end": 953
+      },
+      {
+        "start": 955,
+        "end": 960
+      },
+      {
+        "start": 961,
+        "end": 963
+      },
+      {
+        "start": 964,
+        "end": 970
+      },
+      {
+        "start": 971,
+        "end": 974
+      },
+      {
+        "start": 975,
+        "end": 977
+      },
+      {
+        "start": 978,
+        "end": 981
+      },
+      {
+        "start": 982,
+        "end": 989
+      },
+      {
+        "start": 990,
+        "end": 1003
+      },
+      {
+        "start": 1004,
+        "end": 1008
+      },
+      {
+        "start": 1009,
+        "end": 1015
+      },
+      {
+        "start": 1016,
+        "end": 1021
+      },
+      {
+        "start": 1022,
+        "end": 1024
+      },
+      {
+        "start": 1025,
+        "end": 1029
+      },
+      {
+        "start": 1030,
+        "end": 1033
+      },
+      {
+        "start": 1034,
+        "end": 1037
+      },
+      {
+        "start": 1038,
+        "end": 1041
+      },
+      {
+        "start": 1042,
+        "end": 1054
+      },
+      {
+        "start": 1055,
+        "end": 1067
+      },
+      {
+        "start": 1069,
+        "end": 1071
+      },
+      {
+        "start": 1072,
+        "end": 1076
+      },
+      {
+        "start": 1077,
+        "end": 1079
+      },
+      {
+        "start": 1080,
+        "end": 1082
+      },
+      {
+        "start": 1083,
+        "end": 1094
+      },
+      {
+        "start": 1095,
+        "end": 1102
+      },
+      {
+        "start": 1103,
+        "end": 1112
+      },
+      {
+        "start": 1113,
+        "end": 1124
+      },
+      {
+        "start": 1125,
+        "end": 1134
+      },
+      {
+        "start": 1135,
+        "end": 1139
+      },
+      {
+        "start": 1140,
+        "end": 1146
+      },
+      {
+        "start": 1147,
+        "end": 1149
+      },
+      {
+        "start": 1150,
+        "end": 1154
+      },
+      {
+        "start": 1155,
+        "end": 1161
+      },
+      {
+        "start": 1162,
+        "end": 1165
+      },
+      {
+        "start": 1166,
+        "end": 1174
+      },
+      {
+        "start": 1175,
+        "end": 1177
+      },
+      {
+        "start": 1178,
+        "end": 1182
+      },
+      {
+        "start": 1183,
+        "end": 1189
+      },
+      {
+        "start": 1190,
+        "end": 1192
+      },
+      {
+        "start": 1193,
+        "end": 1199
+      }
+    ],
+    "chunkRange": {
+      "start": 19165,
+      "end": 20365
+    }
+  }
+}

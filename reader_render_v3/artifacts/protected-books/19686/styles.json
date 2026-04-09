@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "styleTokens": [
+    {
+      "styleToken": "paragraph",
+      "blockType": "paragraph",
+      "blockRole": "body",
+      "headingLevel": 0,
+      "bold": false,
+      "italic": false,
+      "boldItalic": false,
+      "superscript": false,
+      "linkLike": false,
+      "scriptBucket": "Latin",
+      "fontFamilyCandidate": "Noto Serif",
+      "fontRole": "body-serif",
+      "fontStyle": "normal",
+      "fontWeight": "regular",
+      "policyStatus": "planned",
+      "policyGaps": []
+    },
+    {
+      "styleToken": "heading-5",
+      "blockType": "heading-5",
+      "blockRole": "heading",
+      "headingLevel": 5,
+      "bold": false,
+      "italic": false,
+      "boldItalic": false,
+      "superscript": false,
+      "linkLike": false,
+      "scriptBucket": "Common",
+      "fontFamilyCandidate": "Appropriate Noto family",
+      "fontRole": "display-serif",
+      "fontStyle": "normal",
+      "fontWeight": "regular",
+      "policyStatus": "planned",
+      "policyGaps": [
+        {
+          "style": "italic",
+          "note": "Do not assume italic availability."
+        },
+        {
+          "style": "boldItalic",
+          "note": "Do not assume bold-italic availability."
+        }
+      ]
+    },
+    {
+      "styleToken": "heading-3",
+      "blockType": "heading-3",
+      "blockRole": "heading",
+      "headingLevel": 3,
+      "bold": false,
+      "italic": false,
+      "boldItalic": false,
+      "superscript": false,
+      "linkLike": false,
+      "scriptBucket": "Latin",
+      "fontFamilyCandidate": "Noto Serif",
+      "fontRole": "display-serif",
+      "fontStyle": "normal",
+      "fontWeight": "regular",
+      "policyStatus": "planned",
+      "policyGaps": []
+    },
+    {
+      "styleToken": "paragraph-italic",
+      "blockType": "paragraph",
+      "blockRole": "body",
+      "headingLevel": 0,
+      "bold": false,
+      "italic": true,
+      "boldItalic": false,
+      "superscript": false,
+      "linkLike": false,
+      "scriptBucket": "Latin",
+      "fontFamilyCandidate": "Noto Serif",
+      "fontRole": "body-serif",
+      "fontStyle": "italic",
+      "fontWeight": "regular",
+      "policyStatus": "planned",
+      "policyGaps": []
+    },
+    {
+      "styleToken": "heading-4",
+      "blockType": "heading-4",
+      "blockRole": "heading",
+      "headingLevel": 4,
+      "bold": false,
+      "italic": false,
+      "boldItalic": false,
+      "superscript": false,
+      "linkLike": false,
+      "scriptBucket": "Latin",
+      "fontFamilyCandidate": "Noto Serif",
+      "fontRole": "display-serif",
+      "fontStyle": "normal",
+      "fontWeight": "regular",
+      "policyStatus": "planned",
+      "policyGaps": []
+    }
+  ],
+  "fontPlanReference": {
+    "scriptsDetected": [
+      "Cyrillic",
+      "Latin",
+      "Unknown"
+    ],
+    "styleNeeds": {
+      "bold": true,
+      "italic": true,
+      "boldItalic": false,
+      "superscript": true
+    },
+    "gaps": [
+      {
+        "script": "Unknown",
+        "style": "italic",
+        "note": "Do not assume italic availability."
+      }
+    ]
+  }
+}

@@ -6,14 +6,18 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ROOT = path.resolve(__dirname, "..");
+const ROOT = path.resolve(__dirname, "..", "..");
 const BOOKS_DIR = path.join(ROOT, "books");
 const READER_DIR = path.join(ROOT, "reader");
+const READER1_DIR = path.join(ROOT, "reader1");
+const READER_RENDER_V3_DIR = path.join(ROOT, "reader_render_v3");
 const INDEX_DIR = path.join(ROOT, "reader_lang_indexes");
 const CONTENT_DIR = path.join(ROOT, "books", "content");
+const PROTECTED_CONTENT_DIR = path.join(ROOT, "reader_render_v3", "artifacts", "protected-books");
 const PORT = Number(process.env.PORT || 8788);
 const HOST = process.env.HOST || "127.0.0.1";
 const PROD_ORIGIN = process.env.READERPUB_PREVIEW_UPSTREAM || "https://reader.pub";
+const GOOGLE_DRIVE_CLIENT_ID = process.env.READERPUB_GOOGLE_CLIENT_ID || process.env.GOOGLE_DRIVE_CLIENT_ID || "";
 
 const MIME = new Map([
   [".html", "text/html; charset=utf-8"],
@@ -66,8 +70,23 @@ async function serveFile(res, filePath, route) {
       send(res, 404, "Not found", { "content-type": "text/plain; charset=utf-8", "x-reader-route": "not-found" });
       return;
     }
+    const contentType = mimeType(filePath);
+    if (contentType.startsWith("text/html")) {
+      let html = await fs.readFile(filePath, "utf-8");
+      if (GOOGLE_DRIVE_CLIENT_ID) {
+        html = html.replace(
+          /<meta\s+name="google-drive-client-id"\s+content="[^"]*"\s*\/?>/i,
+          `<meta name="google-drive-client-id" content="${GOOGLE_DRIVE_CLIENT_ID}" />`
+        );
+      }
+      send(res, 200, html, {
+        "content-type": contentType,
+        "x-reader-route": route,
+      });
+      return;
+    }
     res.writeHead(200, {
-      "content-type": mimeType(filePath),
+      "content-type": contentType,
       "cache-control": "no-store",
       "x-reader-worker": "1",
       "x-reader-route": route,
@@ -138,17 +157,47 @@ function routeLocalPath(urlPath) {
   if (urlPath.startsWith("/books/content/")) {
     return { file: safeJoin(CONTENT_DIR, urlPath.slice("/books/content".length)), route: "r2-content" };
   }
+  if (urlPath.startsWith("/books/protected-content/")) {
+    return {
+      file: safeJoin(PROTECTED_CONTENT_DIR, urlPath.slice("/books/protected-content".length)),
+      route: "r2-protected-content"
+    };
+  }
   if (urlPath === "/books/reader/" || urlPath === "/books/reader/index.html") {
     return { file: path.join(READER_DIR, "index.html"), route: "reader" };
   }
   if (urlPath.startsWith("/books/reader/")) {
     return { file: safeJoin(READER_DIR, urlPath.slice("/books/reader".length)), route: "reader" };
   }
+  if (urlPath === "/books/reader1/" || urlPath === "/books/reader1/index.html") {
+    return { file: path.join(READER1_DIR, "index.html"), route: "reader1" };
+  }
+  if (urlPath.startsWith("/books/reader1/")) {
+    return { file: safeJoin(READER1_DIR, urlPath.slice("/books/reader1".length)), route: "reader1" };
+  }
+  if (urlPath === "/books/reader_render_v3/" || urlPath === "/books/reader_render_v3/index.html") {
+    return { file: path.join(READER_RENDER_V3_DIR, "index.html"), route: "reader-render-v3" };
+  }
+  if (urlPath.startsWith("/books/reader_render_v3/")) {
+    return { file: safeJoin(READER_RENDER_V3_DIR, urlPath.slice("/books/reader_render_v3".length)), route: "reader-render-v3" };
+  }
   if (urlPath === "/reader/" || urlPath === "/reader/index.html") {
     return { file: path.join(READER_DIR, "index.html"), route: "reader" };
   }
   if (urlPath.startsWith("/reader/")) {
     return { file: safeJoin(READER_DIR, urlPath.slice("/reader".length)), route: "reader" };
+  }
+  if (urlPath === "/reader1/" || urlPath === "/reader1/index.html") {
+    return { file: path.join(READER1_DIR, "index.html"), route: "reader1" };
+  }
+  if (urlPath.startsWith("/reader1/")) {
+    return { file: safeJoin(READER1_DIR, urlPath.slice("/reader1".length)), route: "reader1" };
+  }
+  if (urlPath === "/reader_render_v3/" || urlPath === "/reader_render_v3/index.html") {
+    return { file: path.join(READER_RENDER_V3_DIR, "index.html"), route: "reader-render-v3" };
+  }
+  if (urlPath.startsWith("/reader_render_v3/")) {
+    return { file: safeJoin(READER_RENDER_V3_DIR, urlPath.slice("/reader_render_v3".length)), route: "reader-render-v3" };
   }
   return null;
 }
@@ -159,6 +208,8 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === "/books") return redirect(res, "/books/", "slash-redirect");
   if (pathname === "/books/reader") return redirect(res, "/books/reader/", "slash-redirect");
+  if (pathname === "/books/reader1") return redirect(res, "/books/reader1/", "slash-redirect");
+  if (pathname === "/books/reader_render_v3") return redirect(res, "/books/reader_render_v3/", "slash-redirect");
   if (pathname === "/books/ping") {
     return send(res, 200, "pong\n", { "content-type": "text/plain; charset=utf-8", "x-reader-route": "ping" });
   }
@@ -180,6 +231,12 @@ const server = http.createServer(async (req, res) => {
   }
   if (pathname.startsWith("/books/content/") && !existsSync(routed.file)) {
     return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content");
+  }
+  if (pathname.startsWith("/books/protected-content/") && !existsSync(routed.file)) {
+    return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content");
+  }
+  if (pathname.startsWith("/books/api/") && !existsSync(routed.file)) {
+    return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-api");
   }
   return serveFile(res, routed.file, routed.route);
 });
