@@ -586,7 +586,11 @@ function getViewportHeight() {
 }
 
 function getViewportWidth() {
-  return Math.max(420, Math.round((elements.readerFrame ? elements.readerFrame.clientWidth : 0) || 760));
+  const frameWidth = Math.round((elements.readerFrame ? elements.readerFrame.clientWidth : 0) || 0);
+  if (isEmbeddedOldShellMode()) {
+    return Math.max(280, frameWidth || 760);
+  }
+  return Math.max(420, frameWidth || 760);
 }
 
 function getViewportConfig() {

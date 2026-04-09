@@ -2299,17 +2299,77 @@ function beginPageTurnPreviewFromCanvases(liveCanvases) {
   return true;
 }
 
-function animatePageTurnTo(dx, durationMs = 280) {
+function clearTurnOverlayOnly() {
+  const stack = document.getElementById("viewerStack");
+  const shadow = document.getElementById("swipe-shadow");
+  if (stack) {
+    stack.classList.remove("shadow-left", "shadow-right");
+    stack.classList.add("swipe-undim");
+  }
+  if (shadow) {
+    shadow.style.left = "";
+    shadow.style.transition = "";
+  }
+  document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right");
+  setSwipeOverlayAlpha(0);
+}
+
+function animatePageTurnTo(fromDx, toDx, durationMs = 280) {
   const currentLayer = getCurrentTurnLayer();
-  if (!currentLayer) return;
+  const stack = document.getElementById("viewerStack");
+  const shadow = document.getElementById("swipe-shadow");
+  if (!currentLayer || !stack) return;
+  const width = Math.max(1, stack.getBoundingClientRect().width || window.innerWidth || 1);
+  const startDx = Number(fromDx) || 0;
+  const targetDx = Number(toDx) || 0;
+  let overlayRaf = 0;
+  const stopOverlayAnim = () => {
+    try {
+      if (!overlayRaf) return;
+      (window.cancelAnimationFrame || window.clearTimeout)(overlayRaf);
+      overlayRaf = 0;
+    } catch (_error) {}
+  };
+  const animateOverlay = (from, to) => {
+    stopOverlayAnim();
+    let startedAt = null;
+    const rafFn = window.requestAnimationFrame
+      ? window.requestAnimationFrame.bind(window)
+      : (cb) => window.setTimeout(() => cb(Date.now()), 16);
+    const step = (ts) => {
+      if (startedAt === null) startedAt = ts;
+      const progress = durationMs <= 0 ? 1 : Math.min(1, Math.max(0, (ts - startedAt) / durationMs));
+      const currentDx = from + ((to - from) * progress);
+      updateSwipeOverlayAlpha(currentDx, width);
+      if (progress < 1 && HOST_STATE.turnInFlight) {
+        overlayRaf = rafFn(step);
+        return;
+      }
+      overlayRaf = 0;
+      setSwipeOverlayAlpha(0);
+    };
+    overlayRaf = rafFn(step);
+  };
   currentLayer.style.transition = `transform ${durationMs}ms ease-out`;
+  currentLayer.style.transform = `translate3d(${Math.round(startDx)}px, 0, 0)`;
+  if (shadow) {
+    try {
+      const shadowWidth = Math.max(6, shadow.getBoundingClientRect().width || 6);
+      shadow.style.transition = `left ${durationMs}ms ease-out`;
+      shadow.style.left = targetDx > 0
+        ? "0px"
+        : `${Math.max(0, width - shadowWidth)}px`;
+    } catch (_error) {}
+  }
   window.requestAnimationFrame(() => {
-    updateCurrentTurnAnimationOnly(dx);
+    currentLayer.style.transform = `translate3d(${Math.round(targetDx)}px, 0, 0)`;
+    animateOverlay(startDx, targetDx);
   });
 }
 
 async function performPageTurn(direction, options = {}) {
   const reuseExistingPreview = !!options.reuseExistingPreview;
+  const startingDx = Number(options.startDx || 0);
   if (HOST_STATE.turnInFlight) {
     window.__protectedTurnDebug = {
       ...(window.__protectedTurnDebug || {}),
@@ -2352,6 +2412,8 @@ async function performPageTurn(direction, options = {}) {
   const stack = document.getElementById("viewerStack");
   const width = Math.max(1, stack ? stack.getBoundingClientRect().width || window.innerWidth || 1 : (window.innerWidth || 1));
   const targetDx = direction === "prev" ? width : -width;
+  const turnDurationMs = 280;
+  let nextSummary = null;
   const animationPromise = new Promise((resolve) => {
     if (!prepared) {
       window.__protectedTurnDebug.stage = "prepare-failed";
@@ -2359,23 +2421,21 @@ async function performPageTurn(direction, options = {}) {
       return;
     }
     window.__protectedTurnDebug.stage = "animating";
-    if (!reuseExistingPreview) {
-      updatePageTurnPresentation(direction === "prev" ? 1 : -1);
-    }
-    animatePageTurnTo(targetDx, 280);
-    HOST_STATE.turnCleanupTimer = window.setTimeout(resolve, 300);
+    updatePageTurnPresentation(startingDx || (direction === "prev" ? 1 : -1));
+    animatePageTurnTo(startingDx, targetDx, turnDurationMs);
+    HOST_STATE.turnCleanupTimer = window.setTimeout(async () => {
+      clearTurnOverlayOnly();
+      try {
+        const result = await invokeBridgeRaw(direction === "prev" ? "prevPage" : "nextPage");
+        nextSummary = result || null;
+        if (nextSummary) updateFromSummary(nextSummary);
+      } catch (_error) {}
+      resolve();
+    }, turnDurationMs);
   });
-  let nextSummary = null;
-  const bridgePromise = invokeBridgeRaw(direction === "prev" ? "prevPage" : "nextPage")
-    .then((result) => {
-      nextSummary = result || null;
-      if (nextSummary) updateFromSummary(nextSummary);
-      return result;
-    });
   try {
     await animationPromise;
     settleTurnPreview(direction);
-    await bridgePromise;
     if (nextSummary) {
       await waitForLivePageToSettle(nextSummary);
     }
@@ -2759,10 +2819,10 @@ function installTouchSwipe(target) {
     }
     event.preventDefault();
     if (dx < 0) {
-      await performPageTurn("next", { reuseExistingPreview: previewVisible });
+      await performPageTurn("next", { reuseExistingPreview: previewVisible, startDx: dx });
       return;
     }
-    await performPageTurn("prev", { reuseExistingPreview: previewVisible });
+    await performPageTurn("prev", { reuseExistingPreview: previewVisible, startDx: dx });
   }
 
   target.addEventListener("touchstart", onStart, { passive: true, capture: true });
