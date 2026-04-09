@@ -1,6 +1,7 @@
 export function createGlyphShapeRegistry(shapeBundle, glyphMap) {
   const records = new Map();
   const pathCache = new Map();
+  const runtimeFontMode = shapeBundle && shapeBundle.runtimeFontMode ? shapeBundle.runtimeFontMode : "sans";
   const sourceCounts = { synthetic: 0, placeholder: 0, extracted: 0, missing: 0 };
 
   for (const record of (shapeBundle && shapeBundle.shapeRecords) || []) {
@@ -30,6 +31,7 @@ export function createGlyphShapeRegistry(shapeBundle, glyphMap) {
 
   return {
     shapeBundle,
+    runtimeFontMode,
     records,
     pathCache,
     sourceCounts,
@@ -46,10 +48,11 @@ export function createGlyphShapeRegistry(shapeBundle, glyphMap) {
     },
     getPath2D(shapeRecord) {
       if (!shapeRecord || !shapeRecord.pathData || typeof Path2D === "undefined") return null;
-      if (!pathCache.has(shapeRecord.shapeRef)) {
-        pathCache.set(shapeRecord.shapeRef, new Path2D(shapeRecord.pathData));
+      const pathKey = `${runtimeFontMode}:${shapeRecord.shapeRef}`;
+      if (!pathCache.has(pathKey)) {
+        pathCache.set(pathKey, new Path2D(shapeRecord.pathData));
       }
-      return pathCache.get(shapeRecord.shapeRef);
+      return pathCache.get(pathKey);
     }
   };
 }

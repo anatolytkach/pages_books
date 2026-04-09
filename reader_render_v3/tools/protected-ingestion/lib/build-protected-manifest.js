@@ -179,8 +179,16 @@ function normalizeStyleToken(style) {
 
 function buildStyles(styles, fontPlan) {
   return {
-    version: 1,
+    version: 2,
     styleTokens: styles.stylesList.map(normalizeStyleToken),
+    fontProfiles: styles.fontProfiles || {
+      version: 1,
+      supportedFontModes: ["sans"],
+      defaultFontMode: "sans",
+      profiles: {
+        sans: { byScriptBucket: {} }
+      }
+    },
     fontPlanReference: fontPlan ? {
       scriptsDetected: fontPlan.scriptsDetected || [],
       styleNeeds: fontPlan.styleNeeds || {},
@@ -197,8 +205,13 @@ function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, 
     throw new Error(`Protected build could not map ${missingToc.length} TOC items to chunk anchors (${sample})`);
   }
   const manifest = {
-    version: 3,
+    version: 4,
     mode: "protected-runtime-safe",
+    artifactContract: {
+      kind: "dual-family-static-v1",
+      supportedFontModes: ["sans", "serif"],
+      defaultFontMode: "sans"
+    },
     metadata: {
       title: book.metadata.title,
       creators: book.metadata.creators,
@@ -217,7 +230,9 @@ function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, 
       renderPayload: "opaque-glyph-ops",
       reconstructionMode: "sealed-window-scoped",
       reconstructionSurface: "embedded-substrate",
-      unicodeLeakage: "forbidden-in-runtime-safe-render-path"
+      unicodeLeakage: "forbidden-in-runtime-safe-render-path",
+      visualPayload: "dual-family-static-v1",
+      runtimeVisualSelection: "default-artifact-font-mode-only"
     },
     debugArtifactAvailable: !!debugArtifactEnabled,
     chunks: runtimeChunks.map((chunk, index) => ({

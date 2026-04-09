@@ -7,6 +7,30 @@ function comparePositions(a, b) {
   return a.offset - b.offset;
 }
 
+function buildLayoutProjectionMeta(layout, chunkModel) {
+  const layoutMeta = layout && layout.projectionMeta && typeof layout.projectionMeta === "object"
+    ? layout.projectionMeta
+    : {};
+  return {
+    chunkId: layoutMeta.chunkId || (chunkModel && chunkModel.chunk ? chunkModel.chunk.chunkId : ""),
+    runtimeFontMode: layoutMeta.runtimeFontMode || "sans",
+    configGeneration: Number(layoutMeta.configGeneration || 0) || 0,
+    layoutGeneration: Number(layoutMeta.layoutGeneration || 0) || 0
+  };
+}
+
+function positionMatchesProjection(position, projectionMeta) {
+  if (!position || !projectionMeta) return false;
+  const positionMeta = position.projectionMeta;
+  if (!positionMeta || typeof positionMeta !== "object") return false;
+  return (
+    String(positionMeta.chunkId || "") === String(projectionMeta.chunkId || "") &&
+    String(positionMeta.runtimeFontMode || "sans") === String(projectionMeta.runtimeFontMode || "sans") &&
+    Number(positionMeta.configGeneration || 0) === Number(projectionMeta.configGeneration || 0) &&
+    Number(positionMeta.layoutGeneration || 0) === Number(projectionMeta.layoutGeneration || 0)
+  );
+}
+
 export function buildChunkSelectionIndex(chunk) {
   const layer = chunk.selectionLayer || {};
   return {
@@ -69,8 +93,17 @@ export function clearSelection() {
   return createSelectionState();
 }
 
-export function normalizeSelection(state) {
+export function normalizeSelection(state, layout = null, chunkModel = null) {
   if (!state.anchor || !state.focus) {
+    return {
+      isCollapsed: true,
+      selectionType: "none",
+      start: null,
+      end: null
+    };
+  }
+  const projectionMeta = layout && chunkModel ? buildLayoutProjectionMeta(layout, chunkModel) : null;
+  if (projectionMeta && (!positionMatchesProjection(state.anchor, projectionMeta) || !positionMatchesProjection(state.focus, projectionMeta))) {
     return {
       isCollapsed: true,
       selectionType: "none",
@@ -90,7 +123,8 @@ export function normalizeSelection(state) {
 }
 
 export function buildSelectionResult({ chunkModel, layout, selectionState }) {
-  const normalized = normalizeSelection(selectionState);
+  const projectionMeta = buildLayoutProjectionMeta(layout, chunkModel);
+  const normalized = normalizeSelection(selectionState, layout, chunkModel);
   if (!normalized.start || !normalized.end) {
     return {
       selectionType: "none",
@@ -104,7 +138,8 @@ export function buildSelectionResult({ chunkModel, layout, selectionState }) {
       rawStartOffset: null,
       rawEndOffset: null,
       startOffset: null,
-      endOffset: null
+      endOffset: null,
+      projectionMeta
     };
   }
 
@@ -126,7 +161,8 @@ export function buildSelectionResult({ chunkModel, layout, selectionState }) {
       endOffset: rawEndOffset,
       start: normalized.start,
       end: normalized.end,
-      anchors: []
+      anchors: [],
+      projectionMeta
     };
   }
   const snapped = snapSelectionOffsets(chunkModel.wordBoundaryModel, rawStartOffset, rawEndOffset);
@@ -183,6 +219,7 @@ export function buildSelectionResult({ chunkModel, layout, selectionState }) {
     selectedFragments,
     start: normalized.start,
     end: normalized.end,
+    projectionMeta,
     anchors: Array.from(selectedBlockIds)
       .map((blockId) => blockAnchorMap.get(blockId))
       .filter(Boolean)
@@ -219,6 +256,7 @@ function offsetToLineX(line, offset) {
 
 export function buildRangeHighlights(layout, startOffset, endOffset) {
   if (startOffset == null || endOffset == null || endOffset <= startOffset) return [];
+  const projectionMeta = buildLayoutProjectionMeta(layout, null);
   const rects = [];
   for (const line of layout.lines) {
     if (line.endOffset <= startOffset || line.startOffset >= endOffset) continue;
@@ -232,7 +270,8 @@ export function buildRangeHighlights(layout, startOffset, endOffset) {
       y: line.y,
       width: Math.max(2, Math.abs(endX - startX)),
       height: line.height,
-      lineIndex: line.lineIndex
+      lineIndex: line.lineIndex,
+      projectionMeta
     });
   }
   return rects;

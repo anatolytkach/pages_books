@@ -32,6 +32,7 @@ function nearestOffsetInFragment(fragment, x) {
 export function hitTestPosition(layout, x, y) {
   const line = findLine(layout, x, y);
   if (!line) return null;
+  const projectionMeta = layout && layout.projectionMeta ? { ...layout.projectionMeta } : null;
 
   let target = line.fragments.find((fragment) => x >= fragment.x && x <= fragment.x + fragment.width) || null;
   if (!target) {
@@ -44,6 +45,7 @@ export function hitTestPosition(layout, x, y) {
         fragmentIndex: target.fragmentIndex,
         segmentId: target.segmentId,
         offset: target.startOffset,
+        projectionMeta,
         hitTestingBackend: layout.hitTestingBackend || "text-geometry",
         precisionMode: layout.selectionPrecisionMode || "text-metrics-approx"
       };
@@ -56,6 +58,7 @@ export function hitTestPosition(layout, x, y) {
       fragmentIndex: target.fragmentIndex,
       segmentId: target.segmentId,
       offset: target.endOffset,
+      projectionMeta,
       hitTestingBackend: layout.hitTestingBackend || "text-geometry",
       precisionMode: layout.selectionPrecisionMode || "text-metrics-approx"
     };
@@ -67,6 +70,7 @@ export function hitTestPosition(layout, x, y) {
     fragmentIndex: target.fragmentIndex,
     segmentId: target.segmentId,
     offset: nearestOffsetInFragment(target, x),
+    projectionMeta,
     hitTestingBackend: layout.hitTestingBackend || "text-geometry",
     precisionMode: layout.selectionPrecisionMode || "text-metrics-approx"
   };

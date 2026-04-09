@@ -7,12 +7,16 @@ function hash(input, length = 12) {
   return crypto.createHash("sha1").update(String(input)).digest("hex").slice(0, length);
 }
 
-function fontCandidateForCodePoint(codePoint) {
-  if (codePoint >= 0x0400 && codePoint <= 0x052f) return "Noto Serif";
-  if (codePoint <= 0x024f) return "Noto Serif";
-  if (codePoint >= 0x0370 && codePoint <= 0x03ff) return "Noto Serif";
+function fontCandidateForCodePoint(codePoint, fontMode = "sans") {
+  if (fontMode === "serif") {
+    if (codePoint >= 0x3400 && codePoint <= 0x9fff) return "Noto Serif CJK";
+    return "Noto Serif";
+  }
+  if (codePoint >= 0x0400 && codePoint <= 0x052f) return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+  if (codePoint <= 0x024f) return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+  if (codePoint >= 0x0370 && codePoint <= 0x03ff) return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
   if (codePoint >= 0x3400 && codePoint <= 0x9fff) return "Noto Serif CJK";
-  return "Noto Serif";
+  return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
 }
 
 function scriptBucketForCodePoint(codePoint) {
@@ -46,12 +50,23 @@ function buildGlyphLayer({ bookId, chunkId, blocks, styleRegistry }) {
         glyphId,
         glyphToken: glyphId,
         styleToken,
-        fontFamilyCandidate: fontCandidateForCodePoint(scalar),
         scriptBucket,
         glyphClass: `${scriptBucket.toLowerCase()}-${styleToken}`,
         stableRenderClass: `${scriptBucket.toLowerCase()}-chunk-glyph`,
-        shapeRef: `shape-${glyphId}`,
-        shapeStatus: "synthetic"
+        visualRefs: {
+          sans: {
+            fontMode: "sans",
+            fontFamilyCandidate: fontCandidateForCodePoint(scalar, "sans"),
+            shapeRef: `shape-sans-${glyphId}`,
+            shapeStatus: "synthetic"
+          },
+          serif: {
+            fontMode: "serif",
+            fontFamilyCandidate: fontCandidateForCodePoint(scalar, "serif"),
+            shapeRef: `shape-serif-${glyphId}`,
+            shapeStatus: "synthetic"
+          }
+        }
       };
       const internalGlyph = {
         ...runtimeGlyph,

@@ -30,6 +30,41 @@ function getInitialFontScale() {
   return 1;
 }
 
+function normalizeFontMode(value) {
+  return String(value || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
+}
+
+function normalizeGeneration(value, fallback = 0) {
+  const next = Number(value);
+  return Number.isFinite(next) && next > 0 ? Math.floor(next) : fallback;
+}
+
+function getInitialGenerationParam(paramName) {
+  try {
+    if (entryConfig && Number.isFinite(Number(entryConfig[paramName]))) {
+      return normalizeGeneration(entryConfig[paramName], 1);
+    }
+  } catch (_error) {}
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    return normalizeGeneration(params.get(paramName), 1);
+  } catch (_error) {}
+  return 1;
+}
+
+function getInitialFontMode() {
+  try {
+    if (entryConfig && entryConfig.fontMode) {
+      return normalizeFontMode(entryConfig.fontMode);
+    }
+  } catch (_error) {}
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    return normalizeFontMode(params.get("protectedFontMode") || params.get("fontMode"));
+  } catch (_error) {}
+  return "sans";
+}
+
 function shouldForceWorkerUnavailable() {
   if (entryConfig && entryConfig.forceWorkerUnavailable) return true;
   const params = new URLSearchParams(window.location.search);
@@ -130,6 +165,9 @@ const state = {
   pilotStatus: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.pilot || null : null,
   theme: "light",
   fontScale: getInitialFontScale(),
+  fontMode: getInitialFontMode(),
+  configGeneration: getInitialGenerationParam("protectedConfigGeneration"),
+  layoutGeneration: getInitialGenerationParam("protectedLayoutGeneration"),
   renderMode: "shape",
   metricsMode: "shape",
   debugGeometry: false,
@@ -327,6 +365,8 @@ function buildBridgeSummary() {
     : "";
   return {
     ready: !!state.currentSnapshot,
+    configGeneration: state.configGeneration,
+    layoutGeneration: state.layoutGeneration,
     integrationMode: !!state.integrationMode,
     embeddedMode: isEmbeddedOldShellMode(),
     readerMode: state.integrationMode ? "protected" : "dev-shell",
@@ -364,6 +404,22 @@ function buildBridgeSummary() {
       runtimeMeta && runtimeMeta.typographySummary
         ? Number(runtimeMeta.typographySummary.fontScale || 1)
         : state.fontScale,
+    fontMode:
+      runtimeMeta && runtimeMeta.typographySummary
+        ? normalizeFontMode(runtimeMeta.typographySummary.fontMode || state.fontMode)
+        : state.fontMode,
+    supportedFontModes:
+      state.compatBook && state.compatBook.artifactContract && Array.isArray(state.compatBook.artifactContract.supportedFontModes)
+        ? state.compatBook.artifactContract.supportedFontModes.slice()
+        : ["sans"],
+    artifactContractKind:
+      state.compatBook && state.compatBook.artifactContract
+        ? state.compatBook.artifactContract.kind || ""
+        : "",
+    runtimeFontMode:
+      runtimeMeta && runtimeMeta.typographySummary
+        ? normalizeFontMode(runtimeMeta.typographySummary.runtimeFontMode || runtimeMeta.typographySummary.fontMode || state.fontMode)
+        : state.fontMode,
     viewportWidth:
       runtimeMeta && runtimeMeta.typographySummary
         ? Number(runtimeMeta.typographySummary.viewportWidth || getViewportWidth())
@@ -452,6 +508,47 @@ function buildBridgeSummary() {
         }
       : null
   };
+}
+
+function applyGenerationMeta(generationMeta = {}) {
+  state.configGeneration = normalizeGeneration(generationMeta.configGeneration, state.configGeneration || 1);
+  state.layoutGeneration = normalizeGeneration(generationMeta.layoutGeneration, state.layoutGeneration || 1);
+}
+
+function getGenerationPayload() {
+  return {
+    configGeneration: state.configGeneration,
+    layoutGeneration: state.layoutGeneration
+  };
+}
+
+function getSnapshotGenerations(snapshot) {
+  const runtimeSummary =
+    snapshot &&
+    snapshot.runtimeMeta &&
+    snapshot.runtimeMeta.generationSummary
+      ? snapshot.runtimeMeta.generationSummary
+      : null;
+  return {
+    configGeneration: normalizeGeneration(
+      snapshot && snapshot.configGeneration,
+      normalizeGeneration(runtimeSummary && runtimeSummary.configGeneration, 0)
+    ),
+    layoutGeneration: normalizeGeneration(
+      snapshot && snapshot.layoutGeneration,
+      normalizeGeneration(runtimeSummary && runtimeSummary.layoutGeneration, 0)
+    )
+  };
+}
+
+function isStaleSnapshot(snapshot) {
+  const info = getSnapshotGenerations(snapshot);
+  if (!info.configGeneration || !info.layoutGeneration) return false;
+  if (info.configGeneration < state.configGeneration) return true;
+  if (info.layoutGeneration < state.layoutGeneration) return true;
+  if (info.configGeneration !== state.configGeneration) return true;
+  if (info.layoutGeneration !== state.layoutGeneration) return true;
+  return false;
 }
 
 function buildDebugLayoutState() {
@@ -667,10 +764,17 @@ function ensureTurnPreviewRoot(direction) {
 function renderSnapshotIntoTurnPreview(snapshot, direction, previewKey = getTurnPreviewKey()) {
   const root = ensureTurnPreviewRoot(direction);
   root.replaceChildren();
+  const runtimeMeta = snapshot && snapshot.runtimeMeta ? snapshot.runtimeMeta : null;
+  const typographySummary = runtimeMeta && runtimeMeta.typographySummary ? runtimeMeta.typographySummary : null;
+  const generationSummary = runtimeMeta && runtimeMeta.generationSummary ? runtimeMeta.generationSummary : null;
   if (!snapshot || !snapshot.renderPacket) {
     root.dataset.ready = "1";
     root.dataset.previewKey = previewKey;
     root.dataset.pageLabel = "";
+    root.dataset.fontMode = state.fontMode;
+    root.dataset.runtimeFontMode = state.fontMode;
+    root.dataset.configGeneration = String(state.configGeneration || 0);
+    root.dataset.layoutGeneration = String(state.layoutGeneration || 0);
     return;
   }
   const wrap = document.createElement("div");
@@ -698,6 +802,20 @@ function renderSnapshotIntoTurnPreview(snapshot, direction, previewKey = getTurn
   root.append(wrap);
   root.dataset.ready = "1";
   root.dataset.previewKey = previewKey;
+  root.dataset.fontMode = normalizeFontMode(
+    typographySummary && typographySummary.fontMode ? typographySummary.fontMode : state.fontMode
+  );
+  root.dataset.runtimeFontMode = normalizeFontMode(
+    typographySummary && typographySummary.runtimeFontMode
+      ? typographySummary.runtimeFontMode
+      : (typographySummary && typographySummary.fontMode ? typographySummary.fontMode : state.fontMode)
+  );
+  root.dataset.configGeneration = String(
+    normalizeGeneration(snapshot && snapshot.configGeneration, normalizeGeneration(generationSummary && generationSummary.configGeneration, state.configGeneration))
+  );
+  root.dataset.layoutGeneration = String(
+    normalizeGeneration(snapshot && snapshot.layoutGeneration, normalizeGeneration(generationSummary && generationSummary.layoutGeneration, state.layoutGeneration))
+  );
   root.dataset.pageLabel =
     snapshot.pageSummary && snapshot.pageSummary.globalPageLabel
       ? String(snapshot.pageSummary.globalPageLabel)
@@ -717,10 +835,18 @@ function getTurnPreviewKey() {
   return [
     Number(summary.pageGlobalStartOffset || 0),
     Number(summary.chunkOrder || 0),
+    summary.runtimeFontMode || summary.fontMode || state.fontMode,
     summary.theme || state.theme,
     Number(summary.viewportWidth || 0),
-    Number(summary.viewportHeight || 0)
+    Number(summary.viewportHeight || 0),
+    Number(summary.configGeneration || state.configGeneration || 0),
+    Number(summary.layoutGeneration || state.layoutGeneration || 0)
   ].join("|");
+}
+
+function isPreviewSnapshotStale(snapshot, expectedPreviewKey) {
+  if (isStaleSnapshot(snapshot)) return true;
+  return expectedPreviewKey !== getTurnPreviewKey();
 }
 
 async function refreshTurnPreview(direction, refreshKey) {
@@ -741,6 +867,13 @@ async function refreshTurnPreview(direction, refreshKey) {
       hasSnapshot: !!snapshot,
       hasRenderPacket: !!(snapshot && snapshot.renderPacket)
     };
+    if (isPreviewSnapshotStale(snapshot, refreshKey)) {
+      window.__PROTECTED_TURN_PREVIEW_DEBUG__[direction] = {
+        stage: "stale-snapshot",
+        refreshKey
+      };
+      return;
+    }
     const root = commitTurnPreview(snapshot, direction, refreshKey);
     window.__PROTECTED_TURN_PREVIEW_DEBUG__[direction] = {
       stage: "rendered",
@@ -1229,11 +1362,13 @@ function refreshCanvas() {
 }
 
 function applySnapshot(snapshot) {
+  if (!snapshot || isStaleSnapshot(snapshot)) return false;
   state.currentSnapshot = snapshot;
   if (snapshot.bookSummary) state.bookSummary = snapshot.bookSummary;
   if (snapshot.tocItems) state.tocItems = snapshot.tocItems;
   if (snapshot.runtimeMeta && snapshot.runtimeMeta.typographySummary) {
     state.fontScale = Number(snapshot.runtimeMeta.typographySummary.fontScale || 1);
+    state.fontMode = normalizeFontMode(snapshot.runtimeMeta.typographySummary.fontMode || state.fontMode);
   }
   persistReadingStateFromSnapshot(snapshot).catch((error) => {
     console.error(error);
@@ -1244,6 +1379,7 @@ function applySnapshot(snapshot) {
   renderAnnotationList();
   refreshCanvas();
   notifyEmbeddedBridge();
+  return true;
 }
 
 async function persistReadingStateFromSnapshot(snapshot) {
@@ -1281,6 +1417,8 @@ async function loadArtifact(artifactRoot) {
     renderMode: "shape",
     metricsMode: state.metricsMode,
     fontScale: state.fontScale,
+    fontMode: state.fontMode,
+    ...getGenerationPayload(),
     ...getViewportConfig(),
     annotations: []
   });
@@ -2278,6 +2416,7 @@ async function clearLocalProtectedState() {
 
 async function bridgeNextPage() {
   const snapshot = await state.workerClient.goToNextPage({
+    ...getGenerationPayload(),
     ...getViewportConfig(),
     annotations: getCurrentAnnotations()
   });
@@ -2288,6 +2427,7 @@ async function bridgeNextPage() {
 
 async function bridgePrevPage() {
   const snapshot = await state.workerClient.goToPrevPage({
+    ...getGenerationPayload(),
     ...getViewportConfig(),
     annotations: getCurrentAnnotations()
   });
@@ -2304,6 +2444,7 @@ async function bridgePreparePageTurnPreviews() {
 async function bridgeGoToToc(tocId) {
   const snapshot = await state.workerClient.goToToc({
     tocId,
+    ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
@@ -2320,6 +2461,7 @@ async function bridgeGoToAnnotation(annotationId) {
       ...annotation.rangeDescriptor,
       annotationId: annotation.annotationId
     },
+    ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
   });
   state.selectedAnnotationId = annotation.annotationId;
@@ -2331,6 +2473,7 @@ async function bridgeGoToAnnotation(annotationId) {
 async function bridgeRestoreFromToken(token) {
   const snapshot = await state.workerClient.restoreFromToken({
     token: String(token || ""),
+    ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
@@ -2411,6 +2554,7 @@ async function bridgeAddNoteFromRangeDescriptor(rangeDescriptor, noteText = "", 
 
 async function bridgeClearSelection() {
   const snapshot = await state.workerClient.clearSelection({
+    ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
@@ -2427,6 +2571,7 @@ async function bridgeSelectAutomationSample() {
     throw new Error("Automation selection is unavailable outside automation-safe mode.");
   }
   const snapshot = await state.workerClient.selectAutomationSample({
+    ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
@@ -2436,6 +2581,7 @@ async function bridgeSelectAutomationSample() {
 async function bridgeSearchBook(query = "") {
   const snapshot = await state.workerClient.searchBook({
     query: String(query || ""),
+    ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
@@ -2444,6 +2590,7 @@ async function bridgeSearchBook(query = "") {
 
 async function bridgeSearchNextResult() {
   const snapshot = await state.workerClient.searchNextResult({
+    ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
@@ -2452,6 +2599,7 @@ async function bridgeSearchNextResult() {
 
 async function bridgeSearchPrevResult() {
   const snapshot = await state.workerClient.searchPrevResult({
+    ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
@@ -2460,21 +2608,44 @@ async function bridgeSearchPrevResult() {
 
 async function bridgeClearSearch() {
   const snapshot = await state.workerClient.clearSearch({
+    ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
   return buildBridgeSummary();
 }
 
-async function bridgeSetTheme(theme = "light") {
+async function bridgeSetTheme(theme = "light", generationMeta = null) {
+  if (generationMeta) applyGenerationMeta(generationMeta);
   applyEmbeddedTheme(theme);
   await refreshTurnPreviews();
   return buildBridgeSummary();
 }
 
-async function bridgeSetFontScale(fontScale = 1) {
+async function bridgeSetFontScale(fontScale = 1, generationMeta = null) {
+  if (generationMeta) applyGenerationMeta(generationMeta);
   const snapshot = await state.workerClient.setFontScale({
     fontScale,
+    fontMode: state.fontMode,
+    ...getGenerationPayload(),
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  await refreshTurnPreviews();
+  return buildBridgeSummary();
+}
+
+async function bridgeSetFontMode(fontMode = "sans", generationMeta = null) {
+  if (generationMeta) applyGenerationMeta(generationMeta);
+  state.fontMode = normalizeFontMode(fontMode);
+  const snapshot = await state.workerClient.updateRenderConfig({
+    renderMode: state.renderMode,
+    metricsMode: state.metricsMode,
+    viewportWidth: getViewportWidth(),
+    viewportHeight: getViewportHeight(),
+    fontScale: state.fontScale,
+    fontMode: state.fontMode,
+    ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
   });
   applySnapshot(snapshot);
@@ -2508,7 +2679,8 @@ function installEmbeddedBridge() {
     searchPrevResult: bridgeSearchPrevResult,
     clearSearch: bridgeClearSearch,
     setTheme: bridgeSetTheme,
-    setFontScale: bridgeSetFontScale
+    setFontScale: bridgeSetFontScale,
+    setFontMode: bridgeSetFontMode
   };
   notifyEmbeddedBridge();
 }

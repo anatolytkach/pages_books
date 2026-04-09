@@ -32,12 +32,46 @@ function fontPolicyForScript(scriptBucket, fontPlan) {
     null;
 }
 
-function defaultFontFamilyFor(scriptBucket, blockType) {
+function defaultFontFamilyFor(scriptBucket, blockType, fontMode = "sans") {
   if (blockType === "pre") return "Courier New";
+  if (fontMode === "serif") {
+    if (scriptBucket === "Latin" || scriptBucket === "Common") return "Noto Serif";
+    if (scriptBucket === "Greek" || scriptBucket === "Cyrillic") return "Noto Serif";
+    if (scriptBucket === "CJK") return "Noto Serif CJK";
+    return "Noto Serif";
+  }
   if (scriptBucket === "Latin" || scriptBucket === "Common") return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
   if (scriptBucket === "Greek" || scriptBucket === "Cyrillic") return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
   if (scriptBucket === "CJK") return "Noto Serif CJK";
   return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+}
+
+function fontRoleFor(blockType, fontMode) {
+  if (blockType === "pre") return "monospace-fallback";
+  const prefix = /^heading-(\d)$/.test(blockType) ? "display" : "body";
+  return `${prefix}-${fontMode === "serif" ? "serif" : "sans"}`;
+}
+
+function buildFontProfiles() {
+  const scriptBuckets = ["Latin", "Greek", "Cyrillic", "Common", "CJK", "Unknown"];
+  const profiles = {};
+  for (const fontMode of ["sans", "serif"]) {
+    profiles[fontMode] = {
+      byScriptBucket: Object.fromEntries(scriptBuckets.map((scriptBucket) => [
+        scriptBucket,
+        {
+          fontFamilyCandidate: defaultFontFamilyFor(scriptBucket, "paragraph", fontMode),
+          fontMode
+        }
+      ]))
+    };
+  }
+  return {
+    version: 1,
+    supportedFontModes: ["sans", "serif"],
+    defaultFontMode: "sans",
+    profiles
+  };
 }
 
 function blockRoleFor(blockType) {
@@ -64,6 +98,7 @@ function styleTokenFrom(run, block) {
 function extractStyleSignals(blocks, options = {}) {
   const fontPlan = options.fontPlan || null;
   const styleRegistry = {};
+  const fontProfiles = buildFontProfiles();
 
   for (const block of blocks) {
     for (const run of block.runs) {
@@ -73,10 +108,12 @@ function extractStyleSignals(blocks, options = {}) {
       const fontPolicy = fontPolicyForScript(scriptBucket, fontPlan);
       const isHeading = /^heading-(\d)$/.test(block.blockType);
       const headingLevelMatch = block.blockType.match(/^heading-(\d)$/);
-      const requestedFamily =
+      const explicitRequestedFamily =
         run.styleState.fontFamily ||
         (block.blockPresentation && block.blockPresentation.fontFamily) ||
-        defaultFontFamilyFor(scriptBucket, block.blockType);
+        "";
+      const sansFamily = explicitRequestedFamily || defaultFontFamilyFor(scriptBucket, block.blockType, "sans");
+      const serifFamily = explicitRequestedFamily || defaultFontFamilyFor(scriptBucket, block.blockType, "serif");
       if (!styleRegistry[token]) {
         styleRegistry[token] = {
           styleToken: token,
@@ -89,7 +126,7 @@ function extractStyleSignals(blocks, options = {}) {
           boldItalic: !!run.styleState.bold && !!run.styleState.italic,
           linkLike: !!run.linkTarget,
           scriptBucket,
-          fontFamilyCandidate: requestedFamily || (fontPolicy ? fontPolicy.fontSource : defaultFontFamilyFor(scriptBucket, block.blockType)),
+          fontFamilyCandidate: sansFamily || (fontPolicy ? fontPolicy.fontSource : defaultFontFamilyFor(scriptBucket, block.blockType, "sans")),
           fontRole: isHeading ? "display-sans" : block.blockType === "pre" ? "monospace-fallback" : "body-sans",
           fontStyle: run.styleState.italic ? "italic" : "normal",
           fontWeight: run.styleState.bold ? "bold" : "regular",
@@ -117,7 +154,8 @@ function extractStyleSignals(blocks, options = {}) {
 
   return {
     styleRegistry,
-    stylesList: Object.values(styleRegistry)
+    stylesList: Object.values(styleRegistry),
+    fontProfiles
   };
 }
 

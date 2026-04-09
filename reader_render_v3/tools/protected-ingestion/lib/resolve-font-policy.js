@@ -11,8 +11,23 @@ function styleVariantFor(styleTokenRecord = {}) {
   return "regular";
 }
 
-function policyFamilyCandidates(styleTokenRecord = {}, glyph) {
-  const requested = styleTokenRecord.fontFamilyCandidate || glyph.fontFamilyCandidate || "Noto Serif";
+function defaultFamilyForMode(fontMode) {
+  return fontMode === "serif" ? "Noto Serif" : "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+}
+
+function policyFamilyCandidates(styleTokenRecord = {}, glyph, fontMode = "sans") {
+  const modeCandidate = styleTokenRecord.fontModeCandidates &&
+    styleTokenRecord.fontModeCandidates[fontMode] &&
+    styleTokenRecord.fontModeCandidates[fontMode].fontFamilyCandidate;
+  const glyphModeCandidate = glyph.visualRefs &&
+    glyph.visualRefs[fontMode] &&
+    glyph.visualRefs[fontMode].fontFamilyCandidate;
+  const requested =
+    modeCandidate ||
+    glyphModeCandidate ||
+    styleTokenRecord.fontFamilyCandidate ||
+    glyph.fontFamilyCandidate ||
+    defaultFamilyForMode(fontMode);
   if (/system-ui|-apple-system|blinkmacsystemfont|segoe ui|roboto|arial/i.test(requested)) {
     return ["Arial", "Helvetica", "Times New Roman", "Georgia"];
   }
@@ -63,13 +78,13 @@ function resolvePolicyFont(policy, familyCandidates, variant) {
   return null;
 }
 
-function resolveFontPolicy({ glyph, styleTokenRecord, fontAssets }) {
+function resolveFontPolicy({ glyph, styleTokenRecord, fontAssets, fontMode = "sans" }) {
   const requestedVariant = styleVariantFor(styleTokenRecord);
-  const familyCandidates = policyFamilyCandidates(styleTokenRecord, glyph);
+  const familyCandidates = policyFamilyCandidates(styleTokenRecord, glyph, fontMode);
   const embedded = resolveEmbeddedFont(fontAssets.embedded, familyCandidates, requestedVariant);
-  if (embedded) return embedded;
+  if (embedded) return { ...embedded, requestedFontMode: fontMode };
   const policy = resolvePolicyFont(fontAssets.policy, familyCandidates, requestedVariant);
-  if (policy) return policy;
+  if (policy) return { ...policy, requestedFontMode: fontMode };
   return {
     fontSourceType: "fallback",
     fontSourceName: familyCandidates[0] || "fallback-serif",
@@ -77,7 +92,8 @@ function resolveFontPolicy({ glyph, styleTokenRecord, fontAssets }) {
     fontFile: "",
     extractionStatus: "missing-font",
     requestedVariant,
-    resolvedVariant: ""
+    resolvedVariant: "",
+    requestedFontMode: fontMode
   };
 }
 

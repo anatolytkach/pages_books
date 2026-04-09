@@ -55,11 +55,26 @@ export function annotationIntersectsGlobalRange(annotation, startGlobalOffset, e
 export function projectAnnotationToChunk(annotation, chunkModel) {
   const range = annotationGlobalRange(annotation);
   if (!range || !chunkModel || !chunkModel.chunk) return null;
-  const chunkStart = chunkModel.chunk.startOffset || 0;
-  const chunkEnd = chunkModel.chunk.endOffset || chunkStart + (chunkModel.chunk.textLength || 0);
+  const textLength = Number(
+    (chunkModel.chunk.selectionLayer && chunkModel.chunk.selectionLayer.textLength) ||
+    chunkModel.chunk.textLength ||
+    0
+  ) || 0;
+  const chunkStart = Number(
+    chunkModel.chunkLocation && Number.isFinite(Number(chunkModel.chunkLocation.startOffset))
+      ? Number(chunkModel.chunkLocation.startOffset)
+      : chunkModel.chunk && Number.isFinite(Number(chunkModel.chunk.startOffset))
+        ? Number(chunkModel.chunk.startOffset)
+        : 0
+  );
+  const chunkEnd = Number(
+    chunkModel.chunk && Number.isFinite(Number(chunkModel.chunk.endOffset))
+      ? Number(chunkModel.chunk.endOffset)
+      : chunkStart + textLength
+  );
   if (range.endGlobalOffset <= chunkStart || range.startGlobalOffset >= chunkEnd) return null;
   const startOffset = Math.max(0, range.startGlobalOffset - chunkStart);
-  const endOffset = Math.min(chunkModel.chunk.textLength || 0, range.endGlobalOffset - chunkStart);
+  const endOffset = Math.min(textLength, range.endGlobalOffset - chunkStart);
   if (endOffset <= startOffset) return null;
   return {
     annotationId: annotation.annotationId,
@@ -92,6 +107,7 @@ export function buildAnnotationMarker(annotation, chunkModel, layout) {
     annotationId: annotation.annotationId,
     x: firstRect.x + firstRect.width - 6,
     y: firstRect.y + 4,
-    color: annotation.color || "amber"
+    color: annotation.color || "amber",
+    projectionMeta: firstRect.projectionMeta || null
   };
 }

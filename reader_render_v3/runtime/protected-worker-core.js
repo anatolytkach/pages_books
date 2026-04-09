@@ -228,7 +228,10 @@ function buildApproximateFocusedAnnotationRect(core, annotation, page) {
     height: Math.max(18, (line.height || 0) + 6),
     lineIndex: line.lineIndex,
     annotationId: annotation.annotationId,
-    color: annotation.color || "amber"
+    color: annotation.color || "amber",
+    projectionMeta: core && core.currentLayout && core.currentLayout.projectionMeta
+      ? { ...core.currentLayout.projectionMeta }
+      : null
   };
 }
 
@@ -265,7 +268,23 @@ function buildApproximateFocusedOffsetRect(core, startGlobal, endGlobal, page, c
     height: Math.max(18, (matchingLine.height || 0) + 6),
     lineIndex: matchingLine.lineIndex,
     annotationId: targetId,
-    color
+    color,
+    projectionMeta: core && core.currentLayout && core.currentLayout.projectionMeta
+      ? { ...core.currentLayout.projectionMeta }
+      : null
+  };
+}
+
+function buildLayoutProjectionMeta(core) {
+  return {
+    chunkId: core && core.currentChunkModel && core.currentChunkModel.chunk
+      ? core.currentChunkModel.chunk.chunkId
+      : "",
+    runtimeFontMode: core && core.currentChunkModel && core.currentChunkModel.runtimeFontMode
+      ? core.currentChunkModel.runtimeFontMode
+      : (core ? core.getDefaultArtifactRuntimeFontMode() : "sans"),
+    configGeneration: core ? Number(core.configGeneration || 0) || 0 : 0,
+    layoutGeneration: core ? Number(core.layoutGeneration || 0) || 0 : 0
   };
 }
 
@@ -280,6 +299,9 @@ export class ProtectedReaderRuntimeCore {
     this.currentPaginationModel = null;
     this.currentPageIndex = 0;
     this.fontScale = 1;
+    this.fontMode = "sans";
+    this.configGeneration = 1;
+    this.layoutGeneration = 1;
     this.bookPaginationSummary = {
       chunkPageCounts: [],
       totalPages: 0,
@@ -301,6 +323,22 @@ export class ProtectedReaderRuntimeCore {
 
   getLayoutWidth() {
     return Math.max(280, Math.min(1400, Number(this.viewportWidth || 760)));
+  }
+
+  getCurrentRuntimeFontMode() {
+    if (!this.book || !this.book.artifactContract || this.book.artifactContract.kind !== "dual-family-static-v1") {
+      return "sans";
+    }
+    const supported = Array.isArray(this.book.artifactContract.supportedFontModes)
+      ? this.book.artifactContract.supportedFontModes
+      : ["sans"];
+    const fallback = this.book.artifactContract.defaultFontMode || "sans";
+    return supported.includes(this.fontMode) ? this.fontMode : fallback;
+  }
+
+  getDefaultArtifactRuntimeFontMode() {
+    if (!this.book || !this.book.artifactContract) return "sans";
+    return this.book.artifactContract.defaultFontMode || "sans";
   }
 
   getCurrentPage() {
@@ -325,8 +363,9 @@ export class ProtectedReaderRuntimeCore {
   async rebuildBookPaginationSummary() {
     if (!this.book) return;
     const chunkPageCounts = [];
+    const runtimeFontMode = this.getCurrentRuntimeFontMode();
     for (let index = 0; index < this.book.manifest.chunks.length; index += 1) {
-      const chunkModel = await loadProtectedChunkModel(this.book, index);
+      const chunkModel = await loadProtectedChunkModel(this.book, index, { runtimeFontMode });
       const shapeRegistry = createGlyphShapeRegistry(chunkModel.shapeBundle, chunkModel.glyphMap);
       const layout = layoutChunk({
         chunkModel,
@@ -383,6 +422,9 @@ export class ProtectedReaderRuntimeCore {
     viewportWidth = 760,
     viewportHeight = 720,
     fontScale = 1,
+    fontMode = "sans",
+    configGeneration = this.configGeneration,
+    layoutGeneration = this.layoutGeneration,
     annotations = []
   }) {
     this.renderMode = "shape";
@@ -390,17 +432,27 @@ export class ProtectedReaderRuntimeCore {
     this.viewportWidth = viewportWidth;
     this.viewportHeight = viewportHeight;
     this.fontScale = Math.max(0.8, Math.min(1.6, Number(fontScale || 1)));
+    this.fontMode = String(fontMode || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
+    this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
+    this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     this.book = await loadProtectedBook(artifactRoot);
     this.bookSummary = summarizeBook(this.book);
     await this.rebuildBookPaginationSummary();
     return this.goToChunk({ chunkIndex: 0, annotations, includeBook: true });
   }
 
-  async goToChunk({ chunkIndex, pageIndex = null, globalOffset = null, annotations = [], includeBook = false }) {
+  async goToChunk({
+    chunkIndex,
+    pageIndex = null,
+    globalOffset = null,
+    annotations = [],
+    includeBook = false,
+    runtimeFontMode = this.getCurrentRuntimeFontMode()
+  }) {
     if (!this.book) throw new Error("Book is not initialized.");
     const boundedIndex = Math.max(0, Math.min(chunkIndex, this.book.manifest.chunks.length - 1));
     this.currentChunkIndex = boundedIndex;
-    this.currentChunkModel = await loadProtectedChunkModel(this.book, boundedIndex);
+    this.currentChunkModel = await loadProtectedChunkModel(this.book, boundedIndex, { runtimeFontMode });
     this.currentShapeRegistry = createGlyphShapeRegistry(
       this.currentChunkModel.shapeBundle,
       this.currentChunkModel.glyphMap
@@ -415,6 +467,7 @@ export class ProtectedReaderRuntimeCore {
       metricsMode: this.metricsMode,
       shapeRegistry: this.currentShapeRegistry
     });
+    this.currentLayout.projectionMeta = buildLayoutProjectionMeta(this);
     this.currentPaginationModel = buildPaginationModel({
       chunkModel: this.currentChunkModel,
       layout: this.currentLayout,
@@ -526,22 +579,43 @@ export class ProtectedReaderRuntimeCore {
     return this.goToChunk({ chunkIndex, globalOffset, annotations });
   }
 
-  async goToNextPage({ annotations = [] }) {
+  async goToNextPage({ annotations = [], runtimeFontMode = this.getCurrentRuntimeFontMode() } = {}) {
     this.focusedTocTarget = null;
     if (this.currentPageIndex < this.currentPaginationModel.pages.length - 1) {
+      if ((this.currentChunkModel && this.currentChunkModel.runtimeFontMode) !== runtimeFontMode) {
+        return this.goToChunk({
+          chunkIndex: this.currentChunkIndex,
+          pageIndex: this.currentPageIndex + 1,
+          annotations,
+          runtimeFontMode
+        });
+      }
       this.currentPageIndex += 1;
       this.selectionState = createSelectionState();
       return this.buildSnapshot({ annotations });
     }
     if (this.currentChunkIndex < this.book.manifest.chunks.length - 1) {
-      return this.goToChunk({ chunkIndex: this.currentChunkIndex + 1, pageIndex: 0, annotations });
+      return this.goToChunk({
+        chunkIndex: this.currentChunkIndex + 1,
+        pageIndex: 0,
+        annotations,
+        runtimeFontMode
+      });
     }
     return this.buildSnapshot({ annotations });
   }
 
-  async goToPrevPage({ annotations = [] }) {
+  async goToPrevPage({ annotations = [], runtimeFontMode = this.getCurrentRuntimeFontMode() } = {}) {
     this.focusedTocTarget = null;
     if (this.currentPageIndex > 0) {
+      if ((this.currentChunkModel && this.currentChunkModel.runtimeFontMode) !== runtimeFontMode) {
+        return this.goToChunk({
+          chunkIndex: this.currentChunkIndex,
+          pageIndex: this.currentPageIndex - 1,
+          annotations,
+          runtimeFontMode
+        });
+      }
       this.currentPageIndex -= 1;
       this.selectionState = createSelectionState();
       return this.buildSnapshot({ annotations });
@@ -550,7 +624,8 @@ export class ProtectedReaderRuntimeCore {
       const snapshot = await this.goToChunk({
         chunkIndex: this.currentChunkIndex - 1,
         pageIndex: Number.MAX_SAFE_INTEGER,
-        annotations
+        annotations,
+        runtimeFontMode
       });
       this.currentPageIndex = Math.max(0, this.currentPaginationModel.pages.length - 1);
       return this.buildSnapshot({ annotations, includeBook: !!snapshot.bookSummary });
@@ -599,10 +674,11 @@ export class ProtectedReaderRuntimeCore {
       return null;
     }
     const savedState = this.captureRuntimeState();
+    const runtimeFontMode = this.getCurrentRuntimeFontMode();
     try {
       return normalizedDirection === "prev"
-        ? await this.goToPrevPage({ annotations })
-        : await this.goToNextPage({ annotations });
+        ? await this.goToPrevPage({ annotations, runtimeFontMode })
+        : await this.goToNextPage({ annotations, runtimeFontMode });
     } finally {
       this.restoreRuntimeState(savedState);
     }
@@ -639,8 +715,17 @@ export class ProtectedReaderRuntimeCore {
     throw new Error("No automation-selectable sample range is available on the current page.");
   }
 
-  async setFontScale({ fontScale = 1, annotations = [] } = {}) {
+  async setFontScale({
+    fontScale = 1,
+    fontMode = this.fontMode,
+    configGeneration = this.configGeneration,
+    layoutGeneration = this.layoutGeneration,
+    annotations = []
+  } = {}) {
     this.fontScale = Math.max(0.8, Math.min(1.6, Number(fontScale || 1)));
+    this.fontMode = String(fontMode || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
+    this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
+    this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     await this.rebuildBookPaginationSummary();
     return this.goToChunk({
       chunkIndex: this.currentChunkIndex,
@@ -655,6 +740,9 @@ export class ProtectedReaderRuntimeCore {
     viewportWidth = this.viewportWidth,
     viewportHeight = this.viewportHeight,
     fontScale = this.fontScale,
+    fontMode = this.fontMode,
+    configGeneration = this.configGeneration,
+    layoutGeneration = this.layoutGeneration,
     annotations = []
   }) {
     this.renderMode = "shape";
@@ -662,6 +750,9 @@ export class ProtectedReaderRuntimeCore {
     this.viewportWidth = viewportWidth;
     this.viewportHeight = viewportHeight;
     this.fontScale = Math.max(0.8, Math.min(1.6, Number(fontScale || 1)));
+    this.fontMode = String(fontMode || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
+    this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
+    this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     await this.rebuildBookPaginationSummary();
     return this.goToChunk({
       chunkIndex: this.currentChunkIndex,
@@ -1042,6 +1133,9 @@ export class ProtectedReaderRuntimeCore {
       hitTestingBackend: this.currentLayout.hitTestingBackend,
       selectionPrecisionMode: this.currentLayout.selectionPrecisionMode,
       selectionCompatible: true,
+      projectionMeta: this.currentLayout && this.currentLayout.projectionMeta
+        ? { ...this.currentLayout.projectionMeta }
+        : null,
       hasShapeBundle: !!this.currentChunkModel.shapeBundle,
       reconstructionPathMode: "window-scoped",
       reconstructionCacheMode: "bounded-ephemeral",
@@ -1058,6 +1152,8 @@ export class ProtectedReaderRuntimeCore {
     };
 
     const snapshot = {
+      configGeneration: this.configGeneration,
+      layoutGeneration: this.layoutGeneration,
       bookSummary: includeBook ? this.bookSummary : null,
       tocItems: includeBook ? this.book.tocItems : null,
       chunkSummary,
@@ -1102,6 +1198,10 @@ export class ProtectedReaderRuntimeCore {
           : null,
         typographySummary: {
           fontScale: this.fontScale,
+          fontMode: this.fontMode,
+          runtimeFontMode: this.currentChunkModel && this.currentChunkModel.runtimeFontMode
+            ? this.currentChunkModel.runtimeFontMode
+            : this.getDefaultArtifactRuntimeFontMode(),
           viewportWidth: this.getLayoutWidth(),
           viewportHeight: this.viewportHeight,
           columnCount: this.currentLayout && this.currentLayout.columnCount ? this.currentLayout.columnCount : 1,
@@ -1111,6 +1211,13 @@ export class ProtectedReaderRuntimeCore {
           paddingX: this.currentLayout && Number.isFinite(this.currentLayout.paddingX) ? this.currentLayout.paddingX : 0,
           paddingY: this.currentLayout && Number.isFinite(this.currentLayout.paddingY) ? this.currentLayout.paddingY : 0,
           columnGap: this.currentLayout && Number.isFinite(this.currentLayout.columnGap) ? this.currentLayout.columnGap : 0
+        },
+        projectionSummary: this.currentLayout && this.currentLayout.projectionMeta
+          ? { ...this.currentLayout.projectionMeta }
+          : buildLayoutProjectionMeta(this),
+        generationSummary: {
+          configGeneration: this.configGeneration,
+          layoutGeneration: this.layoutGeneration
         },
         focusSummary: {
           annotationId: this.focusedAnnotationId || "",

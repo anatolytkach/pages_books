@@ -10,6 +10,8 @@ const HOST_STATE = {
   route: null,
   rolloutStatus: null,
   lastSummary: null,
+  activeConfigGeneration: 0,
+  activeLayoutGeneration: 0,
   frame: null,
   pollTimer: null,
   turnCleanupTimer: null,
@@ -22,7 +24,16 @@ const HOST_STATE = {
   lastNotesCount: 0,
   fontScaleSynced: false,
   lastAppliedFontScale: 0,
+  fontModeSynced: false,
+  lastAppliedFontMode: "sans",
+  readerConfig: {
+    fontMode: "sans",
+    configGeneration: 0,
+    layoutGeneration: 0
+  },
   selectionToolbarTimer: null,
+  selectionToolbarRevision: 0,
+  selectionToolbarDismissSuppressUntil: 0,
   lastSelectionSignature: "",
   selectionStableCount: 0,
   pendingSelectionToolbar: null,
@@ -40,6 +51,78 @@ const HOST_STATE = {
 
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
 const FONT_SCALE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-scale:";
+const FONT_MODE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-mode:";
+
+function normalizeGeneration(value, fallback = 0) {
+  const next = Number(value);
+  return Number.isFinite(next) && next > 0 ? Math.floor(next) : fallback;
+}
+
+function ensureHostGenerations() {
+  if (HOST_STATE.activeConfigGeneration <= 0) HOST_STATE.activeConfigGeneration = 1;
+  if (HOST_STATE.activeLayoutGeneration <= 0) HOST_STATE.activeLayoutGeneration = 1;
+  HOST_STATE.readerConfig.configGeneration = HOST_STATE.activeConfigGeneration;
+  HOST_STATE.readerConfig.layoutGeneration = HOST_STATE.activeLayoutGeneration;
+}
+
+function classifyBridgeUpdate(method) {
+  if (method === "setFontScale" || method === "setFontMode") return "layout-affecting";
+  if (method === "setTheme") return "redraw-only";
+  return "state-only";
+}
+
+function allocateBridgeGeneration(method) {
+  ensureHostGenerations();
+  const updateClass = classifyBridgeUpdate(method);
+  if (updateClass === "layout-affecting") {
+    HOST_STATE.activeConfigGeneration += 1;
+    HOST_STATE.activeLayoutGeneration += 1;
+  } else if (updateClass === "redraw-only") {
+    HOST_STATE.activeConfigGeneration += 1;
+  }
+  HOST_STATE.readerConfig.configGeneration = HOST_STATE.activeConfigGeneration;
+  HOST_STATE.readerConfig.layoutGeneration = HOST_STATE.activeLayoutGeneration;
+  return {
+    configGeneration: HOST_STATE.activeConfigGeneration,
+    layoutGeneration: HOST_STATE.activeLayoutGeneration,
+    updateClass
+  };
+}
+
+function summaryGenerationInfo(summary) {
+  return {
+    configGeneration: normalizeGeneration(summary && summary.configGeneration, 0),
+    layoutGeneration: normalizeGeneration(summary && summary.layoutGeneration, 0)
+  };
+}
+
+function isStaleSummary(summary) {
+  const info = summaryGenerationInfo(summary);
+  if (!info.configGeneration || !info.layoutGeneration) return false;
+  if (info.configGeneration < HOST_STATE.activeConfigGeneration) return true;
+  if (info.layoutGeneration < HOST_STATE.activeLayoutGeneration) return true;
+  if (info.configGeneration !== HOST_STATE.activeConfigGeneration) return true;
+  if (info.layoutGeneration !== HOST_STATE.activeLayoutGeneration) return true;
+  return false;
+}
+
+function normalizeFontMode(value) {
+  return String(value || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
+}
+
+function getSupportedFontModes(summary = HOST_STATE.lastSummary) {
+  const supported = summary && Array.isArray(summary.supportedFontModes) && summary.supportedFontModes.length
+    ? summary.supportedFontModes.map((item) => normalizeFontMode(item))
+    : ["sans"];
+  return supported.includes("sans") || supported.includes("serif") ? supported : ["sans"];
+}
+
+function resolveSupportedFontMode(value, summary = HOST_STATE.lastSummary, fallback = "sans") {
+  const supported = getSupportedFontModes(summary);
+  const normalized = normalizeFontMode(value || fallback);
+  if (supported.includes(normalized)) return normalized;
+  return supported[0] || "sans";
+}
 
 function isTouchShellMode() {
   try {
@@ -271,6 +354,36 @@ function installStyles() {
     body.protected-old-shell #fontInc {
       display: inline-flex !important;
     }
+    #protectedFontModeControl {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 8px;
+      padding: 2px;
+      border-radius: 999px;
+      border: 1px solid rgba(12, 78, 101, 0.14);
+      background: rgba(255,255,255,0.84);
+      vertical-align: middle;
+    }
+    #protectedFontModeControl button {
+      min-width: 52px;
+      padding: 4px 10px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #29415e;
+      font: 600 12px/1.2 Georgia, "Times New Roman", serif;
+      cursor: pointer;
+    }
+    #protectedFontModeControl button.is-active {
+      background: rgba(10, 129, 117, 0.12);
+      color: #0a8175;
+    }
+    #protectedFontModeControl button[aria-disabled="true"] {
+      opacity: 0.42;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
     body.protected-old-shell .protected-control-disabled,
     body.protected-old-shell .protected-control-disabled:hover {
       opacity: 0.42;
@@ -302,6 +415,17 @@ function installStyles() {
     body.protected-old-shell.protected-theme-dark #searchDesktop,
     body.protected-old-shell.protected-theme-dark #searchbar {
       color: #eef4fb;
+    }
+    body.protected-old-shell.protected-theme-dark #protectedFontModeControl {
+      background: rgba(16, 25, 38, 0.84);
+      border-color: rgba(255,255,255,0.12);
+    }
+    body.protected-old-shell.protected-theme-dark #protectedFontModeControl button {
+      color: #d7dee8;
+    }
+    body.protected-old-shell.protected-theme-dark #protectedFontModeControl button.is-active {
+      color: #8be0d3;
+      background: rgba(95, 210, 194, 0.16);
     }
     body.protected-old-shell #menuBookCoverPlaceholder {
       background-size: cover;
@@ -549,6 +673,32 @@ function getFontScaleStorageKey() {
   return `${FONT_SCALE_STORAGE_PREFIX}${getCurrentBookId()}`;
 }
 
+function getFontModeStorageKey() {
+  return `${FONT_MODE_STORAGE_PREFIX}${getCurrentBookId()}`;
+}
+
+function getShellPreferredFontMode() {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const explicit = params.get("protectedFontMode") || params.get("fontMode");
+    if (explicit != null && String(explicit).trim()) {
+      return normalizeFontMode(explicit);
+    }
+  } catch (_error) {}
+  try {
+    return normalizeFontMode(window.localStorage.getItem(getFontModeStorageKey()));
+  } catch (_error) {}
+  return "sans";
+}
+
+function persistShellFontMode(fontMode) {
+  const normalizedMode = normalizeFontMode(fontMode);
+  try {
+    window.localStorage.setItem(getFontModeStorageKey(), normalizedMode);
+  } catch (_error) {}
+  return normalizedMode;
+}
+
 function getShellPreferredFontScale() {
   try {
     const raw = window.localStorage.getItem(getFontScaleStorageKey());
@@ -641,9 +791,21 @@ function isAutomationMode() {
   return !!(HOST_STATE.route && HOST_STATE.route.automationSafe);
 }
 
+function getCanonicalRouteBookId() {
+  const query = HOST_STATE.route && HOST_STATE.route.query ? HOST_STATE.route.query : null;
+  if (!query) return "";
+  const explicit =
+    String(query.protectedCanonicalBookId || "").trim() ||
+    String(query.canonicalBookId || "").trim() ||
+    String(query.storageBookId || "").trim();
+  return explicit || "";
+}
+
 function getCurrentBookId() {
   return HOST_STATE.lastSummary && HOST_STATE.lastSummary.bookId
     ? String(HOST_STATE.lastSummary.bookId)
+    : getCanonicalRouteBookId()
+      ? getCanonicalRouteBookId()
     : HOST_STATE.route && HOST_STATE.route.bookId
       ? String(HOST_STATE.route.bookId)
       : "";
@@ -940,7 +1102,12 @@ function createOldStyleNoteItem(annotation) {
       event.stopPropagation();
     }
     HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
-    await invokeBridge("goToAnnotation", annotation.annotationId);
+    try {
+      await invokeBridge("goToAnnotation", annotation.annotationId);
+    } finally {
+      closeAllShellOverlays();
+      hideSelectionToolbar();
+    }
   }
 
   const link = document.createElement("a");
@@ -1075,11 +1242,61 @@ function updateBookmarkControl(summary) {
   bookmark.setAttribute("title", active ? "Remove bookmark" : "Add bookmark");
 }
 
+function ensureFontModeControl() {
+  let wrap = document.getElementById("protectedFontModeControl");
+  if (wrap) return wrap;
+  const fontInc = document.getElementById("fontInc");
+  const parent = fontInc && fontInc.parentElement ? fontInc.parentElement : null;
+  if (!parent) return null;
+  wrap = document.createElement("span");
+  wrap.id = "protectedFontModeControl";
+  wrap.setAttribute("role", "group");
+  wrap.setAttribute("aria-label", "Reading font style");
+  wrap.innerHTML = `
+    <button type="button" id="protectedFontModeSans" data-font-mode="sans">Sans</button>
+    <button type="button" id="protectedFontModeSerif" data-font-mode="serif">Serif</button>
+  `;
+  if (fontInc.nextSibling) parent.insertBefore(wrap, fontInc.nextSibling);
+  else parent.append(wrap);
+  return wrap;
+}
+
+function updateFontModeControl(summary = HOST_STATE.lastSummary) {
+  const wrap = ensureFontModeControl();
+  if (!wrap) return;
+  const activeFontMode = resolveSupportedFontMode(
+    summary && (summary.runtimeFontMode || summary.fontMode)
+      ? (summary.runtimeFontMode || summary.fontMode)
+      : HOST_STATE.readerConfig.fontMode,
+    summary,
+    HOST_STATE.readerConfig.fontMode
+  );
+  const supportedFontModes = getSupportedFontModes(summary);
+  wrap.dataset.fontMode = activeFontMode;
+  wrap.dataset.supportedModes = supportedFontModes.join(",");
+  ["sans", "serif"].forEach((mode) => {
+    const button = document.getElementById(mode === "sans" ? "protectedFontModeSans" : "protectedFontModeSerif");
+    if (!button) return;
+    const supported = supportedFontModes.includes(mode);
+    button.classList.toggle("is-active", activeFontMode === mode);
+    button.setAttribute("aria-pressed", activeFontMode === mode ? "true" : "false");
+    if (supported) {
+      button.removeAttribute("aria-disabled");
+      button.setAttribute("title", mode === "sans" ? "Use sans font" : "Use serif font");
+    } else {
+      button.setAttribute("aria-disabled", "true");
+      button.setAttribute("title", "Unavailable for this book");
+    }
+  });
+}
+
 function syncTopControls() {
   setControlEnabled("bookmark", true);
   setControlEnabled("fontDec", true);
   setControlEnabled("fontInc", true);
   setControlEnabled("openBookmarks", true);
+  ensureFontModeControl();
+  updateFontModeControl();
 }
 
 function buildEngineBadge() {
@@ -1203,9 +1420,12 @@ function getExpectedTurnPreviewKey(summary = HOST_STATE.lastSummary) {
   return [
     Number(summary.pageGlobalStartOffset || 0),
     Number(summary.chunkOrder || 0),
+    normalizeFontMode(summary.runtimeFontMode || summary.fontMode || HOST_STATE.readerConfig.fontMode),
     summary.theme || "light",
     Number(summary.viewportWidth || 0),
-    Number(summary.viewportHeight || 0)
+    Number(summary.viewportHeight || 0),
+    normalizeGeneration(summary.configGeneration, HOST_STATE.activeConfigGeneration),
+    normalizeGeneration(summary.layoutGeneration, HOST_STATE.activeLayoutGeneration)
   ].join("|");
 }
 
@@ -1279,6 +1499,23 @@ function syncNeighborPreviewLayers({ requireFresh = false, direction = null } = 
     return prevFresh && nextFresh;
   }
   return updated || existingPrev > 0 || existingNext > 0;
+}
+
+function invalidateEmbeddedNeighborPreviewRoots() {
+  const frame = HOST_STATE.frame;
+  const doc = frame && frame.contentDocument ? frame.contentDocument : null;
+  if (!doc) return;
+  ["prev", "next"].forEach((direction) => {
+    const root = doc.getElementById(`protected-turn-preview-${direction}`);
+    if (!root) return;
+    root.dataset.ready = "0";
+    root.dataset.previewKey = "";
+    root.dataset.pageLabel = "";
+    root.dataset.fontMode = "";
+    root.dataset.runtimeFontMode = "";
+    root.dataset.configGeneration = "";
+    root.dataset.layoutGeneration = "";
+  });
 }
 
 function scheduleNeighborPreviewSync() {
@@ -1549,6 +1786,11 @@ async function openProtectedNoteComposer() {
 function hideSelectionToolbar() {
   const toolbar = document.getElementById("selectionToolbar");
   if (!toolbar) return;
+  HOST_STATE.selectionToolbarRevision += 1;
+  if (HOST_STATE.selectionToolbarTimer) {
+    window.clearTimeout(HOST_STATE.selectionToolbarTimer);
+    HOST_STATE.selectionToolbarTimer = null;
+  }
   toolbar.classList.add("hidden");
   toolbar.setAttribute("aria-hidden", "true");
   HOST_STATE.pendingSelectionToolbar = null;
@@ -1557,6 +1799,18 @@ function hideSelectionToolbar() {
   HOST_STATE.cachedSelectionActionState = null;
   HOST_STATE.lastSelectionSignature = "";
   HOST_STATE.selectionStableCount = 0;
+}
+
+function suppressSelectionToolbarReopen(durationMs = 900) {
+  const until = Date.now() + Math.max(0, Number(durationMs || 0));
+  HOST_STATE.selectionToolbarDismissSuppressUntil = Math.max(
+    Number(HOST_STATE.selectionToolbarDismissSuppressUntil || 0),
+    until
+  );
+}
+
+function isSelectionToolbarReopenSuppressed() {
+  return Date.now() < Number(HOST_STATE.selectionToolbarDismissSuppressUntil || 0);
 }
 
 function rememberSelectionToolbarReleaseAnchor(x = 160, y = 160, source = "pointer") {
@@ -1573,13 +1827,15 @@ function rememberSelectionToolbarReleaseAnchor(x = 160, y = 160, source = "point
   HOST_STATE.lastSelectionReleaseAt = Date.now();
 }
 
-function scheduleSelectionToolbarFromSummary(frame, fallbackX = 160, fallbackY = 160, attemptsLeft = 8) {
+function scheduleSelectionToolbarFromSummary(frame, fallbackX = 160, fallbackY = 160, attemptsLeft = 8, revision = HOST_STATE.selectionToolbarRevision) {
   if (HOST_STATE.selectionToolbarTimer) {
     window.clearTimeout(HOST_STATE.selectionToolbarTimer);
     HOST_STATE.selectionToolbarTimer = null;
   }
   HOST_STATE.selectionToolbarTimer = window.setTimeout(() => {
     HOST_STATE.selectionToolbarTimer = null;
+    if (revision !== HOST_STATE.selectionToolbarRevision) return;
+    if (isSelectionToolbarReopenSuppressed()) return;
     const summary = getBridgeSummaryFromFrame(frame);
     if (summary && summary.selectionActive && Number(summary.selectedChars || 0) > 0) {
       showSelectionToolbarForSummary(summary, fallbackX, fallbackY);
@@ -1589,12 +1845,12 @@ function scheduleSelectionToolbarFromSummary(frame, fallbackX = 160, fallbackY =
     }
     const touchSelection = getTouchSelectionState();
     if (HOST_STATE.touchSelectionInProgress || touchSelection.active || touchSelection.claimed || touchSelection.pending) {
-      if (attemptsLeft > 0) scheduleSelectionToolbarFromSummary(frame, fallbackX, fallbackY, attemptsLeft - 1);
+      if (attemptsLeft > 0) scheduleSelectionToolbarFromSummary(frame, fallbackX, fallbackY, attemptsLeft - 1, revision);
       return;
     }
     if (!summary || !summary.selectionActive || Number(summary.selectedChars || 0) <= 0) {
       if (attemptsLeft > 0 && HOST_STATE.pendingSelectionToolbar) {
-        scheduleSelectionToolbarFromSummary(frame, fallbackX, fallbackY, attemptsLeft - 1);
+        scheduleSelectionToolbarFromSummary(frame, fallbackX, fallbackY, attemptsLeft - 1, revision);
       }
       return;
     }
@@ -1602,8 +1858,10 @@ function scheduleSelectionToolbarFromSummary(frame, fallbackX = 160, fallbackY =
   }, 60);
 }
 
-function showSelectionToolbarAfterRelease(frame, fallbackX = 160, fallbackY = 160, attemptsLeft = 10) {
+function showSelectionToolbarAfterRelease(frame, fallbackX = 160, fallbackY = 160, attemptsLeft = 10, revision = HOST_STATE.selectionToolbarRevision) {
   window.setTimeout(() => {
+    if (revision !== HOST_STATE.selectionToolbarRevision) return;
+    if (isSelectionToolbarReopenSuppressed()) return;
     const summary = getBridgeSummaryFromFrame(frame);
     if (summary && summary.selectionActive && Number(summary.selectedChars || 0) > 0) {
       showSelectionToolbarForSummary(summary, fallbackX, fallbackY);
@@ -1613,11 +1871,11 @@ function showSelectionToolbarAfterRelease(frame, fallbackX = 160, fallbackY = 16
     }
     const touchSelection = getTouchSelectionState();
     if (HOST_STATE.touchSelectionInProgress || touchSelection.active || touchSelection.claimed || touchSelection.pending) {
-      if (attemptsLeft > 0) showSelectionToolbarAfterRelease(frame, fallbackX, fallbackY, attemptsLeft - 1);
+      if (attemptsLeft > 0) showSelectionToolbarAfterRelease(frame, fallbackX, fallbackY, attemptsLeft - 1, revision);
       return;
     }
     if (!summary || !summary.selectionActive || Number(summary.selectedChars || 0) <= 0) {
-      if (attemptsLeft > 0) showSelectionToolbarAfterRelease(frame, fallbackX, fallbackY, attemptsLeft - 1);
+      if (attemptsLeft > 0) showSelectionToolbarAfterRelease(frame, fallbackX, fallbackY, attemptsLeft - 1, revision);
       return;
     }
     showSelectionToolbarForSummary(summary, fallbackX, fallbackY);
@@ -1851,6 +2109,7 @@ async function handleAction(action) {
   const dismissSelectionUi = (event) => {
     if (Date.now() < Number(HOST_STATE.suppressSelectionDismissUntil || 0)) return;
     if (toolbar.contains(event.target)) return;
+    suppressSelectionToolbarReopen(1000);
     hideSelectionToolbar();
     const target = event.target;
     const withinProtectedOverlay = !!(
@@ -2000,6 +2259,8 @@ function attachProtectedSurfaceInteractions(frame) {
         (summary && (summary.focusedAnnotationId || summary.selectionActive))
       );
       if (!inProtectedSurface || !shouldClear || !primaryButton) return;
+      suppressSelectionToolbarReopen(1000);
+      hideSelectionToolbar();
       void invokeBridgeRaw("clearSelection")
         .then((nextSummary) => {
           if (nextSummary) updateFromSummary(nextSummary);
@@ -2014,6 +2275,8 @@ function attachProtectedSurfaceInteractions(frame) {
         (summary && (summary.focusedAnnotationId || summary.selectionActive))
       );
       if (!shouldClear) return;
+      suppressSelectionToolbarReopen(1000);
+      hideSelectionToolbar();
       void invokeBridgeRaw("clearSelection")
         .then((nextSummary) => {
           if (nextSummary) updateFromSummary(nextSummary);
@@ -2073,15 +2336,32 @@ function attachProtectedSurfaceInteractions(frame) {
 
 function updateFromSummary(summary) {
   if (!summary) return;
+  ensureHostGenerations();
+  if (isStaleSummary(summary)) return;
   HOST_STATE.lastSummary = summary;
+  const supportedFontModes = getSupportedFontModes(summary);
+  const effectiveSummaryFontMode = resolveSupportedFontMode(
+    summary.runtimeFontMode || summary.fontMode || HOST_STATE.readerConfig.fontMode,
+    summary,
+    HOST_STATE.readerConfig.fontMode
+  );
+  HOST_STATE.readerConfig.configGeneration = normalizeGeneration(summary.configGeneration, HOST_STATE.activeConfigGeneration);
+  HOST_STATE.readerConfig.layoutGeneration = normalizeGeneration(summary.layoutGeneration, HOST_STATE.activeLayoutGeneration);
+  HOST_STATE.readerConfig.fontMode = effectiveSummaryFontMode;
+  persistShellFontMode(HOST_STATE.readerConfig.fontMode);
   if (summary.ready) {
     HOST_STATE.loadingCount = 0;
     setShellLoading(false);
     const preferredFontScale = getShellPreferredFontScale();
     const currentFontScale = Number(summary.fontScale || 1) || 1;
+    const preferredFontMode = resolveSupportedFontMode(getShellPreferredFontMode(), summary, effectiveSummaryFontMode);
+    const currentFontMode = effectiveSummaryFontMode;
     const shouldResync =
       Math.abs(preferredFontScale - currentFontScale) >= 0.01 &&
       Math.abs(preferredFontScale - Number(HOST_STATE.lastAppliedFontScale || 0)) >= 0.01;
+    const shouldResyncFontMode =
+      preferredFontMode !== currentFontMode &&
+      preferredFontMode !== normalizeFontMode(HOST_STATE.lastAppliedFontMode);
     if (shouldResync) {
       HOST_STATE.fontScaleSynced = true;
       HOST_STATE.lastAppliedFontScale = preferredFontScale;
@@ -2093,6 +2373,19 @@ function updateFromSummary(summary) {
       }, 0);
     } else if (!HOST_STATE.fontScaleSynced) {
       HOST_STATE.fontScaleSynced = true;
+    }
+    if (shouldResyncFontMode) {
+      HOST_STATE.fontModeSynced = true;
+      HOST_STATE.lastAppliedFontMode = preferredFontMode;
+      window.setTimeout(() => {
+        invokeBridge("setFontMode", preferredFontMode).catch(() => {
+          HOST_STATE.fontModeSynced = false;
+          HOST_STATE.lastAppliedFontMode = "sans";
+        });
+      }, 0);
+    } else if (!HOST_STATE.fontModeSynced) {
+      HOST_STATE.fontModeSynced = true;
+      HOST_STATE.lastAppliedFontMode = currentFontMode;
     }
   }
   setTitle(summary);
@@ -2106,6 +2399,7 @@ function updateFromSummary(summary) {
   updateSearchControls(summary);
   applyTheme(summary);
   syncTopControls();
+  updateFontModeControl(summary);
   updateBookmarkControl(summary);
   buildEngineBadge();
   const selectionSignature =
@@ -2164,16 +2458,11 @@ function updateFromSummary(summary) {
     HOST_STATE.lastSelectionReleaseAt = 0;
     scheduleSelectionToolbarFromSummary(HOST_STATE.frame, pending.x, pending.y);
   }
-  const previewKey = [
-    Number(summary.pageGlobalStartOffset || 0),
-    Number(summary.chunkOrder || 0),
-    summary.theme || "light",
-    Number(summary.viewportWidth || 0),
-    Number(summary.viewportHeight || 0)
-  ].join("|");
+  const previewKey = getExpectedTurnPreviewKey(summary);
   if (previewKey !== HOST_STATE.lastTurnPreviewKey) {
     HOST_STATE.lastTurnPreviewKey = previewKey;
     if (!HOST_STATE.turnInFlight) {
+      invalidateEmbeddedNeighborPreviewRoots();
       invalidateNeighborLayers();
       void prepareAndSyncNeighborPreviews().then(() => {
         ensureNeighborLayersMounted();
@@ -2211,9 +2500,13 @@ async function invokeBridge(method, ...args) {
     throw new Error(`Protected bridge method unavailable: ${method}`);
   }
   const fastUiMethod = method === "setTheme";
+  const generationMeta = allocateBridgeGeneration(method);
+  const finalArgs = generationMeta.updateClass === "state-only"
+    ? args
+    : [...args, generationMeta];
   if (!fastUiMethod) setShellLoading(true);
   try {
-    const result = await bridge[method](...args);
+    const result = await bridge[method](...finalArgs);
     updateFromSummary(result);
     return result;
   } finally {
@@ -2493,6 +2786,29 @@ function installTouchSwipe(target) {
     HOST_STATE.frame.style.pointerEvents = disabled ? "none" : "auto";
   }
 
+  function getTouchZoneBounds() {
+    const fallback = {
+      left: 0,
+      width: Math.max(
+        Number(window.innerWidth || 0),
+        Number((document.documentElement && document.documentElement.clientWidth) || 0),
+        Number((window.visualViewport && window.visualViewport.width) || 0),
+        0
+      )
+    };
+    const host = document.getElementById("protectedOldShellHost");
+    const frame = HOST_STATE.frame;
+    const candidate =
+      (frame && typeof frame.getBoundingClientRect === "function" && frame.getBoundingClientRect()) ||
+      (host && typeof host.getBoundingClientRect === "function" && host.getBoundingClientRect()) ||
+      null;
+    const left = candidate && Number.isFinite(candidate.left) ? Number(candidate.left) : fallback.left;
+    const width = candidate && Number.isFinite(candidate.width) && candidate.width > 0
+      ? Number(candidate.width)
+      : fallback.width;
+    return { left, width };
+  }
+
   function scheduleTouchRevealActivation(direction) {
     if (!gesture || Math.abs(gesture.dx || 0) <= 24) return;
     if (gesture.activationTimer) return;
@@ -2519,34 +2835,14 @@ function installTouchSwipe(target) {
   function onStart(event) {
     const touch = event.touches ? event.touches[0] : null;
     if (!touch || overlaysVisible()) return;
-    let hostRect = target.getBoundingClientRect ? target.getBoundingClientRect() : null;
-    let width = hostRect ? hostRect.width : 0;
-    let relX = hostRect ? touch.clientX - hostRect.left : 0;
-    if (!(width > 0)) {
-      try {
-        width = Number((window.visualViewport && window.visualViewport.width) || 0);
-      } catch (_error) {
-        width = 0;
-      }
-    }
-    if (!(width > 0)) {
-      try {
-        width = Math.max(
-          Number(window.innerWidth || 0),
-          Number((document.documentElement && document.documentElement.clientWidth) || 0)
-        );
-      } catch (_error) {
-        width = 0;
-      }
-    }
-    if (!(hostRect && typeof hostRect.left === "number")) {
-      relX = touch.clientX;
-    }
+    const zoneBounds = getTouchZoneBounds();
+    const width = Number(zoneBounds.width || 0);
+    const relX = Number(touch.clientX || 0) - Number(zoneBounds.left || 0);
     let tapZone = "center";
     if (width > 0) {
-      const centerWidth = width * 0.6;
-      const leftCut = (width - centerWidth) / 2;
-      const rightCut = leftCut + centerWidth;
+      const edgeZoneWidth = Math.max(48, width * 0.22);
+      const leftCut = edgeZoneWidth;
+      const rightCut = Math.max(leftCut, width - edgeZoneWidth);
       if (relX < leftCut) tapZone = "left";
       else if (relX > rightCut) tapZone = "right";
     }
@@ -2584,6 +2880,10 @@ function installTouchSwipe(target) {
     window.__protectedTouchDebug.start = {
       x: gesture.x,
       y: gesture.y,
+      zoneLeft: Number(zoneBounds.left || 0),
+      zoneWidth: Number(zoneBounds.width || 0),
+      relX,
+      tapZone,
       prepared,
       nextNeighborCount: getNeighborLayerCanvasCount("next"),
       prevNeighborCount: getNeighborLayerCanvasCount("prev")
@@ -2916,6 +3216,9 @@ function bindShellControls() {
   });
   const fontDec = document.getElementById("fontDec");
   const fontInc = document.getElementById("fontInc");
+  const fontModeControl = ensureFontModeControl();
+  const fontModeSans = document.getElementById("protectedFontModeSans");
+  const fontModeSerif = document.getElementById("protectedFontModeSerif");
   fontDec && fontDec.addEventListener("click", async (event) => {
     event.preventDefault();
     const currentScale = HOST_STATE.lastSummary ? Number(HOST_STATE.lastSummary.fontScale || 1) : 1;
@@ -2932,6 +3235,31 @@ function bindShellControls() {
     HOST_STATE.fontScaleSynced = true;
     await invokeBridge("setFontScale", nextScale);
   });
+  [fontModeSans, fontModeSerif].filter(Boolean).forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const target = event.currentTarget;
+      const nextMode = normalizeFontMode(target && target.dataset ? target.dataset.fontMode : "sans");
+      const summary = HOST_STATE.lastSummary;
+      const supported = summary && Array.isArray(summary.supportedFontModes) && summary.supportedFontModes.length
+        ? summary.supportedFontModes.map((item) => normalizeFontMode(item))
+        : ["sans"];
+      if (!supported.includes(nextMode)) return;
+      if (normalizeFontMode(HOST_STATE.readerConfig.fontMode) === nextMode) return;
+      closeAllShellOverlays();
+      hideSelectionToolbar();
+      HOST_STATE.fontModeSynced = true;
+      HOST_STATE.lastAppliedFontMode = persistShellFontMode(nextMode);
+      HOST_STATE.readerConfig.fontMode = nextMode;
+      updateFontModeControl({
+        ...(summary || {}),
+        fontMode: nextMode,
+        supportedFontModes: supported
+      });
+      await invokeBridge("setFontMode", nextMode);
+    });
+  });
+  if (fontModeControl) updateFontModeControl();
 
   const searchAction = document.getElementById("searchActionDesktop");
   const searchInput = document.getElementById("searchInputDesktop");
@@ -3072,11 +3400,18 @@ function ensureProtectedHost() {
 function buildEmbeddedProtectedUrl() {
   const url = new URL("/reader_render_v3/integration/protected-reader.html", window.location.origin);
   const params = new URLSearchParams(window.location.search || "");
+  const preferredFontMode = persistShellFontMode(getShellPreferredFontMode());
+  ensureHostGenerations();
+  HOST_STATE.readerConfig.fontMode = preferredFontMode;
+  HOST_STATE.lastAppliedFontMode = preferredFontMode;
   params.set("reader", "protected");
   params.set("embedded", "old-shell");
   params.set("protectedDrive", params.get("protectedDrive") || "disabled");
   params.set("automationSafe", params.get("automationSafe") || params.get("protectedAutomation") || "1");
   params.set("protectedFontScale", String(getShellPreferredFontScale()));
+  params.set("protectedFontMode", preferredFontMode);
+  params.set("protectedConfigGeneration", String(HOST_STATE.activeConfigGeneration));
+  params.set("protectedLayoutGeneration", String(HOST_STATE.activeLayoutGeneration));
   url.search = params.toString();
   url.hash = window.location.hash || "";
   return url.toString();

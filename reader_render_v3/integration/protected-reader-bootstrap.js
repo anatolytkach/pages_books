@@ -7,6 +7,19 @@ import { assessProtectedReaderEligibility } from "./protected-reader-eligibility
 import { buildProtectedReaderStatus } from "./protected-reader-status.js";
 import { resolveProtectedReaderPilot } from "./protected-reader-pilot.js";
 
+function normalizeFontMode(value) {
+  return String(value || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
+}
+
+function getInitialFontModeFromLocation() {
+  try {
+    const url = new URL(window.location.href);
+    return normalizeFontMode(url.searchParams.get("protectedFontMode") || url.searchParams.get("fontMode"));
+  } catch (_error) {
+    return "sans";
+  }
+}
+
 function setDlRows(container, rows) {
   if (!container) return;
   container.replaceChildren();
@@ -82,6 +95,7 @@ export async function bootstrapProtectedReaderIntegration() {
     embeddedMode: route.embeddedMode,
     driveMode: route.driveMode,
     automationSafe: !!route.automationSafe,
+    fontMode: getInitialFontModeFromLocation(),
     integrationRoute: route,
     shareState: route.shareState,
     compatImportPayload: null,
