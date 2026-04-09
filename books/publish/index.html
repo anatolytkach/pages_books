@@ -617,6 +617,7 @@
       let genres = [];
       let editingBookId = null;
       let platformAccess = { is_superuser: false, admin_tenants: [], publishing_tenants: [], can_publish: false };
+      let platformAccessLoaded = false;
       let publishingOrganizations = [];
       let editorSavedState = false;
       const PERSONAL_PUBLISH_TARGET = '__personal__';
@@ -708,10 +709,13 @@
           platformAccess = await apiFetch('GET', '/me/platform-access');
         } catch {
           platformAccess = { is_superuser: false, admin_tenants: [], publishing_tenants: [], can_publish: false };
+        } finally {
+          platformAccessLoaded = true;
         }
         publishingOrganizations = Array.isArray(platformAccess.publishing_tenants) ? platformAccess.publishing_tenants : [];
         syncTenantSelectors();
         applyPublishingModeCopy();
+        applyPublishingAccessState();
       }
 
       function canAccessPublishingUi() {
@@ -740,7 +744,9 @@
 
       function applyPublishingAccessState() {
         const uploadBtn = document.getElementById('uploadBtn');
-        if (uploadBtn) uploadBtn.style.display = canAccessPublishingUi() ? '' : 'none';
+        if (!uploadBtn) return;
+        uploadBtn.disabled = !platformAccessLoaded || !canAccessPublishingUi();
+        uploadBtn.style.display = platformAccessLoaded && canAccessPublishingUi() ? '' : 'none';
       }
 
       async function loadGenres() {
@@ -760,6 +766,10 @@
       async function loadMyBooks() {
         const $list = document.getElementById('bookList');
         try {
+          if (!platformAccessLoaded) {
+            $list.innerHTML = '<div class="empty-state"><p>Loading...</p></div>';
+            return;
+          }
           if (!canAccessPublishingUi()) {
             $list.innerHTML = '<div class="empty-state"><p>Publishing is not available for this account.</p></div>';
             return;
@@ -860,6 +870,10 @@
 
       // ── Upload flow ────────────────────────
       document.getElementById('uploadBtn').addEventListener('click', () => {
+        if (!platformAccessLoaded) {
+          showAlert($alert, 'Publishing access is still loading. Please try again.');
+          return;
+        }
         if (!canAccessPublishingUi()) {
           showAlert($alert, 'Publishing is not available for this account.');
           return;

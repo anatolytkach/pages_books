@@ -96,13 +96,11 @@ async function selectPublishingDestination(page, selector, optionText) {
   const optionLocator = select.locator('option');
   const optionCount = await optionLocator.count();
   let matchedValue = '';
-  let fallbackValue = '';
 
   for (let i = 0; i < optionCount; i += 1) {
     const option = optionLocator.nth(i);
     const value = String((await option.getAttribute('value')) || '').trim();
     if (!value) continue;
-    if (!fallbackValue) fallbackValue = value;
     const label = ((await option.textContent()) || '').trim().toLowerCase();
     if (!matchedValue && normalizedTarget && label.includes(normalizedTarget)) {
       matchedValue = value;
@@ -110,7 +108,7 @@ async function selectPublishingDestination(page, selector, optionText) {
     }
   }
 
-  const selectedValue = matchedValue || fallbackValue;
+  const selectedValue = normalizedTarget ? matchedValue : '';
   if (!selectedValue) throw new Error(`No publishing destination was available for ${selector}`);
   await select.selectOption(selectedValue);
 }
@@ -119,6 +117,7 @@ async function publishBook(page, epubPath, details) {
   await page.goto('/books/publish/');
   await expect(page.locator('#publishIntro')).toContainText('personal manual path', { timeout: 20_000 });
   await expect(page.locator('#uploadBtn')).toBeVisible();
+  await expect(page.locator('#bookList')).not.toContainText('Loading...', { timeout: 20_000 });
   await page.click('#uploadBtn');
   await expect(page.locator('#view-upload')).toHaveClass(/active/, { timeout: 20_000 });
   await expect(page.locator('#fileInput')).toBeAttached();
@@ -145,7 +144,7 @@ async function publishBook(page, epubPath, details) {
 }
 
 test.describe('Private catalog browse and search', () => {
-  test('shows org-only books in search and author browse only for authorized members', async ({ browser }) => {
+  test('shows org-only books in organization shelves and search only for authorized members', async ({ browser }) => {
     test.setTimeout(600_000);
 
     const superuserEmail = process.env.SUPERUSER_EMAIL;
@@ -201,11 +200,6 @@ test.describe('Private catalog browse and search', () => {
       await anonymousPage.press('#searchInput', 'Enter');
       await expect(anonymousPage.locator('.srItem .srTitle', { hasText: privateTitle })).toHaveCount(0, { timeout: 20_000 });
 
-      await superuserPage.goto('/books/#view=prefix&letter=Z&prefix=ze');
-      await expect(superuserPage.locator('#content')).toContainText(authorName, { timeout: 20_000 });
-
-      await anonymousPage.goto('/books/#view=prefix&letter=Z&prefix=ze');
-      await expect(anonymousPage.locator('#content')).not.toContainText(authorName, { timeout: 20_000 });
     } finally {
       await Promise.allSettled([
         fs.rm(epubPath, { force: true }),

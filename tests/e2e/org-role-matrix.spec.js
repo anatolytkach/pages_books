@@ -118,8 +118,7 @@ async function selectPublishingDestination(page, selector, optionText) {
   const value = await page.locator(`${selector} option`).evaluateAll((options, expectedText) => {
     const normalized = String(expectedText || '').toLowerCase();
     const match = options.find((option) => option.value && option.textContent.toLowerCase().includes(normalized));
-    const fallback = options.find((option) => option.value);
-    return match?.value || fallback?.value || '';
+    return match?.value || '';
   }, optionText);
   if (!value) throw new Error(`No publishing destination was available for ${selector}`);
   await page.evaluate(({ targetSelector, selectedValue }) => {
@@ -133,6 +132,7 @@ async function selectPublishingDestination(page, selector, optionText) {
 async function publishBook(page, epubPath, details) {
   await page.goto('/books/publish/');
   await expect(page.locator('#uploadBtn')).toBeVisible();
+  await expect(page.locator('#bookList')).not.toContainText('Loading...', { timeout: 20_000 });
   await page.click('#uploadBtn');
   await expect(page.locator('#fileInput')).toBeAttached();
   await selectPublishingDestination(page, '#uploadTenantSelect', details.destinationText);
