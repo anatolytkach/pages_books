@@ -148,6 +148,7 @@ async function publishBook(page, epubPath, details) {
   await page.fill('#meta-language', 'en');
   await selectFirstGenre(page);
   await page.selectOption('#meta-visibility', details.visibility);
+  await selectPublishingDestination(page, '#editTenantSelect', details.destinationText);
 
   await page.click('#saveMetaBtn');
   await expect(page.locator('#editAlert')).toContainText('Saved.', { timeout: 15_000 });
@@ -411,7 +412,9 @@ test.describe('Organization publishing matrix and visibility', () => {
       await memberPage.goto('/books/publish/');
       await expect.soft(memberPage).toHaveURL(/\/books\/account\/#library/, { timeout: 20_000 });
       const memberPublishBooksResponse = await apiRequest(memberPage, '/publish/books');
-      expect.soft(memberPublishBooksResponse.status).toBe(403);
+      expect.soft(memberPublishBooksResponse.status).toBe(200);
+      expect.soft(Array.isArray(memberPublishBooksResponse.data)).toBeTruthy();
+      expect.soft(memberPublishBooksResponse.data.length).toBe(0);
 
       await adminPage.goto('/books/publish/');
       await adminPage.click('#uploadBtn');

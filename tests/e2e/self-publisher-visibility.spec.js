@@ -135,6 +135,7 @@ async function publishBook(page, epubPath, details) {
   await page.fill('#meta-language', 'en');
   await selectFirstGenre(page);
   await page.selectOption('#meta-visibility', details.visibility);
+  await selectPublishingDestination(page, '#editTenantSelect', details.destinationText);
 
   await page.click('#saveMetaBtn');
   await expect(page.locator('#editAlert')).toContainText('Saved.', { timeout: 15_000 });
