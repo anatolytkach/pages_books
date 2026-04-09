@@ -19,6 +19,17 @@ const DEFAULT_ARTIFACT =
   (entryConfig && entryConfig.artifactRoot) ||
   "../artifacts/protected-books/19686";
 
+function getInitialFontScale() {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const raw = Number(params.get("protectedFontScale") || "");
+    if (Number.isFinite(raw) && raw > 0) {
+      return Math.max(0.8, Math.min(1.6, Number(raw.toFixed(2))));
+    }
+  } catch (_error) {}
+  return 1;
+}
+
 function shouldForceWorkerUnavailable() {
   if (entryConfig && entryConfig.forceWorkerUnavailable) return true;
   const params = new URLSearchParams(window.location.search);
@@ -118,7 +129,7 @@ const state = {
   rolloutPolicy: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.rollout || null : null,
   pilotStatus: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.pilot || null : null,
   theme: "light",
-  fontScale: 1,
+  fontScale: getInitialFontScale(),
   renderMode: "shape",
   metricsMode: "shape",
   debugGeometry: false,
@@ -567,7 +578,11 @@ function syncArtifactInput() {
 }
 
 function getViewportHeight() {
-  return Math.max(420, (elements.readerFrame ? elements.readerFrame.clientHeight : 0) - 40 || 720);
+  const frameHeight = Math.round((elements.readerFrame ? elements.readerFrame.clientHeight : 0) || 0);
+  if (isEmbeddedOldShellMode()) {
+    return Math.max(420, frameHeight || 720);
+  }
+  return Math.max(420, frameHeight - 40 || 720);
 }
 
 function getViewportWidth() {
@@ -1261,6 +1276,7 @@ async function loadArtifact(artifactRoot) {
     artifactRoot,
     renderMode: "shape",
     metricsMode: state.metricsMode,
+    fontScale: state.fontScale,
     ...getViewportConfig(),
     annotations: []
   });

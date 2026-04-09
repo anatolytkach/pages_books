@@ -376,12 +376,20 @@ export class ProtectedReaderRuntimeCore {
     }
   }
 
-  async initBook({ artifactRoot, renderMode = "text", metricsMode = "text", viewportWidth = 760, viewportHeight = 720, annotations = [] }) {
+  async initBook({
+    artifactRoot,
+    renderMode = "text",
+    metricsMode = "text",
+    viewportWidth = 760,
+    viewportHeight = 720,
+    fontScale = 1,
+    annotations = []
+  }) {
     this.renderMode = "shape";
     this.metricsMode = metricsMode === "text" ? "text" : "shape";
     this.viewportWidth = viewportWidth;
     this.viewportHeight = viewportHeight;
-    this.fontScale = 1;
+    this.fontScale = Math.max(0.8, Math.min(1.6, Number(fontScale || 1)));
     this.book = await loadProtectedBook(artifactRoot);
     this.bookSummary = summarizeBook(this.book);
     await this.rebuildBookPaginationSummary();

@@ -39,6 +39,7 @@ const HOST_STATE = {
 };
 
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
+const FONT_SCALE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-scale:";
 
 function isTouchShellMode() {
   try {
@@ -544,7 +545,18 @@ async function copyTextToClipboard(text) {
   if (!ok) throw new Error("Unable to copy selection.");
 }
 
+function getFontScaleStorageKey() {
+  return `${FONT_SCALE_STORAGE_PREFIX}${getCurrentBookId()}`;
+}
+
 function getShellPreferredFontScale() {
+  try {
+    const raw = window.localStorage.getItem(getFontScaleStorageKey());
+    const stored = Number(raw || "");
+    if (Number.isFinite(stored) && stored > 0) {
+      return Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2))));
+    }
+  } catch (_error) {}
   try {
     const settings = window.reader && window.reader.settings ? window.reader.settings : null;
     const pct = settings &&
@@ -564,6 +576,26 @@ function getShellPreferredFontScale() {
     return (isMobileUA || isMobileViewport) ? 1.24 : 1.1;
   } catch (error) {}
   return 1.1;
+}
+
+function persistShellFontScale(fontScale) {
+  const normalizedScale = Math.max(0.8, Math.min(1.6, Number(fontScale || 1)));
+  const pct = Math.max(80, Math.min(160, Math.round(normalizedScale * 100)));
+  const value = `${pct}%`;
+  try {
+    window.localStorage.setItem(getFontScaleStorageKey(), String(normalizedScale));
+  } catch (_error) {}
+  try {
+    if (!window.reader) return normalizedScale;
+    window.reader.settings = window.reader.settings || {};
+    window.reader.settings.styles = window.reader.settings.styles || {};
+    window.reader.settings.styles.fontSize = value;
+    window.reader.settings.fontSizePct = pct;
+    if (typeof window.reader.saveSettings === "function") {
+      window.reader.saveSettings();
+    }
+  } catch (_error) {}
+  return normalizedScale;
 }
 
 function openOverlayById(id) {
@@ -2276,7 +2308,8 @@ function animatePageTurnTo(dx, durationMs = 280) {
   });
 }
 
-async function performPageTurn(direction) {
+async function performPageTurn(direction, options = {}) {
+  const reuseExistingPreview = !!options.reuseExistingPreview;
   if (HOST_STATE.turnInFlight) {
     window.__protectedTurnDebug = {
       ...(window.__protectedTurnDebug || {}),
@@ -2298,7 +2331,20 @@ async function performPageTurn(direction) {
     neighborsReady = await prepareAndSyncNeighborPreviews(direction);
   }
   window.__protectedTurnDebug.stage = neighborsReady ? "prepare-done" : "prepare-background";
-  const prepared = beginPageTurnPreview();
+  let prepared = false;
+  if (reuseExistingPreview) {
+    const currentLayer = getCurrentTurnLayer();
+    prepared = !!(
+      currentLayer &&
+      currentLayer.style.visibility !== "hidden" &&
+      currentLayer.querySelector("canvas")
+    );
+    if (!prepared) {
+      prepared = beginPageTurnPreview();
+    }
+  } else {
+    prepared = beginPageTurnPreview();
+  }
   window.__protectedTurnDebug.prepared = prepared;
   window.__protectedTurnDebug.currentCanvasCount = document.getElementById("protectedOldShellCurrentLayer")
     ? document.getElementById("protectedOldShellCurrentLayer").querySelectorAll("canvas").length
@@ -2313,7 +2359,9 @@ async function performPageTurn(direction) {
       return;
     }
     window.__protectedTurnDebug.stage = "animating";
-    updatePageTurnPresentation(direction === "prev" ? 1 : -1);
+    if (!reuseExistingPreview) {
+      updatePageTurnPresentation(direction === "prev" ? 1 : -1);
+    }
     animatePageTurnTo(targetDx, 280);
     HOST_STATE.turnCleanupTimer = window.setTimeout(resolve, 300);
   });
@@ -2615,30 +2663,34 @@ function installTouchSwipe(target) {
 
   async function onEnd(event) {
     if (!gesture) return;
+    const completedGesture = gesture;
     const touchSelection = getTouchSelectionState();
     const summary = getBridgeSummaryFromFrame(HOST_STATE.frame);
     const touch = event.changedTouches ? event.changedTouches[0] : null;
     if (!touch) {
-      if (gesture && gesture.swipeCaptured) setFramePointerEventsDisabled(false);
+      if (completedGesture && completedGesture.swipeCaptured) setFramePointerEventsDisabled(false);
       gesture = null;
       return;
     }
-    const dx = touch.clientX - gesture.x;
-    const dy = touch.clientY - gesture.y;
-    const totalDx = touch.clientX - gesture.startX;
-    const totalDy = touch.clientY - gesture.startY;
-    const durationMs = Date.now() - Number(gesture.startAt || 0);
-    const previewVisible = gesture.previewVisible;
-    const tapZone = gesture.tapZone || "center";
-    const selectionClaimed = !!gesture.selectionClaimed || !!gesture.selectionLocked || !!touchSelection.selectionStarted;
-    if (!gesture.selectionLocked && tapZone === "center" && durationMs >= 450) {
-      gesture.selectionLocked = true;
+    const dx = touch.clientX - completedGesture.x;
+    const dy = touch.clientY - completedGesture.y;
+    const totalDx = touch.clientX - completedGesture.startX;
+    const totalDy = touch.clientY - completedGesture.startY;
+    const durationMs = Date.now() - Number(completedGesture.startAt || 0);
+    const previewVisible = completedGesture.previewVisible;
+    const tapZone = completedGesture.tapZone || "center";
+    const selectionClaimed =
+      !!completedGesture.selectionClaimed ||
+      !!completedGesture.selectionLocked ||
+      !!touchSelection.selectionStarted ||
+      !!touchSelection.claimed ||
+      !!touchSelection.active ||
+      !!touchSelection.pending;
+    if (completedGesture.activationTimer) {
+      window.clearTimeout(completedGesture.activationTimer);
+      completedGesture.activationTimer = null;
     }
-    if (gesture.activationTimer) {
-      window.clearTimeout(gesture.activationTimer);
-      gesture.activationTimer = null;
-    }
-    if (gesture.swipeCaptured) setFramePointerEventsDisabled(false);
+    if (completedGesture.swipeCaptured) setFramePointerEventsDisabled(false);
     HOST_STATE.touchSelectionInProgress = false;
     gesture = null;
     window.__protectedTouchDebug.end = {
@@ -2659,7 +2711,7 @@ function installTouchSwipe(target) {
           clearPageTurnPreview({ clearNeighbors: false });
         }, 170);
       }
-      if (gesture.selectionLocked || selectionClaimed || (summary && summary.selectionActive) || touchSelection.claimed || touchSelection.active || touchSelection.pending || touchSelection.selectionStarted) {
+      if (completedGesture.selectionLocked || selectionClaimed || (summary && summary.selectionActive) || touchSelection.claimed || touchSelection.active || touchSelection.pending || touchSelection.selectionStarted) {
         const anchorX = touch ? touch.clientX : 160;
         const anchorY = touch ? touch.clientY : 160;
         rememberSelectionToolbarReleaseAnchor(anchorX, anchorY, "touch");
@@ -2698,7 +2750,7 @@ function installTouchSwipe(target) {
       }
       return;
     }
-    if (gesture.selectionLocked || selectionClaimed || (summary && summary.selectionActive) || touchSelection.claimed || touchSelection.active || touchSelection.pending || touchSelection.selectionStarted) {
+    if (completedGesture.selectionLocked || selectionClaimed || (summary && summary.selectionActive) || touchSelection.claimed || touchSelection.active || touchSelection.pending || touchSelection.selectionStarted) {
       const anchorX = touch ? touch.clientX : 160;
       const anchorY = touch ? touch.clientY : 160;
       rememberSelectionToolbarReleaseAnchor(anchorX, anchorY, "touch");
@@ -2707,10 +2759,10 @@ function installTouchSwipe(target) {
     }
     event.preventDefault();
     if (dx < 0) {
-      await performPageTurn("next");
+      await performPageTurn("next", { reuseExistingPreview: previewVisible });
       return;
     }
-    await performPageTurn("prev");
+    await performPageTurn("prev", { reuseExistingPreview: previewVisible });
   }
 
   target.addEventListener("touchstart", onStart, { passive: true, capture: true });
@@ -2807,12 +2859,18 @@ function bindShellControls() {
   fontDec && fontDec.addEventListener("click", async (event) => {
     event.preventDefault();
     const currentScale = HOST_STATE.lastSummary ? Number(HOST_STATE.lastSummary.fontScale || 1) : 1;
-    await invokeBridge("setFontScale", Math.max(0.8, Number((currentScale - 0.1).toFixed(2))));
+    const nextScale = persistShellFontScale(Math.max(0.8, Number((currentScale - 0.1).toFixed(2))));
+    HOST_STATE.lastAppliedFontScale = nextScale;
+    HOST_STATE.fontScaleSynced = true;
+    await invokeBridge("setFontScale", nextScale);
   });
   fontInc && fontInc.addEventListener("click", async (event) => {
     event.preventDefault();
     const currentScale = HOST_STATE.lastSummary ? Number(HOST_STATE.lastSummary.fontScale || 1) : 1;
-    await invokeBridge("setFontScale", Math.min(1.6, Number((currentScale + 0.1).toFixed(2))));
+    const nextScale = persistShellFontScale(Math.min(1.6, Number((currentScale + 0.1).toFixed(2))));
+    HOST_STATE.lastAppliedFontScale = nextScale;
+    HOST_STATE.fontScaleSynced = true;
+    await invokeBridge("setFontScale", nextScale);
   });
 
   const searchAction = document.getElementById("searchActionDesktop");
@@ -2958,6 +3016,7 @@ function buildEmbeddedProtectedUrl() {
   params.set("embedded", "old-shell");
   params.set("protectedDrive", params.get("protectedDrive") || "disabled");
   params.set("automationSafe", params.get("automationSafe") || params.get("protectedAutomation") || "1");
+  params.set("protectedFontScale", String(getShellPreferredFontScale()));
   url.search = params.toString();
   url.hash = window.location.hash || "";
   return url.toString();
