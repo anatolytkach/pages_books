@@ -130,6 +130,13 @@ export function createProtectedWorkerClient(options = {}) {
       ensureSecureWorker();
       return decorateResult(PROTECTED_WORKER_METHODS.POINTER_DOWN, await transport.call(PROTECTED_WORKER_METHODS.POINTER_DOWN, payload));
     },
+    async selectWordAtPoint(payload) {
+      ensureSecureWorker();
+      return decorateResult(
+        PROTECTED_WORKER_METHODS.SELECT_WORD_AT_POINT,
+        await transport.call(PROTECTED_WORKER_METHODS.SELECT_WORD_AT_POINT, payload)
+      );
+    },
     async pointerMove(payload) {
       ensureSecureWorker();
       return decorateResult(PROTECTED_WORKER_METHODS.POINTER_MOVE, await transport.call(PROTECTED_WORKER_METHODS.POINTER_MOVE, payload));

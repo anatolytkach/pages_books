@@ -34,6 +34,7 @@ import {
   extendSelection,
   updateSelection
 } from "./protected-selection-model.js";
+import { snapSelectionOffsets } from "./protected-word-boundary.js";
 import {
   createReconstructionScope,
   disposeReconstructionScope,
@@ -753,6 +754,33 @@ export class ProtectedReaderRuntimeCore {
     this.selectionState = shiftKey && (this.selectionState.anchor || this.selectionState.focus)
       ? extendSelection(this.selectionState, position)
       : beginSelection(this.selectionState, position);
+    return this.buildSnapshot({ annotations });
+  }
+
+  selectWordAtPoint({ x, y, annotations = [] }) {
+    const position = hitTestPosition(this.currentLayout, x, y);
+    this.focusedAnnotationId = null;
+    if (!position) return this.buildSnapshot({ annotations });
+    const snapped = snapSelectionOffsets(
+      this.currentChunkModel.wordBoundaryModel,
+      position.offset,
+      position.offset + 1
+    );
+    if (
+      snapped &&
+      snapped.startOffset != null &&
+      snapped.endOffset != null &&
+      snapped.startOffset !== snapped.endOffset
+    ) {
+      this.selectionState = {
+        anchor: { ...position, offset: snapped.startOffset },
+        focus: { ...position, offset: snapped.endOffset },
+        dragging: true,
+        selectionType: "range"
+      };
+      return this.buildSnapshot({ annotations });
+    }
+    this.selectionState = beginSelection(this.selectionState, position);
     return this.buildSnapshot({ annotations });
   }
 

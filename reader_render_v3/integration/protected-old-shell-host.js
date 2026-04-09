@@ -26,6 +26,10 @@ const HOST_STATE = {
   lastSelectionSignature: "",
   selectionStableCount: 0,
   pendingSelectionToolbar: null,
+  releaseSelectionToolbarAnchor: null,
+  lastSelectionReleaseAt: 0,
+  touchSelectionInProgress: false,
+  suppressSelectionDismissUntil: 0,
   cachedSelectionActionState: null,
   suppressSelectionToolbarUntil: 0,
   turnPreviewSyncTimer: null,
@@ -1516,12 +1520,28 @@ function hideSelectionToolbar() {
   toolbar.classList.add("hidden");
   toolbar.setAttribute("aria-hidden", "true");
   HOST_STATE.pendingSelectionToolbar = null;
+  HOST_STATE.releaseSelectionToolbarAnchor = null;
+  HOST_STATE.lastSelectionReleaseAt = 0;
   HOST_STATE.cachedSelectionActionState = null;
   HOST_STATE.lastSelectionSignature = "";
   HOST_STATE.selectionStableCount = 0;
 }
 
-function scheduleSelectionToolbarFromSummary(frame, fallbackX = 160, fallbackY = 160) {
+function rememberSelectionToolbarReleaseAnchor(x = 160, y = 160, source = "pointer") {
+  HOST_STATE.pendingSelectionToolbar = {
+    x: Number(x || 160),
+    y: Number(y || 160),
+    source
+  };
+  HOST_STATE.releaseSelectionToolbarAnchor = {
+    x: Number(x || 160),
+    y: Number(y || 160),
+    source
+  };
+  HOST_STATE.lastSelectionReleaseAt = Date.now();
+}
+
+function scheduleSelectionToolbarFromSummary(frame, fallbackX = 160, fallbackY = 160, attemptsLeft = 8) {
   if (HOST_STATE.selectionToolbarTimer) {
     window.clearTimeout(HOST_STATE.selectionToolbarTimer);
     HOST_STATE.selectionToolbarTimer = null;
@@ -1529,14 +1549,73 @@ function scheduleSelectionToolbarFromSummary(frame, fallbackX = 160, fallbackY =
   HOST_STATE.selectionToolbarTimer = window.setTimeout(() => {
     HOST_STATE.selectionToolbarTimer = null;
     const summary = getBridgeSummaryFromFrame(frame);
-    if (!summary || !summary.selectionActive || Number(summary.selectedChars || 0) <= 0) return;
+    if (summary && summary.selectionActive && Number(summary.selectedChars || 0) > 0) {
+      showSelectionToolbarForSummary(summary, fallbackX, fallbackY);
+      HOST_STATE.pendingSelectionToolbar = null;
+      HOST_STATE.releaseSelectionToolbarAnchor = null;
+      return;
+    }
+    const touchSelection = getTouchSelectionState();
+    if (HOST_STATE.touchSelectionInProgress || touchSelection.active || touchSelection.claimed || touchSelection.pending) {
+      if (attemptsLeft > 0) scheduleSelectionToolbarFromSummary(frame, fallbackX, fallbackY, attemptsLeft - 1);
+      return;
+    }
+    if (!summary || !summary.selectionActive || Number(summary.selectedChars || 0) <= 0) {
+      if (attemptsLeft > 0 && HOST_STATE.pendingSelectionToolbar) {
+        scheduleSelectionToolbarFromSummary(frame, fallbackX, fallbackY, attemptsLeft - 1);
+      }
+      return;
+    }
     showSelectionToolbarForSummary(summary, fallbackX, fallbackY);
-  }, 40);
+  }, 60);
+}
+
+function showSelectionToolbarAfterRelease(frame, fallbackX = 160, fallbackY = 160, attemptsLeft = 10) {
+  window.setTimeout(() => {
+    const summary = getBridgeSummaryFromFrame(frame);
+    if (summary && summary.selectionActive && Number(summary.selectedChars || 0) > 0) {
+      showSelectionToolbarForSummary(summary, fallbackX, fallbackY);
+      HOST_STATE.pendingSelectionToolbar = null;
+      HOST_STATE.releaseSelectionToolbarAnchor = null;
+      return;
+    }
+    const touchSelection = getTouchSelectionState();
+    if (HOST_STATE.touchSelectionInProgress || touchSelection.active || touchSelection.claimed || touchSelection.pending) {
+      if (attemptsLeft > 0) showSelectionToolbarAfterRelease(frame, fallbackX, fallbackY, attemptsLeft - 1);
+      return;
+    }
+    if (!summary || !summary.selectionActive || Number(summary.selectedChars || 0) <= 0) {
+      if (attemptsLeft > 0) showSelectionToolbarAfterRelease(frame, fallbackX, fallbackY, attemptsLeft - 1);
+      return;
+    }
+    showSelectionToolbarForSummary(summary, fallbackX, fallbackY);
+  }, 80);
 }
 
 function showSelectionToolbar(clientX, clientY) {
+  const touchSelection = (() => {
+    try {
+      const win = HOST_STATE.frame && HOST_STATE.frame.contentWindow ? HOST_STATE.frame.contentWindow : null;
+      const next = win && win.__PROTECTED_TOUCH_SELECTION__ ? win.__PROTECTED_TOUCH_SELECTION__ : null;
+      return next || { pending: false, active: false, claimed: false, selectionStarted: false };
+    } catch (_error) {
+      return { pending: false, active: false, claimed: false, selectionStarted: false };
+    }
+  })();
+  if (HOST_STATE.touchSelectionInProgress || touchSelection.pending || touchSelection.active || touchSelection.claimed || touchSelection.selectionStarted) {
+    rememberSelectionToolbarReleaseAnchor(clientX, clientY, "touch");
+    return;
+  }
   const toolbar = document.getElementById("selectionToolbar");
   if (!toolbar) return;
+  window.__protectedToolbarDebug = {
+    ...(window.__protectedToolbarDebug || {}),
+    shownAt: Date.now(),
+    mode: "fallback",
+    clientX,
+    clientY
+  };
+  HOST_STATE.suppressSelectionDismissUntil = Date.now() + 450;
   toolbar.classList.remove("hidden");
   toolbar.setAttribute("aria-hidden", "false");
   toolbar.style.left = `${Math.max(12, clientX - 70)}px`;
@@ -1556,9 +1635,31 @@ async function primeSelectionActionState() {
 }
 
 function showSelectionToolbarForSummary(summary, fallbackX = 160, fallbackY = 160) {
+  const touchSelection = (() => {
+    try {
+      const win = HOST_STATE.frame && HOST_STATE.frame.contentWindow ? HOST_STATE.frame.contentWindow : null;
+      const next = win && win.__PROTECTED_TOUCH_SELECTION__ ? win.__PROTECTED_TOUCH_SELECTION__ : null;
+      return next || { pending: false, active: false, claimed: false, selectionStarted: false };
+    } catch (_error) {
+      return { pending: false, active: false, claimed: false, selectionStarted: false };
+    }
+  })();
+  if (HOST_STATE.touchSelectionInProgress || touchSelection.pending || touchSelection.active || touchSelection.claimed || touchSelection.selectionStarted) {
+    rememberSelectionToolbarReleaseAnchor(fallbackX, fallbackY, "touch");
+    return;
+  }
   const frame = HOST_STATE.frame;
   const bounds = summary && summary.selectionBounds ? summary.selectionBounds : null;
   if (!frame || !bounds) {
+    window.__protectedToolbarDebug = {
+      ...(window.__protectedToolbarDebug || {}),
+      invokedAt: Date.now(),
+      mode: "summary-fallback",
+      hasFrame: !!frame,
+      hasBounds: !!bounds,
+      fallbackX,
+      fallbackY
+    };
     showSelectionToolbar(fallbackX, fallbackY);
     return;
   }
@@ -1611,6 +1712,13 @@ function showSelectionToolbarForSummary(summary, fallbackX = 160, fallbackY = 16
   toolbar.style.left = `${chosen.x}px`;
   toolbar.style.top = `${chosen.y}px`;
   toolbar.style.visibility = "visible";
+  window.__protectedToolbarDebug = {
+    ...(window.__protectedToolbarDebug || {}),
+    shownAt: Date.now(),
+    mode: "summary-bounds",
+    x: chosen.x,
+    y: chosen.y
+  };
   void primeSelectionActionState();
 }
 
@@ -1708,7 +1816,8 @@ async function handleAction(action) {
   toolbar.addEventListener("pointerup", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true });
   toolbar.addEventListener("touchend", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true, passive: false });
   toolbar.addEventListener("click", (event) => { maybeHandleToolbarAction(event, true); });
-  document.addEventListener("pointerdown", (event) => {
+  const dismissSelectionUi = (event) => {
+    if (Date.now() < Number(HOST_STATE.suppressSelectionDismissUntil || 0)) return;
     if (toolbar.contains(event.target)) return;
     hideSelectionToolbar();
     const target = event.target;
@@ -1719,13 +1828,73 @@ async function handleAction(action) {
     );
     const summary = HOST_STATE.lastSummary;
     const primaryButton = event.button == null || event.button === 0;
-    if (withinProtectedOverlay || !summary || !summary.focusedAnnotationId || !primaryButton) return;
+    const shouldClear = !!(
+      !toolbar.classList.contains("hidden") ||
+      (summary && (summary.focusedAnnotationId || summary.selectionActive))
+    );
+    if (withinProtectedOverlay || !shouldClear || !primaryButton) return;
     void invokeBridgeRaw("clearSelection")
       .then((nextSummary) => {
         if (nextSummary) updateFromSummary(nextSummary);
       })
       .catch(() => {});
-  }, true);
+  };
+  document.addEventListener("pointerdown", dismissSelectionUi, true);
+  document.addEventListener("touchstart", dismissSelectionUi, { capture: true, passive: true });
+  window.__PROTECTED_OLD_SHELL_SHOW_SELECTION_TOOLBAR__ = (summary, clientX = 160, clientY = 160, pointerType = "") => {
+    window.__protectedToolbarDebug = {
+      ...(window.__protectedToolbarDebug || {}),
+      hostInvokeAt: Date.now(),
+      source: "direct-call",
+      pointerType,
+      summaryActive: !!(summary && summary.selectionActive),
+      selectedChars: Number(summary && summary.selectedChars || 0)
+    };
+    const source = pointerType === "touch" ? "touch" : "pointer";
+    rememberSelectionToolbarReleaseAnchor(clientX, clientY, source);
+    if (pointerType === "touch") {
+      HOST_STATE.touchSelectionInProgress = false;
+      return;
+    }
+    if (summary && summary.selectionActive && Number(summary.selectedChars || 0) > 0) {
+      showSelectionToolbarForSummary(summary, Number(clientX || 160), Number(clientY || 160));
+      HOST_STATE.pendingSelectionToolbar = null;
+      HOST_STATE.releaseSelectionToolbarAnchor = null;
+      return;
+    }
+    showSelectionToolbarAfterRelease(HOST_STATE.frame, Number(clientX || 160), Number(clientY || 160));
+  };
+  if (!window.__protectedSelectionReleaseBound) {
+    window.__protectedSelectionReleaseBound = true;
+    window.addEventListener("message", (event) => {
+      const data = event && event.data ? event.data : null;
+      if (!data || data.channel !== "protected-selection-release") return;
+      window.__protectedToolbarDebug = {
+        ...(window.__protectedToolbarDebug || {}),
+        hostInvokeAt: Date.now(),
+        source: "postMessage",
+        pointerType: data.pointerType || "",
+        summaryActive: !!(data.summary && data.summary.selectionActive),
+        selectedChars: Number(data.summary && data.summary.selectedChars || 0)
+      };
+      const x = Number(data.clientX || 160);
+      const y = Number(data.clientY || 160);
+      const summary = data.summary || null;
+      const source = data.pointerType === "touch" ? "touch" : "pointer";
+      rememberSelectionToolbarReleaseAnchor(x, y, source);
+      if (data.pointerType === "touch") {
+        HOST_STATE.touchSelectionInProgress = false;
+        return;
+      }
+      if (summary && summary.selectionActive && Number(summary.selectedChars || 0) > 0) {
+        showSelectionToolbarForSummary(summary, x, y);
+        HOST_STATE.pendingSelectionToolbar = null;
+        HOST_STATE.releaseSelectionToolbarAnchor = null;
+        return;
+      }
+      showSelectionToolbarAfterRelease(HOST_STATE.frame, x, y);
+    });
+  }
 }
 
 function getBridgeSummaryFromFrame(frame) {
@@ -1740,22 +1909,31 @@ function getBridgeSummaryFromFrame(frame) {
 function attachProtectedSurfaceInteractions(frame) {
   const wire = () => {
     let doc = null;
+    let win = null;
     try {
       doc = frame && frame.contentDocument ? frame.contentDocument : null;
+      win = frame && frame.contentWindow ? frame.contentWindow : null;
     } catch (error) {
       return;
     }
     if (!doc || doc.__protectedSurfaceInteractionsBound) return;
     doc.__protectedSurfaceInteractionsBound = true;
-    doc.addEventListener("contextmenu", (event) => {
+    const blockContextMenu = (event) => {
       const target = event.target;
       const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
-      const summary = getBridgeSummaryFromFrame(frame);
-      if (!inProtectedSurface || !summary || !summary.selectionActive) return;
+      if (!inProtectedSurface) return;
       event.preventDefault();
       event.stopPropagation();
-      showSelectionToolbarForSummary(summary, event.clientX, event.clientY);
-    }, true);
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+      if (event.type === "longpress") return;
+      const summary = getBridgeSummaryFromFrame(frame);
+      if (summary && summary.selectionActive) {
+        showSelectionToolbarForSummary(summary, event.clientX, event.clientY);
+      }
+    };
+    doc.addEventListener("contextmenu", blockContextMenu, true);
+    try { doc.addEventListener("longpress", blockContextMenu, true); } catch (_error) {}
+    try { if (win) win.addEventListener("contextmenu", blockContextMenu, true); } catch (_error) {}
     doc.addEventListener("mousedown", (event) => {
       const target = event.target;
       const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
@@ -1774,7 +1952,9 @@ function attachProtectedSurfaceInteractions(frame) {
     }, true);
     doc.addEventListener("pointerdown", () => hideSelectionToolbar(), true);
     doc.addEventListener("pointerdown", () => {
+      if (Date.now() < Number(HOST_STATE.suppressSelectionDismissUntil || 0)) return;
       HOST_STATE.pendingSelectionToolbar = null;
+      HOST_STATE.releaseSelectionToolbarAnchor = null;
       HOST_STATE.cachedSelectionActionState = null;
     }, true);
     doc.addEventListener("pointerdown", (event) => {
@@ -1782,13 +1962,32 @@ function attachProtectedSurfaceInteractions(frame) {
       const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
       const summary = getBridgeSummaryFromFrame(frame);
       const primaryButton = event.button == null || event.button === 0;
-      if (!inProtectedSurface || !summary || !summary.focusedAnnotationId || !primaryButton) return;
+      const toolbar = document.getElementById("selectionToolbar");
+      const shouldClear = !!(
+        (toolbar && !toolbar.classList.contains("hidden")) ||
+        (summary && (summary.focusedAnnotationId || summary.selectionActive))
+      );
+      if (!inProtectedSurface || !shouldClear || !primaryButton) return;
       void invokeBridgeRaw("clearSelection")
         .then((nextSummary) => {
           if (nextSummary) updateFromSummary(nextSummary);
         })
         .catch(() => {});
     }, true);
+    doc.addEventListener("touchstart", () => {
+      const summary = getBridgeSummaryFromFrame(frame);
+      const toolbar = document.getElementById("selectionToolbar");
+      const shouldClear = !!(
+        (toolbar && !toolbar.classList.contains("hidden")) ||
+        (summary && (summary.focusedAnnotationId || summary.selectionActive))
+      );
+      if (!shouldClear) return;
+      void invokeBridgeRaw("clearSelection")
+        .then((nextSummary) => {
+          if (nextSummary) updateFromSummary(nextSummary);
+        })
+        .catch(() => {});
+    }, { capture: true, passive: true });
     doc.addEventListener("click", (event) => {
       const target = event.target;
       const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
@@ -1805,33 +2004,34 @@ function attachProtectedSurfaceInteractions(frame) {
       const target = event.target;
       const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
       if (!inProtectedSurface) return;
-      HOST_STATE.pendingSelectionToolbar = {
-        x: event.clientX,
-        y: event.clientY,
-        source: "mouse"
-      };
+      rememberSelectionToolbarReleaseAnchor(event.clientX, event.clientY, "mouse");
+      HOST_STATE.suppressSelectionDismissUntil = Date.now() + 700;
+      showSelectionToolbarAfterRelease(HOST_STATE.frame, event.clientX, event.clientY);
     }, true);
     doc.addEventListener("pointerup", (event) => {
       if (event.button != null && event.button !== 0) return;
       const target = event.target;
       const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
       if (!inProtectedSurface) return;
-      HOST_STATE.pendingSelectionToolbar = {
-        x: event.clientX,
-        y: event.clientY,
-        source: "pointer"
-      };
+      rememberSelectionToolbarReleaseAnchor(
+        event.clientX,
+        event.clientY,
+        event.pointerType === "touch" ? "touch" : "pointer"
+      );
+      HOST_STATE.suppressSelectionDismissUntil = Date.now() + 700;
+      if (event.pointerType !== "touch") {
+        showSelectionToolbarAfterRelease(HOST_STATE.frame, event.clientX, event.clientY);
+      }
     }, true);
     doc.addEventListener("touchend", (event) => {
       const target = event.target;
       const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
       if (!inProtectedSurface) return;
       const touch = event.changedTouches && event.changedTouches[0] ? event.changedTouches[0] : null;
-      HOST_STATE.pendingSelectionToolbar = {
-        x: touch ? touch.clientX : 160,
-        y: touch ? touch.clientY : 160,
-        source: "touch"
-      };
+      rememberSelectionToolbarReleaseAnchor(touch ? touch.clientX : 160, touch ? touch.clientY : 160, "touch");
+      HOST_STATE.touchSelectionInProgress = false;
+      HOST_STATE.suppressSelectionDismissUntil = Date.now() + 700;
+      showSelectionToolbarAfterRelease(HOST_STATE.frame, touch ? touch.clientX : 160, touch ? touch.clientY : 160);
     }, true);
     installTouchSwipe(doc);
   };
@@ -1877,14 +2077,16 @@ function updateFromSummary(summary) {
   updateBookmarkControl(summary);
   buildEngineBadge();
   const selectionSignature =
-    summary.selectionActive && Number(summary.selectedChars || 0) > 0 && summary.selectionBounds
-      ? [
-          Number(summary.selectionBounds.left || 0).toFixed(1),
-          Number(summary.selectionBounds.top || 0).toFixed(1),
-          Number(summary.selectionBounds.right || 0).toFixed(1),
-          Number(summary.selectionBounds.bottom || 0).toFixed(1),
-          Number(summary.selectedChars || 0)
-        ].join(":")
+    summary.selectionActive && Number(summary.selectedChars || 0) > 0
+      ? summary.selectionBounds
+        ? [
+            Number(summary.selectionBounds.left || 0).toFixed(1),
+            Number(summary.selectionBounds.top || 0).toFixed(1),
+            Number(summary.selectionBounds.right || 0).toFixed(1),
+            Number(summary.selectionBounds.bottom || 0).toFixed(1),
+            Number(summary.selectedChars || 0)
+          ].join(":")
+        : `active:${Number(summary.selectedChars || 0)}:${String(summary.globalPageLabel || summary.pageLabel || "")}`
       : "";
   if (!selectionSignature) {
     HOST_STATE.lastSelectionSignature = "";
@@ -1901,15 +2103,33 @@ function updateFromSummary(summary) {
   }
   const toolbar = document.getElementById("selectionToolbar");
   const toolbarHidden = !toolbar || toolbar.classList.contains("hidden") || toolbar.getAttribute("aria-hidden") === "true";
+  const pendingToolbar = HOST_STATE.pendingSelectionToolbar;
+  const releaseAnchor = HOST_STATE.releaseSelectionToolbarAnchor;
+  const stableEnough = HOST_STATE.selectionStableCount >= 1;
+  const touchSelection = (() => {
+    try {
+      const win = HOST_STATE.frame && HOST_STATE.frame.contentWindow ? HOST_STATE.frame.contentWindow : null;
+      const next = win && win.__PROTECTED_TOUCH_SELECTION__ ? win.__PROTECTED_TOUCH_SELECTION__ : null;
+      return next || { pending: false, active: false, claimed: false, selectionStarted: false };
+    } catch (_error) {
+      return { pending: false, active: false, claimed: false, selectionStarted: false };
+    }
+  })();
   if (
     toolbarHidden &&
     Date.now() >= Number(HOST_STATE.suppressSelectionToolbarUntil || 0) &&
-    HOST_STATE.selectionStableCount >= 2 &&
+    stableEnough &&
     selectionSignature &&
-    HOST_STATE.pendingSelectionToolbar
+    (releaseAnchor || (Date.now() - Number(HOST_STATE.lastSelectionReleaseAt || 0) <= 2000)) &&
+    !HOST_STATE.touchSelectionInProgress &&
+    !touchSelection.pending &&
+    !touchSelection.active &&
+    !touchSelection.claimed
   ) {
-    const pending = HOST_STATE.pendingSelectionToolbar;
+    const pending = releaseAnchor || { x: 160, y: 160, source: "fallback" };
     HOST_STATE.pendingSelectionToolbar = null;
+    HOST_STATE.releaseSelectionToolbarAnchor = null;
+    HOST_STATE.lastSelectionReleaseAt = 0;
     scheduleSelectionToolbarFromSummary(HOST_STATE.frame, pending.x, pending.y);
   }
   const previewKey = [
@@ -2150,6 +2370,21 @@ function installTouchSwipe(target) {
   let gesture = null;
   window.__protectedTouchDebug = window.__protectedTouchDebug || {};
 
+  function getTouchSelectionState() {
+    try {
+      const win = target.defaultView || (HOST_STATE.frame && HOST_STATE.frame.contentWindow) || null;
+      const state = win && win.__PROTECTED_TOUCH_SELECTION__ ? win.__PROTECTED_TOUCH_SELECTION__ : null;
+      return state || { pending: false, active: false, claimed: false, selectionStarted: false };
+    } catch (_error) {
+      return { pending: false, active: false, claimed: false, selectionStarted: false };
+    }
+  }
+
+  function setFramePointerEventsDisabled(disabled) {
+    if (!HOST_STATE.frame) return;
+    HOST_STATE.frame.style.pointerEvents = disabled ? "none" : "auto";
+  }
+
   function scheduleTouchRevealActivation(direction) {
     if (!gesture || Math.abs(gesture.dx || 0) <= 24) return;
     if (gesture.activationTimer) return;
@@ -2176,7 +2411,6 @@ function installTouchSwipe(target) {
   function onStart(event) {
     const touch = event.touches ? event.touches[0] : null;
     if (!touch || overlaysVisible()) return;
-    if (HOST_STATE.frame) HOST_STATE.frame.style.pointerEvents = "none";
     let hostRect = target.getBoundingClientRect ? target.getBoundingClientRect() : null;
     let width = hostRect ? hostRect.width : 0;
     let relX = hostRect ? touch.clientX - hostRect.left : 0;
@@ -2224,7 +2458,10 @@ function installTouchSwipe(target) {
       frozenCanvases: cloneProtectedCanvases(),
       activationTimer: null,
       preparingDirection: null,
-      preparing: null
+      preparing: null,
+      swipeCaptured: false,
+      selectionClaimed: false,
+      selectionLocked: false
     };
     if (!prepared) {
       gesture.preparingDirection = "both";
@@ -2254,13 +2491,54 @@ function installTouchSwipe(target) {
     window.__protectedTouchDebug.move = {
       dx,
       dy,
+      touchSelection: getTouchSelectionState(),
       nextNeighborCount: getNeighborLayerCanvasCount("next"),
       prevNeighborCount: getNeighborLayerCanvasCount("prev"),
       previewVisible: !!gesture.previewVisible,
       prepared: !!gesture.prepared
     };
-    if (Math.abs(dx) > 24 && Math.abs(dx) > Math.abs(dy)) {
+    const touchSelection = getTouchSelectionState();
+    const summary = getBridgeSummaryFromFrame(HOST_STATE.frame);
+    if (gesture.selectionClaimed) {
+      gesture.selectionLocked = true;
+      HOST_STATE.touchSelectionInProgress = true;
       event.preventDefault();
+      if (gesture.activationTimer) {
+        window.clearTimeout(gesture.activationTimer);
+        gesture.activationTimer = null;
+      }
+      if (gesture.previewVisible) {
+        clearPageTurnPreview({ clearNeighbors: false });
+        gesture.previewVisible = false;
+      }
+      if (gesture.swipeCaptured) setFramePointerEventsDisabled(false);
+      gesture.swipeCaptured = false;
+      return;
+    }
+    if ((summary && summary.selectionActive) || touchSelection.claimed || touchSelection.active || touchSelection.selectionStarted) {
+      gesture.selectionClaimed = true;
+      gesture.selectionLocked = true;
+      HOST_STATE.touchSelectionInProgress = true;
+      event.preventDefault();
+      if (gesture.activationTimer) {
+        window.clearTimeout(gesture.activationTimer);
+        gesture.activationTimer = null;
+      }
+      if (gesture.previewVisible) {
+        clearPageTurnPreview({ clearNeighbors: false });
+        gesture.previewVisible = false;
+      }
+      if (gesture.swipeCaptured) setFramePointerEventsDisabled(false);
+      gesture.swipeCaptured = false;
+      return;
+    }
+    if (Math.abs(dx) > 24 && Math.abs(dx) > Math.abs(dy)) {
+      if (touchSelection.pending || touchSelection.claimed || touchSelection.selectionStarted) return;
+      event.preventDefault();
+      if (!gesture.swipeCaptured) {
+        setFramePointerEventsDisabled(true);
+        gesture.swipeCaptured = true;
+      }
       gesture.dx = dx;
       const direction = dx < 0 ? "next" : "prev";
       gesture.direction = direction;
@@ -2337,9 +2615,11 @@ function installTouchSwipe(target) {
 
   async function onEnd(event) {
     if (!gesture) return;
+    const touchSelection = getTouchSelectionState();
+    const summary = getBridgeSummaryFromFrame(HOST_STATE.frame);
     const touch = event.changedTouches ? event.changedTouches[0] : null;
     if (!touch) {
-      if (HOST_STATE.frame) HOST_STATE.frame.style.pointerEvents = "auto";
+      if (gesture && gesture.swipeCaptured) setFramePointerEventsDisabled(false);
       gesture = null;
       return;
     }
@@ -2350,10 +2630,16 @@ function installTouchSwipe(target) {
     const durationMs = Date.now() - Number(gesture.startAt || 0);
     const previewVisible = gesture.previewVisible;
     const tapZone = gesture.tapZone || "center";
+    const selectionClaimed = !!gesture.selectionClaimed || !!gesture.selectionLocked || !!touchSelection.selectionStarted;
+    if (!gesture.selectionLocked && tapZone === "center" && durationMs >= 450) {
+      gesture.selectionLocked = true;
+    }
     if (gesture.activationTimer) {
       window.clearTimeout(gesture.activationTimer);
       gesture.activationTimer = null;
     }
+    if (gesture.swipeCaptured) setFramePointerEventsDisabled(false);
+    HOST_STATE.touchSelectionInProgress = false;
     gesture = null;
     window.__protectedTouchDebug.end = {
       dx,
@@ -2363,7 +2649,8 @@ function installTouchSwipe(target) {
       durationMs,
       previewVisible,
       tapZone,
-      overlaysVisible: overlaysVisible()
+      overlaysVisible: overlaysVisible(),
+      selectionClaimed
     };
     if (Math.abs(dx) < 58 || Math.abs(dx) < Math.abs(dy) * 1.35) {
       if (previewVisible) {
@@ -2371,8 +2658,13 @@ function installTouchSwipe(target) {
         window.setTimeout(() => {
           clearPageTurnPreview({ clearNeighbors: false });
         }, 170);
-      } else if (HOST_STATE.frame) {
-        HOST_STATE.frame.style.pointerEvents = "auto";
+      }
+      if (gesture.selectionLocked || selectionClaimed || (summary && summary.selectionActive) || touchSelection.claimed || touchSelection.active || touchSelection.pending || touchSelection.selectionStarted) {
+        const anchorX = touch ? touch.clientX : 160;
+        const anchorY = touch ? touch.clientY : 160;
+        rememberSelectionToolbarReleaseAnchor(anchorX, anchorY, "touch");
+        showSelectionToolbarAfterRelease(HOST_STATE.frame, anchorX, anchorY);
+        return;
       }
       const isTap =
         Math.abs(totalDx) <= 22 &&
@@ -2406,6 +2698,13 @@ function installTouchSwipe(target) {
       }
       return;
     }
+    if (gesture.selectionLocked || selectionClaimed || (summary && summary.selectionActive) || touchSelection.claimed || touchSelection.active || touchSelection.pending || touchSelection.selectionStarted) {
+      const anchorX = touch ? touch.clientX : 160;
+      const anchorY = touch ? touch.clientY : 160;
+      rememberSelectionToolbarReleaseAnchor(anchorX, anchorY, "touch");
+      showSelectionToolbarAfterRelease(HOST_STATE.frame, anchorX, anchorY);
+      return;
+    }
     event.preventDefault();
     if (dx < 0) {
       await performPageTurn("next");
@@ -2419,7 +2718,7 @@ function installTouchSwipe(target) {
   target.addEventListener("touchend", onEnd, { passive: false, capture: true });
   target.addEventListener("touchcancel", () => {
     clearPageTurnPreview({ clearNeighbors: false });
-    if (HOST_STATE.frame) HOST_STATE.frame.style.pointerEvents = "auto";
+    if (gesture && gesture.swipeCaptured) setFramePointerEventsDisabled(false);
     gesture = null;
   }, { passive: true, capture: true });
 }

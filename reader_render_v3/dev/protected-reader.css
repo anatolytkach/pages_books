@@ -365,6 +365,8 @@ button:hover {
 
 body[data-shell-mode="embedded-old-shell"] {
   background: transparent;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body[data-shell-mode="embedded-old-shell"] .app {
@@ -410,6 +412,8 @@ body[data-shell-mode="embedded-old-shell"] #reader-canvas,
 body[data-shell-mode="embedded-old-shell"] #overlay-canvas {
   top: 0;
   left: 0;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body[data-shell-mode="embedded-old-shell"] .runtime-note {

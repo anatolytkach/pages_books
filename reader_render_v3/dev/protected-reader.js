@@ -162,6 +162,20 @@ function supportsPointerEvents() {
   return typeof window !== "undefined" && typeof window.PointerEvent !== "undefined";
 }
 
+function installNativeToolbarBlock() {
+  const block = (event) => {
+    try {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+    } catch (_error) {}
+    return false;
+  };
+  try { document.addEventListener("contextmenu", block, true); } catch (_error) {}
+  try { window.addEventListener("contextmenu", block, true); } catch (_error) {}
+  try { document.addEventListener("longpress", block, true); } catch (_error) {}
+}
+
 function getCurrentBookAuthor() {
   const metadata = state.bookSummary && state.bookSummary.metadata ? state.bookSummary.metadata : {};
   const creators = Array.isArray(metadata.creators) ? metadata.creators.filter(Boolean) : [];
@@ -1342,6 +1356,17 @@ async function requestAndApply(method, payload = {}) {
   return snapshot;
 }
 
+async function selectWordAt(point) {
+  const snapshot = await state.workerClient.selectWordAtPoint({
+    ...getViewportConfig(),
+    annotations: getCurrentAnnotations(),
+    x: point.x,
+    y: point.y
+  });
+  applySnapshot(snapshot);
+  return snapshot;
+}
+
 async function handleMouseDown(event) {
   if (!state.currentSnapshot) return;
   const point = getCanvasPoint(event);
@@ -1353,18 +1378,89 @@ async function handleMouseDown(event) {
 }
 
 function resetPointerGesture() {
+  if (state.pointerGesture.longPressTimer) {
+    try {
+      window.clearTimeout(state.pointerGesture.longPressTimer);
+    } catch (_error) {}
+  }
   state.pointerGesture = {
     active: false,
     selectionStarted: false,
     pointerId: null,
+    pointerType: "",
     shiftKey: false,
     startClientX: 0,
     startClientY: 0,
     startCanvasPoint: null,
     moved: false,
     moveScheduled: false,
-    pendingMovePoint: null
+    pendingMovePoint: null,
+    longPressTimer: null,
+    touchSelectionPending: false,
+    touchSelectionActive: false,
+    touchSelectionClaimed: false
   };
+  syncTouchSelectionState();
+}
+
+function syncTouchSelectionState() {
+  const gesture = state.pointerGesture || {};
+  const payload = {
+    pending: !!gesture.touchSelectionPending,
+    active: !!gesture.touchSelectionActive,
+    claimed: !!gesture.touchSelectionClaimed,
+    selectionStarted: !!gesture.selectionStarted,
+    moved: !!gesture.moved
+  };
+  window.__PROTECTED_TOUCH_SELECTION__ = payload;
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.__PROTECTED_TOUCH_SELECTION__ = payload;
+    }
+  } catch (_error) {}
+}
+
+function notifySelectionReleased(clientX, clientY, snapshot, pointerType) {
+  if (!snapshot || !snapshot.selectionActive || Number(snapshot.selectedChars || 0) <= 0) return;
+  try {
+    if (window.parent && window.parent !== window) {
+      if (typeof window.parent.__PROTECTED_OLD_SHELL_SHOW_SELECTION_TOOLBAR__ === "function") {
+        window.parent.__PROTECTED_OLD_SHELL_SHOW_SELECTION_TOOLBAR__(
+          {
+            selectionActive: !!snapshot.selectionActive,
+            selectedChars: Number(snapshot.selectedChars || 0),
+            selectionBounds: snapshot.selectionBounds || null
+          },
+          Number(clientX || 0),
+          Number(clientY || 0),
+          String(pointerType || "")
+        );
+      }
+      window.parent.postMessage({
+        channel: "protected-selection-release",
+        clientX: Number(clientX || 0),
+        clientY: Number(clientY || 0),
+        pointerType: String(pointerType || ""),
+        summary: {
+          selectionActive: !!snapshot.selectionActive,
+          selectedChars: Number(snapshot.selectedChars || 0),
+          selectionBounds: snapshot.selectionBounds || null
+        }
+      }, "*");
+    }
+  } catch (_error) {}
+}
+
+function notifySelectionReleasedWhenReady(clientX, clientY, pointerType, attemptsLeft = 10) {
+  const snapshot = state.currentSnapshot;
+  if (snapshot && snapshot.selectionActive && Number(snapshot.selectedChars || 0) > 0) {
+    notifySelectionReleased(clientX, clientY, snapshot, pointerType);
+    return;
+  }
+  if (attemptsLeft <= 0) return;
+  window.setTimeout(() => {
+    notifySelectionReleasedWhenReady(clientX, clientY, pointerType, attemptsLeft - 1);
+  }, 60);
 }
 
 function enqueuePointerRequest(task) {
@@ -1409,16 +1505,42 @@ function handlePointerDown(event) {
   }
   state.pointerGesture = {
     active: true,
-    selectionStarted: true,
+    selectionStarted: event.pointerType !== "touch",
     pointerId: event.pointerId ?? "mouse",
+    pointerType: event.pointerType || "mouse",
     shiftKey: !!event.shiftKey,
     startClientX: Number(event.clientX || 0),
     startClientY: Number(event.clientY || 0),
-    startCanvasPoint: getCanvasPoint(event)
-    ,
-    moved: false
+    startCanvasPoint: getCanvasPoint(event),
+    moved: false,
+    moveScheduled: false,
+    pendingMovePoint: null,
+    longPressTimer: null,
+    touchSelectionPending: event.pointerType === "touch",
+    touchSelectionActive: false,
+    touchSelectionClaimed: false
   };
+  syncTouchSelectionState();
   const startPoint = state.pointerGesture.startCanvasPoint;
+  if (event.pointerType === "touch") {
+    state.pointerGesture.longPressTimer = window.setTimeout(() => {
+      const gesture = state.pointerGesture;
+      if (!gesture.active || gesture.pointerType !== "touch" || gesture.moved || gesture.selectionStarted) return;
+      gesture.longPressTimer = null;
+      gesture.selectionStarted = true;
+      gesture.touchSelectionPending = false;
+      gesture.touchSelectionActive = true;
+      gesture.touchSelectionClaimed = true;
+      syncTouchSelectionState();
+      enqueuePointerRequest(async () => {
+        await selectWordAt(startPoint);
+      }).catch((error) => {
+        console.error(error);
+        setStatus(error.message || String(error), "error");
+      });
+    }, 500);
+    return;
+  }
   enqueuePointerRequest(async () => {
     await requestAndApply("pointerDown", {
       x: startPoint.x,
@@ -1436,11 +1558,24 @@ function handlePointerMove(event) {
   const gesture = state.pointerGesture;
   if (!gesture.active) return;
   if (gesture.pointerId != null && event.pointerId != null && gesture.pointerId !== event.pointerId) return;
-  event.preventDefault();
   const point = getCanvasPoint(event);
   const deltaX = Math.abs(Number(event.clientX || 0) - Number(gesture.startClientX || 0));
   const deltaY = Math.abs(Number(event.clientY || 0) - Number(gesture.startClientY || 0));
   if (deltaX > 3 || deltaY > 3) gesture.moved = true;
+  if (gesture.pointerType === "touch" && !gesture.selectionStarted) {
+    if (deltaX > 16 || deltaY > 16) {
+      if (gesture.longPressTimer) {
+        try {
+          window.clearTimeout(gesture.longPressTimer);
+        } catch (_error) {}
+        gesture.longPressTimer = null;
+      }
+      gesture.touchSelectionPending = false;
+      syncTouchSelectionState();
+    }
+    return;
+  }
+  event.preventDefault();
   schedulePointerMove(point);
 }
 
@@ -1460,16 +1595,24 @@ function handlePointerUp(event) {
       elements.canvas.releasePointerCapture(event.pointerId);
     } catch (_) {}
   }
+  const wasTouchWithoutSelection = gesture.pointerType === "touch" && !gesture.selectionStarted;
   resetPointerGesture();
+  if (wasTouchWithoutSelection) {
+    return;
+  }
   enqueuePointerRequest(async () => {
     if (shouldDismissFocusedAnnotation) {
       await requestAndApply("clearSelection");
       return;
     }
-    await requestAndApply("pointerUp", {
+    const snapshot = await requestAndApply("pointerUp", {
       x: point.x,
       y: point.y
     });
+    notifySelectionReleased(event.clientX, event.clientY, snapshot, gesture.pointerType);
+    if (!(snapshot && snapshot.selectionActive && Number(snapshot.selectedChars || 0) > 0)) {
+      notifySelectionReleasedWhenReady(event.clientX, event.clientY, gesture.pointerType);
+    }
   }).catch((error) => {
     console.error(error);
     setStatus(error.message || String(error), "error");
@@ -2356,6 +2499,7 @@ async function boot() {
   state.metricsMode = getMetricsModeFromLocation(state.renderMode);
   state.debugGeometry = getDebugGeometryFromLocation();
   applyEmbeddedTheme("light");
+  installNativeToolbarBlock();
   syncArtifactInput();
   if (isEmbeddedOldShellMode()) installEmbeddedBridge();
 

@@ -13,6 +13,7 @@ export const PROTECTED_WORKER_METHODS = {
   CLEAR_SEARCH: "clearSearch",
   UPDATE_RENDER_CONFIG: "updateRenderConfig",
   POINTER_DOWN: "pointerDown",
+  SELECT_WORD_AT_POINT: "selectWordAtPoint",
   POINTER_MOVE: "pointerMove",
   POINTER_UP: "pointerUp",
   CLEAR_SELECTION: "clearSelection",
