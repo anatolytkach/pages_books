@@ -52,6 +52,8 @@ const HOST_STATE = {
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
 const FONT_SCALE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-scale:";
 const FONT_MODE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-mode:";
+const PROTECTED_SETTINGS_ICON_SRC = "/reader_render_v3/assets/settings.svg";
+const PROTECTED_THEME_ICON_SRC = "/reader_render_v3/assets/theme.svg";
 
 function normalizeGeneration(value, fallback = 0) {
   const next = Number(value);
@@ -349,40 +351,322 @@ function installStyles() {
       display: flex !important;
     }
     body.protected-old-shell #themeToggle,
-    body.protected-old-shell #bookmark,
-    body.protected-old-shell #fontDec,
-    body.protected-old-shell #fontInc {
+    body.protected-old-shell #bookmark {
       display: inline-flex !important;
     }
-    #protectedFontModeControl {
+    body.protected-old-shell #bottombar #bookmark {
+      display: inline-flex !important;
+      position: absolute;
+      right: calc(12px + env(safe-area-inset-right, 0px));
+      top: 50%;
+      transform: translateY(-50%);
+      margin: 0;
+      z-index: 1;
+      align-items: center;
+      justify-content: center;
+    }
+    html.is-phone body.protected-old-shell #bottombar #bookmark,
+    html.is-tablet body.protected-old-shell #bottombar #bookmark {
+      display: inline-flex !important;
+      right: calc(14px + env(safe-area-inset-right, 0px));
+    }
+    body.protected-old-shell #fontDec,
+    body.protected-old-shell #fontInc {
+      display: none !important;
+    }
+    #protectedTypographyControl {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
       margin-left: 8px;
-      padding: 2px;
-      border-radius: 999px;
-      border: 1px solid rgba(12, 78, 101, 0.14);
-      background: rgba(255,255,255,0.84);
       vertical-align: middle;
+      order: 61;
     }
-    #protectedFontModeControl button {
-      min-width: 52px;
-      padding: 4px 10px;
+    body.protected-old-shell #themeToggle {
+      order: 60;
+    }
+    #protectedTypographyTrigger {
+      appearance: none;
+      -webkit-appearance: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 32px;
+      padding: 0 6px;
+      border-radius: 0;
       border: 0;
-      border-radius: 999px;
       background: transparent;
-      color: #29415e;
-      font: 600 12px/1.2 Georgia, "Times New Roman", serif;
+      color: #eef4fb;
       cursor: pointer;
+      transition: color 140ms ease, opacity 140ms ease;
     }
-    #protectedFontModeControl button.is-active {
-      background: rgba(10, 129, 117, 0.12);
-      color: #0a8175;
+    #protectedTypographyTrigger:hover,
+    #protectedTypographyTrigger:focus-visible {
+      opacity: 0.92;
     }
-    #protectedFontModeControl button[aria-disabled="true"] {
+    #protectedTypographyTrigger svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #protectedTypographyTrigger img {
+      width: 20px;
+      height: 20px;
+      display: block;
+      object-fit: contain;
+    }
+    body.protected-old-shell #themeToggle .theme-icon {
+      width: 20px;
+      height: 20px;
+      display: block;
+      object-fit: contain;
+    }
+    #protectedTypographyTrigger[aria-expanded="true"] {
+      color: #ffffff;
+    }
+    #overlay-settings {
+      left: auto;
+      right: 0;
+      width: 360px;
+      max-width: min(100vw, 360px);
+      z-index: 9999;
+    }
+    #overlay-settings .overlay-scroll {
+      padding-top: 16px;
+    }
+    #protectedSettingsTextSection,
+    #protectedSettingsVoiceSection {
+      color: #ffffff;
+    }
+    #protectedSettingsTextSectionTitle,
+    #protectedSettingsVoiceSectionTitle {
+      font: 600 14px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0.01em;
+      color: #ffffff;
+      margin: 0 0 14px;
+    }
+    #protectedSettingsVoiceSection {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.18);
+    }
+    #protectedTypographyPanel {
+      position: static;
+      display: block;
+      width: 100%;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+    #protectedTypographyPanel .grabber {
+      display: none !important;
+    }
+    #protectedTypographyModes {
+      display: grid;
+      grid-template-columns: repeat(2, auto);
+      justify-content: center;
+      gap: 32px;
+      margin: 0 0 20px;
+    }
+    .protected-typography-mode {
+      appearance: none;
+      -webkit-appearance: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      min-height: 56px;
+      padding: 0;
+      border-radius: 0;
+      border: 0;
+      background: transparent;
+      color: #ffffff;
+      cursor: pointer;
+      text-align: center;
+      transition: color 140ms ease, opacity 140ms ease;
+    }
+    .protected-typography-mode .sample {
+      font-size: 19px;
+      line-height: 0.82;
+      letter-spacing: -0.025em;
+      opacity: 0.96;
+      color: #ffffff;
+    }
+    .protected-typography-mode[data-font-mode="sans"] .sample {
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 400;
+    }
+    .protected-typography-mode[data-font-mode="serif"] .sample {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 400;
+    }
+    .protected-typography-mode .label {
+      font: 700 13px/1.1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0.01em;
+      text-align: center;
+      color: #ffffff;
+    }
+    .protected-typography-mode.is-active {
+      color: #ffffff;
+    }
+    .protected-typography-mode.is-active .sample {
+      color: #ffffff;
+      text-decoration: underline;
+      text-underline-offset: 5px;
+      text-decoration-thickness: 1.5px;
+    }
+    .protected-typography-mode.is-active .label {
+      color: #ffffff;
+    }
+    .protected-typography-mode[aria-disabled="true"] {
       opacity: 0.42;
       cursor: not-allowed;
       pointer-events: none;
+    }
+    .protected-typography-size {
+      padding: 2px 0 4px;
+    }
+    .protected-typography-size-row {
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr) 18px;
+      align-items: center;
+      gap: 10px;
+    }
+    .protected-typography-size-row .small {
+      font: 500 14px/1 Arial, Helvetica, sans-serif;
+      color: #ffffff;
+      text-align: center;
+    }
+    .protected-typography-size-row .large {
+      font: 600 17px/1 Arial, Helvetica, sans-serif;
+      color: #ffffff;
+      text-align: center;
+    }
+    #protectedTypographyScale {
+      width: 100%;
+      margin: 0;
+      accent-color: #d3d3d3;
+    }
+    #protectedSettingsVoiceMount .voice-picker-status,
+    #protectedSettingsVoiceMount .voice-picker-label,
+    #protectedSettingsVoiceMount .voice-picker-dropdown-toggle,
+    #protectedSettingsVoiceMount .voice-picker-dropdown-list,
+    #protectedSettingsVoiceMount .voice-picker-dropdown-option,
+    #protectedSettingsVoiceMount .voice-picker-select {
+      color: #ffffff !important;
+    }
+    #overlay-settings #voiceView,
+    #protectedSettingsVoiceMount #voiceView {
+      font-family: var(--ui-font-family);
+      font-size: calc(var(--bottom-font-size, 14px) * 1.2);
+      visibility: visible !important;
+      display: block !important;
+      width: 100%;
+      height: auto;
+      min-width: 0;
+      overflow: visible;
+      padding: 4px 0 0;
+      box-sizing: border-box;
+    }
+    #overlay-settings #voiceView ul,
+    #protectedSettingsVoiceMount #voiceView ul,
+    #overlay-settings #voiceView li,
+    #protectedSettingsVoiceMount #voiceView li,
+    #overlay-settings .voice-picker-wrap,
+    #protectedSettingsVoiceMount .voice-picker-wrap {
+      display: block;
+      visibility: visible;
+      opacity: 1;
+    }
+    #protectedSettingsVoiceMount .voice-picker-dropdown-toggle,
+    #protectedSettingsVoiceMount .voice-picker-dropdown-list {
+      border-color: rgba(255,255,255,0.18) !important;
+      background: rgba(255,255,255,0.05) !important;
+    }
+    #overlay-settings .voice-picker-wrap,
+    #protectedSettingsVoiceMount .voice-picker-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    #overlay-settings .voice-picker-label,
+    #protectedSettingsVoiceMount .voice-picker-label {
+      font-size: 14px;
+      color: #ffffff;
+    }
+    #overlay-settings .voice-picker-dropdown,
+    #protectedSettingsVoiceMount .voice-picker-dropdown {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      width: 100%;
+    }
+    #overlay-settings .voice-picker-dropdown-toggle,
+    #protectedSettingsVoiceMount .voice-picker-dropdown-toggle {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 40px 8px 12px;
+      font-size: 14px;
+      text-align: left;
+      position: relative;
+      box-sizing: border-box;
+    }
+    #overlay-settings .voice-picker-dropdown-list,
+    #protectedSettingsVoiceMount .voice-picker-dropdown-list {
+      display: none;
+      position: static;
+      left: auto;
+      top: auto;
+      width: 100%;
+      max-height: min(220px, 38vh);
+      overflow-y: auto;
+      border-radius: 6px;
+      z-index: auto;
+      margin: 0;
+      box-sizing: border-box;
+    }
+    #overlay-settings .voice-picker-dropdown.is-open .voice-picker-dropdown-list,
+    #protectedSettingsVoiceMount .voice-picker-dropdown.is-open .voice-picker-dropdown-list {
+      display: block;
+    }
+    #overlay-settings .voice-picker-option,
+    #protectedSettingsVoiceMount .voice-picker-option {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.18);
+      background: transparent;
+      color: var(--fbbar-fg);
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 14px;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+    #overlay-settings .voice-picker-option:last-child,
+    #protectedSettingsVoiceMount .voice-picker-option:last-child {
+      border-bottom: 0;
+    }
+    #overlay-settings .voice-picker-option.is-selected,
+    #protectedSettingsVoiceMount .voice-picker-option.is-selected {
+      background: rgba(255, 255, 255, 0.08);
+    }
+    #overlay-settings .voice-picker-status,
+    #protectedSettingsVoiceMount .voice-picker-status {
+      display: none !important;
+    }
+    #overlay-menu [data-menu="voice"] {
+      display: none !important;
     }
     body.protected-old-shell .protected-control-disabled,
     body.protected-old-shell .protected-control-disabled:hover {
@@ -416,16 +700,8 @@ function installStyles() {
     body.protected-old-shell.protected-theme-dark #searchbar {
       color: #eef4fb;
     }
-    body.protected-old-shell.protected-theme-dark #protectedFontModeControl {
-      background: rgba(16, 25, 38, 0.84);
-      border-color: rgba(255,255,255,0.12);
-    }
-    body.protected-old-shell.protected-theme-dark #protectedFontModeControl button {
-      color: #d7dee8;
-    }
-    body.protected-old-shell.protected-theme-dark #protectedFontModeControl button.is-active {
-      color: #8be0d3;
-      background: rgba(95, 210, 194, 0.16);
+    body.protected-old-shell.protected-theme-dark #protectedTypographyTrigger[aria-expanded="true"] {
+      color: #ffffff;
     }
     body.protected-old-shell #menuBookCoverPlaceholder {
       background-size: cover;
@@ -620,6 +896,13 @@ function installStyles() {
     html.is-desktop body.protected-old-shell #next.active::after {
       opacity: 1;
     }
+    @media (max-width: 820px) {
+      #overlay-settings {
+        left: auto;
+        right: 0;
+        width: min(100vw, 360px);
+      }
+    }
   `;
   document.head.append(style);
 }
@@ -763,6 +1046,7 @@ function closeOverlayById(id) {
 }
 
 function closeAllShellOverlays() {
+  closeTypographyPanel();
   try {
     if (typeof window.__fbCloseOverlays === "function") {
       window.__fbCloseOverlays();
@@ -774,6 +1058,7 @@ function closeAllShellOverlays() {
     "overlay-bookmarks",
     "overlay-notes",
     "overlay-menu",
+    "overlay-settings",
     "overlay-mybooks",
     "overlay-voice"
   ].forEach((id) => closeOverlayById(id));
@@ -1242,27 +1527,206 @@ function updateBookmarkControl(summary) {
   bookmark.setAttribute("title", active ? "Remove bookmark" : "Add bookmark");
 }
 
-function ensureFontModeControl() {
-  let wrap = document.getElementById("protectedFontModeControl");
+function readCurrentFontScale(summary = HOST_STATE.lastSummary) {
+  const raw = summary ? Number(summary.fontScale || 1) : Number(HOST_STATE.readerConfig.fontScale || 1);
+  const normalized = Number.isFinite(raw) ? raw : 1;
+  return Math.max(0.8, Math.min(1.6, Number(normalized.toFixed(2))));
+}
+
+function closeTypographyPanel() {
+  const wrap = document.getElementById("protectedTypographyControl");
+  const trigger = document.getElementById("protectedTypographyTrigger");
+  const overlay = document.getElementById("overlay-settings");
+  const backdrop = document.getElementById("overlay-backdrop");
+  if (wrap) wrap.classList.remove("is-open");
+  if (overlay) {
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+  if (backdrop) {
+    backdrop.classList.add("hidden");
+    backdrop.setAttribute("aria-hidden", "true");
+  }
+  try {
+    document.body.classList.remove("overlay-open");
+  } catch (_error) {}
+  if (trigger) trigger.setAttribute("aria-expanded", "false");
+}
+
+function toggleTypographyPanel(forceOpen) {
+  const wrap = ensureTypographyControl();
+  ensureSettingsOverlay();
+  const trigger = document.getElementById("protectedTypographyTrigger");
+  const overlay = document.getElementById("overlay-settings");
+  const backdrop = document.getElementById("overlay-backdrop");
+  if (!wrap || !trigger) return;
+  const nextOpen = typeof forceOpen === "boolean" ? forceOpen : !wrap.classList.contains("is-open");
+  if (!nextOpen) {
+    closeTypographyPanel();
+    return;
+  }
+  closeAllShellOverlays();
+  wrap.classList.toggle("is-open", nextOpen);
+  trigger.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+  if (overlay) {
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+  document.querySelectorAll("#protectedSettingsVoiceMount .voice-picker-dropdown.is-open").forEach((node) => {
+    node.classList.remove("is-open");
+    const toggle = node.querySelector(".voice-picker-dropdown-toggle");
+    if (toggle) toggle.setAttribute("aria-expanded", "false");
+  });
+  if (backdrop) {
+    backdrop.classList.remove("hidden");
+    backdrop.setAttribute("aria-hidden", "false");
+  }
+  try {
+    document.body.classList.add("overlay-open");
+  } catch (_error) {}
+}
+
+function ensureTypographyControl() {
+  let wrap = document.getElementById("protectedTypographyControl");
   if (wrap) return wrap;
   const fontInc = document.getElementById("fontInc");
   const parent = fontInc && fontInc.parentElement ? fontInc.parentElement : null;
   if (!parent) return null;
   wrap = document.createElement("span");
-  wrap.id = "protectedFontModeControl";
-  wrap.setAttribute("role", "group");
-  wrap.setAttribute("aria-label", "Reading font style");
+  wrap.id = "protectedTypographyControl";
   wrap.innerHTML = `
-    <button type="button" id="protectedFontModeSans" data-font-mode="sans">Sans</button>
-    <button type="button" id="protectedFontModeSerif" data-font-mode="serif">Serif</button>
+    <button type="button" id="protectedTypographyTrigger" aria-label="Settings" aria-controls="overlay-settings" aria-expanded="false">
+      <img src="${PROTECTED_SETTINGS_ICON_SRC}" alt="" aria-hidden="true" />
+    </button>
   `;
   if (fontInc.nextSibling) parent.insertBefore(wrap, fontInc.nextSibling);
   else parent.append(wrap);
+  ensureSettingsOverlay();
   return wrap;
 }
 
-function updateFontModeControl(summary = HOST_STATE.lastSummary) {
-  const wrap = ensureFontModeControl();
+function syncProtectedShellIcons() {
+  const typographyControl = document.getElementById("protectedTypographyControl");
+  const themeToggle = document.getElementById("themeToggle");
+  if (
+    typographyControl &&
+    themeToggle &&
+    themeToggle.parentElement &&
+    typographyControl.parentElement === themeToggle.parentElement &&
+    themeToggle.nextElementSibling !== typographyControl
+  ) {
+    typographyControl.parentElement.insertBefore(themeToggle, typographyControl);
+  }
+  const trigger = document.getElementById("protectedTypographyTrigger");
+  if (trigger) {
+    let img = trigger.querySelector("img");
+    if (!img) {
+      img = document.createElement("img");
+      img.alt = "";
+      img.setAttribute("aria-hidden", "true");
+      trigger.replaceChildren(img);
+    }
+    if (img.getAttribute("src") !== PROTECTED_SETTINGS_ICON_SRC) {
+      img.setAttribute("src", PROTECTED_SETTINGS_ICON_SRC);
+    }
+  }
+  const bookmark = document.getElementById("bookmark");
+  const bottomBar = document.getElementById("bottombar");
+  if (bookmark && bottomBar && bookmark.parentElement !== bottomBar) {
+    bottomBar.appendChild(bookmark);
+  }
+  if (themeToggle) {
+    let themeImg = themeToggle.querySelector("img.theme-icon");
+    if (!themeImg) {
+      themeImg = document.createElement("img");
+      themeImg.className = "theme-icon";
+      themeImg.alt = "";
+      themeImg.setAttribute("aria-hidden", "true");
+      themeToggle.replaceChildren(themeImg);
+    }
+    if (themeImg.getAttribute("src") !== PROTECTED_THEME_ICON_SRC) {
+      themeImg.setAttribute("src", PROTECTED_THEME_ICON_SRC);
+    }
+  }
+}
+
+function ensureSettingsOverlay() {
+  let panel = document.getElementById("protectedTypographyPanel");
+  if (!panel) {
+    let overlay = document.getElementById("overlay-settings");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "overlay-settings";
+      overlay.className = "overlay-panel hidden";
+      overlay.setAttribute("role", "dialog");
+      overlay.setAttribute("aria-modal", "true");
+      overlay.setAttribute("aria-label", "Settings");
+      overlay.innerHTML = `
+        <div class="overlay-head">
+          <div class="overlay-title">Settings</div>
+          <button class="overlay-close" type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="overlay-sep" aria-hidden="true"></div>
+        <div class="overlay-scroll">
+          <section id="protectedSettingsTextSection">
+            <h3 id="protectedSettingsTextSectionTitle">Text:</h3>
+            <section id="protectedTypographyPanel" aria-label="Text settings">
+              <div id="protectedTypographyModes" role="group" aria-label="Reading font">
+                <button type="button" class="protected-typography-mode" id="protectedTypographySans" data-font-mode="sans">
+                  <span class="sample" aria-hidden="true">Aa</span>
+                  <span class="label">Sans</span>
+                </button>
+                <button type="button" class="protected-typography-mode" id="protectedTypographySerif" data-font-mode="serif">
+                  <span class="sample" aria-hidden="true">Aa</span>
+                  <span class="label">Serif</span>
+                </button>
+              </div>
+              <div class="protected-typography-size">
+                <div class="protected-typography-size-row">
+                  <span class="small" aria-hidden="true">A</span>
+                  <input type="range" id="protectedTypographyScale" min="0.8" max="1.6" step="0.1" value="1" aria-label="Text size" />
+                  <span class="large" aria-hidden="true">A</span>
+                </div>
+              </div>
+            </section>
+          </section>
+          <section id="protectedSettingsVoiceSection">
+            <h3 id="protectedSettingsVoiceSectionTitle">Voice:</h3>
+            <div id="protectedSettingsVoiceMount"></div>
+          </section>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
+    panel = overlay.querySelector("#protectedTypographyPanel");
+    const close = overlay.querySelector(".overlay-close");
+    close && close.addEventListener("click", (event) => {
+      event.preventDefault();
+      closeTypographyPanel();
+    });
+    const backdrop = document.getElementById("overlay-backdrop");
+    backdrop && backdrop.addEventListener("click", () => {
+      if (!overlay.classList.contains("hidden")) closeTypographyPanel();
+    });
+  }
+  const voiceMount = document.getElementById("protectedSettingsVoiceMount");
+  const voiceView = document.getElementById("voiceView");
+  if (voiceMount && voiceView && voiceView.parentElement !== voiceMount) {
+    voiceMount.appendChild(voiceView);
+  }
+  if (voiceMount) {
+    voiceMount.querySelectorAll("*").forEach((node) => {
+      const text = String(node.textContent || "").trim();
+      if (/^Select a voice for reading aloud\.?$/i.test(text)) {
+        node.style.display = "none";
+      }
+    });
+  }
+  return panel;
+}
+
+function updateTypographyControl(summary = HOST_STATE.lastSummary) {
+  const wrap = ensureTypographyControl();
   if (!wrap) return;
   const activeFontMode = resolveSupportedFontMode(
     summary && (summary.runtimeFontMode || summary.fontMode)
@@ -1272,17 +1736,23 @@ function updateFontModeControl(summary = HOST_STATE.lastSummary) {
     HOST_STATE.readerConfig.fontMode
   );
   const supportedFontModes = getSupportedFontModes(summary);
+  const currentScale = readCurrentFontScale(summary);
   wrap.dataset.fontMode = activeFontMode;
   wrap.dataset.supportedModes = supportedFontModes.join(",");
+  wrap.dataset.fontScale = String(currentScale);
+  const scaleInput = document.getElementById("protectedTypographyScale");
+  if (scaleInput && document.activeElement !== scaleInput) {
+    scaleInput.value = currentScale.toFixed(1);
+  }
   ["sans", "serif"].forEach((mode) => {
-    const button = document.getElementById(mode === "sans" ? "protectedFontModeSans" : "protectedFontModeSerif");
+    const button = document.getElementById(mode === "sans" ? "protectedTypographySans" : "protectedTypographySerif");
     if (!button) return;
     const supported = supportedFontModes.includes(mode);
     button.classList.toggle("is-active", activeFontMode === mode);
     button.setAttribute("aria-pressed", activeFontMode === mode ? "true" : "false");
     if (supported) {
       button.removeAttribute("aria-disabled");
-      button.setAttribute("title", mode === "sans" ? "Use sans font" : "Use serif font");
+      button.setAttribute("title", mode === "sans" ? "Use Sans font" : "Use Serif font");
     } else {
       button.setAttribute("aria-disabled", "true");
       button.setAttribute("title", "Unavailable for this book");
@@ -1292,11 +1762,9 @@ function updateFontModeControl(summary = HOST_STATE.lastSummary) {
 
 function syncTopControls() {
   setControlEnabled("bookmark", true);
-  setControlEnabled("fontDec", true);
-  setControlEnabled("fontInc", true);
   setControlEnabled("openBookmarks", true);
-  ensureFontModeControl();
-  updateFontModeControl();
+  ensureTypographyControl();
+  updateTypographyControl();
 }
 
 function buildEngineBadge() {
@@ -2399,7 +2867,7 @@ function updateFromSummary(summary) {
   updateSearchControls(summary);
   applyTheme(summary);
   syncTopControls();
-  updateFontModeControl(summary);
+  updateTypographyControl(summary);
   updateBookmarkControl(summary);
   buildEngineBadge();
   const selectionSignature =
@@ -2758,7 +3226,9 @@ async function performPageTurn(direction, options = {}) {
 }
 
 function overlaysVisible() {
-  return ["overlay-menu", "overlay-toc", "overlay-notes", "overlay-bookmarks", "commentSheet"]
+  const typography = document.getElementById("protectedTypographyControl");
+  if (typography && typography.classList.contains("is-open")) return true;
+  return ["overlay-menu", "overlay-settings", "overlay-toc", "overlay-notes", "overlay-bookmarks", "commentSheet"]
     .some((id) => {
       const node = document.getElementById(id);
       return !!(node && !node.classList.contains("hidden"));
@@ -3179,6 +3649,10 @@ function bindShellControls() {
 
   document.addEventListener("keydown", async (event) => {
     if (!HOST_STATE.frame) return;
+    if (event.key === "Escape") {
+      closeTypographyPanel();
+      return;
+    }
     if (event.key === "ArrowLeft") {
       event.preventDefault();
       await performPageTurn("prev");
@@ -3190,6 +3664,7 @@ function bindShellControls() {
 
   const theme = document.getElementById("themeToggle");
   const bookmark = document.getElementById("bookmark");
+  syncProtectedShellIcons();
   theme && theme.addEventListener("click", async (event) => {
     event.preventDefault();
     const currentTheme = HOST_STATE.lastSummary && HOST_STATE.lastSummary.theme === "dark" ? "dark" : "light";
@@ -3214,52 +3689,105 @@ function bindShellControls() {
     renderBookmarks(summary);
     updateBookmarkControl(summary);
   });
-  const fontDec = document.getElementById("fontDec");
-  const fontInc = document.getElementById("fontInc");
-  const fontModeControl = ensureFontModeControl();
-  const fontModeSans = document.getElementById("protectedFontModeSans");
-  const fontModeSerif = document.getElementById("protectedFontModeSerif");
-  fontDec && fontDec.addEventListener("click", async (event) => {
+  const typographyControl = ensureTypographyControl();
+  const typographyTrigger = document.getElementById("protectedTypographyTrigger");
+  const typographyPanel = document.getElementById("protectedTypographyPanel");
+  const typographyScale = document.getElementById("protectedTypographyScale");
+  const fontModeButtons = [
+    document.getElementById("protectedTypographySans"),
+    document.getElementById("protectedTypographySerif")
+  ].filter(Boolean);
+  typographyTrigger && typographyTrigger.addEventListener("click", (event) => {
     event.preventDefault();
-    const currentScale = HOST_STATE.lastSummary ? Number(HOST_STATE.lastSummary.fontScale || 1) : 1;
-    const nextScale = persistShellFontScale(Math.max(0.8, Number((currentScale - 0.1).toFixed(2))));
-    HOST_STATE.lastAppliedFontScale = nextScale;
-    HOST_STATE.fontScaleSynced = true;
-    await invokeBridge("setFontScale", nextScale);
+    event.stopPropagation();
+    toggleTypographyPanel();
   });
-  fontInc && fontInc.addEventListener("click", async (event) => {
-    event.preventDefault();
-    const currentScale = HOST_STATE.lastSummary ? Number(HOST_STATE.lastSummary.fontScale || 1) : 1;
-    const nextScale = persistShellFontScale(Math.min(1.6, Number((currentScale + 0.1).toFixed(2))));
-    HOST_STATE.lastAppliedFontScale = nextScale;
-    HOST_STATE.fontScaleSynced = true;
-    await invokeBridge("setFontScale", nextScale);
-  });
-  [fontModeSans, fontModeSerif].filter(Boolean).forEach((button) => {
-    button.addEventListener("click", async (event) => {
+  const dismissTypographyPanel = (event) => {
+    const wrap = document.getElementById("protectedTypographyControl");
+    const overlay = document.getElementById("overlay-settings");
+    const backdrop = document.getElementById("overlay-backdrop");
+    const panel = document.getElementById("protectedTypographyPanel");
+    if (!wrap || !wrap.classList.contains("is-open")) return;
+    if (backdrop && event.target === backdrop) {
+      try {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation && event.stopImmediatePropagation();
+      } catch (_error) {}
+      closeTypographyPanel();
+      return;
+    }
+    if (
+      wrap.contains(event.target) ||
+      (overlay && overlay.contains(event.target)) ||
+      (panel && panel.contains(event.target))
+    ) return;
+    try {
       event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+    } catch (_error) {}
+    closeTypographyPanel();
+  };
+  document.addEventListener("mousedown", dismissTypographyPanel, true);
+  document.addEventListener("click", dismissTypographyPanel, true);
+  document.addEventListener("pointerdown", dismissTypographyPanel, true);
+  document.addEventListener("touchstart", dismissTypographyPanel, { capture: true, passive: false });
+  const handleTypographyModeSelection = async (nextMode, event = null) => {
+    event && event.preventDefault && event.preventDefault();
+    event && event.stopPropagation && event.stopPropagation();
+    event && event.stopImmediatePropagation && event.stopImmediatePropagation();
+    const summary = HOST_STATE.lastSummary;
+    const supported = summary && Array.isArray(summary.supportedFontModes) && summary.supportedFontModes.length
+      ? summary.supportedFontModes.map((item) => normalizeFontMode(item))
+      : ["sans"];
+    const currentAppliedMode = resolveSupportedFontMode(
+      summary && (summary.runtimeFontMode || summary.fontMode)
+        ? (summary.runtimeFontMode || summary.fontMode)
+        : HOST_STATE.readerConfig.fontMode,
+      summary,
+      HOST_STATE.readerConfig.fontMode
+    );
+    if (!supported.includes(nextMode)) return;
+    if (currentAppliedMode === nextMode) return;
+    hideSelectionToolbar();
+    HOST_STATE.fontModeSynced = true;
+    HOST_STATE.lastAppliedFontMode = persistShellFontMode(nextMode);
+    HOST_STATE.readerConfig.fontMode = nextMode;
+    updateTypographyControl({
+      ...(summary || {}),
+      fontMode: nextMode,
+      supportedFontModes: supported
+    });
+    await invokeBridge("setFontMode", nextMode);
+  };
+  const maybeHandleTypographyModeEvent = async (event) => {
+    const target = event.target && event.target.closest
+      ? event.target.closest(".protected-typography-mode")
+      : null;
+    if (!target) return;
+    const nextMode = normalizeFontMode(target.dataset ? target.dataset.fontMode : "sans");
+    await handleTypographyModeSelection(nextMode, event);
+  };
+  typographyPanel && typographyPanel.addEventListener("pointerdown", maybeHandleTypographyModeEvent, true);
+  typographyPanel && typographyPanel.addEventListener("touchstart", maybeHandleTypographyModeEvent, { capture: true, passive: false });
+  typographyPanel && typographyPanel.addEventListener("click", maybeHandleTypographyModeEvent);
+  typographyScale && typographyScale.addEventListener("change", async (event) => {
+    const nextScale = persistShellFontScale(
+      Math.max(0.8, Math.min(1.6, Number(event.currentTarget && event.currentTarget.value || 1)))
+    );
+    HOST_STATE.lastAppliedFontScale = nextScale;
+    HOST_STATE.fontScaleSynced = true;
+    await invokeBridge("setFontScale", nextScale);
+  });
+  fontModeButtons.forEach((button) => {
+    button.addEventListener("click", async (event) => {
       const target = event.currentTarget;
       const nextMode = normalizeFontMode(target && target.dataset ? target.dataset.fontMode : "sans");
-      const summary = HOST_STATE.lastSummary;
-      const supported = summary && Array.isArray(summary.supportedFontModes) && summary.supportedFontModes.length
-        ? summary.supportedFontModes.map((item) => normalizeFontMode(item))
-        : ["sans"];
-      if (!supported.includes(nextMode)) return;
-      if (normalizeFontMode(HOST_STATE.readerConfig.fontMode) === nextMode) return;
-      closeAllShellOverlays();
-      hideSelectionToolbar();
-      HOST_STATE.fontModeSynced = true;
-      HOST_STATE.lastAppliedFontMode = persistShellFontMode(nextMode);
-      HOST_STATE.readerConfig.fontMode = nextMode;
-      updateFontModeControl({
-        ...(summary || {}),
-        fontMode: nextMode,
-        supportedFontModes: supported
-      });
-      await invokeBridge("setFontMode", nextMode);
+      await handleTypographyModeSelection(nextMode, event);
     });
   });
-  if (fontModeControl) updateFontModeControl();
+  if (typographyControl) updateTypographyControl();
 
   const searchAction = document.getElementById("searchActionDesktop");
   const searchInput = document.getElementById("searchInputDesktop");

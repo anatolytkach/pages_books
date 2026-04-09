@@ -25,6 +25,19 @@ function normalizeBookId(url) {
   return isNumericId(lastId) ? lastId : "";
 }
 
+function normalizeArtifactBookId(url, fallbackBookId = "") {
+  const params = url.searchParams;
+  const explicit =
+    String(
+      params.get("protectedArtifactBookId") ||
+      params.get("artifactBookId") ||
+      params.get("protectedBookId") ||
+      ""
+    ).trim();
+  if (isNumericId(explicit)) return explicit;
+  return isNumericId(fallbackBookId) ? String(fallbackBookId).trim() : "";
+}
+
 function normalizeSource(url, bookId) {
   const params = url.searchParams;
   let source = String(params.get("source") || "").trim();
@@ -43,7 +56,7 @@ function resolveReaderBasePath(url) {
   return "/books/reader/";
 }
 
-function resolveProtectedArtifactRoot(url, bookId) {
+function resolveProtectedArtifactRoot(url, artifactBookId) {
   const artifactSource = String(
     url.searchParams.get("protectedArtifactSource") ||
       url.searchParams.get("artifactSource") ||
@@ -51,13 +64,13 @@ function resolveProtectedArtifactRoot(url, bookId) {
   )
     .trim()
     .toLowerCase();
-  if (artifactSource === "r2" && bookId) {
+  if (artifactSource === "r2" && artifactBookId) {
     const hostname = String(url && url.hostname ? url.hostname : "").trim().toLowerCase();
     const baseOrigin = hostname.endsWith(".pages.dev") ? "https://reader.pub" : url.origin;
-    return `${baseOrigin}/books/protected-content/${encodeURIComponent(bookId)}`;
+    return `${baseOrigin}/books/protected-content/${encodeURIComponent(artifactBookId)}`;
   }
-  return bookId
-    ? `/reader_render_v3/artifacts/protected-books/${encodeURIComponent(bookId)}`
+  return artifactBookId
+    ? `/reader_render_v3/artifacts/protected-books/${encodeURIComponent(artifactBookId)}`
     : "/reader_render_v3/artifacts/protected-books/19686";
 }
 
@@ -68,6 +81,7 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
       : "http://127.0.0.1";
   const url = input instanceof URL ? new URL(input.toString()) : new URL(String(input), baseOrigin);
   const bookId = normalizeBookId(url);
+  const artifactBookId = normalizeArtifactBookId(url, bookId);
   const source = normalizeSource(url, bookId);
   const shareState = parseProductionShareState(url);
   const explicitRestoreToken =
@@ -75,7 +89,7 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
     String(url.searchParams.get("rt") || "").trim() ||
     "";
   const readerBasePath = resolveReaderBasePath(url);
-  const artifactRoot = resolveProtectedArtifactRoot(url, bookId);
+  const artifactRoot = resolveProtectedArtifactRoot(url, artifactBookId);
 
   const oldReaderUrl = new URL(readerBasePath, url.origin);
   const protectedUrl = new URL(readerBasePath, url.origin);
@@ -87,6 +101,9 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
   if (source) {
     oldReaderUrl.searchParams.set("source", source);
     protectedUrl.searchParams.set("source", source);
+  }
+  if (artifactBookId && artifactBookId !== bookId) {
+    protectedUrl.searchParams.set("protectedArtifactBookId", artifactBookId);
   }
   for (const key of ["entry", "catalog_return", "autostart", "title", "slug", "renderMode", "metricsMode", "debugGeometry"]) {
     const value = String(url.searchParams.get(key) || "").trim();
@@ -140,6 +157,7 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
     url: url.toString(),
     query: Object.fromEntries(url.searchParams.entries()),
     bookId,
+    artifactBookId,
     source,
     artifactRoot,
     shareState,
