@@ -4,32 +4,72 @@
 const fs = require("fs");
 const path = require("path");
 
-const SYSTEM_FONT_DIRS = [
+const MAC_SYSTEM_FONT_DIRS = [
   "/System/Library/Fonts",
   "/System/Library/Fonts/Supplemental",
   "/Library/Fonts"
 ];
 
-const POLICY_FONT_FILES = {
-  "Arial": {
-    regular: "/System/Library/Fonts/Supplemental/Arial.ttf",
-    italic: "/System/Library/Fonts/Supplemental/Arial Italic.ttf",
-    bold: "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-    boldItalic: "/System/Library/Fonts/Supplemental/Arial Bold Italic.ttf"
-  },
-  "Times New Roman": {
-    regular: "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
-    italic: "/System/Library/Fonts/Supplemental/Times New Roman Italic.ttf",
-    bold: "/System/Library/Fonts/Supplemental/Times New Roman Bold.ttf",
-    boldItalic: "/System/Library/Fonts/Supplemental/Times New Roman Bold Italic.ttf"
-  },
-  "Georgia": {
-    regular: "/System/Library/Fonts/Supplemental/Georgia.ttf",
-    italic: "/System/Library/Fonts/Supplemental/Georgia Italic.ttf",
-    bold: "/System/Library/Fonts/Supplemental/Georgia Bold.ttf",
-    boldItalic: "/System/Library/Fonts/Supplemental/Georgia Bold Italic.ttf"
+function getWindowsDir() {
+  return String(process.env.WINDIR || "C:\\Windows").trim() || "C:\\Windows";
+}
+
+function systemFontDirs() {
+  const dirs = [];
+  if (process.platform === "win32") {
+    dirs.push(path.join(getWindowsDir(), "Fonts"));
+    const localAppData = String(process.env.LOCALAPPDATA || "").trim();
+    if (localAppData) dirs.push(path.join(localAppData, "Microsoft", "Windows", "Fonts"));
+    return dirs;
   }
-};
+  return MAC_SYSTEM_FONT_DIRS;
+}
+
+function policyFontFiles() {
+  if (process.platform === "win32") {
+    const fontsDir = path.join(getWindowsDir(), "Fonts");
+    return {
+      "Arial": {
+        regular: path.join(fontsDir, "arial.ttf"),
+        italic: path.join(fontsDir, "ariali.ttf"),
+        bold: path.join(fontsDir, "arialbd.ttf"),
+        boldItalic: path.join(fontsDir, "arialbi.ttf")
+      },
+      "Times New Roman": {
+        regular: path.join(fontsDir, "times.ttf"),
+        italic: path.join(fontsDir, "timesi.ttf"),
+        bold: path.join(fontsDir, "timesbd.ttf"),
+        boldItalic: path.join(fontsDir, "timesbi.ttf")
+      },
+      "Georgia": {
+        regular: path.join(fontsDir, "georgia.ttf"),
+        italic: path.join(fontsDir, "georgiai.ttf"),
+        bold: path.join(fontsDir, "georgiab.ttf"),
+        boldItalic: path.join(fontsDir, "georgiaz.ttf")
+      }
+    };
+  }
+  return {
+    "Arial": {
+      regular: "/System/Library/Fonts/Supplemental/Arial.ttf",
+      italic: "/System/Library/Fonts/Supplemental/Arial Italic.ttf",
+      bold: "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+      boldItalic: "/System/Library/Fonts/Supplemental/Arial Bold Italic.ttf"
+    },
+    "Times New Roman": {
+      regular: "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
+      italic: "/System/Library/Fonts/Supplemental/Times New Roman Italic.ttf",
+      bold: "/System/Library/Fonts/Supplemental/Times New Roman Bold.ttf",
+      boldItalic: "/System/Library/Fonts/Supplemental/Times New Roman Bold Italic.ttf"
+    },
+    "Georgia": {
+      regular: "/System/Library/Fonts/Supplemental/Georgia.ttf",
+      italic: "/System/Library/Fonts/Supplemental/Georgia Italic.ttf",
+      bold: "/System/Library/Fonts/Supplemental/Georgia Bold.ttf",
+      boldItalic: "/System/Library/Fonts/Supplemental/Georgia Bold Italic.ttf"
+    }
+  };
+}
 
 function fileExists(filePath) {
   return !!filePath && fs.existsSync(filePath);
@@ -88,7 +128,7 @@ function detectEmbeddedFonts(book) {
 
 function detectPolicyFonts() {
   const resolved = new Map();
-  for (const [familyName, styles] of Object.entries(POLICY_FONT_FILES)) {
+  for (const [familyName, styles] of Object.entries(policyFontFiles())) {
     const styleFiles = {};
     for (const [style, filePath] of Object.entries(styles)) {
       if (fileExists(filePath)) styleFiles[style] = filePath;
@@ -105,7 +145,7 @@ function detectPolicyFonts() {
 
 function detectSystemFonts() {
   const discovered = [];
-  for (const dir of SYSTEM_FONT_DIRS) {
+  for (const dir of systemFontDirs()) {
     if (fs.existsSync(dir)) walkFonts(dir, discovered);
   }
   return discovered;
