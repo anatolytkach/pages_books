@@ -8783,6 +8783,34 @@ return {
 		}
 	}
 
+	function isPlaceholderTitle(title) {
+		var value = String(title || "").trim();
+		if (!value) return true;
+		return value === "Protected Reader";
+	}
+
+	function sanitizeList(list) {
+		var items = Array.isArray(list) ? list : [];
+		var next = [];
+		for (var i = 0; i < items.length; i++) {
+			var item = items[i];
+			if (!item || !item.id) continue;
+			var title = String(item.title || "").trim();
+			var author = String(item.author || "").trim();
+			var cover = String((item.cover || item.coverUrl || item.cover_url) || "").trim();
+			if (isPlaceholderTitle(title) && !author) continue;
+			if (!title && !author) continue;
+			next.push({
+				id: item.id,
+				title: isPlaceholderTitle(title) ? "" : title,
+				author: author,
+				cover: cover,
+				openedAt: item.openedAt || 0
+			});
+		}
+		return next;
+	}
+
 	function loadList() {
 		var storage = getStorage();
 		if (!storage) return _memoryList.slice();
@@ -8791,8 +8819,10 @@ return {
 			if (!raw) return _memoryList.slice();
 			var parsed = JSON.parse(raw);
 			if (Array.isArray(parsed)) {
-				_memoryList = parsed.slice();
-				return parsed;
+				var sanitized = sanitizeList(parsed);
+				_memoryList = sanitized.slice();
+				if (JSON.stringify(parsed) !== JSON.stringify(sanitized)) saveList(sanitized);
+				return sanitized;
 			}
 			return _memoryList.slice();
 		} catch (e) {
@@ -8821,11 +8851,12 @@ return {
 	}
 
 	function saveList(list) {
-		_memoryList = Array.isArray(list) ? list.slice() : [];
+		var sanitized = sanitizeList(Array.isArray(list) ? list : []);
+		_memoryList = sanitized.slice();
 		var storage = getStorage();
 		if (!storage) { _lastSaveOk = false; return; }
 		try {
-			storage.setItem(STORAGE_KEY, JSON.stringify(list || []));
+			storage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
 			_lastSaveOk = true;
 		} catch (e) { _lastSaveOk = false; }
 	}
@@ -8924,6 +8955,7 @@ return {
 		if (isDemoEntry()) return;
 		var id = getBookId();
 		if (!id || !/^\d+$/.test(id)) return;
+		if (isPlaceholderTitle(title) && !String(author || "").trim()) return;
 		upsertBook({ id: id, title: title || "", author: author || "" });
 	}
 
@@ -8941,11 +8973,12 @@ return {
 		}
 		var next = {
 			id: entry.id,
-			title: entry.title || (existingIndex >= 0 ? (list[existingIndex].title || "") : ""),
+			title: isPlaceholderTitle(entry.title) ? (existingIndex >= 0 ? (list[existingIndex].title || "") : "") : (entry.title || (existingIndex >= 0 ? (list[existingIndex].title || "") : "")),
 			author: entry.author || (existingIndex >= 0 ? (list[existingIndex].author || "") : ""),
 			cover: entry.cover || entry.coverUrl || entry.cover_url || (existingIndex >= 0 ? (list[existingIndex].cover || "") : ""),
 			openedAt: now
 		};
+		if (!String(next.title || "").trim() && !String(next.author || "").trim() && !String(next.cover || "").trim()) return;
 		if (existingIndex >= 0) list.splice(existingIndex, 1);
 		list.unshift(next);
 		if (list.length > 200) list.length = 200;

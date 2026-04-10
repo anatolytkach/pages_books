@@ -1409,10 +1409,14 @@ function installStyles() {
       display: none !important;
     }
     #protectedLibraryTabs {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: nowrap;
+      gap: 10px;
       margin: 0 0 14px;
+      width: 100%;
+      min-width: 0;
     }
     .protected-library-tab {
       appearance: none;
@@ -1420,14 +1424,17 @@ function installStyles() {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      flex: 0 1 auto;
       min-height: 34px;
-      padding: 8px 10px;
+      min-width: 0;
+      padding: 8px 14px;
       border: 1px solid rgba(255,255,255,0.14);
       border-radius: 999px;
       background: transparent;
       color: rgba(255,255,255,0.82);
       font: 600 12px/1.1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       letter-spacing: 0.01em;
+      white-space: nowrap;
       cursor: pointer;
       transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
     }
@@ -1540,7 +1547,8 @@ function installStyles() {
     body.protected-old-shell #overlay-library #notesView .bookmark-text,
     body.protected-old-shell #overlay-library #notes .bookmark-text,
     body.protected-old-shell #overlay-library #bookmarksView .bookmark-text,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark-text {
+    body.protected-old-shell #overlay-library #bookmarks .bookmark-text,
+    body.protected-old-shell #overlay-library #mybooks .bookmark-text {
       flex: 1 1 auto;
       min-width: 0;
       margin: 0;
@@ -1559,7 +1567,8 @@ function installStyles() {
     body.protected-old-shell #overlay-library #notesView .bookmark_link,
     body.protected-old-shell #overlay-library #notes .bookmark_link,
     body.protected-old-shell #overlay-library #bookmarksView .bookmark_link,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark_link {
+    body.protected-old-shell #overlay-library #bookmarks .bookmark_link,
+    body.protected-old-shell #overlay-library #mybooks .bookmark_link {
       margin: 0;
       padding: 0;
       display: block;
@@ -1578,6 +1587,18 @@ function installStyles() {
       -webkit-touch-callout: none;
       touch-action: manipulation;
     }
+    body.protected-old-shell #overlay-library #mybooks .bookmark_link {
+      color: rgba(255,255,255,0.96);
+      font-size: 0.96em;
+      font-weight: 600;
+      line-height: 1.24;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-height: calc(1.24em * 2);
+    }
     body.protected-old-shell #overlay-library #notesView .bookmark_link,
     body.protected-old-shell #overlay-library #notes .bookmark_link {
       font-size: 0.84em;
@@ -1593,7 +1614,8 @@ function installStyles() {
     body.protected-old-shell #overlay-library #notesView .bookmark-comment,
     body.protected-old-shell #overlay-library #notes .bookmark-comment,
     body.protected-old-shell #overlay-library #bookmarksView .bookmark-comment,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark-comment {
+    body.protected-old-shell #overlay-library #bookmarks .bookmark-comment,
+    body.protected-old-shell #overlay-library #mybooks .bookmark-comment {
       margin: 6px 0 0;
       padding: 0;
       font-size: 0.84em;
@@ -1601,8 +1623,15 @@ function installStyles() {
       user-select: none;
       -webkit-user-select: none;
     }
+    body.protected-old-shell #overlay-library #mybooks .bookmark-comment {
+      color: rgba(255,255,255,0.56);
+      font-size: 0.78em;
+      line-height: 1.24;
+    }
     body.protected-old-shell #protectedSettingsBookCardMount {
       margin: 0 0 18px;
+      padding: 0 0 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.14);
     }
     body.protected-old-shell #protectedSettingsBookCardMount #menuBookCard {
       display: flex;
@@ -1680,7 +1709,8 @@ function installStyles() {
     body.protected-old-shell #overlay-library #notesView .bookmark-delete,
     body.protected-old-shell #overlay-library #notes .bookmark-delete,
     body.protected-old-shell #overlay-library #bookmarksView .bookmark-delete,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete {
+    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete,
+    body.protected-old-shell #overlay-library #mybooks .bookmark-delete {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -1705,14 +1735,16 @@ function installStyles() {
     body.protected-old-shell #overlay-library #notesView .bookmark-delete:hover,
     body.protected-old-shell #overlay-library #notes .bookmark-delete:hover,
     body.protected-old-shell #overlay-library #bookmarksView .bookmark-delete:hover,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete:hover {
+    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete:hover,
+    body.protected-old-shell #overlay-library #mybooks .bookmark-delete:hover {
       opacity: 1;
     }
     body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-delete svg,
     body.protected-old-shell #overlay-library #notesView .bookmark-delete svg,
     body.protected-old-shell #overlay-library #notes .bookmark-delete svg,
     body.protected-old-shell #overlay-library #bookmarksView .bookmark-delete svg,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete svg {
+    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete svg,
+    body.protected-old-shell #overlay-library #mybooks .bookmark-delete svg {
       width: 18px;
       height: 18px;
       stroke: currentColor;
@@ -2602,7 +2634,7 @@ function isInternalStatusVisible() {
 }
 
 function setMenuBookMeta(summary) {
-  const title = summary && summary.bookTitle ? summary.bookTitle : "Protected Reader";
+  const title = summary && summary.bookTitle ? summary.bookTitle : "";
   const author = summary && summary.bookAuthor ? summary.bookAuthor : "";
   const rawCover = summary && summary.coverUrl ? String(summary.coverUrl).trim() : "";
   let cover = "";
@@ -2650,7 +2682,7 @@ function setMenuBookMeta(summary) {
 function setTitle(summary) {
   const title = document.getElementById("book-title");
   const chapter = document.getElementById("chapter-title");
-  if (title) title.textContent = summary && summary.bookTitle ? summary.bookTitle : "Protected Reader";
+  if (title) title.textContent = summary && summary.bookTitle ? summary.bookTitle : "";
   if (chapter) {
     chapter.textContent = summary && summary.bookAuthor ? summary.bookAuthor : "";
   }
@@ -3790,7 +3822,7 @@ function ensureLibraryOverlay() {
           <button type="button" class="protected-library-tab is-active" id="protectedLibraryTab-toc" role="tab" aria-selected="true">TOC</button>
           <button type="button" class="protected-library-tab" id="protectedLibraryTab-notes" role="tab" aria-selected="false" tabindex="-1">Notes</button>
           <button type="button" class="protected-library-tab" id="protectedLibraryTab-bookmarks" role="tab" aria-selected="false" tabindex="-1">Bookmarks</button>
-          <button type="button" class="protected-library-tab" id="protectedLibraryTab-mybooks" role="tab" aria-selected="false" tabindex="-1">Books</button>
+          <button type="button" class="protected-library-tab" id="protectedLibraryTab-mybooks" role="tab" aria-selected="false" tabindex="-1">My Books</button>
         </div>
         <section id="protectedLibraryPane-toc" class="protected-library-pane" role="tabpanel">
           <div id="protectedLibraryTocMount"></div>
