@@ -9,15 +9,17 @@ rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
 
 cp "$ROOT_DIR/_worker.js" "$OUT_DIR/_worker.js"
-cp "$ROOT_DIR/deploy/.wranglerignore" "$OUT_DIR/.wranglerignore"
 
 cp -a "$ROOT_DIR/books" "$OUT_DIR/books"
 rm -rf "$OUT_DIR/books/content"
 
 cp -a "$ROOT_DIR/reader" "$OUT_DIR/reader"
+cp -a "$ROOT_DIR/reader1" "$OUT_DIR/reader1"
+cp -a "$ROOT_DIR/reader_render_v3" "$OUT_DIR/reader_render_v3"
 cp -a "$ROOT_DIR/publisher_tasks" "$OUT_DIR/publisher_tasks"
 
-mkdir -p "$OUT_DIR/docs"
-cp -a "$ROOT_DIR/deploy/docs/." "$OUT_DIR/docs/"
+if [[ -d "$ROOT_DIR/docs" ]]; then
+  cp -a "$ROOT_DIR/docs" "$OUT_DIR/docs"
+fi
 
 echo "Deploy bundle created at: $OUT_DIR"

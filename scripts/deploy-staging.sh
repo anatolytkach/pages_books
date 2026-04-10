@@ -12,6 +12,10 @@ trap 'rm -rf "$DEPLOY_DIR"' EXIT
 
 "$SCRIPT_DIR/build-deploy-bundle.sh" "$DEPLOY_DIR"
 
+BRANCH=$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+COMMIT=$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
+STAGING_URL="https://books-staging.reader.pub/books/"
+
 echo "=== Deploying to STAGING ($PROJECT) ==="
 echo "Deploy dir: $DEPLOY_DIR"
 
@@ -21,6 +25,14 @@ CLOUDFLARE_ACCOUNT_ID="$ACCOUNT_ID" \
   --branch develop \
   --commit-dirty=true
 
+node "$ROOT_DIR/tools/deploy/record-deployment.mjs" \
+  --environment staging \
+  --project "$PROJECT" \
+  --pages-branch develop \
+  --source-branch "$BRANCH" \
+  --commit "$COMMIT" \
+  --url "$STAGING_URL"
+
 echo "=== Staging deploy complete ==="
-echo "Preview: https://books-staging.reader.pub/books/"
+echo "Preview: $STAGING_URL"
 echo "Or: https://readerpub-books-staging.pages.dev/books/"

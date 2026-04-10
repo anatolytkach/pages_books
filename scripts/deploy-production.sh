@@ -18,6 +18,7 @@ trap 'rm -rf "$DEPLOY_DIR"' EXIT
 
 # Safety check: should be on master branch
 BRANCH=$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+COMMIT=$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
 if [[ "$BRANCH" != "master" ]]; then
   echo "WARNING: You are on branch '$BRANCH', not 'master'."
   read -rp "Continue anyway? [y/N] " confirm
@@ -32,6 +33,14 @@ CLOUDFLARE_ACCOUNT_ID="$ACCOUNT_ID" \
   --project-name "$PROJECT" \
   --branch production \
   --commit-dirty=true
+
+node "$ROOT_DIR/tools/deploy/record-deployment.mjs" \
+  --environment production \
+  --project "$PROJECT" \
+  --pages-branch production \
+  --source-branch "$BRANCH" \
+  --commit "$COMMIT" \
+  --url "https://reader.pub/books/"
 
 echo "=== Production deploy complete ==="
 echo "Live: https://reader.pub/books/"
