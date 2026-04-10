@@ -68,7 +68,9 @@ def load_state_overrides(path: Path | None) -> dict:
         public_path_mode = str(item.get("public_path_mode") or "").strip()
         source = str(item.get("source") or "").strip()
         source_book_id = str(item.get("source_book_id") or "").strip()
-        if not any([public_content_path, target_path, local_content_path, public_path_mode, source, source_book_id]):
+        reader_type = str(item.get("readerType") or item.get("reader_type") or "").strip()
+        protected_content_path = str(item.get("protectedContentPath") or item.get("protected_content_path") or "").strip()
+        if not any([public_content_path, target_path, local_content_path, public_path_mode, source, source_book_id, reader_type, protected_content_path]):
             continue
         overrides[str(reader_id)] = {
             "publicContentPath": public_content_path,
@@ -77,6 +79,8 @@ def load_state_overrides(path: Path | None) -> dict:
             "publicPathMode": public_path_mode,
             "source": source,
             "sourceBookId": source_book_id,
+            "readerType": reader_type,
+            "protectedContentPath": protected_content_path,
         }
     return overrides
 
@@ -97,6 +101,8 @@ def load_path_overrides(path: Path | None) -> dict:
             "publicPathMode": str(item.get("publicPathMode") or "").strip(),
             "source": str(item.get("source") or "").strip(),
             "sourceBookId": str(item.get("sourceBookId") or "").strip(),
+            "readerType": str(item.get("readerType") or item.get("reader_type") or "").strip(),
+            "protectedContentPath": str(item.get("protectedContentPath") or item.get("protected_content_path") or "").strip(),
         }
     return overrides
 
@@ -176,6 +182,8 @@ def main() -> int:
         legacy_path = f"/books/content/{reader_id}/"
         target_path = str(merged_info.get("targetPath") or f"/books/content/{source}/{source_book_id}/").strip() or f"/books/content/{source}/{source_book_id}/"
         public_content_path = str(merged_info.get("publicContentPath") or (target_path if public_path_mode == "target" else legacy_path)).strip() or legacy_path
+        reader_type = str(merged_info.get("readerType") or book.get("readerType") or "legacy").strip() or "legacy"
+        protected_content_path = str(merged_info.get("protectedContentPath") or "").strip()
         item = {
             "readerId": reader_id,
             "legacyId": reader_id,
@@ -189,8 +197,10 @@ def main() -> int:
             "title": book["title"],
             "author": book["author"],
             "cover": book["cover"],
-            "readerType": book.get("readerType", "legacy"),
+            "readerType": reader_type,
         }
+        if protected_content_path:
+            item["protectedContentPath"] = protected_content_path
         items[reader_id] = item
         if source == "gutenberg":
             legacy_shard = shard_for_reader_id(reader_id)

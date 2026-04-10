@@ -265,6 +265,23 @@ def load_source_registry(path: str):
     return by_reader_id
 
 
+def load_path_overrides(path: str):
+    data = read_json(path, {}) or {}
+    items = data.get("items") if isinstance(data.get("items"), dict) else data if isinstance(data, dict) else {}
+    overrides = {}
+    for reader_id, item in items.items():
+        if not isinstance(item, dict):
+            continue
+        overrides[str(reader_id)] = {
+            "readerType": clean_text(item.get("readerType") or item.get("reader_type") or ""),
+            "contentPath": clean_text(item.get("publicContentPath") or item.get("contentPath") or ""),
+            "localContentPath": clean_text(item.get("localContentPath") or ""),
+            "source": clean_text(item.get("source") or ""),
+            "sourceBookId": clean_text(item.get("sourceBookId") or ""),
+        }
+    return overrides
+
+
 def content_root_to_fs_path(root_dir: str, content_path: str) -> str:
     raw = clean_text(content_path)
     if raw.startswith("/books/content/"):
@@ -281,7 +298,7 @@ def iter_books_from_locations(root_dir: str, locations: dict):
         yield str(book_id), path, item
 
 
-def get_book_location(locations: dict, registry: dict, book_id: str):
+def get_book_location(locations: dict, registry: dict, overrides: dict, book_id: str):
     base = {
         "readerId": str(book_id),
         "legacyId": str(book_id),
@@ -290,9 +307,11 @@ def get_book_location(locations: dict, registry: dict, book_id: str):
         "localContentPath": f"/books/content/{book_id}/",
         "contentPath": f"/books/content/{book_id}/",
         "legacyPath": f"/books/content/{book_id}/",
+        "readerType": "legacy",
     }
     item = dict(base)
     item.update(locations.get(str(book_id)) or {})
+    item.update({key: value for key, value in (overrides.get(str(book_id)) or {}).items() if value})
     registry_item = registry.get(str(book_id)) or {}
     if registry_item.get("source"):
         item["source"] = registry_item["source"]
@@ -361,6 +380,7 @@ def build_language_indexes(lang: str, authors: list, output_root: str, max_prefi
                 "author": author.get("name", ""),
                 "author_key": author.get("key", ""),
                 "cover": book.get("cover", ""),
+                "readerType": book.get("readerType") or "legacy",
             })
 
     letters = defaultdict(set)
@@ -500,6 +520,7 @@ def build_language_indexes(lang: str, authors: list, output_root: str, max_prefi
                 "a": book.get("author"),
                 "k": book.get("author_key"),
                 "cover": book.get("cover"),
+                "readerType": book.get("readerType") or "legacy",
             })
 
     if lang == "all":
@@ -508,8 +529,8 @@ def build_language_indexes(lang: str, authors: list, output_root: str, max_prefi
 
     return len(books)
 
-def build_incremental(input_root: str, output_root: str, book_id: str, max_prefix: int, threshold: int, locations: dict | None = None, registry: dict | None = None):
-    location = get_book_location(locations or {}, registry or {}, book_id)
+def build_incremental(input_root: str, output_root: str, book_id: str, max_prefix: int, threshold: int, locations: dict | None = None, registry: dict | None = None, overrides: dict | None = None):
+    location = get_book_location(locations or {}, registry or {}, overrides or {}, book_id)
     book_path = content_root_to_fs_path(input_root, location.get("localContentPath") or location.get("contentPath") or f"/books/content/{book_id}/")
     container_path = os.path.join(book_path, "META-INF", "container.xml")
     if not os.path.exists(container_path):
@@ -554,6 +575,7 @@ def build_incremental(input_root: str, output_root: str, book_id: str, max_prefi
         "legacyId": str(book_id),
         "title": title,
         "cover": cover_url,
+        "readerType": str(location.get("readerType") or "legacy"),
     }
 
     languages_path = os.path.join(output_root, "languages.json")
@@ -589,14 +611,14 @@ def build_incremental(input_root: str, output_root: str, book_id: str, max_prefi
     write_json(languages_path, {"languages": lang_items})
 
 
-def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold: int, limit: int | None, locations: dict | None = None, registry: dict | None = None):
+def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold: int, limit: int | None, locations: dict | None = None, registry: dict | None = None, overrides: dict | None = None):
     by_lang_authors = defaultdict(dict)
 
     processed = 0
     iterator = iter_books_from_locations(input_root, locations or {}) if locations else ((book_id, book_path, None) for book_id, book_path in iter_books(input_root))
     for book_id, book_path, location in iterator:
         if not location:
-            location = get_book_location(locations or {}, registry or {}, book_id)
+            location = get_book_location(locations or {}, registry or {}, overrides or {}, book_id)
         container_path = os.path.join(book_path, "META-INF", "container.xml")
         if not os.path.exists(container_path):
             continue
@@ -643,6 +665,7 @@ def build_indexes(input_root: str, output_root: str, max_prefix: int, threshold:
             "legacyId": str(book_id),
             "title": title,
             "cover": cover_url,
+            "readerType": str((location or {}).get("readerType") or "legacy"),
         }
 
         for lang in lang_codes:
@@ -681,11 +704,13 @@ def main():
     default_output = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "reader_lang_indexes"))
     default_locations = os.path.abspath(os.path.join(default_output, "book-locations.json"))
     default_registry = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "state", "source_registry.json"))
+    default_overrides = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "state", "book_path_overrides.json"))
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="/Volumes/2T/se_ingest/webbooks")
     parser.add_argument("--output", default=default_output)
     parser.add_argument("--locations", default=default_locations)
     parser.add_argument("--registry", default=default_registry)
+    parser.add_argument("--overrides", default=default_overrides)
     parser.add_argument("--max-prefix", type=int, default=5)
     parser.add_argument("--threshold", type=int, default=50)
     parser.add_argument("--limit", type=int)
@@ -694,10 +719,11 @@ def main():
 
     locations = load_book_locations(args.locations)
     registry = load_source_registry(args.registry)
+    overrides = load_path_overrides(args.overrides)
     if args.book_id:
-        build_incremental(args.input, args.output, str(args.book_id), args.max_prefix, args.threshold, locations, registry)
+        build_incremental(args.input, args.output, str(args.book_id), args.max_prefix, args.threshold, locations, registry, overrides)
         return
-    build_indexes(args.input, args.output, args.max_prefix, args.threshold, args.limit, locations, registry)
+    build_indexes(args.input, args.output, args.max_prefix, args.threshold, args.limit, locations, registry, overrides)
 
 
 if __name__ == "__main__":

@@ -192,6 +192,31 @@
                 });
             }
 
+            function shouldBootProtectedReader(locationInfo) {
+              if (!locationInfo || typeof locationInfo !== "object") return false;
+              var readerType = String(locationInfo.readerType || locationInfo.reader_type || "").trim().toLowerCase();
+              if (readerType !== "protected") return false;
+              var protectedPath = String(locationInfo.protectedContentPath || locationInfo.protected_content_path || "").trim();
+              return !!protectedPath;
+            }
+
+            function redirectToProtectedReader(source, id) {
+              try {
+                var nextUrl = new URL(window.location.href);
+                nextUrl.searchParams.set("id", id);
+                if (source) nextUrl.searchParams.set("source", source);
+                else nextUrl.searchParams.delete("source");
+                nextUrl.searchParams.set("reader", "protected");
+                nextUrl.searchParams.set("protectedUx", nextUrl.searchParams.get("protectedUx") || "old-shell");
+                nextUrl.searchParams.set("protectedArtifactSource", nextUrl.searchParams.get("protectedArtifactSource") || "r2");
+                nextUrl.searchParams.set("protectedAllowAll", nextUrl.searchParams.get("protectedAllowAll") || "1");
+                window.location.replace(nextUrl.toString());
+                return true;
+              } catch (eProtectedAutoRedirect) {
+                return false;
+              }
+            }
+
             function resolveLegacyPlatformBookPath(id) {
               var basePath = `/books/content/${encodeURIComponent(id)}/`;
               var containerPath = `${basePath}META-INF/container.xml?v=${Date.now()}`;
@@ -709,6 +734,9 @@
           if (!isDemoEntry && localStorage) localStorage.setItem("readerpub:lastsource", source);
         } catch (e5) {}
       }
+      if (shouldBootProtectedReader(locationInfo)) {
+        if (redirectToProtectedReader(source, id)) return;
+      }
       var bookPath = "";
       if (locationInfo) {
         if (isLocalPreviewHost() && locationInfo.localContentPath) {
@@ -731,6 +759,9 @@
     .catch(function(){
       fetchAuthorizedBookLocation(id)
         .then(function(locationInfo){
+          if (shouldBootProtectedReader(locationInfo)) {
+            if (redirectToProtectedReader(source, id)) return;
+          }
           if (locationInfo) {
             bootReader(isLocalPreviewHost() && locationInfo.localContentPath ? String(locationInfo.localContentPath) : String(locationInfo.contentPath || ""));
             return;

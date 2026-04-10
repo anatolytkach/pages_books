@@ -1,15 +1,9 @@
 # Protected Ingestion Dry-Run
 
-This module builds a local-only protected book artifact for `reader_render_v3`.
+This module can either:
 
-It does **not**:
-
-- write to R2
-- change the current catalog
-- change the current public reader
-- change live routing
-
-It is a dry-run builder for a future protected pipeline.
+- build a local-only protected artifact
+- or build, upload, and register a protected artifact for the live catalog
 
 ## Commands
 
@@ -17,6 +11,12 @@ Run from the repository root:
 
 ```bash
 npm --prefix reader_render_v3 run protected:build -- --input books/content/19686 --output artifacts/protected-books/19686
+```
+
+Build, upload to R2, and register the book in catalog metadata:
+
+```bash
+npm --prefix reader_render_v3 run protected:publish -- --input books/content/19686 --output artifacts/protected-books/19686
 ```
 
 Or from inside `/Volumes/2T/se_ingest/pages_books/reader_render_v3`:
@@ -35,6 +35,14 @@ Validate runtime-safe artifact:
 
 ```bash
 npm --prefix reader_render_v3 run protected:validate -- --input artifacts/protected-books/19686
+```
+
+Explicit control:
+
+```bash
+npm --prefix reader_render_v3 run protected:build -- --input books/content/19686 --output artifacts/protected-books/19686 --upload
+npm --prefix reader_render_v3 run protected:build -- --input books/content/19686 --output artifacts/protected-books/19686 --register
+npm --prefix reader_render_v3 run protected:build -- --input books/content/19686 --output artifacts/protected-books/19686 --publish
 ```
 
 ## Accepted input
@@ -72,13 +80,40 @@ The runtime-safe selection layer stores only logical range metadata and does not
 
 Readable debug fields such as `char` and `fullText` live only inside the optional `debug/` subtree.
 
+## Publish behavior
+
+When `--upload` is enabled, the artifact is uploaded to:
+
+- `protected-content/<bookId>/...`
+
+When `--register` is enabled, the tool:
+
+- writes `readerType: "protected"` into `tools/state/book_path_overrides.json`
+- rebuilds catalog author/search indexes for the book
+- rebuilds `reader_lang_indexes/book-locations*.json`
+
+When `--publish` is enabled, it does both and also uploads the changed API files to R2.
+
+The tool preserves the book's existing source/sourceBookId/content-path identity when it can find it in the current catalog metadata. If no prior catalog identity exists, it falls back to:
+
+- `source=gutenberg`
+- `sourceBookId=<bookId>`
+- legacy `/books/content/<bookId>/` public paths
+
+Useful flags:
+
+- `--book-id <id>` to override the inferred book id
+- `--bucket <bucket>` to change the R2 bucket
+- `--wrangler-bin <path>` to choose the Wrangler binary
+- `--rclone-bin <path>` and `--rclone-remote <name>` for bulk sync
+- `--skip-rclone` to force per-file Wrangler uploads
+- `--python-bin <path>` for catalog rebuilds
+- `--content-root <path>` if local EPUB content is not under `books/content`
+- `--index-root <path>` if catalog JSON is not under `reader_lang_indexes`
+- `--protected-prefix <prefix>` to override `protected-content/<bookId>`
+- `--dry-run` to print external commands without uploading or writing catalog overrides
+
 ## Current limitations
 
-- no final renderer
-- no pagination engine
-- no canvas integration
-- no server protection
-- no note runtime
-- no full footnote runtime
-
-The goal of this step is only to prove that one current book can be deterministically converted into a chunk-based protected artifact while preserving source traceability.
+- this tool assumes the book already has local EPUB content available under the catalog content root if you use `--register` or `--publish`
+- it updates catalog metadata and R2 objects, but it does not deploy Pages by itself

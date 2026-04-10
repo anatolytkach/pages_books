@@ -139,6 +139,25 @@ function parseLegacyExploded(rootDir) {
 
 function unzipEpub(epubPath) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "protected-build-"));
+  if (process.platform === "win32") {
+    const escape = (value) => String(value).replace(/'/g, "''");
+    execFileSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        [
+          "Add-Type -AssemblyName System.IO.Compression.FileSystem",
+          `$source = '${escape(epubPath)}'`,
+          `$target = '${escape(tempDir)}'`,
+          "[System.IO.Compression.ZipFile]::ExtractToDirectory($source, $target)"
+        ].join("; ")
+      ],
+      { stdio: "ignore" }
+    );
+    return tempDir;
+  }
   execFileSync("unzip", ["-q", epubPath, "-d", tempDir], { stdio: "ignore" });
   return tempDir;
 }
