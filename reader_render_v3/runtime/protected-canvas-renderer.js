@@ -118,13 +118,6 @@ export function renderChunkToCanvas({
     drawHighlightRect(overlay, rect);
   }
 
-  for (const marker of noteMarkers || []) {
-    overlay.fillStyle = marker.color === "blue" ? "rgba(85, 126, 214, 0.9)" : "rgba(177, 129, 24, 0.9)";
-    overlay.beginPath();
-    overlay.arc(marker.x, marker.y, 4, 0, Math.PI * 2);
-    overlay.fill();
-  }
-
   if (debugGeometry) {
     overlay.strokeStyle = "rgba(68, 102, 140, 0.28)";
     overlay.lineWidth = 1;

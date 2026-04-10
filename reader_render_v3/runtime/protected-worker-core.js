@@ -876,6 +876,72 @@ export class ProtectedReaderRuntimeCore {
     };
   }
 
+  async getPageNumbersForGlobalOffsets({ globalOffsets = [] } = {}) {
+    const labels = {};
+    if (!this.book || !Array.isArray(globalOffsets) || !globalOffsets.length) {
+      return { labels };
+    }
+    const runtimeFontMode = this.getCurrentRuntimeFontMode();
+    const chunkPageCounts = Array.isArray(this.bookPaginationSummary && this.bookPaginationSummary.chunkPageCounts)
+      ? this.bookPaginationSummary.chunkPageCounts
+      : [];
+    const manifestChunks = Array.isArray(this.book && this.book.manifest && this.book.manifest.chunks)
+      ? this.book.manifest.chunks
+      : [];
+    const chunkCache = new Map();
+    const chunkIndexById = new Map(manifestChunks.map((chunk, index) => [String(chunk && chunk.chunkId || ""), index]));
+    for (const rawOffset of globalOffsets) {
+      const normalizedOffset = Number(rawOffset || 0);
+      const key = String(rawOffset);
+      if (!Number.isFinite(normalizedOffset) || normalizedOffset < 0) {
+        labels[key] = "";
+        continue;
+      }
+      const resolved = globalOffsetToLocal(this.book.globalLocationModel, normalizedOffset);
+      if (!resolved || !resolved.chunkId) {
+        labels[key] = "";
+        continue;
+      }
+      const chunkIndex = chunkIndexById.get(String(resolved.chunkId || ""));
+      if (!Number.isInteger(chunkIndex) || chunkIndex < 0) {
+        labels[key] = "";
+        continue;
+      }
+      let cached = chunkCache.get(chunkIndex);
+      if (!cached) {
+        const chunkModel = await loadProtectedChunkModel(this.book, chunkIndex, { runtimeFontMode });
+        const shapeRegistry = createGlyphShapeRegistry(chunkModel.shapeBundle, chunkModel.glyphMap);
+        const layout = layoutChunk({
+          chunkModel,
+          styles: this.book.styleMap,
+          width: this.getLayoutWidth(),
+          viewportHeight: this.viewportHeight,
+          fontScale: this.fontScale,
+          renderMode: this.renderMode,
+          metricsMode: this.metricsMode,
+          shapeRegistry
+        });
+        const pagination = buildPaginationModel({
+          chunkModel,
+          layout,
+          viewportHeight: this.viewportHeight,
+          globalModel: this.book.globalLocationModel
+        });
+        const globalPageBeforeChunk = chunkPageCounts
+          .slice(0, chunkIndex)
+          .reduce((sum, value) => sum + Number(value || 0), 0);
+        cached = {
+          pagination,
+          globalPageBeforeChunk
+        };
+        chunkCache.set(chunkIndex, cached);
+      }
+      const pageIndex = findPageIndexForOffset(cached.pagination, Number(resolved.localOffset || 0));
+      labels[key] = String(cached.globalPageBeforeChunk + Number(pageIndex || 0) + 1);
+    }
+    return { labels };
+  }
+
   async goToSearchResult({ resultIndex = -1, annotations = [] } = {}) {
     const nextIndex = Number(resultIndex);
     if (!Number.isFinite(nextIndex) || nextIndex < 0 || !this.searchState || !Array.isArray(this.searchState.matches)) {

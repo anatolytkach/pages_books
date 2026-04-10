@@ -35,6 +35,7 @@ export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
     size,
     lineHeight: Math.round(size * lineHeightFactor),
     css: `${italic}${weight} ${size}px ${family}`,
+    fontStyle: styleTokenRecord.fontStyle === "italic" ? "italic" : "normal",
     letterSpacingPx: Math.round(size * (Number(styleTokenRecord.letterSpacingEm || 0) || 0) * 1000) / 1000,
     trailingSpacingPx: Math.round(size * (Number(styleTokenRecord.trailingSpacingEm || 0) || 0) * 1000) / 1000,
     wordSpacingPx: Math.round(size * (Number(styleTokenRecord.wordSpacingEm || 0) || 0) * 1000) / 1000,
@@ -472,7 +473,9 @@ export function layoutChunk({
       const spacingPx =
         token.kind === "gap"
           ? Number(font.wordSpacingPx || 0)
-          : Number(font.letterSpacingPx || 0) + Number(font.trailingSpacingPx || 0);
+          : Number(font.letterSpacingPx || 0) +
+            Number(font.trailingSpacingPx || 0) +
+            (font.fontStyle === "italic" ? Math.max(0.75, Math.round(font.size * 0.03 * 1000) / 1000) : 0);
       const adjustedWidthPx = widthPx + (spacingPx > 0 ? spacingPx : 0);
       const currentWidth = line.fragments.reduce((sum, item) => sum + item.width, 0);
       metricsStats.glyphCount += measure.glyphCount || glyphs.length;
@@ -482,7 +485,8 @@ export function layoutChunk({
       if (
         currentWidth > 0 &&
         adjustedWidthPx > 0 &&
-        currentWidth + adjustedWidthPx > Number(line.maxWidth || columnWidth)
+        currentWidth + adjustedWidthPx > Number(line.maxWidth || columnWidth) &&
+        token.kind !== "punctuation"
       ) {
         commitLine();
         return placeToken({

@@ -10,6 +10,7 @@ export const PROTECTED_WORKER_METHODS = {
   SEARCH_BOOK: "searchBook",
   GET_SEARCH_RESULTS: "getSearchResults",
   GO_TO_SEARCH_RESULT: "goToSearchResult",
+  GET_PAGE_NUMBERS_FOR_GLOBAL_OFFSETS: "getPageNumbersForGlobalOffsets",
   SEARCH_NEXT_RESULT: "searchNextResult",
   SEARCH_PREV_RESULT: "searchPrevResult",
   CLEAR_SEARCH: "clearSearch",
@@ -186,12 +187,29 @@ function sanitizeSearchResultsPayload(payload = {}) {
   };
 }
 
+function sanitizePageNumbersPayload(payload = {}) {
+  assertAllowedObjectKeys(
+    payload,
+    new Set(["labels"]),
+    "payload"
+  );
+  const labels = payload && payload.labels && typeof payload.labels === "object" && !Array.isArray(payload.labels)
+    ? Object.fromEntries(
+        Object.entries(payload.labels).map(([key, value]) => [String(key), String(value || "")])
+      )
+    : {};
+  return { labels };
+}
+
 export function sanitizeProtectedWorkerPayload(method, payload = {}) {
   if (FORBIDDEN_GENERIC_TEXT_METHODS.has(method)) {
     throw new Error(`Forbidden protected worker method: ${method}`);
   }
   if (method === PROTECTED_WORKER_METHODS.GET_SEARCH_RESULTS) {
     return sanitizeSearchResultsPayload(payload);
+  }
+  if (method === PROTECTED_WORKER_METHODS.GET_PAGE_NUMBERS_FOR_GLOBAL_OFFSETS) {
+    return sanitizePageNumbersPayload(payload);
   }
   if (method === PROTECTED_WORKER_METHODS.COPY_CURRENT_SELECTION) {
     return sanitizeCopyCurrentSelectionPayload(payload);

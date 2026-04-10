@@ -2665,6 +2665,11 @@ function bridgeGetSearchResults() {
   return state.workerClient.getSearchResults({});
 }
 
+function bridgeGetPageNumbersForGlobalOffsets(globalOffsets = []) {
+  const offsets = Array.isArray(globalOffsets) ? globalOffsets : [];
+  return state.workerClient.getPageNumbersForGlobalOffsets({ globalOffsets: offsets });
+}
+
 async function bridgeSetTheme(theme = "light", generationMeta = null) {
   if (generationMeta) applyGenerationMeta(generationMeta);
   applyEmbeddedTheme(theme);
@@ -2731,6 +2736,7 @@ function installEmbeddedBridge() {
     searchPrevResult: bridgeSearchPrevResult,
     clearSearch: bridgeClearSearch,
     getSearchResults: bridgeGetSearchResults,
+    getPageNumbersForGlobalOffsets: bridgeGetPageNumbersForGlobalOffsets,
     setTheme: bridgeSetTheme,
     setFontScale: bridgeSetFontScale,
     setFontMode: bridgeSetFontMode

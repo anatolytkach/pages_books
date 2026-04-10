@@ -48,6 +48,8 @@ const HOST_STATE = {
   searchSidebarSubmitted: false,
   searchSidebarPendingQuery: "",
   searchSidebarForceEmpty: false,
+  bookmarkPageLookupToken: 0,
+  bookmarkPageLookupSignature: "",
   turnPreviewSyncTimer: null,
   turnPreviewPromise: null,
   lastTurnPreviewKey: "",
@@ -1945,11 +1947,75 @@ function renderToc(summary) {
 }
 
 function buildBookmarkLabel(bookmark) {
+  const currentPageNumber = String(bookmark && bookmark.currentPageNumber || "").trim();
+  if (currentPageNumber) return currentPageNumber;
   const progress = String(bookmark && bookmark.globalPageLabel || "").trim();
-  if (progress) return progress;
+  if (progress) return progress.split("/")[0].trim();
   const chapter = String(bookmark && bookmark.chapterLabel || "").trim();
   if (chapter) return chapter;
   return "Bookmark";
+}
+
+async function refreshBookmarkPageNumbers(bookmarks = []) {
+  const entries = Array.isArray(bookmarks)
+    ? bookmarks
+        .map((bookmark, index) => ({
+          bookmark,
+          index,
+          globalOffset: Number(bookmark && bookmark.globalOffset || 0) || 0
+        }))
+        .filter((item) => item.globalOffset > 0)
+    : [];
+  if (!entries.length) return;
+  const layoutSignature = [
+    HOST_STATE.lastSummary && HOST_STATE.lastSummary.bookId ? String(HOST_STATE.lastSummary.bookId) : "",
+    HOST_STATE.lastSummary && HOST_STATE.lastSummary.configGeneration ? String(HOST_STATE.lastSummary.configGeneration) : "",
+    HOST_STATE.lastSummary && HOST_STATE.lastSummary.layoutGeneration ? String(HOST_STATE.lastSummary.layoutGeneration) : "",
+    HOST_STATE.lastSummary && HOST_STATE.lastSummary.fontMode ? String(HOST_STATE.lastSummary.fontMode) : "",
+    HOST_STATE.lastSummary && Number.isFinite(Number(HOST_STATE.lastSummary.fontScale)) ? String(HOST_STATE.lastSummary.fontScale) : ""
+  ].join(":");
+  const signature = `${layoutSignature}|${entries.map((item) => `${item.index}:${item.globalOffset}`).join("|")}`;
+  if (HOST_STATE.bookmarkPageLookupSignature === signature) return;
+  HOST_STATE.bookmarkPageLookupSignature = signature;
+  const requestToken = (HOST_STATE.bookmarkPageLookupToken || 0) + 1;
+  HOST_STATE.bookmarkPageLookupToken = requestToken;
+  let payload = null;
+  try {
+    payload = await invokeBridgeRaw(
+      "getPageNumbersForGlobalOffsets",
+      entries.map((item) => item.globalOffset)
+    );
+  } catch (_error) {
+    if (HOST_STATE.bookmarkPageLookupToken === requestToken) {
+      HOST_STATE.bookmarkPageLookupSignature = "";
+    }
+    return;
+  }
+  if (HOST_STATE.bookmarkPageLookupToken !== requestToken) return;
+  const labels = payload && payload.labels && typeof payload.labels === "object" ? payload.labels : {};
+  const currentBookmarks = getCurrentBookmarks();
+  let changed = false;
+  for (const item of entries) {
+    const label = String(labels[String(item.globalOffset)] || "").trim();
+    if (!label) continue;
+    const current = currentBookmarks[item.index];
+    if (!current) continue;
+    if (String(current.currentPageNumber || "") === label) continue;
+    current.currentPageNumber = label;
+    changed = true;
+  }
+  if (!changed) return;
+  saveStoredBookmarks(currentBookmarks);
+  const targets = [document.getElementById("bookmarks"), document.getElementById("protectedLibraryBookmarksList")];
+  for (const target of targets) {
+    if (!target) continue;
+    const links = target.querySelectorAll(".bookmark_link");
+    links.forEach((link, index) => {
+      const bookmark = HOST_STATE.bookmarks[index];
+      if (!bookmark) return;
+      link.textContent = buildBookmarkLabel(bookmark);
+    });
+  }
 }
 
 function renderBookmarkList(target, bookmarks, summary) {
@@ -2155,6 +2221,7 @@ function renderBookmarks(summary) {
     renderBookmarkList(libraryBookmarksView, bookmarks, summary);
     bindBookmarkListInteractions(libraryBookmarksView);
   }
+  void refreshBookmarkPageNumbers(bookmarks);
 }
 
 function createOldStyleNoteItem(annotation) {
