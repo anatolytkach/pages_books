@@ -1545,35 +1545,35 @@
                 <details class="heroBookPicker">
                   <summary id="heroStartLink" class="catalogHeroButton heroBookPickerSummary">Start reading in WeRead</summary>
                   <div class="heroBookPickerMenu">
-                    <a class="heroBookOption" href="/books/reader1/?id=1342&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                    <a class="heroBookOption" href="/books/reader/?id=1342&amp;entry=hero" target="_blank" rel="noopener noreferrer">
                       <img class="heroBookOptionCover" src="/books/content/1342/OEBPS/3996567743618079316_cover.jpg" alt="" />
                       <span class="heroBookOptionBody">
                         <span class="heroBookOptionTitle">Pride and Prejudice</span>
                         <span class="heroBookOptionAuthor">Jane Austen</span>
                       </span>
                     </a>
-                    <a class="heroBookOption" href="/books/reader1/?id=11&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                    <a class="heroBookOption" href="/books/reader/?id=11&amp;entry=hero" target="_blank" rel="noopener noreferrer">
                       <img class="heroBookOptionCover" src="/books/content/11/OEBPS/4500724211512504931_cover.jpg" alt="" />
                       <span class="heroBookOptionBody">
                         <span class="heroBookOptionTitle">Alice's Adventures in Wonderland</span>
                         <span class="heroBookOptionAuthor">Lewis Carroll</span>
                       </span>
                     </a>
-                    <a class="heroBookOption" href="/books/reader1/?id=84&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                    <a class="heroBookOption" href="/books/reader/?id=84&amp;entry=hero" target="_blank" rel="noopener noreferrer">
                       <img class="heroBookOptionCover" src="/books/content/84/OEBPS/6171239746783589600_cover.jpg" alt="" />
                       <span class="heroBookOptionBody">
                         <span class="heroBookOptionTitle">Frankenstein</span>
                         <span class="heroBookOptionAuthor">Mary Wollstonecraft Shelley</span>
                       </span>
                     </a>
-                    <a class="heroBookOption" href="/books/reader1/?id=1661&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                    <a class="heroBookOption" href="/books/reader/?id=1661&amp;entry=hero" target="_blank" rel="noopener noreferrer">
                       <img class="heroBookOptionCover" src="/books/content/1661/OEBPS/5463403510293679682_cover.jpg" alt="" />
                       <span class="heroBookOptionBody">
                         <span class="heroBookOptionTitle">The Adventures of Sherlock Holmes</span>
                         <span class="heroBookOptionAuthor">Arthur Conan Doyle</span>
                       </span>
                     </a>
-                    <a class="heroBookOption" href="/books/reader1/?id=2701&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                    <a class="heroBookOption" href="/books/reader/?id=2701&amp;entry=hero" target="_blank" rel="noopener noreferrer">
                       <img class="heroBookOptionCover" src="/books/content/2701/OEBPS/4318954881170042010_cover.jpg" alt="" />
                       <span class="heroBookOptionBody">
                         <span class="heroBookOptionTitle">Moby-Dick</span>
@@ -2770,7 +2770,7 @@
           const source = target.source;
           const entry = String(entryOverride || "catalog").trim();
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
-          const base = isPagesDev ? "/reader1/" : "/books/reader1/";
+          const base = isPagesDev ? "/reader/" : "/books/reader/";
           let url = `${base}?id=${encodeURIComponent(id)}`;
           if (source && source !== "gutenberg") url += `&source=${encodeURIComponent(source)}`;
           const coverHint = String(cover || "").trim();
