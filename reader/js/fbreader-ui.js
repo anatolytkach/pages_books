@@ -5876,6 +5876,45 @@
       return best;
     }
 
+    function getProtectedReaderBridge() {
+      try {
+        var frame = document.getElementById("protectedOldShellFrame");
+        if (!frame || !frame.contentWindow) return null;
+        var bridge = frame.contentWindow.__PROTECTED_READER_BRIDGE__ || null;
+        if (!bridge || typeof bridge.getReadAloudPayload !== "function") return null;
+        return bridge;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function normalizeProtectedSpeechText(text) {
+      return String(text || "")
+        .replace(/\r/g, "")
+        .replace(/[ \t]*\n[ \t]*/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/[ \t]{2,}/g, " ")
+        .trim();
+    }
+
+    function getProtectedSpeechPayload() {
+      var bridge = getProtectedReaderBridge();
+      if (!bridge) return Promise.resolve(null);
+      return Promise.resolve(bridge.getReadAloudPayload()).then(function (payload) {
+        var text = normalizeProtectedSpeechText(payload && payload.text ? payload.text : "");
+        if (!text) return null;
+        return {
+          doc: null,
+          content: null,
+          text: text,
+          map: [],
+          locKey: String((payload && (payload.globalPageLabel || payload.pageLabel)) || "")
+        };
+      }).catch(function () {
+        return null;
+      });
+    }
+
     function normHref(h) {
       var s = String(h || "");
       s = s.split("#")[0];
@@ -6711,35 +6750,32 @@
       return out;
     }
 
-    function startCurrentPage(expectedLocKey, retriesLeft) {
+    function startSpeechFromPayload(payload, expectedLocKey, resumeCfi) {
       if (!state.enabled) return;
       if (!synth || !SpeechUtterance) return;
-      var retries = (typeof retriesLeft === "number") ? retriesLeft : 0;
-      var resumeCfi = arguments.length > 2 ? String(arguments[2] || "") : "";
-      var payload = pagePayload(resumeCfi);
-      if (!payload) {
-        if (retries > 0) {
-          state.restartTimer = setTimeout(function () { startCurrentPage(expectedLocKey, retries - 1); }, 120);
-          return;
-        }
+      if (!payload || !payload.text) {
         stopSpeaking(true);
         return;
       }
-      if (expectedLocKey && payload.locKey && payload.locKey !== expectedLocKey && retries > 0) {
-        state.restartTimer = setTimeout(function () { startCurrentPage(expectedLocKey, retries - 1); }, 100);
+      var resumeFromCfi = String(resumeCfi || "");
+      if (expectedLocKey && payload.locKey && payload.locKey !== expectedLocKey && state.map.length) {
+        stopSpeaking(true);
         return;
       }
       state.lastSpokenText = payload.text;
-      state.map = payload.map;
-      state.doc = payload.doc;
+      state.map = payload.map || [];
+      state.doc = payload.doc || null;
       state.content = payload.content || null;
       state.lastSpokenSeg = null;
-      state.lastWordCfi = resumeCfi || "";
-      try {
-        var loc = reader && reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
-        state.pageStartCfi = String(loc && loc.start && loc.start.cfi ? loc.start.cfi : "");
-      } catch (ePageCfi) {
-        state.pageStartCfi = "";
+      state.lastWordCfi = resumeFromCfi;
+      if (!state.doc || !state.content) state.pageStartCfi = "";
+      else {
+        try {
+          var loc = reader && reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
+          state.pageStartCfi = String(loc && loc.start && loc.start.cfi ? loc.start.cfi : "");
+        } catch (ePageCfi) {
+          state.pageStartCfi = "";
+        }
       }
       clearHighlight();
 
@@ -6883,6 +6919,43 @@
         state.enabled = false;
         setButtonState(false);
       }
+    }
+
+    function startCurrentPage(expectedLocKey, retriesLeft) {
+      if (!state.enabled) return;
+      if (!synth || !SpeechUtterance) return;
+      var retries = (typeof retriesLeft === "number") ? retriesLeft : 0;
+      var resumeCfi = arguments.length > 2 ? String(arguments[2] || "") : "";
+      var protectedBridge = getProtectedReaderBridge();
+      if (protectedBridge) {
+        getProtectedSpeechPayload().then(function (protectedPayload) {
+          if (!state.enabled) return;
+          if (protectedPayload && protectedPayload.text) {
+            startSpeechFromPayload(protectedPayload, expectedLocKey, "");
+            return;
+          }
+          if (retries > 0) {
+            state.restartTimer = setTimeout(function () { startCurrentPage(expectedLocKey, retries - 1, resumeCfi); }, 120);
+            return;
+          }
+          stopSpeaking(true);
+        });
+        return;
+      }
+      var payload = pagePayload(resumeCfi);
+      if (!payload) {
+        if (retries > 0) {
+          state.restartTimer = setTimeout(function () { startCurrentPage(expectedLocKey, retries - 1); }, 120);
+          return;
+        }
+        stopSpeaking(true);
+        return;
+      }
+      if (expectedLocKey && payload.locKey && payload.locKey !== expectedLocKey && retries > 0) {
+        state.restartTimer = setTimeout(function () { startCurrentPage(expectedLocKey, retries - 1); }, 100);
+        return;
+      }
+      startSpeechFromPayload(payload, expectedLocKey, resumeCfi);
     }
 
     function restartCurrentPage() {

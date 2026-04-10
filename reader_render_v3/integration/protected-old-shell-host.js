@@ -53,7 +53,11 @@ const HOST_STATE = {
   turnPreviewSyncTimer: null,
   turnPreviewPromise: null,
   lastTurnPreviewKey: "",
-  turnInFlight: false
+  turnInFlight: false,
+  tts: {
+    active: false,
+    token: 0
+  }
 };
 
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
@@ -193,7 +197,6 @@ function installStyles() {
       overflow: hidden;
       -webkit-tap-highlight-color: transparent !important;
     }
-    body.protected-old-shell #ttsToggleDesktop,
     body.protected-old-shell #ttsToggleMobile,
     body.protected-old-shell #addressBarToggle {
       display: none !important;
@@ -360,9 +363,50 @@ function installStyles() {
     body.protected-old-shell #searchbar {
       display: none !important;
     }
+    body.protected-old-shell #title-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+    }
     body.protected-old-shell #themeToggle,
+    body.protected-old-shell #ttsToggleDesktop,
     body.protected-old-shell #bookmark {
       display: inline-flex !important;
+    }
+    body.protected-old-shell #title-controls > #ttsToggleDesktop,
+    body.protected-old-shell #title-controls > #themeToggle,
+    #protectedLibraryTrigger,
+    #protectedSearchTrigger,
+    #protectedTypographyTrigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 !important;
+      width: 32px;
+      min-width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      box-sizing: border-box;
+    }
+    body.protected-old-shell #ttsToggleDesktop {
+      order: 59;
+      display: inline-flex !important;
+    }
+    body.protected-old-shell #ttsToggleDesktop .tts-icon {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+    }
+    html.is-phone body.protected-old-shell #ttsToggleDesktop,
+    html.is-tablet body.protected-old-shell #ttsToggleDesktop {
+      display: inline-flex !important;
+    }
+    html.is-phone body.protected-old-shell #ttsToggleMobile,
+    html.is-tablet body.protected-old-shell #ttsToggleMobile {
+      display: none !important;
     }
     body.protected-old-shell #bottombar #bookmark {
       display: inline-flex !important;
@@ -387,28 +431,26 @@ function installStyles() {
     #protectedLibraryControl {
       display: inline-flex;
       align-items: center;
-      margin-left: 0;
+      justify-content: center;
+      width: 32px;
+      min-width: 32px;
+      margin: 0;
       vertical-align: middle;
-      order: 59;
+      order: 61;
     }
     #protectedSearchControl {
       display: inline-flex;
       align-items: center;
-      margin-left: 0;
+      justify-content: center;
+      width: 32px;
+      min-width: 32px;
+      margin: 0;
       vertical-align: middle;
-      order: 60;
+      order: 62;
     }
     #protectedLibraryTrigger {
       appearance: none;
       -webkit-appearance: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 36px;
-      height: 32px;
-      padding: 0 6px;
-      border-radius: 0;
-      border: 0;
       background: transparent;
       color: #eef4fb;
       cursor: pointer;
@@ -427,14 +469,6 @@ function installStyles() {
     #protectedSearchTrigger {
       appearance: none;
       -webkit-appearance: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 36px;
-      height: 32px;
-      padding: 0 6px;
-      border-radius: 0;
-      border: 0;
       background: transparent;
       color: #eef4fb;
       cursor: pointer;
@@ -455,26 +489,19 @@ function installStyles() {
     #protectedTypographyControl {
       display: inline-flex;
       align-items: center;
-      margin-left: 8px;
+      justify-content: center;
+      width: 32px;
+      min-width: 32px;
+      margin: 0;
       vertical-align: middle;
-      order: 61;
+      order: 64;
     }
     body.protected-old-shell #themeToggle {
-      order: 62;
+      order: 60;
     }
-    #protectedLibraryTrigger[aria-expanded="true"],
-    #protectedSearchTrigger[aria-expanded="true"],
     #protectedTypographyTrigger {
       appearance: none;
       -webkit-appearance: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 36px;
-      height: 32px;
-      padding: 0 6px;
-      border-radius: 0;
-      border: 0;
       background: transparent;
       color: #eef4fb;
       cursor: pointer;
@@ -505,6 +532,32 @@ function installStyles() {
       height: 20px;
       display: block;
       object-fit: contain;
+    }
+    body.protected-old-shell #themeToggle,
+    body.protected-old-shell #ttsToggleDesktop,
+    #protectedLibraryTrigger,
+    #protectedSearchTrigger,
+    #protectedTypographyTrigger {
+      opacity: 0.96;
+    }
+    #protectedLibraryControl > #protectedLibraryTrigger,
+    #protectedSearchControl > #protectedSearchTrigger,
+    #protectedTypographyControl > #protectedTypographyTrigger {
+      flex: 0 0 32px;
+      width: 32px !important;
+      min-width: 32px !important;
+    }
+    body.protected-old-shell #themeToggle:hover,
+    body.protected-old-shell #themeToggle:focus-visible,
+    body.protected-old-shell #ttsToggleDesktop:hover,
+    body.protected-old-shell #ttsToggleDesktop:focus-visible,
+    #protectedLibraryTrigger:hover,
+    #protectedLibraryTrigger:focus-visible,
+    #protectedSearchTrigger:hover,
+    #protectedSearchTrigger:focus-visible,
+    #protectedTypographyTrigger:hover,
+    #protectedTypographyTrigger:focus-visible {
+      opacity: 1;
     }
     #protectedTypographyTrigger[aria-expanded="true"] {
       color: #ffffff;
@@ -4322,6 +4375,182 @@ async function invokeBridgeRaw(method, ...args) {
   return bridge[method](...args);
 }
 
+function setHostTtsButtonState(active) {
+  const button = document.getElementById("ttsToggleDesktop");
+  if (!button) return;
+  button.classList.toggle("is-speaking", !!active);
+  button.setAttribute("aria-label", active ? "Stop reading aloud" : "Start reading aloud");
+  button.setAttribute("title", active ? "Stop reading aloud" : "Read aloud");
+}
+
+function normalizeTtsLang(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function pickHostTtsVoice(voices, payload = null) {
+  if (!Array.isArray(voices) || !voices.length) return null;
+  const voiceSelect = document.getElementById("voiceSelect");
+  const selectedVoiceUri = voiceSelect ? String(voiceSelect.value || "").trim() : "";
+  if (selectedVoiceUri) {
+    const exact = voices.find((voice) => voice && String(voice.voiceURI || "") === selectedVoiceUri) || null;
+    if (exact) return exact;
+  }
+  const voiceLangSelect = document.getElementById("voiceLangSelect");
+  const selectedLang = normalizeTtsLang(voiceLangSelect ? voiceLangSelect.value : "");
+  const payloadLang = normalizeTtsLang(payload && payload.lang ? payload.lang : "");
+  const wantedLang = selectedLang || payloadLang;
+  if (wantedLang) {
+    const exactLang = voices.find((voice) => normalizeTtsLang(voice && voice.lang) === wantedLang) || null;
+    if (exactLang) return exactLang;
+    const prefix = wantedLang.split("-")[0];
+    const prefixMatch = voices.find((voice) => normalizeTtsLang(voice && voice.lang).startsWith(prefix)) || null;
+    if (prefixMatch) return prefixMatch;
+  }
+  return voices[0] || null;
+}
+
+async function getHostTtsVoices(synth) {
+  if (!synth || typeof synth.getVoices !== "function") return [];
+  let voices = synth.getVoices() || [];
+  if (voices.length) return voices;
+  voices = await new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      try {
+        synth.removeEventListener && synth.removeEventListener("voiceschanged", handleVoicesChanged);
+      } catch (_error) {}
+      window.clearTimeout(timeoutId);
+      resolve((synth.getVoices && synth.getVoices()) || []);
+    };
+    const handleVoicesChanged = () => finish();
+    try {
+      synth.addEventListener && synth.addEventListener("voiceschanged", handleVoicesChanged, { once: true });
+    } catch (_error) {}
+    const timeoutId = window.setTimeout(finish, 800);
+  });
+  return Array.isArray(voices) ? voices : [];
+}
+
+function buildHostTtsSegments(text) {
+  const source = String(text || "").trim();
+  if (!source) return [];
+  const segments = [];
+  let cursor = 0;
+  const maxLength = 220;
+  while (cursor < source.length) {
+    let end = Math.min(source.length, cursor + maxLength);
+    if (end < source.length) {
+      const slice = source.slice(cursor, end);
+      const punctuation = slice.match(/[\.\!\?;:]\s+[^\.\!\?;:]*$/);
+      if (punctuation && punctuation.index > 24) end = cursor + punctuation.index + 1;
+    }
+    if (end <= cursor) end = Math.min(source.length, cursor + maxLength);
+    const segmentText = source.slice(cursor, end).trim();
+    if (segmentText) segments.push(segmentText);
+    cursor = end;
+  }
+  return segments.length ? segments : [source];
+}
+
+function stopHostTts() {
+  HOST_STATE.tts.token += 1;
+  HOST_STATE.tts.active = false;
+  setHostTtsButtonState(false);
+  try {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  } catch (_error) {}
+}
+
+async function speakProtectedReadAloudPage({ continueFromNextPage = false } = {}) {
+  if (!HOST_STATE.tts.active) return;
+  const token = HOST_STATE.tts.token;
+  const synth = window.speechSynthesis || null;
+  const Utterance = window.SpeechSynthesisUtterance || null;
+  if (!synth || !Utterance) {
+    stopHostTts();
+    setHostActionStatus("Read aloud is unavailable in this browser.");
+    return;
+  }
+  let payload = null;
+  try {
+    payload = await invokeBridgeRaw("getReadAloudPayload");
+  } catch (_error) {
+    payload = null;
+  }
+  if (!HOST_STATE.tts.active || token !== HOST_STATE.tts.token) return;
+  const text = String(payload && payload.text ? payload.text : "").trim();
+  if (!text) {
+    stopHostTts();
+    setHostActionStatus("Nothing to read on this page.");
+    return;
+  }
+  const segments = buildHostTtsSegments(text);
+  const voices = await getHostTtsVoices(synth);
+  if (!HOST_STATE.tts.active || token !== HOST_STATE.tts.token) return;
+  const selectedVoice = pickHostTtsVoice(voices, payload);
+  let index = 0;
+  setHostTtsButtonState(true);
+
+  const speakNextSegment = () => {
+    if (!HOST_STATE.tts.active || token !== HOST_STATE.tts.token) return;
+    if (index >= segments.length) {
+      const summary = HOST_STATE.lastSummary;
+      if (continueFromNextPage && summary && summary.canGoNext) {
+        Promise.resolve(invokeBridgeRaw("nextPage"))
+          .then((nextSummary) => {
+            if (nextSummary) updateFromSummary(nextSummary);
+            if (!HOST_STATE.tts.active || token !== HOST_STATE.tts.token) return;
+            window.setTimeout(() => {
+              void speakProtectedReadAloudPage({ continueFromNextPage: true });
+            }, 120);
+          })
+          .catch(() => {
+            stopHostTts();
+          });
+        return;
+      }
+      stopHostTts();
+      return;
+    }
+    const utterance = new Utterance(segments[index]);
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      if (selectedVoice.lang) utterance.lang = selectedVoice.lang;
+    }
+    utterance.onend = () => {
+      if (!HOST_STATE.tts.active || token !== HOST_STATE.tts.token) return;
+      index += 1;
+      speakNextSegment();
+    };
+    utterance.onerror = () => {
+      stopHostTts();
+    };
+    try {
+      synth.speak(utterance);
+    } catch (_error) {
+      stopHostTts();
+    }
+  };
+
+  try {
+    synth.cancel();
+  } catch (_error) {}
+  speakNextSegment();
+}
+
+async function toggleHostTts() {
+  if (HOST_STATE.tts.active) {
+    stopHostTts();
+    return;
+  }
+  HOST_STATE.tts.token += 1;
+  HOST_STATE.tts.active = true;
+  setHostTtsButtonState(true);
+  await speakProtectedReadAloudPage({ continueFromNextPage: true });
+}
+
 function ensureActionBar() {
   if (!isDevPanelEnabled()) return null;
   let bar = document.getElementById("protectedShellActionBar");
@@ -4998,11 +5227,18 @@ function bindShellControls() {
   });
 
   const theme = document.getElementById("themeToggle");
+  const tts = document.getElementById("ttsToggleDesktop");
   const bookmark = document.getElementById("bookmark");
   syncProtectedShellIcons();
   const libraryTrigger = document.getElementById("protectedLibraryTrigger");
   const searchTrigger = document.getElementById("protectedSearchTrigger");
   ensureSearchOverlay();
+  tts && tts.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+    await toggleHostTts();
+  }, true);
   theme && theme.addEventListener("click", async (event) => {
     event.preventDefault();
     const currentTheme = HOST_STATE.lastSummary && HOST_STATE.lastSummary.theme === "dark" ? "dark" : "light";

@@ -5,6 +5,7 @@ import { createProtectedWorkerClient } from "../runtime/protected-worker-client.
 import { loadProtectedBook, loadProtectedChunkModel } from "../runtime/protected-book-model.js";
 import { parseRestoreToken } from "../runtime/protected-global-location.js";
 import { reconstructCrossChunkRangeText } from "../runtime/protected-cross-chunk-model.js";
+import { reconstructVisibleWindow } from "../runtime/protected-text-reconstruction.js";
 import { resolveProductionPayloadFromRoute } from "../integration/protected-reader-routing.js";
 import {
   buildProtectedSyncTransport,
@@ -2670,6 +2671,47 @@ function bridgeGetPageNumbersForGlobalOffsets(globalOffsets = []) {
   return state.workerClient.getPageNumbersForGlobalOffsets({ globalOffsets: offsets });
 }
 
+async function bridgeGetReadAloudPayload() {
+  if (!state.currentSnapshot || !state.compatBook) {
+    return {
+      text: "",
+      pageLabel: "",
+      globalPageLabel: ""
+    };
+  }
+  const chunkOrder = Math.max(
+    0,
+    Number(state.currentSnapshot && state.currentSnapshot.chunkSummary ? state.currentSnapshot.chunkSummary.order - 1 : 0) || 0
+  );
+  const pageWindow =
+    state.currentSnapshot &&
+    state.currentSnapshot.renderPacket &&
+    state.currentSnapshot.renderPacket.pageWindow
+      ? state.currentSnapshot.renderPacket.pageWindow
+      : null;
+  if (!pageWindow) {
+    return {
+      text: "",
+      pageLabel: buildBridgeSummary().pageLabel,
+      globalPageLabel: buildBridgeSummary().globalPageLabel
+    };
+  }
+  const chunkModel = await loadProtectedChunkModel(state.compatBook, chunkOrder, {
+    runtimeFontMode: state.fontMode
+  });
+  const rawText = reconstructVisibleWindow(chunkModel, pageWindow) || "";
+  const text = String(rawText)
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+  return {
+    text,
+    pageLabel: buildBridgeSummary().pageLabel,
+    globalPageLabel: buildBridgeSummary().globalPageLabel
+  };
+}
+
 async function bridgeSetTheme(theme = "light", generationMeta = null) {
   if (generationMeta) applyGenerationMeta(generationMeta);
   applyEmbeddedTheme(theme);
@@ -2737,6 +2779,7 @@ function installEmbeddedBridge() {
     clearSearch: bridgeClearSearch,
     getSearchResults: bridgeGetSearchResults,
     getPageNumbersForGlobalOffsets: bridgeGetPageNumbersForGlobalOffsets,
+    getReadAloudPayload: bridgeGetReadAloudPayload,
     setTheme: bridgeSetTheme,
     setFontScale: bridgeSetFontScale,
     setFontMode: bridgeSetFontMode
