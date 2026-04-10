@@ -4295,6 +4295,20 @@ if (!doc) return;
 			function attachUiTapToDoc(doc) {
 				try {
 					if (!doc || doc.__uiTapAttached) return;
+					try {
+						var topDoc = (doc.defaultView && doc.defaultView.parent && doc.defaultView.parent.document)
+							? doc.defaultView.parent.document
+							: document;
+						var topBody = topDoc && topDoc.body ? topDoc.body : null;
+						var topRoot = topDoc && topDoc.documentElement ? topDoc.documentElement : null;
+						var isProtectedOldShell = !!(topBody && topBody.classList && topBody.classList.contains("protected-old-shell"));
+						var isMobileOrTablet = !!(
+							topRoot &&
+							topRoot.classList &&
+							(topRoot.classList.contains("is-phone") || topRoot.classList.contains("is-tablet"))
+						);
+						if (isProtectedOldShell && isMobileOrTablet) return;
+					} catch (eProtectedUiTap) {}
 					doc.__uiTapAttached = true;
 
 					var win = doc.defaultView || window;
@@ -4495,6 +4509,20 @@ if (!doc) return;
 function attachSwipeToDoc(doc) {
 			try {
 				if (!doc || doc.__swipeNavAttached) return;
+				try {
+					var topDoc = (doc.defaultView && doc.defaultView.parent && doc.defaultView.parent.document)
+						? doc.defaultView.parent.document
+						: document;
+					var topBody = topDoc && topDoc.body ? topDoc.body : null;
+					var topRoot = topDoc && topDoc.documentElement ? topDoc.documentElement : null;
+					var isProtectedOldShell = !!(topBody && topBody.classList && topBody.classList.contains("protected-old-shell"));
+					var isMobileOrTablet = !!(
+						topRoot &&
+						topRoot.classList &&
+						(topRoot.classList.contains("is-phone") || topRoot.classList.contains("is-tablet"))
+					);
+					if (isProtectedOldShell && isMobileOrTablet) return;
+				} catch (eProtectedSwipe) {}
 				doc.__swipeNavAttached = true;
 				var win = doc.defaultView || window;
 				function isTabletMode() {

@@ -54,6 +54,9 @@ const HOST_STATE = {
   turnPreviewPromise: null,
   lastTurnPreviewKey: "",
   turnInFlight: false,
+  suppressTouchAutoHideUntil: 0,
+  suppressSyntheticClickUntil: 0,
+  touchUiGuardInstalled: false,
   tts: {
     active: false,
     token: 0
@@ -75,10 +78,15 @@ const PROTECTED_MY_LIBRARY_ICON_SVG = `
 `;
 const PROTECTED_CATALOG_ICON_SVG = `
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-    <path d="M5 4.5h10.5a2 2 0 0 1 2 2V18H7a2 2 0 0 0-2 2z"></path>
-    <path d="M7 20h10.5a1.5 1.5 0 0 0 1.5-1.5V6.5"></path>
-    <path d="M8 8h7"></path>
-    <path d="M8 11h7"></path>
+    <path d="M1.5 1.35c-.37.06-.7-.1-1.12.2C.09 1.76 0 2.03 0 2.49v13.25c0 .42-.02.9 0 1.32.02.39.25.66.52.8.3.15.83.1 1.22.1h5.3c.78 0 1.08-.08 1.51.48.1.12.22.24.33.33.7.53 1.38.41 2.23.41.39 0 .93.03 1.28-.05.29-.07.85-.23.57-.6-.2-.25-.37-.5-.55-.77-.32-.48-.7-1.13-.84-1.81-.13-.61-.09-1.89-.09-2.58V2.78c0-.64-.13-1.32.38-1.6.19-.1.33-.1.58-.1 1.77 0 3.53 0 5.3 0 .28 0 1.09-.04 1.3.02.32.07.59.34.6.72.02.88 0 1.78 0 2.66v5.96c0 .3.07.27.3.36.37.16.51.3.76.56.18.19.46-.06 1.12.16.28.1.22-.19.22-.4V2.49c0-.25 0-.37-.08-.57-.34-.75-1.15-.52-1.43-.57-.09-.17-.04-.19-.22-.47-.28-.43-.78-.73-1.35-.75-.45-.03-.95 0-1.4 0h-4.23c-.4 0-1-.03-1.37.03-.58.1-.8.42-.93.49-.06-.05-.11-.1-.18-.16-.07-.06-.13-.1-.22-.14C10.06.04 9.48.14 8.75.14H4.54c-.46 0-.96-.02-1.42 0-.66.03-1.23.42-1.49.98-.03.07-.06.18-.1.25Zm9.03 14.53c.02-.94 0-1.91 0-2.86V2.98c0-.31.04-1.15-.04-1.39-.06-.18-.18-.31-.31-.4-.19-.12-.34-.11-.6-.11H3.83c-.49 0-.93-.08-1.22.22-.3.3-.22.72-.22 1.2v11.48c0 .45-.07.97.18 1.25.3.33.63.26 1.16.26h4.31c.85 0 1.48-.08 2.24.26.04.02.2.1.25.11Zm11.64-1.97c-.01-.35.05-.7-.1-.98-.35-.72-1.3-.74-1.72-.14-.04.06-.07.1-.1.18-.02.06-.04.15-.07.2-.03-.34.05-.7-.1-1-.34-.7-1.28-.78-1.74-.11-.05.08-.15.32-.15.39-.02-.29 0-1.94 0-2.37 0-.23.02-.58-.01-.79-.14-.92-1.42-1.13-1.85-.3-.12.23-.12.38-.12.67v5.6c0 .24.03 1.45 0 1.58-.02.1-.15.13-.23.06l-.6-.61c-.39-.38-1.19-1.11-1.86-1.34-.47-.16-.96-.08-1.06.38-.18.86 1.21 2.58 1.65 3.13.5.63 1.33 1.52 1.9 2.08.17.15.27.25.42.39.46.46 1.39.92 2.09 1.11.47.12.95.13 1.47.12 1.71-.04 3.16-1.03 3.83-2.56.4-.93.34-1.75.34-2.87v-2.38c0-.3.01-.46-.11-.7-.3-.6-1.11-.72-1.57-.26-.23.23-.21.37-.3.51Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"></path>
+  </svg>
+`;
+const PROTECTED_BOTTOM_CATALOG_ICON_SVG = `
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M6 5.5h9.5a2 2 0 0 1 2 2V18H8a2 2 0 0 0-2 2z"></path>
+    <path d="M8 19.5H18a1.5 1.5 0 0 0 1.5-1.5V7.5"></path>
+    <path d="M9 9h6"></path>
+    <path d="M9 12h6"></path>
   </svg>
 `;
 
@@ -174,32 +182,64 @@ function isTouchShellMode() {
   return false;
 }
 
-function showShellUi() {
+function showShellUi(source = "programmatic") {
   try {
     if (typeof window.__fbShowUi === "function") {
       window.__fbShowUi();
-      return;
+    } else {
+      document.body.classList.remove("ui-hidden");
     }
   } catch (_error) {}
-  document.body.classList.remove("ui-hidden");
+  try {
+    if (source === "touch-center") window.__readerpubProtectedUserShowUiAt = Date.now();
+  } catch (_error) {}
+  if (source === "touch-center" && isTouchShellMode()) {
+    HOST_STATE.suppressTouchAutoHideUntil = Date.now() + 900;
+  }
 }
 
-function hideShellUi() {
+function hideShellUi(source = "programmatic") {
+  if (
+    source !== "touch-center" &&
+    isTouchShellMode() &&
+    Date.now() < Number(HOST_STATE.suppressTouchAutoHideUntil || 0)
+  ) {
+    return;
+  }
   try {
     if (typeof window.__fbHideUi === "function") {
       window.__fbHideUi();
-      return;
+    } else {
+      document.body.classList.add("ui-hidden");
     }
   } catch (_error) {}
-  document.body.classList.add("ui-hidden");
 }
 
-function toggleShellUi() {
+function toggleShellUi(source = "programmatic") {
   if (document.body.classList.contains("ui-hidden")) {
-    showShellUi();
+    showShellUi(source);
+    if (source === "touch-center" && isTouchShellMode()) {
+      HOST_STATE.suppressSyntheticClickUntil = Date.now() + 900;
+    }
     return;
   }
-  hideShellUi();
+  hideShellUi(source);
+}
+
+function installTouchUiVisibilityGuard() {
+  if (HOST_STATE.touchUiGuardInstalled) return;
+  HOST_STATE.touchUiGuardInstalled = true;
+  if (!window.MutationObserver || !document.body) return;
+  const observer = new MutationObserver(() => {
+    if (!isTouchShellMode()) return;
+    if (Date.now() >= Number(HOST_STATE.suppressTouchAutoHideUntil || 0)) return;
+    if (!document.body.classList.contains("ui-hidden")) return;
+    document.body.classList.remove("ui-hidden");
+    try {
+      if (typeof window.__fbShowUi === "function") window.__fbShowUi();
+    } catch (_error) {}
+  });
+  observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 
 function installStyles() {
@@ -212,7 +252,8 @@ function installStyles() {
       -webkit-tap-highlight-color: transparent !important;
     }
     body.protected-old-shell #ttsToggleMobile,
-    body.protected-old-shell #addressBarToggle {
+    body.protected-old-shell #addressBarToggle,
+    body.protected-old-shell #fullscreen {
       display: none !important;
     }
     body.protected-old-shell #viewerStack {
@@ -383,19 +424,24 @@ function installStyles() {
       gap: 14px;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell #titlebar {
-      min-height: 66px;
-      height: 66px;
-      padding-top: 10px;
-      padding-bottom: 10px;
+      --titlebar-h: 43px;
+      min-height: 43px !important;
+      height: 43px !important;
+      padding-top: 3px !important;
+      padding-bottom: 3px !important;
       position: relative;
       align-items: center;
     }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #title-controls {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      gap: 14px;
+    }
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell #opener {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 252px;
-      flex: 0 0 auto;
+      display: none !important;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell #slider,
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell #openNotes,
@@ -421,7 +467,7 @@ function installStyles() {
       align-items: center;
       justify-content: center;
       width: 100%;
-      line-height: 1.08;
+      line-height: 1.18;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell #book-title,
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell #chapter-title {
@@ -429,47 +475,96 @@ function installStyles() {
       text-align: center;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell #book-title {
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 600;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell #chapter-title {
-      margin-top: 2px;
-      font-size: 13px;
+      margin-top: 4px;
+      font-size: 11px;
       opacity: 0.9;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-left-links {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 0;
+      min-width: 0;
+      max-width: min(24vw, 320px);
     }
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link {
-      display: inline-flex;
+      display: inline-flex !important;
       align-items: center;
-      gap: 8px;
-      min-height: 32px;
-      padding: 0 12px;
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 999px;
+      gap: 10px;
+      width: auto !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      height: auto !important;
+      min-height: 24px;
+      padding: 0 !important;
+      border: 0;
+      border-radius: 0;
       background: transparent;
       color: #eef4fb;
       text-decoration: none;
       white-space: nowrap;
       cursor: pointer;
-      font: 600 13px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font: 500 15px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      box-sizing: border-box;
+      overflow: visible !important;
+      line-height: 1 !important;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link-label {
+      display: block;
+      min-width: 0;
+      overflow: visible;
+      text-overflow: clip;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link:hover,
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link:focus-visible {
       opacity: 0.92;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link svg {
-      width: 15px;
-      height: 15px;
+      width: 20px;
+      height: 20px;
       display: block;
       fill: none;
       stroke: currentColor;
       stroke-width: 1.8;
       stroke-linecap: round;
       stroke-linejoin: round;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link-catalog svg,
+    html.is-phone body.protected-old-shell #protectedBottomCatalogLink svg,
+    html.is-tablet body.protected-old-shell #protectedBottomCatalogLink svg {
+      fill: currentColor !important;
+      stroke: none !important;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #title-controls > #ttsToggleDesktop,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #title-controls > #themeToggle,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedLibraryControl,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedSearchControl,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedTypographyControl {
+      width: 24px;
+      min-width: 24px;
+      height: 24px;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #ttsToggleDesktop .tts-icon,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #themeToggle .theme-icon,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedLibraryTrigger img,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedSearchTrigger img,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedTypographyTrigger img {
+      width: 18px;
+      height: 18px;
     }
     body.protected-old-shell #themeToggle,
     body.protected-old-shell #ttsToggleDesktop,
@@ -549,6 +644,294 @@ function installStyles() {
     html.is-tablet body.protected-old-shell #ttsToggleMobile {
       display: none !important;
     }
+    @media (min-width: 820px) {
+      body.protected-old-shell #titlebar {
+        --titlebar-h: 43px;
+        min-height: 43px !important;
+        height: 43px !important;
+        padding-top: 3px !important;
+        padding-bottom: 3px !important;
+        position: relative;
+        align-items: center;
+      }
+      body.protected-old-shell #opener {
+        display: none !important;
+      }
+      body.protected-old-shell #slider,
+      body.protected-old-shell #openNotes,
+      body.protected-old-shell #openBookmarks,
+      body.protected-old-shell #overlay-menu {
+        display: none !important;
+      }
+      body.protected-old-shell #metainfo {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        margin: 0;
+        width: min(44vw, 620px);
+        max-width: calc(100vw - 420px);
+        justify-content: center;
+        pointer-events: none;
+        text-align: center;
+      }
+      body.protected-old-shell #metaText {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        line-height: 1.18;
+      }
+      body.protected-old-shell #book-title,
+      body.protected-old-shell #chapter-title {
+        width: 100%;
+        text-align: center;
+      }
+      body.protected-old-shell #book-title {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      body.protected-old-shell #chapter-title {
+        margin-top: 4px;
+        font-size: 11px;
+        opacity: 0.9;
+      }
+      body.protected-old-shell .protected-top-left-links {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+        display: inline-flex !important;
+        align-items: center;
+        gap: 0;
+        min-width: 0;
+        max-width: min(24vw, 320px);
+      }
+      body.protected-old-shell #title-controls {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+        gap: 14px !important;
+      }
+      body.protected-old-shell #title-controls > #ttsToggleDesktop,
+      body.protected-old-shell #title-controls > #themeToggle,
+      body.protected-old-shell #protectedLibraryControl,
+      body.protected-old-shell #protectedSearchControl,
+      body.protected-old-shell #protectedTypographyControl {
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
+      }
+      body.protected-old-shell #ttsToggleDesktop .tts-icon,
+      body.protected-old-shell #themeToggle .theme-icon,
+      body.protected-old-shell #protectedLibraryTrigger img,
+      body.protected-old-shell #protectedSearchTrigger img,
+      body.protected-old-shell #protectedTypographyTrigger img {
+        width: 18px;
+        height: 18px;
+      }
+      body.protected-old-shell #protectedBottomCatalogLink {
+        display: none !important;
+      }
+    }
+    @media (orientation: landscape) {
+      html.is-phone body.protected-old-shell #titlebar,
+      html.is-tablet body.protected-old-shell #titlebar {
+        --titlebar-h: 43px;
+        min-height: 43px !important;
+        height: 43px !important;
+        padding-top: 3px !important;
+        padding-bottom: 3px !important;
+        position: relative;
+        align-items: center;
+      }
+      html.is-phone body.protected-old-shell #opener,
+      html.is-tablet body.protected-old-shell #opener {
+        display: none !important;
+      }
+      html.is-phone body.protected-old-shell #slider,
+      html.is-phone body.protected-old-shell #openNotes,
+      html.is-phone body.protected-old-shell #openBookmarks,
+      html.is-phone body.protected-old-shell #overlay-menu,
+      html.is-tablet body.protected-old-shell #slider,
+      html.is-tablet body.protected-old-shell #openNotes,
+      html.is-tablet body.protected-old-shell #openBookmarks,
+      html.is-tablet body.protected-old-shell #overlay-menu {
+        display: none !important;
+      }
+      html.is-phone body.protected-old-shell #metainfo,
+      html.is-tablet body.protected-old-shell #metainfo {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        margin: 0;
+        width: min(44vw, 620px);
+        max-width: calc(100vw - 420px);
+        justify-content: center;
+        pointer-events: none;
+        text-align: center;
+      }
+      html.is-phone body.protected-old-shell #metaText,
+      html.is-tablet body.protected-old-shell #metaText {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        line-height: 1.18;
+      }
+      html.is-phone body.protected-old-shell #book-title,
+      html.is-phone body.protected-old-shell #chapter-title,
+      html.is-tablet body.protected-old-shell #book-title,
+      html.is-tablet body.protected-old-shell #chapter-title {
+        width: 100%;
+        text-align: center;
+      }
+      html.is-phone body.protected-old-shell #book-title,
+      html.is-tablet body.protected-old-shell #book-title {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      html.is-phone body.protected-old-shell #chapter-title,
+      html.is-tablet body.protected-old-shell #chapter-title {
+        margin-top: 4px;
+        font-size: 11px;
+        opacity: 0.9;
+      }
+      html.is-phone body.protected-old-shell .protected-top-left-links,
+      html.is-tablet body.protected-old-shell .protected-top-left-links {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+        display: inline-flex !important;
+        align-items: center;
+        gap: 0;
+        min-width: 0;
+        max-width: min(24vw, 320px);
+      }
+      html.is-phone body.protected-old-shell .protected-top-link,
+      html.is-tablet body.protected-old-shell .protected-top-link {
+        display: inline-flex !important;
+        align-items: center;
+        gap: 10px;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: auto !important;
+        min-height: 24px;
+        padding: 0 !important;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #eef4fb;
+        text-decoration: none;
+        white-space: nowrap;
+        cursor: pointer;
+        font: 500 15px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        box-sizing: border-box;
+        overflow: visible !important;
+        line-height: 1 !important;
+      }
+      html.is-phone body.protected-old-shell .protected-top-link-icon,
+      html.is-tablet body.protected-old-shell .protected-top-link-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+      }
+      html.is-phone body.protected-old-shell .protected-top-link-label,
+      html.is-tablet body.protected-old-shell .protected-top-link-label {
+        display: block;
+        min-width: 0;
+        overflow: visible;
+        text-overflow: clip;
+      }
+      html.is-phone body.protected-old-shell .protected-top-link svg,
+      html.is-tablet body.protected-old-shell .protected-top-link svg {
+        width: 20px;
+        height: 20px;
+        display: block;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      html.is-phone body.protected-old-shell .protected-top-link-catalog svg,
+      html.is-tablet body.protected-old-shell .protected-top-link-catalog svg {
+        fill: currentColor !important;
+        stroke: none !important;
+      }
+      html.is-phone body.protected-old-shell #title-controls,
+      html.is-tablet body.protected-old-shell #title-controls {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+        gap: 14px !important;
+      }
+      html.is-phone body.protected-old-shell #title-controls > #ttsToggleDesktop,
+      html.is-phone body.protected-old-shell #title-controls > #themeToggle,
+      html.is-phone body.protected-old-shell #protectedLibraryControl,
+      html.is-phone body.protected-old-shell #protectedSearchControl,
+      html.is-phone body.protected-old-shell #protectedTypographyControl,
+      html.is-tablet body.protected-old-shell #title-controls > #ttsToggleDesktop,
+      html.is-tablet body.protected-old-shell #title-controls > #themeToggle,
+      html.is-tablet body.protected-old-shell #protectedLibraryControl,
+      html.is-tablet body.protected-old-shell #protectedSearchControl,
+      html.is-tablet body.protected-old-shell #protectedTypographyControl {
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
+      }
+      html.is-phone body.protected-old-shell #ttsToggleDesktop .tts-icon,
+      html.is-phone body.protected-old-shell #themeToggle .theme-icon,
+      html.is-phone body.protected-old-shell #protectedLibraryTrigger img,
+      html.is-phone body.protected-old-shell #protectedSearchTrigger img,
+      html.is-phone body.protected-old-shell #protectedTypographyTrigger img,
+      html.is-tablet body.protected-old-shell #ttsToggleDesktop .tts-icon,
+      html.is-tablet body.protected-old-shell #themeToggle .theme-icon,
+      html.is-tablet body.protected-old-shell #protectedLibraryTrigger img,
+      html.is-tablet body.protected-old-shell #protectedSearchTrigger img,
+      html.is-tablet body.protected-old-shell #protectedTypographyTrigger img {
+        width: 18px;
+        height: 18px;
+      }
+      html.is-phone body.protected-old-shell #protectedBottomCatalogLink,
+      html.is-tablet body.protected-old-shell #protectedBottomCatalogLink {
+        position: absolute;
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex !important;
+        align-items: center;
+        gap: 6px;
+        color: #eef4fb;
+        text-decoration: none;
+        font: 600 12px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        white-space: nowrap;
+      }
+      html.is-phone body.protected-old-shell #protectedBottomCatalogLink svg,
+      html.is-tablet body.protected-old-shell #protectedBottomCatalogLink svg {
+        width: 18px;
+        height: 18px;
+        display: block;
+        fill: currentColor !important;
+        stroke: none !important;
+      }
+      html.is-phone body.protected-old-shell #protectedBottomCatalogLink,
+      html.is-tablet body.protected-old-shell #protectedBottomCatalogLink {
+        display: none !important;
+      }
+    }
     body.protected-old-shell #bottombar #bookmark {
       display: inline-flex !important;
       position: absolute;
@@ -565,6 +948,145 @@ function installStyles() {
       display: inline-flex !important;
       right: calc(14px + env(safe-area-inset-right, 0px));
     }
+    @media (orientation: portrait) {
+      html.is-phone body.protected-old-shell #opener,
+      html.is-tablet body.protected-old-shell #opener,
+      html.is-phone body.protected-old-shell #slider,
+      html.is-phone body.protected-old-shell #openNotes,
+      html.is-phone body.protected-old-shell #openBookmarks,
+      html.is-phone body.protected-old-shell #overlay-menu,
+      html.is-tablet body.protected-old-shell #slider,
+      html.is-tablet body.protected-old-shell #openNotes,
+      html.is-tablet body.protected-old-shell #openBookmarks,
+      html.is-tablet body.protected-old-shell #overlay-menu {
+        display: none !important;
+      }
+      html.is-phone body.protected-old-shell #bottombar #page-count,
+      html.is-tablet body.protected-old-shell #bottombar #page-count {
+        position: absolute;
+        right: calc(52px + env(safe-area-inset-right, 0px));
+        left: auto;
+        transform: translateY(-50%);
+        top: 50%;
+        width: auto;
+        text-align: right;
+        white-space: nowrap;
+      }
+      html.is-phone body.protected-old-shell #metaText,
+      html.is-tablet body.protected-old-shell #metaText {
+        line-height: 1.18;
+      }
+      html.is-phone body.protected-old-shell #chapter-title,
+      html.is-tablet body.protected-old-shell #chapter-title {
+        margin-top: 4px;
+      }
+      html.is-phone body.protected-old-shell #overlay-settings,
+      html.is-phone body.protected-old-shell #overlay-library,
+      html.is-phone body.protected-old-shell #overlay-search {
+        left: 0;
+        right: 0;
+        width: 100vw;
+        max-width: 100vw;
+      }
+    }
+    body.protected-old-shell #protectedBottomCatalogLink {
+      display: none;
+    }
+    html.is-phone body.protected-old-shell #protectedBottomCatalogLink,
+    html.is-tablet body.protected-old-shell #protectedBottomCatalogLink {
+      position: absolute;
+      left: calc(12px + env(safe-area-inset-left, 0px));
+      top: 50%;
+      transform: translateY(-50%);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #eef4fb;
+      text-decoration: none;
+      font: 600 12px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      white-space: nowrap;
+    }
+    html.is-phone body.protected-old-shell #protectedBottomCatalogLink svg,
+    html.is-tablet body.protected-old-shell #protectedBottomCatalogLink svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+      fill: currentColor;
+      stroke: none;
+    }
+    html.is-phone body.protected-old-shell.android #addressBarToggle,
+    html.is-tablet body.protected-old-shell.android #addressBarToggle {
+      display: inline-flex !important;
+      position: absolute;
+      right: calc(14px + env(safe-area-inset-right, 0px));
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 1;
+      width: 28px;
+      min-width: 28px;
+      height: 28px;
+      min-height: 28px;
+      padding: 0;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent !important;
+      box-shadow: none !important;
+      appearance: none;
+      -webkit-appearance: none;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+    }
+    html.is-phone body.protected-old-shell.android #addressBarToggle .ab-icon,
+    html.is-tablet body.protected-old-shell.android #addressBarToggle .ab-icon {
+      width: 18px !important;
+      height: 18px !important;
+      min-width: 18px !important;
+      min-height: 18px !important;
+      display: none !important;
+      object-fit: contain !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      transform: none !important;
+    }
+    html.is-phone body.protected-old-shell.android #addressBarToggle.ab-state-full .ab-icon-full,
+    html.is-tablet body.protected-old-shell.android #addressBarToggle.ab-state-full .ab-icon-full {
+      display: block !important;
+    }
+    html.is-phone body.protected-old-shell.android #addressBarToggle.ab-state-small .ab-icon-small,
+    html.is-tablet body.protected-old-shell.android #addressBarToggle.ab-state-small .ab-icon-small {
+      display: block !important;
+    }
+    html.is-phone body.protected-old-shell.android #bottombar #bookmark,
+    html.is-tablet body.protected-old-shell.android #bottombar #bookmark {
+      right: calc(52px + env(safe-area-inset-right, 0px));
+    }
+    @media (orientation: portrait) {
+      html.is-phone body.protected-old-shell.android #bottombar #page-count,
+      html.is-tablet body.protected-old-shell.android #bottombar #page-count {
+        right: calc(92px + env(safe-area-inset-right, 0px));
+      }
+    }
+    @media (orientation: landscape) {
+      html.is-phone body.protected-old-shell #bottombar #page-count,
+      html.is-tablet body.protected-old-shell #bottombar #page-count,
+      html.is-phone body.protected-old-shell.android #bottombar #page-count,
+      html.is-tablet body.protected-old-shell.android #bottombar #page-count {
+        position: absolute;
+        left: 50%;
+        right: auto;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: auto;
+        text-align: center;
+        white-space: nowrap;
+      }
+      html.is-phone body.protected-old-shell #overlay-backdrop:not(.hidden),
+      html.is-tablet body.protected-old-shell #overlay-backdrop:not(.hidden) {
+        display: block !important;
+      }
+    }
     body.protected-old-shell #fontDec,
     body.protected-old-shell #fontInc {
       display: none !important;
@@ -577,7 +1099,7 @@ function installStyles() {
       min-width: 32px;
       margin: 0;
       vertical-align: middle;
-      order: 61;
+      order: 62;
     }
     #protectedSearchControl {
       display: inline-flex;
@@ -587,7 +1109,7 @@ function installStyles() {
       min-width: 32px;
       margin: 0;
       vertical-align: middle;
-      order: 62;
+      order: 61;
     }
     #protectedLibraryTrigger {
       appearance: none;
@@ -888,7 +1410,7 @@ function installStyles() {
     }
     #protectedLibraryTabs {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 8px;
       margin: 0 0 14px;
     }
@@ -922,7 +1444,8 @@ function installStyles() {
     }
     #protectedLibraryTocMount .view,
     #protectedLibraryNotesMount .view,
-    #protectedLibraryBookmarksMount .view {
+    #protectedLibraryBookmarksMount .view,
+    #protectedLibraryMyBooksMount .view {
       display: block !important;
       width: 100%;
       min-width: 0;
@@ -931,7 +1454,8 @@ function installStyles() {
     }
     #protectedLibraryTocMount #tocView,
     #protectedLibraryNotesMount #notesView,
-    #protectedLibraryBookmarksMount #bookmarksView {
+    #protectedLibraryBookmarksMount #bookmarksView,
+    #protectedLibraryMyBooksMount #mybooksView {
       width: 100%;
       min-width: 0;
       height: auto;
@@ -943,13 +1467,15 @@ function installStyles() {
     }
     #protectedLibraryNotesMount #notesView,
     #protectedLibraryBookmarksMount #bookmarksView,
-    #protectedLibraryTocMount #tocView {
+    #protectedLibraryTocMount #tocView,
+    #protectedLibraryMyBooksMount #mybooksView {
       overflow: visible !important;
     }
     body.protected-old-shell #overlay-library #tocView ul,
     body.protected-old-shell #overlay-library #protectedLibraryBookmarksList,
     body.protected-old-shell #overlay-library #bookmarksView ul,
-    body.protected-old-shell #overlay-library #notes {
+    body.protected-old-shell #overlay-library #notes,
+    body.protected-old-shell #overlay-library #mybooks {
       padding-left: 20px;
       margin-top: 0;
       margin-bottom: 24px;
@@ -957,7 +1483,8 @@ function installStyles() {
     body.protected-old-shell #overlay-library #tocView li,
     body.protected-old-shell #overlay-library #protectedLibraryBookmarksList li,
     body.protected-old-shell #overlay-library #bookmarksView li,
-    body.protected-old-shell #overlay-library #notes > li.list_item {
+    body.protected-old-shell #overlay-library #notes > li.list_item,
+    body.protected-old-shell #overlay-library #mybooks > li.list_item {
       width: auto;
       background: transparent;
       border: 0;
@@ -972,7 +1499,10 @@ function installStyles() {
     body.protected-old-shell #overlay-library #bookmarksView a,
     body.protected-old-shell #overlay-library #bookmarksView button.bookmark_link,
     body.protected-old-shell #overlay-library #notes .bookmark_link,
-    body.protected-old-shell #overlay-library #notes .bookmark-comment {
+    body.protected-old-shell #overlay-library #notes .bookmark-comment,
+    body.protected-old-shell #overlay-library #mybooks a,
+    body.protected-old-shell #overlay-library #mybooks .book-title,
+    body.protected-old-shell #overlay-library #mybooks .book-meta {
       color: inherit;
       background: transparent !important;
     }
@@ -983,7 +1513,8 @@ function installStyles() {
     body.protected-old-shell #overlay-library #notesView > li.list_item,
     body.protected-old-shell #overlay-library #notes > li.list_item,
     body.protected-old-shell #overlay-library #bookmarksView > li.list_item,
-    body.protected-old-shell #overlay-library #bookmarks > li.list_item {
+    body.protected-old-shell #overlay-library #bookmarks > li.list_item,
+    body.protected-old-shell #overlay-library #mybooks > li.list_item {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
@@ -1000,7 +1531,8 @@ function installStyles() {
     body.protected-old-shell #overlay-library #notesView > li.list_item:last-child,
     body.protected-old-shell #overlay-library #notes > li.list_item:last-child,
     body.protected-old-shell #overlay-library #bookmarksView > li.list_item:last-child,
-    body.protected-old-shell #overlay-library #bookmarks > li.list_item:last-child {
+    body.protected-old-shell #overlay-library #bookmarks > li.list_item:last-child,
+    body.protected-old-shell #overlay-library #mybooks > li.list_item:last-child {
       margin-bottom: 0;
       border-bottom: 0;
     }
@@ -1068,6 +1600,74 @@ function installStyles() {
       line-height: 1.28;
       user-select: none;
       -webkit-user-select: none;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount {
+      margin: 0 0 18px;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount #menuBookCard {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      width: 100%;
+      min-width: 0;
+      padding: 6px 0 18px;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      overflow: hidden;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount #menuBookCard > * {
+      min-width: 0;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-cover-wrap {
+      width: 104px;
+      height: 148px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      flex: 0 0 104px;
+      min-width: 104px;
+      max-width: 104px;
+      overflow: hidden;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount #menuBookCover,
+    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-cover,
+    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-cover-placeholder {
+      width: 100%;
+      height: 100%;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount #menuBookCover,
+    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-cover {
+      display: block;
+      object-fit: contain;
+      object-position: left center;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-cover-placeholder {
+      background: transparent;
+      border: 0;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-meta {
+      min-width: 0;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount #menuBookTitle,
+    body.protected-old-shell #protectedSettingsBookCardMount #menuBookAuthor {
+      width: auto;
+      text-align: left;
+      line-height: 1.35;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount #menuBookTitle {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+    }
+    body.protected-old-shell #protectedSettingsBookCardMount #menuBookAuthor {
+      font-size: 14px;
+      opacity: 0.9;
+      margin: 8px 0 0;
     }
     body.protected-old-shell #overlay-library #notesView .bookmark-comment,
     body.protected-old-shell #overlay-library #notes .bookmark-comment {
@@ -1587,27 +2187,26 @@ function installStyles() {
       border-top-color: rgba(214, 222, 232, 0.96);
       border-right-color: rgba(214, 222, 232, 0.96);
     }
-    html.is-desktop body.protected-old-shell #prev:hover,
-    html.is-desktop body.protected-old-shell #next:hover,
-    html.is-desktop body.protected-old-shell #prev:active,
-    html.is-desktop body.protected-old-shell #next:active,
-    html.is-desktop body.protected-old-shell #prev.active,
-    html.is-desktop body.protected-old-shell #next.active {
+    html.is-desktop body.protected-old-shell #prev,
+    html.is-desktop body.protected-old-shell #next,
+    html.is-desktop body.protected-old-shell #prev::after,
+    html.is-desktop body.protected-old-shell #next::after {
       opacity: 1;
     }
-    html.is-desktop body.protected-old-shell #prev:hover::before,
-    html.is-desktop body.protected-old-shell #next:hover::before,
-    html.is-desktop body.protected-old-shell #prev:active::before,
-    html.is-desktop body.protected-old-shell #next:active::before,
-    html.is-desktop body.protected-old-shell #prev.active::before,
-    html.is-desktop body.protected-old-shell #next.active::before,
-    html.is-desktop body.protected-old-shell #prev:hover::after,
-    html.is-desktop body.protected-old-shell #next:hover::after,
-    html.is-desktop body.protected-old-shell #prev:active::after,
-    html.is-desktop body.protected-old-shell #next:active::after,
-    html.is-desktop body.protected-old-shell #prev.active::after,
-    html.is-desktop body.protected-old-shell #next.active::after {
-      opacity: 1;
+    @media (orientation: landscape) {
+      html.is-phone body.protected-old-shell #prev,
+      html.is-phone body.protected-old-shell #next,
+      html.is-tablet body.protected-old-shell #prev,
+      html.is-tablet body.protected-old-shell #next {
+        display: flex !important;
+        opacity: 1;
+      }
+      html.is-phone body.protected-old-shell #prev::after,
+      html.is-phone body.protected-old-shell #next::after,
+      html.is-tablet body.protected-old-shell #prev::after,
+      html.is-tablet body.protected-old-shell #next::after {
+        opacity: 1;
+      }
     }
     @media (max-width: 820px) {
       #overlay-settings {
@@ -2005,7 +2604,15 @@ function isInternalStatusVisible() {
 function setMenuBookMeta(summary) {
   const title = summary && summary.bookTitle ? summary.bookTitle : "Protected Reader";
   const author = summary && summary.bookAuthor ? summary.bookAuthor : "";
-  const cover = summary && summary.coverUrl ? summary.coverUrl : "";
+  const rawCover = summary && summary.coverUrl ? String(summary.coverUrl).trim() : "";
+  let cover = "";
+  if (rawCover) {
+    try {
+      cover = new URL(rawCover, window.location.origin).href;
+    } catch (_error) {
+      cover = rawCover;
+    }
+  }
   try {
     if (typeof window.__fbUpdateMenuBookMeta === "function") {
       window.__fbUpdateMenuBookMeta({ title, author, cover });
@@ -2015,25 +2622,28 @@ function setMenuBookMeta(summary) {
   const authorNode = document.getElementById("menuBookAuthor");
   const coverNode = document.getElementById("menuBookCover");
   const placeholderNode = document.getElementById("menuBookCoverPlaceholder");
+  const coverWrapNode = coverNode && coverNode.parentElement ? coverNode.parentElement : null;
   if (titleNode) titleNode.textContent = title;
   if (authorNode) authorNode.textContent = author;
+  if (placeholderNode) {
+    placeholderNode.classList.add("hidden");
+    placeholderNode.style.backgroundImage = "";
+  }
   if (coverNode) {
+    coverNode.onerror = () => {
+      coverNode.removeAttribute("src");
+      coverNode.classList.add("hidden");
+      if (coverWrapNode) coverWrapNode.classList.add("hidden");
+    };
     if (cover) {
       coverNode.src = cover;
       coverNode.classList.remove("hidden");
-      if (placeholderNode) {
-        placeholderNode.classList.add("hidden");
-        placeholderNode.style.backgroundImage = "";
-      }
+      if (coverWrapNode) coverWrapNode.classList.remove("hidden");
     } else {
+      coverNode.removeAttribute("src");
       coverNode.classList.add("hidden");
-      if (placeholderNode) {
-        placeholderNode.classList.remove("hidden");
-        placeholderNode.style.backgroundImage = "";
-      }
+      if (coverWrapNode) coverWrapNode.classList.add("hidden");
     }
-  } else if (placeholderNode && cover) {
-    placeholderNode.style.backgroundImage = `url("${cover}")`;
   }
 }
 
@@ -2794,25 +3404,38 @@ function ensureLibraryControl() {
 }
 
 function ensureDesktopTopLinks() {
-  const opener = document.getElementById("opener");
-  if (!opener) return null;
+  const titlebar = document.getElementById("titlebar");
+  if (!titlebar) return null;
   let wrap = document.getElementById("protectedTopLeftLinks");
   if (wrap) return wrap;
   wrap = document.createElement("span");
   wrap.id = "protectedTopLeftLinks";
   wrap.className = "protected-top-left-links";
   wrap.innerHTML = `
-    <button type="button" id="protectedMyLibraryLink" class="protected-top-link protected-top-link-library" aria-label="My Library">
-      <span class="protected-top-link-icon">${PROTECTED_MY_LIBRARY_ICON_SVG}</span>
-      <span class="protected-top-link-label">My Library</span>
-    </button>
     <a id="protectedCatalogLink" class="protected-top-link protected-top-link-catalog" href="https://reader.pub/books/" aria-label="Catalog">
       <span class="protected-top-link-icon">${PROTECTED_CATALOG_ICON_SVG}</span>
-      <span class="protected-top-link-label">Catalog</span>
+      <span class="protected-top-link-label">ReaderPub Books</span>
     </a>
   `;
-  opener.appendChild(wrap);
+  titlebar.appendChild(wrap);
   return wrap;
+}
+
+function ensureBottomCatalogLink() {
+  const bottomBar = document.getElementById("bottombar");
+  if (!bottomBar) return null;
+  let link = document.getElementById("protectedBottomCatalogLink");
+  if (link) return link;
+  link = document.createElement("a");
+  link.id = "protectedBottomCatalogLink";
+  link.href = "https://reader.pub/books/";
+  link.setAttribute("aria-label", "ReaderPub Books");
+  link.innerHTML = `
+    <span class="protected-top-link-icon">${PROTECTED_CATALOG_ICON_SVG}</span>
+    <span class="protected-top-link-label">ReaderPub Books</span>
+  `;
+  bottomBar.appendChild(link);
+  return link;
 }
 
 function ensureSearchControl() {
@@ -2835,6 +3458,7 @@ function ensureSearchControl() {
 
 function syncProtectedShellIcons() {
   ensureDesktopTopLinks();
+  ensureBottomCatalogLink();
   const libraryControl = ensureLibraryControl();
   const searchControl = ensureSearchControl();
   const libraryTrigger = document.getElementById("protectedLibraryTrigger");
@@ -2889,8 +3513,20 @@ function syncProtectedShellIcons() {
   }
   const bookmark = document.getElementById("bookmark");
   const bottomBar = document.getElementById("bottombar");
+  const pageCount = document.getElementById("page-count");
   if (bookmark && bottomBar && bookmark.parentElement !== bottomBar) {
     bottomBar.appendChild(bookmark);
+  }
+  if ((document.documentElement.classList.contains("is-phone") || document.documentElement.classList.contains("is-tablet")) && pageCount && bottomBar && pageCount.parentElement !== bottomBar) {
+    bottomBar.appendChild(pageCount);
+  }
+  const addressBarToggle = document.getElementById("addressBarToggle");
+  const isAndroid = /Android/i.test(String(navigator.userAgent || ""));
+  if (addressBarToggle) {
+    document.body.classList.toggle("android", isAndroid);
+    if (isAndroid && bottomBar && addressBarToggle.parentElement !== bottomBar) {
+      bottomBar.appendChild(addressBarToggle);
+    }
   }
   if (themeToggle) {
     let themeImg = themeToggle.querySelector("img.theme-icon");
@@ -2915,7 +3551,7 @@ function syncProtectedShellIcons() {
 
 function switchLibraryTab(nextTab = "toc") {
   const activeTab = String(nextTab || "toc").trim().toLowerCase();
-  const tabs = ["toc", "notes", "bookmarks"];
+  const tabs = ["toc", "notes", "bookmarks", "mybooks"];
   tabs.forEach((tab) => {
     const button = document.getElementById(`protectedLibraryTab-${tab}`);
     const pane = document.getElementById(`protectedLibraryPane-${tab}`);
@@ -3154,6 +3790,7 @@ function ensureLibraryOverlay() {
           <button type="button" class="protected-library-tab is-active" id="protectedLibraryTab-toc" role="tab" aria-selected="true">TOC</button>
           <button type="button" class="protected-library-tab" id="protectedLibraryTab-notes" role="tab" aria-selected="false" tabindex="-1">Notes</button>
           <button type="button" class="protected-library-tab" id="protectedLibraryTab-bookmarks" role="tab" aria-selected="false" tabindex="-1">Bookmarks</button>
+          <button type="button" class="protected-library-tab" id="protectedLibraryTab-mybooks" role="tab" aria-selected="false" tabindex="-1">Books</button>
         </div>
         <section id="protectedLibraryPane-toc" class="protected-library-pane" role="tabpanel">
           <div id="protectedLibraryTocMount"></div>
@@ -3163,6 +3800,9 @@ function ensureLibraryOverlay() {
         </section>
         <section id="protectedLibraryPane-bookmarks" class="protected-library-pane hidden" role="tabpanel">
           <ul id="protectedLibraryBookmarksList"></ul>
+        </section>
+        <section id="protectedLibraryPane-mybooks" class="protected-library-pane hidden" role="tabpanel">
+          <div id="protectedLibraryMyBooksMount"></div>
         </section>
       </div>
     `;
@@ -3179,15 +3819,39 @@ function ensureLibraryOverlay() {
         if (id.endsWith("-toc")) switchLibraryTab("toc");
         else if (id.endsWith("-notes")) switchLibraryTab("notes");
         else if (id.endsWith("-bookmarks")) switchLibraryTab("bookmarks");
+        else if (id.endsWith("-mybooks")) switchLibraryTab("mybooks");
       });
     });
+    const maybeCloseLibraryAfterNavigationTap = (event) => {
+      const target = event.target && event.target.closest
+        ? event.target.closest(
+            "#tocView a.toc_link, " +
+            "#protectedLibraryBookmarksList .bookmark_link, " +
+            "#bookmarksView .bookmark_link, " +
+            "#notesView .bookmark_link, " +
+            "#notes .bookmark_link, " +
+            "#mybooks a.bookmark_link, " +
+            "#mybooks a"
+          )
+        : null;
+      if (!target) return;
+      window.setTimeout(() => {
+        closeLibraryOverlay();
+      }, 0);
+    };
+    overlay.addEventListener("pointerup", maybeCloseLibraryAfterNavigationTap, true);
+    overlay.addEventListener("touchend", maybeCloseLibraryAfterNavigationTap, { capture: true, passive: true });
+    overlay.addEventListener("click", maybeCloseLibraryAfterNavigationTap, true);
   }
   const tocMount = document.getElementById("protectedLibraryTocMount");
   const notesMount = document.getElementById("protectedLibraryNotesMount");
+  const myBooksMount = document.getElementById("protectedLibraryMyBooksMount");
   const tocView = document.getElementById("tocView");
   const notesView = document.getElementById("notesView");
+  const myBooksView = document.getElementById("mybooksView");
   if (tocMount && tocView && tocView.parentElement !== tocMount) tocMount.appendChild(tocView);
   if (notesMount && notesView && notesView.parentElement !== notesMount) notesMount.appendChild(notesView);
+  if (myBooksMount && myBooksView && myBooksView.parentElement !== myBooksMount) myBooksMount.appendChild(myBooksView);
   return overlay;
 }
 
@@ -3209,6 +3873,9 @@ function ensureSettingsOverlay() {
         </div>
         <div class="overlay-sep" aria-hidden="true"></div>
         <div class="overlay-scroll">
+          <section id="protectedSettingsBookSection">
+            <div id="protectedSettingsBookCardMount"></div>
+          </section>
           <section id="protectedSettingsTextSection">
             <h3 id="protectedSettingsTextSectionTitle">Text:</h3>
             <section id="protectedTypographyPanel" aria-label="Text settings">
@@ -3249,6 +3916,11 @@ function ensureSettingsOverlay() {
     backdrop && backdrop.addEventListener("click", () => {
       if (!overlay.classList.contains("hidden")) closeTypographyPanel();
     });
+  }
+  const bookCardMount = document.getElementById("protectedSettingsBookCardMount");
+  const menuBookCard = document.getElementById("menuBookCard");
+  if (bookCardMount && menuBookCard && menuBookCard.parentElement !== bookCardMount) {
+    bookCardMount.appendChild(menuBookCard);
   }
   const voiceMount = document.getElementById("protectedSettingsVoiceMount");
   const voiceView = document.getElementById("voiceView");
@@ -3309,6 +3981,7 @@ function syncTopControls() {
   ensureLibraryOverlay();
   ensureSearchOverlay();
   ensureTypographyControl();
+  ensureBottomCatalogLink();
   updateTypographyControl();
 }
 
@@ -4217,6 +4890,11 @@ function attachProtectedSurfaceInteractions(frame) {
     }
     if (!doc || doc.__protectedSurfaceInteractionsBound) return;
     doc.__protectedSurfaceInteractionsBound = true;
+    const desktopSurfaceClickState = {
+      armed: false,
+      startX: 0,
+      startY: 0
+    };
     const blockContextMenu = (event) => {
       const target = event.target;
       const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
@@ -4255,6 +4933,21 @@ function attachProtectedSurfaceInteractions(frame) {
       HOST_STATE.pendingSelectionToolbar = null;
       HOST_STATE.releaseSelectionToolbarAnchor = null;
       HOST_STATE.cachedSelectionActionState = null;
+    }, true);
+    doc.addEventListener("pointerdown", (event) => {
+      if (isTouchShellMode()) return;
+      const target = event.target;
+      const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
+      const primaryButton = event.button == null || event.button === 0;
+      desktopSurfaceClickState.armed = !!(inProtectedSurface && primaryButton);
+      desktopSurfaceClickState.startX = Number(event.clientX || 0);
+      desktopSurfaceClickState.startY = Number(event.clientY || 0);
+    }, true);
+    doc.addEventListener("pointermove", (event) => {
+      if (!desktopSurfaceClickState.armed) return;
+      const dx = Math.abs(Number(event.clientX || 0) - desktopSurfaceClickState.startX);
+      const dy = Math.abs(Number(event.clientY || 0) - desktopSurfaceClickState.startY);
+      if (dx > 8 || dy > 8) desktopSurfaceClickState.armed = false;
     }, true);
     doc.addEventListener("pointerdown", (event) => {
       const target = event.target;
@@ -4302,6 +4995,20 @@ function attachProtectedSurfaceInteractions(frame) {
         })
         .catch(() => {});
     }, true);
+    doc.addEventListener("click", (event) => {
+      if (isTouchShellMode()) return;
+      const target = event.target;
+      const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
+      const primaryButton = event.button == null || event.button === 0;
+      const summary = getBridgeSummaryFromFrame(frame);
+      const hasSelection = !!(summary && (summary.selectionActive || summary.focusedAnnotationId));
+      if (!desktopSurfaceClickState.armed || !inProtectedSurface || !primaryButton || hasSelection) {
+        desktopSurfaceClickState.armed = false;
+        return;
+      }
+      desktopSurfaceClickState.armed = false;
+      toggleShellUi("desktop-click");
+    }, true);
     doc.addEventListener("mouseup", (event) => {
       if (event.button !== 0) return;
       const target = event.target;
@@ -4335,6 +5042,9 @@ function attachProtectedSurfaceInteractions(frame) {
       HOST_STATE.touchSelectionInProgress = false;
       HOST_STATE.suppressSelectionDismissUntil = Date.now() + 700;
       showSelectionToolbarAfterRelease(HOST_STATE.frame, touch ? touch.clientX : 160, touch ? touch.clientY : 160);
+    }, true);
+    doc.addEventListener("pointercancel", () => {
+      desktopSurfaceClickState.armed = false;
     }, true);
     installTouchSwipe(doc);
   };
@@ -4955,6 +5665,30 @@ function overlaysVisible() {
     });
 }
 
+function isTouchPortraitShellMode() {
+  try {
+    const root = document.documentElement;
+    const touchClass = !!(root && (root.classList.contains("is-phone") || root.classList.contains("is-tablet")));
+    if (!touchClass) return false;
+    if (window.matchMedia) {
+      return window.matchMedia("(orientation: portrait)").matches;
+    }
+  } catch (_error) {}
+  return window.innerHeight >= window.innerWidth;
+}
+
+function enforcePortraitLegacySidebarDisabled() {
+  if (!isTouchPortraitShellMode()) return;
+  closeOverlayById("overlay-menu");
+  const opener = document.getElementById("opener");
+  if (opener) opener.setAttribute("aria-hidden", "true");
+  const backdrop = document.getElementById("overlay-backdrop");
+  if (backdrop && !overlaysVisible()) {
+    backdrop.classList.add("hidden");
+    backdrop.setAttribute("aria-hidden", "true");
+  }
+}
+
 function installTouchSwipe(target) {
   if (!target || target.__protectedSwipeBound) return;
   target.__protectedSwipeBound = true;
@@ -5281,7 +6015,7 @@ function installTouchSwipe(target) {
         };
         if (tapZone === "center") {
           event.preventDefault();
-          toggleShellUi();
+          toggleShellUi("touch-center");
           window.__protectedTouchDebug.tap.bodyHiddenAfter = !!(document.body && document.body.classList && document.body.classList.contains("ui-hidden"));
           return;
         }
@@ -5390,33 +6124,25 @@ function bindShellControls() {
   const mobileMoreToggle = document.getElementById("mobileMoreToggle");
   const mobileMorePanel = document.getElementById("mobileMorePanel");
   syncProtectedShellIcons();
-  const myLibraryLink = document.getElementById("protectedMyLibraryLink");
   const catalogLink = document.getElementById("protectedCatalogLink");
+  const bottomCatalogLink = document.getElementById("protectedBottomCatalogLink");
   const libraryTrigger = document.getElementById("protectedLibraryTrigger");
   const searchTrigger = document.getElementById("protectedSearchTrigger");
   ensureSearchOverlay();
+  enforcePortraitLegacySidebarDisabled();
+  window.addEventListener("resize", enforcePortraitLegacySidebarDisabled, { passive: true });
+  window.addEventListener("orientationchange", enforcePortraitLegacySidebarDisabled, { passive: true });
   if (mobileMoreToggle) {
     try { mobileMoreToggle.remove(); } catch (_error) {}
   }
   if (mobileMorePanel) {
     try { mobileMorePanel.remove(); } catch (_error) {}
   }
-  myLibraryLink && myLibraryLink.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    try {
-      if (typeof window.__fbOpenOverlay === "function") {
-        window.__fbOpenOverlay("mybooks");
-        return;
-      }
-    } catch (_error) {}
-    const fallback = document.querySelector('#menuView [data-menu="mybooks"]');
-    fallback && fallback.click();
-  });
-  if (catalogLink) {
+  if (catalogLink || bottomCatalogLink) {
     const legacyCatalogLink = document.querySelector('#menuView a.menu-item[aria-label="Catalog"]');
     if (legacyCatalogLink && legacyCatalogLink.getAttribute("href")) {
-      catalogLink.setAttribute("href", legacyCatalogLink.getAttribute("href"));
+      if (catalogLink) catalogLink.setAttribute("href", legacyCatalogLink.getAttribute("href"));
+      if (bottomCatalogLink) bottomCatalogLink.setAttribute("href", legacyCatalogLink.getAttribute("href"));
     }
   }
   tts && tts.addEventListener("click", async (event) => {
@@ -5587,6 +6313,23 @@ function bindShellControls() {
   typographyPanel && typographyPanel.addEventListener("pointerdown", maybeHandleTypographyModeEvent, true);
   typographyPanel && typographyPanel.addEventListener("touchstart", maybeHandleTypographyModeEvent, { capture: true, passive: false });
   typographyPanel && typographyPanel.addEventListener("click", maybeHandleTypographyModeEvent);
+  document.addEventListener("click", (event) => {
+    if (!isTouchShellMode()) return;
+    if (Date.now() >= Number(HOST_STATE.suppressSyntheticClickUntil || 0)) return;
+    const target = event.target;
+    if (
+      target &&
+      target.closest &&
+      target.closest(
+        "#titlebar, #bottombar, .overlay, #overlay-backdrop, #mobileMorePanel, #mobileMoreToggle, #selectionToolbar"
+      )
+    ) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+  }, true);
   typographyScale && typographyScale.addEventListener("change", async (event) => {
     const nextScale = persistShellFontScale(
       Math.max(0.8, Math.min(1.6, Number(event.currentTarget && event.currentTarget.value || 1)))
@@ -5864,8 +6607,8 @@ async function bootOldShellProtectedHost() {
   installNoteComposerCloseHook();
   document.body.classList.add("protected-old-shell");
   document.body.classList.toggle("protected-dev-panel", isDevPanelEnabled());
-  if (isTouchShellMode()) hideShellUi();
-  else showShellUi();
+  installTouchUiVisibilityGuard();
+  hideShellUi();
   setShellLoading(true);
 
   const route = parseProtectedIntegrationRoute(window.location.href);

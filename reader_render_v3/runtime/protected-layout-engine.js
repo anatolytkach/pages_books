@@ -286,8 +286,12 @@ export function layoutChunk({
       : Number(padding || 0);
   const contentWidth = Math.max(260, effectiveWidth - resolvedPaddingX * 2);
   const effectiveViewportHeight = Math.max(420, Number(viewportHeight || 720));
-  const columnCount = effectiveWidth >= 1120 ? 2 : 1;
-  const columnGap = columnCount > 1 ? Math.round(resolvedPaddingX * 1.5) : 0;
+  const forceLandscapeSpread = effectiveWidth > effectiveViewportHeight && effectiveWidth >= 700;
+  const columnCount = effectiveWidth >= 1120 || forceLandscapeSpread ? 2 : 1;
+  const isCompactLandscapeSpread = columnCount > 1 && effectiveViewportHeight <= 820;
+  const columnGap = columnCount > 1
+    ? (isCompactLandscapeSpread ? resolvedPaddingX : Math.round(resolvedPaddingX * 1.5))
+    : 0;
   const columnWidth = columnCount > 1
     ? Math.max(220, Math.floor((contentWidth - columnGap) / 2))
     : contentWidth;

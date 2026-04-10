@@ -260,8 +260,11 @@
       if (!vs) return;
       var overlayBars = false;
       try {
-        // Mobile + tablet: bars must overlay content and never change reading viewport.
-        overlayBars = isTabletViewport() || isMobileViewport();
+        // Protected old-shell and all touch layouts: bars overlay content and never change reading viewport.
+        overlayBars =
+          !!window.__readerpubProtectedOldShellMode ||
+          isTabletViewport() ||
+          isMobileViewport();
       } catch (eOverlay) {}
       var hidden = document.body.classList.contains("ui-hidden");
       if (overlayBars) {
@@ -557,6 +560,10 @@
   // A dedicated transparent layer ABOVE the book is the only 100% reliable way to
   // detect a center tap on EVERY page.
   function installCenterTapLayer() {
+    try {
+      var isProtectedOldShell = !!(document.body && document.body.classList && document.body.classList.contains("protected-old-shell"));
+      if (isProtectedOldShell && !__fb_isDesktop) return;
+    } catch (eProtected) {}
     try {
       var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
       var touch = (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
@@ -7229,7 +7236,18 @@
     if (window.__fb_isDesktop || window.__readerpubAutostart) {
       showUi();
     } else {
-      hideUi();
+      var skipLateAutoHide = false;
+      try {
+        var isProtectedOldShell = !!(document.body && document.body.classList && document.body.classList.contains("protected-old-shell"));
+        var userAlreadyShowedUi = !!(
+          isProtectedOldShell &&
+          window.__readerpubProtectedUserShowUiAt &&
+          document.body &&
+          !document.body.classList.contains("ui-hidden")
+        );
+        skipLateAutoHide = userAlreadyShowedUi;
+      } catch (eProtectedOldShell) {}
+      if (!skipLateAutoHide) hideUi();
     }
     try { scheduleLayoutSync(); } catch (e) {}
     try { installBarResizeObserver(); } catch (e) {}

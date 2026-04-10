@@ -185,7 +185,10 @@ const state = {
   },
   pointerRequestChain: Promise.resolve(),
   turnPreviewRefreshToken: 0,
-  turnPreviewRefreshPromise: Promise.resolve()
+  turnPreviewRefreshPromise: Promise.resolve(),
+  resolvedCoverUrl: "",
+  resolvedCoverLookupKey: "",
+  resolvedCoverLookupPromise: Promise.resolve()
 };
 
 function escapeHtml(text = "") {
@@ -250,34 +253,98 @@ function getCoverHintFromLocation() {
   }
 }
 
-function buildGeneratedCoverDataUrl(title, author) {
-  const safeTitle = String(title || "").trim() || "Protected Book";
-  const safeAuthor = String(author || "").trim() || "ReaderPub";
-  const titleLine = safeTitle.length > 36 ? `${safeTitle.slice(0, 33)}...` : safeTitle;
-  const authorLine = safeAuthor.length > 30 ? `${safeAuthor.slice(0, 27)}...` : safeAuthor;
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="420" height="640" viewBox="0 0 420 640">
-      <defs>
-        <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stop-color="#16324f" />
-          <stop offset="100%" stop-color="#c98b4f" />
-        </linearGradient>
-      </defs>
-      <rect width="420" height="640" rx="32" fill="url(#g)" />
-      <rect x="30" y="30" width="360" height="580" rx="24" fill="rgba(255,255,255,0.10)" />
-      <text x="48" y="128" fill="#f8f5ef" font-family="Georgia, serif" font-size="18" opacity="0.72">Protected Edition</text>
-      <text x="48" y="236" fill="#ffffff" font-family="Georgia, serif" font-size="36" font-weight="700">${titleLine.replace(/[<&>]/g, "")}</text>
-      <text x="48" y="288" fill="#f4e6d3" font-family="Georgia, serif" font-size="22">${authorLine.replace(/[<&>]/g, "")}</text>
-    </svg>
-  `.trim();
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+function getCoverLookupCandidates() {
+  const params = new URLSearchParams(window.location.search || "");
+  const metadataBookId =
+    state.bookSummary && state.bookSummary.bookId ? String(state.bookSummary.bookId).trim() : "";
+  const routeBookId = String(params.get("id") || "").trim();
+  const candidates = [
+    String(params.get("protectedCanonicalBookId") || "").trim(),
+    String(params.get("canonicalBookId") || "").trim(),
+    String(params.get("storageBookId") || "").trim(),
+    metadataBookId,
+    routeBookId
+  ].filter(Boolean);
+  return [...new Set(candidates)];
+}
+
+function getBookLocationsShardPath(bookId) {
+  const digits = String(bookId || "").replace(/\D+/g, "");
+  if (!digits) return "";
+  const shard = digits.slice(-2).padStart(2, "0");
+  return `/books/api/book-locations/${shard}.json`;
+}
+
+function normalizeCoverAssetUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    return new URL(raw, window.location.origin).href;
+  } catch (_error) {
+    return raw;
+  }
+}
+
+async function resolveCoverFromBookLocations(bookId) {
+  const shardPath = getBookLocationsShardPath(bookId);
+  if (!shardPath) return "";
+  const response = await fetch(shardPath, { credentials: "same-origin" });
+  if (!response.ok) return "";
+  const payload = await response.json();
+  const items = payload && payload.items ? payload.items : null;
+  const entry = items && items[String(bookId)] ? items[String(bookId)] : null;
+  const cover = entry && entry.cover ? String(entry.cover).trim() : "";
+  return cover || "";
+}
+
+async function ensureCurrentBookCoverResolved() {
+  const hinted = getCoverHintFromLocation();
+  if (hinted) {
+    state.resolvedCoverUrl = normalizeCoverAssetUrl(hinted);
+    state.resolvedCoverLookupKey = `hint:${hinted}`;
+    return state.resolvedCoverUrl;
+  }
+  const candidates = getCoverLookupCandidates();
+  const lookupKey = candidates.join("|");
+  if (!lookupKey) {
+    state.resolvedCoverUrl = "";
+    state.resolvedCoverLookupKey = "";
+    return "";
+  }
+  if (state.resolvedCoverLookupKey === lookupKey && state.resolvedCoverUrl) {
+    return state.resolvedCoverUrl;
+  }
+  state.resolvedCoverLookupKey = lookupKey;
+  const run = (async () => {
+    for (const candidate of candidates) {
+      try {
+        const resolved = await resolveCoverFromBookLocations(candidate);
+        if (resolved) {
+          const finalCover = normalizeCoverAssetUrl(resolved);
+          if (state.resolvedCoverLookupKey === lookupKey && state.resolvedCoverUrl !== finalCover) {
+            state.resolvedCoverUrl = finalCover;
+            notifyEmbeddedBridge();
+          }
+          return finalCover;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    if (state.resolvedCoverLookupKey === lookupKey) {
+      state.resolvedCoverUrl = "";
+      notifyEmbeddedBridge();
+    }
+    return "";
+  })();
+  state.resolvedCoverLookupPromise = run;
+  return run;
 }
 
 function getCurrentBookCoverUrl() {
   const hinted = getCoverHintFromLocation();
   if (hinted) return hinted;
-  const metadata = state.bookSummary && state.bookSummary.metadata ? state.bookSummary.metadata : {};
-  return buildGeneratedCoverDataUrl(metadata.title || "", getCurrentBookAuthor());
+  return state.resolvedCoverUrl || "";
 }
 
 function applyEmbeddedTheme(theme) {
@@ -1400,6 +1467,9 @@ function applySnapshot(snapshot) {
   renderAnnotationList();
   refreshCanvas();
   notifyEmbeddedBridge();
+  ensureCurrentBookCoverResolved().catch((error) => {
+    console.error(error);
+  });
   return true;
 }
 
