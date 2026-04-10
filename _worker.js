@@ -3226,6 +3226,15 @@ export default {
         return data;
       };
 
+      const getTenantPublishingMemberships = async () => {
+        if (!user) return [];
+        const { data, error } = await sbFetch("tenant_memberships", {
+          params: `user_id=eq.${user.sub}&is_active=eq.true&role=in.(owner,admin,publisher)&select=id,role,tenant_id,tenants:tenant_id(id,slug,name,tenant_type)`,
+        });
+        if (error || !Array.isArray(data)) return [];
+        return data;
+      };
+
       const listPlatformTenants = async () => {
         const { data, error } = await sbFetch("tenants", {
           params: "select=id,slug,name,tenant_type,is_active,created_at&order=name.asc",
@@ -3325,13 +3334,26 @@ export default {
       };
 
       const resolvePublishingTenant = async ({ tenantId = "", tenantSlug = "" } = {}) => {
-        const memberships = await getTenantAdminMemberships();
-        if (!memberships.length) {
-          return { error: jsonResponse({ error: "Tenant admin access required for publishing" }, 403, apiCorsHeaders) };
-        }
+        const [isSuperuser, memberships] = await Promise.all([
+          getPlatformSuperuserStatus(),
+          getTenantPublishingMemberships(),
+        ]);
 
         const normalizedTenantId = String(tenantId || "").trim();
         const normalizedTenantSlug = String(tenantSlug || "").trim().toLowerCase();
+
+        if (!normalizedTenantId && !normalizedTenantSlug && isSuperuser) {
+          return {
+            tenantId: "",
+            tenantSlug: "",
+            membership: null,
+            personal: true,
+          };
+        }
+
+        if (!memberships.length) {
+          return { error: jsonResponse({ error: "Publishing access required" }, 403, apiCorsHeaders) };
+        }
 
         let match = null;
         if (normalizedTenantId) {
@@ -3354,6 +3376,7 @@ export default {
           tenantId: String(match.tenant_id || ""),
           tenantSlug: String(match?.tenants?.slug || ""),
           membership: match,
+          personal: false,
         };
       };
 
@@ -3493,13 +3516,20 @@ export default {
       if (apiPath === "/me/platform-access" && request.method === "GET") {
         const authErr = requireAuth();
         if (authErr) return authErr;
-        const [isSuperuser, adminTenants] = await Promise.all([
+        const [isSuperuser, adminTenants, publishingTenants] = await Promise.all([
           getPlatformSuperuserStatus(),
           getTenantAdminMemberships(),
+          getTenantPublishingMemberships(),
         ]);
         return jsonResponse({
           is_superuser: !!isSuperuser,
+          can_publish: !!isSuperuser || publishingTenants.length > 0,
           admin_tenants: adminTenants.map((item) => ({
+            tenant_id: item.tenant_id,
+            role: item.role,
+            tenant: item.tenants || null,
+          })),
+          publishing_tenants: publishingTenants.map((item) => ({
             tenant_id: item.tenant_id,
             role: item.role,
             tenant: item.tenants || null,
@@ -4373,7 +4403,9 @@ export default {
 
         // Verify book is ready and belongs to publishing user within the selected tenant
         const { data: book } = await sbFetch("books", {
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
+          params: tenantContext.personal
+            ? `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=is.null&select=*`
+            : `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
           single: true,
         });
         if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
@@ -4386,7 +4418,9 @@ export default {
 
         const { data, error } = await sbFetch("books", {
           method: "PATCH",
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
+          params: tenantContext.personal
+            ? `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=is.null&select=*`
+            : `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
           body: { status: "published", visibility },
           single: true,
         });
@@ -4395,7 +4429,7 @@ export default {
         // Only public books should appear in public browse/search artifacts.
         if (visibility === "public") {
           try {
-            const source = await getTenantSourceSlug(tenantContext.tenantId) || "manual";
+            const source = tenantContext.personal ? "manual" : (await getTenantSourceSlug(tenantContext.tenantId) || "manual");
             await updateCatalogIndexes(env, data, {
               source,
               sourceBookId: String(data.content_id || ""),
@@ -4462,7 +4496,7 @@ export default {
               genre_id: "fiction",
               annotation: "",
               content_id: String(contentId),
-              published_by_tenant_id: tenantContext.tenantId,
+              published_by_tenant_id: tenantContext.personal ? null : tenantContext.tenantId,
               published_by_user_id: user.sub,
               status: "processing",
             },

@@ -102,9 +102,18 @@
         gap: 12px;
       }
 
+      .brandText {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        min-width: 0;
+      }
+
       .brandLink {
         color: inherit;
         text-decoration: none;
+        min-width: 0;
       }
 
       .brandLogo {
@@ -119,6 +128,80 @@
         font-weight: 700;
         color: var(--accent);
         letter-spacing: 0.4px;
+        min-width: 0;
+      }
+
+      .brandSubtitle {
+        font-size: 14px;
+        line-height: 1.2;
+        color: #586273;
+      }
+
+      .headerActions {
+        flex: 1 1 680px;
+        min-width: 280px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 16px;
+      }
+
+      .headerLinks {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .headerNavLink,
+      .headerMyBooksLink,
+      .headerBackLink {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--accent);
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .headerNavLink:hover,
+      .headerMyBooksLink:hover,
+      .headerBackLink:hover {
+        text-decoration: underline;
+      }
+
+      .headerNavLink.isActive {
+        color: var(--ink);
+        pointer-events: none;
+        cursor: default;
+      }
+
+      .headerNavLink.isActive:hover {
+        text-decoration: none;
+      }
+
+      .headerSearchForm {
+        flex: 1 1 440px;
+        min-width: 220px;
+      }
+
+      .headerMenuToggle {
+        display: none;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--rect-bg);
+        color: var(--accent);
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .headerMenuToggle svg {
+        width: 18px;
+        height: 18px;
+        display: block;
       }
 
       .searchWrap {
@@ -352,6 +435,323 @@
         margin-bottom: 18px;
       }
 
+      .catalogHero {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        align-items: stretch;
+        margin-bottom: 0;
+        padding-bottom: 28px;
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+
+      .catalogHero[hidden] {
+        display: none;
+      }
+
+      .catalogHeroTop {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 1fr);
+        gap: 24px;
+        align-items: stretch;
+      }
+
+      .catalogHeroPanel {
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--rect-bg);
+        box-shadow: none;
+      }
+
+      .catalogHeroCopy {
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 14px;
+        height: 100%;
+        min-height: 100%;
+        max-width: min(100%, 680px);
+        align-self: stretch;
+        border: none;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      .catalogHeroEyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: clamp(13px, 1.35vw, 15px);
+        letter-spacing: 0.06em;
+        color: var(--accent-2);
+      }
+
+      .catalogHeroEyebrow::before {
+        content: none;
+      }
+
+      .catalogHeroTitle {
+        margin: 0;
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: clamp(36px, 4.4vw, 52px);
+        line-height: 0.98;
+        letter-spacing: -0.03em;
+        color: #14202f;
+        max-width: none;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.04em;
+        width: max-content;
+      }
+
+      .catalogHeroText {
+        margin: 0;
+        max-width: none;
+        font-size: clamp(13px, 1.55vw, 18px);
+        line-height: 1.42;
+        color: #586273;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.28em;
+      }
+
+      .catalogHeroTitleLine,
+      .catalogHeroTextLine {
+        display: block;
+        white-space: nowrap;
+      }
+
+      .catalogHeroActions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .catalogHeroButton {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 999px;
+        border: 1px solid #0f766e;
+        background: linear-gradient(180deg, #16867b 0%, #0f766e 100%);
+        color: #ffffff;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        box-shadow: 0 10px 24px rgba(15, 118, 110, 0.18);
+        transition: transform 1000ms ease, filter 1000ms ease, box-shadow 1000ms ease;
+        cursor: pointer;
+      }
+
+      .catalogHeroButton:hover {
+        text-decoration: none;
+        background: linear-gradient(180deg, #13796f 0%, #0d675f 100%);
+      }
+
+      .heroBookPicker {
+        position: relative;
+      }
+
+      .heroBookPickerSummary {
+        list-style: none;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .heroBookPickerSummary::-webkit-details-marker {
+        display: none;
+      }
+
+      .heroBookPickerSummary::after {
+        content: "▾";
+        margin-left: 10px;
+        font-size: 14px;
+        line-height: 1;
+      }
+
+      .heroBookPicker[open] .heroBookPickerSummary::after {
+        content: "▴";
+      }
+
+      .heroBookPickerMenu {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        z-index: 30;
+        width: min(360px, calc(100vw - 48px));
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: #fffdfa;
+        box-shadow: 0 18px 38px rgba(20, 32, 47, 0.12);
+      }
+
+      .heroBookOption {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .heroBookOption:hover {
+        background: rgba(2, 143, 128, 0.07);
+      }
+
+      .heroBookOptionCover {
+        width: 34px;
+        height: 48px;
+        border-radius: 5px;
+        object-fit: cover;
+        display: block;
+      }
+
+      .heroBookOptionBody {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        align-items: flex-start;
+        text-align: left;
+      }
+
+      .heroBookOptionTitle {
+        font-size: 16px;
+        line-height: 1.25;
+        font-weight: 600;
+        color: #0d6b66;
+      }
+
+      .heroBookOptionAuthor {
+        font-size: 14px;
+        line-height: 1.35;
+        color: #586273;
+      }
+
+      .catalogHeroTrust {
+        max-width: none;
+        font-size: clamp(13px, 1.35vw, 15px);
+        line-height: 1.5;
+        color: var(--accent-2);
+      }
+
+      .catalogHeroTrustTail {
+        white-space: nowrap;
+      }
+
+      .catalogHeroReaders {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        pointer-events: none;
+        min-width: 0;
+      }
+
+      .catalogHeroReaders img {
+        display: block;
+        width: min(100%, 475px);
+        height: auto;
+        object-fit: contain;
+      }
+
+      .browseHeader {
+        border: 1px solid var(--border);
+        background: var(--rect-bg);
+        border-radius: var(--radius-lg);
+        padding: 18px;
+        margin-bottom: 18px;
+      }
+
+      .browseHeaderTop {
+        display: grid;
+        grid-template-columns: minmax(0, auto) max-content minmax(0, 1fr) auto;
+        grid-template-areas: "title lang crumbs reset";
+        align-items: center;
+        gap: 12px 16px;
+        margin-bottom: 14px;
+      }
+
+      .browseHeaderTitle {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 26px;
+        line-height: 1.1;
+        color: var(--ink);
+        margin: 0;
+        grid-area: title;
+        min-width: 0;
+      }
+
+      .browseHeaderLang {
+        grid-area: lang;
+        min-width: 0;
+      }
+
+      .browseHeaderTop .breadcrumbs-row {
+        grid-area: crumbs;
+      }
+
+      .browseResetBtn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        color: #0d6b66;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex: 0 0 auto;
+        padding: 0;
+        grid-area: reset;
+      }
+
+      .browseResetBtn:hover,
+      .browseResetBtn:focus-visible {
+        color: #0b5d59;
+        background: transparent;
+      }
+
+      .browseResetBtn[hidden] {
+        display: none;
+      }
+
+      .browseResetBtnIcon {
+        width: 15px;
+        height: 15px;
+        display: block;
+        background-color: currentColor;
+        -webkit-mask-image: url("/books/assets/undo.svg");
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        -webkit-mask-size: contain;
+        mask-image: url("/books/assets/undo.svg");
+        mask-repeat: no-repeat;
+        mask-position: center;
+        mask-size: contain;
+      }
+
+      .browseContent {
+        margin-top: 8px;
+      }
+
+      .browseHeaderLang .catalogControls {
+        margin: 0;
+      }
+
+      .browseHeaderLang .searchWrap {
+        min-width: 0;
+      }
+
       #breadcrumbs {
         font-size: 13px;
         color: var(--muted);
@@ -370,36 +770,11 @@
         text-decoration: underline;
       }
 
-      .my-books-link {
-        font-size: 13px;
-        color: var(--accent);
-        text-decoration: none;
-        white-space: nowrap;
-      }
-
-      .my-books-link:hover {
-        text-decoration: underline;
-      }
-
-      .my-books-link {
-        font-size: 13px;
-        color: var(--accent);
-        text-decoration: none;
-        white-space: nowrap;
-      }
-
-      .my-books-link:hover {
-        text-decoration: underline;
-      }
-
-      #breadcrumbs .my-books-link {
-        margin-left: auto;
-      }
-
       #toolbar {
         display: flex;
         gap: 8px;
         margin-bottom: 12px;
+        align-items: center;
       }
 
       #main {
@@ -523,6 +898,13 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
         gap: 14px;
+      }
+
+      .prefixesGrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        width: 100%;
       }
 
       .catalogSections {
@@ -666,6 +1048,107 @@
 
       tr.rowLink:hover td {
         background: rgba(45, 111, 107, 0.08);
+      }
+
+      .prefixBtn {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 0;
+        padding: 10px 12px;
+        text-align: left;
+        min-width: 0;
+      }
+
+      .prefixBtnCount {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--muted);
+        margin-left: auto;
+        white-space: nowrap;
+      }
+
+      .prefixAuthorShell {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        width: fit-content;
+        max-width: 100%;
+      }
+
+      .prefixAuthorFlyout {
+        width: fit-content;
+        max-width: min(560px, calc(100vw - 72px));
+        background: transparent;
+        padding: 0;
+      }
+
+      .prefixAuthorList {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        max-height: 220px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        background: var(--rect-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        box-shadow: 0 20px 36px rgba(15, 23, 42, 0.14);
+        padding: 6px 0;
+      }
+
+      .prefixAuthorList::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+
+      .prefixAuthorList {
+        scrollbar-width: none;
+      }
+
+      .prefixAuthorRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+        padding: 8px 10px;
+        border: none;
+        border-radius: 0;
+        background: var(--rect-bg);
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .prefixAuthorRow:hover {
+        background: var(--rect-bg);
+      }
+
+      .prefixAuthorName {
+        color: var(--accent);
+        font-size: 14px;
+        line-height: 1.25;
+        font-weight: 400;
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left;
+      }
+
+      .prefixAuthorBookCount {
+        font-size: 14px;
+        color: var(--muted);
+        white-space: nowrap;
+        text-align: right;
+        min-width: 32px;
+        font-variant-numeric: tabular-nums;
       }
 
       .prefixLabel {
@@ -870,6 +1353,32 @@
           flex-direction: column;
           align-items: flex-start;
         }
+        .headerActions {
+          width: 100%;
+          min-width: 0;
+          align-items: stretch;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .headerMenuToggle {
+          display: inline-flex;
+          margin-left: auto;
+        }
+        .headerLinks {
+          display: none;
+          width: 100%;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+          padding: 12px;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          background: var(--rect-bg);
+          order: 3;
+        }
+        .headerLinks.open {
+          display: flex;
+        }
         .searchWrap {
           width: 100%;
           justify-content: flex-start;
@@ -877,12 +1386,79 @@
           flex-direction: row;
           flex-wrap: nowrap;
         }
+        .headerSearchForm {
+          min-width: 0;
+        }
         .langWrap {
           width: auto;
         }
         .searchForm {
           flex: 1;
           min-width: 0;
+        }
+        .catalogHero {
+          gap: 16px;
+        }
+        .catalogHeroTop {
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+        .catalogHeroReaders {
+          order: -1;
+          justify-content: center;
+        }
+        .catalogHeroReaders img {
+          width: min(100%, 420px);
+        }
+        .catalogHeroCopy {
+          padding: 22px 20px;
+          max-width: 100%;
+        }
+        .catalogHeroEyebrow,
+        .catalogHeroActions {
+          justify-content: center;
+        }
+        .catalogHeroEyebrow {
+          flex-wrap: wrap;
+          text-align: center;
+        }
+        .catalogHeroTitle {
+          width: 100%;
+          align-items: center;
+          text-align: center;
+        }
+        .catalogHeroTitleLine,
+        .catalogHeroTextLine {
+          white-space: normal;
+        }
+        .catalogHeroText {
+          align-items: center;
+          text-align: center;
+        }
+        .catalogHeroTrust {
+          text-align: center;
+        }
+        .heroBookPickerMenu {
+          left: 50%;
+          transform: translateX(-50%);
+        }
+        .browseHeaderTop {
+          grid-template-columns: 1fr;
+          grid-template-areas:
+            "title"
+            "lang"
+            "crumbs"
+            "reset";
+          align-items: start;
+        }
+        .browseHeaderLang {
+          width: 100%;
+        }
+        .browseHeaderTop .breadcrumbs-row {
+          width: 100%;
+        }
+        .browseHeaderLang .catalogControls {
+          width: 100%;
         }
         .srItem {
           grid-template-columns: 44px 1fr;
@@ -908,17 +1484,13 @@
       <header>
         <a class="brand brandLink" id="brandLink" href="#view=letters">
           <img class="brandLogo" src="/books/assets/logo.svg" alt="ReaderPub" />
-          <div class="title">ReaderPub Books</div>
-        </a>
-        <div class="searchWrap">
-          <div class="langWrap" id="languageWrap">
-            <button id="languageSelect" class="langSelect" type="button" aria-haspopup="listbox" aria-expanded="false">
-              <span class="langValue">All languages</span>
-              <span class="langChevron">▾</span>
-            </button>
-            <div id="languageMenu" class="langMenu" role="listbox" aria-label="Languages"></div>
+          <div class="brandText">
+            <div class="title">WeRead</div>
+            <div class="brandSubtitle">Powered by ReaderPub</div>
           </div>
-          <form id="searchForm" class="searchForm" role="search">
+        </a>
+        <div class="headerActions">
+          <form id="searchForm" class="searchForm headerSearchForm" role="search">
             <input
               id="searchInput"
               class="searchInput"
@@ -938,14 +1510,115 @@
               </svg>
             </button>
           </form>
+          <button id="headerMenuToggle" class="headerMenuToggle" type="button" aria-expanded="false" aria-controls="headerLinks" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+              <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+              <line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+            </svg>
+          </button>
+          <div id="headerLinks" class="headerLinks">
+            <a id="headerBackLink" class="headerBackLink" href="#view=letters" style="display: none">Back to Catalog</a>
+            <a id="headerNewestLink" class="headerNavLink" href="#view=letters">Newest</a>
+            <a id="headerPopularLink" class="headerNavLink" href="#view=letters">Popular</a>
+            <a id="headerByCategoryLink" class="headerNavLink" href="#view=letters">By Category</a>
+            <a id="headerByAuthorLink" class="headerNavLink" href="#view=letters">By Author</a>
+            <a id="myBooksLink" class="headerMyBooksLink" href="#view=mybooks">My Books</a>
+          </div>
         </div>
         <user-menu></user-menu>
       </header>
       <main id="main">
-        <div id="breadcrumbsRow" class="breadcrumbs-row">
-          <div id="breadcrumbs"></div>
-          <a id="myBooksLink" class="my-books-link" href="#view=mybooks">Reading History</a>
-        </div>
+        <section id="catalogHero" class="catalogHero" aria-label="Reader experience preview">
+          <div class="catalogHeroTop">
+            <div class="catalogHeroPanel catalogHeroCopy">
+              <div class="catalogHeroEyebrow">WeRead - THE BROWSER E-READER</div>
+              <h1 class="catalogHeroTitle">
+                <span class="catalogHeroTitleLine">Genuine reading app.</span>
+                <span class="catalogHeroTitleLine">Right in your browser.</span>
+              </h1>
+              <p class="catalogHeroText">
+                <span class="catalogHeroTextLine">Smooth pages, instant open, no installs.</span>
+                <span class="catalogHeroTextLine">Feels like an app. Works on the web.</span>
+              </p>
+              <div class="catalogHeroActions">
+                <details class="heroBookPicker">
+                  <summary id="heroStartLink" class="catalogHeroButton heroBookPickerSummary">Start reading in WeRead</summary>
+                  <div class="heroBookPickerMenu">
+                    <a class="heroBookOption" href="/books/reader1/?id=1342&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                      <img class="heroBookOptionCover" src="/books/content/1342/OEBPS/3996567743618079316_cover.jpg" alt="" />
+                      <span class="heroBookOptionBody">
+                        <span class="heroBookOptionTitle">Pride and Prejudice</span>
+                        <span class="heroBookOptionAuthor">Jane Austen</span>
+                      </span>
+                    </a>
+                    <a class="heroBookOption" href="/books/reader1/?id=11&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                      <img class="heroBookOptionCover" src="/books/content/11/OEBPS/4500724211512504931_cover.jpg" alt="" />
+                      <span class="heroBookOptionBody">
+                        <span class="heroBookOptionTitle">Alice's Adventures in Wonderland</span>
+                        <span class="heroBookOptionAuthor">Lewis Carroll</span>
+                      </span>
+                    </a>
+                    <a class="heroBookOption" href="/books/reader1/?id=84&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                      <img class="heroBookOptionCover" src="/books/content/84/OEBPS/6171239746783589600_cover.jpg" alt="" />
+                      <span class="heroBookOptionBody">
+                        <span class="heroBookOptionTitle">Frankenstein</span>
+                        <span class="heroBookOptionAuthor">Mary Wollstonecraft Shelley</span>
+                      </span>
+                    </a>
+                    <a class="heroBookOption" href="/books/reader1/?id=1661&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                      <img class="heroBookOptionCover" src="/books/content/1661/OEBPS/5463403510293679682_cover.jpg" alt="" />
+                      <span class="heroBookOptionBody">
+                        <span class="heroBookOptionTitle">The Adventures of Sherlock Holmes</span>
+                        <span class="heroBookOptionAuthor">Arthur Conan Doyle</span>
+                      </span>
+                    </a>
+                    <a class="heroBookOption" href="/books/reader1/?id=2701&amp;entry=hero" target="_blank" rel="noopener noreferrer">
+                      <img class="heroBookOptionCover" src="/books/content/2701/OEBPS/4318954881170042010_cover.jpg" alt="" />
+                      <span class="heroBookOptionBody">
+                        <span class="heroBookOptionTitle">Moby-Dick</span>
+                        <span class="heroBookOptionAuthor">Herman Melville</span>
+                      </span>
+                    </a>
+                  </div>
+                </details>
+              </div>
+              <div class="catalogHeroTrust">
+                <span class="catalogHeroTrustLead">80,000+ books available.</span>
+                <span class="catalogHeroTrustTail">Pick one to try right now.</span>
+              </div>
+            </div>
+            <div class="catalogHeroReaders" aria-hidden="true">
+              <img src="/books/assets/readers1.webp" alt="" />
+            </div>
+          </div>
+        </section>
+        <div id="browseHeaderDefaultMount"></div>
+        <section id="browseHeader" class="browseHeader" aria-label="Browse by author">
+          <div class="browseHeaderTop">
+            <div class="browseHeaderTitle">Browse by Author</div>
+            <div class="browseHeaderLang">
+              <div class="catalogControls">
+                <div class="searchWrap">
+                  <div class="langWrap" id="languageWrap">
+                    <button id="languageSelect" class="langSelect" type="button" aria-haspopup="listbox" aria-expanded="false">
+                      <span class="langValue">All languages</span>
+                      <span class="langChevron">▾</span>
+                    </button>
+                    <div id="languageMenu" class="langMenu" role="listbox" aria-label="Languages"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="breadcrumbsRow" class="breadcrumbs-row">
+              <div id="breadcrumbs"></div>
+            </div>
+            <button id="browseResetBtn" class="browseResetBtn" type="button" hidden aria-label="Reset Browse by Author">
+              <span class="browseResetBtnIcon" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div id="browseContent" class="browseContent"></div>
+        </section>
         <div id="toolbar"></div>
         <div id="searchResults"></div>
         <div id="content" class="panel"></div>
@@ -975,11 +1648,25 @@
         };
 
         const els = {
+          hero: document.getElementById("catalogHero"),
+          heroStartLink: document.getElementById("heroStartLink"),
+          heroBookPicker: document.querySelector(".heroBookPicker"),
+          browseHeaderDefaultMount: document.getElementById("browseHeaderDefaultMount"),
+          browseHeader: document.getElementById("browseHeader"),
+          browseContent: document.getElementById("browseContent"),
           breadcrumbs: document.getElementById("breadcrumbs"),
           breadcrumbsRow: document.getElementById("breadcrumbsRow"),
+          browseResetBtn: document.getElementById("browseResetBtn"),
           myBooksLink: document.getElementById("myBooksLink"),
           toolbar: document.getElementById("toolbar"),
           brandLink: document.getElementById("brandLink"),
+          headerBackLink: document.getElementById("headerBackLink"),
+          headerNewestLink: document.getElementById("headerNewestLink"),
+          headerPopularLink: document.getElementById("headerPopularLink"),
+          headerByCategoryLink: document.getElementById("headerByCategoryLink"),
+          headerByAuthorLink: document.getElementById("headerByAuthorLink"),
+          headerLinks: document.getElementById("headerLinks"),
+          headerMenuToggle: document.getElementById("headerMenuToggle"),
           languageSelect: document.getElementById("languageSelect"),
           languageWrap: document.getElementById("languageWrap"),
           languageMenu: document.getElementById("languageMenu"),
@@ -996,6 +1683,8 @@
         let SEARCH_NONCE = 0;
         let currentView = null;
         let activeLanguage = "en";
+        let activeHeaderNav = "";
+        let headerMenuScrollLock = false;
         const SEARCH_PAGE_SIZE = 24;
         const AUTHOR_BOOKS_PAGE_SIZE = 24;
         let searchState = {
@@ -1139,6 +1828,121 @@
           els.status.textContent = message || "";
         }
 
+        function resetSearchUi() {
+          els.search.value = "";
+          searchState = { query: "", items: [], error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
+          updateSearchIcon();
+          renderSearchResults();
+        }
+
+        function isLandingState(state) {
+          return String((state && state.view) || "letters") === "letters";
+        }
+
+        function updateHeaderNavState(activeKey) {
+          activeHeaderNav = String(activeKey || "");
+          [
+            [els.headerNewestLink, "newest"],
+            [els.headerPopularLink, "popular"],
+            [els.headerByCategoryLink, "category"],
+            [els.headerByAuthorLink, "author"],
+          ].forEach(([link, key]) => {
+            if (!link) return;
+            const isActive = activeHeaderNav === key;
+            link.classList.toggle("isActive", isActive);
+            if (isActive) link.setAttribute("aria-current", "page");
+            else link.removeAttribute("aria-current");
+          });
+        }
+
+        function closeHeaderMenu() {
+          if (!els.headerLinks) return;
+          els.headerLinks.classList.remove("open");
+          if (els.headerMenuToggle) els.headerMenuToggle.setAttribute("aria-expanded", "false");
+        }
+
+        function toggleHeaderMenu() {
+          if (!els.headerLinks) return;
+          const nextOpen = !els.headerLinks.classList.contains("open");
+          els.headerLinks.classList.toggle("open", nextOpen);
+          if (els.headerMenuToggle) els.headerMenuToggle.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+        }
+
+        function updateCatalogChrome(state) {
+          const current = state || parseState();
+          const view = current && current.view;
+          const isCompactCatalogView = view === "mybooks" || view === "category";
+          if (els.hero) {
+            els.hero.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.browseHeader) {
+            els.browseHeader.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerBackLink) {
+            els.headerBackLink.style.display = isCompactCatalogView ? "" : "none";
+          }
+          if (els.searchForm) {
+            els.searchForm.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerMenuToggle) {
+            els.headerMenuToggle.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerLinks && isCompactCatalogView) {
+            els.headerLinks.classList.remove("open");
+          }
+          if (els.headerByAuthorLink) {
+            els.headerByAuthorLink.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerNewestLink) {
+            els.headerNewestLink.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerPopularLink) {
+            els.headerPopularLink.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.headerByCategoryLink) {
+            els.headerByCategoryLink.style.display = isCompactCatalogView ? "none" : "";
+          }
+          if (els.myBooksLink) {
+            els.myBooksLink.style.display = isCompactCatalogView ? "none" : "";
+          }
+          updateHeaderNavState(isCompactCatalogView ? "" : activeHeaderNav);
+        }
+
+        function restoreBrowseHeaderDefaultPosition() {
+          if (!els.browseHeader || !els.browseHeaderDefaultMount) return;
+          const parent = els.browseHeaderDefaultMount.parentNode;
+          if (!parent) return;
+          if (els.browseHeader.parentNode === parent && els.browseHeader.previousSibling === els.browseHeaderDefaultMount) return;
+          parent.insertBefore(els.browseHeader, els.browseHeaderDefaultMount.nextSibling);
+        }
+
+        function updateBrowseResetControl(state) {
+          if (!els.browseResetBtn) return;
+          const current = state || parseState();
+          const isActiveBrowseState = current.view === "prefixes" || current.view === "prefix" || current.view === "author";
+          els.browseResetBtn.hidden = !isActiveBrowseState;
+        }
+
+        function jumpToCatalogSection(sectionId, activeKey) {
+          resetSearchUi();
+          closeHeaderMenu();
+          const nextState = { ...DEFAULT_STATE, language: activeLanguage || DEFAULT_STATE.language };
+          updateHash(nextState, false);
+          Promise.resolve(renderState(nextState)).then(() => {
+            updateHeaderNavState(activeKey || "");
+            const target = document.getElementById(sectionId);
+            if (!target) return;
+            const header = document.querySelector("header");
+            const headerHeight = header ? header.offsetHeight : 0;
+            const top = Math.max(0, window.scrollY + target.getBoundingClientRect().top - headerHeight - 12);
+            headerMenuScrollLock = true;
+            window.scrollTo({ top, behavior: "smooth" });
+            window.setTimeout(() => {
+              headerMenuScrollLock = false;
+            }, 700);
+          });
+        }
+
         function showLoading(message) {
           els.content.innerHTML = "";
           const loading = el("div", "loading", message || "Loading...");
@@ -1240,7 +2044,7 @@
         function setToolbar(view, bookView) {
           els.toolbar.innerHTML = "";
           if (searchState && searchState.query) return;
-          if (view !== "author" && view !== "mybooks" && view !== "category") return;
+          if (view !== "mybooks") return;
 
           const listBtn = el("button", "toggleBtn", "List");
           const gridBtn = el("button", "toggleBtn", "Grid");
@@ -1275,6 +2079,7 @@
             else els.breadcrumbs.style.display = "";
             els.content.style.display = "";
             els.toolbar.style.display = "";
+            updateCatalogChrome(parseState());
             return;
           }
           els.searchResults.style.display = "block";
@@ -1282,6 +2087,7 @@
           else els.breadcrumbs.style.display = "none";
           els.content.style.display = "none";
           els.toolbar.style.display = "none";
+          updateCatalogChrome(parseState());
           const headText = searchState.loading
             ? `Searching "${searchState.query}"...`
             : `Search results for "${searchState.query}" (${searchState.items.length})`;
@@ -1632,6 +2438,119 @@
             .filter(Boolean);
         }
 
+        function getCatalogAuthorKey(name) {
+          const parsed = normalizeAuthorName(name);
+          return normalizeSearchMatch(parsed.display || name || "")
+            .replace(/[^\p{L}\p{N}]+/gu, " ")
+            .trim();
+        }
+
+        function getBookIdentityKey(book) {
+          if (!book || typeof book !== "object") return "";
+          const id = String(book.id || "").trim();
+          if (!id) return "";
+          const source = inferBookSource(book) || "";
+          return `${source}:${id}`;
+        }
+
+        function dedupeBooks(books) {
+          const seen = new Set();
+          return (Array.isArray(books) ? books : []).filter((book) => {
+            const key = getBookIdentityKey(book);
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        }
+
+        function mergeBookCollections(primaryBooks, memberBooks) {
+          return dedupeBooks([...(Array.isArray(memberBooks) ? memberBooks : []), ...(Array.isArray(primaryBooks) ? primaryBooks : [])]);
+        }
+
+        function buildMemberAuthorEntries(memberBooks, letter, prefix) {
+          const token = normalizeSearchMatch(prefix || letter || "").replace(/[^\p{L}\p{N}]+/gu, "");
+          const counts = new Map();
+          (Array.isArray(memberBooks) ? memberBooks : []).forEach((book) => {
+            const authorName = String(book && book.author || "").trim();
+            if (!authorName) return;
+            const parsed = normalizeAuthorName(authorName);
+            const last = normalizeSearchMatch(parsed.last || "").replace(/[^\p{L}\p{N}]+/gu, "");
+            if (!last) return;
+            if (token && !last.startsWith(token)) return;
+            const displayName = parsed.display || authorName;
+            const key = getCatalogAuthorKey(displayName) || displayName;
+            const existing = counts.get(key);
+            if (existing) {
+              existing.count += 1;
+              return;
+            }
+            counts.set(key, { key, name: displayName, count: 1 });
+          });
+          return Array.from(counts.values());
+        }
+
+        function mergeAuthorCollections(primaryAuthors, memberAuthors) {
+          const merged = new Map();
+          [...(Array.isArray(primaryAuthors) ? primaryAuthors : []), ...(Array.isArray(memberAuthors) ? memberAuthors : [])].forEach((author) => {
+            if (!author) return;
+            const displayName = normalizeAuthorName(author.displayName || author.name || author.key || "").display || author.name || author.key || "";
+            const key = String(author.key || getCatalogAuthorKey(displayName) || displayName).trim();
+            if (!key) return;
+            const current = merged.get(key);
+            const nextCount = parseNumber(author.count);
+            if (!current) {
+              merged.set(key, {
+                ...author,
+                key,
+                name: displayName || author.name || key,
+                displayName: displayName || author.displayName || author.name || key,
+                count: nextCount,
+              });
+              return;
+            }
+            current.count = Math.max(parseNumber(current.count) ?? 0, nextCount ?? 0) || null;
+          });
+          return Array.from(merged.values());
+        }
+
+        function buildMemberPrefixEntries(memberBooks, letter) {
+          const token = normalizeSearchMatch(letter || "").replace(/[^\p{L}\p{N}]+/gu, "");
+          const counts = new Map();
+          (Array.isArray(memberBooks) ? memberBooks : []).forEach((book) => {
+            const authorName = String(book && book.author || "").trim();
+            if (!authorName) return;
+            const parsed = normalizeAuthorName(authorName);
+            const last = normalizeSearchMatch(parsed.last || "").replace(/[^\p{L}\p{N}]+/gu, "");
+            if (!last) return;
+            if (token === "#") {
+              if (!/^\d/.test(last)) return;
+            } else if (token && !last.startsWith(token)) {
+              return;
+            }
+            const prefix = last.slice(0, Math.max(2, token.length || 1));
+            if (!prefix || prefix === token) return;
+            counts.set(prefix, (counts.get(prefix) || 0) + 1);
+          });
+          return Array.from(counts.entries()).map(([prefix, count]) => ({ prefix, count }));
+        }
+
+        function mergePrefixCollections(primaryPrefixes, memberPrefixes) {
+          const merged = new Map();
+          [...(Array.isArray(primaryPrefixes) ? primaryPrefixes : []), ...(Array.isArray(memberPrefixes) ? memberPrefixes : [])].forEach((item) => {
+            if (!item) return;
+            const prefix = String(item.prefix || "").trim();
+            if (!prefix) return;
+            const count = parseNumber(item.count);
+            const current = merged.get(prefix);
+            if (!current) {
+              merged.set(prefix, { prefix, count });
+              return;
+            }
+            current.count = Math.max(parseNumber(current.count) ?? 0, count ?? 0) || null;
+          });
+          return Array.from(merged.values()).sort((a, b) => String(a.prefix).localeCompare(String(b.prefix), undefined, { sensitivity: "base" }));
+        }
+
         function extractAccessTokenFromSessionShape(value) {
           if (!value) return "";
           if (typeof value === "string") {
@@ -1841,20 +2760,22 @@
           };
         }
 
-        function openBookUrl(bookOrId, source, cover) {
-          return openReaderUrl(bookOrId, cover, source);
+        function openBookUrl(bookOrId, source, cover, entryOverride) {
+          return openReaderUrl(bookOrId, cover, source, entryOverride);
         }
 
-        function openReaderUrl(bookOrId, cover, sourceOverride) {
+        function openReaderUrl(bookOrId, cover, sourceOverride, entryOverride) {
           const target = normalizeBookTarget(bookOrId, sourceOverride);
           const id = target.id;
           const source = target.source;
+          const entry = String(entryOverride || "catalog").trim();
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
-          const base = isPagesDev ? "/reader/" : "/books/reader/";
+          const base = isPagesDev ? "/reader1/" : "/books/reader1/";
           let url = `${base}?id=${encodeURIComponent(id)}`;
           if (source && source !== "gutenberg") url += `&source=${encodeURIComponent(source)}`;
           const coverHint = String(cover || "").trim();
           if (coverHint) url += `&cover=${encodeURIComponent(coverHint)}`;
+          if (entry) url += `&entry=${encodeURIComponent(entry)}`;
           return url;
         }
 
@@ -2196,6 +3117,11 @@
             const rawItems = await fetchSearchIndex(token, nonce);
             if (nonce !== SEARCH_NONCE) return;
             if (!rawItems) return;
+            let memberBooks = [];
+            try {
+              memberBooks = await getMemberCatalogBooks();
+            } catch (error) {}
+            if (nonce !== SEARCH_NONCE) return;
 
             const results = rawItems
               .map((item) => {
@@ -2258,12 +3184,46 @@
                 return null;
               })
               .filter(Boolean)
+              .concat(
+                dedupeBooks(memberBooks)
+                  .filter((book) => matchesQuery({ type: "book", title: book.title, author: book.author }, query))
+                  .map((book) => ({
+                    kind: "book",
+                    title: book.title || book.id,
+                    meta: book.author || "Book",
+                    hint: "Open book",
+                    cover: resolveCoverUrl(book.cover),
+                    href: openBookUrl(book, book.source, book.cover),
+                    openInNewTab: false,
+                  }))
+              )
+              .concat(
+                buildMemberAuthorEntries(memberBooks)
+                  .filter((author) => matchesQuery({ type: "author", name: author.name }, query))
+                  .map((author) => ({
+                    kind: "author",
+                    title: author.name,
+                    meta: "",
+                    countLabel: author.count !== null ? `${author.count} books` : "",
+                    hint: "Open",
+                    cover: "",
+                    onClick: () => openAuthorFromSearch(author.key, author.name),
+                  }))
+              )
               .sort((a, b) => {
                 if (a.kind !== b.kind) return a.kind === "author" ? -1 : 1;
                 return String(a.title || "").localeCompare(String(b.title || ""), undefined, {
                   numeric: true,
                   sensitivity: "base",
                 });
+              })
+              .filter((item, index, array) => {
+                const key = item.kind === "book"
+                  ? `book:${item.href || item.title}`
+                  : `author:${item.title}`;
+                return array.findIndex((candidate) => (
+                  (candidate.kind === "book" ? `book:${candidate.href || candidate.title}` : `author:${candidate.title}`) === key
+                )) === index;
               });
 
             searchState = { query, items: results, error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
@@ -2333,7 +3293,7 @@
           if (authorKey) params.set("authorKey", authorKey);
           if (authorName) params.set("authorName", authorName);
           if (current.language && current.language !== DEFAULT_STATE.language) params.set("lang", current.language);
-          params.set("bookView", current.bookView || "list");
+          params.set("bookView", "grid");
           return `#${params.toString()}`;
         }
 
@@ -2345,13 +3305,13 @@
           renderSearchResults();
 
           const current = parseState();
-          const next = {
-            view: "author",
-            authorKey: authorKey || authorName || "",
-            authorName: authorName || authorKey || "",
-            bookView: (current.bookView || "list"),
-            language: "all",
-          };
+            const next = {
+              view: "author",
+              authorKey: authorKey || authorName || "",
+              authorName: authorName || authorKey || "",
+              bookView: "grid",
+              language: "all",
+            };
           updateHash(next, false);
 
           const nonce = ++REQ_NONCE;
@@ -2371,7 +3331,7 @@
                 next.authorName ||
                 next.authorKey,
             };
-            const viewMode = next.bookView || "list";
+              const viewMode = "grid";
             authorBooksState = {
               key: author.key || next.authorKey || "",
               visibleLimit: AUTHOR_BOOKS_PAGE_SIZE,
@@ -2470,6 +3430,7 @@
 
         function renderPopularPreview(popular) {
           const section = el("section", "landingSection");
+          section.id = "popularTitlesSection";
           const listKey = popular.defaultList && popular.lists[popular.defaultList] ? popular.defaultList : "last30days";
           const list = popular.lists[listKey] || { books: [], count: 0 };
           const previewBooks = list.books.slice(0, 12);
@@ -2511,6 +3472,7 @@
 
         function renderNewestPreview(newest) {
           const section = el("section", "landingSection");
+          section.id = "newestTitlesSection";
           const windowDays = parseNumber(newest && newest.windowDays) ?? 7;
           const previewBooks = Array.isArray(newest && newest.books) ? newest.books.slice(0, 12) : [];
           section.appendChild(createSectionHeader("Newest Releases", `Added in the last ${windowDays} days`));
@@ -2551,6 +3513,7 @@
 
         function renderMemberBooksPreview(books) {
           const section = el("section", "landingSection");
+          section.id = "memberBooksSection";
           section.appendChild(createSectionHeader("Your Organization Books", "Visible to your organization memberships"));
           if (!books.length) {
             section.appendChild(el("div", "loading", "No organization-only books are currently available to this account."));
@@ -2589,6 +3552,7 @@
 
         function renderCategoriesSection(categories) {
           const section = el("section", "landingSection");
+          section.id = "catalogCategoriesSection";
           section.appendChild(createSectionHeader("Browse by Category"));
           if (!categories.length) {
             section.appendChild(el("div", "loading", "Categories are not available yet."));
@@ -2635,37 +3599,47 @@
         }
 
         function renderLanding(letters, newest, popular, categories, memberBooks) {
+          restoreBrowseHeaderDefaultPosition();
+          if (els.browseContent) {
+            els.browseContent.innerHTML = "";
+            if (!letters.length) {
+              els.browseContent.appendChild(el("div", "loading", "No letters available."));
+            } else {
+              els.browseContent.appendChild(createLettersGrid(letters));
+            }
+          }
           els.content.innerHTML = "";
           const wrap = el("div", "catalogSections");
-          const lettersSection = el("section", "landingSection");
-          lettersSection.appendChild(createSectionHeader("Browse by Author"));
-          if (!letters.length) {
-            lettersSection.appendChild(el("div", "loading", "No letters available."));
-          } else {
-            lettersSection.appendChild(createLettersGrid(letters));
-          }
-          wrap.appendChild(lettersSection);
-          if (Array.isArray(memberBooks) && memberBooks.length) {
-            wrap.appendChild(renderMemberBooksPreview(memberBooks));
-          }
           wrap.appendChild(renderNewestPreview(newest || { windowDays: 7, books: [] }));
           wrap.appendChild(renderPopularPreview(popular || { defaultList: "last30days", lists: {} }));
           wrap.appendChild(renderCategoriesSection(categories || []));
+          if (els.browseHeader) {
+            wrap.appendChild(els.browseHeader);
+          }
+          if (Array.isArray(memberBooks) && memberBooks.length) {
+            wrap.appendChild(renderMemberBooksPreview(memberBooks));
+          }
           els.content.appendChild(wrap);
+          updateBrowseResetControl();
         }
 
         function renderLetters(letters) {
-          els.content.innerHTML = "";
+          restoreBrowseHeaderDefaultPosition();
+          if (!els.browseContent) return;
+          els.browseContent.innerHTML = "";
           if (!letters.length) {
             const empty = el("div", "loading", "No letters available.");
-            els.content.appendChild(empty);
+            els.browseContent.appendChild(empty);
             return;
           }
-          els.content.appendChild(createLettersGrid(letters));
+          els.browseContent.appendChild(createLettersGrid(letters));
+          updateBrowseResetControl();
         }
 
         function renderPrefixes(prefixes, letter) {
+          if (!els.browseContent) return;
           els.content.innerHTML = "";
+          els.browseContent.innerHTML = "";
           const basePrefix = (() => {
             const state = parseState();
             if (state.view === "prefix" && state.prefix) return String(state.prefix);
@@ -2698,23 +3672,28 @@
               });
           if (!visible.length) {
             const empty = el("div", "loading", "No prefixes found.");
-            els.content.appendChild(empty);
+            els.browseContent.appendChild(empty);
             return;
           }
 
-          const table = el("table", "list");
-          const tbody = el("tbody");
+          const grid = el("div", "prefixesGrid");
 
           visible.forEach((item) => {
-            const row = el("tr", "rowLink");
-            row.addEventListener("click", () => navigate({ view: "prefix", letter, prefix: item.prefix }));
-            row.appendChild(el("td", "prefixLabel", item.prefix));
-            row.appendChild(el("td", "count", item.count !== null ? `${item.count} authors` : ""));
-            tbody.appendChild(row);
+            const btn = el("button", "letterBtn prefixBtn");
+            btn.type = "button";
+            btn.addEventListener("click", (event) => {
+              event.stopPropagation();
+              navigate({ view: "prefix", letter, prefix: item.prefix });
+            });
+            btn.appendChild(el("span", "prefixLabel", item.prefix));
+            if (item.count !== null) {
+              btn.appendChild(el("span", "prefixBtnCount", `${item.count} authors`));
+            }
+            grid.appendChild(btn);
           });
 
-          table.appendChild(tbody);
-          els.content.appendChild(table);
+          els.browseContent.appendChild(grid);
+          updateBrowseResetControl();
         }
 
         async function pruneEmptyPrefixes(letter, prefixes, nonce) {
@@ -2746,16 +3725,29 @@
         }
 
         function renderAuthors(authors, letter, prefix) {
+          if (!els.browseContent) return;
           els.content.innerHTML = "";
+          els.browseContent.innerHTML = "";
           const filteredAuthors = filterAuthorsForPrefix(authors, letter, prefix);
           if (!filteredAuthors.length) {
             const empty = el("div", "loading", "No authors found.");
-            els.content.appendChild(empty);
+            els.browseContent.appendChild(empty);
             return;
           }
 
-          const table = el("table", "list");
-          const tbody = el("tbody");
+          const shell = el("div", "prefixAuthorShell");
+          const prefixCard = el("button", "letterBtn prefixBtn");
+          prefixCard.type = "button";
+          prefixCard.addEventListener("click", (event) => {
+            event.stopPropagation();
+            navigate({ view: "prefixes", letter });
+          });
+          prefixCard.appendChild(el("span", "prefixLabel", prefix));
+          prefixCard.appendChild(el("span", "prefixBtnCount", `${filteredAuthors.length} authors`));
+          shell.appendChild(prefixCard);
+
+          const flyout = el("div", "prefixAuthorFlyout");
+          const list = el("div", "prefixAuthorList");
 
           const sorted = filteredAuthors
             .map((item) => {
@@ -2765,17 +3757,20 @@
             .sort((a, b) => a.sortKey.localeCompare(b.sortKey, undefined, { numeric: true, sensitivity: "base" }));
 
           sorted.forEach((item) => {
-            const row = el("tr", "rowLink");
+            const row = el("button", "prefixAuthorRow");
+            row.type = "button";
             row.addEventListener("click", () =>
               navigate({ view: "author", letter, prefix, authorKey: item.key, authorName: item.displayName || item.name })
             );
-            row.appendChild(el("td", "authorName", item.displayName || item.name));
-            row.appendChild(el("td", "count", item.count !== null ? `${item.count} books` : ""));
-            tbody.appendChild(row);
+            row.appendChild(el("span", "prefixAuthorName", item.displayName || item.name));
+            row.appendChild(el("span", "prefixAuthorBookCount", item.count !== null ? `${item.count} books` : ""));
+            list.appendChild(row);
           });
 
-          table.appendChild(tbody);
-          els.content.appendChild(table);
+          flyout.appendChild(list);
+          shell.appendChild(flyout);
+          els.browseContent.appendChild(shell);
+          updateBrowseResetControl();
         }
 
         function renderAuthorBooks(author, books, viewMode, visibleLimitInput) {
@@ -3522,8 +4517,24 @@
         async function fetchLetterPrefixesForToken(token, nonce) {
           const pattern = config.letterPrefixesPath || config.prefixNodePath;
           if (!pattern) throw new Error("catalog.config.json missing letterPrefixesPath or prefixNodePath");
-          const url = buildUrl(pattern, { letter: token, prefix: token });
-          const data = await fetchJson(url, nonce);
+          const variants = [];
+          const rawToken = String(token || "").trim();
+          if (rawToken) variants.push(rawToken);
+          const lowerToken = rawToken.toLocaleLowerCase();
+          if (lowerToken && lowerToken !== rawToken) variants.push(lowerToken);
+          let data = null;
+          let lastError = null;
+          for (const variant of variants) {
+            const url = buildUrl(pattern, { letter: variant, prefix: variant });
+            try {
+              data = await fetchJson(url, nonce);
+              lastError = null;
+              break;
+            } catch (error) {
+              lastError = error;
+            }
+          }
+          if (!data) throw lastError || new Error(`Failed to load prefixes for ${rawToken}`);
           const source =
             data.prefixes ||
             data.next ||
@@ -3621,6 +4632,7 @@
         }
 
         async function getLetterPrefixes(letter, nonce) {
+          if (!cache.letters) await getLetters(nonce);
           const cacheKey = letter;
           if (cache.letterPrefixes.has(cacheKey)) return cache.letterPrefixes.get(cacheKey);
           const letterToken = resolveLetterToken(letter);
@@ -3645,8 +4657,24 @@
           const cacheKey = `${letter}:${prefix}`;
           if (cache.prefixNodes.has(cacheKey)) return cache.prefixNodes.get(cacheKey);
           if (!config.prefixNodePath) throw new Error("catalog.config.json missing prefixNodePath");
-          const url = buildUrl(config.prefixNodePath, { letter, prefix });
-          const data = await fetchJson(url, nonce);
+          const rawPrefix = String(prefix || "").trim();
+          const variants = [];
+          if (rawPrefix) variants.push(rawPrefix);
+          const lowerPrefix = rawPrefix.toLocaleLowerCase();
+          if (lowerPrefix && lowerPrefix !== rawPrefix) variants.push(lowerPrefix);
+          let data = null;
+          let lastError = null;
+          for (const variant of variants) {
+            const url = buildUrl(config.prefixNodePath, { letter, prefix: variant });
+            try {
+              data = await fetchJson(url, nonce);
+              lastError = null;
+              break;
+            } catch (error) {
+              lastError = error;
+            }
+          }
+          if (!data) throw lastError || new Error(`Failed to load prefix node for ${rawPrefix}`);
 
           let childSource =
             data.children ||
@@ -3688,26 +4716,42 @@
 
         async function getAuthorBooks(authorKey, nonce) {
           if (cache.authorBooks.has(authorKey)) return cache.authorBooks.get(authorKey);
-          if (!config.authorPath) throw new Error("catalog.config.json missing authorPath");
-          const url = buildUrl(config.authorPath, { key: authorKey, author: authorKey });
-          const data = await fetchJson(url, nonce);
-
-          const author = {
-            key: data.key || data.id || authorKey,
-            name:
-              normalizeAuthorName(data.name || data.author || data.label || data.title || authorKey).display ||
-              data.name ||
-              data.author ||
-              data.label ||
-              data.title ||
-              authorKey,
-          };
-          let booksSource = data.books || data.items || data.list || data.results || data.works || data.entries || null;
-          if (!booksSource && Array.isArray(data)) booksSource = data;
-          const books = normalizeBooks(booksSource);
+          let publicPayload = null;
+          if (config.authorPath) {
+            try {
+              const url = buildUrl(config.authorPath, { key: authorKey, author: authorKey });
+              const data = await fetchJson(url, nonce);
+              const author = {
+                key: data.key || data.id || authorKey,
+                name:
+                  normalizeAuthorName(data.name || data.author || data.label || data.title || authorKey).display ||
+                  data.name ||
+                  data.author ||
+                  data.label ||
+                  data.title ||
+                  authorKey,
+              };
+              let booksSource = data.books || data.items || data.list || data.results || data.works || data.entries || null;
+              if (!booksSource && Array.isArray(data)) booksSource = data;
+              publicPayload = { author, books: normalizeBooks(booksSource) };
+            } catch (error) {}
+          }
+          let memberBooks = [];
+          try {
+            const memberCatalogBooks = await getMemberCatalogBooks();
+            memberBooks = memberCatalogBooks.filter((book) => getCatalogAuthorKey(book.author) === getCatalogAuthorKey(authorKey));
+          } catch (error) {}
+          const books = mergeBookCollections(publicPayload && publicPayload.books, memberBooks);
           if (!books.length) {
             throw new Error("Author JSON missing expected books list.");
           }
+          const author = {
+            key: (publicPayload && publicPayload.author && publicPayload.author.key) || authorKey,
+            name:
+              (publicPayload && publicPayload.author && publicPayload.author.name) ||
+              normalizeAuthorName(memberBooks[0] && memberBooks[0].author || authorKey).display ||
+              authorKey,
+          };
           const payload = { author, books };
           cache.authorBooks.set(authorKey, payload);
           return payload;
@@ -3725,6 +4769,7 @@
             if (nonce !== REQ_NONCE) return;
             renderLanguageSelect(languages);
             setActiveLanguage(state.language || "all");
+            updateCatalogChrome(state);
 
             if (!state.view || state.view === "letters") {
               els.content.classList.add("noPanel");
@@ -3770,31 +4815,44 @@
                 if (nonce !== REQ_NONCE) return;
                 const prefixes = await pruneEmptyPrefixes(state.letter, prefixesRaw, nonce);
                 if (nonce !== REQ_NONCE) return;
+                let memberPrefixes = [];
+                try {
+                  memberPrefixes = buildMemberPrefixEntries(await getMemberCatalogBooks(), state.letter);
+                } catch (error) {}
+                const mergedPrefixes = mergePrefixCollections(prefixes, memberPrefixes);
                 setBreadcrumbs([
                   { label: "Letters", onClick: () => navigate({ view: "letters" }) },
                   { label: formatPrefixLabel(state.letter) },
                 ]);
                 setToolbar("prefixes");
-                currentView = { renderer: () => renderPrefixes(prefixes, state.letter), data: prefixes };
-                renderPrefixes(prefixes, state.letter);
+                currentView = { renderer: () => renderPrefixes(mergedPrefixes, state.letter), data: mergedPrefixes };
+                renderPrefixes(mergedPrefixes, state.letter);
                 renderSearchResults();
                 return;
               } catch (error) {
                 try {
                   const token = resolveLetterToken(state.letter);
-                  const node = await getPrefixNode(state.letter, token, nonce);
+                  let node = { prefixes: [], authors: [], authorCount: 0 };
+                  try {
+                    node = await getPrefixNode(state.letter, token, nonce);
+                  } catch (fallbackNodeError) {}
                   if (nonce !== REQ_NONCE) return;
-                  if (node.authors.length) {
+                  let memberBooks = [];
+                  try {
+                    memberBooks = await getMemberCatalogBooks();
+                  } catch (memberError) {}
+                  const mergedAuthors = mergeAuthorCollections(node.authors, buildMemberAuthorEntries(memberBooks, state.letter, token));
+                  if (mergedAuthors.length) {
                     setBreadcrumbs([
                       { label: "Letters", onClick: () => navigate({ view: "letters" }) },
                       { label: formatPrefixLabel(state.letter) },
                     ]);
                     setToolbar("prefix");
                     currentView = {
-                      renderer: () => renderAuthors(node.authors, state.letter, token),
-                      data: node.authors,
+                      renderer: () => renderAuthors(mergedAuthors, state.letter, token),
+                      data: mergedAuthors,
                     };
-                    renderAuthors(node.authors, state.letter, token);
+                    renderAuthors(mergedAuthors, state.letter, token);
                     renderSearchResults();
                     return;
                   }
@@ -3812,14 +4870,23 @@
               }
 
               showLoading("Loading prefix node...");
-              const node = await getPrefixNode(state.letter, state.prefix, nonce);
+              let node = { prefixes: [], authors: [], authorCount: 0 };
+              try {
+                node = await getPrefixNode(state.letter, state.prefix, nonce);
+              } catch (error) {}
               if (nonce !== REQ_NONCE) return;
+              let memberBooks = [];
+              try {
+                memberBooks = await getMemberCatalogBooks();
+              } catch (error) {}
+              const mergedAuthors = mergeAuthorCollections(node.authors, buildMemberAuthorEntries(memberBooks, state.letter, state.prefix));
+              const mergedPrefixes = mergePrefixCollections(node.prefixes, []);
 
-              const authorsCount = node.authorCount || node.authors.length || 0;
+              const authorsCount = mergedAuthors.length || node.authorCount || node.authors.length || 0;
               const shouldShowAuthors = authorsCount > 0 && authorsCount < 50;
-              const canShowPrefixes = node.prefixes.length > 0;
-              const hasAuthors = node.authors.length > 0;
-              const visibleAuthors = filterAuthorsForPrefix(node.authors, state.letter, state.prefix);
+              const canShowPrefixes = mergedPrefixes.length > 0;
+              const hasAuthors = mergedAuthors.length > 0;
+              const visibleAuthors = filterAuthorsForPrefix(mergedAuthors, state.letter, state.prefix);
               const hasVisibleAuthors = visibleAuthors.length > 0;
 
               setBreadcrumbs([
@@ -3844,8 +4911,8 @@
 
               if (canShowPrefixes) {
                 setToolbar("prefix");
-                currentView = { renderer: () => renderPrefixes(node.prefixes, state.letter), data: node.prefixes };
-                renderPrefixes(node.prefixes, state.letter);
+                currentView = { renderer: () => renderPrefixes(mergedPrefixes, state.letter), data: mergedPrefixes };
+                renderPrefixes(mergedPrefixes, state.letter);
                 renderSearchResults();
                 return;
               }
@@ -3886,7 +4953,7 @@
                   state.authorName ||
                   state.authorKey,
               };
-              const viewMode = state.bookView || "grid";
+                const viewMode = "grid";
               const bookCount = payload.books ? payload.books.length : 0;
 
               setBreadcrumbs([
@@ -3925,10 +4992,10 @@
                 updateHash({ view: "letters" }, true);
                 return renderState(parseState());
               }
-              const viewMode = state.bookView || "grid";
-              if (viewMode === "grid") {
-                els.content.classList.add("noPanel");
-              }
+                const viewMode = "grid";
+                if (viewMode === "grid") {
+                  els.content.classList.add("noPanel");
+                }
               showLoading("Loading category...");
               const detail = await getCategoryDetail(state.category, nonce);
               if (nonce !== REQ_NONCE) return;
@@ -4037,10 +5104,59 @@
         if (els.brandLink) {
           els.brandLink.addEventListener("click", (event) => {
             event.preventDefault();
-            els.search.value = "";
-            updateSearchIcon();
-            runSearch();
+            resetSearchUi();
+            updateHeaderNavState("");
+            closeHeaderMenu();
             updateHash({ ...DEFAULT_STATE, language: DEFAULT_STATE.language }, true);
+            renderState(parseState());
+          });
+        }
+
+        if (els.headerBackLink) {
+          els.headerBackLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            resetSearchUi();
+            updateHeaderNavState("");
+            closeHeaderMenu();
+            updateHash({ ...DEFAULT_STATE, language: activeLanguage || DEFAULT_STATE.language }, true);
+            renderState(parseState());
+          });
+        }
+
+        if (els.headerNewestLink) {
+          els.headerNewestLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            jumpToCatalogSection("newestTitlesSection", "newest");
+          });
+        }
+
+        if (els.headerPopularLink) {
+          els.headerPopularLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            jumpToCatalogSection("popularTitlesSection", "popular");
+          });
+        }
+
+        if (els.headerByCategoryLink) {
+          els.headerByCategoryLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            jumpToCatalogSection("catalogCategoriesSection", "category");
+          });
+        }
+
+        if (els.headerByAuthorLink) {
+          els.headerByAuthorLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            jumpToCatalogSection("browseHeader", "author");
+          });
+        }
+
+        if (els.browseResetBtn) {
+          els.browseResetBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            resetSearchUi();
+            updateHeaderNavState("");
+            updateHash({ ...DEFAULT_STATE, language: activeLanguage || DEFAULT_STATE.language }, true);
             renderState(parseState());
           });
         }
@@ -4048,13 +5164,44 @@
         if (els.myBooksLink) {
           els.myBooksLink.addEventListener("click", (event) => {
             event.preventDefault();
-            els.search.value = "";
-            searchState = { query: "", items: [], error: "", loading: false, page: 1, pageSize: SEARCH_PAGE_SIZE };
-            updateSearchIcon();
-            renderSearchResults();
+            resetSearchUi();
+            updateHeaderNavState("");
+            closeHeaderMenu();
             navigate({ view: "mybooks", letter: "", prefix: "", authorKey: "", authorName: "" });
           });
         }
+
+        if (els.headerMenuToggle) {
+          els.headerMenuToggle.addEventListener("click", (event) => {
+            event.preventDefault();
+            toggleHeaderMenu();
+          });
+        }
+
+        document.addEventListener("click", (event) => {
+          if (!els.heroBookPicker || !els.heroBookPicker.hasAttribute("open")) return;
+          if (els.heroBookPicker.contains(event.target)) return;
+          els.heroBookPicker.removeAttribute("open");
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape") return;
+          if (els.heroBookPicker && els.heroBookPicker.hasAttribute("open")) {
+            els.heroBookPicker.removeAttribute("open");
+          }
+        });
+
+        document.addEventListener("click", (event) => {
+          if (!els.headerLinks || !els.headerMenuToggle) return;
+          if (!els.headerLinks.classList.contains("open")) return;
+          const target = event.target;
+          if (els.headerLinks.contains(target) || els.headerMenuToggle.contains(target)) return;
+          closeHeaderMenu();
+        });
+
+        window.addEventListener("resize", () => {
+          if (window.innerWidth > 720) closeHeaderMenu();
+        });
 
         window.addEventListener("hashchange", () => {
           renderState(parseState());

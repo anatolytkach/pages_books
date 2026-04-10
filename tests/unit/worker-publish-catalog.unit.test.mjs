@@ -23,6 +23,7 @@ test("Unit: publish writes tenant-source public catalog and book-location entrie
       JSON.stringify({ id: "user-1", email: "user@example.com" }),
       { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
     ),
+    new Response(JSON.stringify({}), { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
     new Response(
       JSON.stringify([
         {
@@ -137,6 +138,7 @@ test("Unit: tenant-only publish skips public catalog and book-location writes", 
       JSON.stringify({ id: "user-1", email: "user@example.com" }),
       { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
     ),
+    new Response(JSON.stringify({}), { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
     new Response(
       JSON.stringify([
         {

@@ -654,7 +654,12 @@
       }
 
       function getTenantById(tenantId) {
-        return publishingOrganizations.find((item) => String(item.tenant_id || '') === String(tenantId || '')) || null;
+        return publishingOrganizations.find((item) => {
+          const optionTenantId = String(item.tenant_id || '');
+          const nestedTenantId = String(item?.tenant?.id || '');
+          const requested = String(tenantId || '');
+          return optionTenantId === requested || nestedTenantId === requested;
+        }) || null;
       }
 
       function populateTenantSelect(selectId, helpId, selectedId) {
