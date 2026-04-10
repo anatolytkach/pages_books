@@ -322,7 +322,7 @@ export class ProtectedReaderRuntimeCore {
   }
 
   getLayoutWidth() {
-    return Math.max(280, Math.min(1400, Number(this.viewportWidth || 760)));
+    return Math.max(280, Number(this.viewportWidth || 760));
   }
 
   getCurrentRuntimeFontMode() {

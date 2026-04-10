@@ -287,7 +287,7 @@ export function layoutChunk({
   const contentWidth = Math.max(260, effectiveWidth - resolvedPaddingX * 2);
   const effectiveViewportHeight = Math.max(420, Number(viewportHeight || 720));
   const columnCount = effectiveWidth >= 1120 ? 2 : 1;
-  const columnGap = columnCount > 1 ? (effectiveWidth >= 1024 ? 102 : 48) : 0;
+  const columnGap = columnCount > 1 ? Math.round(resolvedPaddingX * 1.5) : 0;
   const columnWidth = columnCount > 1
     ? Math.max(220, Math.floor((contentWidth - columnGap) / 2))
     : contentWidth;
