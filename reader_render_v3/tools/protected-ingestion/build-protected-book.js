@@ -407,7 +407,7 @@ function prepareRegistrationContentRoot(book, bookId, contentRoot, catalogIdenti
   copyDirectory(book.rootDir, stagedBookRoot);
   return {
     contentRoot: tempRoot,
-    localContentPath: relativeBookContentPath(bookId),
+    localContentPath: catalogIdentity.localContentPath || relativeBookContentPath(bookId),
     cleanup() {
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }

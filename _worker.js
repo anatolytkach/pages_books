@@ -134,6 +134,95 @@ async function verifySupabaseJwt(token, env) {
   }
 }
 
+function getSupabaseAdminConfig(env) {
+  const url = String(env?.SUPABASE_URL || "").trim();
+  const key = String(env?.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  if (!url || !key) return null;
+  return { url, key };
+}
+
+async function sbFetchWithEnv(env, table, { method = "GET", params = "", body, single = false } = {}, fetchImpl = fetch) {
+  const sb = getSupabaseAdminConfig(env);
+  if (!sb) return { data: null, error: "Supabase not configured" };
+  const fetchUrl = `${sb.url}/rest/v1/${table}${params ? "?" + params : ""}`;
+  const headers = {
+    apikey: sb.key,
+    authorization: `Bearer ${sb.key}`,
+    "content-type": "application/json",
+  };
+  if (single) headers.accept = "application/vnd.pgrst.object+json";
+  if (method === "POST" || method === "PATCH") headers.prefer = "return=representation";
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetchImpl(fetchUrl, opts);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    return { data: null, error: detail || `HTTP ${res.status}` };
+  }
+  const data = await res.json().catch(() => null);
+  return { data, error: null };
+}
+
+async function getActiveUserTenantIdsForAccess(env, userId, fetchImpl = fetch) {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) return [];
+  const { data, error } = await sbFetchWithEnv(env, "tenant_memberships", {
+    params: `user_id=eq.${normalizedUserId}&is_active=eq.true&select=tenant_id`,
+  }, fetchImpl);
+  if (error || !Array.isArray(data)) return [];
+  return [...new Set(data.map((row) => String(row.tenant_id || "").trim()).filter(Boolean))];
+}
+
+async function userCanAccessTenantBookForAccess(env, book, userId, fetchImpl = fetch) {
+  if (!book || !userId) return false;
+  if (String(book.published_by_user_id || "") === String(userId)) return true;
+  const visibility = String(book.visibility || "");
+  const tenantId = String(book.published_by_tenant_id || "").trim();
+  if (visibility !== "tenant_only" || !tenantId) return false;
+  const tenantIds = await getActiveUserTenantIdsForAccess(env, userId, fetchImpl);
+  return tenantIds.includes(tenantId);
+}
+
+async function resolveBookContentAccessForRequest({ env, contentId, user = null, fetchImpl = fetch }) {
+  const { data: book } = await sbFetchWithEnv(env, "books", {
+    params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free,visibility,published_by_tenant_id,published_by_user_id`,
+    single: true,
+  }, fetchImpl);
+
+  if (!book) return { access: "full", type: "free", book: null, offers: [] };
+  if (book.is_free) return { access: "full", type: "free", book, offers: [] };
+  if (book.status !== "published") return { access: "full", type: "unpublished", book, offers: [] };
+  if (user && book.published_by_user_id === user.sub) {
+    return { access: "full", type: "publisher", book, offers: [] };
+  }
+  if (user && await userCanAccessTenantBookForAccess(env, book, user.sub, fetchImpl)) {
+    return { access: "full", type: "tenant_membership", book, offers: [] };
+  }
+
+  if (user) {
+    const { data: entitlements } = await sbFetchWithEnv(env, "entitlements", {
+      params: `user_id=eq.${user.sub}&book_id=eq.${book.id}&is_active=eq.true&select=*&order=created_at.desc`,
+    }, fetchImpl);
+    if (entitlements && entitlements.length > 0) {
+      for (const ent of entitlements) {
+        if (ent.entitlement_type === "purchase") {
+          return { access: "full", type: "purchase", book, offers: [] };
+        }
+        if (ent.entitlement_type === "rental" && (!ent.expires_at || new Date(ent.expires_at) > new Date())) {
+          return { access: "full", type: "rental", expires_at: ent.expires_at, book, offers: [] };
+        }
+      }
+    }
+  }
+
+  const { data: offers } = await sbFetchWithEnv(env, "book_offers", {
+    params: `book_id=eq.${book.id}&is_active=eq.true&select=*`,
+  }, fetchImpl);
+  if (!offers || !offers.length) return { access: "full", type: "free", book, offers: [] };
+
+  return { access: "none", type: "offers_required", book, offers };
+}
+
 /**
  * Process an EPUB file: validate, extract metadata, unpack to R2.
  * Runs inline in the Worker (no external service needed for Phase 1).
@@ -3756,58 +3845,13 @@ export default {
       const byContentAccessMatch = apiPath.match(/^\/books\/by-content\/(\d+)\/access$/);
       if (byContentAccessMatch && request.method === "GET") {
         const contentId = byContentAccessMatch[1];
-        const { data: book } = await sbFetch("books", {
-          params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free,visibility,published_by_tenant_id,published_by_user_id`,
-          single: true,
-        });
-
-        // Not in DB — grant access (Gutenberg or unknown)
-        if (!book) return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
-
-        // Free books — grant access
-        if (book.is_free) return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
-
-        // Not published — grant access (draft/processing)
-        if (book.status !== "published") return jsonResponse({ access: "full", type: "unpublished" }, 200, apiCorsHeaders);
-
-        // Publisher always has access to their own books
-        if (user && book.published_by_user_id === user.sub) {
-          return jsonResponse({ access: "full", type: "publisher" }, 200, apiCorsHeaders);
+        const access = await resolveBookContentAccessForRequest({ env, contentId, user, fetchImpl: fetch });
+        if (access.access === "full") {
+          const payload = { access: "full", type: access.type };
+          if (access.expires_at) payload.expires_at = access.expires_at;
+          return jsonResponse(payload, 200, apiCorsHeaders);
         }
-
-        if (user && await userCanAccessTenantBook(book, user.sub)) {
-          return jsonResponse({ access: "full", type: "tenant_membership" }, 200, apiCorsHeaders);
-        }
-
-        // Check for purchase/rental entitlements
-        if (user) {
-          const { data: entitlements } = await sbFetch("entitlements", {
-            params: `user_id=eq.${user.sub}&book_id=eq.${book.id}&is_active=eq.true&select=*&order=created_at.desc`,
-          });
-          if (entitlements && entitlements.length > 0) {
-            for (const ent of entitlements) {
-              if (ent.entitlement_type === "purchase") {
-                return jsonResponse({ access: "full", type: "purchase" }, 200, apiCorsHeaders);
-              }
-              if (ent.entitlement_type === "rental") {
-                if (!ent.expires_at || new Date(ent.expires_at) > new Date()) {
-                  return jsonResponse({ access: "full", type: "rental", expires_at: ent.expires_at }, 200, apiCorsHeaders);
-                }
-              }
-            }
-          }
-        }
-
-        // Check if book has offers — if none, treat as free
-        const { data: offers } = await sbFetch("book_offers", {
-          params: `book_id=eq.${book.id}&is_active=eq.true&select=*`,
-        });
-        if (!offers || !offers.length) {
-          return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
-        }
-
-        // Access denied — return book info and offers
-        return jsonResponse({ access: "none", book, offers }, 200, apiCorsHeaders);
+        return jsonResponse({ access: "none", book: access.book, offers: access.offers }, 200, apiCorsHeaders);
       }
 
       // ── GET /v1/books/by-content/:contentId/location — resolve readable content path for authorized users ──
@@ -4933,6 +4977,36 @@ export default {
     }
 
     if (decodedPath.startsWith("/books/protected-content/")) {
+      const protectedContentMatch = decodedPath.match(/^\/books\/protected-content\/(\d+)(?:\/|$)/);
+      if (!protectedContentMatch) {
+        const headers = new Headers({
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+        });
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "r2-protected-content-invalid");
+        return new Response("Not found", { status: 404, headers });
+      }
+      let protectedUser = null;
+      const protectedAuthHeader = request.headers.get("authorization") || "";
+      if (protectedAuthHeader.startsWith("Bearer ")) {
+        protectedUser = await verifySupabaseJwt(protectedAuthHeader.slice(7), env);
+      }
+      const access = await resolveBookContentAccessForRequest({
+        env,
+        contentId: protectedContentMatch[1],
+        user: protectedUser,
+        fetchImpl: fetch,
+      });
+      if (access.access !== "full") {
+        const headers = new Headers({
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+        });
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "r2-protected-content-denied");
+        return new Response("Forbidden", { status: 403, headers });
+      }
       const key = `protected-content/${decodedPath.slice("/books/protected-content/".length)}`;
       if (!env.READER_BOOKS) {
         const headers = new Headers({
