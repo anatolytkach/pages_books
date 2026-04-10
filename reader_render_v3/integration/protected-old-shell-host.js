@@ -67,6 +67,20 @@ const PROTECTED_SEARCH_ICON_SRC = "icons/search.svg?v=20260303-icons-tight-x-3";
 const PROTECTED_TOC_ICON_SRC = "/reader_render_v3/assets/toc.svg";
 const PROTECTED_SETTINGS_ICON_SRC = "/reader_render_v3/assets/settings.svg";
 const PROTECTED_THEME_ICON_SRC = "/reader_render_v3/assets/theme.svg";
+const PROTECTED_MY_LIBRARY_ICON_SVG = `
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="8" r="3.5"></circle>
+    <path d="M4.5 19.5c1.9-3.7 5-5.5 7.5-5.5s5.6 1.8 7.5 5.5"></path>
+  </svg>
+`;
+const PROTECTED_CATALOG_ICON_SVG = `
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M5 4.5h10.5a2 2 0 0 1 2 2V18H7a2 2 0 0 0-2 2z"></path>
+    <path d="M7 20h10.5a1.5 1.5 0 0 0 1.5-1.5V6.5"></path>
+    <path d="M8 8h7"></path>
+    <path d="M8 11h7"></path>
+  </svg>
+`;
 
 function normalizeGeneration(value, fallback = 0) {
   const next = Number(value);
@@ -368,10 +382,137 @@ function installStyles() {
       align-items: center;
       gap: 14px;
     }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #titlebar {
+      min-height: 66px;
+      height: 66px;
+      padding-top: 10px;
+      padding-bottom: 10px;
+      position: relative;
+      align-items: center;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #opener {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 252px;
+      flex: 0 0 auto;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #slider,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #openNotes,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #openBookmarks,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #overlay-menu {
+      display: none !important;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #metainfo {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+      width: min(44vw, 620px);
+      max-width: calc(100vw - 420px);
+      justify-content: center;
+      pointer-events: none;
+      text-align: center;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #metaText {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      line-height: 1.08;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #book-title,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #chapter-title {
+      width: 100%;
+      text-align: center;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #book-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #chapter-title {
+      margin-top: 2px;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-left-links {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      padding: 0 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px;
+      background: transparent;
+      color: #eef4fb;
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+      font: 600 13px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link:hover,
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link:focus-visible {
+      opacity: 0.92;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link svg {
+      width: 15px;
+      height: 15px;
+      display: block;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     body.protected-old-shell #themeToggle,
     body.protected-old-shell #ttsToggleDesktop,
     body.protected-old-shell #bookmark {
       display: inline-flex !important;
+    }
+    body.protected-old-shell #mobileMoreToggle,
+    body.protected-old-shell #mobileMorePanel,
+    body.protected-old-shell #mobileMoreBackdrop {
+      display: none !important;
+    }
+    html.is-phone body.protected-old-shell #opener,
+    html.is-tablet body.protected-old-shell #opener {
+      min-width: 24px;
+      margin-right: 4px;
+    }
+    html.is-phone body.protected-old-shell #opener #openNotes,
+    html.is-phone body.protected-old-shell #opener #openBookmarks,
+    html.is-tablet body.protected-old-shell #opener #openNotes,
+    html.is-tablet body.protected-old-shell #opener #openBookmarks {
+      display: none !important;
+    }
+    html.is-phone body.protected-old-shell .protected-top-left-links,
+    html.is-tablet body.protected-old-shell .protected-top-left-links {
+      display: none !important;
+    }
+    html.is-phone body.protected-old-shell #title-controls,
+    html.is-tablet body.protected-old-shell #title-controls {
+      gap: 12px !important;
+      transform: translateX(6px);
+    }
+    html.is-phone body.protected-old-shell #title-controls > #ttsToggleDesktop,
+    html.is-phone body.protected-old-shell #title-controls > #themeToggle,
+    html.is-phone body.protected-old-shell #protectedLibraryControl,
+    html.is-phone body.protected-old-shell #protectedSearchControl,
+    html.is-phone body.protected-old-shell #protectedTypographyControl,
+    html.is-tablet body.protected-old-shell #title-controls > #ttsToggleDesktop,
+    html.is-tablet body.protected-old-shell #title-controls > #themeToggle,
+    html.is-tablet body.protected-old-shell #protectedLibraryControl,
+    html.is-tablet body.protected-old-shell #protectedSearchControl,
+    html.is-tablet body.protected-old-shell #protectedTypographyControl {
+      width: 28px;
+      min-width: 28px;
     }
     body.protected-old-shell #title-controls > #ttsToggleDesktop,
     body.protected-old-shell #title-controls > #themeToggle,
@@ -1368,6 +1509,9 @@ function installStyles() {
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
+    body.protected-old-shell .reader-engine-badge {
+      display: none !important;
+    }
     body.protected-old-shell #prev,
     body.protected-old-shell #next {
       appearance: none;
@@ -1898,11 +2042,7 @@ function setTitle(summary) {
   const chapter = document.getElementById("chapter-title");
   if (title) title.textContent = summary && summary.bookTitle ? summary.bookTitle : "Protected Reader";
   if (chapter) {
-    const pieces = [];
-    if (summary && summary.bookAuthor) pieces.push(summary.bookAuthor);
-    if (summary && summary.chapterLabel) pieces.push(summary.chapterLabel);
-    if (summary && (summary.globalPageLabel || summary.pageLabel)) pieces.push(summary.globalPageLabel || summary.pageLabel);
-    chapter.textContent = pieces.join(" · ") || "Protected mode";
+    chapter.textContent = summary && summary.bookAuthor ? summary.bookAuthor : "";
   }
   try {
     document.title = summary && summary.bookTitle
@@ -2653,6 +2793,28 @@ function ensureLibraryControl() {
   return wrap;
 }
 
+function ensureDesktopTopLinks() {
+  const opener = document.getElementById("opener");
+  if (!opener) return null;
+  let wrap = document.getElementById("protectedTopLeftLinks");
+  if (wrap) return wrap;
+  wrap = document.createElement("span");
+  wrap.id = "protectedTopLeftLinks";
+  wrap.className = "protected-top-left-links";
+  wrap.innerHTML = `
+    <button type="button" id="protectedMyLibraryLink" class="protected-top-link protected-top-link-library" aria-label="My Library">
+      <span class="protected-top-link-icon">${PROTECTED_MY_LIBRARY_ICON_SVG}</span>
+      <span class="protected-top-link-label">My Library</span>
+    </button>
+    <a id="protectedCatalogLink" class="protected-top-link protected-top-link-catalog" href="https://reader.pub/books/" aria-label="Catalog">
+      <span class="protected-top-link-icon">${PROTECTED_CATALOG_ICON_SVG}</span>
+      <span class="protected-top-link-label">Catalog</span>
+    </a>
+  `;
+  opener.appendChild(wrap);
+  return wrap;
+}
+
 function ensureSearchControl() {
   let wrap = document.getElementById("protectedSearchControl");
   if (wrap) return wrap;
@@ -2672,6 +2834,7 @@ function ensureSearchControl() {
 }
 
 function syncProtectedShellIcons() {
+  ensureDesktopTopLinks();
   const libraryControl = ensureLibraryControl();
   const searchControl = ensureSearchControl();
   const libraryTrigger = document.getElementById("protectedLibraryTrigger");
@@ -3150,14 +3313,9 @@ function syncTopControls() {
 }
 
 function buildEngineBadge() {
-  let badge = document.querySelector("#title-controls .reader-engine-badge");
-  if (badge) return badge;
-  badge = document.createElement("span");
-  badge.className = "reader-engine-badge";
-  badge.textContent = "PR";
-  const titleControls = document.getElementById("title-controls");
-  if (titleControls) titleControls.prepend(badge);
-  return badge;
+  const badge = document.querySelector("#title-controls .reader-engine-badge");
+  if (badge && badge.parentElement) badge.parentElement.removeChild(badge);
+  return null;
 }
 
 function getCurrentTurnLayer() {
@@ -5229,10 +5387,38 @@ function bindShellControls() {
   const theme = document.getElementById("themeToggle");
   const tts = document.getElementById("ttsToggleDesktop");
   const bookmark = document.getElementById("bookmark");
+  const mobileMoreToggle = document.getElementById("mobileMoreToggle");
+  const mobileMorePanel = document.getElementById("mobileMorePanel");
   syncProtectedShellIcons();
+  const myLibraryLink = document.getElementById("protectedMyLibraryLink");
+  const catalogLink = document.getElementById("protectedCatalogLink");
   const libraryTrigger = document.getElementById("protectedLibraryTrigger");
   const searchTrigger = document.getElementById("protectedSearchTrigger");
   ensureSearchOverlay();
+  if (mobileMoreToggle) {
+    try { mobileMoreToggle.remove(); } catch (_error) {}
+  }
+  if (mobileMorePanel) {
+    try { mobileMorePanel.remove(); } catch (_error) {}
+  }
+  myLibraryLink && myLibraryLink.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      if (typeof window.__fbOpenOverlay === "function") {
+        window.__fbOpenOverlay("mybooks");
+        return;
+      }
+    } catch (_error) {}
+    const fallback = document.querySelector('#menuView [data-menu="mybooks"]');
+    fallback && fallback.click();
+  });
+  if (catalogLink) {
+    const legacyCatalogLink = document.querySelector('#menuView a.menu-item[aria-label="Catalog"]');
+    if (legacyCatalogLink && legacyCatalogLink.getAttribute("href")) {
+      catalogLink.setAttribute("href", legacyCatalogLink.getAttribute("href"));
+    }
+  }
   tts && tts.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
