@@ -43,6 +43,7 @@ const HOST_STATE = {
   suppressSelectionDismissUntil: 0,
   cachedSelectionActionState: null,
   suppressSelectionToolbarUntil: 0,
+  bookmarkRestoreInFlight: "",
   turnPreviewSyncTimer: null,
   turnPreviewPromise: null,
   lastTurnPreviewKey: "",
@@ -52,6 +53,7 @@ const HOST_STATE = {
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
 const FONT_SCALE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-scale:";
 const FONT_MODE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-mode:";
+const PROTECTED_TOC_ICON_SRC = "/reader_render_v3/assets/toc.svg";
 const PROTECTED_SETTINGS_ICON_SRC = "/reader_render_v3/assets/settings.svg";
 const PROTECTED_THEME_ICON_SRC = "/reader_render_v3/assets/theme.svg";
 
@@ -374,6 +376,39 @@ function installStyles() {
     body.protected-old-shell #fontInc {
       display: none !important;
     }
+    #protectedLibraryControl {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 0;
+      vertical-align: middle;
+      order: 59;
+    }
+    #protectedLibraryTrigger {
+      appearance: none;
+      -webkit-appearance: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 32px;
+      padding: 0 6px;
+      border-radius: 0;
+      border: 0;
+      background: transparent;
+      color: #eef4fb;
+      cursor: pointer;
+      transition: color 140ms ease, opacity 140ms ease;
+    }
+    #protectedLibraryTrigger:hover,
+    #protectedLibraryTrigger:focus-visible {
+      opacity: 0.92;
+    }
+    #protectedLibraryTrigger img {
+      width: 20px;
+      height: 20px;
+      display: block;
+      object-fit: contain;
+    }
     #protectedTypographyControl {
       display: inline-flex;
       align-items: center;
@@ -384,6 +419,7 @@ function installStyles() {
     body.protected-old-shell #themeToggle {
       order: 60;
     }
+    #protectedLibraryTrigger[aria-expanded="true"],
     #protectedTypographyTrigger {
       appearance: none;
       -webkit-appearance: none;
@@ -428,6 +464,269 @@ function installStyles() {
     }
     #protectedTypographyTrigger[aria-expanded="true"] {
       color: #ffffff;
+    }
+    #overlay-library {
+      left: auto;
+      right: 0;
+      width: 360px;
+      max-width: min(100vw, 360px);
+      z-index: 9999;
+    }
+    #overlay-library .overlay-scroll {
+      padding-top: 10px;
+    }
+    #protectedLibraryTabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 0 0 14px;
+    }
+    .protected-library-tab {
+      appearance: none;
+      -webkit-appearance: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 999px;
+      background: transparent;
+      color: rgba(255,255,255,0.82);
+      font: 600 12px/1.1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+    .protected-library-tab.is-active {
+      color: #ffffff;
+      border-color: rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.08);
+    }
+    .protected-library-pane.hidden {
+      display: none !important;
+    }
+    .protected-library-pane {
+      min-height: 0;
+    }
+    #protectedLibraryTocMount .view,
+    #protectedLibraryNotesMount .view,
+    #protectedLibraryBookmarksMount .view {
+      display: block !important;
+      width: 100%;
+      min-width: 0;
+      visibility: visible !important;
+      overflow: visible;
+    }
+    #protectedLibraryTocMount #tocView,
+    #protectedLibraryNotesMount #notesView,
+    #protectedLibraryBookmarksMount #bookmarksView {
+      width: 100%;
+      min-width: 0;
+      height: auto;
+      min-height: 0;
+      padding: 0;
+      box-sizing: border-box;
+      visibility: visible !important;
+      overflow: visible;
+    }
+    #protectedLibraryNotesMount #notesView,
+    #protectedLibraryBookmarksMount #bookmarksView,
+    #protectedLibraryTocMount #tocView {
+      overflow: visible !important;
+    }
+    body.protected-old-shell #overlay-library #tocView ul,
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList,
+    body.protected-old-shell #overlay-library #bookmarksView ul,
+    body.protected-old-shell #overlay-library #notes {
+      padding-left: 20px;
+      margin-top: 0;
+      margin-bottom: 24px;
+    }
+    body.protected-old-shell #overlay-library #tocView li,
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList li,
+    body.protected-old-shell #overlay-library #bookmarksView li,
+    body.protected-old-shell #overlay-library #notes > li.list_item {
+      width: auto;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+    body.protected-old-shell #overlay-library #tocView a,
+    body.protected-old-shell #overlay-library #tocView .toc_link,
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList a,
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList button.bookmark_link,
+    body.protected-old-shell #overlay-library #notesView a,
+    body.protected-old-shell #overlay-library #notesView button.bookmark_link,
+    body.protected-old-shell #overlay-library #bookmarksView a,
+    body.protected-old-shell #overlay-library #bookmarksView button.bookmark_link,
+    body.protected-old-shell #overlay-library #notes .bookmark_link,
+    body.protected-old-shell #overlay-library #notes .bookmark-comment {
+      color: inherit;
+      background: transparent !important;
+    }
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList {
+      list-style: none;
+    }
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList > li.list_item,
+    body.protected-old-shell #overlay-library #notesView > li.list_item,
+    body.protected-old-shell #overlay-library #notes > li.list_item,
+    body.protected-old-shell #overlay-library #bookmarksView > li.list_item,
+    body.protected-old-shell #overlay-library #bookmarks > li.list_item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 0 14px;
+      margin: 0 0 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.14);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList > li.list_item:last-child,
+    body.protected-old-shell #overlay-library #notesView > li.list_item:last-child,
+    body.protected-old-shell #overlay-library #notes > li.list_item:last-child,
+    body.protected-old-shell #overlay-library #bookmarksView > li.list_item:last-child,
+    body.protected-old-shell #overlay-library #bookmarks > li.list_item:last-child {
+      margin-bottom: 0;
+      border-bottom: 0;
+    }
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-text,
+    body.protected-old-shell #overlay-library #notesView .bookmark-text,
+    body.protected-old-shell #overlay-library #notes .bookmark-text,
+    body.protected-old-shell #overlay-library #bookmarksView .bookmark-text,
+    body.protected-old-shell #overlay-library #bookmarks .bookmark-text {
+      flex: 1 1 auto;
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+    }
+    body.protected-old-shell #overlay-library #notesView .bookmark-page-label,
+    body.protected-old-shell #overlay-library #notes .bookmark-page-label {
+      display: block;
+      margin: 0 0 6px;
+      padding: 0;
+      font-size: 1em;
+      line-height: 1.1;
+      color: rgba(255,255,255,0.95);
+    }
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark_link,
+    body.protected-old-shell #overlay-library #notesView .bookmark_link,
+    body.protected-old-shell #overlay-library #notes .bookmark_link,
+    body.protected-old-shell #overlay-library #bookmarksView .bookmark_link,
+    body.protected-old-shell #overlay-library #bookmarks .bookmark_link {
+      margin: 0;
+      padding: 0;
+      display: block;
+      width: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      text-align: left;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+    body.protected-old-shell #overlay-library #notesView .bookmark_link,
+    body.protected-old-shell #overlay-library #notes .bookmark_link {
+      font-size: 0.84em;
+      line-height: 1.32;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: rgba(255,255,255,0.92);
+    }
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-comment,
+    body.protected-old-shell #overlay-library #notesView .bookmark-comment,
+    body.protected-old-shell #overlay-library #notes .bookmark-comment,
+    body.protected-old-shell #overlay-library #bookmarksView .bookmark-comment,
+    body.protected-old-shell #overlay-library #bookmarks .bookmark-comment {
+      margin: 6px 0 0;
+      padding: 0;
+      font-size: 0.84em;
+      line-height: 1.28;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body.protected-old-shell #overlay-library #notesView .bookmark-comment,
+    body.protected-old-shell #overlay-library #notes .bookmark-comment {
+      margin-top: 10px;
+      font-size: 1em;
+      line-height: 1.34;
+      color: rgba(255,255,255,0.96);
+    }
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-delete,
+    body.protected-old-shell #overlay-library #notesView .bookmark-delete,
+    body.protected-old-shell #overlay-library #notes .bookmark-delete,
+    body.protected-old-shell #overlay-library #bookmarksView .bookmark-delete,
+    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      opacity: 0.82;
+      box-shadow: none;
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-delete:hover,
+    body.protected-old-shell #overlay-library #notesView .bookmark-delete:hover,
+    body.protected-old-shell #overlay-library #notes .bookmark-delete:hover,
+    body.protected-old-shell #overlay-library #bookmarksView .bookmark-delete:hover,
+    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete:hover {
+      opacity: 1;
+    }
+    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-delete svg,
+    body.protected-old-shell #overlay-library #notesView .bookmark-delete svg,
+    body.protected-old-shell #overlay-library #notes .bookmark-delete svg,
+    body.protected-old-shell #overlay-library #bookmarksView .bookmark-delete svg,
+    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      fill: none;
+    }
+    body.protected-old-shell #overlay-library #tocView button {
+      appearance: none;
+      -webkit-appearance: none;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      box-shadow: none;
+    }
+    body.protected-old-shell #overlay-library #tocView li.currentChapter > a.toc_link,
+    body.protected-old-shell #overlay-library #tocView li.currentChapter > .toc_link {
+      background: transparent !important;
+      text-decoration: underline;
+    }
+    body.protected-old-shell #overlay-library .notes-copy-link-wrap {
+      display: none !important;
     }
     #overlay-settings {
       left: auto;
@@ -902,18 +1201,18 @@ function installStyles() {
         right: 0;
         width: min(100vw, 360px);
       }
+      #overlay-library {
+        left: auto;
+        right: 0;
+        width: min(100vw, 360px);
+      }
     }
   `;
   document.head.append(style);
 }
 
 function openNotesOverlay() {
-  const openNotes = document.getElementById("openNotes");
-  if (openNotes && typeof openNotes.click === "function") {
-    openNotes.click();
-    return;
-  }
-  openOverlayById("overlay-notes");
+  openLibraryOverlay("notes");
 }
 
 function setShellLoading(active) {
@@ -1032,6 +1331,18 @@ function persistShellFontScale(fontScale) {
 }
 
 function openOverlayById(id) {
+  if (id === "overlay-toc") {
+    openLibraryOverlay("toc");
+    return;
+  }
+  if (id === "overlay-notes") {
+    openLibraryOverlay("notes");
+    return;
+  }
+  if (id === "overlay-bookmarks") {
+    openLibraryOverlay("bookmarks");
+    return;
+  }
   const panel = document.getElementById(id);
   if (!panel) return;
   panel.classList.remove("hidden");
@@ -1046,6 +1357,7 @@ function closeOverlayById(id) {
 }
 
 function closeAllShellOverlays() {
+  closeLibraryOverlay();
   closeTypographyPanel();
   try {
     if (typeof window.__fbCloseOverlays === "function") {
@@ -1059,6 +1371,7 @@ function closeAllShellOverlays() {
     "overlay-notes",
     "overlay-menu",
     "overlay-settings",
+    "overlay-library",
     "overlay-mybooks",
     "overlay-voice"
   ].forEach((id) => closeOverlayById(id));
@@ -1100,20 +1413,121 @@ function getBookmarkStorageKey(bookId = getCurrentBookId()) {
   return `${BOOKMARK_STORAGE_PREFIX}${bookId || "unknown"}`;
 }
 
+function getBookmarkStorageKeys(bookId = getCurrentBookId()) {
+  const aliases = getRestoreTokenBookIdAliases();
+  const normalizedPrimary = String(bookId || "").trim();
+  if (normalizedPrimary) aliases.add(normalizedPrimary);
+  if (!aliases.size) aliases.add("unknown");
+  return [...aliases].map((id) => getBookmarkStorageKey(id));
+}
+
+function parseHostRestoreToken(token) {
+  const normalized = String(token || "").trim().replace(/-/g, "+").replace(/_/g, "/");
+  if (!normalized) throw new Error("Restore token is empty.");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  return JSON.parse(decodeURIComponent(escape(atob(padded))));
+}
+
+function serializeHostRestoreToken(descriptor) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(descriptor))))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function getRestoreTokenBookIdAliases() {
+  const query = HOST_STATE.route && HOST_STATE.route.query ? HOST_STATE.route.query : null;
+  const aliases = new Set();
+  [
+    HOST_STATE.lastSummary && HOST_STATE.lastSummary.bookId,
+    getCanonicalRouteBookId(),
+    HOST_STATE.route && HOST_STATE.route.bookId,
+    query && query.protectedArtifactBookId,
+    query && query.protectedCanonicalBookId,
+    query && query.canonicalBookId,
+    query && query.storageBookId
+  ].forEach((value) => {
+    const normalized = String(value || "").trim();
+    if (normalized) aliases.add(normalized);
+  });
+  return aliases;
+}
+
+function normalizeBookmarkRestoreToken(token, targetBookId = getCurrentBookId()) {
+  const raw = String(token || "").trim();
+  if (!raw) return "";
+  try {
+    const descriptor = parseHostRestoreToken(raw);
+    const descriptorBookId = String(descriptor && descriptor.bookId || "").trim();
+    const normalizedTarget = String(targetBookId || "").trim();
+    if (!normalizedTarget || !descriptor || !descriptor.position || typeof descriptor.position.globalOffset !== "number") {
+      return raw;
+    }
+    if (!descriptorBookId || descriptorBookId === normalizedTarget) {
+      if (descriptorBookId === normalizedTarget) return raw;
+      descriptor.bookId = normalizedTarget;
+      return serializeHostRestoreToken(descriptor);
+    }
+    const aliases = getRestoreTokenBookIdAliases();
+    if (aliases.has(descriptorBookId) && aliases.has(normalizedTarget)) {
+      descriptor.bookId = normalizedTarget;
+      return serializeHostRestoreToken(descriptor);
+    }
+    return raw;
+  } catch (_error) {
+    return raw;
+  }
+}
+
+function normalizeStoredBookmarks(bookmarks, bookId = getCurrentBookId()) {
+  const next = [];
+  const seen = new Set();
+  for (const item of Array.isArray(bookmarks) ? bookmarks : []) {
+    if (!item || !item.restoreToken) continue;
+    const normalizedToken = normalizeBookmarkRestoreToken(item.restoreToken, bookId);
+    let globalOffset = Number(item.globalOffset || 0);
+    if (!Number.isFinite(globalOffset) || globalOffset < 0) globalOffset = 0;
+    if (!globalOffset) {
+      try {
+        const descriptor = parseHostRestoreToken(normalizedToken);
+        globalOffset = Number(descriptor && descriptor.position && descriptor.position.globalOffset || 0);
+      } catch (_error) {
+        globalOffset = 0;
+      }
+    }
+    const dedupeKey = String(normalizedToken || "").trim();
+    if (!dedupeKey || seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    next.push({
+      ...item,
+      restoreToken: dedupeKey,
+      globalOffset
+    });
+  }
+  return next;
+}
+
 function loadStoredBookmarks(bookId = getCurrentBookId()) {
   try {
-    const raw = window.localStorage.getItem(getBookmarkStorageKey(bookId));
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((item) => item && item.restoreToken) : [];
+    const merged = [];
+    for (const storageKey of getBookmarkStorageKeys(bookId)) {
+      const raw = window.localStorage.getItem(storageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) merged.push(...parsed);
+    }
+    return normalizeStoredBookmarks(merged, bookId);
   } catch (error) {
     return [];
   }
 }
 
 function saveStoredBookmarks(bookmarks, bookId = getCurrentBookId()) {
-  HOST_STATE.bookmarks = Array.isArray(bookmarks) ? bookmarks.slice() : [];
+  HOST_STATE.bookmarks = normalizeStoredBookmarks(bookmarks, bookId);
   try {
-    window.localStorage.setItem(getBookmarkStorageKey(bookId), JSON.stringify(HOST_STATE.bookmarks));
+    const payload = JSON.stringify(HOST_STATE.bookmarks);
+    for (const storageKey of getBookmarkStorageKeys(bookId)) {
+      window.localStorage.setItem(storageKey, payload);
+    }
   } catch (error) {}
 }
 
@@ -1125,6 +1539,12 @@ function getCurrentBookmarks() {
 
 function syncBookmarksFromStorage() {
   HOST_STATE.bookmarks = loadStoredBookmarks();
+  try {
+    const payload = JSON.stringify(HOST_STATE.bookmarks);
+    for (const storageKey of getBookmarkStorageKeys()) {
+      window.localStorage.setItem(storageKey, payload);
+    }
+  } catch (error) {}
   return HOST_STATE.bookmarks.slice();
 }
 
@@ -1133,6 +1553,7 @@ function buildBookmarkEntry(summary) {
   return {
     id: `bm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     restoreToken: summary.restoreToken,
+    globalOffset: Number(summary.pageGlobalStartOffset || 0),
     globalPageLabel: summary.globalPageLabel || summary.pageLabel || "",
     chapterLabel: summary.chapterLabel || "",
     title: summary.bookTitle || "",
@@ -1308,35 +1729,28 @@ function renderToc(summary) {
 
 function buildBookmarkLabel(bookmark) {
   const progress = String(bookmark && bookmark.globalPageLabel || "").trim();
-  const chapter = String(bookmark && bookmark.chapterLabel || "").trim();
-  if (progress && chapter) return `${progress} - ${chapter}`;
   if (progress) return progress;
+  const chapter = String(bookmark && bookmark.chapterLabel || "").trim();
   if (chapter) return chapter;
   return "Bookmark";
 }
 
-function renderBookmarks(summary) {
-  const bookmarksView = document.getElementById("bookmarks");
-  if (!bookmarksView) return;
-  const bookmarks = syncBookmarksFromStorage();
-  bookmarksView.replaceChildren();
+function renderBookmarkList(target, bookmarks, summary) {
+  if (!target) return;
+  target.replaceChildren();
   bookmarks.forEach((bookmark) => {
     const li = document.createElement("li");
     li.className = "list_item";
     li.dataset.restoreToken = bookmark.restoreToken || "";
+    li.dataset.globalOffset = String(Number(bookmark.globalOffset || 0) || 0);
 
     const wrap = document.createElement("div");
     wrap.className = "bookmark-text";
 
-    const link = document.createElement("a");
+    const link = document.createElement("button");
     link.className = "bookmark_link";
-    link.href = "#";
+    link.type = "button";
     link.textContent = buildBookmarkLabel(bookmark);
-    link.addEventListener("click", async (event) => {
-      event.preventDefault();
-      await invokeBridge("restoreFromToken", bookmark.restoreToken);
-      closeAllShellOverlays();
-    });
     wrap.append(link);
 
     if (bookmark.chapterLabel) {
@@ -1353,16 +1767,177 @@ function renderBookmarks(summary) {
     remove.className = "bookmark-delete";
     remove.setAttribute("aria-label", "Delete bookmark");
     remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16"></path><path d="M9 7V5h6v2"></path><rect x="6" y="7" width="12" height="13" rx="2"></rect><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>';
-    remove.addEventListener("click", (event) => {
+    li.append(remove);
+    target.append(li);
+  });
+}
+
+function bindBookmarkListInteractions(target) {
+  if (!target || target.__protectedBookmarkInteractionsBound) return;
+  target.__protectedBookmarkInteractionsBound = true;
+  let suppressClickUntil = 0;
+
+  const resolveEventElement = (event) => {
+    const rawTarget = event ? event.target : null;
+    if (!rawTarget) return null;
+    if (rawTarget.nodeType === 1) return rawTarget;
+    return rawTarget.parentElement || null;
+  };
+
+  const getActionTarget = (event) => {
+    const elementTarget = resolveEventElement(event);
+    return elementTarget && elementTarget.closest
+      ? elementTarget.closest(".bookmark-delete, .bookmark_link, li.list_item")
+      : null;
+  };
+
+  const handlePrimaryInteraction = async (event) => {
+    const actionTarget = getActionTarget(event);
+    if (!actionTarget || !target.contains(actionTarget)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+    const resolved = resolveBookmarkEntryFromNode(actionTarget);
+    if (!resolved) return;
+    suppressClickUntil = Date.now() + 600;
+    const summary = HOST_STATE.lastSummary || null;
+    if (actionTarget.classList.contains("bookmark-delete")) {
+      deleteBookmarkEntry(resolved.bookmark, summary);
+      return;
+    }
+    await openBookmarkEntry(resolved.bookmark, summary, resolved.item);
+  };
+
+  const handleInteraction = async (event) => {
+    if (Date.now() < suppressClickUntil) {
       event.preventDefault();
       event.stopPropagation();
-      saveStoredBookmarks(bookmarks.filter((item) => item.restoreToken !== bookmark.restoreToken));
-      renderBookmarks(summary);
-      updateBookmarkControl(summary);
-    });
-    li.append(remove);
-    bookmarksView.append(li);
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+      return;
+    }
+    await handlePrimaryInteraction(event);
+  };
+
+  target.addEventListener("pointerdown", (event) => { void handlePrimaryInteraction(event); }, true);
+  target.addEventListener("mousedown", (event) => { void handlePrimaryInteraction(event); }, true);
+  target.addEventListener("touchstart", (event) => { void handlePrimaryInteraction(event); }, { capture: true, passive: false });
+  target.addEventListener("click", handleInteraction, true);
+}
+
+async function openBookmarkEntry(bookmark, summary, li = null) {
+  const targetBookId = summary && summary.bookId ? summary.bookId : getCurrentBookId();
+  const restoreToken = normalizeBookmarkRestoreToken(
+    bookmark && bookmark.restoreToken ? bookmark.restoreToken : "",
+    targetBookId
+  );
+  let globalOffset = Number(bookmark && bookmark.globalOffset || 0);
+  let chunkOrder = null;
+  if (!globalOffset && restoreToken) {
+    try {
+      const descriptor = parseHostRestoreToken(restoreToken);
+      globalOffset = Number(descriptor && descriptor.position && descriptor.position.globalOffset || 0);
+      chunkOrder = descriptor && descriptor.position && Number.isFinite(Number(descriptor.position.chunkOrder))
+        ? Number(descriptor.position.chunkOrder)
+        : null;
+    } catch (_error) {
+      globalOffset = 0;
+      chunkOrder = null;
+    }
+  } else if (restoreToken) {
+    try {
+      const descriptor = parseHostRestoreToken(restoreToken);
+      chunkOrder = descriptor && descriptor.position && Number.isFinite(Number(descriptor.position.chunkOrder))
+        ? Number(descriptor.position.chunkOrder)
+        : null;
+    } catch (_error) {
+      chunkOrder = null;
+    }
+  }
+  if (!globalOffset && !restoreToken) return;
+  const openKey = globalOffset ? `offset:${globalOffset}` : restoreToken;
+  if (HOST_STATE.bookmarkRestoreInFlight) return;
+  HOST_STATE.bookmarkRestoreInFlight = openKey;
+  li && li.classList.add("bookmark-open-pending");
+  try {
+    const nextSummary = globalOffset
+      ? await invokeBridgeRaw("goToGlobalOffset", globalOffset, chunkOrder)
+      : await invokeBridgeRaw("restoreFromToken", restoreToken);
+    if (nextSummary) updateFromSummary(nextSummary);
+    closeAllShellOverlays();
+  } catch (error) {
+    setHostActionStatus(error && error.message ? error.message : "Unable to open bookmark.");
+  } finally {
+    HOST_STATE.bookmarkRestoreInFlight = "";
+    li && li.classList.remove("bookmark-open-pending");
+  }
+}
+
+function deleteBookmarkEntry(bookmark, summary) {
+  const targetBookId = summary && summary.bookId ? summary.bookId : getCurrentBookId();
+  const targetToken = normalizeBookmarkRestoreToken(
+    bookmark && bookmark.restoreToken ? bookmark.restoreToken : "",
+    targetBookId
+  );
+  const nextBookmarks = syncBookmarksFromStorage().filter((item) => {
+    const itemToken = normalizeBookmarkRestoreToken(
+      item && item.restoreToken ? item.restoreToken : "",
+      targetBookId
+    );
+    return itemToken !== targetToken;
   });
+  saveStoredBookmarks(nextBookmarks);
+  renderBookmarks(summary);
+  updateBookmarkControl(summary);
+}
+
+function resolveBookmarkEntryFromNode(node) {
+  const item = node && node.closest ? node.closest("li.list_item") : null;
+  if (!item) return null;
+  const withinBookmarkList = !!(
+    item.closest("#protectedLibraryBookmarksList") ||
+    item.closest("#overlay-library #bookmarksView") ||
+    item.closest("#overlay-bookmarks #bookmarksView")
+  );
+  if (!withinBookmarkList) return null;
+  let restoreToken = String(item.dataset.restoreToken || "").trim();
+  let globalOffset = Number(item.dataset.globalOffset || 0) || 0;
+  const globalPageLabel = item.querySelector(".bookmark_link")?.textContent?.trim() || "";
+  const chapterLabel = item.querySelector(".bookmark-comment")?.textContent?.trim() || "";
+  if (!restoreToken && !globalOffset) {
+    const matched = syncBookmarksFromStorage().find((bookmark) => {
+      const label = String(bookmark && bookmark.globalPageLabel || "").trim();
+      const chapter = String(bookmark && bookmark.chapterLabel || "").trim();
+      return label === globalPageLabel && chapter === chapterLabel;
+    }) || null;
+    if (matched) {
+      restoreToken = String(matched.restoreToken || "").trim();
+      globalOffset = Number(matched.globalOffset || 0) || 0;
+    }
+  }
+  if (!restoreToken && !globalOffset) return null;
+  return {
+    item,
+    bookmark: {
+      restoreToken,
+      globalOffset,
+      globalPageLabel,
+      chapterLabel
+    }
+  };
+}
+
+function renderBookmarks(summary) {
+  const bookmarksView = document.getElementById("bookmarks");
+  const bookmarks = syncBookmarksFromStorage();
+  if (bookmarksView) {
+    renderBookmarkList(bookmarksView, bookmarks, summary);
+    bindBookmarkListInteractions(bookmarksView);
+  }
+  const libraryBookmarksView = document.getElementById("protectedLibraryBookmarksList");
+  if (libraryBookmarksView) {
+    renderBookmarkList(libraryBookmarksView, bookmarks, summary);
+    bindBookmarkListInteractions(libraryBookmarksView);
+  }
 }
 
 function createOldStyleNoteItem(annotation) {
@@ -1416,6 +1991,7 @@ function createOldStyleNoteItem(annotation) {
   remove.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
     await invokeBridge("deleteAnnotation", annotation.annotationId);
   });
   li.append(remove);
@@ -1605,7 +2181,39 @@ function ensureTypographyControl() {
   return wrap;
 }
 
+function ensureLibraryControl() {
+  let wrap = document.getElementById("protectedLibraryControl");
+  if (wrap) return wrap;
+  const titleControls = document.getElementById("title-controls");
+  const themeToggle = document.getElementById("themeToggle");
+  if (!titleControls || !themeToggle) return null;
+  wrap = document.createElement("span");
+  wrap.id = "protectedLibraryControl";
+  wrap.innerHTML = `
+    <button type="button" id="protectedLibraryTrigger" aria-label="Library" aria-controls="overlay-library" aria-expanded="false">
+      <img src="${PROTECTED_TOC_ICON_SRC}" alt="" aria-hidden="true" />
+    </button>
+  `;
+  titleControls.insertBefore(wrap, themeToggle);
+  ensureLibraryOverlay();
+  return wrap;
+}
+
 function syncProtectedShellIcons() {
+  const libraryControl = ensureLibraryControl();
+  const libraryTrigger = document.getElementById("protectedLibraryTrigger");
+  if (libraryTrigger) {
+    let tocImg = libraryTrigger.querySelector("img");
+    if (!tocImg) {
+      tocImg = document.createElement("img");
+      tocImg.alt = "";
+      tocImg.setAttribute("aria-hidden", "true");
+      libraryTrigger.replaceChildren(tocImg);
+    }
+    if (tocImg.getAttribute("src") !== PROTECTED_TOC_ICON_SRC) {
+      tocImg.setAttribute("src", PROTECTED_TOC_ICON_SRC);
+    }
+  }
   const typographyControl = document.getElementById("protectedTypographyControl");
   const themeToggle = document.getElementById("themeToggle");
   if (
@@ -1648,6 +2256,127 @@ function syncProtectedShellIcons() {
       themeImg.setAttribute("src", PROTECTED_THEME_ICON_SRC);
     }
   }
+  if (libraryControl && themeToggle && libraryControl.parentElement !== themeToggle.parentElement) {
+    themeToggle.parentElement && themeToggle.parentElement.insertBefore(libraryControl, themeToggle);
+  }
+}
+
+function switchLibraryTab(nextTab = "toc") {
+  const activeTab = String(nextTab || "toc").trim().toLowerCase();
+  const tabs = ["toc", "notes", "bookmarks"];
+  tabs.forEach((tab) => {
+    const button = document.getElementById(`protectedLibraryTab-${tab}`);
+    const pane = document.getElementById(`protectedLibraryPane-${tab}`);
+    const isActive = tab === activeTab;
+    if (button) {
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+      button.tabIndex = isActive ? 0 : -1;
+    }
+    if (pane) pane.classList.toggle("hidden", !isActive);
+  });
+  HOST_STATE.libraryActiveTab = activeTab;
+}
+
+function closeLibraryOverlay() {
+  const wrap = document.getElementById("protectedLibraryControl");
+  const trigger = document.getElementById("protectedLibraryTrigger");
+  const overlay = document.getElementById("overlay-library");
+  const backdrop = document.getElementById("overlay-backdrop");
+  if (wrap) wrap.classList.remove("is-open");
+  if (overlay) {
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+  if (backdrop) {
+    backdrop.classList.add("hidden");
+    backdrop.setAttribute("aria-hidden", "true");
+  }
+  try {
+    document.body.classList.remove("overlay-open");
+  } catch (_error) {}
+  if (trigger) trigger.setAttribute("aria-expanded", "false");
+}
+
+function openLibraryOverlay(tab = "toc") {
+  const wrap = ensureLibraryControl();
+  ensureLibraryOverlay();
+  const trigger = document.getElementById("protectedLibraryTrigger");
+  const overlay = document.getElementById("overlay-library");
+  const backdrop = document.getElementById("overlay-backdrop");
+  closeAllShellOverlays();
+  if (HOST_STATE.lastSummary) renderBookmarks(HOST_STATE.lastSummary);
+  if (wrap) wrap.classList.add("is-open");
+  if (trigger) trigger.setAttribute("aria-expanded", "true");
+  if (overlay) {
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+  if (backdrop) {
+    backdrop.classList.remove("hidden");
+    backdrop.setAttribute("aria-hidden", "false");
+  }
+  try {
+    document.body.classList.add("overlay-open");
+  } catch (_error) {}
+  switchLibraryTab(tab);
+}
+
+function ensureLibraryOverlay() {
+  let overlay = document.getElementById("overlay-library");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "overlay-library";
+    overlay.className = "overlay-panel hidden";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Library");
+    overlay.innerHTML = `
+      <div class="overlay-head">
+        <div class="overlay-title">Book Navigation</div>
+        <button class="overlay-close" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="overlay-sep" aria-hidden="true"></div>
+      <div class="overlay-scroll">
+        <div id="protectedLibraryTabs" role="tablist" aria-label="Library sections">
+          <button type="button" class="protected-library-tab is-active" id="protectedLibraryTab-toc" role="tab" aria-selected="true">TOC</button>
+          <button type="button" class="protected-library-tab" id="protectedLibraryTab-notes" role="tab" aria-selected="false" tabindex="-1">Notes</button>
+          <button type="button" class="protected-library-tab" id="protectedLibraryTab-bookmarks" role="tab" aria-selected="false" tabindex="-1">Bookmarks</button>
+        </div>
+        <section id="protectedLibraryPane-toc" class="protected-library-pane" role="tabpanel">
+          <div id="protectedLibraryTocMount"></div>
+        </section>
+        <section id="protectedLibraryPane-notes" class="protected-library-pane hidden" role="tabpanel">
+          <div id="protectedLibraryNotesMount"></div>
+        </section>
+        <section id="protectedLibraryPane-bookmarks" class="protected-library-pane hidden" role="tabpanel">
+          <ul id="protectedLibraryBookmarksList"></ul>
+        </section>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const close = overlay.querySelector(".overlay-close");
+    close && close.addEventListener("click", (event) => {
+      event.preventDefault();
+      closeLibraryOverlay();
+    });
+    overlay.querySelectorAll(".protected-library-tab").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        const id = String(button.id || "");
+        if (id.endsWith("-toc")) switchLibraryTab("toc");
+        else if (id.endsWith("-notes")) switchLibraryTab("notes");
+        else if (id.endsWith("-bookmarks")) switchLibraryTab("bookmarks");
+      });
+    });
+  }
+  const tocMount = document.getElementById("protectedLibraryTocMount");
+  const notesMount = document.getElementById("protectedLibraryNotesMount");
+  const tocView = document.getElementById("tocView");
+  const notesView = document.getElementById("notesView");
+  if (tocMount && tocView && tocView.parentElement !== tocMount) tocMount.appendChild(tocView);
+  if (notesMount && notesView && notesView.parentElement !== notesMount) notesMount.appendChild(notesView);
+  return overlay;
 }
 
 function ensureSettingsOverlay() {
@@ -1763,6 +2492,8 @@ function updateTypographyControl(summary = HOST_STATE.lastSummary) {
 function syncTopControls() {
   setControlEnabled("bookmark", true);
   setControlEnabled("openBookmarks", true);
+  ensureLibraryControl();
+  ensureLibraryOverlay();
   ensureTypographyControl();
   updateTypographyControl();
 }
@@ -2583,7 +3314,7 @@ async function handleAction(action) {
     const withinProtectedOverlay = !!(
       target &&
       target.closest &&
-      target.closest("#overlay-notes .list_item, #overlay-notes .bookmark-delete, #overlay-notes .bookmark_link, #commentSheet")
+      target.closest("#overlay-library, #overlay-settings, #overlay-menu, #overlay-toc, #overlay-bookmarks, #overlay-notes .list_item, #overlay-notes .bookmark-delete, #overlay-notes .bookmark_link, #commentSheet")
     );
     const summary = HOST_STATE.lastSummary;
     const primaryButton = event.button == null || event.button === 0;
@@ -3228,7 +3959,9 @@ async function performPageTurn(direction, options = {}) {
 function overlaysVisible() {
   const typography = document.getElementById("protectedTypographyControl");
   if (typography && typography.classList.contains("is-open")) return true;
-  return ["overlay-menu", "overlay-settings", "overlay-toc", "overlay-notes", "overlay-bookmarks", "commentSheet"]
+  const library = document.getElementById("protectedLibraryControl");
+  if (library && library.classList.contains("is-open")) return true;
+  return ["overlay-menu", "overlay-settings", "overlay-library", "overlay-toc", "overlay-notes", "overlay-bookmarks", "commentSheet"]
     .some((id) => {
       const node = document.getElementById(id);
       return !!(node && !node.classList.contains("hidden"));
@@ -3650,6 +4383,7 @@ function bindShellControls() {
   document.addEventListener("keydown", async (event) => {
     if (!HOST_STATE.frame) return;
     if (event.key === "Escape") {
+      closeLibraryOverlay();
       closeTypographyPanel();
       return;
     }
@@ -3665,6 +4399,7 @@ function bindShellControls() {
   const theme = document.getElementById("themeToggle");
   const bookmark = document.getElementById("bookmark");
   syncProtectedShellIcons();
+  const libraryTrigger = document.getElementById("protectedLibraryTrigger");
   theme && theme.addEventListener("click", async (event) => {
     event.preventDefault();
     const currentTheme = HOST_STATE.lastSummary && HOST_STATE.lastSummary.theme === "dark" ? "dark" : "light";
@@ -3689,6 +4424,16 @@ function bindShellControls() {
     renderBookmarks(summary);
     updateBookmarkControl(summary);
   });
+  libraryTrigger && libraryTrigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const wrap = document.getElementById("protectedLibraryControl");
+    if (wrap && wrap.classList.contains("is-open")) {
+      closeLibraryOverlay();
+      return;
+    }
+    openLibraryOverlay("toc");
+  });
   const typographyControl = ensureTypographyControl();
   const typographyTrigger = document.getElementById("protectedTypographyTrigger");
   const typographyPanel = document.getElementById("protectedTypographyPanel");
@@ -3703,10 +4448,36 @@ function bindShellControls() {
     toggleTypographyPanel();
   });
   const dismissTypographyPanel = (event) => {
+    const libraryWrap = document.getElementById("protectedLibraryControl");
+    const libraryOverlay = document.getElementById("overlay-library");
     const wrap = document.getElementById("protectedTypographyControl");
     const overlay = document.getElementById("overlay-settings");
     const backdrop = document.getElementById("overlay-backdrop");
     const panel = document.getElementById("protectedTypographyPanel");
+    if (libraryWrap && libraryWrap.classList.contains("is-open")) {
+      if (backdrop && event.target === backdrop) {
+        try {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+        } catch (_error) {}
+        closeLibraryOverlay();
+        return;
+      }
+      if (
+        libraryWrap.contains(event.target) ||
+        (libraryOverlay && libraryOverlay.contains(event.target))
+      ) {
+        return;
+      }
+      try {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation && event.stopImmediatePropagation();
+      } catch (_error) {}
+      closeLibraryOverlay();
+      return;
+    }
     if (!wrap || !wrap.classList.contains("is-open")) return;
     if (backdrop && event.target === backdrop) {
       try {

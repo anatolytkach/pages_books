@@ -2481,6 +2481,22 @@ async function bridgeRestoreFromToken(token) {
   return buildBridgeSummary();
 }
 
+async function bridgeGoToGlobalOffset(globalOffset, chunkOrder = null) {
+  const normalizedChunkOrder = Number(chunkOrder);
+  const chunkIndex = Number.isFinite(normalizedChunkOrder)
+    ? Math.max(0, Math.floor(normalizedChunkOrder))
+    : Math.max(0, Number(state.currentSnapshot && state.currentSnapshot.chunkSummary ? state.currentSnapshot.chunkSummary.order - 1 : 0) || 0);
+  const snapshot = await state.workerClient.goToChunk({
+    chunkIndex,
+    globalOffset: Number(globalOffset || 0),
+    ...getGenerationPayload(),
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  await refreshTurnPreviews();
+  return buildBridgeSummary();
+}
+
 async function bridgeCopySelection() {
   await handleCopySelection();
   return buildBridgeSummary();
@@ -2663,6 +2679,7 @@ function installEmbeddedBridge() {
     goToToc: bridgeGoToToc,
     goToAnnotation: bridgeGoToAnnotation,
     restoreFromToken: bridgeRestoreFromToken,
+    goToGlobalOffset: bridgeGoToGlobalOffset,
     copySelection: bridgeCopySelection,
     exportSelectionForUserAction: bridgeExportSelectionForUserAction,
     captureSelectionForUserAction: bridgeCaptureSelectionForUserAction,
