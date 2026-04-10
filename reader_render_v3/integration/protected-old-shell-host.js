@@ -44,6 +44,10 @@ const HOST_STATE = {
   cachedSelectionActionState: null,
   suppressSelectionToolbarUntil: 0,
   bookmarkRestoreInFlight: "",
+  searchSidebarState: null,
+  searchSidebarSubmitted: false,
+  searchSidebarPendingQuery: "",
+  searchSidebarForceEmpty: false,
   turnPreviewSyncTimer: null,
   turnPreviewPromise: null,
   lastTurnPreviewKey: "",
@@ -53,6 +57,7 @@ const HOST_STATE = {
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
 const FONT_SCALE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-scale:";
 const FONT_MODE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-mode:";
+const PROTECTED_SEARCH_ICON_SRC = "icons/search.svg?v=20260303-icons-tight-x-3";
 const PROTECTED_TOC_ICON_SRC = "/reader_render_v3/assets/toc.svg";
 const PROTECTED_SETTINGS_ICON_SRC = "/reader_render_v3/assets/settings.svg";
 const PROTECTED_THEME_ICON_SRC = "/reader_render_v3/assets/theme.svg";
@@ -349,8 +354,9 @@ function installStyles() {
     body.protected-old-shell.protected-dev-panel #protectedShellActionBar {
       display: flex;
     }
-    body.protected-old-shell #searchDesktop {
-      display: flex !important;
+    body.protected-old-shell #searchDesktop,
+    body.protected-old-shell #searchbar {
+      display: none !important;
     }
     body.protected-old-shell #themeToggle,
     body.protected-old-shell #bookmark {
@@ -383,6 +389,13 @@ function installStyles() {
       vertical-align: middle;
       order: 59;
     }
+    #protectedSearchControl {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 0;
+      vertical-align: middle;
+      order: 60;
+    }
     #protectedLibraryTrigger {
       appearance: none;
       -webkit-appearance: none;
@@ -409,6 +422,34 @@ function installStyles() {
       display: block;
       object-fit: contain;
     }
+    #protectedSearchTrigger {
+      appearance: none;
+      -webkit-appearance: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 32px;
+      padding: 0 6px;
+      border-radius: 0;
+      border: 0;
+      background: transparent;
+      color: #eef4fb;
+      cursor: pointer;
+      transition: color 140ms ease, opacity 140ms ease;
+    }
+    #protectedSearchTrigger:hover,
+    #protectedSearchTrigger:focus-visible {
+      opacity: 0.92;
+    }
+    #protectedSearchTrigger img {
+      width: 20px;
+      height: 20px;
+      display: block;
+      object-fit: contain;
+      filter: brightness(0) invert(1);
+      opacity: 0.92;
+    }
     #protectedTypographyControl {
       display: inline-flex;
       align-items: center;
@@ -417,9 +458,10 @@ function installStyles() {
       order: 61;
     }
     body.protected-old-shell #themeToggle {
-      order: 60;
+      order: 62;
     }
     #protectedLibraryTrigger[aria-expanded="true"],
+    #protectedSearchTrigger[aria-expanded="true"],
     #protectedTypographyTrigger {
       appearance: none;
       -webkit-appearance: none;
@@ -472,8 +514,181 @@ function installStyles() {
       max-width: min(100vw, 360px);
       z-index: 9999;
     }
+    #overlay-search {
+      left: auto;
+      right: 0;
+      width: 360px;
+      max-width: min(100vw, 360px);
+      z-index: 9999;
+    }
     #overlay-library .overlay-scroll {
       padding-top: 10px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    #overlay-library .overlay-scroll::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+    #overlay-search .overlay-scroll {
+      padding-top: 10px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    #overlay-search .overlay-scroll::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+    #protectedSearchPanel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+    }
+    #protectedSearchInputWrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+    #protectedSearchInput {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 44px 10px 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.06);
+      color: #ffffff;
+      font: 500 16px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      outline: none;
+      box-sizing: border-box;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    #protectedSearchInput::placeholder {
+      color: rgba(255,255,255,0.42);
+    }
+    #protectedSearchInput::-webkit-search-decoration,
+    #protectedSearchInput::-webkit-search-cancel-button,
+    #protectedSearchInput::-webkit-search-results-button,
+    #protectedSearchInput::-webkit-search-results-decoration {
+      display: none;
+      -webkit-appearance: none;
+    }
+    #protectedSearchAction {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      background: transparent;
+      color: rgba(255,255,255,0.9);
+      cursor: pointer;
+      padding: 0;
+    }
+    #protectedSearchAction svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+    #protectedSearchAction .search-clear-x {
+      display: none;
+      font-size: 20px;
+      line-height: 1;
+    }
+    #protectedSearchAction.is-clear .search-clear-x {
+      display: block;
+    }
+    #protectedSearchAction.is-clear .search-mag-svg {
+      display: none;
+    }
+    #protectedSearchMeta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    #protectedSearchCount {
+      display: none;
+    }
+    #protectedSearchNav {
+      display: none !important;
+      align-items: center;
+      gap: 8px;
+    }
+    #protectedSearchPrev,
+    #protectedSearchNext {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 999px;
+      background: transparent;
+      color: rgba(255,255,255,0.9);
+      cursor: pointer;
+      padding: 0;
+    }
+    #protectedSearchResults {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    #protectedSearchResults li {
+      margin: 0;
+      padding: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.14);
+    }
+    #protectedSearchResults li:last-child {
+      border-bottom: 0;
+    }
+    .protected-search-result {
+      width: 100%;
+      display: block;
+      padding: 12px 0;
+      border: 0;
+      background: transparent;
+      color: rgba(255,255,255,0.92);
+      text-align: left;
+      cursor: pointer;
+    }
+    .protected-search-result.is-active {
+      color: #ffffff;
+    }
+    .protected-search-result-index {
+      display: block;
+      margin-bottom: 6px;
+      color: rgba(255,255,255,0.52);
+      font: 600 11px/1.1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .protected-search-result-excerpt {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font: 400 15px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .protected-search-result-context {
+      color: rgba(255,255,255,0.58);
+      font-weight: 400;
+    }
+    .protected-search-result-match {
+      color: #ffffff;
+      font-weight: 700;
+    }
+    #protectedSearchEmpty {
+      display: none !important;
     }
     #protectedLibraryTabs {
       display: grid;
@@ -1357,6 +1572,7 @@ function closeOverlayById(id) {
 }
 
 function closeAllShellOverlays() {
+  closeSearchOverlay();
   closeLibraryOverlay();
   closeTypographyPanel();
   try {
@@ -1370,6 +1586,7 @@ function closeAllShellOverlays() {
     "overlay-bookmarks",
     "overlay-notes",
     "overlay-menu",
+    "overlay-search",
     "overlay-settings",
     "overlay-library",
     "overlay-mybooks",
@@ -2052,7 +2269,8 @@ function updateNavButtons(summary) {
 }
 
 function updateSearchControls(summary) {
-  const search = summary && summary.searchSummary ? summary.searchSummary : { active: false, query: "", totalMatches: 0, currentMatch: 0 };
+  const search = summary && summary.searchSummary ? summary.searchSummary : { active: false, query: "", totalMatches: 0, currentMatch: 0, matches: [] };
+  const effectiveQuery = String(search.query || HOST_STATE.searchSidebarPendingQuery || "");
   const desktopInput = document.getElementById("searchInputDesktop");
   const desktopCount = document.getElementById("searchCountDesktop");
   const desktopNav = document.querySelector("#searchDesktop .search-nav.desktop");
@@ -2060,11 +2278,26 @@ function updateSearchControls(summary) {
   const mobileBar = document.getElementById("searchbar");
   const mobileInput = document.getElementById("searchInputMobile");
   const mobileCount = document.getElementById("searchCount");
-  if (desktopInput && document.activeElement !== desktopInput) desktopInput.value = search.query || "";
-  if (mobileInput && document.activeElement !== mobileInput) mobileInput.value = search.query || "";
+  const overlayInput = document.getElementById("protectedSearchInput");
+  const overlayCount = document.getElementById("protectedSearchCount");
+  const overlayAction = document.getElementById("protectedSearchAction");
+  const overlayNav = document.getElementById("protectedSearchNav");
+  const searchOverlayOpen = !!document.querySelector("#overlay-search:not(.hidden)");
+  if (desktopInput && document.activeElement !== desktopInput) desktopInput.value = effectiveQuery;
+  if (mobileInput && document.activeElement !== mobileInput) mobileInput.value = effectiveQuery;
+  if (overlayInput && document.activeElement !== overlayInput) {
+    const keepTypedOverlayQuery =
+      searchOverlayOpen &&
+      !HOST_STATE.searchSidebarForceEmpty &&
+      !effectiveQuery &&
+      String(overlayInput.value || "").trim().length > 0;
+    if (!keepTypedOverlayQuery) overlayInput.value = effectiveQuery;
+  }
   if (desktopCount) desktopCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
   if (mobileCount) mobileCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
+  if (overlayCount) overlayCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
   if (desktopNav) desktopNav.style.display = search.active && search.totalMatches ? "inline-flex" : "none";
+  if (overlayNav) overlayNav.style.display = search.active && search.totalMatches ? "inline-flex" : "none";
   if (desktopAction) {
     desktopAction.classList.toggle("is-clear", !!search.active);
     desktopAction.classList.toggle("is-mag", !search.active);
@@ -2072,7 +2305,108 @@ function updateSearchControls(summary) {
     desktopAction.classList.toggle("is-disabled", !(search.query && search.query.length));
     desktopAction.setAttribute("aria-label", search.active ? "Clear search" : "Search");
   }
+  if (overlayAction) {
+    const showClear = !!search.active;
+    overlayAction.classList.toggle("is-clear", showClear);
+    overlayAction.classList.toggle("is-mag", !showClear);
+    overlayAction.setAttribute("aria-label", showClear ? "Clear search" : "Search");
+  }
   if (mobileBar) mobileBar.classList.toggle("hidden", !search.active && !isAutomationMode());
+  if (search.query) {
+    HOST_STATE.searchSidebarPendingQuery = String(search.query || "");
+  }
+  renderSearchResults(summary);
+}
+
+function normalizeSearchSidebarState(payload, fallbackQuery = "") {
+  const source = payload && typeof payload === "object" ? payload : {};
+  const matches = Array.isArray(source.matches)
+    ? source.matches.map((match) => ({
+        chunkIndex: Number(match && match.chunkIndex || 0) || 0,
+        chunkId: match && match.chunkId ? String(match.chunkId) : "",
+        globalStartOffset: Number(match && match.globalStartOffset || 0) || 0,
+        globalEndOffset: Number(match && match.globalEndOffset || 0) || 0,
+        excerpt: match && match.excerpt ? String(match.excerpt) : "",
+        globalPageLabel: match && match.globalPageLabel ? String(match.globalPageLabel) : "",
+        current: !!(match && match.current)
+      }))
+    : [];
+  const query = String(source.query || fallbackQuery || "");
+  const totalMatches = Number(source.totalMatches || matches.length || 0) || 0;
+  const currentMatch = Number(source.currentMatch || 0) || 0;
+  return {
+    active: !!(source.active || query),
+    query,
+    totalMatches,
+    currentMatch,
+    matches
+  };
+}
+
+function escapeSearchHtml(text = "") {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildSearchExcerptMarkup(excerpt = "", query = "") {
+  const rawExcerpt = String(excerpt || "").trim();
+  const rawQuery = String(query || "").trim();
+  if (!rawExcerpt) return "";
+  if (!rawQuery) return `<span class="protected-search-result-context">${escapeSearchHtml(rawExcerpt)}</span>`;
+  const lowerExcerpt = rawExcerpt.toLowerCase();
+  const lowerQuery = rawQuery.toLowerCase();
+  const matchAt = lowerExcerpt.indexOf(lowerQuery);
+  if (matchAt < 0) {
+    return `<span class="protected-search-result-context">${escapeSearchHtml(rawExcerpt)}</span>`;
+  }
+  const before = rawExcerpt.slice(0, matchAt);
+  const match = rawExcerpt.slice(matchAt, matchAt + rawQuery.length);
+  const after = rawExcerpt.slice(matchAt + rawQuery.length);
+  return [
+    `<span class="protected-search-result-context">${escapeSearchHtml(before)}</span>`,
+    `<span class="protected-search-result-match">${escapeSearchHtml(match)}</span>`,
+    `<span class="protected-search-result-context">${escapeSearchHtml(after)}</span>`
+  ].join("");
+}
+
+function createEmptySearchSidebarState() {
+  return {
+    active: false,
+    query: "",
+    totalMatches: 0,
+    currentMatch: 0,
+    matches: []
+  };
+}
+
+async function invokeSearchBridge(method, ...args) {
+  const result = await invokeBridgeRaw(method, ...args);
+  if (result && typeof result === "object") {
+    HOST_STATE.searchSidebarState = normalizeSearchSidebarState(
+      result.searchSummary,
+      HOST_STATE.searchSidebarPendingQuery
+    );
+    updateFromSummary(result);
+  }
+  return result;
+}
+
+async function refreshSearchSidebarState() {
+  try {
+    const payload = await invokeBridgeRaw("getSearchResults");
+    HOST_STATE.searchSidebarState = normalizeSearchSidebarState(
+      payload,
+      HOST_STATE.searchSidebarPendingQuery
+    );
+  } catch (_error) {
+    // Preserve the last known good search state if the bridge is transiently
+    // unavailable during page movement or overlay refresh.
+  }
+  renderSearchResults(HOST_STATE.lastSummary);
 }
 
 function setControlEnabled(id, enabled, disabledLabel = "Unavailable in protected mode") {
@@ -2190,7 +2524,7 @@ function ensureLibraryControl() {
   wrap = document.createElement("span");
   wrap.id = "protectedLibraryControl";
   wrap.innerHTML = `
-    <button type="button" id="protectedLibraryTrigger" aria-label="Library" aria-controls="overlay-library" aria-expanded="false">
+    <button type="button" id="protectedLibraryTrigger" aria-label="Book navigation" aria-controls="overlay-library" aria-expanded="false">
       <img src="${PROTECTED_TOC_ICON_SRC}" alt="" aria-hidden="true" />
     </button>
   `;
@@ -2199,9 +2533,29 @@ function ensureLibraryControl() {
   return wrap;
 }
 
+function ensureSearchControl() {
+  let wrap = document.getElementById("protectedSearchControl");
+  if (wrap) return wrap;
+  const titleControls = document.getElementById("title-controls");
+  const themeToggle = document.getElementById("themeToggle");
+  if (!titleControls || !themeToggle) return null;
+  wrap = document.createElement("span");
+  wrap.id = "protectedSearchControl";
+  wrap.innerHTML = `
+    <button type="button" id="protectedSearchTrigger" aria-label="Search" aria-controls="overlay-search" aria-expanded="false">
+      <img src="${PROTECTED_SEARCH_ICON_SRC}" alt="" aria-hidden="true" />
+    </button>
+  `;
+  titleControls.insertBefore(wrap, themeToggle);
+  ensureSearchOverlay();
+  return wrap;
+}
+
 function syncProtectedShellIcons() {
   const libraryControl = ensureLibraryControl();
+  const searchControl = ensureSearchControl();
   const libraryTrigger = document.getElementById("protectedLibraryTrigger");
+  const searchTrigger = document.getElementById("protectedSearchTrigger");
   if (libraryTrigger) {
     let tocImg = libraryTrigger.querySelector("img");
     if (!tocImg) {
@@ -2212,6 +2566,18 @@ function syncProtectedShellIcons() {
     }
     if (tocImg.getAttribute("src") !== PROTECTED_TOC_ICON_SRC) {
       tocImg.setAttribute("src", PROTECTED_TOC_ICON_SRC);
+    }
+  }
+  if (searchTrigger) {
+    let searchImg = searchTrigger.querySelector("img");
+    if (!searchImg) {
+      searchImg = document.createElement("img");
+      searchImg.alt = "";
+      searchImg.setAttribute("aria-hidden", "true");
+      searchTrigger.replaceChildren(searchImg);
+    }
+    if (searchImg.getAttribute("src") !== PROTECTED_SEARCH_ICON_SRC) {
+      searchImg.setAttribute("src", PROTECTED_SEARCH_ICON_SRC);
     }
   }
   const typographyControl = document.getElementById("protectedTypographyControl");
@@ -2258,6 +2624,9 @@ function syncProtectedShellIcons() {
   }
   if (libraryControl && themeToggle && libraryControl.parentElement !== themeToggle.parentElement) {
     themeToggle.parentElement && themeToggle.parentElement.insertBefore(libraryControl, themeToggle);
+  }
+  if (searchControl && themeToggle && searchControl.parentElement !== themeToggle.parentElement) {
+    themeToggle.parentElement && themeToggle.parentElement.insertBefore(searchControl, themeToggle);
   }
 }
 
@@ -2320,6 +2689,166 @@ function openLibraryOverlay(tab = "toc") {
     document.body.classList.add("overlay-open");
   } catch (_error) {}
   switchLibraryTab(tab);
+}
+
+function closeSearchOverlay() {
+  const wrap = document.getElementById("protectedSearchControl");
+  const trigger = document.getElementById("protectedSearchTrigger");
+  const overlay = document.getElementById("overlay-search");
+  const backdrop = document.getElementById("overlay-backdrop");
+  if (wrap) wrap.classList.remove("is-open");
+  if (overlay) {
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+  if (backdrop) {
+    backdrop.classList.add("hidden");
+    backdrop.setAttribute("aria-hidden", "true");
+  }
+  try {
+    document.body.classList.remove("overlay-open");
+  } catch (_error) {}
+  if (trigger) trigger.setAttribute("aria-expanded", "false");
+}
+
+function openSearchOverlay() {
+  const wrap = ensureSearchControl();
+  ensureSearchOverlay();
+  const trigger = document.getElementById("protectedSearchTrigger");
+  const overlay = document.getElementById("overlay-search");
+  const backdrop = document.getElementById("overlay-backdrop");
+  closeAllShellOverlays();
+  if (wrap) wrap.classList.add("is-open");
+  if (trigger) trigger.setAttribute("aria-expanded", "true");
+  if (overlay) {
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+  if (backdrop) {
+    backdrop.classList.remove("hidden");
+    backdrop.setAttribute("aria-hidden", "false");
+  }
+  try {
+    document.body.classList.add("overlay-open");
+  } catch (_error) {}
+  HOST_STATE.searchSidebarSubmitted = false;
+  HOST_STATE.searchSidebarPendingQuery = String((HOST_STATE.lastSummary && HOST_STATE.lastSummary.searchSummary && HOST_STATE.lastSummary.searchSummary.query) || "");
+  updateSearchControls(HOST_STATE.lastSummary);
+  void refreshSearchSidebarState();
+  const input = document.getElementById("protectedSearchInput");
+  input && window.setTimeout(() => {
+    try { input.focus(); } catch (_error) {}
+  }, 0);
+}
+
+function renderSearchResults(summary) {
+  const list = document.getElementById("protectedSearchResults");
+  const empty = document.getElementById("protectedSearchEmpty");
+  if (!list || !empty) return;
+  const search = HOST_STATE.searchSidebarState && typeof HOST_STATE.searchSidebarState === "object"
+    ? HOST_STATE.searchSidebarState
+    : summary && summary.searchSummary
+    ? summary.searchSummary
+    : { active: false, query: "", totalMatches: 0, currentMatch: 0, matches: [] };
+  const matches = Array.isArray(search.matches) ? search.matches : [];
+  list.replaceChildren();
+  if (!search.query) {
+    empty.classList.remove("hidden");
+    return;
+  }
+  if (!matches.length) {
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  matches.forEach((match, index) => {
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "protected-search-result";
+    if (match.current) button.classList.add("is-active");
+    button.dataset.resultIndex = String(index);
+    button.innerHTML = `
+      ${match.globalPageLabel ? `<span class="protected-search-result-index">${escapeSearchHtml(match.globalPageLabel)}</span>` : ""}
+      <span class="protected-search-result-excerpt">${buildSearchExcerptMarkup(String(match.excerpt || "").trim() || search.query, search.query)}</span>
+    `;
+    let opening = false;
+    const openResult = async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+      if (opening) return;
+      opening = true;
+      const resultIndex = Number(button.dataset.resultIndex || 0) || 0;
+      try {
+        const nextSummary = await invokeBridgeRaw("goToSearchResult", resultIndex);
+        if (nextSummary) updateFromSummary(nextSummary);
+        closeSearchOverlay();
+      } finally {
+        window.setTimeout(() => {
+          opening = false;
+        }, 0);
+      }
+    };
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+      void openResult(event);
+    });
+    button.addEventListener("click", openResult);
+    li.append(button);
+    list.append(li);
+  });
+}
+
+function ensureSearchOverlay() {
+  let overlay = document.getElementById("overlay-search");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "overlay-search";
+    overlay.className = "overlay-panel hidden";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Search");
+    overlay.innerHTML = `
+      <div class="overlay-head">
+        <div class="overlay-title">Search</div>
+        <button class="overlay-close" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="overlay-sep" aria-hidden="true"></div>
+      <div class="overlay-scroll">
+        <section id="protectedSearchPanel" aria-label="Search">
+          <div id="protectedSearchInputWrap">
+            <input id="protectedSearchInput" type="text" placeholder="Search in book" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <button id="protectedSearchAction" class="is-mag" type="button" aria-label="Search">
+              <svg class="search-mag-svg" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                <line x1="15" y1="15" x2="21" y2="21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+              </svg>
+              <span class="search-clear-x" aria-hidden="true">✕</span>
+            </button>
+          </div>
+          <div id="protectedSearchMeta">
+            <span id="protectedSearchCount">0/0</span>
+            <div id="protectedSearchNav">
+              <button id="protectedSearchPrev" type="button" aria-label="Previous result">‹</button>
+              <button id="protectedSearchNext" type="button" aria-label="Next result">›</button>
+            </div>
+          </div>
+          <div id="protectedSearchEmpty">Enter a search query.</div>
+          <ul id="protectedSearchResults"></ul>
+        </section>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const close = overlay.querySelector(".overlay-close");
+    close && close.addEventListener("click", (event) => {
+      event.preventDefault();
+      closeSearchOverlay();
+    });
+  }
+  return overlay;
 }
 
 function ensureLibraryOverlay() {
@@ -2493,7 +3022,9 @@ function syncTopControls() {
   setControlEnabled("bookmark", true);
   setControlEnabled("openBookmarks", true);
   ensureLibraryControl();
+  ensureSearchControl();
   ensureLibraryOverlay();
+  ensureSearchOverlay();
   ensureTypographyControl();
   updateTypographyControl();
 }
@@ -3961,7 +4492,9 @@ function overlaysVisible() {
   if (typography && typography.classList.contains("is-open")) return true;
   const library = document.getElementById("protectedLibraryControl");
   if (library && library.classList.contains("is-open")) return true;
-  return ["overlay-menu", "overlay-settings", "overlay-library", "overlay-toc", "overlay-notes", "overlay-bookmarks", "commentSheet"]
+  const search = document.getElementById("protectedSearchControl");
+  if (search && search.classList.contains("is-open")) return true;
+  return ["overlay-menu", "overlay-search", "overlay-settings", "overlay-library", "overlay-toc", "overlay-notes", "overlay-bookmarks", "commentSheet"]
     .some((id) => {
       const node = document.getElementById(id);
       return !!(node && !node.classList.contains("hidden"));
@@ -4383,6 +4916,7 @@ function bindShellControls() {
   document.addEventListener("keydown", async (event) => {
     if (!HOST_STATE.frame) return;
     if (event.key === "Escape") {
+      closeSearchOverlay();
       closeLibraryOverlay();
       closeTypographyPanel();
       return;
@@ -4400,6 +4934,8 @@ function bindShellControls() {
   const bookmark = document.getElementById("bookmark");
   syncProtectedShellIcons();
   const libraryTrigger = document.getElementById("protectedLibraryTrigger");
+  const searchTrigger = document.getElementById("protectedSearchTrigger");
+  ensureSearchOverlay();
   theme && theme.addEventListener("click", async (event) => {
     event.preventDefault();
     const currentTheme = HOST_STATE.lastSummary && HOST_STATE.lastSummary.theme === "dark" ? "dark" : "light";
@@ -4434,6 +4970,16 @@ function bindShellControls() {
     }
     openLibraryOverlay("toc");
   });
+  searchTrigger && searchTrigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const wrap = document.getElementById("protectedSearchControl");
+    if (wrap && wrap.classList.contains("is-open")) {
+      closeSearchOverlay();
+      return;
+    }
+    openSearchOverlay();
+  });
   const typographyControl = ensureTypographyControl();
   const typographyTrigger = document.getElementById("protectedTypographyTrigger");
   const typographyPanel = document.getElementById("protectedTypographyPanel");
@@ -4449,23 +4995,31 @@ function bindShellControls() {
   });
   const dismissTypographyPanel = (event) => {
     const libraryWrap = document.getElementById("protectedLibraryControl");
+    const searchWrap = document.getElementById("protectedSearchControl");
     const libraryOverlay = document.getElementById("overlay-library");
+    const searchOverlay = document.getElementById("overlay-search");
     const wrap = document.getElementById("protectedTypographyControl");
     const overlay = document.getElementById("overlay-settings");
     const backdrop = document.getElementById("overlay-backdrop");
     const panel = document.getElementById("protectedTypographyPanel");
-    if (libraryWrap && libraryWrap.classList.contains("is-open")) {
+    if (
+      (libraryWrap && libraryWrap.classList.contains("is-open")) ||
+      (searchWrap && searchWrap.classList.contains("is-open"))
+    ) {
       if (backdrop && event.target === backdrop) {
         try {
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation && event.stopImmediatePropagation();
         } catch (_error) {}
+        closeSearchOverlay();
         closeLibraryOverlay();
         return;
       }
       if (
-        libraryWrap.contains(event.target) ||
+        (libraryWrap && libraryWrap.contains(event.target)) ||
+        (searchWrap && searchWrap.contains(event.target)) ||
+        (searchOverlay && searchOverlay.contains(event.target)) ||
         (libraryOverlay && libraryOverlay.contains(event.target))
       ) {
         return;
@@ -4476,6 +5030,7 @@ function bindShellControls() {
         event.stopImmediatePropagation && event.stopImmediatePropagation();
       } catch (_error) {}
       closeLibraryOverlay();
+      closeSearchOverlay();
       return;
     }
     if (!wrap || !wrap.classList.contains("is-open")) return;
@@ -4571,12 +5126,42 @@ function bindShellControls() {
   const mobilePrev = document.getElementById("searchPrev");
   const mobileNext = document.getElementById("searchNext");
   const mobileClear = document.getElementById("searchClearMobile");
+  const overlaySearchInput = document.getElementById("protectedSearchInput");
+  const overlaySearchAction = document.getElementById("protectedSearchAction");
+  const overlaySearchPrev = document.getElementById("protectedSearchPrev");
+  const overlaySearchNext = document.getElementById("protectedSearchNext");
 
   async function submitSearch(query) {
-    await invokeBridge("searchBook", query);
+    HOST_STATE.searchSidebarPendingQuery = String(query || "").trim();
+    updateSearchControls(HOST_STATE.lastSummary);
+    await invokeSearchBridge("searchBook", query);
+    await refreshSearchSidebarState();
   }
   async function clearSearch() {
-    await invokeBridge("clearSearch");
+    HOST_STATE.searchSidebarPendingQuery = "";
+    HOST_STATE.searchSidebarForceEmpty = true;
+    HOST_STATE.searchSidebarState = createEmptySearchSidebarState();
+    if (overlaySearchInput) overlaySearchInput.value = "";
+    if (HOST_STATE.lastSummary && HOST_STATE.lastSummary.searchSummary) {
+      HOST_STATE.lastSummary = {
+        ...HOST_STATE.lastSummary,
+        searchSummary: createEmptySearchSidebarState()
+      };
+    }
+    updateSearchControls(HOST_STATE.lastSummary);
+    renderSearchResults(HOST_STATE.lastSummary);
+    await invokeSearchBridge("clearSearch");
+    await refreshSearchSidebarState();
+    if (HOST_STATE.searchSidebarState && !HOST_STATE.searchSidebarState.query) {
+      HOST_STATE.searchSidebarState = createEmptySearchSidebarState();
+      renderSearchResults(HOST_STATE.lastSummary);
+      updateSearchControls(HOST_STATE.lastSummary);
+    }
+    HOST_STATE.searchSidebarPendingQuery = "";
+    if (overlaySearchInput) overlaySearchInput.value = "";
+    if (mobileInput) mobileInput.value = "";
+    if (searchInput) searchInput.value = "";
+    HOST_STATE.searchSidebarForceEmpty = false;
   }
   function currentSearchValue() {
     const desktop = searchInput ? searchInput.value.trim() : "";
@@ -4607,19 +5192,23 @@ function bindShellControls() {
   });
   searchPrev && searchPrev.addEventListener("click", async (event) => {
     event.preventDefault();
-    await invokeBridge("searchPrevResult");
+    await invokeSearchBridge("searchPrevResult");
+    await refreshSearchSidebarState();
   });
   searchNext && searchNext.addEventListener("click", async (event) => {
     event.preventDefault();
-    await invokeBridge("searchNextResult");
+    await invokeSearchBridge("searchNextResult");
+    await refreshSearchSidebarState();
   });
   mobilePrev && mobilePrev.addEventListener("click", async (event) => {
     event.preventDefault();
-    await invokeBridge("searchPrevResult");
+    await invokeSearchBridge("searchPrevResult");
+    await refreshSearchSidebarState();
   });
   mobileNext && mobileNext.addEventListener("click", async (event) => {
     event.preventDefault();
-    await invokeBridge("searchNextResult");
+    await invokeSearchBridge("searchNextResult");
+    await refreshSearchSidebarState();
   });
   mobileClear && mobileClear.addEventListener("click", async (event) => {
     event.preventDefault();
@@ -4629,8 +5218,7 @@ function bindShellControls() {
   });
   searchOpen && searchOpen.addEventListener("click", (event) => {
     event.preventDefault();
-    if (mobileBar) mobileBar.classList.remove("hidden");
-    (mobileInput || searchInput) && (mobileInput || searchInput).focus();
+    openSearchOverlay();
   });
   searchClose && searchClose.addEventListener("click", async (event) => {
     event.preventDefault();
@@ -4638,6 +5226,47 @@ function bindShellControls() {
     if (searchInput) searchInput.value = "";
     if (mobileBar) mobileBar.classList.add("hidden");
     await clearSearch();
+  });
+  overlaySearchAction && overlaySearchAction.addEventListener("click", async (event) => {
+    event.preventDefault();
+    const summary = HOST_STATE.lastSummary;
+    const submittedQuery = overlaySearchInput ? overlaySearchInput.value.trim() : "";
+    const shouldClear = !!(
+      (summary && summary.searchSummary && summary.searchSummary.active) ||
+      (overlaySearchAction && overlaySearchAction.classList.contains("is-clear"))
+    );
+    if (shouldClear) {
+      if (overlaySearchInput) overlaySearchInput.value = "";
+      if (mobileInput) mobileInput.value = "";
+      if (searchInput) searchInput.value = "";
+      await clearSearch();
+      return;
+    }
+    await submitSearch(submittedQuery);
+    if (overlaySearchInput && submittedQuery) {
+      HOST_STATE.searchSidebarPendingQuery = submittedQuery;
+      overlaySearchInput.value = submittedQuery;
+    }
+  });
+  overlaySearchInput && overlaySearchInput.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    const submittedQuery = overlaySearchInput.value.trim();
+    await submitSearch(submittedQuery);
+    if (overlaySearchInput && submittedQuery) {
+      HOST_STATE.searchSidebarPendingQuery = submittedQuery;
+      overlaySearchInput.value = submittedQuery;
+    }
+  });
+  overlaySearchPrev && overlaySearchPrev.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await invokeSearchBridge("searchPrevResult");
+    await refreshSearchSidebarState();
+  });
+  overlaySearchNext && overlaySearchNext.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await invokeSearchBridge("searchNextResult");
+    await refreshSearchSidebarState();
   });
 
   bindSelectionToolbar();

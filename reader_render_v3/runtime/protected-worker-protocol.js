@@ -8,6 +8,8 @@ export const PROTECTED_WORKER_METHODS = {
   SELECT_AUTOMATION_SAMPLE: "selectAutomationSample",
   SET_FONT_SCALE: "setFontScale",
   SEARCH_BOOK: "searchBook",
+  GET_SEARCH_RESULTS: "getSearchResults",
+  GO_TO_SEARCH_RESULT: "goToSearchResult",
   SEARCH_NEXT_RESULT: "searchNextResult",
   SEARCH_PREV_RESULT: "searchPrevResult",
   CLEAR_SEARCH: "clearSearch",
@@ -151,9 +153,45 @@ function sanitizeCreateAnnotationPayload(payload = {}) {
   };
 }
 
+function sanitizeSearchResultsPayload(payload = {}) {
+  assertAllowedObjectKeys(
+    payload,
+    new Set(["active", "query", "totalMatches", "currentMatch", "matches"]),
+    "payload"
+  );
+  const matches = Array.isArray(payload.matches)
+    ? payload.matches.map((match, index) => {
+        assertAllowedObjectKeys(
+          match || {},
+          new Set(["chunkIndex", "chunkId", "globalStartOffset", "globalEndOffset", "excerpt", "globalPageLabel", "current"]),
+          `payload.matches[${index}]`
+        );
+        return {
+          chunkIndex: Number(match.chunkIndex || 0),
+          chunkId: String(match.chunkId || ""),
+          globalStartOffset: Number(match.globalStartOffset || 0),
+          globalEndOffset: Number(match.globalEndOffset || 0),
+          excerpt: String(match.excerpt || ""),
+          globalPageLabel: String(match.globalPageLabel || ""),
+          current: !!match.current
+        };
+      })
+    : [];
+  return {
+    active: !!payload.active,
+    query: String(payload.query || ""),
+    totalMatches: Number(payload.totalMatches || matches.length || 0),
+    currentMatch: Number(payload.currentMatch || 0),
+    matches
+  };
+}
+
 export function sanitizeProtectedWorkerPayload(method, payload = {}) {
   if (FORBIDDEN_GENERIC_TEXT_METHODS.has(method)) {
     throw new Error(`Forbidden protected worker method: ${method}`);
+  }
+  if (method === PROTECTED_WORKER_METHODS.GET_SEARCH_RESULTS) {
+    return sanitizeSearchResultsPayload(payload);
   }
   if (method === PROTECTED_WORKER_METHODS.COPY_CURRENT_SELECTION) {
     return sanitizeCopyCurrentSelectionPayload(payload);

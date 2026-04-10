@@ -187,6 +187,15 @@ const state = {
   turnPreviewRefreshPromise: Promise.resolve()
 };
 
+function escapeHtml(text = "") {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 let pendingSelectionRangeDescriptor = null;
 
 if (isEmbeddedOldShellMode()) {
@@ -492,9 +501,20 @@ function buildBridgeSummary() {
             active: !!runtimeMeta.searchSummary.active,
             query: runtimeMeta.searchSummary.query || "",
             totalMatches: Number(runtimeMeta.searchSummary.totalMatches || 0),
-            currentMatch: Number(runtimeMeta.searchSummary.currentMatch || 0)
+            currentMatch: Number(runtimeMeta.searchSummary.currentMatch || 0),
+            matches: Array.isArray(runtimeMeta.searchSummary.matches)
+              ? runtimeMeta.searchSummary.matches.map((match) => ({
+                  chunkIndex: Number(match.chunkIndex || 0),
+                  chunkId: match.chunkId || "",
+                  globalStartOffset: Number(match.globalStartOffset || 0),
+                  globalEndOffset: Number(match.globalEndOffset || 0),
+                  excerpt: escapeHtml(match.excerpt || ""),
+                  globalPageLabel: match.globalPageLabel || "",
+                  current: !!match.current
+                }))
+              : []
           }
-        : { active: false, query: "", totalMatches: 0, currentMatch: 0 },
+        : { active: false, query: "", totalMatches: 0, currentMatch: 0, matches: [] },
     driveStatus: {
       transport: state.driveState.transportStatus,
       configured: !!state.driveState.configured,
@@ -2622,6 +2642,16 @@ async function bridgeSearchPrevResult() {
   return buildBridgeSummary();
 }
 
+async function bridgeGoToSearchResult(resultIndex = -1) {
+  const snapshot = await state.workerClient.goToSearchResult({
+    resultIndex: Number(resultIndex || 0),
+    ...getGenerationPayload(),
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
 async function bridgeClearSearch() {
   const snapshot = await state.workerClient.clearSearch({
     ...getGenerationPayload(),
@@ -2629,6 +2659,10 @@ async function bridgeClearSearch() {
   });
   applySnapshot(snapshot);
   return buildBridgeSummary();
+}
+
+function bridgeGetSearchResults() {
+  return state.workerClient.getSearchResults({});
 }
 
 async function bridgeSetTheme(theme = "light", generationMeta = null) {
@@ -2692,9 +2726,11 @@ function installEmbeddedBridge() {
     deleteAnnotation: bridgeDeleteAnnotation,
     clearSelection: bridgeClearSelection,
     searchBook: bridgeSearchBook,
+    goToSearchResult: bridgeGoToSearchResult,
     searchNextResult: bridgeSearchNextResult,
     searchPrevResult: bridgeSearchPrevResult,
     clearSearch: bridgeClearSearch,
+    getSearchResults: bridgeGetSearchResults,
     setTheme: bridgeSetTheme,
     setFontScale: bridgeSetFontScale,
     setFontMode: bridgeSetFontMode

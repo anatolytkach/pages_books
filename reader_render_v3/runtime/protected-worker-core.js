@@ -769,9 +769,34 @@ export class ProtectedReaderRuntimeCore {
     }
     const queryLower = normalizedQuery.toLowerCase();
     const matches = [];
+    const chunkPageCounts = this.bookPaginationSummary && Array.isArray(this.bookPaginationSummary.chunkPageCounts)
+      ? this.bookPaginationSummary.chunkPageCounts
+      : [];
+    const globalPageCount = Number(this.bookPaginationSummary && this.bookPaginationSummary.totalPages || 0) || 0;
+    const runtimeFontMode = this.getCurrentRuntimeFontMode();
     for (let chunkIndex = 0; chunkIndex < this.book.manifest.chunks.length; chunkIndex += 1) {
       const manifestChunk = this.book.manifest.chunks[chunkIndex] || {};
-      const chunkModel = await loadProtectedChunkModel(this.book, chunkIndex);
+      const chunkModel = await loadProtectedChunkModel(this.book, chunkIndex, { runtimeFontMode });
+      const shapeRegistry = createGlyphShapeRegistry(chunkModel.shapeBundle, chunkModel.glyphMap);
+      const layout = layoutChunk({
+        chunkModel,
+        styles: this.book.styleMap,
+        width: this.getLayoutWidth(),
+        viewportHeight: this.viewportHeight,
+        fontScale: this.fontScale,
+        renderMode: this.renderMode,
+        metricsMode: this.metricsMode,
+        shapeRegistry
+      });
+      const pagination = buildPaginationModel({
+        chunkModel,
+        layout,
+        viewportHeight: this.viewportHeight,
+        globalModel: this.book.globalLocationModel
+      });
+      const globalPageBeforeChunk = chunkPageCounts
+        .slice(0, chunkIndex)
+        .reduce((sum, value) => sum + Number(value || 0), 0);
       const textEndOffset = chunkModel.textSegments.length
         ? chunkModel.textSegments[chunkModel.textSegments.length - 1].end
         : 0;
@@ -788,13 +813,25 @@ export class ProtectedReaderRuntimeCore {
         while (cursor < lower.length) {
           const foundAt = lower.indexOf(queryLower, cursor);
           if (foundAt < 0) break;
+          let excerptStart = Math.max(0, foundAt - 48);
+          let excerptEnd = Math.min(text.length, foundAt + normalizedQuery.length + 72);
+          while (excerptStart > 0 && /\S/.test(text.charAt(excerptStart - 1))) excerptStart -= 1;
+          while (excerptEnd < text.length && /\S/.test(text.charAt(excerptEnd))) excerptEnd += 1;
+          const excerpt = text
+            .slice(excerptStart, excerptEnd)
+            .replace(/\s+/g, " ")
+            .trim();
+          const matchPageIndex = findPageIndexForOffset(pagination, foundAt);
+          const globalPageIndex = globalPageBeforeChunk + Number(matchPageIndex || 0) + 1;
           matches.push({
             chunkIndex,
             chunkId: chunkModel.chunk.chunkId,
             startOffset: foundAt,
             endOffset: foundAt + normalizedQuery.length,
             globalStartOffset: Number(manifestChunk.startOffset || 0) + foundAt,
-            globalEndOffset: Number(manifestChunk.startOffset || 0) + foundAt + normalizedQuery.length
+            globalEndOffset: Number(manifestChunk.startOffset || 0) + foundAt + normalizedQuery.length,
+            excerpt,
+            globalPageLabel: globalPageCount ? `${globalPageIndex} / ${globalPageCount}` : `${globalPageIndex}`
           });
           cursor = foundAt + Math.max(1, normalizedQuery.length);
         }
@@ -811,6 +848,45 @@ export class ProtectedReaderRuntimeCore {
       return this.buildSnapshot({ annotations });
     }
     const match = matches[0];
+    return this.goToChunk({
+      chunkIndex: match.chunkIndex,
+      globalOffset: match.globalStartOffset,
+      annotations
+    });
+  }
+
+  getSearchResults() {
+    const matches = this.searchState && Array.isArray(this.searchState.matches)
+      ? this.searchState.matches.map((match, index) => ({
+          chunkIndex: Number(match.chunkIndex || 0),
+          chunkId: match.chunkId || "",
+          globalStartOffset: Number(match.globalStartOffset || 0),
+          globalEndOffset: Number(match.globalEndOffset || 0),
+          excerpt: match.excerpt || "",
+          globalPageLabel: match.globalPageLabel || "",
+          current: index === this.searchState.currentIndex
+        }))
+      : [];
+    return {
+      active: !!(this.searchState && this.searchState.query),
+      query: this.searchState ? this.searchState.query : "",
+      totalMatches: matches.length,
+      currentMatch: this.searchState && this.searchState.currentIndex >= 0 ? this.searchState.currentIndex + 1 : 0,
+      matches
+    };
+  }
+
+  async goToSearchResult({ resultIndex = -1, annotations = [] } = {}) {
+    const nextIndex = Number(resultIndex);
+    if (!Number.isFinite(nextIndex) || nextIndex < 0 || !this.searchState || !Array.isArray(this.searchState.matches)) {
+      return this.buildSnapshot({ annotations });
+    }
+    if (nextIndex >= this.searchState.matches.length) {
+      return this.buildSnapshot({ annotations });
+    }
+    this.searchState.currentIndex = nextIndex;
+    const match = this.getCurrentSearchMatch();
+    if (!match) return this.buildSnapshot({ annotations });
     return this.goToChunk({
       chunkIndex: match.chunkIndex,
       globalOffset: match.globalStartOffset,
@@ -1229,7 +1305,8 @@ export class ProtectedReaderRuntimeCore {
           active: !!(this.searchState && this.searchState.query),
           query: this.searchState ? this.searchState.query : "",
           totalMatches: this.searchState && Array.isArray(this.searchState.matches) ? this.searchState.matches.length : 0,
-          currentMatch: this.searchState && this.searchState.currentIndex >= 0 ? this.searchState.currentIndex + 1 : 0
+          currentMatch: this.searchState && this.searchState.currentIndex >= 0 ? this.searchState.currentIndex + 1 : 0,
+          matches: []
         },
         runtimeContract: this.book.manifest.runtimeContract || {},
         renderDiagnostics,

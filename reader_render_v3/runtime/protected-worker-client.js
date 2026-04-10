@@ -110,6 +110,14 @@ export function createProtectedWorkerClient(options = {}) {
       ensureSecureWorker();
       return decorateResult(PROTECTED_WORKER_METHODS.SEARCH_BOOK, await transport.call(PROTECTED_WORKER_METHODS.SEARCH_BOOK, payload));
     },
+    async getSearchResults(payload) {
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.GET_SEARCH_RESULTS, await transport.call(PROTECTED_WORKER_METHODS.GET_SEARCH_RESULTS, payload));
+    },
+    async goToSearchResult(payload) {
+      ensureSecureWorker();
+      return decorateResult(PROTECTED_WORKER_METHODS.GO_TO_SEARCH_RESULT, await transport.call(PROTECTED_WORKER_METHODS.GO_TO_SEARCH_RESULT, payload));
+    },
     async searchNextResult(payload) {
       ensureSecureWorker();
       return decorateResult(PROTECTED_WORKER_METHODS.SEARCH_NEXT_RESULT, await transport.call(PROTECTED_WORKER_METHODS.SEARCH_NEXT_RESULT, payload));
