@@ -1751,6 +1751,9 @@
   // -------- Fulltext search (FBReader-like) --------
   function setupSearch(reader) {
     if (!reader || !reader.book || !reader.rendition) return;
+    try {
+      if (document.body && document.body.classList.contains("protected-old-shell")) return;
+    } catch (e) {}
 
     var isDesktopNow = function () {
       if (document.documentElement && document.documentElement.classList.contains("is-tablet")) return true;

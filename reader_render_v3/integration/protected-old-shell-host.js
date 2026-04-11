@@ -48,6 +48,7 @@ const HOST_STATE = {
   searchSidebarSubmitted: false,
   searchSidebarPendingQuery: "",
   searchSidebarForceEmpty: false,
+  searchClearSuppressUntil: 0,
   searchReturnOriginToken: "",
   searchReturnOriginOffset: 0,
   bookmarkPageLookupToken: 0,
@@ -72,6 +73,18 @@ const PROTECTED_SEARCH_ICON_SRC = "icons/search.svg?v=20260303-icons-tight-x-3";
 const PROTECTED_TOC_ICON_SRC = "/reader_render_v3/assets/toc.svg";
 const PROTECTED_SETTINGS_ICON_SRC = "/reader_render_v3/assets/settings.svg";
 const PROTECTED_THEME_ICON_SRC = "/reader_render_v3/assets/theme.svg";
+const PROTECTED_SEARCH_BACK_ICON_SRC = "/reader_render_v3/assets/back.svg";
+const PROTECTED_SEARCH_FIELD_ICON_SRC = PROTECTED_SEARCH_ICON_SRC;
+const SEARCH_CHEVRON_LEFT_SVG = `
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M14.5 5.5L8 12l6.5 6.5"></path>
+  </svg>
+`;
+const SEARCH_CHEVRON_RIGHT_SVG = `
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M9.5 5.5L16 12l-6.5 6.5"></path>
+  </svg>
+`;
 const PROTECTED_MY_LIBRARY_ICON_SVG = `
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <circle cx="12" cy="8" r="3.5"></circle>
@@ -1414,6 +1427,150 @@ function installStyles() {
     }
     body.protected-old-shell.search-active #searchReturnDesktop {
       display: inline-flex;
+    }
+    body.protected-old-shell #searchDesktop .search-nav.desktop {
+      gap: 2px;
+    }
+    body.protected-old-shell #searchDesktop .search-nav.desktop .search-arrow,
+    body.protected-old-shell #searchbar .search-nav .search-arrow {
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      min-height: 28px;
+      padding: 0;
+      color: #ffffff;
+      opacity: 0.92;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    body.protected-old-shell #searchDesktop .search-nav.desktop .search-arrow svg,
+    body.protected-old-shell #searchbar .search-nav .search-arrow svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    body.protected-old-shell #searchReturnDesktop.search-return {
+      order: -1;
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      min-height: 22px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    body.protected-old-shell #searchReturnDesktop.search-return img {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+    body.protected-old-shell #searchActionDesktop.search-action {
+      width: 20px;
+      height: 20px;
+      color: rgba(255,255,255,0.54);
+    }
+    body.protected-old-shell #searchInputDesktop.search-input {
+      width: 187px;
+      min-width: 187px;
+      max-width: 187px;
+    }
+    body.protected-old-shell #searchActionDesktop.search-action img.search-field-mag-icon,
+    body.protected-old-shell #searchbar .search-input-wrap.mobile .search-infield-icon img.search-field-mag-icon {
+      width: 18px;
+      height: 18px;
+      display: block;
+      object-fit: contain;
+      filter: brightness(0) saturate(100%) invert(77%) sepia(0%) saturate(0%) hue-rotate(158deg) brightness(92%) contrast(91%);
+    }
+    body.protected-old-shell #searchActionDesktop.search-action .search-mag-svg,
+    body.protected-old-shell #searchbar .search-input-wrap.mobile .search-infield-icon .search-mag-svg {
+      display: none !important;
+    }
+    body.protected-old-shell #searchActionDesktop.search-action.is-clear img.search-field-mag-icon {
+      display: none !important;
+    }
+    body.protected-old-shell #searchActionDesktop.search-action.is-mag .search-clear-x {
+      display: none !important;
+    }
+    body.protected-old-shell #searchbar .search-input-wrap.mobile {
+      position: relative;
+    }
+    body.protected-old-shell #searchbar .search-input-wrap.mobile .search-infield-icon {
+      left: auto;
+      right: 8px;
+      width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.54);
+      pointer-events: none;
+    }
+    body.protected-old-shell #searchbar .search-input-wrap.mobile.has-clear .search-infield-icon {
+      display: none;
+    }
+    body.protected-old-shell #searchInputMobile {
+      padding-left: 10px;
+      padding-right: 38px;
+    }
+    body.protected-old-shell #searchClearMobile {
+      right: 8px;
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      min-height: 18px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      line-height: 1;
+      color: rgba(255,255,255,0.78);
+    }
+    body.protected-old-shell #searchClearMobile.hidden {
+      display: none !important;
+    }
+    body.protected-old-shell #searchFloatControls {
+      gap: 4px;
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
+    body.protected-old-shell #searchFloatControls .search-float-btn {
+      width: 43px;
+      height: 43px;
+      min-width: 43px;
+      min-height: 43px;
+    }
+    body.protected-old-shell #searchFloatControls .search-float-btn svg {
+      width: 24px;
+      height: 24px;
+      display: block;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    body.protected-old-shell #searchFloatReturn.search-float-btn {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      min-height: 36px;
+    }
+    body.protected-old-shell #searchFloatReturn.search-float-btn img {
+      width: 19px;
+      height: 19px;
+      display: block;
+      object-fit: contain;
+      filter: brightness(0) saturate(100%) invert(100%);
+      transform: rotate(-90deg);
     }
     #protectedLibraryTabs {
       display: flex;
@@ -3178,8 +3335,15 @@ function updateNavButtons(summary) {
 }
 
 function updateSearchControls(summary) {
-  const search = summary && summary.searchSummary ? summary.searchSummary : { active: false, query: "", totalMatches: 0, currentMatch: 0, matches: [] };
-  const effectiveQuery = String(search.query || HOST_STATE.searchSidebarPendingQuery || "");
+  const rawSearch = summary && summary.searchSummary ? summary.searchSummary : { active: false, query: "", totalMatches: 0, currentMatch: 0, matches: [] };
+  const search = HOST_STATE.searchSidebarForceEmpty
+    ? { active: false, query: "", totalMatches: 0, currentMatch: 0, matches: [] }
+    : rawSearch;
+  const effectiveQuery = String(
+    search.active
+      ? (search.query || HOST_STATE.searchSidebarPendingQuery || "")
+      : (HOST_STATE.searchSidebarPendingQuery || "")
+  );
   const desktopInput = document.getElementById("searchInputDesktop");
   const desktopCount = document.getElementById("searchCountDesktop");
   const desktopNav = document.querySelector("#searchDesktop .search-nav.desktop");
@@ -3189,8 +3353,13 @@ function updateSearchControls(summary) {
   const mobileCount = document.getElementById("searchCount");
   const mobileFloat = document.getElementById("searchFloatControls");
   const desktopReturn = document.getElementById("searchReturnDesktop");
+  const suppressSearchRestore = Date.now() < Number(HOST_STATE.searchClearSuppressUntil || 0);
   if (desktopInput && document.activeElement !== desktopInput) desktopInput.value = effectiveQuery;
   if (mobileInput && document.activeElement !== mobileInput) mobileInput.value = effectiveQuery;
+  if (suppressSearchRestore) {
+    if (desktopInput) desktopInput.value = "";
+    if (mobileInput) mobileInput.value = "";
+  }
   if (desktopCount) desktopCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
   if (mobileCount) mobileCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
   if (desktopNav) desktopNav.style.display = search.active && search.totalMatches ? "inline-flex" : "none";
@@ -3206,12 +3375,17 @@ function updateSearchControls(summary) {
   if (mobileClear) {
     const hasMobileDraft = !!String((mobileInput && mobileInput.value) || search.query || "").trim();
     mobileClear.classList.toggle("hidden", !hasMobileDraft);
+    const mobileWrap = mobileInput && mobileInput.closest ? mobileInput.closest(".search-input-wrap.mobile") : null;
+    mobileWrap && mobileWrap.classList.toggle("has-clear", hasMobileDraft);
   }
   if (desktopReturn) {
     desktopReturn.style.display = search.active ? "inline-flex" : "none";
   }
-  if (search.query) {
+  if (search.query && !suppressSearchRestore) {
     HOST_STATE.searchSidebarPendingQuery = String(search.query || "");
+  }
+  if (HOST_STATE.searchSidebarForceEmpty && !rawSearch.active && !String(rawSearch.query || "").trim()) {
+    HOST_STATE.searchSidebarForceEmpty = false;
   }
 }
 
@@ -3484,9 +3658,72 @@ function ensureDesktopSearchReturnButton() {
   button.className = "search-btn search-return";
   button.type = "button";
   button.setAttribute("aria-label", "Return to page where search started");
-  button.textContent = "↶";
-  nav.appendChild(button);
+  const img = document.createElement("img");
+  img.src = PROTECTED_SEARCH_BACK_ICON_SRC;
+  img.alt = "";
+  img.setAttribute("aria-hidden", "true");
+  button.replaceChildren(img);
+  nav.prepend(button);
   return button;
+}
+
+function syncLegacySearchFieldIcons() {
+  const syncDesktopAction = () => {
+    const button = document.getElementById("searchActionDesktop");
+    if (!button) return;
+    let img = button.querySelector("img.search-field-mag-icon");
+    if (!img) {
+      img = document.createElement("img");
+      img.className = "search-field-mag-icon";
+      img.alt = "";
+      img.setAttribute("aria-hidden", "true");
+      button.insertBefore(img, button.firstChild);
+    }
+    img.src = PROTECTED_SEARCH_FIELD_ICON_SRC;
+  };
+  const syncMobileInfield = () => {
+    const wrap = document.querySelector("#searchbar .search-input-wrap.mobile .search-infield-icon");
+    if (!wrap) return;
+    let img = wrap.querySelector("img.search-field-mag-icon");
+    if (!img) {
+      img = document.createElement("img");
+      img.className = "search-field-mag-icon";
+      img.alt = "";
+      img.setAttribute("aria-hidden", "true");
+      wrap.appendChild(img);
+    }
+    img.src = PROTECTED_SEARCH_FIELD_ICON_SRC;
+  };
+  syncDesktopAction();
+  syncMobileInfield();
+}
+
+function syncLegacySearchButtonIcons() {
+  const setChevron = (id, svg) => {
+    const button = document.getElementById(id);
+    if (!button) return;
+    if (button.dataset.iconSynced === svg) return;
+    button.innerHTML = svg;
+    button.dataset.iconSynced = svg;
+  };
+  const setReturn = (id) => {
+    const button = document.getElementById(id);
+    if (!button) return;
+    if (button.dataset.iconSynced === "back") return;
+    const img = document.createElement("img");
+    img.src = PROTECTED_SEARCH_BACK_ICON_SRC;
+    img.alt = "";
+    img.setAttribute("aria-hidden", "true");
+    button.replaceChildren(img);
+    button.dataset.iconSynced = "back";
+  };
+  setChevron("searchPrevDesktop", SEARCH_CHEVRON_LEFT_SVG);
+  setChevron("searchNextDesktop", SEARCH_CHEVRON_RIGHT_SVG);
+  setChevron("searchPrev", SEARCH_CHEVRON_LEFT_SVG);
+  setChevron("searchNext", SEARCH_CHEVRON_RIGHT_SVG);
+  setChevron("searchFloatPrev", SEARCH_CHEVRON_LEFT_SVG);
+  setChevron("searchFloatNext", SEARCH_CHEVRON_RIGHT_SVG);
+  setReturn("searchFloatReturn");
 }
 
 function syncProtectedShellIcons() {
@@ -3495,6 +3732,8 @@ function syncProtectedShellIcons() {
   const libraryControl = ensureLibraryControl();
   ensureSearchControl();
   ensureDesktopSearchReturnButton();
+  syncLegacySearchFieldIcons();
+  syncLegacySearchButtonIcons();
   const libraryTrigger = document.getElementById("protectedLibraryTrigger");
   if (libraryTrigger) {
     let tocImg = libraryTrigger.querySelector("img");
@@ -6382,6 +6621,17 @@ function bindShellControls() {
   const floatClose = document.getElementById("searchFloatClose");
   const floatReturn = document.getElementById("searchFloatReturn");
 
+  if (searchInput) {
+    searchInput.type = "text";
+    searchInput.setAttribute("inputmode", "search");
+    searchInput.setAttribute("enterkeyhint", "search");
+  }
+  if (mobileInput) {
+    mobileInput.type = "text";
+    mobileInput.setAttribute("inputmode", "search");
+    mobileInput.setAttribute("enterkeyhint", "search");
+  }
+
   function openLegacySearchUi() {
     if (!mobileBar) return;
     document.body.classList.add("search-open");
@@ -6433,6 +6683,7 @@ function bindShellControls() {
       await clearSearch();
       return;
     }
+    HOST_STATE.searchSidebarForceEmpty = false;
     const current = HOST_STATE.lastSummary && HOST_STATE.lastSummary.searchSummary ? HOST_STATE.lastSummary.searchSummary : null;
     if (!(current && current.active)) rememberSearchOrigin(HOST_STATE.lastSummary);
     HOST_STATE.searchSidebarPendingQuery = normalizedQuery;
@@ -6443,37 +6694,71 @@ function bindShellControls() {
     if (fromTouch) {
       document.body.classList.add("search-open");
       document.body.classList.add("search-minimized");
+      hideShellUi("search-submit-touch");
     }
   }
   async function clearSearch({ preserveOrigin = false } = {}) {
     HOST_STATE.searchSidebarPendingQuery = "";
-    HOST_STATE.searchSidebarForceEmpty = false;
+    HOST_STATE.searchSidebarForceEmpty = true;
+    HOST_STATE.searchClearSuppressUntil = Date.now() + 2000;
     HOST_STATE.searchSidebarState = createEmptySearchSidebarState();
+    if (HOST_STATE.lastSummary && typeof HOST_STATE.lastSummary === "object") {
+      HOST_STATE.lastSummary = {
+        ...HOST_STATE.lastSummary,
+        searchSummary: {
+          active: false,
+          query: "",
+          totalMatches: 0,
+          currentMatch: 0,
+          matches: []
+        }
+      };
+    }
+    if (mobileInput) mobileInput.value = "";
+    if (searchInput) searchInput.value = "";
     updateSearchControls(HOST_STATE.lastSummary);
     await invokeSearchBridge("clearSearch");
     if (mobileInput) mobileInput.value = "";
     if (searchInput) searchInput.value = "";
+    [0, 80, 180, 350, 700, 1200, 1800].forEach((delay) => {
+      window.setTimeout(() => {
+        if (Date.now() > Number(HOST_STATE.searchClearSuppressUntil || 0)) return;
+        if (mobileInput) mobileInput.value = "";
+        if (searchInput) searchInput.value = "";
+        updateSearchControls(HOST_STATE.lastSummary);
+      }, delay);
+    });
     document.body.classList.remove("search-minimized");
     if (!preserveOrigin) forgetSearchOrigin();
     updateSearchControls(HOST_STATE.lastSummary);
   }
 
-  searchAction && searchAction.addEventListener("click", async (event) => {
+  const handleDesktopSearchActionClick = async (event) => {
     event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
     const summary = HOST_STATE.lastSummary;
-    if (summary && summary.searchSummary && summary.searchSummary.active) {
+    const inputQuery = String(searchInput && searchInput.value || "").trim();
+    const isClearAction = !!(
+      (summary && summary.searchSummary && summary.searchSummary.active) ||
+      (searchAction && searchAction.classList.contains("is-clear")) ||
+      (!searchAction.classList.contains("is-mag") && !searchAction.classList.contains("is-disabled") && !!inputQuery)
+    );
+    if (isClearAction) {
       if (searchInput) searchInput.value = "";
       await clearSearch();
       return;
     }
-    await submitSearch(searchInput ? searchInput.value.trim() : "", { fromTouch: false });
-  });
+    await submitSearch(inputQuery, { fromTouch: false });
+  };
+  searchAction && searchAction.addEventListener("click", handleDesktopSearchActionClick, true);
   searchInput && searchInput.addEventListener("keydown", async (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
     await submitSearch(searchInput.value.trim(), { fromTouch: false });
   });
   searchInput && searchInput.addEventListener("input", () => {
+    HOST_STATE.searchClearSuppressUntil = 0;
     HOST_STATE.searchSidebarPendingQuery = String(searchInput.value || "").trim();
     updateSearchControls(HOST_STATE.lastSummary);
   });
@@ -6483,6 +6768,7 @@ function bindShellControls() {
     await submitSearch(mobileInput.value.trim(), { fromTouch: true });
   });
   mobileInput && mobileInput.addEventListener("input", () => {
+    HOST_STATE.searchClearSuppressUntil = 0;
     HOST_STATE.searchSidebarPendingQuery = String(mobileInput.value || "").trim();
     updateSearchControls(HOST_STATE.lastSummary);
   });
@@ -6537,9 +6823,11 @@ function bindShellControls() {
   });
   searchReturn && searchReturn.addEventListener("click", async (event) => {
     event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
     await clearSearch({ preserveOrigin: true });
     await restoreSearchOrigin({ closeMobileUi: false });
-  });
+  }, true);
 
   bindSelectionToolbar();
 
