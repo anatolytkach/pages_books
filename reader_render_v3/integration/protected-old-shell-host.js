@@ -48,6 +48,8 @@ const HOST_STATE = {
   searchSidebarSubmitted: false,
   searchSidebarPendingQuery: "",
   searchSidebarForceEmpty: false,
+  searchReturnOriginToken: "",
+  searchReturnOriginOffset: 0,
   bookmarkPageLookupToken: 0,
   bookmarkPageLookupSignature: "",
   turnPreviewSyncTimer: null,
@@ -414,8 +416,8 @@ function installStyles() {
     body.protected-old-shell.protected-dev-panel #protectedShellActionBar {
       display: flex;
     }
-    body.protected-old-shell #searchDesktop,
-    body.protected-old-shell #searchbar {
+    body.protected-old-shell #protectedSearchControl,
+    body.protected-old-shell #overlay-search {
       display: none !important;
     }
     body.protected-old-shell #title-controls {
@@ -736,6 +738,14 @@ function installStyles() {
       }
       body.protected-old-shell #protectedBottomCatalogLink {
         display: none !important;
+      }
+      html.is-phone body.protected-old-shell.search-open:not(.search-minimized) #searchbar,
+      html.is-tablet body.protected-old-shell.search-open:not(.search-minimized) #searchbar {
+        display: flex !important;
+      }
+      html.is-phone body.protected-old-shell #searchFloatControls:not(.hidden),
+      html.is-tablet body.protected-old-shell #searchFloatControls:not(.hidden) {
+        display: inline-flex !important;
       }
     }
     @media (orientation: landscape) {
@@ -1102,7 +1112,7 @@ function installStyles() {
       order: 62;
     }
     #protectedSearchControl {
-      display: inline-flex;
+      display: none;
       align-items: center;
       justify-content: center;
       width: 32px;
@@ -1233,11 +1243,7 @@ function installStyles() {
       z-index: 9999;
     }
     #overlay-search {
-      left: auto;
-      right: 0;
-      width: 360px;
-      max-width: min(100vw, 360px);
-      z-index: 9999;
+      display: none !important;
     }
     #overlay-library .overlay-scroll {
       padding-top: 10px;
@@ -1260,10 +1266,7 @@ function installStyles() {
       display: none;
     }
     #protectedSearchPanel {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      min-height: 0;
+      display: none !important;
     }
     #protectedSearchInputWrap {
       position: relative;
@@ -1356,9 +1359,7 @@ function installStyles() {
       padding: 0;
     }
     #protectedSearchResults {
-      list-style: none;
-      margin: 0;
-      padding: 0;
+      display: none !important;
     }
     #protectedSearchResults li {
       margin: 0;
@@ -1407,6 +1408,12 @@ function installStyles() {
     }
     #protectedSearchEmpty {
       display: none !important;
+    }
+    body.protected-old-shell #searchReturnDesktop {
+      display: none;
+    }
+    body.protected-old-shell.search-active #searchReturnDesktop {
+      display: inline-flex;
     }
     #protectedLibraryTabs {
       display: flex;
@@ -3177,47 +3184,35 @@ function updateSearchControls(summary) {
   const desktopCount = document.getElementById("searchCountDesktop");
   const desktopNav = document.querySelector("#searchDesktop .search-nav.desktop");
   const desktopAction = document.getElementById("searchActionDesktop");
-  const mobileBar = document.getElementById("searchbar");
   const mobileInput = document.getElementById("searchInputMobile");
+  const mobileClear = document.getElementById("searchClearMobile");
   const mobileCount = document.getElementById("searchCount");
-  const overlayInput = document.getElementById("protectedSearchInput");
-  const overlayCount = document.getElementById("protectedSearchCount");
-  const overlayAction = document.getElementById("protectedSearchAction");
-  const overlayNav = document.getElementById("protectedSearchNav");
-  const searchOverlayOpen = !!document.querySelector("#overlay-search:not(.hidden)");
+  const mobileFloat = document.getElementById("searchFloatControls");
+  const desktopReturn = document.getElementById("searchReturnDesktop");
   if (desktopInput && document.activeElement !== desktopInput) desktopInput.value = effectiveQuery;
   if (mobileInput && document.activeElement !== mobileInput) mobileInput.value = effectiveQuery;
-  if (overlayInput && document.activeElement !== overlayInput) {
-    const keepTypedOverlayQuery =
-      searchOverlayOpen &&
-      !HOST_STATE.searchSidebarForceEmpty &&
-      !effectiveQuery &&
-      String(overlayInput.value || "").trim().length > 0;
-    if (!keepTypedOverlayQuery) overlayInput.value = effectiveQuery;
-  }
   if (desktopCount) desktopCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
   if (mobileCount) mobileCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
-  if (overlayCount) overlayCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
   if (desktopNav) desktopNav.style.display = search.active && search.totalMatches ? "inline-flex" : "none";
-  if (overlayNav) overlayNav.style.display = search.active && search.totalMatches ? "inline-flex" : "none";
+  if (mobileFloat) mobileFloat.classList.toggle("hidden", !(search.active && search.totalMatches));
   if (desktopAction) {
     desktopAction.classList.toggle("is-clear", !!search.active);
     desktopAction.classList.toggle("is-mag", !search.active);
-    desktopAction.classList.toggle("is-enabled", !!(search.query && search.query.length));
-    desktopAction.classList.toggle("is-disabled", !(search.query && search.query.length));
+    const hasDraftQuery = !!String((desktopInput && desktopInput.value) || (mobileInput && mobileInput.value) || search.query || "").trim();
+    desktopAction.classList.toggle("is-enabled", !!(search.active || hasDraftQuery));
+    desktopAction.classList.toggle("is-disabled", !(search.active || hasDraftQuery));
     desktopAction.setAttribute("aria-label", search.active ? "Clear search" : "Search");
   }
-  if (overlayAction) {
-    const showClear = !!search.active;
-    overlayAction.classList.toggle("is-clear", showClear);
-    overlayAction.classList.toggle("is-mag", !showClear);
-    overlayAction.setAttribute("aria-label", showClear ? "Clear search" : "Search");
+  if (mobileClear) {
+    const hasMobileDraft = !!String((mobileInput && mobileInput.value) || search.query || "").trim();
+    mobileClear.classList.toggle("hidden", !hasMobileDraft);
   }
-  if (mobileBar) mobileBar.classList.toggle("hidden", !search.active && !isAutomationMode());
+  if (desktopReturn) {
+    desktopReturn.style.display = search.active ? "inline-flex" : "none";
+  }
   if (search.query) {
     HOST_STATE.searchSidebarPendingQuery = String(search.query || "");
   }
-  renderSearchResults(summary);
 }
 
 function normalizeSearchSidebarState(payload, fallbackQuery = "") {
@@ -3308,7 +3303,6 @@ async function refreshSearchSidebarState() {
     // Preserve the last known good search state if the bridge is transiently
     // unavailable during page movement or overlay refresh.
   }
-  renderSearchResults(HOST_STATE.lastSummary);
 }
 
 function setControlEnabled(id, enabled, disabledLabel = "Unavailable in protected mode") {
@@ -3473,28 +3467,35 @@ function ensureBottomCatalogLink() {
 function ensureSearchControl() {
   let wrap = document.getElementById("protectedSearchControl");
   if (wrap) return wrap;
-  const titleControls = document.getElementById("title-controls");
-  const themeToggle = document.getElementById("themeToggle");
-  if (!titleControls || !themeToggle) return null;
   wrap = document.createElement("span");
   wrap.id = "protectedSearchControl";
-  wrap.innerHTML = `
-    <button type="button" id="protectedSearchTrigger" aria-label="Search" aria-controls="overlay-search" aria-expanded="false">
-      <img src="${PROTECTED_SEARCH_ICON_SRC}" alt="" aria-hidden="true" />
-    </button>
-  `;
-  titleControls.insertBefore(wrap, themeToggle);
-  ensureSearchOverlay();
+  wrap.hidden = true;
+  document.body.appendChild(wrap);
   return wrap;
+}
+
+function ensureDesktopSearchReturnButton() {
+  const nav = document.querySelector("#searchDesktop .search-nav.desktop");
+  if (!nav) return null;
+  let button = document.getElementById("searchReturnDesktop");
+  if (button) return button;
+  button = document.createElement("button");
+  button.id = "searchReturnDesktop";
+  button.className = "search-btn search-return";
+  button.type = "button";
+  button.setAttribute("aria-label", "Return to page where search started");
+  button.textContent = "↶";
+  nav.appendChild(button);
+  return button;
 }
 
 function syncProtectedShellIcons() {
   ensureDesktopTopLinks();
   ensureBottomCatalogLink();
   const libraryControl = ensureLibraryControl();
-  const searchControl = ensureSearchControl();
+  ensureSearchControl();
+  ensureDesktopSearchReturnButton();
   const libraryTrigger = document.getElementById("protectedLibraryTrigger");
-  const searchTrigger = document.getElementById("protectedSearchTrigger");
   if (libraryTrigger) {
     let tocImg = libraryTrigger.querySelector("img");
     if (!tocImg) {
@@ -3505,18 +3506,6 @@ function syncProtectedShellIcons() {
     }
     if (tocImg.getAttribute("src") !== PROTECTED_TOC_ICON_SRC) {
       tocImg.setAttribute("src", PROTECTED_TOC_ICON_SRC);
-    }
-  }
-  if (searchTrigger) {
-    let searchImg = searchTrigger.querySelector("img");
-    if (!searchImg) {
-      searchImg = document.createElement("img");
-      searchImg.alt = "";
-      searchImg.setAttribute("aria-hidden", "true");
-      searchTrigger.replaceChildren(searchImg);
-    }
-    if (searchImg.getAttribute("src") !== PROTECTED_SEARCH_ICON_SRC) {
-      searchImg.setAttribute("src", PROTECTED_SEARCH_ICON_SRC);
     }
   }
   const typographyControl = document.getElementById("protectedTypographyControl");
@@ -3575,9 +3564,6 @@ function syncProtectedShellIcons() {
   }
   if (libraryControl && themeToggle && libraryControl.parentElement !== themeToggle.parentElement) {
     themeToggle.parentElement && themeToggle.parentElement.insertBefore(libraryControl, themeToggle);
-  }
-  if (searchControl && themeToggle && searchControl.parentElement !== themeToggle.parentElement) {
-    themeToggle.parentElement && themeToggle.parentElement.insertBefore(searchControl, themeToggle);
   }
 }
 
@@ -6383,6 +6369,7 @@ function bindShellControls() {
   const searchInput = document.getElementById("searchInputDesktop");
   const searchPrev = document.getElementById("searchPrevDesktop");
   const searchNext = document.getElementById("searchNextDesktop");
+  const searchReturn = ensureDesktopSearchReturnButton();
   const searchOpen = document.getElementById("searchOpen");
   const searchClose = document.getElementById("searchClose");
   const mobileBar = document.getElementById("searchbar");
@@ -6390,47 +6377,85 @@ function bindShellControls() {
   const mobilePrev = document.getElementById("searchPrev");
   const mobileNext = document.getElementById("searchNext");
   const mobileClear = document.getElementById("searchClearMobile");
-  const overlaySearchInput = document.getElementById("protectedSearchInput");
-  const overlaySearchAction = document.getElementById("protectedSearchAction");
-  const overlaySearchPrev = document.getElementById("protectedSearchPrev");
-  const overlaySearchNext = document.getElementById("protectedSearchNext");
+  const floatPrev = document.getElementById("searchFloatPrev");
+  const floatNext = document.getElementById("searchFloatNext");
+  const floatClose = document.getElementById("searchFloatClose");
+  const floatReturn = document.getElementById("searchFloatReturn");
 
-  async function submitSearch(query) {
-    HOST_STATE.searchSidebarPendingQuery = String(query || "").trim();
+  function openLegacySearchUi() {
+    if (!mobileBar) return;
+    document.body.classList.add("search-open");
+    document.body.classList.remove("search-minimized");
+    mobileBar.classList.remove("hidden");
+    const query = String((HOST_STATE.lastSummary && HOST_STATE.lastSummary.searchSummary && HOST_STATE.lastSummary.searchSummary.query) || HOST_STATE.searchSidebarPendingQuery || "");
+    if (mobileInput) mobileInput.value = query;
     updateSearchControls(HOST_STATE.lastSummary);
-    await invokeSearchBridge("searchBook", query);
-    await refreshSearchSidebarState();
   }
-  async function clearSearch() {
+
+  function closeLegacySearchUi() {
+    document.body.classList.remove("search-open");
+    document.body.classList.remove("search-minimized");
+    if (mobileBar) mobileBar.classList.add("hidden");
+  }
+
+  function rememberSearchOrigin(summary = HOST_STATE.lastSummary) {
+    if (HOST_STATE.searchReturnOriginToken) return;
+    if (!summary) return;
+    HOST_STATE.searchReturnOriginToken = String(summary.restoreToken || "");
+    HOST_STATE.searchReturnOriginOffset = Number(summary.globalStartOffset || 0) || 0;
+  }
+
+  function forgetSearchOrigin() {
+    HOST_STATE.searchReturnOriginToken = "";
+    HOST_STATE.searchReturnOriginOffset = 0;
+  }
+
+  async function restoreSearchOrigin({ closeMobileUi = false } = {}) {
+    const token = String(HOST_STATE.searchReturnOriginToken || "");
+    const offset = Number(HOST_STATE.searchReturnOriginOffset || 0) || 0;
+    forgetSearchOrigin();
     HOST_STATE.searchSidebarPendingQuery = "";
-    HOST_STATE.searchSidebarForceEmpty = true;
-    HOST_STATE.searchSidebarState = createEmptySearchSidebarState();
-    if (overlaySearchInput) overlaySearchInput.value = "";
-    if (HOST_STATE.lastSummary && HOST_STATE.lastSummary.searchSummary) {
-      HOST_STATE.lastSummary = {
-        ...HOST_STATE.lastSummary,
-        searchSummary: createEmptySearchSidebarState()
-      };
+    if (closeMobileUi) closeLegacySearchUi();
+    if (token) {
+      const summary = await invokeBridgeRaw("restoreFromToken", token);
+      if (summary) updateFromSummary(summary);
+      return;
     }
+    if (offset > 0) {
+      const summary = await invokeBridgeRaw("goToGlobalOffset", offset);
+      if (summary) updateFromSummary(summary);
+    }
+  }
+
+  async function submitSearch(query, { fromTouch = false } = {}) {
+    const normalizedQuery = String(query || "").trim();
+    if (!normalizedQuery) {
+      await clearSearch();
+      return;
+    }
+    const current = HOST_STATE.lastSummary && HOST_STATE.lastSummary.searchSummary ? HOST_STATE.lastSummary.searchSummary : null;
+    if (!(current && current.active)) rememberSearchOrigin(HOST_STATE.lastSummary);
+    HOST_STATE.searchSidebarPendingQuery = normalizedQuery;
+    if (searchInput) searchInput.value = normalizedQuery;
+    if (mobileInput) mobileInput.value = normalizedQuery;
     updateSearchControls(HOST_STATE.lastSummary);
-    renderSearchResults(HOST_STATE.lastSummary);
-    await invokeSearchBridge("clearSearch");
-    await refreshSearchSidebarState();
-    if (HOST_STATE.searchSidebarState && !HOST_STATE.searchSidebarState.query) {
-      HOST_STATE.searchSidebarState = createEmptySearchSidebarState();
-      renderSearchResults(HOST_STATE.lastSummary);
-      updateSearchControls(HOST_STATE.lastSummary);
+    await invokeSearchBridge("searchBook", normalizedQuery);
+    if (fromTouch) {
+      document.body.classList.add("search-open");
+      document.body.classList.add("search-minimized");
     }
+  }
+  async function clearSearch({ preserveOrigin = false } = {}) {
     HOST_STATE.searchSidebarPendingQuery = "";
-    if (overlaySearchInput) overlaySearchInput.value = "";
+    HOST_STATE.searchSidebarForceEmpty = false;
+    HOST_STATE.searchSidebarState = createEmptySearchSidebarState();
+    updateSearchControls(HOST_STATE.lastSummary);
+    await invokeSearchBridge("clearSearch");
     if (mobileInput) mobileInput.value = "";
     if (searchInput) searchInput.value = "";
-    HOST_STATE.searchSidebarForceEmpty = false;
-  }
-  function currentSearchValue() {
-    const desktop = searchInput ? searchInput.value.trim() : "";
-    const mobile = mobileInput ? mobileInput.value.trim() : "";
-    return desktop || mobile;
+    document.body.classList.remove("search-minimized");
+    if (!preserveOrigin) forgetSearchOrigin();
+    updateSearchControls(HOST_STATE.lastSummary);
   }
 
   searchAction && searchAction.addEventListener("click", async (event) => {
@@ -6438,41 +6463,52 @@ function bindShellControls() {
     const summary = HOST_STATE.lastSummary;
     if (summary && summary.searchSummary && summary.searchSummary.active) {
       if (searchInput) searchInput.value = "";
-      if (mobileInput) mobileInput.value = "";
       await clearSearch();
       return;
     }
-    await submitSearch(currentSearchValue());
+    await submitSearch(searchInput ? searchInput.value.trim() : "", { fromTouch: false });
   });
   searchInput && searchInput.addEventListener("keydown", async (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
-    await submitSearch(searchInput.value.trim());
+    await submitSearch(searchInput.value.trim(), { fromTouch: false });
+  });
+  searchInput && searchInput.addEventListener("input", () => {
+    HOST_STATE.searchSidebarPendingQuery = String(searchInput.value || "").trim();
+    updateSearchControls(HOST_STATE.lastSummary);
   });
   mobileInput && mobileInput.addEventListener("keydown", async (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
-    await submitSearch(mobileInput.value.trim());
+    await submitSearch(mobileInput.value.trim(), { fromTouch: true });
+  });
+  mobileInput && mobileInput.addEventListener("input", () => {
+    HOST_STATE.searchSidebarPendingQuery = String(mobileInput.value || "").trim();
+    updateSearchControls(HOST_STATE.lastSummary);
   });
   searchPrev && searchPrev.addEventListener("click", async (event) => {
     event.preventDefault();
     await invokeSearchBridge("searchPrevResult");
-    await refreshSearchSidebarState();
   });
   searchNext && searchNext.addEventListener("click", async (event) => {
     event.preventDefault();
     await invokeSearchBridge("searchNextResult");
-    await refreshSearchSidebarState();
   });
   mobilePrev && mobilePrev.addEventListener("click", async (event) => {
     event.preventDefault();
     await invokeSearchBridge("searchPrevResult");
-    await refreshSearchSidebarState();
   });
   mobileNext && mobileNext.addEventListener("click", async (event) => {
     event.preventDefault();
     await invokeSearchBridge("searchNextResult");
-    await refreshSearchSidebarState();
+  });
+  floatPrev && floatPrev.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await invokeSearchBridge("searchPrevResult");
+  });
+  floatNext && floatNext.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await invokeSearchBridge("searchNextResult");
   });
   mobileClear && mobileClear.addEventListener("click", async (event) => {
     event.preventDefault();
@@ -6482,55 +6518,27 @@ function bindShellControls() {
   });
   searchOpen && searchOpen.addEventListener("click", (event) => {
     event.preventDefault();
-    openSearchOverlay();
+    openLegacySearchUi();
   });
   searchClose && searchClose.addEventListener("click", async (event) => {
     event.preventDefault();
-    if (mobileInput) mobileInput.value = "";
-    if (searchInput) searchInput.value = "";
-    if (mobileBar) mobileBar.classList.add("hidden");
-    await clearSearch();
+    await clearSearch({ preserveOrigin: true });
+    await restoreSearchOrigin({ closeMobileUi: true });
   });
-  overlaySearchAction && overlaySearchAction.addEventListener("click", async (event) => {
+  floatClose && floatClose.addEventListener("click", async (event) => {
     event.preventDefault();
-    const summary = HOST_STATE.lastSummary;
-    const submittedQuery = overlaySearchInput ? overlaySearchInput.value.trim() : "";
-    const shouldClear = !!(
-      (summary && summary.searchSummary && summary.searchSummary.active) ||
-      (overlaySearchAction && overlaySearchAction.classList.contains("is-clear"))
-    );
-    if (shouldClear) {
-      if (overlaySearchInput) overlaySearchInput.value = "";
-      if (mobileInput) mobileInput.value = "";
-      if (searchInput) searchInput.value = "";
-      await clearSearch();
-      return;
-    }
-    await submitSearch(submittedQuery);
-    if (overlaySearchInput && submittedQuery) {
-      HOST_STATE.searchSidebarPendingQuery = submittedQuery;
-      overlaySearchInput.value = submittedQuery;
-    }
+    await clearSearch({ preserveOrigin: true });
+    await restoreSearchOrigin({ closeMobileUi: true });
   });
-  overlaySearchInput && overlaySearchInput.addEventListener("keydown", async (event) => {
-    if (event.key !== "Enter") return;
+  floatReturn && floatReturn.addEventListener("click", async (event) => {
     event.preventDefault();
-    const submittedQuery = overlaySearchInput.value.trim();
-    await submitSearch(submittedQuery);
-    if (overlaySearchInput && submittedQuery) {
-      HOST_STATE.searchSidebarPendingQuery = submittedQuery;
-      overlaySearchInput.value = submittedQuery;
-    }
+    await clearSearch({ preserveOrigin: true });
+    await restoreSearchOrigin({ closeMobileUi: true });
   });
-  overlaySearchPrev && overlaySearchPrev.addEventListener("click", async (event) => {
+  searchReturn && searchReturn.addEventListener("click", async (event) => {
     event.preventDefault();
-    await invokeSearchBridge("searchPrevResult");
-    await refreshSearchSidebarState();
-  });
-  overlaySearchNext && overlaySearchNext.addEventListener("click", async (event) => {
-    event.preventDefault();
-    await invokeSearchBridge("searchNextResult");
-    await refreshSearchSidebarState();
+    await clearSearch({ preserveOrigin: true });
+    await restoreSearchOrigin({ closeMobileUi: false });
   });
 
   bindSelectionToolbar();

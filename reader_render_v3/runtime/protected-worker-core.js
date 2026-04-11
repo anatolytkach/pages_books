@@ -118,6 +118,41 @@ function getCurrentChunkGlobalStart(core) {
   );
 }
 
+const SEARCH_EXCLUDED_TOC_RE = /\b(?:footnotes?|endnotes?|notes?|references?)\b/i;
+
+function isSearchExcludedSectionValue(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return false;
+  return SEARCH_EXCLUDED_TOC_RE.test(normalized);
+}
+
+function isSearchExcludedChunk(manifestChunk, chunkModel) {
+  const chunkLocation = chunkModel && chunkModel.chunkLocation ? chunkModel.chunkLocation : null;
+  const tocAnchors = chunkLocation && Array.isArray(chunkLocation.tocAnchors) ? chunkLocation.tocAnchors : [];
+  const sourceRefs = chunkModel && chunkModel.chunk && Array.isArray(chunkModel.chunk.sourceRefs)
+    ? chunkModel.chunk.sourceRefs
+    : [];
+  const candidates = [];
+  const collect = (value) => {
+    if (value == null) return;
+    if (Array.isArray(value)) {
+      value.forEach(collect);
+      return;
+    }
+    if (typeof value === "object") {
+      Object.values(value).forEach(collect);
+      return;
+    }
+    candidates.push(String(value));
+  };
+  collect(manifestChunk && manifestChunk.label);
+  collect(manifestChunk && manifestChunk.href);
+  collect(manifestChunk && manifestChunk.title);
+  tocAnchors.forEach((anchor) => collect(anchor));
+  sourceRefs.forEach((ref) => collect(ref));
+  return candidates.some(isSearchExcludedSectionValue);
+}
+
 function splitHrefTarget(value) {
   const raw = String(value || "").trim();
   if (!raw) return { path: "", fragment: "" };
@@ -777,6 +812,7 @@ export class ProtectedReaderRuntimeCore {
     for (let chunkIndex = 0; chunkIndex < this.book.manifest.chunks.length; chunkIndex += 1) {
       const manifestChunk = this.book.manifest.chunks[chunkIndex] || {};
       const chunkModel = await loadProtectedChunkModel(this.book, chunkIndex, { runtimeFontMode });
+      if (isSearchExcludedChunk(manifestChunk, chunkModel)) continue;
       const shapeRegistry = createGlyphShapeRegistry(chunkModel.shapeBundle, chunkModel.glyphMap);
       const layout = layoutChunk({
         chunkModel,
@@ -856,23 +892,12 @@ export class ProtectedReaderRuntimeCore {
   }
 
   getSearchResults() {
-    const matches = this.searchState && Array.isArray(this.searchState.matches)
-      ? this.searchState.matches.map((match, index) => ({
-          chunkIndex: Number(match.chunkIndex || 0),
-          chunkId: match.chunkId || "",
-          globalStartOffset: Number(match.globalStartOffset || 0),
-          globalEndOffset: Number(match.globalEndOffset || 0),
-          excerpt: match.excerpt || "",
-          globalPageLabel: match.globalPageLabel || "",
-          current: index === this.searchState.currentIndex
-        }))
-      : [];
     return {
       active: !!(this.searchState && this.searchState.query),
       query: this.searchState ? this.searchState.query : "",
-      totalMatches: matches.length,
+      totalMatches: this.searchState && Array.isArray(this.searchState.matches) ? this.searchState.matches.length : 0,
       currentMatch: this.searchState && this.searchState.currentIndex >= 0 ? this.searchState.currentIndex + 1 : 0,
-      matches
+      matches: []
     };
   }
 
