@@ -443,11 +443,19 @@
             <select id="uploadTenantSelect"></select>
             <div class="tenant-help" id="uploadTenantHelp"></div>
           </div>
+          <div class="form-group" style="margin-top:16px;">
+            <label for="uploadReaderType">Reader Type</label>
+            <select id="uploadReaderType">
+              <option value="legacy">Standard</option>
+              <option value="protected">Protected</option>
+            </select>
+            <div class="tenant-help">Protected books are converted to glyph artifacts before publication.</div>
+          </div>
           <div class="upload-zone" id="uploadZone">
             <div class="upload-icon">&#8593;</div>
             <strong>Drop your file here or click to browse</strong>
-            <p>Accepts .epub files (max 100 MB)<br>DOCX support coming soon</p>
-            <input type="file" id="fileInput" accept=".epub" />
+            <p id="uploadFormatHelp">Accepts .epub files (max 100 MB)<br>Switch to Protected to upload EPUB or DOCX source files.</p>
+            <input type="file" id="fileInput" accept=".epub,.docx" />
           </div>
           <div class="progress-wrap" id="progressWrap">
             <div class="progress-bar-outer">
@@ -472,6 +480,13 @@
             <div class="tenant-help" id="editTenantHelp"></div>
           </div>
           <form id="metadataForm">
+            <div class="form-group">
+              <label for="meta-reader-type">Reader Type</label>
+              <select id="meta-reader-type">
+                <option value="legacy">Standard</option>
+                <option value="protected">Protected</option>
+              </select>
+            </div>
             <div class="form-group">
               <label for="meta-visibility">Visibility</label>
               <select id="meta-visibility">
@@ -623,6 +638,13 @@
       const PERSONAL_PUBLISH_TARGET = '__personal__';
       let selectedUploadTenantId = '';
       let selectedEditTenantId = '';
+
+      function getBookReaderType(book) {
+        const manifest = book && book.manifest && typeof book.manifest === 'object' ? book.manifest : {};
+        const protectedState = manifest.protected && typeof manifest.protected === 'object' ? manifest.protected : {};
+        const raw = String(manifest.readerType || manifest.reader_type || (protectedState.enabled ? 'protected' : 'legacy')).trim().toLowerCase();
+        return raw === 'protected' ? 'protected' : 'legacy';
+      }
 
       function applyPublishingModeCopy() {
         const heading = document.getElementById('booksHeading');
@@ -832,6 +854,7 @@
           document.getElementById('meta-language').value = book.language || 'en';
           document.getElementById('meta-annotation').value = book.annotation || '';
           document.getElementById('meta-visibility').value = book.visibility || 'public';
+          document.getElementById('meta-reader-type').value = getBookReaderType(book);
 
           const $status = document.getElementById('bookStatus');
           $status.innerHTML = `<span class="status-badge ${book.status}">${book.status}</span>`;
@@ -901,6 +924,178 @@
       const $progressWrap = document.getElementById('progressWrap');
       const $progressBar = document.getElementById('progressBar');
       const $progressText = document.getElementById('progressText');
+      const $uploadReaderType = document.getElementById('uploadReaderType');
+      const $uploadFormatHelp = document.getElementById('uploadFormatHelp');
+
+      function updateUploadAcceptState() {
+        const readerType = $uploadReaderType.value || 'legacy';
+        if (readerType === 'protected') {
+          $fileInput.setAttribute('accept', '.epub,.docx');
+          $uploadFormatHelp.innerHTML = 'Accepts protected source uploads in .epub or .docx format (max 100 MB).<br>Protected uploads are converted in the background and published automatically when processing completes.';
+          return;
+        }
+        $fileInput.setAttribute('accept', '.epub');
+        $uploadFormatHelp.innerHTML = 'Accepts .epub files (max 100 MB).<br>Standard uploads continue through the existing draft-processing flow.';
+      }
+
+      function resetUploadUi() {
+        $zone.style.display = '';
+        $progressWrap.classList.remove('visible');
+        $progressBar.style.width = '0%';
+        $progressText.textContent = 'Uploading...';
+        $fileInput.value = '';
+      }
+
+      function uploadProgressPercent(status) {
+        switch (String(status || '')) {
+          case 'awaiting_upload': return 5;
+          case 'uploaded': return 30;
+          case 'queued': return 40;
+          case 'validating_source': return 55;
+          case 'normalizing': return 65;
+          case 'building_artifact': return 78;
+          case 'uploading_artifacts': return 88;
+          case 'reindexing': return 95;
+          case 'completed': return 100;
+          case 'failed':
+          case 'not_validated':
+            return 100;
+          default:
+            return 20;
+        }
+      }
+
+      async function uploadFileWithProgress(url, file) {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', url);
+          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+          xhr.upload.addEventListener('progress', (e) => {
+            if (!e.lengthComputable) return;
+            const pct = Math.round((e.loaded / e.total) * 100);
+            $progressBar.style.width = `${Math.min(pct, 100)}%`;
+            $progressText.textContent = `Uploading source file... ${pct}%`;
+          });
+          xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve();
+              return;
+            }
+            reject(new Error(`Direct upload failed (HTTP ${xhr.status})`));
+          });
+          xhr.addEventListener('error', () => reject(new Error('Network error during direct upload')));
+          xhr.send(file);
+        });
+      }
+
+      async function pollProtectedJob(jobId, bookId) {
+        const terminalStatuses = new Set(['completed', 'failed', 'not_validated']);
+        for (let attempt = 0; attempt < 180; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const job = await apiFetch('GET', `/protected-jobs/${jobId}`);
+          $progressBar.style.width = `${uploadProgressPercent(job.status)}%`;
+          $progressText.textContent = job.message || `Processing... (${job.status})`;
+          if (!terminalStatuses.has(job.status)) continue;
+          await loadMyBooks();
+          if (bookId) await openBookEditor(bookId);
+          if (job.status === 'completed') return job;
+          throw new Error(job.error_message || job.message || 'Protected publishing did not complete.');
+        }
+        await loadMyBooks();
+        if (bookId) await openBookEditor(bookId);
+        throw new Error('Protected publishing is still running. You can reopen this book from Publishing Books in a few minutes.');
+      }
+
+      async function handleProtectedUpload(file, organization) {
+        const sourceFormat = file.name.toLowerCase().endsWith('.docx') ? 'docx' : 'epub';
+        const body = {
+          filename: file.name,
+          source_format: sourceFormat,
+          visibility: 'public',
+          reader_type: 'protected',
+          title: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '),
+          author: 'Unknown',
+        };
+        if (organization) {
+          body.tenant_id = organization.tenant_id;
+          body.tenant_slug = organization.tenant?.slug || '';
+        }
+
+        const job = await apiFetch('POST', '/protected-jobs', { body });
+        await uploadFileWithProgress(job.upload.url, file);
+        $progressBar.style.width = '35%';
+        $progressText.textContent = 'Confirming upload...';
+        await apiFetch('POST', `/protected-jobs/${job.jobId}/upload-complete`, { body: {} });
+        $progressBar.style.width = '40%';
+        $progressText.textContent = 'Queued for protected conversion...';
+        return pollProtectedJob(job.jobId, job.bookId);
+      }
+
+      async function handleLegacyUpload(file, organization) {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('reader_type', 'legacy');
+        if (organization) {
+          form.append('tenant_id', organization.tenant_id);
+          if (organization.tenant?.slug) form.append('tenant_slug', organization.tenant.slug);
+        }
+
+        const result = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `${API}/publish/upload`);
+
+          sb.auth.getSession().then(({ data: { session: s } }) => {
+            if (s) xhr.setRequestHeader('Authorization', `Bearer ${s.access_token}`);
+
+            xhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                $progressBar.style.width = `${pct}%`;
+                $progressText.textContent = `Uploading... ${pct}%`;
+              }
+            });
+
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(JSON.parse(xhr.responseText));
+              } else {
+                try {
+                  const err = JSON.parse(xhr.responseText);
+                  reject(new Error(err.error || err.message || `HTTP ${xhr.status}`));
+                } catch {
+                  reject(new Error(`Upload failed (HTTP ${xhr.status})`));
+                }
+              }
+            });
+
+            xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+            xhr.send(form);
+          }).catch(reject);
+        });
+
+        $progressText.textContent = 'Processing...';
+        $progressBar.style.width = '100%';
+
+        if (result.bookId) {
+          for (let attempts = 0; attempts < 30; attempts += 1) {
+            await new Promise(r => setTimeout(r, 2000));
+            try {
+              const book = await apiFetch('GET', `/publish/books/${result.bookId}`);
+              if (book.status === 'ready' || book.status === 'failed') {
+                await loadMyBooks();
+                await openBookEditor(result.bookId);
+                return book;
+              }
+              $progressText.textContent = `Processing... (${book.status})`;
+            } catch {
+              break;
+            }
+          }
+          await loadMyBooks();
+          await openBookEditor(result.bookId);
+        }
+        return result;
+      }
 
       $zone.addEventListener('click', () => $fileInput.click());
 
@@ -926,6 +1121,7 @@
       async function handleFile(file) {
         hideAlert($alert);
         const name = file.name.toLowerCase();
+        const readerType = $uploadReaderType.value || 'legacy';
         const organization = getSelectedPublishingOrganization(selectedUploadTenantId);
         const isPersonalPublishing = String(selectedUploadTenantId || '') === PERSONAL_PUBLISH_TARGET;
         if (!isPersonalPublishing && !organization) {
@@ -933,8 +1129,15 @@
           return;
         }
 
-        if (!name.endsWith('.epub')) {
-          showAlert($alert, 'Only .epub files are supported at this time.');
+        const isEpub = name.endsWith('.epub');
+        const isDocx = name.endsWith('.docx');
+        if (readerType === 'protected') {
+          if (!isEpub && !isDocx) {
+            showAlert($alert, 'Protected uploads currently accept .epub or .docx files.');
+            return;
+          }
+        } else if (!isEpub) {
+          showAlert($alert, 'Standard uploads currently accept .epub files only.');
           return;
         }
 
@@ -950,74 +1153,15 @@
         $zone.style.display = 'none';
 
         try {
-          const form = new FormData();
-          form.append('file', file);
-          if (organization) {
-            form.append('tenant_id', organization.tenant_id);
-            if (organization.tenant?.slug) form.append('tenant_slug', organization.tenant.slug);
+          if (readerType === 'protected') {
+            await handleProtectedUpload(file, organization);
+            return;
           }
-
-          // Use XMLHttpRequest for progress tracking
-          const result = await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', `${API}/publish/upload`);
-
-            sb.auth.getSession().then(({ data: { session: s } }) => {
-              if (s) xhr.setRequestHeader('Authorization', `Bearer ${s.access_token}`);
-
-              xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                  const pct = Math.round((e.loaded / e.total) * 100);
-                  $progressBar.style.width = `${pct}%`;
-                  $progressText.textContent = `Uploading... ${pct}%`;
-                }
-              });
-
-              xhr.addEventListener('load', () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  resolve(JSON.parse(xhr.responseText));
-                } else {
-                  try {
-                    const err = JSON.parse(xhr.responseText);
-                    reject(new Error(err.error || err.message || `HTTP ${xhr.status}`));
-                  } catch {
-                    reject(new Error(`Upload failed (HTTP ${xhr.status})`));
-                  }
-                }
-              });
-
-              xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
-              xhr.send(form);
-            });
-          });
-
-          $progressText.textContent = 'Processing...';
-          $progressBar.style.width = '100%';
-
-          // Poll for processing completion
-          if (result.bookId) {
-            let attempts = 0;
-            while (attempts < 30) {
-              await new Promise(r => setTimeout(r, 2000));
-              attempts++;
-              try {
-                const book = await apiFetch('GET', `/publish/books/${result.bookId}`);
-                if (book.status === 'ready' || book.status === 'failed') {
-                  await loadMyBooks();
-                  openBookEditor(result.bookId);
-                  return;
-                }
-                $progressText.textContent = `Processing... (${book.status})`;
-              } catch { break; }
-            }
-            // Timed out or error — still go to editor
-            await loadMyBooks();
-            openBookEditor(result.bookId);
-          }
+          await handleLegacyUpload(file, organization);
         } catch (err) {
           showAlert($alert, err.message);
-          $zone.style.display = '';
-          $progressWrap.classList.remove('visible');
+        } finally {
+          resetUploadUi();
         }
       }
 
@@ -1037,6 +1181,7 @@
             isbn: document.getElementById('meta-isbn').value.trim() || null,
             language: document.getElementById('meta-language').value.trim() || 'en',
             annotation: document.getElementById('meta-annotation').value.trim(),
+            reader_type: document.getElementById('meta-reader-type').value || 'legacy',
           };
 
           if (!metadata.title || !metadata.author || !metadata.genre_id || !metadata.annotation) {
@@ -1071,12 +1216,22 @@
           if (!isPersonalPublishing && !organization) throw new Error('Choose a publishing destination before publishing.');
           const body = {
             visibility: document.getElementById('meta-visibility').value || 'public',
+            reader_type: document.getElementById('meta-reader-type').value || 'legacy',
           };
           if (organization) {
             body.tenant_id = organization.tenant_id;
             body.tenant_slug = organization.tenant?.slug || '';
           }
-          await apiFetch('POST', `/publish/books/${editingBookId}/publish`, { body });
+          const result = await apiFetch('POST', `/publish/books/${editingBookId}/publish`, { body });
+          if (result && result.pendingProtectedConversion) {
+            showAlert($editAlert, result.message || 'Protected conversion started. Publication will finish after processing.', 'success');
+            const $status = document.getElementById('bookStatus');
+            $status.innerHTML = '<span class="status-badge processing">processing</span>';
+            editorSavedState = true;
+            btn.disabled = true;
+            btn.textContent = 'Processing';
+            return;
+          }
           showAlert($editAlert, 'Book published!', 'success');
           const $status = document.getElementById('bookStatus');
           $status.innerHTML = '<span class="status-badge published">published</span>';
@@ -1189,13 +1344,15 @@
         syncTenantSelectors();
       });
 
+      $uploadReaderType.addEventListener('change', updateUploadAcceptState);
+
       document.getElementById('editTenantSelect').addEventListener('change', (e) => {
         selectedEditTenantId = e.target.value;
         updatePublishButtonState();
         syncTenantSelectors();
       });
 
-      ['meta-title', 'meta-author', 'meta-genre', 'meta-annotation', 'meta-visibility', 'meta-year', 'meta-isbn', 'meta-language'].forEach((id) => {
+      ['meta-title', 'meta-author', 'meta-genre', 'meta-annotation', 'meta-visibility', 'meta-reader-type', 'meta-year', 'meta-isbn', 'meta-language'].forEach((id) => {
         const field = document.getElementById(id);
         field?.addEventListener('input', () => {
           editorSavedState = false;
@@ -1206,6 +1363,8 @@
           updatePublishButtonState();
         });
       });
+
+      updateUploadAcceptState();
     </script>
   </body>
 </html>

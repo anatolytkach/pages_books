@@ -58,6 +58,13 @@ test("Unit: publish writes tenant-source public catalog and book-location entrie
     ),
     new Response(
       JSON.stringify({
+        id: "tenant-1",
+        slug: "acme-publishing",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
         id: bookId,
         title: "Platform Book",
         author: "Ada Lovelace",
@@ -70,13 +77,6 @@ test("Unit: publish writes tenant-source public catalog and book-location entrie
         published_by_user_id: "user-1",
         status: "published",
         visibility: "public",
-      }),
-      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
-    ),
-    new Response(
-      JSON.stringify({
-        id: "tenant-1",
-        slug: "acme-publishing",
       }),
       { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
     ),
@@ -173,6 +173,13 @@ test("Unit: tenant-only publish skips public catalog and book-location writes", 
     ),
     new Response(
       JSON.stringify({
+        id: "tenant-1",
+        slug: "acme-publishing",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
         id: bookId,
         title: "Private Platform Book",
         author: "Ada Lovelace",
@@ -208,4 +215,198 @@ test("Unit: tenant-only publish skips public catalog and book-location writes", 
   assert.equal(response.status, 200);
   assert.equal(payload.visibility, "tenant_only");
   assert.equal(bucket.putCalls.length, 0);
+});
+
+test("Unit: protected publish queues conversion until artifact is ready", async (t) => {
+  const bookId = "323e4567-e89b-12d3-a456-426614174000";
+  const tokenPayload = Buffer.from(JSON.stringify({ sub: "user-1", exp: 4102444800 }))
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+  const jwt = `x.${tokenPayload}.y`;
+  const bucket = createR2Bucket();
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "user@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(JSON.stringify({}), { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(
+      JSON.stringify([
+        {
+          id: "membership-1",
+          role: "admin",
+          tenant_id: "tenant-1",
+          tenants: {
+            id: "tenant-1",
+            slug: "acme-publishing",
+            name: "Acme Publishing",
+            tenant_type: "publisher",
+          },
+        },
+      ]),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: bookId,
+        title: "Protected Draft",
+        author: "Ada Lovelace",
+        genre_id: "fiction",
+        annotation: "Notes",
+        language: "en",
+        content_id: "200323",
+        cover_url: "/books/content/200323/cover.jpg",
+        published_by_tenant_id: "tenant-1",
+        published_by_user_id: "user-1",
+        status: "ready",
+        manifest: {
+          readerType: "protected",
+          protectedContentPath: "/books/protected-content/200323",
+          protected: {
+            enabled: true,
+            artifactStatus: "pending",
+            publishRequested: false,
+          },
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "tenant-1",
+        slug: "acme-publishing",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: bookId,
+        status: "processing",
+        visibility: "public",
+        content_id: "200323",
+        manifest: {
+          readerType: "protected",
+          protectedContentPath: "/books/protected-content/200323",
+          protected: {
+            enabled: true,
+            artifactStatus: "pending",
+            publishRequested: true,
+            source: "acme-publishing",
+          },
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/publish/books/${bookId}/publish`,
+    method: "POST",
+    headers: { authorization: `Bearer ${jwt}` },
+    body: { visibility: "public", reader_type: "protected" },
+    env: {
+      READER_BOOKS: bucket,
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 202);
+  assert.equal(payload.pendingProtectedConversion, true);
+  assert.equal(payload.status, "processing");
+  assert.equal(bucket.putCalls.length, 0);
+});
+
+test("Unit: internal finalize-protected publishes protected catalog location", async (t) => {
+  const bookId = "423e4567-e89b-12d3-a456-426614174000";
+  const bucket = createR2Bucket();
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({
+        id: bookId,
+        title: "Protected Published Book",
+        author: "Ada Lovelace",
+        genre_id: "fiction",
+        annotation: "Notes",
+        language: "en",
+        content_id: "200423",
+        cover_url: "/books/content/200423/cover.jpg",
+        published_by_tenant_id: "tenant-1",
+        status: "processing",
+        visibility: "public",
+        manifest: {
+          readerType: "protected",
+          protectedContentPath: "/books/protected-content/200423",
+          protected: {
+            enabled: true,
+            artifactStatus: "ready",
+            publishRequested: true,
+            visibility: "public",
+            source: "acme-publishing",
+            sourceBookId: "200423",
+            tenantSlug: "acme-publishing",
+          },
+        },
+        tenant: {
+          slug: "acme-publishing",
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: bookId,
+        title: "Protected Published Book",
+        author: "Ada Lovelace",
+        genre_id: "fiction",
+        annotation: "Notes",
+        language: "en",
+        content_id: "200423",
+        cover_url: "/books/content/200423/cover.jpg",
+        status: "published",
+        visibility: "public",
+        manifest: {
+          readerType: "protected",
+          protectedContentPath: "/books/protected-content/200423",
+          protected: {
+            enabled: true,
+            artifactStatus: "ready",
+            publishRequested: false,
+            visibility: "public",
+            source: "acme-publishing",
+            sourceBookId: "200423",
+          },
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/publish/books/${bookId}/finalize-protected`,
+    method: "POST",
+    headers: { "x-reader-internal-key": "service-role-key" },
+    env: {
+      READER_BOOKS: bucket,
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.status, "published");
+
+  const locationWrite = bucket.putCalls.find((entry) => entry.key === "api/book-locations/acme-publishing/23.json");
+  assert.ok(locationWrite, "expected protected tenant shard write");
+  const locationPayload = JSON.parse(locationWrite.body);
+  assert.equal(locationPayload.items["200423"].readerType, "protected");
+  assert.equal(locationPayload.items["200423"].protectedContentPath, "/books/protected-content/200423");
 });

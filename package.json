@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "publish:protected:process": "node tools/publish/process-protected-books.mjs",
     "test:e2e": "node node_modules/@playwright/test/cli.js test",
     "test:e2e:headed": "node node_modules/@playwright/test/cli.js test --headed",
     "test:e2e:debug": "node node_modules/@playwright/test/cli.js test --debug",

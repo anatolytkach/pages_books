@@ -1,4 +1,18 @@
 import { handlePublisherTaskRequest } from "./publisher_tasks/service.mjs";
+import {
+  completeProtectedPublishingUpload,
+  createProtectedPublishingJob,
+  failProtectedPublishingJob,
+  finalizeProtectedPublishingJob,
+  getProtectedPublishingJob,
+  updateProtectedPublishingProgress,
+} from "./api/protected-publishing/handlers.mjs";
+import {
+  buildBookManifest,
+  getBookReaderConfig,
+  getRequestedReaderType,
+  normalizeReaderType,
+} from "./api/protected-publishing/shared.mjs";
 
 function jsonResponse(payload, status = 200, extraHeaders = {}) {
   const headers = new Headers({
@@ -319,6 +333,7 @@ async function updateCatalogIndexes(env, book, options = {}) {
   const language = String(book.language || "en").trim();
   const source = String(options.source || book.source || "manual").trim() || "manual";
   const sourceBookId = String(options.sourceBookId || contentId).trim() || contentId;
+  const readerConfig = getBookReaderConfig(book);
   if (!authorName || !title || !contentId) return;
 
   const { authorKey, indexKey, indexKeyAscii, display: authorDisplay } = parseAuthorForIndex(authorName);
@@ -348,6 +363,8 @@ async function updateCatalogIndexes(env, book, options = {}) {
     coverUrl,
     source,
     sourceBookId,
+    readerType: readerConfig.readerType,
+    protectedContentPath: readerConfig.protectedContentPath,
   });
 
   // 5. Update languages.json — ensure the book's language is listed
@@ -595,7 +612,7 @@ async function getCatalogJson(env, r2Key, fallback) {
   }
 }
 
-async function updateBookLocationIndexes(env, { contentId, title, author, coverUrl, source, sourceBookId }) {
+async function updateBookLocationIndexes(env, { contentId, title, author, coverUrl, source, sourceBookId, readerType, protectedContentPath }) {
   const generatedAt = new Date().toISOString();
   const normalizedSource = String(source || "manual").trim() || "manual";
   const normalizedSourceBookId = String(sourceBookId || contentId).trim() || contentId;
@@ -612,7 +629,11 @@ async function updateBookLocationIndexes(env, { contentId, title, author, coverU
     title: String(title || contentId),
     author: String(author || ""),
     cover: String(coverUrl || ""),
+    readerType: normalizeReaderType(readerType),
   };
+  if (item.readerType === "protected" && String(protectedContentPath || "").trim()) {
+    item.protectedContentPath = String(protectedContentPath).trim();
+  }
 
   const rootKey = "api/book-locations.json";
   const rootData = await getCatalogJson(env, rootKey, { version: "1", generatedAt, count: 0, items: {} });
@@ -2913,6 +2934,15 @@ export default {
         return null;
       };
 
+      const requireInternalTaskAuth = () => {
+        const expected = String(env.INTERNAL_TASK_SECRET || env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+        const provided = String(request.headers.get("x-reader-internal-key") || "").trim();
+        if (!expected || !provided || provided !== expected) {
+          return jsonResponse({ error: "Forbidden" }, 403, apiCorsHeaders);
+        }
+        return null;
+      };
+
       const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
       const roleRank = (role) => {
         const normalized = String(role || "").trim().toLowerCase();
@@ -3859,7 +3889,7 @@ export default {
       if (byContentLocationMatch && request.method === "GET") {
         const contentId = byContentLocationMatch[1];
         const { data: book } = await sbFetch("books", {
-          params: `content_id=eq.${contentId}&select=id,content_id,status,is_free,visibility,published_by_tenant_id,published_by_user_id,tenant:tenants!books_published_by_tenant_id_fkey(slug)`,
+          params: `content_id=eq.${contentId}&select=id,content_id,status,is_free,visibility,manifest,published_by_tenant_id,published_by_user_id,tenant:tenants!books_published_by_tenant_id_fkey(slug)`,
           single: true,
         });
         if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
@@ -3894,12 +3924,18 @@ export default {
           return jsonResponse({ error: "Access denied" }, 403, apiCorsHeaders);
         }
 
-        return jsonResponse({
+        const readerConfig = getBookReaderConfig(book);
+        const payload = {
           id: String(book.content_id || contentId),
-          source: String(book?.tenant?.slug || ""),
+          source: String(readerConfig.protected.source || book?.tenant?.slug || ""),
           contentPath: `/books/content/${contentId}/`,
           localContentPath: `/books/content/${contentId}/`,
-        }, 200, apiCorsHeaders);
+          readerType: readerConfig.readerType,
+        };
+        if (readerConfig.readerType === "protected" && readerConfig.protectedContentPath) {
+          payload.protectedContentPath = readerConfig.protectedContentPath;
+        }
+        return jsonResponse(payload, 200, apiCorsHeaders);
       }
 
       // ── GET /v1/books/:id/entitlement — check access ──
@@ -4135,6 +4171,94 @@ export default {
         });
         return String(tenant?.slug || "").trim().toLowerCase();
       };
+
+      if (apiPath === "/protected-jobs" && request.method === "POST") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const body = await request.json().catch(() => null);
+        if (!body) return jsonResponse({ error: "Invalid JSON" }, 400, apiCorsHeaders);
+        const created = await createProtectedPublishingJob({
+          env,
+          user,
+          body,
+          sbFetch,
+          sbRpc,
+          resolvePublishingTenant,
+          getTenantSourceSlug,
+        });
+        if (created.response) return created.response;
+        if (created.error) return jsonResponse({ error: created.error }, created.status || 500, apiCorsHeaders);
+        return jsonResponse(created.data, created.status || 201, apiCorsHeaders);
+      }
+
+      const protectedJobMatch = apiPath.match(/^\/protected-jobs\/([0-9a-f-]+)$/);
+      if (protectedJobMatch && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const result = await getProtectedPublishingJob({
+          sbFetch,
+          jobId: protectedJobMatch[1],
+          user,
+        });
+        if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
+        return jsonResponse(result.data, result.status || 200, apiCorsHeaders);
+      }
+
+      const protectedUploadCompleteMatch = apiPath.match(/^\/protected-jobs\/([0-9a-f-]+)\/upload-complete$/);
+      if (protectedUploadCompleteMatch && request.method === "POST") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const result = await completeProtectedPublishingUpload({
+          env,
+          sbFetch,
+          jobId: protectedUploadCompleteMatch[1],
+          user,
+        });
+        if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
+        return jsonResponse(result.data, result.status || 202, apiCorsHeaders);
+      }
+
+      const protectedProgressMatch = apiPath.match(/^\/protected-jobs\/([0-9a-f-]+)\/progress$/);
+      if (protectedProgressMatch && request.method === "POST") {
+        const authErr = requireInternalTaskAuth();
+        if (authErr) return authErr;
+        const body = await request.json().catch(() => ({}));
+        const result = await updateProtectedPublishingProgress({
+          sbFetch,
+          jobId: protectedProgressMatch[1],
+          payload: body,
+        });
+        if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
+        return jsonResponse(result.data, result.status || 200, apiCorsHeaders);
+      }
+
+      const protectedFinalizeMatch = apiPath.match(/^\/protected-jobs\/([0-9a-f-]+)\/finalize$/);
+      if (protectedFinalizeMatch && request.method === "POST") {
+        const authErr = requireInternalTaskAuth();
+        if (authErr) return authErr;
+        const result = await finalizeProtectedPublishingJob({
+          env,
+          sbFetch,
+          jobId: protectedFinalizeMatch[1],
+          updateCatalogIndexes,
+        });
+        if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
+        return jsonResponse(result.data, result.status || 200, apiCorsHeaders);
+      }
+
+      const protectedFailMatch = apiPath.match(/^\/protected-jobs\/([0-9a-f-]+)\/fail$/);
+      if (protectedFailMatch && request.method === "POST") {
+        const authErr = requireInternalTaskAuth();
+        if (authErr) return authErr;
+        const body = await request.json().catch(() => ({}));
+        const result = await failProtectedPublishingJob({
+          sbFetch,
+          jobId: protectedFailMatch[1],
+          payload: body,
+        });
+        if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
+        return jsonResponse(result.data, result.status || 200, apiCorsHeaders);
+      }
 
       // ── GET /v1/tenants/:slug — tenant info ──
       const tenantSlugMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])$/);
@@ -4384,6 +4508,17 @@ export default {
         for (const key of allowed) {
           if (body[key] !== undefined) updates[key] = body[key];
         }
+        if (body.reader_type !== undefined || body.readerType !== undefined || body.protected !== undefined) {
+          const { data: existingBook } = await sbFetch("books", {
+            params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=id,content_id,manifest`,
+            single: true,
+          });
+          if (!existingBook) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+          updates.manifest = buildBookManifest(existingBook.manifest, {
+            readerType: getRequestedReaderType(body, existingBook),
+            contentId: String(existingBook.content_id || "").trim(),
+          });
+        }
         if (!Object.keys(updates).length) {
           return jsonResponse({ error: "No fields to update" }, 400, apiCorsHeaders);
         }
@@ -4460,12 +4595,72 @@ export default {
           return jsonResponse({ error: "Complete all required metadata before publishing" }, 400, apiCorsHeaders);
         }
 
+        const source = tenantContext.personal ? "manual" : (await getTenantSourceSlug(tenantContext.tenantId) || "manual");
+        const requestedReaderType = getRequestedReaderType(body, book);
+        const readerConfig = getBookReaderConfig(book);
+        const nextManifest = buildBookManifest(book.manifest, {
+          readerType: requestedReaderType,
+          contentId: String(book.content_id || ""),
+          visibility,
+          source,
+          sourceBookId: String(book.content_id || ""),
+          tenantId: tenantContext.personal ? "" : tenantContext.tenantId,
+          tenantSlug: tenantContext.personal ? "" : source,
+          publishRequested: requestedReaderType === "protected",
+          artifactStatus: requestedReaderType === "protected"
+            ? (readerConfig.protected.artifactStatus || "pending")
+            : "",
+          protectedContentPath: requestedReaderType === "protected"
+            ? (readerConfig.protectedContentPath || `/books/protected-content/${book.content_id}`)
+            : "",
+          lastError: requestedReaderType === "protected" ? readerConfig.protected.lastError : "",
+        });
+
+        if (requestedReaderType === "protected" && readerConfig.protected.artifactStatus !== "ready") {
+          const { data, error } = await sbFetch("books", {
+            method: "PATCH",
+            params: tenantContext.personal
+              ? `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=is.null&select=*`
+              : `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
+            body: {
+              status: "processing",
+              visibility,
+              manifest: nextManifest,
+            },
+            single: true,
+          });
+          if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+          return jsonResponse({
+            ...data,
+            pendingProtectedConversion: true,
+            message: "Protected conversion queued. Publication will finish after artifact generation.",
+          }, 202, apiCorsHeaders);
+        }
+
         const { data, error } = await sbFetch("books", {
           method: "PATCH",
           params: tenantContext.personal
             ? `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=is.null&select=*`
             : `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
-          body: { status: "published", visibility },
+          body: {
+            status: "published",
+            visibility,
+            manifest: buildBookManifest(nextManifest, {
+              readerType: requestedReaderType,
+              contentId: String(book.content_id || ""),
+              visibility,
+              source,
+              sourceBookId: String(book.content_id || ""),
+              tenantId: tenantContext.personal ? "" : tenantContext.tenantId,
+              tenantSlug: tenantContext.personal ? "" : source,
+              publishRequested: false,
+              artifactStatus: requestedReaderType === "protected" ? "ready" : "",
+              protectedContentPath: requestedReaderType === "protected"
+                ? (readerConfig.protectedContentPath || `/books/protected-content/${book.content_id}`)
+                : "",
+              publishedAt: new Date().toISOString(),
+            }),
+          },
           single: true,
         });
         if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
@@ -4473,7 +4668,6 @@ export default {
         // Only public books should appear in public browse/search artifacts.
         if (visibility === "public") {
           try {
-            const source = tenantContext.personal ? "manual" : (await getTenantSourceSlug(tenantContext.tenantId) || "manual");
             await updateCatalogIndexes(env, data, {
               source,
               sourceBookId: String(data.content_id || ""),
@@ -4483,6 +4677,63 @@ export default {
           }
         }
 
+        return jsonResponse(data, 200, apiCorsHeaders);
+      }
+
+      const finalizeProtectedMatch = apiPath.match(/^\/publish\/books\/([0-9a-f-]+)\/finalize-protected$/);
+      if (finalizeProtectedMatch && request.method === "POST") {
+        const authErr = requireInternalTaskAuth();
+        if (authErr) return authErr;
+        const bookId = finalizeProtectedMatch[1];
+        const { data: book } = await sbFetch("books", {
+          params: `id=eq.${bookId}&select=*,tenant:tenants!books_published_by_tenant_id_fkey(slug)`,
+          single: true,
+        });
+        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+        const readerConfig = getBookReaderConfig(book);
+        if (readerConfig.readerType !== "protected") {
+          return jsonResponse({ error: "Book is not configured for protected publication" }, 400, apiCorsHeaders);
+        }
+        if (readerConfig.protected.artifactStatus !== "ready") {
+          return jsonResponse({ error: "Protected artifact is not ready" }, 409, apiCorsHeaders);
+        }
+
+        const visibility = readerConfig.protected.visibility || book.visibility || "public";
+        const source = readerConfig.protected.source || String(book?.tenant?.slug || "").trim() || "manual";
+        const sourceBookId = readerConfig.protected.sourceBookId || String(book.content_id || "");
+        const { data, error } = await sbFetch("books", {
+          method: "PATCH",
+          params: `id=eq.${bookId}&select=*`,
+          body: {
+            status: "published",
+            visibility,
+            manifest: buildBookManifest(book.manifest, {
+              readerType: "protected",
+              contentId: String(book.content_id || ""),
+              visibility,
+              source,
+              sourceBookId,
+              tenantId: String(book.published_by_tenant_id || ""),
+              tenantSlug: String(book?.tenant?.slug || ""),
+              publishRequested: false,
+              artifactStatus: "ready",
+              protectedContentPath: readerConfig.protectedContentPath || `/books/protected-content/${book.content_id}`,
+              publishedAt: new Date().toISOString(),
+              lastError: "",
+            }),
+          },
+          single: true,
+        });
+        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
+
+        if (visibility === "public") {
+          try {
+            await updateCatalogIndexes(env, data, {
+              source,
+              sourceBookId,
+            });
+          } catch {}
+        }
         return jsonResponse(data, 200, apiCorsHeaders);
       }
 
@@ -4502,6 +4753,10 @@ export default {
             tenantSlug: formData.get("tenant_slug"),
           });
           if (tenantContext.error) return tenantContext.error;
+          const requestedReaderType = getRequestedReaderType({
+            reader_type: formData.get("reader_type"),
+            protected: formData.get("protected"),
+          });
           const file = formData.get("file");
           if (!file || !file.name) {
             return jsonResponse({ error: "No file provided" }, 400, apiCorsHeaders);
@@ -4530,6 +4785,19 @@ export default {
 
           // Get next content_id
           const { data: contentId } = await sbRpc("nextval_content_id");
+          const source = tenantContext.personal ? "manual" : (await getTenantSourceSlug(tenantContext.tenantId) || "manual");
+          const initialManifest = buildBookManifest({}, {
+            readerType: requestedReaderType,
+            contentId: String(contentId),
+            artifactStatus: requestedReaderType === "protected" ? "pending" : "",
+            publishRequested: false,
+            visibility: "public",
+            source,
+            sourceBookId: String(contentId),
+            tenantId: tenantContext.personal ? "" : tenantContext.tenantId,
+            tenantSlug: tenantContext.personal ? "" : source,
+            protectedContentPath: requestedReaderType === "protected" ? `/books/protected-content/${contentId}` : "",
+          });
 
           // Create book row
           const { data: book, error: bookErr } = await sbFetch("books", {
@@ -4543,6 +4811,7 @@ export default {
               published_by_tenant_id: tenantContext.personal ? null : tenantContext.tenantId,
               published_by_user_id: user.sub,
               status: "processing",
+              manifest: initialManifest,
             },
             single: true,
           });
@@ -4567,7 +4836,21 @@ export default {
             const epubResult = await processEpub(env, fileBytes, book.id, String(contentId));
 
             // Update book with extracted metadata
-            const metaUpdates = { status: "ready" };
+            const metaUpdates = {
+              status: "ready",
+              manifest: buildBookManifest(initialManifest, {
+                readerType: requestedReaderType,
+                contentId: String(contentId),
+                artifactStatus: requestedReaderType === "protected" ? "pending" : "",
+                publishRequested: false,
+                visibility: "public",
+                source,
+                sourceBookId: String(contentId),
+                tenantId: tenantContext.personal ? "" : tenantContext.tenantId,
+                tenantSlug: tenantContext.personal ? "" : source,
+                protectedContentPath: requestedReaderType === "protected" ? `/books/protected-content/${contentId}` : "",
+              }),
+            };
             if (epubResult.title) metaUpdates.title = epubResult.title;
             if (epubResult.author) metaUpdates.author = epubResult.author;
             if (epubResult.language) metaUpdates.language = epubResult.language;
