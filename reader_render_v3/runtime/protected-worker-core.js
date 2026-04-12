@@ -85,6 +85,29 @@ function gatherShapeRecords(shapeBundle, glyphOps) {
   return ((shapeBundle && shapeBundle.shapeRecords) || []).filter((record) => refs.has(record.shapeRef));
 }
 
+function gatherImageOps(layout, pageWindow, rootUrl = "") {
+  const blocks = Array.isArray(layout && layout.blocks) ? layout.blocks : [];
+  return blocks
+    .filter((block) => block && block.blockType === "image" && block.image && block.image.assetPath)
+    .filter((block) => {
+      if (!pageWindow) return true;
+      const blockTop = Number(block.y || 0);
+      const blockBottom = blockTop + Number(block.height || 0);
+      const pageTop = Number(pageWindow.top || 0);
+      const pageBottom = pageTop + Number(pageWindow.height || 0);
+      return blockBottom > pageTop && blockTop < pageBottom;
+    })
+    .map((block) => ({
+      blockId: block.blockId,
+      assetPath: rootUrl ? new URL(block.image.assetPath, `${rootUrl}/`).toString() : block.image.assetPath,
+      alt: block.image.alt || "",
+      x: Number(block.image.x || block.x || 0),
+      y: Number(block.image.y || block.y || 0),
+      width: Number(block.image.width || block.width || 0),
+      height: Number(block.image.height || block.height || 0)
+    }));
+}
+
 function buildAutomationSelectionPosition(line, offset) {
   const fragment =
     line.fragments.find((item) => offset >= item.startOffset && offset <= item.endOffset) ||
@@ -1010,6 +1033,7 @@ export class ProtectedReaderRuntimeCore {
 
     let glyphOps = [];
     let shapeRecords = [];
+    let imageOps = [];
     let reconstructionScope = "none";
     let reconstructionCacheSize = 0;
     glyphOps = filterGlyphOpsForPage(
@@ -1023,6 +1047,7 @@ export class ProtectedReaderRuntimeCore {
       page
     );
     shapeRecords = gatherShapeRecords(this.currentChunkModel.shapeBundle, glyphOps);
+    imageOps = gatherImageOps(this.currentLayout, page, this.book && this.book.rootUrl ? this.book.rootUrl : "");
 
     const renderDiagnostics = {
       glyphOps: glyphOps.length,
@@ -1083,6 +1108,7 @@ export class ProtectedReaderRuntimeCore {
         pageWindow: page,
         glyphOps,
         shapeRecords,
+        imageOps,
         searchHighlights,
         selectionHighlights,
         annotationHighlights: annotationOverlay.visibleHighlights,

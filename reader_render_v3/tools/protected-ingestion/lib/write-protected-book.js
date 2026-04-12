@@ -39,6 +39,13 @@ function writeProtectedBook(outputPath, built) {
     writeJson(path.join(root, "shapes", `${shapeChunk.chunkId}.shapes.json`), shapeChunk);
   }
 
+  for (const asset of built.assetFiles || []) {
+    if (!asset || !asset.sourcePath || !asset.artifactPath) continue;
+    const targetPath = path.join(root, asset.artifactPath);
+    ensureDir(path.dirname(targetPath));
+    fs.copyFileSync(asset.sourcePath, targetPath);
+  }
+
   if (built.debugArtifactEnabled) {
     ensureDir(path.join(root, "debug", "chunks"));
     ensureDir(path.join(root, "debug", "glyphs"));

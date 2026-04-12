@@ -2,6 +2,8 @@ import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
 import { renderGlyphOps } from "./protected-shape-renderer.js";
 import { assertNoForbiddenTextLikeFields } from "./protected-worker-protocol.js";
 
+const imageCache = new Map();
+
 function clearCanvas(canvas, width, height) {
   canvas.width = width * 2;
   canvas.height = height * 2;
@@ -49,6 +51,63 @@ function offsetToLineX(line, offset) {
   return last.x + last.width;
 }
 
+function loadImageRecord(assetPath) {
+  const key = String(assetPath || "").trim();
+  if (!key) return null;
+  if (imageCache.has(key)) return imageCache.get(key);
+  const record = {
+    status: "loading",
+    image: null,
+    promise: null
+  };
+  const image = new Image();
+  image.decoding = "async";
+  record.promise = new Promise((resolve) => {
+    image.onload = () => {
+      record.status = "loaded";
+      record.image = image;
+      resolve(record);
+    };
+    image.onerror = () => {
+      record.status = "error";
+      resolve(record);
+    };
+  });
+  image.src = key;
+  imageCache.set(key, record);
+  return record;
+}
+
+function drawImagePlaceholder(ctx, imageOp) {
+  ctx.save();
+  ctx.fillStyle = "rgba(140, 140, 140, 0.12)";
+  ctx.strokeStyle = "rgba(120, 120, 120, 0.35)";
+  ctx.lineWidth = 1;
+  ctx.fillRect(imageOp.x, imageOp.y, imageOp.width, imageOp.height);
+  ctx.strokeRect(imageOp.x, imageOp.y, imageOp.width, imageOp.height);
+  ctx.restore();
+}
+
+function renderImageOps(ctx, imageOps, translateY = 0) {
+  for (const imageOp of imageOps || []) {
+    const record = loadImageRecord(imageOp.assetPath);
+    const drawY = Number(imageOp.y || 0) + translateY;
+    if (!record || record.status !== "loaded" || !record.image) {
+      drawImagePlaceholder(ctx, { ...imageOp, y: drawY });
+      if (record && record.promise) {
+        record.promise.then((next) => {
+          if (!next || next.status !== "loaded" || !next.image) return;
+          try {
+            ctx.drawImage(next.image, imageOp.x, drawY, imageOp.width, imageOp.height);
+          } catch {}
+        });
+      }
+      continue;
+    }
+    ctx.drawImage(record.image, imageOp.x, drawY, imageOp.width, imageOp.height);
+  }
+}
+
 export function renderChunkToCanvas({
   canvas,
   overlayCanvas,
@@ -63,6 +122,7 @@ export function renderChunkToCanvas({
     renderMode = "shape",
     glyphOps = [],
     shapeRecords = [],
+    imageOps = [],
     searchHighlights = [],
     selectionHighlights = [],
     annotationHighlights = [],
@@ -93,6 +153,7 @@ export function renderChunkToCanvas({
   const activeShapeRegistry = createGlyphShapeRegistry({ shapeRecords }, new Map());
   renderGlyphOps(ctx, glyphOps, activeShapeRegistry, { defaultFillStyle: defaultInk });
   ctx.restore();
+  renderImageOps(ctx, imageOps, translateY);
 
   const overlay = clearCanvas(overlayCanvas, layout.width, viewportHeight);
   overlay.clearRect(0, 0, layout.width, viewportHeight);

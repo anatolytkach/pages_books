@@ -4,6 +4,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const crypto = require("crypto");
 const { spawnSync } = require("child_process");
 const { loadBook } = require("./lib/load-book");
 const { extractSpine } = require("./lib/extract-spine");
@@ -77,6 +78,36 @@ function readJsonSafe(filePath, fallback = {}) {
 function writeJson(filePath, payload) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(payload, null, 2));
+}
+
+function hash(input, length = 16) {
+  return crypto.createHash("sha1").update(String(input || "")).digest("hex").slice(0, length);
+}
+
+function imageAssetTargetPath(image) {
+  const ext = path.extname(String(image && image.absolutePath || "")).toLowerCase() || ".bin";
+  return `assets/image-${hash(image && image.absolutePath || "", 16)}${ext}`;
+}
+
+function assignImageAssetPaths(blocks) {
+  const assets = [];
+  const seen = new Map();
+  for (const block of blocks || []) {
+    if (!block || block.blockType !== "image" || !block.image || !block.image.absolutePath) continue;
+    const absolutePath = path.resolve(block.image.absolutePath);
+    if (!fs.existsSync(absolutePath)) continue;
+    let artifactPath = seen.get(absolutePath);
+    if (!artifactPath) {
+      artifactPath = imageAssetTargetPath(block.image);
+      seen.set(absolutePath, artifactPath);
+      assets.push({
+        sourcePath: absolutePath,
+        artifactPath
+      });
+    }
+    block.image.assetPath = artifactPath;
+  }
+  return assets;
 }
 
 function log(message) {
@@ -547,6 +578,7 @@ async function main() {
 
     const spine = extractSpine(book);
     const extracted = extractTextBlocks({ book, spine });
+    const imageAssets = assignImageAssetPaths(extracted.blocks);
     const styles = extractStyleSignals(extracted.blocks, { fontPlan });
     const fontAssets = extractFontAssets(book);
     const chunks = chunkTextBlocks(extracted.blocks, config);
@@ -579,7 +611,13 @@ async function main() {
           linkTargets: block.linkTargets,
           inlineIds: block.inlineIds,
           blockPresentation: block.blockPresentation,
-          styleSignals: block.styleSignals
+          styleSignals: block.styleSignals,
+          image: block.image ? {
+            assetPath: block.image.assetPath || "",
+            alt: block.image.alt || "",
+            widthPx: Number(block.image.widthPx || 0) || 0,
+            heightPx: Number(block.image.heightPx || 0) || 0
+          } : null
         })),
         renderLayer: {
           chunkGlyphsRef: `../glyphs/${chunk.chunkId}.glyphs.json`,
@@ -618,7 +656,8 @@ async function main() {
             sourceRef: block.sourceRef,
             linkTargets: block.linkTargets,
             inlineIds: block.inlineIds,
-            blockPresentation: block.blockPresentation
+            blockPresentation: block.blockPresentation,
+            image: block.image || null
           }))
         });
 
@@ -645,6 +684,7 @@ async function main() {
       debugArtifactEnabled,
       allowPartialToc: hasFlag("--allow-partial-toc")
     });
+    built.assetFiles = imageAssets;
 
     writeProtectedBook(resolvedOutput, built);
     log(`wrote local artifact to ${resolvedOutput}`);

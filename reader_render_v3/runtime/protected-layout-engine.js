@@ -335,6 +335,63 @@ export function layoutChunk({
   }
 
   for (const block of chunkModel.chunk.logicalBlockList) {
+    if (block.blockType === "image" && block.image && block.image.assetPath) {
+      const imageMeta = block.image || {};
+      const naturalWidth = Math.max(1, Number(imageMeta.widthPx || 0) || 0);
+      const naturalHeight = Math.max(1, Number(imageMeta.heightPx || 0) || 0);
+      const hasNaturalSize = naturalWidth > 0 && naturalHeight > 0;
+      const blockMarginTop = Math.max(0, Math.round((Number(block.blockPresentation && block.blockPresentation.marginTopEm || 0) || 0) * 18));
+      const blockMarginBottom = Math.max(0, Math.round((Number(block.blockPresentation && block.blockPresentation.marginBottomEm || 0) || 0) * 18));
+      if (columnCursorY > 0 && blockMarginTop > 0) {
+        if ((columnCursorY + blockMarginTop) > columnInnerHeight) {
+          advanceFlow(blockMarginTop);
+        } else {
+          columnCursorY += blockMarginTop;
+        }
+      }
+      const maxWidth = Math.max(140, Math.round(columnWidth * 0.94));
+      const fallbackWidth = Math.round(Math.min(maxWidth, Math.max(220, columnWidth * 0.7)));
+      const imageWidth = hasNaturalSize ? Math.min(maxWidth, naturalWidth) : fallbackWidth;
+      const imageHeight = hasNaturalSize
+        ? Math.max(80, Math.round((naturalHeight / naturalWidth) * imageWidth))
+        : Math.round(imageWidth * 0.66);
+      if (columnCursorY > 0 && (columnCursorY + imageHeight) > columnInnerHeight) {
+        advanceFlow(imageHeight);
+      }
+      const blockTop = pageSlot * pageSlotHeight + resolvedPaddingY + columnCursorY;
+      const blockX = resolvedPaddingX + (columnIndex * (columnWidth + columnGap));
+      const imageX = blockX + Math.max(0, Math.round((columnWidth - imageWidth) / 2));
+      blocks.push({
+        blockId: block.blockId,
+        blockType: block.blockType,
+        styleToken: "image",
+        x: blockX,
+        y: blockTop,
+        width: columnWidth,
+        height: imageHeight,
+        lineCount: 0,
+        textLength: 0,
+        lineIndexes: [],
+        sourceRef: block.sourceRef,
+        image: {
+          assetPath: imageMeta.assetPath,
+          alt: imageMeta.alt || "",
+          x: imageX,
+          y: blockTop,
+          width: imageWidth,
+          height: imageHeight
+        }
+      });
+      orderedBlockIds.push(block.blockId);
+      const blockGap = blockMarginBottom || 16;
+      if (columnCursorY > 0 && (columnCursorY + imageHeight + blockGap) > columnInnerHeight) {
+        columnCursorY += imageHeight;
+        advanceFlow(blockGap);
+      } else {
+        columnCursorY += imageHeight + blockGap;
+      }
+      continue;
+    }
     const runs = chunkModel.runsByBlock.get(block.blockId) || [];
     const blockPresentation = block.blockPresentation || {};
     const blockMarginTop = Math.max(0, Math.round((Number(blockPresentation.marginTopEm || 0) || 0) * 18));

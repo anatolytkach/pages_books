@@ -68,6 +68,20 @@ function parseCssLengthEm(value, fallback = 0) {
   return fallback;
 }
 
+function parseCssLengthPx(value, fallback = 0) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return fallback;
+  const pxMatch = raw.match(/^(-?\d+(?:\.\d+)?)px$/);
+  if (pxMatch) return Number(pxMatch[1]);
+  const emMatch = raw.match(/^(-?\d+(?:\.\d+)?)(em|rem)$/);
+  if (emMatch) return Number(emMatch[1]) * 16;
+  const percentMatch = raw.match(/^(-?\d+(?:\.\d+)?)%$/);
+  if (percentMatch) return Number(percentMatch[1]);
+  const unitlessMatch = raw.match(/^(-?\d+(?:\.\d+)?)$/);
+  if (unitlessMatch) return Number(unitlessMatch[1]);
+  return fallback;
+}
+
 function classList(attrs = {}) {
   return String(attrs.class || "")
     .split(/\s+/)
@@ -151,6 +165,24 @@ function blockPresentationFor(tag, attrs = {}) {
   if (inlineStyle["font-family"]) presentation.fontFamily = String(inlineStyle["font-family"]).trim();
 
   return presentation;
+}
+
+function imageBlockPresentation(attrs = {}) {
+  const inlineStyle = parseInlineStyle(attrs.style || "");
+  return {
+    textAlign: "center",
+    textIndentEm: 0,
+    marginTopEm: 0.75,
+    marginBottomEm: 0.75,
+    lineHeightFactor: 1,
+    fontSizeScale: 1,
+    letterSpacingEm: 0,
+    wordSpacingEm: 0,
+    pageBreakBefore: false,
+    fontFamily: "",
+    widthPx: parseCssLengthPx(inlineStyle.width || attrs.width || "", 0),
+    heightPx: parseCssLengthPx(inlineStyle.height || attrs.height || "", 0)
+  };
 }
 
 function extractInlineRuns(innerHtml) {
@@ -294,6 +326,72 @@ function looksLikeNoteHref(href) {
   return /#(fn|note|footnote|endnote|noteref|ftn)/i.test(String(href || ""));
 }
 
+function normalizeHref(value) {
+  return String(value || "").trim().replace(/\\/g, "/");
+}
+
+function resolveImageSource(spineItem, src) {
+  const rawSrc = normalizeHref(src);
+  if (!rawSrc) return null;
+  const cleanSrc = rawSrc.split("?")[0].split("#")[0];
+  if (!cleanSrc) return null;
+  const spineDirHref = path.posix.dirname(normalizeHref(spineItem && spineItem.href) || "");
+  const href = cleanSrc.startsWith("/")
+    ? cleanSrc.replace(/^\/+/, "")
+    : path.posix.normalize(path.posix.join(spineDirHref === "." ? "" : spineDirHref, cleanSrc));
+  const absolutePath = path.resolve(path.dirname(spineItem.absolutePath), cleanSrc);
+  return {
+    href,
+    absolutePath
+  };
+}
+
+function extractImageBlocks(innerHtml, spineItem, blockIndex, attrs = {}) {
+  const matches = Array.from(String(innerHtml || "").matchAll(/<img\b([^>]*?)\/?>/gi));
+  const blocks = [];
+  for (let imageIndex = 0; imageIndex < matches.length; imageIndex += 1) {
+    const imageAttrs = parseAttrs(matches[imageIndex][1] || "");
+    const source = resolveImageSource(spineItem, imageAttrs.src || "");
+    if (!source || !source.absolutePath || !fs.existsSync(source.absolutePath)) continue;
+    blocks.push({
+      blockId: `${spineItem.spineId}-img-${String(blockIndex + 1).padStart(4, "0")}-${String(imageIndex + 1).padStart(2, "0")}`,
+      blockType: "image",
+      tagName: "img",
+      text: "",
+      sourceRef: {
+        spineId: spineItem.spineId,
+        spineIndex: spineItem.spineIndex,
+        href: spineItem.href,
+        filePath: spineItem.absolutePath,
+        nodeTag: "img",
+        nodeIndex: blockIndex,
+        nodeId: imageAttrs.id || "",
+        nodeClass: imageAttrs.class || ""
+      },
+      linkTargets: [],
+      inlineIds: imageAttrs.id ? [imageAttrs.id] : [],
+      blockPresentation: imageBlockPresentation(imageAttrs),
+      runs: [],
+      styleSignals: {
+        hasBold: false,
+        hasItalic: false,
+        hasSuperscript: false,
+        hasLinks: false,
+        hasDropCap: false,
+        hasCustomScale: false
+      },
+      image: {
+        href: source.href,
+        absolutePath: source.absolutePath,
+        alt: normalizeWhitespace(decodeEntities(imageAttrs.alt || imageAttrs.title || "")),
+        widthPx: parseCssLengthPx(imageAttrs.width || "", 0),
+        heightPx: parseCssLengthPx(imageAttrs.height || "", 0)
+      }
+    });
+  }
+  return blocks;
+}
+
 function extractBlocksFromHtml(html, spineItem) {
   const body = extractBody(html);
   const matches = Array.from(body.matchAll(/<(h[1-6]|p|li|blockquote|pre)\b([^>]*)>([\s\S]*?)<\/\1>/gi));
@@ -305,39 +403,43 @@ function extractBlocksFromHtml(html, spineItem) {
     const attrs = parseAttrs(match[2] || "");
     const innerHtml = match[3] || "";
     const plainText = normalizeWhitespace(stripTags(innerHtml));
-    if (!plainText) continue;
+    const imageBlocks = extractImageBlocks(innerHtml, spineItem, index, attrs);
+    if (!plainText && !imageBlocks.length) continue;
     const inline = extractInlineRuns(innerHtml);
-    blocks.push({
-      blockId: `${spineItem.spineId}-b-${String(index + 1).padStart(4, "0")}`,
-      blockType: blockTypeForTag(tag, attrs),
-      tagName: tag,
-      text: plainText,
-      sourceRef: {
-        spineId: spineItem.spineId,
-        spineIndex: spineItem.spineIndex,
-        href: spineItem.href,
-        filePath: spineItem.absolutePath,
-        nodeTag: tag,
-        nodeIndex: index,
-        nodeId: attrs.id || "",
-        nodeClass: attrs.class || ""
-      },
-      linkTargets: inline.linkTargets.map((item) => ({
-        ...item,
-        kind: looksLikeNoteHref(item.href) ? "note" : "link"
-      })),
-      inlineIds: inline.inlineIds,
-      blockPresentation: blockPresentationFor(tag, attrs),
-      runs: inline.runs,
-      styleSignals: {
-        hasBold: inline.runs.some((run) => run.styleState.bold),
-        hasItalic: inline.runs.some((run) => run.styleState.italic),
-        hasSuperscript: inline.runs.some((run) => run.styleState.superscript),
-        hasLinks: inline.linkTargets.length > 0,
-        hasDropCap: inline.runs.some((run) => run.styleState.dropCap),
-        hasCustomScale: inline.runs.some((run) => Number(run.styleState.fontScale || 1) !== 1)
-      }
-    });
+    if (plainText) {
+      blocks.push({
+        blockId: `${spineItem.spineId}-b-${String(index + 1).padStart(4, "0")}`,
+        blockType: blockTypeForTag(tag, attrs),
+        tagName: tag,
+        text: plainText,
+        sourceRef: {
+          spineId: spineItem.spineId,
+          spineIndex: spineItem.spineIndex,
+          href: spineItem.href,
+          filePath: spineItem.absolutePath,
+          nodeTag: tag,
+          nodeIndex: index,
+          nodeId: attrs.id || "",
+          nodeClass: attrs.class || ""
+        },
+        linkTargets: inline.linkTargets.map((item) => ({
+          ...item,
+          kind: looksLikeNoteHref(item.href) ? "note" : "link"
+        })),
+        inlineIds: inline.inlineIds,
+        blockPresentation: blockPresentationFor(tag, attrs),
+        runs: inline.runs,
+        styleSignals: {
+          hasBold: inline.runs.some((run) => run.styleState.bold),
+          hasItalic: inline.runs.some((run) => run.styleState.italic),
+          hasSuperscript: inline.runs.some((run) => run.styleState.superscript),
+          hasLinks: inline.linkTargets.length > 0,
+          hasDropCap: inline.runs.some((run) => run.styleState.dropCap),
+          hasCustomScale: inline.runs.some((run) => Number(run.styleState.fontScale || 1) !== 1)
+        }
+      });
+    }
+    blocks.push(...imageBlocks);
   }
   return blocks;
 }
