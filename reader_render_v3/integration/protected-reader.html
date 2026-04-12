@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="google-drive-client-id" content="" />
     <title>ReaderPub Protected Reader</title>
+    <script>
+      (function () {
+        try {
+          var params = new URLSearchParams(window.location.search || "");
+          var embeddedMode = String(
+            params.get("embedded") ||
+              params.get("embeddedMode") ||
+              ""
+          )
+            .trim()
+            .toLowerCase();
+          if (embeddedMode === "old-shell") {
+            document.documentElement.dataset.shellMode = "embedded-old-shell";
+          }
+        } catch (_error) {}
+      })();
+    </script>
     <link rel="stylesheet" href="../dev/protected-reader.css" />
     <script src="/books/shared/drive-sync.js"></script>
   </head>
