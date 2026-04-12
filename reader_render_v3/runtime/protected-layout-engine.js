@@ -337,8 +337,8 @@ export function layoutChunk({
   for (const block of chunkModel.chunk.logicalBlockList) {
     if (block.blockType === "image" && block.image && block.image.assetPath) {
       const imageMeta = block.image || {};
-      const naturalWidth = Math.max(1, Number(imageMeta.widthPx || 0) || 0);
-      const naturalHeight = Math.max(1, Number(imageMeta.heightPx || 0) || 0);
+      const naturalWidth = Math.max(0, Number(imageMeta.widthPx || 0) || 0);
+      const naturalHeight = Math.max(0, Number(imageMeta.heightPx || 0) || 0);
       const hasNaturalSize = naturalWidth > 0 && naturalHeight > 0;
       const blockMarginTop = Math.max(0, Math.round((Number(block.blockPresentation && block.blockPresentation.marginTopEm || 0) || 0) * 18));
       const blockMarginBottom = Math.max(0, Math.round((Number(block.blockPresentation && block.blockPresentation.marginBottomEm || 0) || 0) * 18));
