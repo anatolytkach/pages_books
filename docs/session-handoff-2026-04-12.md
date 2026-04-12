@@ -190,6 +190,28 @@
   - `synthetic=4`
   - `placeholder=0`
 
+## Additional Milestone: Old-Shell First Paint Cleanup
+
+- Problem observed after the image-preservation and sizing fixes:
+  - protected books opened correctly in the old shell
+  - users briefly saw the standalone `reader_render_v3` integration UI before the embedded shell finished booting
+- Root cause:
+  - `protected-reader.html` rendered its standalone sidebar/debug chrome on first paint
+  - the embedded `old-shell` mode was only applied later, after module bootstrap ran
+- Implemented fix:
+  - detect `embedded=old-shell` in the document head before CSS paint
+  - set the shell mode on the root element immediately
+  - expand embedded-mode CSS selectors so the standalone chrome is suppressed from the first paint instead of after hydration
+- Commit:
+  - `7f75afed9a368948d6a5423fb520117316e1afb5`
+- Remote:
+  - pushed to `origin/codex/protected-publish-jobs`
+- Staging deploy:
+  - custom URL: `https://books-staging.reader.pub/books/`
+  - preview URL: `https://932f2e6e.readerpub-books-staging.pages.dev`
+- Verification target:
+  - re-open the protected reader URL for `contentId=200091` and confirm the standalone test interface no longer flashes before the old shell appears
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
