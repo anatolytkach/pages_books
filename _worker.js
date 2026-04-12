@@ -2936,9 +2936,13 @@ export default {
       };
 
       const requireInternalTaskAuth = () => {
-        const expected = String(env.INTERNAL_TASK_SECRET || env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
         const provided = String(request.headers.get("x-reader-internal-key") || "").trim();
-        if (!expected || !provided || provided !== expected) {
+        const acceptedSecrets = [
+          String(env.PROTECTED_JOB_CALLBACK_SECRET || "").trim(),
+          String(env.INTERNAL_TASK_SECRET || "").trim(),
+          String(env.SUPABASE_SERVICE_ROLE_KEY || "").trim(),
+        ].filter(Boolean);
+        if (!provided || acceptedSecrets.length === 0 || !acceptedSecrets.includes(provided)) {
           return jsonResponse({ error: "Forbidden" }, 403, apiCorsHeaders);
         }
         return null;
