@@ -60,8 +60,6 @@ def main() -> int:
             "-o",
             str(output_epub),
             f"--css={merged_css}",
-            "--toc",
-            "--toc-depth=2",
             "--metadata", f"title={title}",
             "--metadata", f"author={author}",
             "--metadata", f"lang={language}",
