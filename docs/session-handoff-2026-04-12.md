@@ -142,6 +142,54 @@
 - Reader URL for the post-deploy proof point:
   - `https://books-staging.reader.pub/books/reader/?id=200088&source=manual&entry=catalog&reader=protected&protectedUx=old-shell&protectedArtifactSource=r2&protectedAllowAll=1`
 
+## Additional Milestone: Protected Image Preservation
+
+- Problem observed after EPUB-return rollout:
+  - normalized EPUB looked correct
+  - protected reader output was missing inline images
+- Root cause:
+  - protected ingestion extracted only text-bearing blocks
+  - image-only paragraphs were dropped before chunking
+  - protected runtime layout/render path was also text-only
+- Implemented fix:
+  - preserve inline image-only blocks during protected extraction
+  - assign image asset paths and copy referenced image files into protected artifact `assets/`
+  - carry image block metadata into runtime chunk JSON
+  - lay out image blocks in protected runtime
+  - render image blocks on the protected canvas
+- Added regression coverage:
+  - `tests/unit/protected-ingestion-images.unit.test.mjs`
+- Verified locally with:
+  - `node --test tests\unit\protected-ingestion-images.unit.test.mjs tests\unit\worker-protected-jobs.unit.test.mjs`
+  - result: `7` passed, `0` failed
+
+## Live Verification After Image Fix
+
+- Pushed image-preservation commit to `origin/codex/protected-publish-jobs`
+- Deployed updated staging preview:
+  - `https://8ec4e569.readerpub-books-staging.pages.dev`
+- Fresh staging DOCX run after image fix:
+  - `jobId=59a6a243-ff90-4e25-bb6c-f80209142657`
+  - `contentId=200090`
+  - status: `completed`
+  - validation: `passed`
+- Protected artifact verification:
+  - `chunk-000001.json` now contains `2` image blocks
+  - first image block points to:
+    - `assets/image-18306f7acb079825.jpg`
+    - alt text: `Golden Gate Bridge in fog`
+  - live asset probe succeeded:
+    - `https://books-staging.reader.pub/books/protected-content/200090/assets/image-18306f7acb079825.jpg`
+    - HTTP `200`
+    - `Content-Type: image/jpeg`
+- Reader proof URL:
+  - `https://books-staging.reader.pub/books/reader/?id=200090&source=manual&entry=catalog&reader=protected&protectedUx=old-shell&protectedArtifactSource=r2&protectedAllowAll=1`
+- Glyph extraction remained healthy on the same run:
+  - `total=150`
+  - `extracted=146`
+  - `synthetic=4`
+  - `placeholder=0`
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
