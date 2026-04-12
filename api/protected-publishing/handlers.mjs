@@ -68,6 +68,62 @@ function buildSourceObjectKey(jobId, filename) {
   return `uploads/protected/${jobId}/${filename}`;
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function mergeJsonObjects(baseValue, nextValue) {
+  if (!isPlainObject(baseValue)) return isPlainObject(nextValue) ? { ...nextValue } : nextValue;
+  if (!isPlainObject(nextValue)) return nextValue;
+  const merged = { ...baseValue };
+  for (const [key, value] of Object.entries(nextValue)) {
+    const current = merged[key];
+    merged[key] = isPlainObject(current) && isPlainObject(value)
+      ? mergeJsonObjects(current, value)
+      : value;
+  }
+  return merged;
+}
+
+function sanitizeDownloadStem(value, fallback = "normalized-book") {
+  const raw = normalizeText(value).replace(/\.[^.]+$/, "");
+  const safe = raw.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  return safe || fallback;
+}
+
+function buildNormalizedEpubFilename(job) {
+  const preferred = sanitizeDownloadStem(job?.submitted_title, "");
+  if (preferred) return `${preferred}.epub`;
+  const sourceStem = sanitizeDownloadStem(job?.source_filename, "");
+  if (sourceStem) return `${sourceStem}.epub`;
+  return "normalized-book.epub";
+}
+
+function buildNormalizedEpubResponse(job) {
+  const normalized = job?.result_payload?.normalized_epub;
+  if (normalizeFormat(job?.source_format) !== "docx") return null;
+  if (normalizeText(job?.status) !== "completed") return null;
+  if (!normalized || !normalized.r2_key) return null;
+  return {
+    available: true,
+    filename: normalizeText(normalized.filename) || buildNormalizedEpubFilename(job),
+    download_url: `/books/api/v1/protected-jobs/${job.id}/normalized-epub`,
+  };
+}
+
+async function canUserAccessPublishingJob(sbFetch, job, userId) {
+  const normalizedUserId = normalizeText(userId);
+  if (!job || !normalizedUserId) return false;
+  if (normalizeText(job.triggered_by_user_id) === normalizedUserId) return true;
+  const tenantId = normalizeText(job.tenant_id);
+  if (!tenantId) return false;
+  const { data: membership } = await sbFetch("tenant_memberships", {
+    params: `tenant_id=eq.${tenantId}&user_id=eq.${normalizedUserId}&is_active=eq.true&role=in.(owner,admin,publisher,editor)&select=id`,
+    single: true,
+  });
+  return Boolean(membership?.id);
+}
+
 async function updateBookSourceAsset(sbFetch, bookId, payload) {
   const { data: existingAsset } = await sbFetch("source_assets", {
     params: `book_id=eq.${bookId}&select=id&order=created_at.desc&limit=1`,
@@ -319,18 +375,20 @@ export async function uploadProtectedPublishingSource(context) {
 
 export async function getProtectedPublishingJob(context) {
   const { sbFetch, jobId, user, internal = false } = context;
-  const result = await fetchPublishingJob(
-    sbFetch,
-    jobId,
-    internal ? {} : { params: `triggered_by_user_id=eq.${user.sub}` }
-  );
+  const result = await fetchPublishingJob(sbFetch, jobId);
   if (result.error) return { error: result.error, status: 500 };
   if (!result.data) return { error: "Job not found", status: 404 };
+  if (!internal) {
+    const allowed = await canUserAccessPublishingJob(sbFetch, result.data, user.sub);
+    if (!allowed) return { error: "Job not found", status: 404 };
+  }
+  const normalizedEpub = buildNormalizedEpubResponse(result.data);
   return {
     status: 200,
     data: {
       ...result.data,
       message: buildJobMessage(result.data.status, result.data.source_format),
+      ...(normalizedEpub ? { normalized_epub: normalizedEpub } : {}),
     },
   };
 }
@@ -409,6 +467,9 @@ export async function completeProtectedPublishingUpload(context) {
 
 export async function updateProtectedPublishingProgress(context) {
   const { sbFetch, jobId, payload } = context;
+  const jobResult = await fetchPublishingJob(sbFetch, jobId);
+  if (jobResult.error) return { error: jobResult.error, status: 500 };
+  if (!jobResult.data) return { error: "Job not found", status: 404 };
   const nextStatus = normalizeText(payload?.status);
   const updates = {
     updated_at: new Date().toISOString(),
@@ -418,12 +479,13 @@ export async function updateProtectedPublishingProgress(context) {
   if (payload?.validation_errors !== undefined) updates.validation_errors = payload.validation_errors;
   if (payload?.error_step !== undefined) updates.error_step = payload.error_step;
   if (payload?.error_message !== undefined) updates.error_message = payload.error_message;
-  if (payload?.result_payload !== undefined) updates.result_payload = payload.result_payload;
+  if (payload?.result_payload !== undefined) {
+    updates.result_payload = mergeJsonObjects(jobResult.data.result_payload || {}, payload.result_payload);
+  }
   if (payload?.started_at !== undefined) updates.started_at = payload.started_at;
   if (payload?.completed_at !== undefined) updates.completed_at = payload.completed_at;
   const updated = await updatePublishingJob(sbFetch, jobId, updates);
   if (updated.error) return { error: updated.error, status: 500 };
-  if (!updated.data) return { error: "Job not found", status: 404 };
   return {
     status: 200,
     data: {
@@ -490,7 +552,7 @@ export async function failProtectedPublishingJob(context) {
 }
 
 export async function finalizeProtectedPublishingJob(context) {
-  const { env, sbFetch, jobId, updateCatalogIndexes } = context;
+  const { env, sbFetch, jobId, updateCatalogIndexes, payload } = context;
   const jobResult = await fetchPublishingJob(sbFetch, jobId);
   if (jobResult.error) return { error: jobResult.error, status: 500 };
   if (!jobResult.data) return { error: "Job not found", status: 404 };
@@ -564,12 +626,13 @@ export async function finalizeProtectedPublishingJob(context) {
     error_step: null,
     error_message: null,
     completed_at: new Date().toISOString(),
-    result_payload: {
+    result_payload: mergeJsonObjects(jobResult.data.result_payload || {}, {
       content_id: jobResult.data.content_id,
       protected_content_path: protectedContentPath,
       reader_type: "protected",
       book_id: jobResult.data.book_id,
-    },
+      ...(payload?.result_payload || {}),
+    }),
   });
   if (updated.error) return { error: updated.error, status: 500 };
   return {
@@ -578,5 +641,43 @@ export async function finalizeProtectedPublishingJob(context) {
       ...updated.data,
       message: buildJobMessage("completed", updated.data.source_format),
     },
+  };
+}
+
+export async function downloadProtectedPublishingNormalizedEpub(context) {
+  const { env, sbFetch, jobId, user } = context;
+  if (!env.READER_BOOKS) return { error: "Storage not configured", status: 500 };
+
+  const jobResult = await fetchPublishingJob(sbFetch, jobId);
+  if (jobResult.error) return { error: jobResult.error, status: 500 };
+  if (!jobResult.data) return { error: "Job not found", status: 404 };
+
+  const allowed = await canUserAccessPublishingJob(sbFetch, jobResult.data, user.sub);
+  if (!allowed) return { error: "Job not found", status: 404 };
+
+  const normalized = buildNormalizedEpubResponse(jobResult.data);
+  if (!normalized) {
+    return { error: "Normalized EPUB is not available for this job", status: 404 };
+  }
+
+  const r2Key = normalizeText(jobResult.data?.result_payload?.normalized_epub?.r2_key);
+  if (!r2Key) {
+    return { error: "Normalized EPUB is not available for this job", status: 404 };
+  }
+
+  const object = await env.READER_BOOKS.get(r2Key);
+  if (!object) return { error: "Normalized EPUB file is missing", status: 404 };
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("content-type", "application/epub+zip");
+  headers.set("content-disposition", `attachment; filename="${normalized.filename}"`);
+  headers.set("cache-control", "no-store");
+  headers.set("etag", object.httpEtag);
+
+  return {
+    status: 200,
+    body: object.body,
+    headers,
   };
 }

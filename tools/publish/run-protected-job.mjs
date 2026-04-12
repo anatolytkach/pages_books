@@ -67,6 +67,10 @@ async function finalizeJob(baseUrl, secret, jobId, payload = {}) {
   return postWorkerJson(baseUrl, secret, `/protected-jobs/${jobId}/finalize`, payload);
 }
 
+function buildNormalizedEpubObjectKey(jobId) {
+  return `generated/protected-jobs/${jobId}/normalized.epub`;
+}
+
 function resolveWranglerBin(workspaceRoot) {
   return envText("WRANGLER_BIN") || path.join(workspaceRoot, "reader_render_v3", "node_modules", ".bin", process.platform === "win32" ? "wrangler.cmd" : "wrangler");
 }
@@ -115,6 +119,7 @@ async function main() {
     });
 
     let protectedInputPath = sourcePath;
+    let normalizedEpubR2Key = "";
     if (sourceFormat === "docx") {
       const validationResult = run(pythonBin, [validateDocxScript, sourcePath, "--json"], {
         captureOutput: true,
@@ -146,6 +151,23 @@ async function main() {
         "--input", sourcePath,
         "--output", normalizedEpubPath,
       ]);
+      normalizedEpubR2Key = buildNormalizedEpubObjectKey(jobId);
+      log(`uploading normalized EPUB to ${normalizedEpubR2Key}`);
+      run(wranglerBin, ["r2", "object", "put", `${bucketName}/${normalizedEpubR2Key}`, "--file", normalizedEpubPath, "--remote"], {
+        env: {
+          CLOUDFLARE_API_TOKEN: requireEnv("CLOUDFLARE_API_TOKEN"),
+          CLOUDFLARE_ACCOUNT_ID: requireEnv("CLOUDFLARE_ACCOUNT_ID"),
+        },
+      });
+      await updateProgress(apiBase, callbackSecret, jobId, {
+        result_payload: {
+          normalized_epub: {
+            available: true,
+            r2_key: normalizedEpubR2Key,
+            filename: "normalized.epub",
+          },
+        },
+      });
       protectedInputPath = normalizedEpubPath;
     }
 
@@ -181,10 +203,25 @@ async function main() {
         content_id: contentId,
         protected_prefix: protectedPrefix,
         protected_content_path: `/books/${protectedPrefix}`,
+        ...(normalizedEpubR2Key ? {
+          normalized_epub: {
+            available: true,
+            r2_key: normalizedEpubR2Key,
+            filename: "normalized.epub",
+          },
+        } : {}),
       },
     });
 
-    await finalizeJob(apiBase, callbackSecret, jobId);
+    await finalizeJob(apiBase, callbackSecret, jobId, {
+      result_payload: normalizedEpubR2Key ? {
+        normalized_epub: {
+          available: true,
+          r2_key: normalizedEpubR2Key,
+          filename: "normalized.epub",
+        },
+      } : {},
+    });
     log(`completed job ${jobId}`);
   } catch (error) {
     await failJob(apiBase, callbackSecret, jobId, {

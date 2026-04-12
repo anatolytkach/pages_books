@@ -2,6 +2,7 @@ import { handlePublisherTaskRequest } from "./publisher_tasks/service.mjs";
 import {
   completeProtectedPublishingUpload,
   createProtectedPublishingJob,
+  downloadProtectedPublishingNormalizedEpub,
   failProtectedPublishingJob,
   finalizeProtectedPublishingJob,
   getProtectedPublishingJob,
@@ -4259,6 +4260,24 @@ export default {
         return jsonResponse(result.data, result.status || 200, apiCorsHeaders);
       }
 
+      const protectedNormalizedEpubMatch = apiPath.match(/^\/protected-jobs\/([0-9a-f-]+)\/normalized-epub$/);
+      if (protectedNormalizedEpubMatch && request.method === "GET") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const result = await downloadProtectedPublishingNormalizedEpub({
+          env,
+          sbFetch,
+          jobId: protectedNormalizedEpubMatch[1],
+          user,
+        });
+        if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
+        result.headers.set("x-reader-worker", "1");
+        return new Response(result.body, {
+          status: result.status || 200,
+          headers: result.headers,
+        });
+      }
+
       const protectedSourceUploadMatch = apiPath.match(/^\/protected-jobs\/([0-9a-f-]+)\/source$/);
       if (protectedSourceUploadMatch && request.method === "PUT") {
         const authErr = requireAuth();
@@ -4306,11 +4325,13 @@ export default {
       if (protectedFinalizeMatch && request.method === "POST") {
         const authErr = requireInternalTaskAuth();
         if (authErr) return authErr;
+        const body = await request.json().catch(() => ({}));
         const result = await finalizeProtectedPublishingJob({
           env,
           sbFetch,
           jobId: protectedFinalizeMatch[1],
           updateCatalogIndexes,
+          payload: body,
         });
         if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
         return jsonResponse(result.data, result.status || 200, apiCorsHeaders);

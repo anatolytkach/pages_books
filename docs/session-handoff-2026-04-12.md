@@ -76,6 +76,31 @@
 - If visual output looks correct, use `200083` as the post-fix proof point
 - If needed later, rebuild `200082` rather than trying to diagnose it as if it were generated under the current pipeline
 
+## Additional Milestone: Persist Normalized EPUB
+
+- The protected DOCX pipeline now preserves the generated normalized EPUB instead of discarding it after glyph conversion
+- DOCX jobs upload the normalized EPUB to:
+  - `generated/protected-jobs/<jobId>/normalized.epub`
+- The Actions runner now includes normalized EPUB metadata in job progress and finalization payloads
+- The Worker now:
+  - merges `result_payload` updates instead of overwriting them
+  - exposes `normalized_epub` metadata on completed DOCX jobs
+  - serves `GET /books/api/v1/protected-jobs/<jobId>/normalized-epub`
+  - requires the requester to be either:
+    - the user who created the job, or
+    - an active tenant member with one of: `owner`, `admin`, `publisher`, `editor`
+
+## Verification For EPUB Persistence
+
+- Added unit coverage for:
+  - completed DOCX job status exposing normalized EPUB metadata
+  - authorized normalized EPUB download for a tenant member
+- Verified with:
+  - `node --test tests\unit\worker-protected-jobs.unit.test.mjs`
+- Result:
+  - `6` tests passed
+  - `0` failed
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.

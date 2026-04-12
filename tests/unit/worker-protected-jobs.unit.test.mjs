@@ -372,3 +372,129 @@ test("Unit: upload-complete verifies R2 object and dispatches GitHub job", async
   assert.equal(payload.status, "queued");
   assert.equal(payload.message, "Queued for protected conversion");
 });
+
+test("Unit: protected job status exposes normalized EPUB metadata for completed DOCX jobs", async (t) => {
+  const jwt = buildJwt();
+  const jobId = "423e4567-e89b-12d3-a456-426614174111";
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "publisher@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-4",
+        content_id: "200558",
+        status: "completed",
+        source_format: "docx",
+        source_filename: "Sample.docx",
+        submitted_title: "Sample Book",
+        tenant_id: "tenant-1",
+        triggered_by_user_id: "user-1",
+        result_payload: {
+          normalized_epub: {
+            available: true,
+            r2_key: `generated/protected-jobs/${jobId}/normalized.epub`,
+            filename: "normalized.epub",
+          },
+          protected_content_path: "/books/protected-content/200558",
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/protected-jobs/${jobId}`,
+    method: "GET",
+    headers: { authorization: `Bearer ${jwt}` },
+    env: {
+      READER_BOOKS: createR2Bucket(),
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.message, "Protected book published");
+  assert.deepEqual(payload.normalized_epub, {
+    available: true,
+    filename: "normalized.epub",
+    download_url: `/books/api/v1/protected-jobs/${jobId}/normalized-epub`,
+  });
+});
+
+test("Unit: protected normalized EPUB download returns attachment for authorized tenant member", async (t) => {
+  const jwt = buildJwt("tenant-user-1", "tenant@example.com");
+  const jobId = "523e4567-e89b-12d3-a456-426614174111";
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      [`generated/protected-jobs/${jobId}/normalized.epub`]: {
+        body: "normalized-epub-bytes",
+        httpEtag: '"epub-etag"',
+        async text() {
+          return "normalized-epub-bytes";
+        },
+        async json() {
+          return { invalid: true };
+        },
+        writeHttpMetadata(headers) {
+          headers.set("content-type", "application/epub+zip");
+        },
+      },
+    },
+  });
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "tenant-user-1", email: "tenant@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-5",
+        content_id: "200559",
+        status: "completed",
+        source_format: "docx",
+        source_filename: "sample.docx",
+        submitted_title: "Client Facing Sample",
+        tenant_id: "tenant-1",
+        triggered_by_user_id: "owner-user",
+        result_payload: {
+          normalized_epub: {
+            available: true,
+            r2_key: `generated/protected-jobs/${jobId}/normalized.epub`,
+            filename: "normalized.epub",
+          },
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ id: "membership-1" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/protected-jobs/${jobId}/normalized-epub`,
+    method: "GET",
+    headers: { authorization: `Bearer ${jwt}` },
+    env: {
+      READER_BOOKS: bucket,
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/epub+zip");
+  assert.equal(response.headers.get("content-disposition"), 'attachment; filename="normalized.epub"');
+  assert.equal(await response.text(), "normalized-epub-bytes");
+});
