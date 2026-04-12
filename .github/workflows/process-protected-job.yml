@@ -1,0 +1,79 @@
+name: Process Protected Publish Job
+
+on:
+  repository_dispatch:
+    types:
+      - protected_publish_job
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Protected publishing job ID
+        required: true
+        type: string
+      book_id:
+        description: Book UUID
+        required: true
+        type: string
+      content_id:
+        description: Content ID
+        required: true
+        type: string
+      source_r2_key:
+        description: Uploaded source object key
+        required: true
+        type: string
+      protected_prefix:
+        description: Destination protected content prefix
+        required: true
+        type: string
+      source_format:
+        description: Source document format
+        required: true
+        type: string
+
+jobs:
+  process-job:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'repository_dispatch' && github.event.action == 'protected_publish_job')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      READER_API_BASE: ${{ secrets.READER_API_BASE }}
+      PROTECTED_JOB_CALLBACK_SECRET: ${{ secrets.PROTECTED_JOB_CALLBACK_SECRET }}
+      R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+      JOB_ID: ${{ github.event.client_payload.jobId || inputs.job_id }}
+      BOOK_ID: ${{ github.event.client_payload.bookId || inputs.book_id }}
+      CONTENT_ID: ${{ github.event.client_payload.contentId || inputs.content_id }}
+      SOURCE_R2_KEY: ${{ github.event.client_payload.sourceR2Key || inputs.source_r2_key }}
+      PROTECTED_PREFIX: ${{ github.event.client_payload.protectedPrefix || inputs.protected_prefix }}
+      SOURCE_FORMAT: ${{ github.event.client_payload.sourceFormat || inputs.source_format }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            reader_render_v3/package-lock.json
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install protected reader dependencies
+        run: npm --prefix reader_render_v3 install
+
+      - name: Install DOCX conversion dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc zip unzip python3-pip
+          python3 -m pip install --user python-docx
+
+      - name: Run protected publish job
+        run: node tools/publish/run-protected-job.mjs
