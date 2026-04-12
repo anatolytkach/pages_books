@@ -171,6 +171,7 @@ async function main() {
         CLOUDFLARE_API_TOKEN: requireEnv("CLOUDFLARE_API_TOKEN"),
         CLOUDFLARE_ACCOUNT_ID: requireEnv("CLOUDFLARE_ACCOUNT_ID"),
       },
+      captureOutput: true,
     });
 
     await updateProgress(apiBase, callbackSecret, jobId, {
