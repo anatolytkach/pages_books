@@ -5211,12 +5211,17 @@ function attachProtectedSurfaceInteractions(frame) {
       const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
       const summary = getBridgeSummaryFromFrame(frame);
       const primaryButton = event.button == null || event.button === 0;
+      const isTouchPointer = String(event.pointerType || "").toLowerCase() === "touch";
       const toolbar = document.getElementById("selectionToolbar");
       const shouldClear = !!(
         (toolbar && !toolbar.classList.contains("hidden")) ||
         (summary && (summary.focusedAnnotationId || summary.selectionActive))
       );
       if (!inProtectedSurface || !shouldClear || !primaryButton) return;
+      if (isTouchPointer) {
+        hideSelectionToolbar();
+        return;
+      }
       suppressSelectionToolbarReopen(1000);
       hideSelectionToolbar();
       void invokeBridgeRaw("clearSelection")
@@ -5233,13 +5238,7 @@ function attachProtectedSurfaceInteractions(frame) {
         (summary && (summary.focusedAnnotationId || summary.selectionActive))
       );
       if (!shouldClear) return;
-      suppressSelectionToolbarReopen(1000);
       hideSelectionToolbar();
-      void invokeBridgeRaw("clearSelection")
-        .then((nextSummary) => {
-          if (nextSummary) updateFromSummary(nextSummary);
-        })
-        .catch(() => {});
     }, { capture: true, passive: true });
     doc.addEventListener("click", (event) => {
       const target = event.target;
