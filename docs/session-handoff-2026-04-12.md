@@ -101,6 +101,47 @@
   - `6` tests passed
   - `0` failed
 
+## Additional Milestone: Staging Push And Deploy
+
+- Pushed `codex/protected-publish-jobs` to `origin/codex/protected-publish-jobs`
+- Deployed staging Pages project:
+  - project: `readerpub-books-staging`
+  - Pages branch: `develop`
+  - deployed commit: `f9f542df8040d02e9ce7804b89a787a442f7d29e`
+  - preview URL: `https://bd0ec7df.readerpub-books-staging.pages.dev`
+- During deployment work, the repo deploy helpers were corrected to:
+  - use LF line endings so `bash` can execute them on Windows-hosted repos
+  - include `api/` in the Pages bundle because `_worker.js` imports `api/protected-publishing/*`
+  - exclude `reader_render_v3/node_modules` and `reader_render_v3/artifacts` from the Pages bundle
+    - `node_modules` contained platform-specific reparse points
+    - `artifacts` contained generated files larger than the Pages 25 MiB per-file limit
+  - record branch/commit using `git -c safe.directory=...`
+
+## Live Verification After Deploy
+
+- Fresh staging DOCX run after deploy:
+  - `jobId=b04243e9-18be-4e7d-b672-78947c07f6f9`
+  - `contentId=200088`
+  - status: `completed`
+  - validation: `passed`
+- The completed job now returned:
+  - `normalized_epub.available=true`
+  - `download_url=/books/api/v1/protected-jobs/b04243e9-18be-4e7d-b672-78947c07f6f9/normalized-epub`
+- Verified normalized EPUB download:
+  - HTTP `200`
+  - `Content-Type: application/epub+zip`
+  - `Content-Disposition: attachment; filename="normalized.epub"`
+  - downloaded bytes: `2325119`
+  - file signature bytes: `80 75 3 4` (`PK..`, valid ZIP/EPUB header)
+- Verified protected glyph output remained healthy after deploy:
+  - shapes summary for `200088`:
+    - `total=150`
+    - `extracted=146`
+    - `synthetic=4`
+    - `placeholder=0`
+- Reader URL for the post-deploy proof point:
+  - `https://books-staging.reader.pub/books/reader/?id=200088&source=manual&entry=catalog&reader=protected&protectedUx=old-shell&protectedArtifactSource=r2&protectedAllowAll=1`
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
