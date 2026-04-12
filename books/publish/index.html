@@ -965,11 +965,18 @@
         }
       }
 
-      async function uploadFileWithProgress(url, file) {
+      async function uploadFileWithProgress(url, file, method = 'PUT', extraHeaders = null) {
         return new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
-          xhr.open('PUT', url);
+          xhr.open(method, url);
           xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+          if (extraHeaders && typeof extraHeaders === 'object') {
+            Object.entries(extraHeaders).forEach(([key, value]) => {
+              if (!key || value == null) return;
+              if (String(key).toLowerCase() === 'content-type') return;
+              xhr.setRequestHeader(key, value);
+            });
+          }
           xhr.upload.addEventListener('progress', (e) => {
             if (!e.lengthComputable) return;
             const pct = Math.round((e.loaded / e.total) * 100);
@@ -1022,7 +1029,16 @@
         }
 
         const job = await apiFetch('POST', '/protected-jobs', { body });
-        await uploadFileWithProgress(job.upload.url, file);
+        const uploadHeaders = (job.upload && job.upload.headers && typeof job.upload.headers === 'object')
+          ? { ...job.upload.headers }
+          : {};
+        if (String(job.upload?.url || '').startsWith('/')) {
+          const { data: { session } } = await sb.auth.getSession();
+          if (session?.access_token) {
+            uploadHeaders.authorization = `Bearer ${session.access_token}`;
+          }
+        }
+        await uploadFileWithProgress(job.upload.url, file, job.upload?.method || 'PUT', uploadHeaders);
         $progressBar.style.width = '35%';
         $progressText.textContent = 'Confirming upload...';
         await apiFetch('POST', `/protected-jobs/${job.jobId}/upload-complete`, { body: {} });

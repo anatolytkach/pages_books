@@ -253,7 +253,17 @@ export async function createProtectedPublishingJob(context) {
       secretAccessKey: env.R2_SECRET_ACCESS_KEY,
     });
   } catch (error) {
-    return { error: error.message || "R2 upload signing is not configured", status: 500 };
+    if (!env.READER_BOOKS) {
+      return { error: error.message || "R2 upload signing is not configured", status: 500 };
+    }
+    upload = {
+      kind: "worker",
+      method: "PUT",
+      url: `/books/api/v1/protected-jobs/${updatedJob.data.id}/source`,
+      headers: {
+        "content-type": inferMimeType(sourceFormat),
+      },
+    };
   }
 
   return {
@@ -267,6 +277,42 @@ export async function createProtectedPublishingJob(context) {
       sourceObjectKey,
       protectedPrefix: updatedJob.data.protected_prefix,
       upload,
+    },
+  };
+}
+
+export async function uploadProtectedPublishingSource(context) {
+  const { env, sbFetch, jobId, user, request } = context;
+  const jobResult = await fetchPublishingJob(sbFetch, jobId, {
+    params: `triggered_by_user_id=eq.${user.sub}`,
+  });
+  if (jobResult.error) return { error: jobResult.error, status: 500 };
+  if (!jobResult.data) return { error: "Job not found", status: 404 };
+  if (jobResult.data.status !== "awaiting_upload") {
+    return { error: "Source upload is no longer accepted for this job", status: 409 };
+  }
+  if (!env.READER_BOOKS) {
+    return { error: "Storage not configured", status: 500 };
+  }
+
+  const contentType = normalizeText(request.headers.get("content-type")) || inferMimeType(jobResult.data.source_format);
+  const body = await request.arrayBuffer();
+  if (!body || !body.byteLength) {
+    return { error: "Source upload is empty", status: 400 };
+  }
+
+  await env.READER_BOOKS.put(jobResult.data.source_r2_key, body, {
+    httpMetadata: {
+      contentType,
+    },
+  });
+
+  return {
+    status: 201,
+    data: {
+      jobId: jobResult.data.id,
+      uploaded: true,
+      bytes: body.byteLength,
     },
   };
 }

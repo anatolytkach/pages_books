@@ -5,6 +5,7 @@ import {
   failProtectedPublishingJob,
   finalizeProtectedPublishingJob,
   getProtectedPublishingJob,
+  uploadProtectedPublishingSource,
   updateProtectedPublishingProgress,
 } from "./api/protected-publishing/handlers.mjs";
 import {
@@ -4202,6 +4203,21 @@ export default {
         });
         if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
         return jsonResponse(result.data, result.status || 200, apiCorsHeaders);
+      }
+
+      const protectedSourceUploadMatch = apiPath.match(/^\/protected-jobs\/([0-9a-f-]+)\/source$/);
+      if (protectedSourceUploadMatch && request.method === "PUT") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const result = await uploadProtectedPublishingSource({
+          env,
+          sbFetch,
+          jobId: protectedSourceUploadMatch[1],
+          user,
+          request,
+        });
+        if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
+        return jsonResponse(result.data, result.status || 201, apiCorsHeaders);
       }
 
       const protectedUploadCompleteMatch = apiPath.match(/^\/protected-jobs\/([0-9a-f-]+)\/upload-complete$/);
