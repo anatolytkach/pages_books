@@ -368,6 +368,16 @@ async function updateCatalogIndexes(env, book, options = {}) {
     protectedContentPath: readerConfig.protectedContentPath,
   });
 
+  await updateNewestDiscoveryIndexes(env, {
+    contentId,
+    title,
+    author: authorDisplay,
+    coverUrl,
+    language,
+    source,
+    sourceBookId,
+  });
+
   // 5. Update languages.json — ensure the book's language is listed
   if (language && language !== "und") {
     const langR2Key = "api/languages.json";
@@ -390,6 +400,46 @@ async function updateCatalogIndexes(env, book, options = {}) {
     await env.READER_BOOKS.put(langR2Key, JSON.stringify(langData), {
       httpMetadata: { contentType: "application/json; charset=utf-8" },
     });
+  }
+}
+
+async function updateNewestDiscoveryIndexes(env, { contentId, title, author, coverUrl, language, source, sourceBookId }) {
+  const generatedAt = new Date().toISOString();
+  const catalogAddedAt = generatedAt;
+  const entry = {
+    id: contentId,
+    source: String(source || "manual"),
+    legacyId: contentId,
+    sourceBookId: String(sourceBookId || contentId),
+    title: String(title || contentId),
+    author: String(author || ""),
+    cover: String(coverUrl || ""),
+    language: String(language || ""),
+    catalogAddedAt,
+  };
+
+  const prefixes = ["api"];
+  if (language && language !== "und") {
+    prefixes.push(`api/lang/${language}`);
+  }
+
+  for (const apiPrefix of prefixes) {
+    const newestKey = `${apiPrefix}/discover/newest.json`;
+    const payload = await getCatalogJson(env, newestKey, {
+      windowDays: 30,
+      generatedAt,
+      count: 0,
+      books: [],
+    });
+    const books = Array.isArray(payload && payload.books) ? payload.books : [];
+    const withoutCurrent = books.filter((item) => String(item && (item.legacyId || item.id || "")) !== contentId);
+    withoutCurrent.unshift(entry);
+    const windowDays = Number(payload && payload.windowDays) > 0 ? Number(payload.windowDays) : 30;
+    payload.windowDays = windowDays;
+    payload.generatedAt = generatedAt;
+    payload.books = withoutCurrent.slice(0, Math.max(100, books.length || 0));
+    payload.count = payload.books.length;
+    await putCatalogJson(env, newestKey, payload);
   }
 }
 
