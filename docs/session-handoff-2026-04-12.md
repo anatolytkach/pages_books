@@ -212,6 +212,19 @@
 - Verification target:
   - re-open the protected reader URL for `contentId=200091` and confirm the standalone test interface no longer flashes before the old shell appears
 
+## Additional Milestone: Manual Local DOCX Debug Flow
+
+- Added a repo doc for running a fully local:
+  - `docx -> epub -> protected artifact -> local protected reader`
+- New doc:
+  - `docs/local-docx-to-protected-reader.md`
+- The documented flow covers:
+  - DOCX validation
+  - local DOCX to EPUB conversion
+  - local EPUB to protected artifact conversion
+  - local HTTP serving on `127.0.0.1:8788`
+  - opening both the dev protected reader and old-shell protected reader locally
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
