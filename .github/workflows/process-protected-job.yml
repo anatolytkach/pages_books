@@ -69,6 +69,9 @@ jobs:
       - name: Install protected reader dependencies
         run: npm --prefix reader_render_v3 install
 
+      - name: Install Wrangler for protected publishing
+        run: npm --prefix reader_render_v3 install --save-dev wrangler@4.81.1
+
       - name: Install DOCX conversion dependencies
         run: |
           sudo apt-get update
