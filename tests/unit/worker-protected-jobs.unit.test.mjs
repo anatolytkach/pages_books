@@ -187,12 +187,12 @@ test("Unit: upload-complete verifies R2 object and dispatches GitHub job", async
     ),
     (...args) => {
       const [url, options] = args;
-      assert.equal(url, "https://api.github.com/repos/anatolytkach/pages_books/dispatches");
+      assert.equal(url, "https://api.github.com/repos/anatolytkach/pages_books/actions/workflows/process-protected-job.yml/dispatches");
       assert.equal(options.method, "POST");
       const body = JSON.parse(options.body);
-      assert.equal(body.event_type, "protected_publish_job");
-      assert.equal(body.client_payload.jobId, jobId);
-      assert.equal(body.client_payload.sourceFormat, "epub");
+      assert.equal(body.ref, "codex/protected-publish-jobs");
+      assert.equal(body.inputs.job_id, jobId);
+      assert.equal(body.inputs.source_format, "epub");
       return new Response(null, { status: 204 });
     },
   ]);
@@ -210,6 +210,7 @@ test("Unit: upload-complete verifies R2 object and dispatches GitHub job", async
       GITHUB_REPO_DISPATCH_TOKEN: "github-token",
       GITHUB_REPO_OWNER: "anatolytkach",
       GITHUB_REPO_NAME: "pages_books",
+      GITHUB_WORKFLOW_REF: "codex/protected-publish-jobs",
     },
   });
   const payload = await readJson(response);
