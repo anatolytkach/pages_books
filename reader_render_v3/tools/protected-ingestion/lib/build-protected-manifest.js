@@ -189,12 +189,16 @@ function buildStyles(styles, fontPlan) {
   };
 }
 
-function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, runtimeShapeChunks, debugChunks, debugGlyphChunks, styles, fontPlan, debugArtifactEnabled }) {
+function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, runtimeShapeChunks, debugChunks, debugGlyphChunks, styles, fontPlan, debugArtifactEnabled, allowPartialToc = false }) {
   const tocCoverage = buildTocCoverage(runtimeChunks, toc);
   const missingToc = toc.filter((item) => item && item.href && !tocCoverage.has(item.id));
   if (missingToc.length) {
+    if (allowPartialToc) {
+      toc = toc.filter((item) => !item || !item.href || tocCoverage.has(item.id));
+    } else {
     const sample = missingToc.slice(0, 5).map((item) => `${item.id}:${item.label}`).join(", ");
     throw new Error(`Protected build could not map ${missingToc.length} TOC items to chunk anchors (${sample})`);
+    }
   }
   const manifest = {
     version: 3,
@@ -208,6 +212,12 @@ function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, 
       inputType: book.inputType,
       bookId: book.bookId
     },
+    buildWarnings: missingToc.length && allowPartialToc
+      ? [{
+          code: "partial_toc",
+          message: `Dropped ${missingToc.length} TOC items that could not be mapped to content anchors.`,
+        }]
+      : [],
     chunking: {
       mode: "logical-deterministic",
       viewportIndependent: true

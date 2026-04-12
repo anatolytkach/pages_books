@@ -166,6 +166,7 @@ async function main() {
       "--bucket", bucketName,
       "--wrangler-bin", wranglerBin,
       "--skip-rclone",
+      ...(sourceFormat === "docx" ? ["--allow-partial-toc"] : []),
     ], {
       env: {
         CLOUDFLARE_API_TOKEN: requireEnv("CLOUDFLARE_API_TOKEN"),

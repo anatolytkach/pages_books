@@ -642,7 +642,8 @@ async function main() {
       debugGlyphChunks,
       styles,
       fontPlan,
-      debugArtifactEnabled
+      debugArtifactEnabled,
+      allowPartialToc: hasFlag("--allow-partial-toc")
     });
 
     writeProtectedBook(resolvedOutput, built);
