@@ -75,7 +75,7 @@ jobs:
       - name: Install DOCX conversion dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pandoc zip unzip python3-pip
+          sudo apt-get install -y pandoc zip unzip python3-pip fonts-dejavu-core fonts-liberation2
           python3 -m pip install --user python-docx
 
       - name: Run protected publish job

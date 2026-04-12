@@ -9,6 +9,10 @@ const MAC_SYSTEM_FONT_DIRS = [
   "/System/Library/Fonts/Supplemental",
   "/Library/Fonts"
 ];
+const LINUX_SYSTEM_FONT_DIRS = [
+  "/usr/share/fonts",
+  "/usr/local/share/fonts"
+];
 
 function getWindowsDir() {
   return String(process.env.WINDIR || "C:\\Windows").trim() || "C:\\Windows";
@@ -22,7 +26,20 @@ function systemFontDirs() {
     if (localAppData) dirs.push(path.join(localAppData, "Microsoft", "Windows", "Fonts"));
     return dirs;
   }
-  return MAC_SYSTEM_FONT_DIRS;
+  if (process.platform === "darwin") {
+    return MAC_SYSTEM_FONT_DIRS;
+  }
+  dirs.push(...LINUX_SYSTEM_FONT_DIRS);
+  const homeDir = String(process.env.HOME || "").trim();
+  if (homeDir) dirs.push(path.join(homeDir, ".local", "share", "fonts"));
+  return dirs;
+}
+
+function firstExisting(files) {
+  for (const filePath of files || []) {
+    if (fileExists(filePath)) return filePath;
+  }
+  return "";
 }
 
 function policyFontFiles() {
@@ -46,6 +63,98 @@ function policyFontFiles() {
         italic: path.join(fontsDir, "georgiai.ttf"),
         bold: path.join(fontsDir, "georgiab.ttf"),
         boldItalic: path.join(fontsDir, "georgiaz.ttf")
+      }
+    };
+  }
+  if (process.platform === "linux") {
+    return {
+      "Arial": {
+        regular: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        ]),
+        italic: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSans-Italic.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"
+        ]),
+        bold: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        ]),
+        boldItalic: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSans-BoldItalic.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf"
+        ])
+      },
+      "Helvetica": {
+        regular: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        ]),
+        italic: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSans-Italic.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"
+        ]),
+        bold: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        ]),
+        boldItalic: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSans-BoldItalic.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf"
+        ])
+      },
+      "Times New Roman": {
+        regular: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
+        ]),
+        italic: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSerif-Italic.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf"
+        ]),
+        bold: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
+        ]),
+        boldItalic: firstExisting([
+          "/usr/share/fonts/truetype/liberation2/LiberationSerif-BoldItalic.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSerif-BoldItalic.ttf"
+        ])
+      },
+      "Georgia": {
+        regular: firstExisting([
+          "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+          "/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf"
+        ]),
+        italic: firstExisting([
+          "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf",
+          "/usr/share/fonts/truetype/liberation2/LiberationSerif-Italic.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf"
+        ]),
+        bold: firstExisting([
+          "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+          "/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
+        ]),
+        boldItalic: firstExisting([
+          "/usr/share/fonts/truetype/dejavu/DejaVuSerif-BoldItalic.ttf",
+          "/usr/share/fonts/truetype/liberation2/LiberationSerif-BoldItalic.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf"
+        ])
       }
     };
   }
