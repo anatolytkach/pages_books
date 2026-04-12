@@ -119,7 +119,6 @@ function ensureHostGenerations() {
 
 function classifyBridgeUpdate(method) {
   if (method === "setFontScale" || method === "setFontMode") return "layout-affecting";
-  if (method === "setTheme") return "redraw-only";
   return "state-only";
 }
 

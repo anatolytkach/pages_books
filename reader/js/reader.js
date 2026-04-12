@@ -5775,6 +5775,7 @@ if (doc) {
 	var themeToggleEl = document.getElementById("themeToggle");
 	if (themeToggleEl) {
 		themeToggleEl.addEventListener("click", function (ev) {
+			if (document.body && document.body.classList.contains("protected-old-shell")) return;
 			ev.preventDefault();
 			var next = (reader.currentTheme === "dark") ? "light" : "dark";
 			reader.currentTheme = next;
