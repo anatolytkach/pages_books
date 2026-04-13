@@ -353,6 +353,32 @@
   - confirmed the fix is defensive client-side hardening for that payload shape
   - no dedicated automated test currently exists for this browser-only catalog flow
 
+## Additional Milestone: Catalog Prefix View DOM Fix
+
+- Follow-up issue after deploying the letter-prefix hardening:
+  - clicking an author letter now changed the hash to `view=prefixes`
+  - but the page rendered a blank prefix view with no loading message, no prefixes, and no authors
+- Root cause:
+  - `renderPrefixes()` and `renderAuthors()` cleared `els.content`
+  - `#browseContent` lives inside that content container
+  - clearing the parent detached `#browseContent` from the DOM and then the code appended new nodes into the detached element
+  - result:
+    - the API requests succeeded
+    - the view state changed
+    - but the rendered browse content was invisible because it was no longer attached to the page
+- Implemented fix:
+  - stop clearing `els.content` inside:
+    - `renderPrefixes()`
+    - `renderAuthors()`
+  - keep clearing only `els.browseContent`
+- Verification:
+  - reproduced the bug with a temporary Playwright probe against staging
+  - confirmed:
+    - letter click updated the URL to `#view=prefixes&letter=A...`
+    - `/books/api/lang/en/p/a.json` and child prefix-node fetches returned `200`
+    - DOM remained blank because `#browseContent` had been detached
+  - staging redeploy and post-fix live probe still pending at the time of this note
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
