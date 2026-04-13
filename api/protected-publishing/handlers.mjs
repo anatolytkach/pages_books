@@ -22,8 +22,19 @@ function inferMimeType(sourceFormat) {
     : "application/epub+zip";
 }
 
+function inferCoverMimeType(filename) {
+  const normalized = normalizeText(filename).toLowerCase();
+  if (normalized.endsWith(".png")) return "image/png";
+  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  if (normalized.endsWith(".gif")) return "image/gif";
+  return "";
+}
+
 function sanitizeFilename(filename, sourceFormat) {
-  const fallbackExtension = sourceFormat === "docx" ? ".docx" : ".epub";
+  const fallbackExtension = String(sourceFormat || "").startsWith(".")
+    ? String(sourceFormat)
+    : (sourceFormat === "docx" ? ".docx" : ".epub");
   const raw = normalizeText(filename).split(/[\\/]/).pop() || `upload${fallbackExtension}`;
   const safe = raw.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   const withFallback = safe || `upload${fallbackExtension}`;
@@ -68,6 +79,10 @@ function buildSourceObjectKey(jobId, filename) {
   return `uploads/protected/${jobId}/${filename}`;
 }
 
+function buildCoverObjectKey(jobId, filename) {
+  return `uploads/protected/${jobId}/cover/${filename}`;
+}
+
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -108,6 +123,20 @@ function buildNormalizedEpubResponse(job) {
     available: true,
     filename: normalizeText(normalized.filename) || buildNormalizedEpubFilename(job),
     download_url: `/books/api/v1/protected-jobs/${job.id}/normalized-epub`,
+  };
+}
+
+function getCoverUploadMetadata(job) {
+  const coverUpload = job?.result_payload?.cover_upload;
+  if (!coverUpload || typeof coverUpload !== "object") return null;
+  const r2Key = normalizeText(coverUpload.r2_key);
+  const filename = normalizeText(coverUpload.filename);
+  const contentType = normalizeText(coverUpload.content_type);
+  if (!r2Key || !filename) return null;
+  return {
+    r2_key: r2Key,
+    filename,
+    content_type: contentType || inferCoverMimeType(filename) || "application/octet-stream",
   };
 }
 
@@ -161,6 +190,17 @@ export async function createProtectedPublishingJob(context) {
   }
 
   const filename = sanitizeFilename(body?.filename, sourceFormat);
+  const rawCoverFilename = normalizeText(body?.cover_filename);
+  const sanitizedCoverFilename = rawCoverFilename
+    ? sanitizeFilename(rawCoverFilename, `.${rawCoverFilename.split(".").pop() || "jpg"}`)
+    : "";
+  const coverMimeType = inferCoverMimeType(sanitizedCoverFilename);
+  if (sourceFormat === "docx" && !sanitizedCoverFilename) {
+    return { error: "cover_filename is required when source_format is 'docx'", status: 400 };
+  }
+  if (sanitizedCoverFilename && !coverMimeType) {
+    return { error: "cover file must be png, jpg, jpeg, webp, or gif", status: 400 };
+  }
   const visibility = normalizeVisibility(body?.visibility);
   const tenantContext = await resolvePublishingTenant({
     tenantId: body?.tenant_id,
@@ -277,11 +317,20 @@ export async function createProtectedPublishingJob(context) {
   }
 
   const sourceObjectKey = buildSourceObjectKey(createdJob.data.id, filename);
+  const coverObjectKey = sanitizedCoverFilename ? buildCoverObjectKey(createdJob.data.id, sanitizedCoverFilename) : "";
   const updatedJob = await updatePublishingJob(sbFetch, createdJob.data.id, {
     source_r2_key: sourceObjectKey,
     result_payload: {
       source_format: sourceFormat,
       upload_status: "awaiting_upload",
+      ...(coverObjectKey ? {
+        cover_upload: {
+          filename: sanitizedCoverFilename,
+          r2_key: coverObjectKey,
+          content_type: coverMimeType,
+          status: "awaiting_upload",
+        },
+      } : {}),
     },
   });
   if (updatedJob.error || !updatedJob.data) {
@@ -299,27 +348,47 @@ export async function createProtectedPublishingJob(context) {
     uploaded_by: user.sub,
   });
 
-  let upload = null;
-  try {
-    upload = await createR2PresignedUploadUrl({
-      accountId: env.CLOUDFLARE_ACCOUNT_ID,
-      bucket: env.R2_BUCKET_NAME || env.READER_BOOKS_BUCKET || "reader-books",
-      objectKey: sourceObjectKey,
-      accessKeyId: env.R2_ACCESS_KEY_ID,
-      secretAccessKey: env.R2_SECRET_ACCESS_KEY,
-    });
-  } catch (error) {
-    if (!env.READER_BOOKS) {
-      return { error: error.message || "R2 upload signing is not configured", status: 500 };
+  async function createUploadTarget(objectKey, contentType, workerPath) {
+    try {
+      return await createR2PresignedUploadUrl({
+        accountId: env.CLOUDFLARE_ACCOUNT_ID,
+        bucket: env.R2_BUCKET_NAME || env.READER_BOOKS_BUCKET || "reader-books",
+        objectKey,
+        accessKeyId: env.R2_ACCESS_KEY_ID,
+        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+      });
+    } catch (error) {
+      if (!env.READER_BOOKS) {
+        throw error;
+      }
+      return {
+        kind: "worker",
+        method: "PUT",
+        url: workerPath,
+        headers: {
+          "content-type": contentType,
+        },
+      };
     }
-    upload = {
-      kind: "worker",
-      method: "PUT",
-      url: `/books/api/v1/protected-jobs/${updatedJob.data.id}/source`,
-      headers: {
-        "content-type": inferMimeType(sourceFormat),
-      },
-    };
+  }
+
+  let sourceUpload = null;
+  let coverUpload = null;
+  try {
+    sourceUpload = await createUploadTarget(
+      sourceObjectKey,
+      inferMimeType(sourceFormat),
+      `/books/api/v1/protected-jobs/${updatedJob.data.id}/source`,
+    );
+    if (coverObjectKey) {
+      coverUpload = await createUploadTarget(
+        coverObjectKey,
+        coverMimeType,
+        `/books/api/v1/protected-jobs/${updatedJob.data.id}/cover`,
+      );
+    }
+  } catch (error) {
+    return { error: error.message || "R2 upload signing is not configured", status: 500 };
   }
 
   return {
@@ -332,7 +401,21 @@ export async function createProtectedPublishingJob(context) {
       sourceFormat,
       sourceObjectKey,
       protectedPrefix: updatedJob.data.protected_prefix,
-      upload,
+      upload: sourceUpload,
+      uploads: {
+        source: {
+          objectKey: sourceObjectKey,
+          ...(sourceUpload || {}),
+        },
+        ...(coverObjectKey ? {
+          cover: {
+            objectKey: coverObjectKey,
+            filename: sanitizedCoverFilename,
+            contentType: coverMimeType,
+            ...(coverUpload || {}),
+          },
+        } : {}),
+      },
     },
   };
 }
@@ -361,6 +444,57 @@ export async function uploadProtectedPublishingSource(context) {
     httpMetadata: {
       contentType,
     },
+  });
+
+  return {
+    status: 201,
+    data: {
+      jobId: jobResult.data.id,
+      uploaded: true,
+      bytes: body.byteLength,
+    },
+  };
+}
+
+export async function uploadProtectedPublishingCover(context) {
+  const { env, sbFetch, jobId, user, request } = context;
+  const jobResult = await fetchPublishingJob(sbFetch, jobId, {
+    params: `triggered_by_user_id=eq.${user.sub}`,
+  });
+  if (jobResult.error) return { error: jobResult.error, status: 500 };
+  if (!jobResult.data) return { error: "Job not found", status: 404 };
+  if (jobResult.data.status !== "awaiting_upload") {
+    return { error: "Cover upload is no longer accepted for this job", status: 409 };
+  }
+  if (!env.READER_BOOKS) {
+    return { error: "Storage not configured", status: 500 };
+  }
+
+  const coverUpload = getCoverUploadMetadata(jobResult.data);
+  if (!coverUpload) {
+    return { error: "Cover upload is not configured for this job", status: 409 };
+  }
+
+  const contentType = normalizeText(request.headers.get("content-type")) || coverUpload.content_type;
+  const body = await request.arrayBuffer();
+  if (!body || !body.byteLength) {
+    return { error: "Cover upload is empty", status: 400 };
+  }
+
+  await env.READER_BOOKS.put(coverUpload.r2_key, body, {
+    httpMetadata: {
+      contentType,
+    },
+  });
+
+  await updatePublishingJob(sbFetch, jobId, {
+    result_payload: mergeJsonObjects(jobResult.data.result_payload || {}, {
+      cover_upload: {
+        ...coverUpload,
+        status: "uploaded",
+        uploaded_bytes: body.byteLength,
+      },
+    }),
   });
 
   return {
@@ -422,10 +556,26 @@ export async function completeProtectedPublishingUpload(context) {
   if (!object) {
     return { error: "Uploaded source object was not found", status: 409 };
   }
+  const coverUpload = getCoverUploadMetadata(jobResult.data);
+  if (normalizeFormat(jobResult.data.source_format) === "docx") {
+    if (!coverUpload?.r2_key) {
+      return { error: "Uploaded cover object metadata was not found", status: 409 };
+    }
+    const coverObject = await env.READER_BOOKS.get(coverUpload.r2_key);
+    if (!coverObject) {
+      return { error: "Uploaded cover object was not found", status: 409 };
+    }
+  }
 
   await updatePublishingJob(sbFetch, jobId, {
     status: "uploaded",
     started_at: new Date().toISOString(),
+    result_payload: mergeJsonObjects(jobResult.data.result_payload || {}, coverUpload ? {
+      cover_upload: {
+        ...coverUpload,
+        status: "uploaded",
+      },
+    } : {}),
   }, { params: `triggered_by_user_id=eq.${user.sub}` });
 
   await sbFetch("books", {
@@ -441,6 +591,9 @@ export async function completeProtectedPublishingUpload(context) {
     contentId: jobResult.data.content_id,
     sourceFormat: jobResult.data.source_format,
     sourceR2Key: jobResult.data.source_r2_key,
+    coverR2Key: coverUpload?.r2_key || "",
+    coverFilename: coverUpload?.filename || "",
+    coverContentType: coverUpload?.content_type || "",
     protectedPrefix: jobResult.data.protected_prefix,
     readerType: "protected",
   };

@@ -30,6 +30,7 @@ def main() -> int:
     parser.add_argument("--title", default="")
     parser.add_argument("--author", default="Unknown")
     parser.add_argument("--language", default="en")
+    parser.add_argument("--cover-image", default="")
     args = parser.parse_args()
 
     workspace_root = Path(__file__).resolve().parents[2]
@@ -43,6 +44,7 @@ def main() -> int:
     title = args.title.strip() or input_docx.stem.replace("_", " ").replace("-", " ")
     author = args.author.strip() or "Unknown"
     language = args.language.strip() or "en"
+    cover_image = Path(args.cover_image).resolve() if str(args.cover_image or "").strip() else None
 
     with tempfile.TemporaryDirectory(prefix="docx-epub-build-") as tmp_dir_str:
         tmp_dir = Path(tmp_dir_str)
@@ -66,6 +68,8 @@ def main() -> int:
             "--metadata", f"language={language}",
             "--metadata", f"dc.language={language}",
         ]
+        if cover_image:
+            pandoc_command.append(f"--epub-cover-image={cover_image}")
         run(pandoc_command)
 
     return 0

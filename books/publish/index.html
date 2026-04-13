@@ -275,10 +275,59 @@
         border-radius: var(--radius-md);
       }
 
+      .tenant-picker input[readonly] {
+        width: 100%;
+        padding: 10px 14px;
+        font-family: inherit;
+        font-size: 15px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: #f7f4ee;
+        color: var(--ink);
+      }
+
       .tenant-help {
         margin-top: 8px;
         font-size: 13px;
         color: var(--muted);
+      }
+
+      .choice-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        align-items: center;
+        min-height: 44px;
+      }
+
+      .choice-row label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .choice-row input[type="checkbox"],
+      .choice-row input[type="radio"] {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+      }
+
+      .upload-config-panel.hidden,
+      .upload-progress-panel.hidden,
+      .upload-cover-group.hidden {
+        display: none;
+      }
+
+      .upload-progress-panel {
+        display: none;
+      }
+
+      .upload-progress-panel.visible {
+        display: block;
       }
 
       /* ── Book list ────────────────────────── */
@@ -438,30 +487,100 @@
       <div id="view-upload" class="view">
         <h2 id="uploadHeading">Upload Book</h2>
         <div class="panel">
-          <div class="tenant-picker">
-            <label for="uploadTenantSelect">Publishing Destination</label>
-            <select id="uploadTenantSelect"></select>
-            <div class="tenant-help" id="uploadTenantHelp"></div>
-          </div>
-          <div class="form-group" style="margin-top:16px;">
-            <label for="uploadReaderType">Reader Type</label>
-            <select id="uploadReaderType">
-              <option value="legacy">Standard</option>
-              <option value="protected">Protected</option>
-            </select>
-            <div class="tenant-help">Protected books are converted to glyph artifacts before publication.</div>
-          </div>
-          <div class="upload-zone" id="uploadZone">
-            <div class="upload-icon">&#8593;</div>
-            <strong>Drop your file here or click to browse</strong>
-            <p id="uploadFormatHelp">Accepts .epub files (max 100 MB)<br>Switch to Protected to upload EPUB or DOCX source files.</p>
-            <input type="file" id="fileInput" accept=".epub,.docx" />
-          </div>
-          <div class="progress-wrap" id="progressWrap">
-            <div class="progress-bar-outer">
-              <div class="progress-bar-inner" id="progressBar"></div>
+          <div class="upload-config-panel" id="uploadConfigPanel">
+            <div class="tenant-picker">
+              <label for="uploadTenantSelect">Publishing Source</label>
+              <select id="uploadTenantSelect"></select>
+              <input type="text" id="uploadTenantDisplay" readonly style="display:none;" />
+              <div class="tenant-help" id="uploadTenantHelp"></div>
             </div>
-            <div class="progress-text" id="progressText">Uploading...</div>
+            <div class="form-group">
+              <label>Protect Content</label>
+              <div class="choice-row">
+                <label for="uploadProtectContent">
+                  <input type="checkbox" id="uploadProtectContent" checked />
+                  Convert this upload to protected reading format
+                </label>
+              </div>
+              <div class="tenant-help">Protected books are converted to glyph artifacts before publication.</div>
+            </div>
+            <div class="form-group">
+              <label>Visibility</label>
+              <div class="choice-row">
+                <label for="uploadVisibilityPublic">
+                  <input type="radio" name="uploadVisibility" id="uploadVisibilityPublic" value="public" checked />
+                  Public
+                </label>
+                <label for="uploadVisibilityMemberOnly">
+                  <input type="radio" name="uploadVisibility" id="uploadVisibilityMemberOnly" value="tenant_only" />
+                  Member Only
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="uploadSourceFormat">File Type</label>
+              <select id="uploadSourceFormat">
+                <option value="epub">EPUB</option>
+                <option value="docx">DOC</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="uploadTitle">Title *</label>
+                <input type="text" id="uploadTitle" required />
+              </div>
+              <div class="form-group">
+                <label for="uploadAuthor">Author *</label>
+                <input type="text" id="uploadAuthor" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="uploadGenre">Genre *</label>
+                <select id="uploadGenre" required>
+                  <option value="">Select genre...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="uploadYear">Year Written *</label>
+                <input type="number" id="uploadYear" min="1" max="2030" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="uploadIsbn">ISBN</label>
+                <input type="text" id="uploadIsbn" />
+              </div>
+              <div class="form-group">
+                <label for="uploadLanguage">Language</label>
+                <input type="text" id="uploadLanguage" value="en" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="uploadAnnotation">Annotation *</label>
+              <textarea id="uploadAnnotation" required placeholder="Describe this book..."></textarea>
+            </div>
+            <div class="form-group upload-cover-group hidden" id="uploadCoverGroup">
+              <label for="coverInput">Cover Page *</label>
+              <input type="file" id="coverInput" accept=".png,.jpg,.jpeg,.webp,.gif" />
+              <div class="tenant-help" id="uploadCoverHelp">Required for DOC uploads. Use a raster image such as PNG or JPEG.</div>
+            </div>
+            <div class="upload-zone" id="uploadZone">
+              <div class="upload-icon">&#8593;</div>
+              <strong>Drop your manuscript here or click to browse</strong>
+              <p id="uploadFormatHelp">Accepts .epub files (max 100 MB).</p>
+              <input type="file" id="fileInput" accept=".epub" />
+            </div>
+          </div>
+          <div class="upload-progress-panel" id="uploadProgressPanel">
+            <h3 style="font-family:'Playfair Display',serif; margin:0 0 8px;">Progress</h3>
+            <div class="tenant-help" id="uploadProgressMeta"></div>
+            <div class="progress-wrap" id="progressWrap">
+              <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="progressBar"></div>
+              </div>
+              <div class="progress-text" id="progressText">Uploading...</div>
+            </div>
           </div>
         </div>
         <button class="btn btn-secondary" id="backToList">&larr; Back to My Books</button>
@@ -687,15 +806,21 @@
       function populateTenantSelect(selectId, helpId, selectedId) {
         const select = document.getElementById(selectId);
         const help = document.getElementById(helpId);
+        const display = document.getElementById(selectId === 'uploadTenantSelect' ? 'uploadTenantDisplay' : '');
         if (!select || !help) return;
+        const useReadOnlyDisplay = selectId === 'uploadTenantSelect' && !platformAccess.is_superuser && publishingOrganizations.length === 1;
         if (!publishingOrganizations.length) {
           if (platformAccess.is_superuser) {
             select.innerHTML = `<option value="${PERSONAL_PUBLISH_TARGET}">Personal publishing</option>`;
             select.disabled = false;
+            if (display) display.style.display = 'none';
+            select.style.display = '';
             help.textContent = 'Books published here will use the manual personal path.';
           } else {
             select.innerHTML = '<option value="">No publishing organizations available</option>';
             select.disabled = true;
+            if (display) display.style.display = 'none';
+            select.style.display = '';
             help.textContent = 'You need organization publishing access before you can upload or publish.';
           }
           return;
@@ -717,6 +842,17 @@
           help.textContent = 'Books published here will use the manual personal path.';
         } else {
           help.textContent = organization ? `Books published here will use source "${organization.tenant?.slug || ''}".` : '';
+        }
+        if (display) {
+          if (useReadOnlyDisplay) {
+            const selectedOption = select.options[select.selectedIndex];
+            display.value = selectedOption ? selectedOption.textContent : '';
+            display.style.display = '';
+            select.style.display = 'none';
+          } else {
+            display.style.display = 'none';
+            select.style.display = '';
+          }
         }
       }
 
@@ -780,14 +916,60 @@
         try {
           genres = await apiFetch('GET', '/genres');
         } catch { genres = []; }
-        const sel = document.getElementById('meta-genre');
-        sel.innerHTML = '<option value="">Select genre...</option>';
-        for (const g of genres) {
-          const opt = document.createElement('option');
-          opt.value = g.id;
-          opt.textContent = g.parent_id ? `  ${g.name}` : g.name;
-          sel.appendChild(opt);
+        ['meta-genre', 'uploadGenre'].forEach((id) => {
+          const sel = document.getElementById(id);
+          if (!sel) return;
+          sel.innerHTML = '<option value="">Select genre...</option>';
+          for (const g of genres) {
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            opt.textContent = g.parent_id ? `  ${g.name}` : g.name;
+            sel.appendChild(opt);
+          }
+        });
+      }
+
+      function resetUploadMetadataForm() {
+        document.getElementById('uploadTitle').value = '';
+        document.getElementById('uploadAuthor').value = '';
+        document.getElementById('uploadGenre').value = '';
+        document.getElementById('uploadYear').value = '';
+        document.getElementById('uploadIsbn').value = '';
+        document.getElementById('uploadLanguage').value = 'en';
+        document.getElementById('uploadAnnotation').value = '';
+        document.getElementById('uploadVisibilityPublic').checked = true;
+        document.getElementById('uploadProtectContent').checked = true;
+        document.getElementById('uploadSourceFormat').value = 'epub';
+        document.getElementById('coverInput').value = '';
+      }
+
+      function getUploadFormState() {
+        return {
+          title: document.getElementById('uploadTitle').value.trim(),
+          author: document.getElementById('uploadAuthor').value.trim(),
+          genre_id: document.getElementById('uploadGenre').value,
+          year_written: parseInt(document.getElementById('uploadYear').value, 10) || null,
+          isbn: document.getElementById('uploadIsbn').value.trim() || null,
+          language: document.getElementById('uploadLanguage').value.trim() || 'en',
+          annotation: document.getElementById('uploadAnnotation').value.trim(),
+          visibility: document.querySelector('input[name="uploadVisibility"]:checked')?.value || 'public',
+          reader_type: document.getElementById('uploadProtectContent').checked ? 'protected' : 'legacy',
+          source_format: document.getElementById('uploadSourceFormat').value || 'epub',
+          cover_file: document.getElementById('coverInput').files?.[0] || null,
+        };
+      }
+
+      function validateUploadForm(state) {
+        if (!state.title || !state.author || !state.genre_id || !state.annotation) {
+          return 'Please fill in all required book details before uploading.';
         }
+        if (state.source_format === 'docx' && !state.cover_file) {
+          return 'DOC uploads require a cover page image.';
+        }
+        if (state.source_format === 'docx' && state.reader_type !== 'protected') {
+          return 'DOC uploads currently require Protect Content to stay enabled.';
+        }
+        return '';
       }
 
       async function loadMyBooks() {
@@ -906,6 +1088,10 @@
           showAlert($alert, 'Publishing is not available for this account.');
           return;
         }
+        resetUploadMetadataForm();
+        syncTenantSelectors();
+        updateUploadAcceptState();
+        resetUploadUi();
         showView('upload');
         hideAlert($alert);
       });
@@ -921,28 +1107,43 @@
 
       const $zone = document.getElementById('uploadZone');
       const $fileInput = document.getElementById('fileInput');
+      const $coverInput = document.getElementById('coverInput');
       const $progressWrap = document.getElementById('progressWrap');
       const $progressBar = document.getElementById('progressBar');
       const $progressText = document.getElementById('progressText');
-      const $uploadReaderType = document.getElementById('uploadReaderType');
+      const $uploadConfigPanel = document.getElementById('uploadConfigPanel');
+      const $uploadProgressPanel = document.getElementById('uploadProgressPanel');
+      const $uploadProgressMeta = document.getElementById('uploadProgressMeta');
+      const $uploadProtectContent = document.getElementById('uploadProtectContent');
+      const $uploadSourceFormat = document.getElementById('uploadSourceFormat');
+      const $uploadCoverGroup = document.getElementById('uploadCoverGroup');
       const $uploadFormatHelp = document.getElementById('uploadFormatHelp');
 
       function updateUploadAcceptState() {
-        const readerType = $uploadReaderType.value || 'legacy';
-        if (readerType === 'protected') {
-          $fileInput.setAttribute('accept', '.epub,.docx');
-          $uploadFormatHelp.innerHTML = 'Accepts protected source uploads in .epub or .docx format (max 100 MB).<br>Protected uploads are converted in the background and published automatically when processing completes.';
+        const sourceFormat = $uploadSourceFormat.value || 'epub';
+        const readerType = $uploadProtectContent.checked ? 'protected' : 'legacy';
+        const docMode = sourceFormat === 'docx';
+        $uploadCoverGroup.classList.toggle('hidden', !docMode);
+        $coverInput.required = docMode;
+        if (docMode) {
+          $fileInput.setAttribute('accept', '.docx');
+          $uploadFormatHelp.innerHTML = 'Accepts .docx files (max 100 MB).<br>DOC uploads require a cover page image and are converted in the background.';
           return;
         }
         $fileInput.setAttribute('accept', '.epub');
-        $uploadFormatHelp.innerHTML = 'Accepts .epub files (max 100 MB).<br>Standard uploads continue through the existing draft-processing flow.';
+        $uploadFormatHelp.innerHTML = readerType === 'protected'
+          ? 'Accepts .epub files (max 100 MB).<br>Protected uploads are converted in the background and published automatically when processing completes.'
+          : 'Accepts .epub files (max 100 MB).<br>Standard uploads continue through the existing draft-processing flow.';
       }
 
       function resetUploadUi() {
         $zone.style.display = '';
+        $uploadConfigPanel.classList.remove('hidden');
+        $uploadProgressPanel.classList.remove('visible');
         $progressWrap.classList.remove('visible');
         $progressBar.style.width = '0%';
         $progressText.textContent = 'Uploading...';
+        $uploadProgressMeta.textContent = '';
         $fileInput.value = '';
       }
 
@@ -965,7 +1166,7 @@
         }
       }
 
-      async function uploadFileWithProgress(url, file, method = 'PUT', extraHeaders = null) {
+      async function uploadFileWithProgress(url, file, method = 'PUT', extraHeaders = null, label = 'Uploading file') {
         return new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open(method, url);
@@ -981,7 +1182,7 @@
             if (!e.lengthComputable) return;
             const pct = Math.round((e.loaded / e.total) * 100);
             $progressBar.style.width = `${Math.min(pct, 100)}%`;
-            $progressText.textContent = `Uploading source file... ${pct}%`;
+            $progressText.textContent = `${label}... ${pct}%`;
           });
           xhr.addEventListener('load', () => {
             if (xhr.status >= 200 && xhr.status < 300) {
@@ -1013,15 +1214,20 @@
         throw new Error('Protected publishing is still running. You can reopen this book from Publishing Books in a few minutes.');
       }
 
-      async function handleProtectedUpload(file, organization) {
-        const sourceFormat = file.name.toLowerCase().endsWith('.docx') ? 'docx' : 'epub';
+      async function handleProtectedUpload(file, organization, formState) {
         const body = {
           filename: file.name,
-          source_format: sourceFormat,
-          visibility: 'public',
+          source_format: formState.source_format,
+          visibility: formState.visibility,
           reader_type: 'protected',
-          title: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '),
-          author: 'Unknown',
+          title: formState.title,
+          author: formState.author,
+          annotation: formState.annotation,
+          genre_id: formState.genre_id,
+          year_written: formState.year_written,
+          isbn: formState.isbn,
+          language: formState.language,
+          ...(formState.cover_file ? { cover_filename: formState.cover_file.name } : {}),
         };
         if (organization) {
           body.tenant_id = organization.tenant_id;
@@ -1029,17 +1235,34 @@
         }
 
         const job = await apiFetch('POST', '/protected-jobs', { body });
-        const uploadHeaders = (job.upload && job.upload.headers && typeof job.upload.headers === 'object')
-          ? { ...job.upload.headers }
-          : {};
-        if (String(job.upload?.url || '').startsWith('/')) {
-          const { data: { session } } = await sb.auth.getSession();
-          if (session?.access_token) {
-            uploadHeaders.authorization = `Bearer ${session.access_token}`;
+        const uploads = job.uploads || { source: job.upload };
+        const addAuthHeaderIfNeeded = async (target) => {
+          const headers = (target && target.headers && typeof target.headers === 'object')
+            ? { ...target.headers }
+            : {};
+          if (String(target?.url || '').startsWith('/')) {
+            const { data: { session } } = await sb.auth.getSession();
+            if (session?.access_token) {
+              headers.authorization = `Bearer ${session.access_token}`;
+            }
           }
+          return headers;
+        };
+
+        if (uploads.cover && formState.cover_file) {
+          const coverHeaders = await addAuthHeaderIfNeeded(uploads.cover);
+          await uploadFileWithProgress(uploads.cover.url, formState.cover_file, uploads.cover?.method || 'PUT', coverHeaders, 'Uploading cover page');
+          $progressBar.style.width = '18%';
+          $progressText.textContent = 'Uploading manuscript...';
         }
-        await uploadFileWithProgress(job.upload.url, file, job.upload?.method || 'PUT', uploadHeaders);
-        $progressBar.style.width = '35%';
+
+        const sourceHeaders = await addAuthHeaderIfNeeded(uploads.source || job.upload);
+        await uploadFileWithProgress((uploads.source || job.upload).url, file, (uploads.source || job.upload)?.method || 'PUT', sourceHeaders, 'Uploading manuscript');
+        if (uploads.cover && formState.cover_file) {
+          $progressBar.style.width = '35%';
+        } else {
+          $progressBar.style.width = '30%';
+        }
         $progressText.textContent = 'Confirming upload...';
         await apiFetch('POST', `/protected-jobs/${job.jobId}/upload-complete`, { body: {} });
         $progressBar.style.width = '40%';
@@ -1067,7 +1290,7 @@
               if (e.lengthComputable) {
                 const pct = Math.round((e.loaded / e.total) * 100);
                 $progressBar.style.width = `${pct}%`;
-                $progressText.textContent = `Uploading... ${pct}%`;
+                $progressText.textContent = `Uploading manuscript... ${pct}%`;
               }
             });
 
@@ -1137,7 +1360,8 @@
       async function handleFile(file) {
         hideAlert($alert);
         const name = file.name.toLowerCase();
-        const readerType = $uploadReaderType.value || 'legacy';
+        const formState = getUploadFormState();
+        const readerType = formState.reader_type || 'legacy';
         const organization = getSelectedPublishingOrganization(selectedUploadTenantId);
         const isPersonalPublishing = String(selectedUploadTenantId || '') === PERSONAL_PUBLISH_TARGET;
         if (!isPersonalPublishing && !organization) {
@@ -1147,13 +1371,21 @@
 
         const isEpub = name.endsWith('.epub');
         const isDocx = name.endsWith('.docx');
-        if (readerType === 'protected') {
-          if (!isEpub && !isDocx) {
-            showAlert($alert, 'Protected uploads currently accept .epub or .docx files.');
-            return;
-          }
-        } else if (!isEpub) {
+        if (formState.source_format === 'docx' && !isDocx) {
+          showAlert($alert, 'DOC uploads currently accept .docx files only.');
+          return;
+        }
+        if (formState.source_format === 'epub' && !isEpub) {
+          showAlert($alert, 'EPUB uploads currently accept .epub files only.');
+          return;
+        }
+        if (readerType !== 'protected' && !isEpub) {
           showAlert($alert, 'Standard uploads currently accept .epub files only.');
+          return;
+        }
+        const formError = validateUploadForm(formState);
+        if (formError) {
+          showAlert($alert, formError);
           return;
         }
 
@@ -1162,15 +1394,17 @@
           return;
         }
 
-        // Show progress
+        $uploadConfigPanel.classList.add('hidden');
+        $uploadProgressPanel.classList.add('visible');
         $progressWrap.classList.add('visible');
         $progressBar.style.width = '0%';
         $progressText.textContent = 'Uploading...';
         $zone.style.display = 'none';
+        $uploadProgressMeta.textContent = `${formState.title} by ${formState.author} • ${formState.source_format.toUpperCase()} • ${readerType === 'protected' ? 'Protected' : 'Standard'}`;
 
         try {
           if (readerType === 'protected') {
-            await handleProtectedUpload(file, organization);
+            await handleProtectedUpload(file, organization, formState);
             return;
           }
           await handleLegacyUpload(file, organization);
@@ -1360,7 +1594,11 @@
         syncTenantSelectors();
       });
 
-      $uploadReaderType.addEventListener('change', updateUploadAcceptState);
+      $uploadProtectContent.addEventListener('change', updateUploadAcceptState);
+      $uploadSourceFormat.addEventListener('change', updateUploadAcceptState);
+      document.getElementById('uploadTitle').addEventListener('input', hideAlert.bind(null, $alert));
+      document.getElementById('uploadAuthor').addEventListener('input', hideAlert.bind(null, $alert));
+      document.getElementById('uploadAnnotation').addEventListener('input', hideAlert.bind(null, $alert));
 
       document.getElementById('editTenantSelect').addEventListener('change', (e) => {
         selectedEditTenantId = e.target.value;

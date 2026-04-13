@@ -248,6 +248,50 @@
   - DOCX uploads with a required cover image
 - It also records the required API, Worker, GitHub Actions, and DOCX-to-EPUB builder changes needed to make `docx + cover` behave as one logical protected publishing upload
 
+## Additional Milestone: Publisher DOCX Plus Cover Implementation
+
+- Implemented the first working pass of the publisher upload flow for:
+  - EPUB uploads
+  - DOCX uploads with a required cover image
+- Upload modal changes:
+  - `Publishing Source` label replaces `Publishing Destination`
+  - single-choice publisher source now renders as a read-only input instead of a selectable dropdown
+  - `Protect Content` is now a checkbox and defaults to enabled
+  - `Visibility` is now a radio group with:
+    - `Public`
+    - `Member Only`
+  - added `File Type` selector:
+    - `EPUB`
+    - `DOC`
+  - moved the existing metadata fields into the upload modal
+  - added `Cover Page` upload, required for DOC uploads
+  - upload now switches into a dedicated progress state after manuscript selection
+- Worker/API changes:
+  - protected job creation now accepts `cover_filename` for DOCX jobs
+  - DOCX jobs now return upload targets for both:
+    - source manuscript
+    - cover image
+  - added authenticated cover upload endpoint:
+    - `PUT /books/api/v1/protected-jobs/<jobId>/cover`
+  - `upload-complete` now rejects DOCX jobs if the required cover upload is missing
+  - GitHub dispatch payload now includes DOCX cover metadata
+- Pipeline changes:
+  - GitHub Actions workflow accepts cover-related inputs
+  - the protected job runner downloads the DOCX cover image before normalization
+  - `tools/publish/build_epub_from_docx.py` now supports:
+    - `--cover-image`
+  - DOCX normalization now passes the uploaded cover into Pandoc with:
+    - `--epub-cover-image`
+- Verification:
+  - ran:
+    - `node --test tests\unit\worker-protected-jobs.unit.test.mjs`
+  - result:
+    - `9` tests passed
+    - `0` failed
+- Current limitation:
+  - this checkpoint verifies the Worker/API/runner contract and unit coverage
+  - the updated upload GUI still needs a live browser pass on staging before it should be treated as fully validated for release
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.

@@ -6,6 +6,7 @@ import {
   failProtectedPublishingJob,
   finalizeProtectedPublishingJob,
   getProtectedPublishingJob,
+  uploadProtectedPublishingCover,
   uploadProtectedPublishingSource,
   updateProtectedPublishingProgress,
 } from "./api/protected-publishing/handlers.mjs";
@@ -4286,6 +4287,21 @@ export default {
           env,
           sbFetch,
           jobId: protectedSourceUploadMatch[1],
+          user,
+          request,
+        });
+        if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
+        return jsonResponse(result.data, result.status || 201, apiCorsHeaders);
+      }
+
+      const protectedCoverUploadMatch = apiPath.match(/^\/protected-jobs\/([0-9a-f-]+)\/cover$/);
+      if (protectedCoverUploadMatch && request.method === "PUT") {
+        const authErr = requireAuth();
+        if (authErr) return authErr;
+        const result = await uploadProtectedPublishingCover({
+          env,
+          sbFetch,
+          jobId: protectedCoverUploadMatch[1],
           user,
           request,
         });

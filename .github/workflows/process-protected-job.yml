@@ -22,6 +22,18 @@ on:
         description: Uploaded source object key
         required: true
         type: string
+      cover_r2_key:
+        description: Uploaded cover object key for DOCX jobs
+        required: false
+        type: string
+      cover_filename:
+        description: Uploaded cover filename for DOCX jobs
+        required: false
+        type: string
+      cover_content_type:
+        description: Uploaded cover content type for DOCX jobs
+        required: false
+        type: string
       protected_prefix:
         description: Destination protected content prefix
         required: true
@@ -48,6 +60,9 @@ jobs:
       BOOK_ID: ${{ github.event.client_payload.bookId || inputs.book_id }}
       CONTENT_ID: ${{ github.event.client_payload.contentId || inputs.content_id }}
       SOURCE_R2_KEY: ${{ github.event.client_payload.sourceR2Key || inputs.source_r2_key }}
+      COVER_R2_KEY: ${{ github.event.client_payload.coverR2Key || inputs.cover_r2_key }}
+      COVER_FILENAME: ${{ github.event.client_payload.coverFilename || inputs.cover_filename }}
+      COVER_CONTENT_TYPE: ${{ github.event.client_payload.coverContentType || inputs.cover_content_type }}
       PROTECTED_PREFIX: ${{ github.event.client_payload.protectedPrefix || inputs.protected_prefix }}
       SOURCE_FORMAT: ${{ github.event.client_payload.sourceFormat || inputs.source_format }}
     steps:

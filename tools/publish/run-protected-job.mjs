@@ -87,6 +87,9 @@ async function main() {
   const jobId = requireEnv("JOB_ID");
   const contentId = requireEnv("CONTENT_ID");
   const sourceR2Key = requireEnv("SOURCE_R2_KEY");
+  const coverR2Key = envText("COVER_R2_KEY");
+  const coverFilename = envText("COVER_FILENAME");
+  const coverContentType = envText("COVER_CONTENT_TYPE");
   const protectedPrefix = requireEnv("PROTECTED_PREFIX");
   const sourceFormat = envText("SOURCE_FORMAT", "epub").toLowerCase();
   const wranglerBin = resolveWranglerBin(workspaceRoot);
@@ -97,6 +100,7 @@ async function main() {
     const sourcePath = path.join(tempRoot, `source.${sourceFormat}`);
     const outputPath = path.join(tempRoot, "artifact");
     const normalizedEpubPath = path.join(tempRoot, "normalized.epub");
+    const coverPath = coverFilename ? path.join(tempRoot, coverFilename) : path.join(tempRoot, "cover-image");
     const buildScript = path.join(workspaceRoot, "reader_render_v3", "tools", "protected-ingestion", "build-protected-book.js");
     const validateDocxScript = path.join(workspaceRoot, "tools", "publish", "validate_docx.py");
     const buildEpubFromDocxScript = path.join(workspaceRoot, "tools", "publish", "build_epub_from_docx.py");
@@ -121,6 +125,17 @@ async function main() {
     let protectedInputPath = sourcePath;
     let normalizedEpubR2Key = "";
     if (sourceFormat === "docx") {
+      if (!coverR2Key) {
+        throw new Error("DOCX protected jobs require COVER_R2_KEY");
+      }
+      log(`downloading ${coverR2Key}`);
+      run(wranglerBin, ["r2", "object", "get", `${bucketName}/${coverR2Key}`, "--file", coverPath, "--remote"], {
+        env: {
+          CLOUDFLARE_API_TOKEN: requireEnv("CLOUDFLARE_API_TOKEN"),
+          CLOUDFLARE_ACCOUNT_ID: requireEnv("CLOUDFLARE_ACCOUNT_ID"),
+        },
+      });
+
       const validationResult = run(pythonBin, [validateDocxScript, sourcePath, "--json"], {
         captureOutput: true,
         allowFailure: true,
@@ -150,6 +165,7 @@ async function main() {
         buildEpubFromDocxScript,
         "--input", sourcePath,
         "--output", normalizedEpubPath,
+        "--cover-image", coverPath,
       ]);
       normalizedEpubR2Key = buildNormalizedEpubObjectKey(jobId);
       log(`uploading normalized EPUB to ${normalizedEpubR2Key}`);
@@ -165,6 +181,11 @@ async function main() {
             available: true,
             r2_key: normalizedEpubR2Key,
             filename: "normalized.epub",
+          },
+          cover_upload: {
+            filename: coverFilename || path.basename(coverPath),
+            r2_key: coverR2Key,
+            content_type: coverContentType || "",
           },
         },
       });
