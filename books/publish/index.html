@@ -1205,12 +1205,16 @@
           $progressText.textContent = job.message || `Processing... (${job.status})`;
           if (!terminalStatuses.has(job.status)) continue;
           await loadMyBooks();
+          if (job.status === 'completed') {
+            showView('list');
+            showAlert($alert, 'Book published.', 'success');
+            return job;
+          }
           if (bookId) await openBookEditor(bookId);
-          if (job.status === 'completed') return job;
           throw new Error(job.error_message || job.message || 'Protected publishing did not complete.');
         }
         await loadMyBooks();
-        if (bookId) await openBookEditor(bookId);
+        showView('list');
         throw new Error('Protected publishing is still running. You can reopen this book from Publishing Books in a few minutes.');
       }
 

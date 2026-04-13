@@ -83,6 +83,10 @@ function buildCoverObjectKey(jobId, filename) {
   return `uploads/protected/${jobId}/cover/${filename}`;
 }
 
+function buildPublishedCoverKey(contentId, filename) {
+  return `content/${contentId}/cover/${filename}`;
+}
+
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -138,6 +142,19 @@ function getCoverUploadMetadata(job) {
     filename,
     content_type: contentType || inferCoverMimeType(filename) || "application/octet-stream",
   };
+}
+
+async function publishUploadedCoverToContent(env, contentId, coverUpload) {
+  if (!env?.READER_BOOKS || !contentId || !coverUpload?.r2_key || !coverUpload?.filename) return "";
+  const object = await env.READER_BOOKS.get(coverUpload.r2_key);
+  if (!object) return "";
+  const targetKey = buildPublishedCoverKey(contentId, coverUpload.filename);
+  await env.READER_BOOKS.put(targetKey, object.body, {
+    httpMetadata: {
+      contentType: coverUpload.content_type || "application/octet-stream",
+    },
+  });
+  return `/books/${targetKey}`;
 }
 
 async function canUserAccessPublishingJob(sbFetch, job, userId) {
@@ -725,12 +742,14 @@ export async function finalizeProtectedPublishingJob(context) {
 
   const source = normalizeText(jobResult.data.tenant_slug) || normalizeText(book?.tenant?.slug) || "manual";
   const protectedContentPath = `/books/${jobResult.data.protected_prefix}`;
+  const publishedCoverUrl = await publishUploadedCoverToContent(env, jobResult.data.content_id, getCoverUploadMetadata(jobResult.data));
   const bookUpdate = await sbFetch("books", {
     method: "PATCH",
     params: `id=eq.${jobResult.data.book_id}&select=*`,
     body: {
       title: jobResult.data.submitted_title || book.title,
       author: jobResult.data.submitted_author || book.author,
+      ...(publishedCoverUrl ? { cover_url: publishedCoverUrl } : {}),
       status: "published",
       visibility: jobResult.data.visibility || book.visibility || "public",
       manifest: buildBookManifest(book.manifest, {

@@ -309,6 +309,28 @@
   - deploy with the local Windows `wrangler.cmd`
   - record the deployment afterward
 
+## Additional Milestone: Protected Publish Post-Success Redirect And Cover Promotion
+
+- Found two staging UX/content issues after the first DOCX plus cover GUI run:
+  - successful protected uploads reopened `Book Details` even when the book was already published
+  - the uploaded DOCX cover image did not become the book's published `cover_url`, so the title appeared in `My Publications` without a cover
+- Implemented fixes:
+  - successful protected upload polling now:
+    - reloads the list
+    - returns the user to `My Publications`
+    - shows a success message instead of opening `Book Details`
+  - protected finalize now copies the uploaded DOCX cover image into:
+    - `content/<contentId>/cover/<filename>`
+  - the published book row now receives:
+    - `cover_url=/books/content/<contentId>/cover/<filename>`
+- Added unit coverage:
+  - finalize promotes the uploaded DOCX cover into the published book `cover_url`
+- Verified with:
+  - `node --test tests\unit\worker-protected-jobs.unit.test.mjs`
+  - result:
+    - `10` tests passed
+    - `0` failed
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
