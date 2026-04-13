@@ -3651,6 +3651,7 @@
         }
 
         function renderPrefixes(prefixes, letter) {
+          restoreBrowseHeaderDefaultPosition();
           if (!els.browseContent) return;
           els.browseContent.innerHTML = "";
           const basePrefix = (() => {
@@ -3738,6 +3739,7 @@
         }
 
         function renderAuthors(authors, letter, prefix) {
+          restoreBrowseHeaderDefaultPosition();
           if (!els.browseContent) return;
           els.browseContent.innerHTML = "";
           const filteredAuthors = filterAuthorsForPrefix(authors, letter, prefix);

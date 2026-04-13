@@ -362,12 +362,19 @@
   - `renderPrefixes()` and `renderAuthors()` cleared `els.content`
   - `#browseContent` lives inside that content container
   - clearing the parent detached `#browseContent` from the DOM and then the code appended new nodes into the detached element
+  - the issue was amplified by the existing browse-shell movement:
+    - landing mode moves `#browseHeader` into the landing content wrapper
+    - `showLoading()` then clears `els.content`
+    - that detaches the moved browse shell before prefix/author rendering runs
   - result:
     - the API requests succeeded
     - the view state changed
     - but the rendered browse content was invisible because it was no longer attached to the page
 - Implemented fix:
   - stop clearing `els.content` inside:
+    - `renderPrefixes()`
+    - `renderAuthors()`
+  - restore the browse header to its default mount before rendering:
     - `renderPrefixes()`
     - `renderAuthors()`
   - keep clearing only `els.browseContent`
