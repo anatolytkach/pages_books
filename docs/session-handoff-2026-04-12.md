@@ -441,6 +441,18 @@
     - `99` JS tests passed
     - `3` Python unittest cases passed
 
+## Additional Milestone: Deployment Log Sync And Worktree Cleanup
+
+- Confirmed `deployments/history.jsonl` contains the latest local staging deploy records through:
+  - `2026-04-13T19:49:29.078Z`
+  - commit `f1d66dcffa178844381f818e266f222689a0ca8d`
+  - preview `https://82d65372.readerpub-books-staging.pages.dev`
+- Cleaned local worktree junk left by prior failed or partial deploy attempts:
+  - removed the malformed `C\...` directory tree created from a broken Windows path
+  - removed remaining `.tmp_staging_deploy_*` directories
+  - removed `.tmp_local` and `.tmp_staging_probe_robo`
+- Left unrelated untracked planning docs alone
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
