@@ -292,6 +292,23 @@
   - this checkpoint verifies the Worker/API/runner contract and unit coverage
   - the updated upload GUI still needs a live browser pass on staging before it should be treated as fully validated for release
 
+## Additional Milestone: Windows Staging Deploy Runbook
+
+- Added a Windows-specific deployment runbook:
+  - `docs/windows-staging-deploy.md`
+- It records the deployment failure modes we hit:
+  - `npx wrangler` not found under the bash staging script
+  - `wrangler.cmd` not runnable from bash
+  - POSIX `wrangler` failing because installed `workerd` was Windows-only
+  - `Copy-Item -Recurse` failing on repo reparse-point content
+  - mixed bash-path and PowerShell-path bundle handling causing `ENOENT`
+- It also documents the working solution:
+  - build the Pages bundle on Windows
+  - use `robocopy`
+  - exclude `reader_render_v3/node_modules` and `reader_render_v3/artifacts`
+  - deploy with the local Windows `wrangler.cmd`
+  - record the deployment afterward
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
