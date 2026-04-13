@@ -2379,6 +2379,20 @@
             .filter(Boolean);
         }
 
+        function collapseImmediatePrefixes(prefixes, baseToken) {
+          const list = Array.isArray(prefixes) ? prefixes : [];
+          const token = String(baseToken || "").trim().toLocaleLowerCase();
+          if (!token || token === "#") return list;
+
+          const targetLength = token.length + 1;
+          const immediate = list.filter((item) => {
+            const prefix = String(item && item.prefix || "").trim().toLocaleLowerCase();
+            return prefix.startsWith(token) && prefix.length === targetLength;
+          });
+
+          return immediate.length ? immediate : list;
+        }
+
         function normalizeAuthorEntries(source) {
           if (!source) return [];
           let list = [];
@@ -4649,6 +4663,7 @@
           } else {
             prefixes = await fetchLetterPrefixesForToken(letterToken, nonce);
           }
+          prefixes = collapseImmediatePrefixes(prefixes, letterToken);
           cache.letterPrefixes.set(cacheKey, prefixes);
           return prefixes;
         }

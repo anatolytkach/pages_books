@@ -331,6 +331,28 @@
     - `10` tests passed
     - `0` failed
 
+## Additional Milestone: Catalog Author Letter Browse Hardening
+
+- New staging issue reported after the publisher-flow work:
+  - author browse on the public catalog failed after clicking a letter
+  - the UI briefly showed `Loading prefixes...` and then produced no usable result
+- Root cause:
+  - the live letter node payload at `/books/api/p/<letter>.json` was returning a flattened prefix tree
+  - example:
+    - `/books/api/p/a.json` included deep prefixes such as `aab`, `abbot`, `admin`, not just the immediate next-step prefixes under `a`
+  - the browser browse flow expects immediate child prefixes for the letter step
+  - that mismatch caused the browse path to do unnecessary deep-node work and behave unreliably
+- Implemented fix:
+  - collapse flattened letter-prefix payloads to immediate children before caching/rendering
+  - for example:
+    - `a` now keeps only `aa`, `ab`, `ac`, ...
+  - if no immediate children exist, the old fallback behavior is preserved
+- Verification:
+  - verified the live staging payload shape with:
+    - `curl https://books-staging.reader.pub/books/api/p/a.json`
+  - confirmed the fix is defensive client-side hardening for that payload shape
+  - no dedicated automated test currently exists for this browser-only catalog flow
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
