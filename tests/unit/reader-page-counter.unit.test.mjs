@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-
-const ROOT = "/Volumes/2T/se_ingest/pages_books";
+import { REPO_ROOT as ROOT } from "./helpers/repo-root.mjs";
 
 function read(relPath) {
   return fs.readFileSync(path.join(ROOT, relPath), "utf8");

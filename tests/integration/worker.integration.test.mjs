@@ -122,6 +122,7 @@ test("Integration: non-catalog path proxies through ASSETS with route marker", a
   assert.equal(response.headers.get("x-upstream-header"), "1");
   assert.equal(await response.text(), "asset-content");
   assert.equal(assets.calls.length, 1);
+  assert.equal(assets.calls[0], "https://reader.pub/reader/index.html");
 });
 
 test("Integration: catalog html path forces no-store cache control", async () => {

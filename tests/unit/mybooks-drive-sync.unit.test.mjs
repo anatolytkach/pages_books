@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-
-const ROOT = "/Volumes/2T/se_ingest/pages_books";
+import { REPO_ROOT as ROOT } from "./helpers/repo-root.mjs";
 
 function read(relPath) {
   return fs.readFileSync(path.join(ROOT, relPath), "utf8");
@@ -35,7 +34,7 @@ test("Unit: reader captures cover hint from URL into My Books sync payload", () 
 
 test("Unit: catalog reader URL includes cover hint for cloud sync", () => {
   const html = read("books/index.html");
-  assert.match(html, /function openReaderUrl\(id,\s*cover\)/);
+  assert.match(html, /function openReaderUrl\(bookOrId,\s*cover,\s*sourceOverride,\s*entryOverride\)/);
   assert.match(html, /url \+= `&cover=\$\{encodeURIComponent\(coverHint\)\}`/);
 });
 
@@ -47,14 +46,14 @@ test("Unit: catalog keeps absolute cover paths unchanged", () => {
 
 test("Unit: catalog hydrates My Books cover directly from book page", () => {
   const html = read("books/index.html");
-  assert.match(html, /async function fetchBookCoverById\(id\)/);
-  assert.match(html, /const url = openBookUrl\(bookId\);/);
+  assert.match(html, /async function fetchBookCoverById\(id,\s*source\)/);
+  assert.match(html, /const url = openBookUrl\(\{ id: bookId, source: source \|\| "" \}\);/);
   assert.match(html, /property=\["'\]og:image\["'\]/);
 });
 
 test("Unit: catalog retries broken My Books covers via catalog fallback", () => {
   const html = read("books/index.html");
   assert.match(html, /img\.onerror = async \(\) => \{/);
-  assert.match(html, /const fallback = await fetchBookCoverById\(bookId\);/);
+  assert.match(html, /const fallback = await fetchBookCoverById\(bookId,\s*book\.source\);/);
   assert.match(html, /if \(fallback && fallback !== coverUrl\) \{/);
 });

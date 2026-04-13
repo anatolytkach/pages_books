@@ -5476,13 +5476,17 @@ export default {
       return new Response(null, { status: 302, headers });
     }
 
-    // Rewrite /books/reader/* to /reader/* so it works without the router
+    let assetRequest = request;
+    let assetPath = path;
+
+    // Rewrite /books/reader/* to /reader/* so it works without the router,
+    // while still applying the standard response headers and HTML rewriting.
     if (path.startsWith("/books/reader/")) {
       const rewrittenPath = path.replace(/^\/books\/reader/, "/reader");
       const rewrittenUrl = new URL(url);
       rewrittenUrl.pathname = rewrittenPath;
-      const rewrittenRequest = new Request(rewrittenUrl.toString(), request);
-      return env.ASSETS.fetch(rewrittenRequest);
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+      assetPath = rewrittenPath;
     }
 
     const idMatch = path.match(/^\/books\/(\d+)(\/)?$/);
@@ -5496,7 +5500,7 @@ export default {
       return new Response(null, { status: 302, headers });
     }
 
-    const response = await env.ASSETS.fetch(request);
+    const response = await env.ASSETS.fetch(assetRequest);
     const headers = new Headers(response.headers);
     const isCatalogHtml =
       path === "/books" || path === "/books/" || path === "/books/index.html";
@@ -5508,6 +5512,13 @@ export default {
       path.startsWith("/books/reader/icons/") ||
       path.startsWith("/books/reader/fonts/") ||
       path.startsWith("/books/reader/img/") ||
+      assetPath === "/reader/" ||
+      assetPath === "/reader/index.html" ||
+      assetPath.startsWith("/reader/css/") ||
+      assetPath.startsWith("/reader/js/") ||
+      assetPath.startsWith("/reader/icons/") ||
+      assetPath.startsWith("/reader/fonts/") ||
+      assetPath.startsWith("/reader/img/") ||
       path === "/books/reader1/" ||
       path === "/books/reader1/index.html" ||
       path.startsWith("/books/reader1/css/") ||

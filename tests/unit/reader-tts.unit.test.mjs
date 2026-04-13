@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-
-const ROOT = "/Volumes/2T/se_ingest/pages_books";
+import { REPO_ROOT as ROOT } from "./helpers/repo-root.mjs";
 
 function read(relPath) {
   return fs.readFileSync(path.join(ROOT, relPath), "utf8");
@@ -148,12 +147,13 @@ test("Unit: TTS resumes from last stopped word on next start", () => {
   assert.match(js, /state\.resumeFromStopCfi = targetCfi \|\| "";/);
   assert.match(js, /state\.resumeLocKey = String\(getLocationKey\(\) \|\| ""\);/);
   assert.match(js, /var resumeCfi = state\.resumeFromStopCfi \? String\(state\.resumeFromStopCfi \|\| ""\) : "";/);
-  assert.match(js, /startCurrentPage\(currentLocKey, 6, resumeCfi\);/);
+  assert.match(js, /startCurrentPage\(currentLocKey, 20, resumeCfi\);/);
   assert.match(js, /var payload = pagePayload\(resumeCfi\);/);
 });
 
 test("Unit: desktop search is offset from bookmark icon", () => {
   const css = read("reader/css/main.css");
-  assert.match(css, /html:not\(\.is-tablet\) #searchDesktop \{/);
-  assert.match(css, /margin-right: 10px !important;/);
+  assert.match(css, /\/\* Search cluster must never collapse on desktop \*\//);
+  assert.match(css, /#searchDesktop,\s*\.search-desktop\s*\{\s*flex-shrink:\s*0;/);
+  assert.match(css, /@media \(hover: hover\) and \(pointer: fine\) \{\s*#searchDesktop \{/);
 });

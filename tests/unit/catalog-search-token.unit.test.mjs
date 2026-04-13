@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-
-const ROOT = "/Volumes/2T/se_ingest/pages_books";
+import { REPO_ROOT as ROOT } from "./helpers/repo-root.mjs";
 
 function read(relPath) {
   return fs.readFileSync(path.join(ROOT, relPath), "utf8");
@@ -73,5 +72,6 @@ test("Unit: author search matches both surname and given names on the frontend",
 
 test("Unit: search results are sorted alphabetically within authors and titles", () => {
   const html = read("books/index.html");
-  assert.match(html, /\.sort\(\(a, b\) => \{\s+if \(a\.kind !== b\.kind\) return a\.kind === "author" \? -1 : 1;\s+return String\(a\.title \|\| ""\)\.localeCompare\(String\(b\.title \|\| ""\), undefined, \{\s+numeric: true,\s+sensitivity: "base",\s+\}\);\s+\}\);/s);
+  assert.match(html, /\.sort\(\(a, b\) => \{\s+if \(a\.kind !== b\.kind\) return a\.kind === "author" \? -1 : 1;/s);
+  assert.match(html, /return String\(a\.title \|\| ""\)\.localeCompare\(String\(b\.title \|\| ""\), undefined, \{\s+numeric: true,\s+sensitivity: "base",\s+\}\);/s);
 });

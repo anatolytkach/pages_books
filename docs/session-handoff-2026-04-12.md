@@ -407,6 +407,40 @@
   - code-level diff and `git diff --check`
   - no browser validation yet at the time of this note
 
+## Additional Milestone: Test Cleanup Patch Integration
+
+- Integrated the externally reviewed test-cleanup patch, with one adjustment:
+  - accepted the `_worker.js` reader-asset rewrite/header preservation changes
+  - accepted the portable repo-root helper and test fixture updates
+  - replaced the proposed hardcoded `python3` npm test script with a cross-platform runner
+- Test updates included:
+  - new portable helper:
+    - `tests/unit/helpers/repo-root.mjs`
+  - removed hardcoded machine-specific repo paths from unit tests
+  - updated stale assertions for:
+    - catalog My Books cover hydration
+    - TTS resume/search CSS expectations
+    - translate worker tests
+  - updated the reader1 metadata fixture to use:
+    - `META-INF/container.xml`
+    - `OPS/content.opf`
+  - normalized Windows path separators in the reader1 cover assertion
+- Runner changes:
+  - `npm test` now runs a real cross-platform suite:
+    - Node integration/unit tests
+    - Python `tests/unit/test_validate_docx.py`
+  - Python execution now:
+    - resolves interpreter portably
+    - sets `PYTHONPATH` to the repo root
+    - does not require `pytest`
+  - `npm run test:all` includes the currently unrelated `publisher-tasks` unit suite
+  - default `npm test` excludes that suite because it already contains pre-existing failures unrelated to this patch
+- Verification:
+  - `npm.cmd test`
+  - result:
+    - `99` JS tests passed
+    - `3` Python unittest cases passed
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
