@@ -63,9 +63,11 @@ If validation fails, stop and fix the document first.
 ### 3. Build EPUB from DOCX
 
 ```powershell
+New-Item -ItemType Directory -Force -Path .\.tmp_local | Out-Null
+
 py -3 .\tools\publish\build_epub_from_docx.py `
   --input "C:\Users\yaran\Documents\vopros12.docx" `
-  --output ".\reader_render_v3\artifacts\protected-books\vopros12\source\vopros12.epub" `
+  --output ".\.tmp_local\vopros12.epub" `
   --title "vopros12" `
   --author "Unknown" `
   --language "ru"
@@ -73,7 +75,7 @@ py -3 .\tools\publish\build_epub_from_docx.py `
 
 Resulting EPUB:
 
-- `reader_render_v3\artifacts\protected-books\vopros12\source\vopros12.epub`
+- `.tmp_local\vopros12.epub`
 
 ### 4. Build the protected artifact from the EPUB
 
@@ -83,9 +85,9 @@ Run from inside `reader_render_v3`:
 cd .\reader_render_v3
 
 node .\tools\protected-ingestion\build-protected-book.js `
-  --input ".\artifacts\protected-books\vopros12\source\vopros12.epub" `
-  --output ".\artifacts\protected-books\vopros12" `
-  --book-id vopros12 `
+  --input "C:\Users\yaran\Test1\pages_books\.worktrees\merge-reader-render-v3-staging-trim\.tmp_local\vopros12.epub" `
+  --output ".\artifacts\protected-books\29686" `
+  --book-id 29686 `
   --debug-artifact `
   --allow-partial-toc
 ```
@@ -116,13 +118,13 @@ Leave that terminal open while reading locally.
 Dev protected reader:
 
 ```text
-http://127.0.0.1:8788/reader_render_v3/dev/protected-reader.html?book=vopros12&renderMode=shape&metricsMode=shape
+http://127.0.0.1:8788/reader_render_v3/dev/protected-reader.html?artifact=../artifacts/protected-books/29686&renderMode=shape&metricsMode=shape
 ```
 
 Old-shell protected reader:
 
 ```text
-http://127.0.0.1:8788/reader/?id=vopros12&reader=protected&protectedUx=old-shell&protectedDrive=disabled&protectedAutomation=1&renderMode=shape&metricsMode=shape
+http://127.0.0.1:8788/reader/?id=29686&reader=protected&protectedUx=old-shell&protectedAllowAll=1&protectedDrive=disabled&protectedAutomation=1&renderMode=shape&metricsMode=shape
 ```
 
 Use the old-shell URL if you want the closest match to the current protected reading UX.
@@ -131,11 +133,11 @@ Use the old-shell URL if you want the closest match to the current protected rea
 
 EPUB:
 
-- `C:\Users\yaran\Test1\pages_books\.worktrees\merge-reader-render-v3-staging-trim\reader_render_v3\artifacts\protected-books\vopros12\source\vopros12.epub`
+- `C:\Users\yaran\Test1\pages_books\.worktrees\merge-reader-render-v3-staging-trim\.tmp_local\vopros12.epub`
 
 Protected artifact root:
 
-- `C:\Users\yaran\Test1\pages_books\.worktrees\merge-reader-render-v3-staging-trim\reader_render_v3\artifacts\protected-books\vopros12`
+- `C:\Users\yaran\Test1\pages_books\.worktrees\merge-reader-render-v3-staging-trim\reader_render_v3\artifacts\protected-books\29686`
 
 Important runtime files:
 
@@ -158,25 +160,23 @@ Stop-Process -Id <PID>
 ## One-Session Shortcut
 
 After prerequisites are installed, the full run is:
-
-```powershell
-cd C:\Users\yaran\Test1\pages_books\.worktrees\merge-reader-render-v3-staging-trim
 $env:PATH = 'C:\Users\yaran\AppData\Local\Pandoc;' + $env:PATH
+New-Item -ItemType Directory -Force -Path .\.tmp_local | Out-Null
 
 py -3 .\tools\publish\validate_docx.py "C:\Users\yaran\Documents\vopros12.docx"
 
 py -3 .\tools\publish\build_epub_from_docx.py `
   --input "C:\Users\yaran\Documents\vopros12.docx" `
-  --output ".\reader_render_v3\artifacts\protected-books\vopros12\source\vopros12.epub" `
+  --output ".\.tmp_local\vopros12.epub" `
   --title "vopros12" `
   --author "Unknown" `
   --language "ru"
 
 cd .\reader_render_v3
 node .\tools\protected-ingestion\build-protected-book.js `
-  --input ".\artifacts\protected-books\vopros12\source\vopros12.epub" `
-  --output ".\artifacts\protected-books\vopros12" `
-  --book-id vopros12 `
+  --input "C:\Users\yaran\Test1\pages_books\.worktrees\merge-reader-render-v3-staging-trim\.tmp_local\vopros12.epub" `
+  --output ".\artifacts\protected-books\29686" `
+  --book-id 29686 `
   --debug-artifact `
   --allow-partial-toc
 cd ..
@@ -187,5 +187,12 @@ C:\Users\yaran\AppData\Local\Programs\Python\Python312\python.exe -m http.server
 Then open:
 
 ```text
-http://127.0.0.1:8788/reader/?id=vopros12&reader=protected&protectedUx=old-shell&protectedDrive=disabled&protectedAutomation=1&renderMode=shape&metricsMode=shape
+http://127.0.0.1:8788/reader/?id=29686&reader=protected&protectedUx=old-shell&protectedAllowAll=1&protectedDrive=disabled&protectedAutomation=1&renderMode=shape&metricsMode=shape
 ```
+
+## Notes
+
+- Do not place the generated EPUB under the protected artifact output directory.
+  The protected builder clears its output root before writing, so that would delete the EPUB before or during the build.
+- The localhost old-shell protected route expects a numeric book id.
+- The dev protected reader can also be opened directly with `artifact=../artifacts/protected-books/29686`.

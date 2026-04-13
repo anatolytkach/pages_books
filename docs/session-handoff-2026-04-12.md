@@ -225,6 +225,29 @@
   - local HTTP serving on `127.0.0.1:8788`
   - opening both the dev protected reader and old-shell protected reader locally
 
+## Additional Milestone: Local Flow Doc Correction
+
+- Corrected the local DOCX debug doc so it now matches the working localhost flow:
+  - write the generated EPUB under `.tmp_local\`
+  - build the protected artifact under numeric id `29686`
+  - use the direct dev artifact URL for `protected-reader.html`
+  - use the localhost old-shell URL with:
+    - `reader=protected`
+    - `protectedUx=old-shell`
+    - `protectedAllowAll=1`
+- Added notes explaining:
+  - why the EPUB must not be placed under the protected output directory
+  - why localhost old-shell expects a numeric id
+
+## Additional Milestone: Publisher DOCX Plus Cover Plan
+
+- Added a planning doc for the next publisher UX/backend change:
+  - `docs/publisher-upload-docx-cover-plan.md`
+- The plan defines a single upload flow for:
+  - EPUB uploads
+  - DOCX uploads with a required cover image
+- It also records the required API, Worker, GitHub Actions, and DOCX-to-EPUB builder changes needed to make `docx + cover` behave as one logical protected publishing upload
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
