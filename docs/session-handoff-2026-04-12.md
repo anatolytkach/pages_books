@@ -386,6 +386,27 @@
     - DOM remained blank because `#browseContent` had been detached
   - staging redeploy and post-fix live probe still pending at the time of this note
 
+## Additional Milestone: Publisher Upload Submit And Progress UX
+
+- Updated the publisher upload flow so selecting a manuscript no longer starts processing immediately
+- Added a selected-file summary and explicit `Submit` button to the upload form
+- Reworked the progress panel to show:
+  - a spinner
+  - a persistent note that the process may take a few minutes and the page can be left safely
+  - a two-column stage grid with:
+    - current stage highlighted
+    - completed stages checkmarked
+    - future stages greyed out
+- Added stage rendering for both:
+  - protected uploads
+  - legacy EPUB uploads
+- Changed the Publishing list behavior:
+  - clicking a published book now opens the reader
+  - non-published books still open `Book Details`
+- Verification:
+  - code-level diff and `git diff --check`
+  - no browser validation yet at the time of this note
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
