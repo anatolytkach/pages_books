@@ -68,8 +68,13 @@ async function waitForStateChange(page, previousState, timeout = 30000) {
 
 async function waitReady(page) {
   await page.waitForFunction(() => {
+    const path = window.location.pathname || "";
+    const runtimeMeta = document.querySelector("#runtime-meta");
+    const metaText = runtimeMeta ? runtimeMeta.textContent || "" : "";
     return (
-      window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+      (path.includes("/reader_new/") ||
+        path.includes("/books/reader_new/") ||
+        /Reader host\s*reader_new/i.test(metaText)) &&
       !!document.querySelector("#runtime-meta dt") &&
       /Opened /.test(document.querySelector("#status")?.textContent || "")
     );
@@ -78,43 +83,79 @@ async function waitReady(page) {
 
 async function waitIntegrationReady(page) {
   await page.waitForFunction(() => {
+    const path = window.location.pathname || "";
+    const runtimeMeta = document.querySelector("#runtime-meta");
+    const metaText = runtimeMeta ? runtimeMeta.textContent || "" : "";
     return (
-      window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+      (path.includes("/reader_new/") ||
+        path.includes("/books/reader_new/") ||
+        /Reader host\s*reader_new/i.test(metaText)) &&
       !!document.querySelector("#runtime-meta dt")
     );
   });
 }
 
 async function ensureRangeSelection(page) {
-  const attempts = [];
-  for (const y of [80, 120, 160, 200, 240, 280, 320, 360, 420]) {
-    attempts.push({ x1: 120, y, x2: 320 });
-    attempts.push({ x1: 160, y, x2: 420 });
-  }
-  for (const attempt of attempts) {
-    const isRange = await page.evaluate(({ x1, y, x2 }) => {
-      const canvas = document.querySelector("#reader-canvas");
-      if (!canvas) return false;
-      const rect = canvas.getBoundingClientRect();
-      const make = (type, clientX, clientY) => new MouseEvent(type, {
-        bubbles: true,
-        cancelable: true,
-        clientX,
-        clientY,
-        buttons: type === "mouseup" ? 0 : 1
-      });
-      const startX = rect.left + x1;
-      const startY = rect.top + y;
-      const endX = rect.left + x2;
-      canvas.dispatchEvent(make("mousedown", startX, startY));
-      for (let step = 1; step <= 12; step += 1) {
-        const nextX = startX + ((endX - startX) * step) / 12;
-        canvas.dispatchEvent(make("mousemove", nextX, startY));
-      }
-      window.dispatchEvent(make("mouseup", endX, startY));
-      const kind = document.querySelector("#selection-kind");
-      return !!(kind && /range/i.test(kind.textContent || ""));
-    }, attempt);
+  const automated = await page.evaluate(async () => {
+    const debug = window.__PROTECTED_READER_DEBUG__;
+    if (!debug || typeof debug.selectAutomationSample !== "function") {
+      window.__PROTECTED_LAST_AUTOMATION_SELECTION__ = { ok: false, reason: "missing-debug-surface" };
+      return { ok: false, reason: "missing-debug-surface" };
+    }
+    try {
+      const result = await debug.selectAutomationSample();
+      const summary = typeof debug.getSummary === "function" ? debug.getSummary() : null;
+      const ok = !!(summary && summary.selectionActive && Number(summary.selectedChars || 0) > 1);
+      const payload = { ok, reason: ok ? "selected" : "no-selection", result, summary };
+      window.__PROTECTED_LAST_AUTOMATION_SELECTION__ = payload;
+      return payload;
+    } catch (error) {
+      const payload = { ok: false, reason: error && error.message ? error.message : String(error) };
+      window.__PROTECTED_LAST_AUTOMATION_SELECTION__ = payload;
+      return payload;
+    }
+  });
+  if (automated && automated.ok) return true;
+  await page.waitForFunction(() => {
+    const debug = window.__PROTECTED_READER_DEBUG__;
+    if (!debug || typeof debug.getDebugLayoutState !== "function") return false;
+    const layout = debug.getDebugLayoutState();
+    return !!(layout && layout.ready && Array.isArray(layout.lines) && layout.lines.length);
+  }, { timeout: 10000 });
+  const attempts = await page.evaluate(() => {
+    const rect = document.querySelector("#reader-canvas")?.getBoundingClientRect();
+    const debug = window.__PROTECTED_READER_DEBUG__;
+    const layout = debug && typeof debug.getDebugLayoutState === "function"
+      ? debug.getDebugLayoutState()
+      : null;
+    const lines = layout && Array.isArray(layout.lines) ? layout.lines : [];
+    const candidates = lines.filter((line) => {
+      const y = Number(line.y || 0);
+      const width = Number(line.width || 0);
+      return width > 220 && y > 80;
+    });
+    if (!rect || candidates.length < 2) return [];
+    return candidates.slice(0, 6).map((start, index) => {
+      const end = candidates[Math.min(index + 1, candidates.length - 1)];
+      return {
+        startX: Math.round(rect.left + Number(start.x || 0) + 16),
+        startY: Math.round(rect.top + Number(start.y || 0) + Math.max(8, Math.min(18, Number(start.height || 18) / 2))),
+        endX: Math.round(rect.left + Math.max(Number(end.x || 0) + 140, Number(end.x || 0) + Number(end.width || 0) - 16)),
+        endY: Math.round(rect.top + Number(end.y || 0) + Math.max(8, Math.min(18, Number(end.height || 18) / 2)))
+      };
+    });
+  });
+  for (const geometry of attempts) {
+    await page.mouse.move(geometry.startX, geometry.startY);
+    await page.mouse.down();
+    await page.mouse.move(geometry.endX, geometry.endY, { steps: 20 });
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+    const isRange = await page.evaluate(() => {
+      const debug = window.__PROTECTED_READER_DEBUG__;
+      const summary = debug && typeof debug.getSummary === "function" ? debug.getSummary() : null;
+      return !!(summary && summary.selectionActive && Number(summary.selectedChars || 0) > 1);
+    });
     if (isRange) return true;
   }
   return false;
@@ -126,6 +167,24 @@ async function clearProtectedLocalState(page) {
       if (key.startsWith(prefix)) window.localStorage.removeItem(key);
     }
   }, STORAGE_PREFIX);
+}
+
+async function triggerHarnessControl(page, selector) {
+  await page.evaluate((targetSelector) => {
+    const node = document.querySelector(targetSelector);
+    if (!node) throw new Error(`Missing control ${targetSelector}`);
+    node.click();
+  }, selector);
+}
+
+async function setHarnessInputValue(page, selector, value) {
+  await page.evaluate(({ targetSelector, targetValue }) => {
+    const node = document.querySelector(targetSelector);
+    if (!node) throw new Error(`Missing input ${targetSelector}`);
+    node.value = targetValue;
+    node.dispatchEvent(new Event("input", { bubbles: true }));
+    node.dispatchEvent(new Event("change", { bubbles: true }));
+  }, { targetSelector: selector, targetValue: value });
 }
 
 async function main() {
@@ -150,50 +209,67 @@ async function main() {
   await waitReady(page);
 
   const selected = await ensureRangeSelection(page);
-  if (!selected) throw new Error("Failed to create selection.");
+  if (!selected) {
+    const diagnostics = await page.evaluate(() => {
+      const debug = window.__PROTECTED_READER_DEBUG__ || null;
+      const summary = debug && typeof debug.getSummary === "function" ? debug.getSummary() : null;
+      const layout = debug && typeof debug.getDebugLayoutState === "function" ? debug.getDebugLayoutState() : null;
+      return {
+        debugKeys: debug ? Object.keys(debug) : [],
+        automationSelection: window.__PROTECTED_LAST_AUTOMATION_SELECTION__ || null,
+        selectionKind: document.querySelector("#selection-kind")?.textContent || "",
+        summary,
+        layoutReady: !!(layout && layout.ready),
+        layoutLines: layout && Array.isArray(layout.lines) ? layout.lines.length : 0,
+        statusText: document.querySelector("#status")?.textContent || ""
+      };
+    });
+    console.error(JSON.stringify({ selectionDiagnostics: diagnostics }, null, 2));
+    throw new Error("Failed to create selection.");
+  }
 
-  await page.click("#create-highlight");
+  await triggerHarnessControl(page, "#create-highlight");
   await page.waitForFunction(() => /Created highlight /.test(document.querySelector("#status")?.textContent || ""));
-  await page.fill("#note-input", "transport handoff note");
-  await page.click("#add-note-highlight");
+  await setHarnessInputValue(page, "#note-input", "transport handoff note");
+  await triggerHarnessControl(page, "#add-note-highlight");
   await page.waitForFunction(() => /Added note /.test(document.querySelector("#status")?.textContent || ""));
   const beforeNextState = await getPageState(page);
-  await page.click("#next-page");
+  await triggerHarnessControl(page, "#next-page");
   await waitForStateChange(page, beforeNextState);
 
-  await page.click("#export-annotations");
+  await triggerHarnessControl(page, "#export-annotations");
   await page.waitForFunction(() => /Exported protected sync file/.test(document.querySelector("#status")?.textContent || ""));
 
   const handoffBeforeDownload = await page.locator("#handoff-state").inputValue();
   const syncFileBeforeDownload = await page.locator("#annotation-import").inputValue();
 
   const downloadPromise = page.waitForEvent("download");
-  await page.click("#download-sync-file");
+  await triggerHarnessControl(page, "#download-sync-file");
   const download = await downloadPromise;
   const downloadPath = await download.path();
   const downloadedText = require("node:fs").readFileSync(downloadPath, "utf8");
 
-  await page.click("#copy-handoff-state");
+  await triggerHarnessControl(page, "#copy-handoff-state");
   await page.waitForFunction(() => /Copied protected handoff state/.test(document.querySelector("#status")?.textContent || ""));
   const copiedHandoff = await page.evaluate(async () => navigator.clipboard.readText());
 
-  await page.click("#clear-local-state");
+  await triggerHarnessControl(page, "#clear-local-state");
   await page.waitForFunction(() => /Cleared local protected state/.test(document.querySelector("#status")?.textContent || ""));
 
   await page.setInputFiles("#sync-file-input", downloadPath);
   await page.waitForFunction(() => /Loaded protected sync file/.test(document.querySelector("#status")?.textContent || ""));
   const afterLoadMeta = await getMetaMap(page);
 
-  await page.click("#import-annotations");
+  await triggerHarnessControl(page, "#import-annotations");
   await page.waitForFunction(() => /Imported protected sync file/.test(document.querySelector("#status")?.textContent || ""));
   const afterImportMeta = await getMetaMap(page);
 
-  await page.click("#export-snapshot-patch");
+  await triggerHarnessControl(page, "#export-snapshot-patch");
   await page.waitForFunction(() => /Exported production-compatible snapshot patch/.test(document.querySelector("#status")?.textContent || ""));
 
   const selectedAgain = await ensureRangeSelection(page);
   if (!selectedAgain) throw new Error("Failed to re-create selection after transport import.");
-  await page.click("#copy-selection");
+  await triggerHarnessControl(page, "#copy-selection");
   await page.waitForFunction(() => /Copied selection/.test(document.querySelector("#status")?.textContent || ""));
   const copyStatus = await page.locator("#status").textContent();
 

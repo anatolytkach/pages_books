@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "styleTokens": [
     {
       "styleToken": "paragraph",
@@ -12,10 +12,21 @@
       "superscript": false,
       "linkLike": false,
       "scriptBucket": "Latin",
-      "fontFamilyCandidate": "Noto Serif",
-      "fontRole": "body-serif",
+      "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+      "fontRole": "body-sans",
       "fontStyle": "normal",
       "fontWeight": "regular",
+      "fontSizeScale": 1,
+      "lineHeightFactor": 1.5,
+      "letterSpacingEm": 0,
+      "trailingSpacingEm": 0,
+      "wordSpacingEm": 0,
+      "textColor": "",
+      "dropCap": false,
+      "textAlign": "justify",
+      "textIndentEm": 1,
+      "marginTopEm": 0.25,
+      "marginBottomEm": 0.25,
       "policyStatus": "planned",
       "policyGaps": []
     },
@@ -30,10 +41,21 @@
       "superscript": false,
       "linkLike": false,
       "scriptBucket": "Common",
-      "fontFamilyCandidate": "Appropriate Noto family",
-      "fontRole": "display-serif",
+      "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+      "fontRole": "display-sans",
       "fontStyle": "normal",
       "fontWeight": "regular",
+      "fontSizeScale": 1.1,
+      "lineHeightFactor": 1.5,
+      "letterSpacingEm": 0,
+      "trailingSpacingEm": 0,
+      "wordSpacingEm": 0,
+      "textColor": "",
+      "dropCap": false,
+      "textAlign": "center",
+      "textIndentEm": 0,
+      "marginTopEm": 1,
+      "marginBottomEm": 0.5,
       "policyStatus": "planned",
       "policyGaps": [
         {
@@ -57,10 +79,21 @@
       "superscript": false,
       "linkLike": false,
       "scriptBucket": "Latin",
-      "fontFamilyCandidate": "Noto Serif",
-      "fontRole": "display-serif",
+      "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+      "fontRole": "display-sans",
       "fontStyle": "normal",
       "fontWeight": "regular",
+      "fontSizeScale": 1.3,
+      "lineHeightFactor": 1.5,
+      "letterSpacingEm": 0,
+      "trailingSpacingEm": 0,
+      "wordSpacingEm": 0,
+      "textColor": "",
+      "dropCap": false,
+      "textAlign": "center",
+      "textIndentEm": 0,
+      "marginTopEm": 3,
+      "marginBottomEm": 0.5,
       "policyStatus": "planned",
       "policyGaps": []
     },
@@ -75,10 +108,21 @@
       "superscript": false,
       "linkLike": false,
       "scriptBucket": "Latin",
-      "fontFamilyCandidate": "Noto Serif",
-      "fontRole": "body-serif",
+      "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+      "fontRole": "body-sans",
       "fontStyle": "italic",
       "fontWeight": "regular",
+      "fontSizeScale": 1,
+      "lineHeightFactor": 1.5,
+      "letterSpacingEm": 0,
+      "trailingSpacingEm": 0,
+      "wordSpacingEm": 0,
+      "textColor": "",
+      "dropCap": false,
+      "textAlign": "justify",
+      "textIndentEm": 1,
+      "marginTopEm": 0.25,
+      "marginBottomEm": 0.25,
       "policyStatus": "planned",
       "policyGaps": []
     },
@@ -93,14 +137,91 @@
       "superscript": false,
       "linkLike": false,
       "scriptBucket": "Latin",
-      "fontFamilyCandidate": "Noto Serif",
-      "fontRole": "display-serif",
+      "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+      "fontRole": "display-sans",
       "fontStyle": "normal",
       "fontWeight": "regular",
+      "fontSizeScale": 1.2,
+      "lineHeightFactor": 1.5,
+      "letterSpacingEm": 0,
+      "trailingSpacingEm": 0,
+      "wordSpacingEm": 0,
+      "textColor": "",
+      "dropCap": false,
+      "textAlign": "center",
+      "textIndentEm": 0,
+      "marginTopEm": 2,
+      "marginBottomEm": 0.5,
       "policyStatus": "planned",
       "policyGaps": []
     }
   ],
+  "fontProfiles": {
+    "version": 1,
+    "supportedFontModes": [
+      "sans",
+      "serif"
+    ],
+    "defaultFontMode": "sans",
+    "profiles": {
+      "sans": {
+        "byScriptBucket": {
+          "Latin": {
+            "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+            "fontMode": "sans"
+          },
+          "Greek": {
+            "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+            "fontMode": "sans"
+          },
+          "Cyrillic": {
+            "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+            "fontMode": "sans"
+          },
+          "Common": {
+            "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+            "fontMode": "sans"
+          },
+          "CJK": {
+            "fontFamilyCandidate": "Noto Serif CJK",
+            "fontMode": "sans"
+          },
+          "Unknown": {
+            "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+            "fontMode": "sans"
+          }
+        }
+      },
+      "serif": {
+        "byScriptBucket": {
+          "Latin": {
+            "fontFamilyCandidate": "Noto Serif",
+            "fontMode": "serif"
+          },
+          "Greek": {
+            "fontFamilyCandidate": "Noto Serif",
+            "fontMode": "serif"
+          },
+          "Cyrillic": {
+            "fontFamilyCandidate": "Noto Serif",
+            "fontMode": "serif"
+          },
+          "Common": {
+            "fontFamilyCandidate": "Noto Serif",
+            "fontMode": "serif"
+          },
+          "CJK": {
+            "fontFamilyCandidate": "Noto Serif CJK",
+            "fontMode": "serif"
+          },
+          "Unknown": {
+            "fontFamilyCandidate": "Noto Serif",
+            "fontMode": "serif"
+          }
+        }
+      }
+    }
+  },
   "fontPlanReference": {
     "scriptsDetected": [
       "Cyrillic",

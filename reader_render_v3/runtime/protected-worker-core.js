@@ -85,7 +85,7 @@ function gatherShapeRecords(shapeBundle, glyphOps) {
   return ((shapeBundle && shapeBundle.shapeRecords) || []).filter((record) => refs.has(record.shapeRef));
 }
 
-function buildAutomationSelectionPosition(line, offset) {
+function buildAutomationSelectionPosition(line, offset, projectionMeta = null) {
   const fragment =
     line.fragments.find((item) => offset >= item.startOffset && offset <= item.endOffset) ||
     line.fragments[0] ||
@@ -98,7 +98,15 @@ function buildAutomationSelectionPosition(line, offset) {
     segmentId: fragment.segmentId,
     offset,
     hitTestingBackend: "automation-sample",
-    precisionMode: "automation-sample"
+    precisionMode: "automation-sample",
+    projectionMeta: projectionMeta
+      ? {
+          chunkId: String(projectionMeta.chunkId || ""),
+          runtimeFontMode: String(projectionMeta.runtimeFontMode || "sans"),
+          configGeneration: Number(projectionMeta.configGeneration || 0) || 0,
+          layoutGeneration: Number(projectionMeta.layoutGeneration || 0) || 0
+        }
+      : undefined
   };
 }
 
@@ -724,6 +732,9 @@ export class ProtectedReaderRuntimeCore {
     if (!this.currentLayout || !page) {
       throw new Error("Reader is not ready for automation selection.");
     }
+    const projectionMeta = this.currentLayout && this.currentLayout.projectionMeta
+      ? this.currentLayout.projectionMeta
+      : null;
     const visibleLines = (this.currentLayout.lines || []).filter((line) =>
       line.lineIndex >= page.lineStartIndex &&
       line.lineIndex <= page.lineEndIndex &&
@@ -736,8 +747,8 @@ export class ProtectedReaderRuntimeCore {
       const startOffset = Math.min(line.endOffset - 4, line.startOffset + 2);
       const endOffset = Math.min(line.endOffset, startOffset + Math.min(36, Math.max(8, lineLength - 2)));
       if (endOffset <= startOffset) continue;
-      const anchor = buildAutomationSelectionPosition(line, startOffset);
-      const focus = buildAutomationSelectionPosition(line, endOffset);
+      const anchor = buildAutomationSelectionPosition(line, startOffset, projectionMeta);
+      const focus = buildAutomationSelectionPosition(line, endOffset, projectionMeta);
       if (!anchor || !focus) continue;
       this.selectionState = {
         anchor,

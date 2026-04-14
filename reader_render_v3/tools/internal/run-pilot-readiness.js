@@ -24,7 +24,7 @@ function parseJson(stdout) {
 }
 
 async function loadPilotConfig() {
-  const modulePath = path.join(REPO_ROOT, "reader_render_v3/integration/protected-reader-pilot-config.js");
+  const modulePath = path.join(REPO_ROOT, "reader_render_v3/reader_new/protected-host-pilot-config.js");
   const imported = await import(require("node:url").pathToFileURL(modulePath).href);
   return imported.PROTECTED_READER_PILOT_CONFIG;
 }

@@ -21,11 +21,47 @@ function resolveInput(input) {
   return path.resolve(PROJECT_ROOT, input);
 }
 
-function validateChunk(chunkInfo, glyphInfo, locations) {
+function getArtifactContract(manifest) {
+  return manifest && manifest.artifactContract && typeof manifest.artifactContract === "object"
+    ? manifest.artifactContract
+    : { kind: "legacy-single-family-v1", supportedFontModes: ["sans"], defaultFontMode: "sans" };
+}
+
+function collectGlyphVisualRefs(glyph, artifactContract) {
+  if (!glyph || typeof glyph !== "object") return [];
+  if (artifactContract.kind === "dual-family-static-v1") {
+    const visualRefs = glyph.visualRefs && typeof glyph.visualRefs === "object" ? glyph.visualRefs : {};
+    return Object.entries(visualRefs)
+      .map(([fontMode, visual]) => ({
+        fontMode,
+        shapeRef: visual && typeof visual === "object" ? String(visual.shapeRef || "") : ""
+      }))
+      .filter((item) => item.shapeRef);
+  }
+  return glyph.shapeRef ? [{ fontMode: glyph.fontMode || artifactContract.defaultFontMode || "sans", shapeRef: glyph.shapeRef }] : [];
+}
+
+function collectShapeRecordsByMode(shapes, artifactContract) {
+  if (artifactContract.kind === "dual-family-static-v1") {
+    const fontModes = shapes && shapes.fontModes && typeof shapes.fontModes === "object" ? shapes.fontModes : {};
+    return Object.fromEntries(
+      Object.entries(fontModes).map(([fontMode, bundle]) => [
+        fontMode,
+        Array.isArray(bundle && bundle.shapeRecords) ? bundle.shapeRecords : []
+      ])
+    );
+  }
+  return {
+    [artifactContract.defaultFontMode || "sans"]: Array.isArray(shapes && shapes.shapeRecords) ? shapes.shapeRecords : []
+  };
+}
+
+function validateChunk(chunkInfo, glyphInfo, locations, manifest) {
   const chunk = chunkInfo.chunk;
   const glyphs = glyphInfo.glyphs;
   const shapes = glyphInfo.shapes;
   const substrate = glyphInfo.substrate || glyphInfo.glyphs.substrate;
+  const artifactContract = getArtifactContract(manifest);
   const chunkLocation = locations.chunks.find((item) => item.chunkId === chunk.chunkId);
   const selectionLayer = chunk.selectionLayer || {};
   const textSegments = Array.isArray(selectionLayer.textSegments) ? selectionLayer.textSegments : [];
@@ -70,45 +106,58 @@ function validateChunk(chunkInfo, glyphInfo, locations) {
   if (glyphValues.some((item) => "reconRef" in item)) {
     throw new Error(`Glyph file for ${chunk.chunkId} leaks reconstruction linkage`);
   }
-  if (glyphValues.some((item) => !item.styleToken || !item.shapeRef || !item.glyphToken)) {
+  if (glyphValues.some((item) => !item.styleToken || !item.glyphToken || !collectGlyphVisualRefs(item, artifactContract).length)) {
     throw new Error(`Glyph file for ${chunk.chunkId} has incomplete glyph records`);
   }
   if (!substrate || substrate.mode !== "sealed-window-substrate-v1" || !Array.isArray(substrate.lanes)) {
     throw new Error(`Glyph file for ${chunk.chunkId} is missing sealed reconstruction substrate`);
   }
   if (shapes) {
-    if (!Array.isArray(shapes.shapeRecords)) {
-      throw new Error(`Shapes file for ${chunk.chunkId} has no shapeRecords`);
+    const shapeRecordsByMode = collectShapeRecordsByMode(shapes, artifactContract);
+    const supportedFontModes =
+      artifactContract.kind === "dual-family-static-v1"
+        ? (artifactContract.supportedFontModes || ["sans"])
+        : [artifactContract.defaultFontMode || "sans"];
+    if (supportedFontModes.some((fontMode) => !Array.isArray(shapeRecordsByMode[fontMode]) || !shapeRecordsByMode[fontMode].length)) {
+      throw new Error(`Shapes file for ${chunk.chunkId} has no shapeRecords for one or more font modes`);
     }
-    const shapeRefs = new Set(shapes.shapeRecords.map((item) => item.shapeRef));
-    for (const shape of shapes.shapeRecords) {
-      if (!shape.shapeRef || !shape.glyphId) {
-        throw new Error(`Shapes file for ${chunk.chunkId} has incomplete shape linkage`);
-      }
-      if ("codePoint" in shape || "char" in shape || "text" in shape) {
-        throw new Error(`Shapes file for ${chunk.chunkId} leaks direct text fields`);
-      }
-      if (shape.source === "extracted") {
-        if (!shape.pathData || typeof shape.pathData !== "string") {
-          throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} is missing pathData`);
+    const shapeRefsByMode = Object.fromEntries(
+      Object.entries(shapeRecordsByMode).map(([fontMode, records]) => [fontMode, new Set(records.map((item) => item.shapeRef))])
+    );
+    for (const records of Object.values(shapeRecordsByMode)) {
+      for (const shape of records) {
+        if (!shape.shapeRef || !shape.glyphId) {
+          throw new Error(`Shapes file for ${chunk.chunkId} has incomplete shape linkage`);
         }
-        if (!shape.extractionStatus || shape.extractionStatus !== "ok") {
-          throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} has invalid extractionStatus`);
+        if ("codePoint" in shape || "char" in shape || "text" in shape) {
+          throw new Error(`Shapes file for ${chunk.chunkId} leaks direct text fields`);
         }
-        if (typeof shape.advance !== "number" || shape.advance <= 0) {
-          throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} has invalid advance`);
-        }
-        if (!shape.bbox || typeof shape.bbox.width !== "number" || typeof shape.bbox.height !== "number") {
-          throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} has invalid bbox`);
+        if (shape.source === "extracted") {
+          if (!shape.pathData || typeof shape.pathData !== "string") {
+            throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} is missing pathData`);
+          }
+          if (!shape.extractionStatus || shape.extractionStatus !== "ok") {
+            throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} has invalid extractionStatus`);
+          }
+          if (typeof shape.advance !== "number" || shape.advance <= 0) {
+            throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} has invalid advance`);
+          }
+          if (!shape.bbox || typeof shape.bbox.width !== "number" || typeof shape.bbox.height !== "number") {
+            throw new Error(`Extracted shape ${shape.shapeRef} in ${chunk.chunkId} has invalid bbox`);
+          }
         }
       }
     }
     for (const glyph of glyphValues) {
-      if (!glyph.shapeRef) {
+      const refs = collectGlyphVisualRefs(glyph, artifactContract);
+      if (!refs.length) {
         throw new Error(`Glyph ${glyph.glyphId} in ${chunk.chunkId} is missing shapeRef`);
       }
-      if (!shapeRefs.has(glyph.shapeRef)) {
-        throw new Error(`Shape bundle for ${chunk.chunkId} is missing ${glyph.shapeRef}`);
+      for (const ref of refs) {
+        const refsForMode = shapeRefsByMode[ref.fontMode] || shapeRefsByMode[artifactContract.defaultFontMode || "sans"];
+        if (!refsForMode || !refsForMode.has(ref.shapeRef)) {
+          throw new Error(`Shape bundle for ${chunk.chunkId} is missing ${ref.shapeRef}`);
+        }
       }
     }
   }
@@ -258,7 +307,7 @@ function main() {
       throw new Error(`Manifest still exposes reconstructionPath for ${manifestChunk.chunkId}`);
     }
     const chunkInfo = loadProtectedChunk(root, manifestChunk);
-    validateChunk(chunkInfo, chunkInfo, locations);
+    validateChunk(chunkInfo, chunkInfo, locations, manifest);
     seeds.add(chunkInfo.glyphs.seed);
     for (const run of chunkInfo.chunk.renderLayer.glyphRuns || []) {
       if (!styleTokens.has(run.styleToken)) {

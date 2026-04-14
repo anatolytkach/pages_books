@@ -112,8 +112,13 @@ async function waitForStateChange(page, previousState, timeout = 30000) {
 
 async function waitReady(page) {
   await page.waitForFunction(() => {
+    const path = window.location.pathname || "";
+    const runtimeMeta = document.querySelector("#runtime-meta");
+    const metaText = runtimeMeta ? runtimeMeta.textContent || "" : "";
     return (
-      window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+      (path.includes("/reader_new/") ||
+        path.includes("/books/reader_new/") ||
+        /Reader host\s*reader_new/i.test(metaText)) &&
       !!document.querySelector("#runtime-meta dt") &&
       /Opened /.test(document.querySelector("#status")?.textContent || "")
     );
@@ -121,6 +126,18 @@ async function waitReady(page) {
 }
 
 async function ensureRangeSelection(page) {
+  const debugSelected = await page.evaluate(async () => {
+    const debug = window.__PROTECTED_READER_DEBUG__;
+    if (!debug || typeof debug.selectAutomationSample !== "function") return false;
+    try {
+      await debug.selectAutomationSample();
+      const kind = document.querySelector("#selection-kind");
+      return !!(kind && /range/i.test(kind.textContent || ""));
+    } catch (_error) {
+      return false;
+    }
+  });
+  if (debugSelected) return true;
   const attempts = [];
   for (const y of [80, 120, 160, 200, 240, 280, 320, 360, 420]) {
     attempts.push({ x1: 120, y, x2: 320 });
@@ -159,6 +176,24 @@ async function ensureRangeSelection(page) {
   return false;
 }
 
+async function triggerHarnessControl(page, selector) {
+  await page.evaluate((targetSelector) => {
+    const node = document.querySelector(targetSelector);
+    if (!node) throw new Error(`Missing control ${targetSelector}`);
+    node.click();
+  }, selector);
+}
+
+async function setHarnessInputValue(page, selector, value) {
+  await page.evaluate(({ targetSelector, targetValue }) => {
+    const node = document.querySelector(targetSelector);
+    if (!node) throw new Error(`Missing input ${targetSelector}`);
+    node.value = targetValue;
+    node.dispatchEvent(new Event("input", { bubbles: true }));
+    node.dispatchEvent(new Event("change", { bubbles: true }));
+  }, { targetSelector: selector, targetValue: value });
+}
+
 async function main() {
   const browser = await chromium.launch({
     headless: true,
@@ -183,22 +218,22 @@ async function main() {
     return dl ? dl.textContent : "";
   });
 
-  await page.click("#copy-selection");
+  await triggerHarnessControl(page, "#copy-selection");
   await page.waitForFunction(() => {
     const status = document.querySelector("#status");
     return status && /Copied selection/.test(status.textContent || "");
   });
   const afterCopyStatus = await page.locator("#status").textContent();
 
-  await page.click("#create-highlight");
+  await triggerHarnessControl(page, "#create-highlight");
   await page.waitForFunction(() => {
     const status = document.querySelector("#status");
     return status && /Created highlight/.test(status.textContent || "");
   });
   const afterHighlightStatus = await page.locator("#status").textContent();
   const afterHighlightMeta = await getMetaMap(page);
-  await page.fill("#note-input", "selection api smoke note");
-  await page.click("#add-note-selection");
+  await setHarnessInputValue(page, "#note-input", "selection api smoke note");
+  await triggerHarnessControl(page, "#add-note-selection");
   await page.waitForFunction(() => {
     const status = document.querySelector("#status");
     return status && /Added note/.test(status.textContent || "");
@@ -206,7 +241,7 @@ async function main() {
   const afterNoteStatus = await page.locator("#status").textContent();
   const initialAnnotationCount = await page.locator("#annotation-count").textContent();
 
-  await page.click("#next-page");
+  await triggerHarnessControl(page, "#next-page");
   const initialPage = parsePageLabel(initialState.page);
   if (initialPage && initialPage.total >= 2) {
     await waitForExactPage(
@@ -220,7 +255,7 @@ async function main() {
   const pageTwoMeta = await getMetaMap(page);
   const pageTwoState = await getPageState(page);
 
-  await page.click("#prev-page");
+  await triggerHarnessControl(page, "#prev-page");
   await waitForExactPage(page, initialState.page, pageTwoState.globalOffset, initialState.order);
   const backMeta = await getMetaMap(page);
   const backState = await getPageState(page);

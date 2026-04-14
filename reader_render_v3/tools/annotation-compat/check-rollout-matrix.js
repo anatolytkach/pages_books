@@ -37,12 +37,20 @@ async function captureReaderState(page) {
     return {
       url: window.location.href,
       status: (document.querySelector("#status")?.textContent || "").trim(),
-      summary: (document.querySelector("#integration-summary")?.textContent || "").trim(),
+      host: (document.querySelector("#runtime-meta dd") ? ((() => {
+        const dl = document.querySelector("#runtime-meta");
+        const children = [...dl.children];
+        for (let index = 0; index < children.length; index += 2) {
+          const dt = children[index];
+          const dd = children[index + 1];
+          if (dt && dd && dt.textContent.trim() === "Reader host") return dd.textContent.trim();
+        }
+        return "";
+      })()) : ""),
       runtimeMetaPresent: !!document.querySelector("#runtime-meta"),
       protectedCanvas: !!document.querySelector("#reader-canvas"),
       frameTags: root ? [...root.children].map((item) => item.tagName) : [],
-      frameText: root ? (root.textContent || "").trim() : "",
-      oldReaderLink: document.querySelector("#open-old-reader")?.getAttribute("href") || ""
+      frameText: root ? (root.textContent || "").trim() : ""
     };
   });
 }
@@ -67,6 +75,15 @@ async function runProtectedScenario(page, pathname) {
     if (window.location.search.includes("protectedFallbackReason=")) return true;
     return false;
   }, { timeout: 15000 });
+  await page.waitForFunction(() => {
+    if (window.location.search.includes("protectedFallbackReason=")) return true;
+    const status = String(document.querySelector("#status")?.textContent || "").trim();
+    const runtimeMeta = document.querySelector("#runtime-meta");
+    const metaChildren = runtimeMeta ? runtimeMeta.querySelectorAll("dt").length : 0;
+    if (/Protected mode is unavailable/i.test(status)) return true;
+    if (/Opened chunk-/i.test(status) && metaChildren > 0) return true;
+    return false;
+  }, { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(800);
   const state = await captureReaderState(page);
   const meta = await getMetaMap(page);

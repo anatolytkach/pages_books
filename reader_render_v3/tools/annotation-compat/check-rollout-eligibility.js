@@ -38,11 +38,11 @@ function makeDocumentStub(driveConfigured) {
 }
 
 async function loadModules() {
-  const routingModule = await import(pathToFileURL(path.join(REPO_ROOT, "reader_render_v3/integration/protected-reader-routing.js")).href);
-  const rolloutModule = await import(pathToFileURL(path.join(REPO_ROOT, "reader_render_v3/integration/protected-reader-rollout.js")).href);
-  const configModule = await import(pathToFileURL(path.join(REPO_ROOT, "reader_render_v3/integration/protected-reader-rollout-config.js")).href);
-  const eligibilityModule = await import(pathToFileURL(path.join(REPO_ROOT, "reader_render_v3/integration/protected-reader-eligibility.js")).href);
-  const statusModule = await import(pathToFileURL(path.join(REPO_ROOT, "reader_render_v3/integration/protected-reader-status.js")).href);
+  const routingModule = await import(pathToFileURL(path.join(REPO_ROOT, "reader_render_v3/reader_new/protected-host-routing.js")).href);
+  const rolloutModule = await import(pathToFileURL(path.join(REPO_ROOT, "reader_render_v3/reader_new/protected-host-rollout.js")).href);
+  const configModule = await import(pathToFileURL(path.join(REPO_ROOT, "reader_render_v3/reader_new/protected-host-rollout-config.js")).href);
+  const eligibilityModule = await import(pathToFileURL(path.join(REPO_ROOT, "reader_render_v3/reader_new/protected-host-eligibility.js")).href);
+  const statusModule = await import(pathToFileURL(path.join(REPO_ROOT, "reader_render_v3/reader_new/protected-host-status.js")).href);
   return {
     parseProtectedIntegrationRoute: routingModule.parseProtectedIntegrationRoute,
     resolveProtectedReaderRollout: rolloutModule.resolveProtectedReaderRollout,

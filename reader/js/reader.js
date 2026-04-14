@@ -3291,6 +3291,11 @@ function applyThemeToIframes(themeName) {
 	var $viewer = $("#viewer");
 	var search = window.location.search;
 	var parameters;
+  var directRenderHostEnabled = !!(
+    window.ReaderPubUnprotectedDirect &&
+    typeof window.ReaderPubUnprotectedDirect.isDirectMode === "function" &&
+    window.ReaderPubUnprotectedDirect.isDirectMode()
+  );
 
 	this.settings = EPUBJS.core.defaults(_options || {}, {
 		bookPath : bookPath,
@@ -3367,31 +3372,61 @@ function applyThemeToIframes(themeName) {
 	var isMobileView = (window.matchMedia && window.matchMedia("(max-width: 768px)").matches) || window.innerWidth <= 768;
 
 	// MAIN rendition (current page) renders into #viewer (kept for backwards compatibility)
-	this.rendition = book.renderTo("viewer", {
+	var renditionOptions = {
 		ignoreClass: "annotator-hl",
 		width: "100%",
 		height: "100%",
 		spread: isMobileView ? "none" : "auto",
 		flow: "paginated"
-	});
+	};
+  if (directRenderHostEnabled && window.ReaderPubUnprotectedDirect && window.ReaderPubUnprotectedDirect.DirectView) {
+    renditionOptions.view = window.ReaderPubUnprotectedDirect.DirectView;
+  }
+	this.rendition = book.renderTo("viewer", renditionOptions);
 
 	// Neighbor renditions for swipe preview (prev/next pages underneath current)
 	// They are rendered into #viewer-prev and #viewer-next, kept in DOM at all times.
 	// We do NOT attach UI interactions to them; they are purely visual.
-	this.renditionPrev = book.renderTo("viewer-prev", {
-		ignoreClass: "annotator-hl",
-		width: "100%",
-		height: "100%",
-		spread: isMobileView ? "none" : "auto",
-		flow: "paginated"
-	});
-	this.renditionNext = book.renderTo("viewer-next", {
-		ignoreClass: "annotator-hl",
-		width: "100%",
-		height: "100%",
-		spread: isMobileView ? "none" : "auto",
-		flow: "paginated"
-	});
+  if (directRenderHostEnabled) {
+    this.renditionPrev = null;
+    this.renditionNext = null;
+  } else {
+    var prevOptions = {
+		  ignoreClass: "annotator-hl",
+		  width: "100%",
+		  height: "100%",
+		  spread: isMobileView ? "none" : "auto",
+		  flow: "paginated"
+    };
+    var nextOptions = {
+		  ignoreClass: "annotator-hl",
+		  width: "100%",
+		  height: "100%",
+		  spread: isMobileView ? "none" : "auto",
+		  flow: "paginated"
+    };
+    if (renditionOptions.view) {
+      prevOptions.view = renditionOptions.view;
+      nextOptions.view = renditionOptions.view;
+    }
+	  this.renditionPrev = book.renderTo("viewer-prev", prevOptions);
+	  this.renditionNext = book.renderTo("viewer-next", nextOptions);
+  }
+
+  try {
+    if (directRenderHostEnabled) {
+      window.__readerpubUnprotectedRenderHost = "direct";
+      document.documentElement.classList.add("unprotected-render-host-direct");
+      document.body && document.body.classList.add("unprotected-render-host-direct");
+      if (window.ReaderPubUnprotectedDirect && typeof window.ReaderPubUnprotectedDirect.patchRenditionInstance === "function") {
+        window.ReaderPubUnprotectedDirect.patchRenditionInstance(this.rendition);
+        window.ReaderPubUnprotectedDirect.patchRenditionInstance(this.renditionPrev);
+        window.ReaderPubUnprotectedDirect.patchRenditionInstance(this.renditionNext);
+      }
+    } else {
+      window.__readerpubUnprotectedRenderHost = "iframe";
+    }
+  } catch (eDirectMode) {}
 
 	// Ensure swipe/tap handlers are attached for ALL renditions (current + neighbor views),
 	// so center-tap works on every page even after navigation and pre-render swaps.
@@ -7010,8 +7045,193 @@ if (doc) {
 		}
 		saveLocTimer = setTimeout(function () {
 			saveLocTimer = null;
-			try { reader.saveSettings(); } catch (e2) {}
+			persistSettingsWithCurrentLocation().catch(function () {});
 		}, 200);
+	}
+
+	function isDirectUnprotectedMode() {
+		try {
+			return !!(reader && reader.settings && String(reader.settings.unprotectedRenderHost || "").toLowerCase() === "direct");
+		} catch (e) {
+			return false;
+		}
+	}
+
+	function waitForReaderLocationsReady(timeoutMs) {
+		var limit = parseInt(timeoutMs, 10) || 4000;
+		return new Promise(function (resolve) {
+			var started = Date.now();
+			(function poll() {
+				try {
+					if (reader && reader.book && reader.book.locations && parseInt(reader.book.locations.total || 0, 10) > 0) {
+						resolve(true);
+						return;
+					}
+				} catch (e0) {}
+				if ((Date.now() - started) >= limit) {
+					resolve(false);
+					return;
+				}
+				setTimeout(poll, 80);
+			})();
+		});
+	}
+
+	function getCurrentReaderLocationSafe() {
+		try {
+			if (reader && reader._lastRelocated) return reader._lastRelocated;
+		} catch (e0) {}
+		try {
+			return (reader && reader.rendition && reader.rendition.currentLocation)
+				? reader.rendition.currentLocation()
+				: null;
+		} catch (e1) {
+			return null;
+		}
+	}
+
+	function writeCurrentSettingsToStorage() {
+		try {
+			if (!localStorage || !reader || !reader.settings || !reader.settings.bookKey) return false;
+			localStorage.setItem(reader.settings.bookKey, JSON.stringify(reader.settings));
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	function deriveDirectCanonicalPersistedCfi() {
+		if (!isDirectUnprotectedMode()) return Promise.resolve("");
+		var currentLocation = getCurrentReaderLocationSafe();
+		var currentStart = currentLocation && currentLocation.start ? currentLocation.start : null;
+		var currentCfi = currentStart && currentStart.cfi ? String(currentStart.cfi) : "";
+		var targetHref = normalizeHref(currentStart && currentStart.href ? currentStart.href : "");
+		var targetPage = currentStart && currentStart.displayed && typeof currentStart.displayed.page === "number"
+			? parseInt(currentStart.displayed.page, 10)
+			: 1;
+		var targetIndex = getSpineIndexFromLocation(currentLocation);
+
+		if (!currentCfi) return Promise.resolve("");
+		if (!targetHref && reader.book && reader.book.spine && typeof reader.book.spine.get === "function") {
+			try {
+				var spineItem = reader.book.spine.get(currentCfi);
+				targetHref = normalizeHref(spineItem && spineItem.href ? spineItem.href : "");
+			} catch (eHref) {}
+		}
+		if (!targetHref) return Promise.resolve(currentCfi);
+		if (!targetPage || isNaN(targetPage) || targetPage < 1) targetPage = 1;
+
+		ensureSpineHrefIndex();
+		ensurePageCalcRendition(false);
+
+		return waitForResponsiveSlot().then(function () {
+			return reader._pageCalcRendition.display(targetHref);
+		}).then(function () {
+			return waitForResponsiveSlot();
+		}).then(function () {
+			return waitForResponsiveSlot();
+		}).then(function () {
+			var guard = 0;
+			var lastFingerprint = "";
+
+			function walk() {
+				var loc = reader._pageCalcRendition && reader._pageCalcRendition.currentLocation
+					? reader._pageCalcRendition.currentLocation()
+					: null;
+				var start = loc && loc.start ? loc.start : null;
+				var page = start && start.displayed && typeof start.displayed.page === "number"
+					? parseInt(start.displayed.page, 10)
+					: 1;
+				var index = getSpineIndexFromLocation(loc);
+				var href = normalizeHref(start && start.href ? start.href : "");
+				var cfi = start && start.cfi ? String(start.cfi) : "";
+				var fingerprint = getLocationFingerprint(loc);
+
+				if (cfi && page >= targetPage && (targetIndex < 0 || index === targetIndex) && (!targetHref || href === targetHref)) {
+					return cfi;
+				}
+				if (!cfi) return currentCfi;
+				if (guard >= 200) return cfi;
+				if (fingerprint && fingerprint === lastFingerprint) return cfi;
+
+				lastFingerprint = fingerprint;
+				guard += 1;
+
+				return waitForResponsiveSlot().then(function () {
+					return reader._pageCalcRendition.next();
+				}).then(function () {
+					return waitForResponsiveSlot();
+				}).then(walk).catch(function () {
+					return cfi || currentCfi;
+				});
+			}
+
+			return walk();
+		}).catch(function () {
+			return currentCfi;
+		});
+	}
+
+	function persistSettingsWithCurrentLocation() {
+		if (!reader || !reader.settings || !reader.settings.restore) return Promise.resolve(false);
+		if (!localStorage) return Promise.resolve(false);
+		if (!isDirectUnprotectedMode()) {
+			try {
+				reader.saveSettings();
+				return Promise.resolve(true);
+			} catch (e0) {
+				return Promise.resolve(false);
+			}
+		}
+
+		return deriveDirectCanonicalPersistedCfi().then(function (canonicalCfi) {
+			if (canonicalCfi) {
+				reader.settings.previousLocationCfi = canonicalCfi;
+				reader._lastCanonicalPersistedCfi = canonicalCfi;
+			} else {
+				var loc = getCurrentReaderLocationSafe();
+				var currentCfi = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
+				if (currentCfi) reader.settings.previousLocationCfi = currentCfi;
+			}
+			return writeCurrentSettingsToStorage();
+		}).catch(function () {
+			try {
+				reader.saveSettings();
+				return true;
+			} catch (e1) {
+				return false;
+			}
+		});
+	}
+
+	function scheduleDirectRestoreReplay(targetCfi) {
+		if (!isDirectUnprotectedMode() || !targetCfi) return;
+		if (reader._directRestoreReplayScheduled) return;
+		reader._directRestoreReplayScheduled = true;
+		reader._directRestoreReplayTarget = targetCfi;
+		Promise.resolve()
+			.then(function () {
+				return waitForReaderLocationsReady(4500);
+			})
+			.then(waitFrame)
+			.then(waitFrame)
+			.then(function () {
+				return new Promise(function (resolve) { setTimeout(resolve, 260); });
+			})
+			.then(function () {
+				if (!reader || !reader.rendition || typeof reader.rendition.display !== "function") return;
+				try { markNavigationInProgress(2200); } catch (eNavReplay) {}
+				return Promise.resolve(reader.rendition.display(targetCfi));
+			})
+			.then(function () {
+				try {
+					var loc = reader && reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
+					if (loc) updatePageCount(loc);
+				} catch (eLocReplay) {}
+			})
+			.finally(function () {
+				reader._directRestoreReplayScheduled = false;
+			});
 	}
 ;
 
@@ -7037,9 +7257,10 @@ if (doc) {
 		window.addEventListener("pageshow", function () { schedulePageCounterRecovery("pageshow"); }, { passive: true });
 	} catch (eVis) {}
 
-	if(this.settings.previousLocationCfi) {
+	var initialRestoreCfi = this.settings.previousLocationCfi || "";
+	if(initialRestoreCfi) {
 		try { markNavigationInProgress(2200); } catch (eNavInit1) {}
-		this.displayed = this.rendition.display(this.settings.previousLocationCfi);
+		this.displayed = this.rendition.display(initialRestoreCfi);
 	} else {
 		try { markNavigationInProgress(2200); } catch (eNavInit2) {}
 		this.displayed = this.rendition.display();
@@ -7048,8 +7269,17 @@ if (doc) {
 	// Apply initial font size right after the first render.
 	// (Settings store it, but it won't take effect until setStyle is called.)
 	this.displayed.then(function () {
+		if (initialRestoreCfi) {
+			scheduleDirectRestoreReplay(initialRestoreCfi);
+		}
 		if (reader.settings && reader.settings.styles && reader.settings.styles.fontSize) {
-			reader.book.setStyle("fontSize", reader.settings.styles.fontSize);
+			if (reader.book && typeof reader.book.setStyle === "function") {
+				reader.book.setStyle("fontSize", reader.settings.styles.fontSize);
+			} else if (reader.rendition && reader.rendition.themes && typeof reader.rendition.themes.fontSize === "function") {
+				try { reader.rendition.themes.fontSize(reader.settings.styles.fontSize); } catch (eSetStyle0) {}
+				try { reader.renditionPrev && reader.renditionPrev.themes && reader.renditionPrev.themes.fontSize(reader.settings.styles.fontSize); } catch (eSetStyle1) {}
+				try { reader.renditionNext && reader.renditionNext.themes && reader.renditionNext.themes.fontSize(reader.settings.styles.fontSize); } catch (eSetStyle2) {}
+			}
 		}
 	});
 
@@ -7276,7 +7506,22 @@ EPUBJS.Reader.prototype.applySavedSettings = function() {
 
 EPUBJS.Reader.prototype.saveSettings = function(){
 	if(this.book) {
-		this.settings.previousLocationCfi = this.rendition.currentLocation().start.cfi;
+		var currentLocation = null;
+		try {
+			currentLocation = this._lastRelocated || (this.rendition && this.rendition.currentLocation ? this.rendition.currentLocation() : null);
+		} catch (e0) {}
+		var currentCfi = currentLocation && currentLocation.start ? currentLocation.start.cfi : null;
+		var persistedCfi = currentCfi;
+		try {
+			if (
+				this.settings &&
+				String(this.settings.unprotectedRenderHost || "").toLowerCase() === "direct" &&
+				this._lastCanonicalPersistedCfi
+			) {
+				persistedCfi = this._lastCanonicalPersistedCfi;
+			}
+		} catch (e1) {}
+		this.settings.previousLocationCfi = persistedCfi;
 	}
 
 	if(!localStorage) {

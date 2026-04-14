@@ -14,6 +14,7 @@ Allow: /category/
 Allow: /sitemap.xml
 Allow: /sitemaps/
 Disallow: /books/reader/
+Disallow: /books/reader_new/
 Disallow: /books/reader1/
 Disallow: /books/api/
 
@@ -179,6 +180,10 @@ export default {
       return redirect("/books/reader/", "slash-redirect");
     }
 
+    if (path === "/books/reader_new") {
+      return redirect("/books/reader_new/", "slash-redirect");
+    }
+
     if (path === "/books/reader1") {
       return redirect("/books/reader1/", "slash-redirect");
     }
@@ -318,6 +323,16 @@ export default {
       const upstreamUrl = new URL(`${host}${rewrittenPath}`);
       upstreamUrl.search = url.search;
       return proxyRequest(request, upstreamUrl, "proxy-reader");
+    }
+
+    if (path === "/books/reader_new/" || path.startsWith("/books/reader_new/")) {
+      const rewrittenPath =
+        path === "/books/reader_new/" || path === "/books/reader_new/index.html"
+          ? "/reader/reader_new.html"
+          : path.replace(/^\/books\/reader_new/, "/reader");
+      const upstreamUrl = new URL(`${host}${rewrittenPath}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-reader-new");
     }
 
     if (path === "/books/reader1/" || path.startsWith("/books/reader1/")) {

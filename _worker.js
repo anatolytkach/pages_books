@@ -1990,7 +1990,7 @@ export default {
     }
 
     // Normalize reader/catalog roots to trailing-slash form to avoid 404 on some routes.
-    if (path === "/books/reader" || path === "/books/reader1" || path === "/books/catalog") {
+    if (path === "/books/reader" || path === "/books/reader_new" || path === "/books/reader1" || path === "/books/catalog") {
       const headers = new Headers({ location: `${path}/` });
       headers.set("x-reader-worker", "1");
       headers.set("x-reader-route", "slash-redirect");
@@ -2008,7 +2008,24 @@ export default {
       return new Response(null, { status: 302, headers });
     }
 
-    const response = await env.ASSETS.fetch(request);
+    let assetRequest = request;
+    if (path === "/books/reader_new/" || path === "/books/reader_new/index.html" || path.startsWith("/books/reader_new/css/") || path.startsWith("/books/reader_new/js/") || path.startsWith("/books/reader_new/icons/") || path.startsWith("/books/reader_new/fonts/") || path.startsWith("/books/reader_new/img/")) {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname =
+        path === "/books/reader_new/" || path === "/books/reader_new/index.html"
+          ? "/reader/reader_new.html"
+          : path.replace(/^\/books\/reader_new/, "/books/reader");
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+    } else if (path === "/reader_new/" || path === "/reader_new/index.html" || path.startsWith("/reader_new/css/") || path.startsWith("/reader_new/js/") || path.startsWith("/reader_new/icons/") || path.startsWith("/reader_new/fonts/") || path.startsWith("/reader_new/img/")) {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname =
+        path === "/reader_new/" || path === "/reader_new/index.html"
+          ? "/reader/reader_new.html"
+          : path.replace(/^\/reader_new/, "/reader");
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+    }
+
+    const response = await env.ASSETS.fetch(assetRequest);
     const headers = new Headers(response.headers);
     const isCatalogHtml =
       path === "/books" || path === "/books/" || path === "/books/index.html";
@@ -2020,6 +2037,13 @@ export default {
       path.startsWith("/books/reader/icons/") ||
       path.startsWith("/books/reader/fonts/") ||
       path.startsWith("/books/reader/img/") ||
+      path === "/books/reader_new/" ||
+      path === "/books/reader_new/index.html" ||
+      path.startsWith("/books/reader_new/css/") ||
+      path.startsWith("/books/reader_new/js/") ||
+      path.startsWith("/books/reader_new/icons/") ||
+      path.startsWith("/books/reader_new/fonts/") ||
+      path.startsWith("/books/reader_new/img/") ||
       path === "/books/reader1/" ||
       path === "/books/reader1/index.html" ||
       path.startsWith("/books/reader1/css/") ||

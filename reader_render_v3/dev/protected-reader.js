@@ -1,80 +1,38 @@
-import { createProtectedAnnotationRepository } from "../runtime/protected-annotation-repository.js";
-import { serializeRangeDescriptor } from "../runtime/protected-range-serialization.js";
-import { renderChunkToCanvas } from "../runtime/protected-canvas-renderer.js";
-import { createProtectedWorkerClient } from "../runtime/protected-worker-client.js";
-import { loadProtectedBook, loadProtectedChunkModel } from "../runtime/protected-book-model.js";
-import { parseRestoreToken } from "../runtime/protected-global-location.js";
-import { reconstructCrossChunkRangeText } from "../runtime/protected-cross-chunk-model.js";
-import { reconstructVisibleWindow } from "../runtime/protected-text-reconstruction.js";
-import { resolveProductionPayloadFromRoute } from "../integration/protected-reader-routing.js";
 import {
   buildProtectedSyncTransport,
-  normalizeProtectedSyncTransportHandoff
-} from "../runtime/protected-sync-transport.js";
-import { downloadJsonFile, readTextFile } from "../runtime/protected-file-transfer.js";
-import { createProtectedDriveTransport } from "../runtime/protected-drive-transport.js";
+  createProtectedAnnotationRepository,
+  createProtectedDriveTransport,
+  createProtectedReaderRuntimeState,
+  DEFAULT_PROTECTED_READER_ARTIFACT as DEFAULT_ARTIFACT,
+  downloadJsonFile,
+  escapeProtectedReaderHtml as escapeHtml,
+  isProtectedReaderAutomationSafeMode,
+  isProtectedReaderDriveUiDisabled,
+  isProtectedReaderEmbeddedOldShellMode,
+  loadProtectedBook,
+  loadProtectedChunkModel,
+  normalizeProtectedReaderFontMode as normalizeFontMode,
+  normalizeProtectedReaderGeneration as normalizeGeneration,
+  normalizeProtectedSyncTransportHandoff,
+  parseRestoreToken,
+  protectedReaderEntryConfig as entryConfig,
+  readTextFile,
+  reconstructCrossChunkRangeText,
+  reconstructVisibleWindow,
+  renderChunkToCanvas,
+  resolveProductionPayloadFromRoute,
+  serializeRangeDescriptor
+} from "./protected-reader-runtime-core.js";
+import {
+  createProtectedReaderCompatAdapter
+} from "./protected-reader-compat-adapter.js";
+import {
+  createProtectedReaderEventChannel,
+  PROTECTED_READER_CANONICAL_EVENT_NAMES
+} from "./protected-reader-events.js";
 import { createInitialProtectedDriveState, mergeProtectedDriveState } from "../runtime/protected-drive-state.js";
 
-const entryConfig = window.__PROTECTED_READER_ENTRY__ || null;
-const DEFAULT_ARTIFACT =
-  (entryConfig && entryConfig.artifactRoot) ||
-  "../artifacts/protected-books/19686";
-
-function getInitialFontScale() {
-  try {
-    const params = new URLSearchParams(window.location.search || "");
-    const raw = Number(params.get("protectedFontScale") || "");
-    if (Number.isFinite(raw) && raw > 0) {
-      return Math.max(0.8, Math.min(1.6, Number(raw.toFixed(2))));
-    }
-  } catch (_error) {}
-  return 1;
-}
-
-function normalizeFontMode(value) {
-  return String(value || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
-}
-
-function normalizeGeneration(value, fallback = 0) {
-  const next = Number(value);
-  return Number.isFinite(next) && next > 0 ? Math.floor(next) : fallback;
-}
-
-function getInitialGenerationParam(paramName) {
-  try {
-    if (entryConfig && Number.isFinite(Number(entryConfig[paramName]))) {
-      return normalizeGeneration(entryConfig[paramName], 1);
-    }
-  } catch (_error) {}
-  try {
-    const params = new URLSearchParams(window.location.search || "");
-    return normalizeGeneration(params.get(paramName), 1);
-  } catch (_error) {}
-  return 1;
-}
-
-function getInitialFontMode() {
-  try {
-    if (entryConfig && entryConfig.fontMode) {
-      return normalizeFontMode(entryConfig.fontMode);
-    }
-  } catch (_error) {}
-  try {
-    const params = new URLSearchParams(window.location.search || "");
-    return normalizeFontMode(params.get("protectedFontMode") || params.get("fontMode"));
-  } catch (_error) {}
-  return "sans";
-}
-
-function shouldForceWorkerUnavailable() {
-  if (entryConfig && entryConfig.forceWorkerUnavailable) return true;
-  const params = new URLSearchParams(window.location.search);
-  const value = String(params.get("worker") || params.get("protectedWorker") || "")
-    .trim()
-    .toLowerCase();
-  return ["disabled", "fail", "broken"].includes(value);
-}
-
+// Harness/dev shell DOM wiring stays here. Runtime state is owned by protected-reader-runtime-core.js.
 const elements = {
   artifactForm: document.querySelector("#artifact-form"),
   artifactInput: document.querySelector("#artifact-input"),
@@ -129,95 +87,55 @@ const elements = {
   readerFrame: document.querySelector(".reader-frame")
 };
 
-const state = {
-  artifactRoot: DEFAULT_ARTIFACT,
-  bookSummary: null,
-  tocItems: [],
-  currentSnapshot: null,
-  currentRenderDiagnostics: null,
-  workerClient: createProtectedWorkerClient({
-    forceUnavailable: shouldForceWorkerUnavailable()
-  }),
-  compatBook: null,
-  annotationRepository: null,
-  annotationStore: null,
-  selectedAnnotationId: null,
-  lastCompatReport: null,
-  entryConfig,
-  integrationMode: !!(entryConfig && entryConfig.mode === "integration"),
-  readingStateSource: entryConfig && entryConfig.readingStateSource ? entryConfig.readingStateSource : "protected-session",
-  readingStateRestoreApplied: false,
-  persistedReadingState: null,
-  lastReadingStateSaveAt: null,
-  compatShareImportStatus: entryConfig && entryConfig.compatShareImportStatus ? entryConfig.compatShareImportStatus : "none",
-  compatShareWarnings: entryConfig && Array.isArray(entryConfig.compatShareWarnings) ? entryConfig.compatShareWarnings : [],
-  sharePayloadParseStatus: entryConfig && entryConfig.compatShareImportStatus ? entryConfig.compatShareImportStatus : "none",
-  artifactLoadStatus: "idle",
-  persistenceDiagnostics: null,
-  fileSyncCompatibilityStatus: "none",
-  lastFileTransferResult: null,
-  currentSyncTransport: null,
-  currentHandoffState: null,
-  driveTransport: null,
-  driveState: createInitialProtectedDriveState(),
-  rolloutStatus: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.rolloutStatus || null : null,
-  rolloutEligibility: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.eligibility || null : null,
-  rolloutPolicy: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.rollout || null : null,
-  pilotStatus: entryConfig && entryConfig.integrationDiagnostics ? entryConfig.integrationDiagnostics.pilot || null : null,
-  theme: "light",
-  fontScale: getInitialFontScale(),
-  fontMode: getInitialFontMode(),
-  configGeneration: getInitialGenerationParam("protectedConfigGeneration"),
-  layoutGeneration: getInitialGenerationParam("protectedLayoutGeneration"),
-  renderMode: "shape",
-  metricsMode: "shape",
-  debugGeometry: false,
-  pointerGesture: {
-    active: false,
-    selectionStarted: false,
-    pointerId: null,
-    shiftKey: false,
-    startClientX: 0,
-    startClientY: 0,
-    startCanvasPoint: null,
-    moveScheduled: false,
-    pendingMovePoint: null
-  },
-  pointerRequestChain: Promise.resolve(),
-  turnPreviewRefreshToken: 0,
-  turnPreviewRefreshPromise: Promise.resolve(),
-  resolvedCoverUrl: "",
-  resolvedCoverLookupKey: "",
-  resolvedCoverLookupPromise: Promise.resolve()
-};
+const state = createProtectedReaderRuntimeState();
+const readerContractEvents = createProtectedReaderEventChannel({
+  onEmit(eventName, payload) {
+    try {
+      window.__PROTECTED_READER_EVENT_HISTORY__ = readerContractEvents.getHistory();
+    } catch (_error) {}
+    if (!isEmbeddedOldShellMode()) return;
+    const renderHostMode =
+      state && state.entryConfig && String(state.entryConfig.renderHost || "").trim().toLowerCase() === "direct"
+        ? "direct"
+        : "iframe";
+    if (renderHostMode === "direct") return;
+    try {
+      window.parent.postMessage(
+        {
+          channel: "protected-old-shell-v1",
+          type: "reader-event",
+          eventName,
+          payload
+        },
+        window.location.origin
+      );
+    } catch (_error) {}
+  }
+});
 
-function escapeHtml(text = "") {
-  return String(text)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+window.__PROTECTED_READER_EVENTS__ = readerContractEvents;
+
+function isEmbeddedOldShellMode() {
+  return isProtectedReaderEmbeddedOldShellMode(state);
 }
 
-let pendingSelectionRangeDescriptor = null;
+function isOldShellCompatHostMode() {
+  const shellMode = state && state.entryConfig ? String(state.entryConfig.uxShellMode || "").trim().toLowerCase() : "";
+  return isEmbeddedOldShellMode() || shellMode === "old-shell";
+}
+
+function isDriveUiDisabled() {
+  return isProtectedReaderDriveUiDisabled(state);
+}
+
+function isAutomationSafeMode() {
+  return isProtectedReaderAutomationSafeMode(state);
+}
 
 if (isEmbeddedOldShellMode()) {
   document.documentElement.dataset.shellMode = "embedded-old-shell";
   document.body.dataset.shellMode = "embedded-old-shell";
   document.body.dataset.driveMode = state.entryConfig && state.entryConfig.driveMode ? state.entryConfig.driveMode : "full";
-}
-
-function isEmbeddedOldShellMode() {
-  return !!(state.entryConfig && state.entryConfig.embeddedMode === "old-shell");
-}
-
-function isDriveUiDisabled() {
-  return !!(state.entryConfig && state.entryConfig.driveMode === "disabled");
-}
-
-function isAutomationSafeMode() {
-  return !!(state.entryConfig && state.entryConfig.automationSafe);
 }
 
 function supportsPointerEvents() {
@@ -352,6 +270,7 @@ function applyEmbeddedTheme(theme) {
   document.documentElement.dataset.theme = state.theme;
   document.body.dataset.theme = state.theme;
   refreshCanvas();
+  emitReaderContractEventsFromSummary(buildBridgeSummary());
   notifyEmbeddedBridge();
 }
 
@@ -362,6 +281,7 @@ function setStatus(message, tone = "idle") {
 }
 
 function setDlRows(container, rows) {
+  if (!container) return;
   container.replaceChildren();
   for (const [label, value] of rows) {
     const dt = document.createElement("dt");
@@ -442,11 +362,13 @@ function buildBridgeSummary() {
     : "";
   return {
     ready: !!state.currentSnapshot,
+    compatTransport: getCompatTransportMode(),
     configGeneration: state.configGeneration,
     layoutGeneration: state.layoutGeneration,
-    integrationMode: !!state.integrationMode,
+    hostedMode: !!state.hostedMode,
+    hostMode: state.hostedMode ? "reader_new" : "dev-shell",
     embeddedMode: isEmbeddedOldShellMode(),
-    readerMode: state.integrationMode ? "protected" : "dev-shell",
+    readerMode: state.hostedMode ? "protected" : "dev-shell",
     bookId: state.bookSummary ? state.bookSummary.bookId : "",
     bookTitle: state.bookSummary && state.bookSummary.metadata ? state.bookSummary.metadata.title || "" : "",
     bookAuthor: getCurrentBookAuthor(),
@@ -655,9 +577,19 @@ function buildDebugLayoutState() {
   if (!layout || !pageWindow || !Array.isArray(layout.lines)) {
     return {
       ready: false,
-      lines: []
+      lines: [],
+      pageWindow: null,
+      selectionHighlights: [],
+      searchHighlights: [],
+      focusHighlights: [],
+      annotationHighlights: [],
+      noteMarkers: []
     };
   }
+  const renderPacket =
+    state.currentSnapshot && state.currentSnapshot.renderPacket
+      ? state.currentSnapshot.renderPacket
+      : null;
   const lines = layout.lines
     .filter((line) => line && line.lineIndex >= pageWindow.lineStartIndex && line.lineIndex <= pageWindow.lineEndIndex)
     .map((line) => ({
@@ -667,8 +599,19 @@ function buildDebugLayoutState() {
       widthRatio: Number(line.maxWidth || 0) > 0 ? Number(line.width || 0) / Number(line.maxWidth || 1) : 0,
       x: Number(line.x || 0),
       y: Number(line.y || 0),
+      height: Number(line.height || 0),
       fragmentCount: Array.isArray(line.fragments) ? line.fragments.length : 0,
       tokenKinds: Array.isArray(line.fragments) ? line.fragments.map((fragment) => String(fragment.tokenKind || "")) : [],
+      fragments: Array.isArray(line.fragments)
+        ? line.fragments.map((fragment) => ({
+            x: Number(fragment.x || 0),
+            y: Number(fragment.y || 0),
+            width: Number(fragment.width || 0),
+            height: Number(fragment.height || 0),
+            tokenKind: String(fragment.tokenKind || ""),
+            glyphCount: Number(fragment.glyphCount || 0)
+          }))
+        : [],
       preview: Array.isArray(line.fragments)
         ? line.fragments.map((fragment) => ({
             tokenKind: String(fragment.tokenKind || ""),
@@ -681,25 +624,68 @@ function buildDebugLayoutState() {
     ready: true,
     pageLabel: buildBridgeSummary().pageLabel,
     globalPageLabel: buildBridgeSummary().globalPageLabel,
-    lines
+    pageWindow: {
+      left: Number(pageWindow.left || 0),
+      top: Number(pageWindow.top || 0),
+      width: Number(pageWindow.width || 0),
+      height: Number(pageWindow.height || 0),
+      lineStartIndex: Number(pageWindow.lineStartIndex || 0),
+      lineEndIndex: Number(pageWindow.lineEndIndex || 0)
+    },
+    lines,
+    selectionHighlights: Array.isArray(renderPacket && renderPacket.selectionHighlights)
+      ? renderPacket.selectionHighlights.map((rect) => ({
+          x: Number(rect && rect.x || 0),
+          y: Number(rect && rect.y || 0) - Number(pageWindow.top || 0),
+          width: Number(rect && rect.width || 0),
+          height: Number(rect && rect.height || 0)
+        }))
+      : [],
+    searchHighlights: Array.isArray(renderPacket && renderPacket.searchHighlights)
+      ? renderPacket.searchHighlights.map((rect) => ({
+          x: Number(rect && rect.x || 0),
+          y: Number(rect && rect.y || 0) - Number(pageWindow.top || 0),
+          width: Number(rect && rect.width || 0),
+          height: Number(rect && rect.height || 0)
+        }))
+      : [],
+    focusHighlights: Array.isArray(renderPacket && renderPacket.focusHighlights)
+      ? renderPacket.focusHighlights.map((rect) => ({
+          x: Number(rect && rect.x || 0),
+          y: Number(rect && rect.y || 0) - Number(pageWindow.top || 0),
+          width: Number(rect && rect.width || 0),
+          height: Number(rect && rect.height || 0)
+        }))
+      : [],
+    annotationHighlights: Array.isArray(renderPacket && renderPacket.annotationHighlights)
+      ? renderPacket.annotationHighlights.map((rect) => ({
+          x: Number(rect && rect.x || 0),
+          y: Number(rect && rect.y || 0) - Number(pageWindow.top || 0),
+          width: Number(rect && rect.width || 0),
+          height: Number(rect && rect.height || 0)
+        }))
+      : [],
+    noteMarkers: Array.isArray(renderPacket && renderPacket.noteMarkers)
+      ? renderPacket.noteMarkers.map((marker) => ({
+          x: Number(marker && marker.x || 0),
+          y: Number(marker && marker.y || 0) - Number(pageWindow.top || 0),
+          width: Number(marker && marker.width || 0),
+          height: Number(marker && marker.height || 0)
+        }))
+      : []
   };
 }
 
 function notifyEmbeddedBridge() {
-  if (!isEmbeddedOldShellMode()) return;
-  const summary = buildBridgeSummary();
-  window.__PROTECTED_READER_BRIDGE__ = window.__PROTECTED_READER_BRIDGE__ || {};
-  window.__PROTECTED_READER_BRIDGE__.getSummary = buildBridgeSummary;
-  try {
-    window.parent.postMessage(
-      {
-        channel: "protected-old-shell-v1",
-        type: "state-changed",
-        summary
-      },
-      window.location.origin
-    );
-  } catch (error) {}
+  return;
+}
+
+function emitReaderContractEventsFromSummary(summary, options = {}) {
+  readerContractEvents.emitFromSummary(summary || buildBridgeSummary(), options);
+}
+
+function getCompatTransportMode() {
+  return "adapter";
 }
 
 function getArtifactRootFromLocation() {
@@ -735,7 +721,7 @@ function getDebugGeometryFromLocation() {
 
 function syncLocationParams() {
   const url = new URL(window.location.href);
-  if (state.integrationMode && state.entryConfig && state.entryConfig.bookId) {
+  if (state.hostedMode && state.entryConfig && state.entryConfig.bookId) {
     url.searchParams.set("id", state.entryConfig.bookId);
     url.searchParams.delete("i");
     url.searchParams.set("reader", "protected");
@@ -751,20 +737,20 @@ function syncLocationParams() {
 }
 
 function syncArtifactInput() {
-  elements.artifactInput.value = state.artifactRoot;
+  if (elements.artifactInput) elements.artifactInput.value = state.artifactRoot;
   state.renderMode = "shape";
-  elements.renderMode.value = "shape";
-  elements.metricsMode.value = state.metricsMode;
-  elements.renderMode.disabled = true;
-  const textModeOption = elements.renderMode.querySelector('option[value="text"]');
+  if (elements.renderMode) elements.renderMode.value = "shape";
+  if (elements.metricsMode) elements.metricsMode.value = state.metricsMode;
+  if (elements.renderMode) elements.renderMode.disabled = true;
+  const textModeOption = elements.renderMode ? elements.renderMode.querySelector('option[value="text"]') : null;
   if (textModeOption) textModeOption.disabled = true;
-  elements.metricsMode.disabled = false;
-  elements.debugGeometry.checked = state.debugGeometry;
+  if (elements.metricsMode) elements.metricsMode.disabled = false;
+  if (elements.debugGeometry) elements.debugGeometry.checked = state.debugGeometry;
 }
 
 function getViewportHeight() {
   const frameHeight = Math.round((elements.readerFrame ? elements.readerFrame.clientHeight : 0) || 0);
-  if (isEmbeddedOldShellMode()) {
+  if (isOldShellCompatHostMode()) {
     return Math.max(420, frameHeight || 720);
   }
   return Math.max(420, frameHeight - 40 || 720);
@@ -772,7 +758,7 @@ function getViewportHeight() {
 
 function getViewportWidth() {
   const frameWidth = Math.round((elements.readerFrame ? elements.readerFrame.clientWidth : 0) || 0);
-  if (isEmbeddedOldShellMode()) {
+  if (isOldShellCompatHostMode()) {
     return Math.max(280, frameWidth || 760);
   }
   return Math.max(420, frameWidth || 760);
@@ -1023,8 +1009,8 @@ async function syncRepositoryAnnotations() {
 }
 
 async function autoImportCompatPayload() {
-  if (!state.integrationMode || !state.annotationRepository || !state.compatBook) return false;
-  const route = state.entryConfig && state.entryConfig.integrationRoute;
+  if (!state.hostedMode || !state.annotationRepository || !state.compatBook) return false;
+  const route = state.entryConfig && state.entryConfig.readerNewRoute;
   if (state.annotationStore && state.annotationStore.all().length) return false;
   if (!route) return false;
 
@@ -1158,7 +1144,7 @@ function renderBookMeta() {
     ["Title", metadata.title || "(untitled)"],
     ["Creators", (metadata.creators || []).join(", ") || "unknown"],
     ["Languages", (metadata.languages || []).join(", ") || "unknown"],
-    ["Reader mode", state.integrationMode ? "protected" : "dev-shell"],
+    ["Reader mode", state.hostedMode ? "protected" : "dev-shell"],
     ["Artifact", state.artifactRoot],
     ["Mode", state.bookSummary.mode],
     ["Chunks", state.bookSummary.chunkCount]
@@ -1166,6 +1152,7 @@ function renderBookMeta() {
 }
 
 function renderToc() {
+  if (!elements.tocCount || !elements.tocList) return;
   const items = state.tocItems || [];
   const activeLabel = state.currentSnapshot ? state.currentSnapshot.chunkSummary.tocLabel : "";
   elements.tocCount.textContent = `${items.length} items`;
@@ -1197,8 +1184,8 @@ function renderRuntimeMeta() {
   if (!state.currentSnapshot || !state.bookSummary) {
     if (state.workerClient.mode !== "worker") {
       setDlRows(elements.runtimeMeta, [
-        ["Reader mode", state.integrationMode ? "protected" : "dev-shell"],
-        ["Integration mode", state.integrationMode ? "active" : "inactive"],
+        ["Reader mode", state.hostedMode ? "protected" : "dev-shell"],
+        ["Reader host", state.hostedMode ? "reader_new" : "dev-shell"],
         ["Rollout enabled", state.rolloutStatus && state.rolloutStatus.rolloutEnabled ? "yes" : "no"],
         ["Eligibility status", state.rolloutEligibility ? state.rolloutEligibility.status : "n/a"],
         ["Rollout decision", state.rolloutStatus ? state.rolloutStatus.action : "n/a"],
@@ -1275,8 +1262,8 @@ function renderRuntimeMeta() {
     ["Cross-chunk model", "enabled"],
     ["Restore token", state.currentSnapshot.restoreToken ? "available" : "n/a"],
     ["Annotations", state.annotationStore ? state.annotationStore.all().length : 0],
-    ["Reader mode", state.integrationMode ? "protected" : "dev-shell"],
-    ["Integration mode", state.integrationMode ? "active" : "inactive"],
+    ["Reader mode", state.hostedMode ? "protected" : "dev-shell"],
+    ["Reader host", state.hostedMode ? "reader_new" : "dev-shell"],
     ["Rollout enabled", state.rolloutStatus && state.rolloutStatus.rolloutEnabled ? "yes" : "no"],
     ["Eligibility status", state.rolloutEligibility ? state.rolloutEligibility.status : "n/a"],
     ["Rollout decision", state.rolloutStatus ? state.rolloutStatus.action : "n/a"],
@@ -1321,6 +1308,11 @@ function renderRuntimeMeta() {
     ["Drive apply", state.driveState.lastApplyResult || "none"],
     ["Drive warning", state.driveState.lastWarning || "none"],
     ["Artifact load status", state.artifactLoadStatus],
+    ["Artifact source requested", state.artifactSourceRequested || "local"],
+    ["Artifact remote mode", state.artifactRemoteMode || "default"],
+    ["Artifact source resolved", state.artifactSourceResolved || "unknown"],
+    ["Artifact origin resolved", state.artifactOriginResolved || "unknown"],
+    ["Artifact fallback detected", state.artifactFallbackDetected || "unknown"],
     ["Compat share import", state.compatShareImportStatus],
     ["Share payload parse", state.sharePayloadParseStatus],
     ["Annotation repository", state.annotationRepository ? "active" : "inactive"],
@@ -1466,6 +1458,7 @@ function applySnapshot(snapshot) {
   renderSelectionMeta();
   renderAnnotationList();
   refreshCanvas();
+  emitReaderContractEventsFromSummary(buildBridgeSummary());
   notifyEmbeddedBridge();
   ensureCurrentBookCoverResolved().catch((error) => {
     console.error(error);
@@ -1500,9 +1493,40 @@ async function loadArtifact(artifactRoot) {
   }
   state.artifactRoot = artifactRoot;
   state.artifactLoadStatus = "loading";
+  state.artifactSourceResolved = "unknown";
+  state.artifactOriginResolved = "unknown";
+  state.artifactFallbackDetected = "unknown";
   syncArtifactInput();
   syncLocationParams();
   setStatus(`Loading runtime-safe artifact ${artifactRoot}...`);
+  try {
+    const manifestProbeUrl = new URL(`${artifactRoot.replace(/\/$/, "")}/manifest.json`, window.location.href);
+    manifestProbeUrl.searchParams.set("readerArtifactSource", state.artifactSourceRequested || "local");
+    manifestProbeUrl.searchParams.set("readerRemoteMode", state.artifactRemoteMode || "default");
+    manifestProbeUrl.searchParams.set("_cb", String(Date.now()));
+    const probeResponse = await fetch(manifestProbeUrl.toString(), {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+    const resolvedSource = String(probeResponse.headers.get("x-reader-artifact-source") || "").trim().toLowerCase();
+    const resolvedOrigin = String(probeResponse.headers.get("x-reader-artifact-origin") || "").trim().toLowerCase();
+    const fallbackState = String(probeResponse.headers.get("x-reader-artifact-fallback") || "").trim().toLowerCase();
+    state.artifactSourceResolved = resolvedSource || "unknown";
+    state.artifactOriginResolved = resolvedOrigin || "unknown";
+    state.artifactFallbackDetected = fallbackState || "unknown";
+    if (!probeResponse.ok) {
+      state.artifactLoadStatus = `preflight-failed:${probeResponse.status}`;
+      renderRuntimeMeta();
+      throw new Error(`Artifact preflight failed (${probeResponse.status}) for ${manifestProbeUrl.toString()}`);
+    }
+  } catch (error) {
+    if (/Artifact preflight failed/.test(String(error && error.message ? error.message : error))) {
+      throw error;
+    }
+    state.artifactSourceResolved = "unavailable";
+    state.artifactOriginResolved = "unavailable";
+    state.artifactFallbackDetected = "unavailable";
+  }
   const snapshot = await state.workerClient.initBook({
     artifactRoot,
     renderMode: "shape",
@@ -1519,7 +1543,7 @@ async function loadArtifact(artifactRoot) {
   state.annotationRepository = createProtectedAnnotationRepository({
     bookId,
     book: state.compatBook,
-    persistence: state.integrationMode ? state.entryConfig.repositoryPersistence || null : null
+    persistence: state.hostedMode ? state.entryConfig.repositoryPersistence || null : null
   });
   state.annotationStore = state.annotationRepository.store;
   await state.annotationRepository.ensureHydrated();
@@ -1587,11 +1611,9 @@ async function loadArtifact(artifactRoot) {
 function getCanvasPoint(event) {
   const rect = elements.canvas.getBoundingClientRect();
   const page = state.currentSnapshot ? state.currentSnapshot.renderPacket.pageWindow : null;
-  const layout = state.currentSnapshot ? state.currentSnapshot.renderPacket.layout : null;
-  const yOffset = page ? page.top - (layout ? (layout.paddingY ?? layout.padding) : 0) : 0;
   return {
     x: event.clientX - rect.left,
-    y: event.clientY - rect.top + yOffset
+    y: event.clientY - rect.top + (page ? Number(page.top || 0) : 0)
   };
 }
 
@@ -1637,6 +1659,7 @@ function resetPointerGesture() {
     selectionStarted: false,
     pointerId: null,
     pointerType: "",
+    inputSource: "",
     shiftKey: false,
     startClientX: 0,
     startClientY: 0,
@@ -1666,6 +1689,21 @@ function syncTouchSelectionState() {
     if (window.parent && window.parent !== window) {
       window.parent.__PROTECTED_TOUCH_SELECTION__ = payload;
     }
+  } catch (_error) {}
+}
+
+function recordPointerDebug(stage, payload = null) {
+  try {
+    const trace = Array.isArray(window.__PROTECTED_POINTER_DEBUG__)
+      ? window.__PROTECTED_POINTER_DEBUG__
+      : [];
+    trace.push({
+      at: Date.now(),
+      stage: String(stage || ""),
+      payload: payload && typeof payload === "object" ? { ...payload } : payload
+    });
+    if (trace.length > 120) trace.shift();
+    window.__PROTECTED_POINTER_DEBUG__ = trace;
   } catch (_error) {}
 }
 
@@ -1744,8 +1782,20 @@ function schedulePointerMove(point) {
 }
 
 function handlePointerDown(event) {
-  if (!state.currentSnapshot) return;
-  if (event.pointerType === "mouse" && event.button !== 0) return;
+  if (!state.currentSnapshot) {
+    recordPointerDebug("pointerdown:ignored-no-snapshot", {
+      pointerType: String(event && event.pointerType || ""),
+      clientX: Number(event && event.clientX || 0),
+      clientY: Number(event && event.clientY || 0)
+    });
+    return;
+  }
+  if (event.pointerType === "mouse" && event.button !== 0) {
+    recordPointerDebug("pointerdown:ignored-nonprimary-mouse", {
+      button: Number(event.button || 0)
+    });
+    return;
+  }
   event.preventDefault();
   if (elements.canvas.setPointerCapture && event.pointerId != null) {
     try {
@@ -1757,6 +1807,7 @@ function handlePointerDown(event) {
     selectionStarted: event.pointerType !== "touch",
     pointerId: event.pointerId ?? "mouse",
     pointerType: event.pointerType || "mouse",
+    inputSource: String(event.__protectedInputSource || (event.pointerType || "mouse")),
     shiftKey: !!event.shiftKey,
     startClientX: Number(event.clientX || 0),
     startClientY: Number(event.clientY || 0),
@@ -1769,6 +1820,13 @@ function handlePointerDown(event) {
     touchSelectionActive: false,
     touchSelectionClaimed: false
   };
+  recordPointerDebug("pointerdown:accepted", {
+    pointerType: String(event.pointerType || ""),
+    pointerId: event.pointerId ?? null,
+    clientX: Number(event.clientX || 0),
+    clientY: Number(event.clientY || 0),
+    startCanvasPoint: state.pointerGesture.startCanvasPoint
+  });
   syncTouchSelectionState();
   const startPoint = state.pointerGesture.startCanvasPoint;
   if (event.pointerType === "touch") {
@@ -1780,9 +1838,17 @@ function handlePointerDown(event) {
       gesture.touchSelectionPending = false;
       gesture.touchSelectionActive = true;
       gesture.touchSelectionClaimed = true;
+      recordPointerDebug("touch:longpress-fired", {
+        startCanvasPoint: gesture.startCanvasPoint
+      });
       syncTouchSelectionState();
       enqueuePointerRequest(async () => {
-        await selectWordAt(startPoint);
+        const snapshot = await selectWordAt(startPoint);
+        recordPointerDebug("touch:select-word-result", {
+          selectionActive: !!(snapshot && snapshot.selectionActive),
+          selectedChars: Number(snapshot && snapshot.selectedChars || 0),
+          selectionBounds: snapshot && snapshot.selectionBounds ? snapshot.selectionBounds : null
+        });
       }).catch((error) => {
         console.error(error);
         setStatus(error.message || String(error), "error");
@@ -1820,6 +1886,10 @@ function handlePointerMove(event) {
         gesture.longPressTimer = null;
       }
       gesture.touchSelectionPending = false;
+      recordPointerDebug("touch:longpress-cancelled-by-move", {
+        deltaX,
+        deltaY
+      });
       syncTouchSelectionState();
     }
     return;
@@ -1845,6 +1915,11 @@ function handlePointerUp(event) {
     } catch (_) {}
   }
   const wasTouchWithoutSelection = gesture.pointerType === "touch" && !gesture.selectionStarted;
+  recordPointerDebug("pointerup:received", {
+    pointerType: String(gesture.pointerType || ""),
+    wasTouchWithoutSelection,
+    moved: !!gesture.moved
+  });
   resetPointerGesture();
   if (wasTouchWithoutSelection) {
     return;
@@ -1884,6 +1959,79 @@ function handleMouseGestureMove(event) {
     ...event,
     pointerType: "mouse",
     pointerId: "mouse"
+  });
+}
+
+function handleCapturedPointerDown(event) {
+  if (event && event.__protectedPointerHandled) return;
+  if (event) event.__protectedPointerHandled = true;
+  handlePointerDown(event);
+}
+
+function handleCapturedPointerMove(event) {
+  if (event && event.__protectedPointerMoveHandled) return;
+  if (event) event.__protectedPointerMoveHandled = true;
+  handlePointerMove(event);
+}
+
+function getTouchByIdentifier(event, identifier = null) {
+  const changed = event && event.changedTouches ? Array.from(event.changedTouches) : [];
+  const touches = event && event.touches ? Array.from(event.touches) : [];
+  const all = changed.concat(touches);
+  if (!all.length) return null;
+  if (identifier == null) return all[0] || null;
+  return all.find((item) => Number(item.identifier) === Number(identifier)) || all[0] || null;
+}
+
+function handleTouchStartFallback(event) {
+  if (state.pointerGesture.active) return;
+  const touch = getTouchByIdentifier(event, null);
+  if (!touch) return;
+  handleCapturedPointerDown({
+    pointerType: "touch",
+    pointerId: touch.identifier,
+    button: 0,
+    shiftKey: false,
+    clientX: Number(touch.clientX || 0),
+    clientY: Number(touch.clientY || 0),
+    preventDefault: () => {
+      if (event && event.cancelable && event.preventDefault) event.preventDefault();
+    },
+    __protectedInputSource: "touch-fallback"
+  });
+}
+
+function handleTouchMoveFallback(event) {
+  const gesture = state.pointerGesture;
+  if (!gesture.active || gesture.pointerType !== "touch" || gesture.inputSource !== "touch-fallback") return;
+  const touch = getTouchByIdentifier(event, gesture.pointerId);
+  if (!touch) return;
+  handleCapturedPointerMove({
+    pointerType: "touch",
+    pointerId: touch.identifier,
+    button: 0,
+    clientX: Number(touch.clientX || 0),
+    clientY: Number(touch.clientY || 0),
+    preventDefault: () => {
+      if (event && event.cancelable && event.preventDefault) event.preventDefault();
+    }
+  });
+}
+
+function handleTouchEndFallback(event) {
+  const gesture = state.pointerGesture;
+  if (!gesture.active || gesture.pointerType !== "touch" || gesture.inputSource !== "touch-fallback") return;
+  const touch = getTouchByIdentifier(event, gesture.pointerId);
+  if (!touch) return;
+  handlePointerUp({
+    pointerType: "touch",
+    pointerId: touch.identifier,
+    button: 0,
+    clientX: Number(touch.clientX || 0),
+    clientY: Number(touch.clientY || 0),
+    preventDefault: () => {
+      if (event && event.cancelable && event.preventDefault) event.preventDefault();
+    }
   });
 }
 
@@ -2605,17 +2753,17 @@ async function bridgeExportSelectionForUserAction() {
 
 async function bridgeCaptureSelectionForUserAction() {
   if (!state.currentSnapshot || !state.currentSnapshot.selectionResult || state.currentSnapshot.selectionResult.isCollapsed) {
-    pendingSelectionRangeDescriptor = null;
+    state.pendingSelectionRangeDescriptor = null;
     return { hasSelection: false };
   }
-  pendingSelectionRangeDescriptor = state.currentSnapshot.rangeDescriptor
+  state.pendingSelectionRangeDescriptor = state.currentSnapshot.rangeDescriptor
     ? JSON.parse(JSON.stringify(state.currentSnapshot.rangeDescriptor))
     : null;
   const exported = await state.workerClient.copyCurrentSelection();
   return {
-    hasSelection: !!pendingSelectionRangeDescriptor,
-    rangeDescriptor: pendingSelectionRangeDescriptor
-      ? JSON.parse(JSON.stringify(pendingSelectionRangeDescriptor))
+    hasSelection: !!state.pendingSelectionRangeDescriptor,
+    rangeDescriptor: state.pendingSelectionRangeDescriptor
+      ? JSON.parse(JSON.stringify(state.pendingSelectionRangeDescriptor))
       : null,
     clipboardText: exported && exported.clipboardText ? String(exported.clipboardText) : "",
     selectedChars: exported ? Number(exported.selectedChars || 0) : 0
@@ -2634,21 +2782,21 @@ async function bridgeAddNoteToSelection(noteText = "") {
 }
 
 async function bridgeCaptureSelectionForNote() {
-  pendingSelectionRangeDescriptor = state.currentSnapshot && state.currentSnapshot.rangeDescriptor
+  state.pendingSelectionRangeDescriptor = state.currentSnapshot && state.currentSnapshot.rangeDescriptor
     ? JSON.parse(JSON.stringify(state.currentSnapshot.rangeDescriptor))
     : null;
   return {
-    hasSelection: !!pendingSelectionRangeDescriptor,
+    hasSelection: !!state.pendingSelectionRangeDescriptor,
     summary: buildBridgeSummary()
   };
 }
 
 async function bridgeAddNoteFromCapturedSelection(noteText = "") {
-  if (!pendingSelectionRangeDescriptor) {
+  if (!state.pendingSelectionRangeDescriptor) {
     throw new Error("Create a selection before adding a note.");
   }
-  const rangeDescriptor = pendingSelectionRangeDescriptor;
-  pendingSelectionRangeDescriptor = null;
+  const rangeDescriptor = state.pendingSelectionRangeDescriptor;
+  state.pendingSelectionRangeDescriptor = null;
   elements.noteInput.value = String(noteText || "");
   await addNoteFromRangeDescriptor(rangeDescriptor, String(noteText || ""));
   return buildBridgeSummary();
@@ -2668,6 +2816,24 @@ async function bridgeClearSelection() {
   return buildBridgeSummary();
 }
 
+async function bridgeExportNotesSharePayload() {
+  if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
+  const exported = await state.annotationRepository.exportProductionPayload();
+  const bookId = exported && exported.sharePayload && exported.sharePayload.bookId
+    ? String(exported.sharePayload.bookId)
+    : state.bookSummary && state.bookSummary.bookId
+      ? String(state.bookSummary.bookId)
+      : state.annotationStore && state.annotationStore.bookId
+        ? String(state.annotationStore.bookId)
+        : "";
+  return {
+    bookId,
+    productionNotes: Array.isArray(exported.productionNotes) ? exported.productionNotes : [],
+    sharePayload: exported.sharePayload || { v: 2, bookId, createdAt: Date.now(), notes: [] },
+    report: exported.report || null
+  };
+}
+
 async function bridgeDeleteAnnotation(annotationId) {
   await deleteAnnotationById(annotationId);
   return buildBridgeSummary();
@@ -2680,6 +2846,26 @@ async function bridgeSelectAutomationSample() {
   const snapshot = await state.workerClient.selectAutomationSample({
     ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function debugSelectAutomationSample() {
+  const snapshot = await state.workerClient.selectAutomationSample({
+    ...getGenerationPayload(),
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  return buildBridgeSummary();
+}
+
+async function debugSelectWordAtPoint(x, y) {
+  const snapshot = await state.workerClient.selectWordAtPoint({
+    ...getGenerationPayload(),
+    annotations: getCurrentAnnotations(),
+    x: Number(x || 0),
+    y: Number(y || 0)
   });
   applySnapshot(snapshot);
   return buildBridgeSummary();
@@ -2820,10 +3006,15 @@ async function bridgeSetFontMode(fontMode = "sans", generationMeta = null) {
   return buildBridgeSummary();
 }
 
-function installEmbeddedBridge() {
-  window.__PROTECTED_READER_BRIDGE__ = {
+function buildEmbeddedCompatHandlers() {
+  return {
     getSummary: buildBridgeSummary,
     getDebugLayoutState: buildDebugLayoutState,
+    subscribe: (eventName, listener) => readerContractEvents.subscribe(eventName, listener),
+    unsubscribe: (eventName, listener) => readerContractEvents.unsubscribe(eventName, listener),
+    getSupportedEvents: () => PROTECTED_READER_CANONICAL_EVENT_NAMES.slice(),
+    getEventHistory: () => readerContractEvents.getHistory(),
+    getLastEventPayload: (eventName) => readerContractEvents.getLastPayload(eventName),
     nextPage: bridgeNextPage,
     prevPage: bridgePrevPage,
     preparePageTurnPreviews: bridgePreparePageTurnPreviews,
@@ -2842,6 +3033,7 @@ function installEmbeddedBridge() {
     addNoteFromRangeDescriptor: bridgeAddNoteFromRangeDescriptor,
     deleteAnnotation: bridgeDeleteAnnotation,
     clearSelection: bridgeClearSelection,
+    exportNotesSharePayload: bridgeExportNotesSharePayload,
     searchBook: bridgeSearchBook,
     goToSearchResult: bridgeGoToSearchResult,
     searchNextResult: bridgeSearchNextResult,
@@ -2854,7 +3046,34 @@ function installEmbeddedBridge() {
     setFontScale: bridgeSetFontScale,
     setFontMode: bridgeSetFontMode
   };
-  notifyEmbeddedBridge();
+}
+
+function installCompatAdapter() {
+  window.__PROTECTED_READER_COMPAT_ADAPTER__ = createProtectedReaderCompatAdapter(
+    buildEmbeddedCompatHandlers(),
+    {
+      getCompatInfo: () => ({
+        transport: "adapter",
+        embeddedMode: isEmbeddedOldShellMode(),
+        hostedMode: !!state.hostedMode,
+        implementedMethods:
+          window.__PROTECTED_READER_COMPAT_ADAPTER__ &&
+          Array.isArray(window.__PROTECTED_READER_COMPAT_ADAPTER__.implementedMethods)
+            ? window.__PROTECTED_READER_COMPAT_ADAPTER__.implementedMethods.slice()
+            : []
+      })
+    }
+  );
+  return window.__PROTECTED_READER_COMPAT_ADAPTER__;
+}
+
+function installDebugSurface() {
+  window.__PROTECTED_READER_DEBUG__ = {
+    getSummary: buildBridgeSummary,
+    getDebugLayoutState: buildDebugLayoutState,
+    selectAutomationSample: debugSelectAutomationSample,
+    selectWordAtPoint: debugSelectWordAtPoint
+  };
 }
 
 async function boot() {
@@ -2863,28 +3082,34 @@ async function boot() {
   state.metricsMode = getMetricsModeFromLocation(state.renderMode);
   state.debugGeometry = getDebugGeometryFromLocation();
   applyEmbeddedTheme("light");
+  emitReaderContractEventsFromSummary(buildBridgeSummary(), { force: true });
   installNativeToolbarBlock();
   syncArtifactInput();
-  if (isEmbeddedOldShellMode()) installEmbeddedBridge();
+  installDebugSurface();
+  installCompatAdapter();
 
-  elements.artifactForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    try {
-      await loadArtifact(elements.artifactInput.value.trim() || DEFAULT_ARTIFACT);
-    } catch (error) {
-      console.error(error);
-      setStatus(error.message || String(error), "error");
-    }
-  });
+  if (elements.artifactForm) {
+    elements.artifactForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await loadArtifact((elements.artifactInput && elements.artifactInput.value || "").trim() || DEFAULT_ARTIFACT);
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), "error");
+      }
+    });
+  }
 
-  elements.load19686.addEventListener("click", async () => {
-    try {
-      await loadArtifact(DEFAULT_ARTIFACT);
-    } catch (error) {
-      console.error(error);
-      setStatus(error.message || String(error), "error");
-    }
-  });
+  if (elements.load19686) {
+    elements.load19686.addEventListener("click", async () => {
+      try {
+        await loadArtifact(DEFAULT_ARTIFACT);
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), "error");
+      }
+    });
+  }
 
   elements.renderMode.addEventListener("change", async () => {
     state.renderMode = "shape";
@@ -3245,23 +3470,59 @@ async function boot() {
     }
   });
 
+  window.__PROTECTED_POINTER_BINDING__ = {
+    mode: supportsPointerEvents() ? "pointer" : "mouse",
+    canvasPresent: !!elements.canvas,
+    overlayPresent: !!elements.overlayCanvas,
+    readerFramePresent: !!elements.readerFrame,
+    bound: false,
+    at: Date.now()
+  };
+  if (elements.canvas && elements.canvas.dataset) {
+    elements.canvas.dataset.protectedPointerBinding = "active";
+  }
+
   if (supportsPointerEvents()) {
-    elements.canvas.addEventListener("pointerdown", handlePointerDown);
-    elements.canvas.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
+    elements.canvas.addEventListener("pointerdown", handleCapturedPointerDown, { capture: true });
+    elements.canvas.addEventListener("pointermove", handleCapturedPointerMove, { capture: true });
+    elements.canvas.addEventListener("touchstart", handleTouchStartFallback, { capture: true, passive: false });
+    elements.canvas.addEventListener("touchmove", handleTouchMoveFallback, { capture: true, passive: false });
+    elements.canvas.addEventListener("touchend", handleTouchEndFallback, { capture: true, passive: false });
+    elements.canvas.addEventListener("touchcancel", () => {
+      if (state.pointerGesture.inputSource === "touch-fallback") resetPointerGesture();
+    }, { capture: true, passive: false });
+    document.addEventListener("touchstart", handleTouchStartFallback, { capture: true, passive: false });
+    document.addEventListener("touchmove", handleTouchMoveFallback, { capture: true, passive: false });
+    document.addEventListener("touchend", handleTouchEndFallback, { capture: true, passive: false });
+    document.addEventListener("touchcancel", () => {
+      if (state.pointerGesture.inputSource === "touch-fallback") resetPointerGesture();
+    }, { capture: true, passive: false });
+    if (elements.readerFrame && elements.readerFrame !== elements.canvas) {
+      elements.readerFrame.addEventListener("pointerdown", handleCapturedPointerDown, { capture: true });
+      elements.readerFrame.addEventListener("pointermove", handleCapturedPointerMove, { capture: true });
+      elements.readerFrame.addEventListener("touchstart", handleTouchStartFallback, { capture: true, passive: false });
+      elements.readerFrame.addEventListener("touchmove", handleTouchMoveFallback, { capture: true, passive: false });
+      elements.readerFrame.addEventListener("touchend", handleTouchEndFallback, { capture: true, passive: false });
+      elements.readerFrame.addEventListener("touchcancel", () => {
+        if (state.pointerGesture.inputSource === "touch-fallback") resetPointerGesture();
+      }, { capture: true, passive: false });
+    }
+    window.addEventListener("pointerup", handlePointerUp, { capture: true });
     window.addEventListener("pointercancel", () => {
       resetPointerGesture();
-    });
+    }, { capture: true });
+    window.__PROTECTED_POINTER_BINDING__.bound = true;
   } else {
     elements.canvas.addEventListener("mousedown", (event) => {
       if (event.button !== 0) return;
       handleMouseGestureStart(event);
-    });
-    elements.canvas.addEventListener("mousemove", handleMouseGestureMove);
+    }, { capture: true });
+    elements.canvas.addEventListener("mousemove", handleMouseGestureMove, { capture: true });
     window.addEventListener("mouseup", (event) => {
       if (event.button !== 0) return;
       handleMouseGestureEnd(event);
-    });
+    }, { capture: true });
+    window.__PROTECTED_POINTER_BINDING__.bound = true;
   }
 
   let viewportSyncTimer = null;

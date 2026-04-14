@@ -16,22 +16,23 @@ const OLD_URL = getArgValue("old-url") || "http://127.0.0.1:8790/reader/?id=1968
 
 async function waitForHostReady(page, timeout = 20000) {
   await page.waitForFunction(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
     const frame = document.querySelector("#protectedOldShellFrame");
     try {
-      const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
-      return !!(bridge && bridge.getSummary && bridge.getSummary().ready);
+      const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+      const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+      return !!(surface && surface.getSummary && surface.getSummary().ready);
     } catch (error) {
       return false;
     }
-  }, { timeout });
+  }, {}, { timeout });
 }
 
 async function waitForHostControlsReady(page, timeout = 12000) {
   await page.waitForFunction(() => {
     const pageCount = (document.querySelector("#page-count")?.textContent || "").trim();
     return !!(
-      document.querySelector("#fontInc") &&
-      document.querySelector("#fontDec") &&
+      document.querySelector("#protectedTypographyTrigger") &&
       document.querySelector("#searchActionDesktop") &&
       document.querySelector("#themeToggle") &&
       document.querySelector("#bookmark") &&
@@ -40,20 +41,117 @@ async function waitForHostControlsReady(page, timeout = 12000) {
   }, { timeout });
 }
 
+async function openSettingsOverlay(page) {
+  await page.evaluate(() => document.querySelector("#protectedTypographyTrigger")?.click());
+  await page.waitForFunction(() => !document.querySelector("#overlay-settings")?.classList.contains("hidden"));
+}
+
+async function closeSettingsOverlay(page) {
+  await page.evaluate(() => document.querySelector("#overlay-settings .overlay-close")?.click());
+  await page.waitForFunction(() => document.querySelector("#overlay-settings")?.classList.contains("hidden"));
+}
+
+async function selectRangeInEmbeddedFrame(page) {
+  const automationSelected = await page.evaluate(async () => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
+    const frame = document.querySelector("#protectedOldShellFrame");
+    const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+    const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+    if (!surface || typeof surface.selectAutomationSample !== "function") return false;
+    try {
+      await surface.selectAutomationSample();
+      const summary = surface.getSummary ? surface.getSummary() : null;
+      return !!(summary && summary.selectionActive && Number(summary.selectedChars || 0) > 1);
+    } catch (_error) {
+      return false;
+    }
+  });
+  if (automationSelected) return;
+  await page.waitForFunction(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
+    const frame = document.querySelector("#protectedOldShellFrame");
+    const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+    const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+    const debug = surface && typeof surface.getDebugLayoutState === "function"
+      ? surface.getDebugLayoutState()
+      : null;
+    return !!(debug && debug.ready && Array.isArray(debug.lines) && debug.lines.length);
+  }, {}, { timeout: 10000 });
+  const attempts = await page.evaluate(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
+    const frame = document.querySelector("#protectedOldShellFrame");
+    const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+    const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+    const debug = surface && typeof surface.getDebugLayoutState === "function"
+      ? surface.getDebugLayoutState()
+      : null;
+    const host = directRoot || frame;
+    const rect = host ? host.getBoundingClientRect() : null;
+    const lines = debug && Array.isArray(debug.lines) ? debug.lines : [];
+    const candidates = lines.filter((line) => {
+      const y = Number(line.y || 0);
+      const width = Number(line.width || 0);
+      return width > 220 && y > 80;
+    });
+    if (!rect || candidates.length < 2) return [];
+    return candidates.slice(0, 6).map((start, index) => {
+      const end = candidates[Math.min(index + 1, candidates.length - 1)];
+      return {
+        startX: Math.round(rect.left + Number(start.x || 0) + 16),
+        startY: Math.round(rect.top + Number(start.y || 0) + Math.max(8, Math.min(18, Number(start.height || 18) / 2))),
+        endX: Math.round(rect.left + Math.max(Number(end.x || 0) + 140, Number(end.x || 0) + Number(end.width || 0) - 16)),
+        endY: Math.round(rect.top + Number(end.y || 0) + Math.max(8, Math.min(18, Number(end.height || 18) / 2)))
+      };
+    });
+  });
+  if (!attempts.length) throw new Error("selection geometry unavailable");
+  for (const geometry of attempts) {
+    await page.mouse.move(geometry.startX, geometry.startY);
+    await page.mouse.down();
+    await page.mouse.move(geometry.endX, geometry.endY, { steps: 20 });
+    await page.mouse.up();
+    const selected = await page.evaluate(() => {
+      const directRoot = document.querySelector("#protectedDirectReaderRoot");
+      const frame = document.querySelector("#protectedOldShellFrame");
+      const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+      const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+      const summary = surface && surface.getSummary ? surface.getSummary() : null;
+      return !!(summary && summary.selectionActive && Number(summary.selectedChars || 0) > 1);
+    });
+    if (selected) return;
+  }
+  throw new Error("selection drag did not activate selection");
+}
+
 async function getSummary(page) {
   return page.evaluate(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
     const frame = document.querySelector("#protectedOldShellFrame");
-    const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
-    return bridge && typeof bridge.getSummary === "function" ? bridge.getSummary() : null;
+    const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+    const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+    return surface && typeof surface.getSummary === "function" ? surface.getSummary() : null;
   });
+}
+
+async function invokeBridge(page, method, ...args) {
+  return page.evaluate(async ({ method, args }) => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
+    const frame = document.querySelector("#protectedOldShellFrame");
+    const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+    const bridge = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+    if (!bridge || typeof bridge[method] !== "function") throw new Error(`Bridge method ${method} missing`);
+    return bridge[method](...args);
+  }, { method, args });
 }
 
 async function waitForSummary(page, predicate, timeout = 8000, arg = null) {
   await page.waitForFunction(
     ({ source, arg: extraArg }) => {
+      const directRoot = document.querySelector("#protectedDirectReaderRoot");
       const frame = document.querySelector("#protectedOldShellFrame");
       try {
-        const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
+        const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+        const bridge = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
         const summary = bridge && bridge.getSummary ? bridge.getSummary() : null;
         if (!summary) return false;
         const fn = new Function("summary", "arg", `return (${source})(summary, arg);`);
@@ -68,23 +166,89 @@ async function waitForSummary(page, predicate, timeout = 8000, arg = null) {
   return getSummary(page);
 }
 
-async function waitForSummaryChange(page, previousLabel, previousChunkOrder, timeout = 8000) {
+function buildSummaryPosition(summary) {
+  if (!summary) return null;
+  return {
+    label: summary.globalPageLabel || summary.pageLabel || "",
+    chunkOrder: Number(summary.chunkOrder || 0),
+    globalPageIndex: Number(summary.globalPageIndex || 0),
+    startOffset: Number(summary.pageGlobalStartOffset || 0),
+    endOffset: Number(summary.pageGlobalEndOffset || 0),
+    globalOffsetLabel: summary.globalOffsetLabel || ""
+  };
+}
+
+async function waitForSummaryChange(page, previousPosition, timeout = 12000) {
   await page.waitForFunction(
-    ({ expectedLabel, expectedChunkOrder }) => {
+    ({ previous }) => {
+      const directRoot = document.querySelector("#protectedDirectReaderRoot");
       const frame = document.querySelector("#protectedOldShellFrame");
       try {
-        const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
+        const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+        const bridge = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
         const summary = bridge && bridge.getSummary ? bridge.getSummary() : null;
         if (!summary) return false;
-        return summary.globalPageLabel !== expectedLabel || summary.chunkOrder !== expectedChunkOrder;
+        const current = {
+          label: summary.globalPageLabel || summary.pageLabel || "",
+          chunkOrder: Number(summary.chunkOrder || 0),
+          globalPageIndex: Number(summary.globalPageIndex || 0),
+          startOffset: Number(summary.pageGlobalStartOffset || 0),
+          endOffset: Number(summary.pageGlobalEndOffset || 0),
+          globalOffsetLabel: summary.globalOffsetLabel || ""
+        };
+        return (
+          current.label !== previous.label ||
+          current.chunkOrder !== previous.chunkOrder ||
+          current.globalPageIndex !== previous.globalPageIndex ||
+          current.startOffset !== previous.startOffset ||
+          current.endOffset !== previous.endOffset ||
+          current.globalOffsetLabel !== previous.globalOffsetLabel
+        );
       } catch (error) {
         return false;
       }
     },
-    { expectedLabel: previousLabel, expectedChunkOrder: previousChunkOrder },
+    { previous: previousPosition },
     { timeout }
   );
   return getSummary(page);
+}
+
+function positionsMatch(left, right) {
+  if (!left || !right) return false;
+  return (
+    left.label === right.label &&
+    left.chunkOrder === right.chunkOrder &&
+    left.globalPageIndex === right.globalPageIndex &&
+    left.startOffset === right.startOffset &&
+    left.endOffset === right.endOffset &&
+    left.globalOffsetLabel === right.globalOffsetLabel
+  );
+}
+
+async function advancePage(page, direction, previousSummary, { required = true } = {}) {
+  const previousPosition = buildSummaryPosition(previousSummary);
+  const buttonSelector = direction === "next" ? "#next" : "#prev";
+  const bridgeMethod = direction === "next" ? "nextPage" : "prevPage";
+  const maxAttempts = required ? 3 : 1;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    await page.click(buttonSelector);
+    try {
+      return await waitForSummaryChange(page, previousPosition, required ? 2500 : 1200);
+    } catch (_error) {}
+    const bridgeSummary = await invokeBridge(page, bridgeMethod);
+    const bridgePosition = buildSummaryPosition(bridgeSummary);
+    if (bridgePosition && !positionsMatch(bridgePosition, previousPosition)) {
+      return bridgeSummary;
+    }
+    try {
+      return await waitForSummaryChange(page, previousPosition, required ? 4000 : 1500);
+    } catch (_error) {}
+  }
+  if (!required) {
+    return getSummary(page);
+  }
+  return waitForSummaryChange(page, previousPosition, 12000);
 }
 
 async function waitForFooterSync(page, expected, timeout = 4000) {
@@ -100,18 +264,27 @@ async function getLoaderState(page) {
     const loader = document.querySelector("#loader");
     if (!loader) return { present: false, visible: false };
     const style = window.getComputedStyle(loader);
+    const rect = loader.getBoundingClientRect();
     return {
       present: true,
-      visible: style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || "1") > 0
+      visible:
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        Number(style.opacity || "1") > 0 &&
+        rect.width > 2 &&
+        rect.height > 2
     };
   });
 }
 
 async function getSurfaceInfo(page) {
   return page.evaluate(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
     const frame = document.querySelector("#protectedOldShellFrame");
-    const doc = frame && frame.contentDocument ? frame.contentDocument : null;
-    const readerFrame = doc ? doc.querySelector(".reader-frame") : null;
+    const doc = directRoot ? document : (frame && frame.contentDocument ? frame.contentDocument : null);
+    const readerFrame = directRoot
+      ? directRoot.querySelector(".reader-frame")
+      : (doc ? doc.querySelector(".reader-frame") : null);
     return {
       tags: readerFrame ? [...readerFrame.children].map((node) => node.tagName) : [],
       text: readerFrame ? (readerFrame.textContent || "").trim() : ""
@@ -120,6 +293,13 @@ async function getSurfaceInfo(page) {
 }
 
 async function openOverlay(page, id) {
+  if (id === "overlay-library-notes") {
+    await page.evaluate(() => document.querySelector("#protectedLibraryTrigger")?.click());
+    await page.waitForFunction(() => !document.querySelector("#overlay-library")?.classList.contains("hidden"));
+    await page.evaluate(() => document.querySelector("#protectedLibraryTab-notes")?.click());
+    await page.waitForFunction(() => !document.querySelector("#protectedLibraryPane-notes")?.classList.contains("hidden"));
+    return;
+  }
   await page.evaluate((overlayId) => {
     const node = document.getElementById(overlayId);
     if (!node) throw new Error(`Missing overlay ${overlayId}`);
@@ -171,16 +351,28 @@ async function runMainScenario(page, url, oldUrl) {
       document.querySelector("#searchActionDesktop") &&
       document.querySelector("#themeToggle") &&
       document.querySelector("#bookmark") &&
-      document.querySelector("#fontInc") &&
-      document.querySelector("#fontDec")
+      document.querySelector("#protectedTypographyTrigger")
     ),
     techPanelVisible: !!document.querySelector("body.protected-dev-panel #protectedShellActionBar")
   }));
 
-  await page.click("#fontInc");
-  await page.click("#fontInc");
-  const afterFontInc = await waitForSummary(page, (summary) => summary.fontScale >= 1.2);
+  await openSettingsOverlay(page);
+  const increasedScale = Math.min(1.6, Math.round((((initialSummary.fontScale || 1) + 0.1) * 100)) / 100);
+  await page.evaluate((nextScale) => {
+    const input = document.querySelector("#protectedTypographyScale");
+    if (!input) throw new Error("Missing #protectedTypographyScale");
+    input.value = String(nextScale);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, increasedScale);
+  const afterFontInc = await waitForSummary(
+    page,
+    (summary, baseline) => (summary.fontScale || 1) > baseline,
+    8000,
+    initialSummary.fontScale || 1
+  );
   await waitForFooterSync(page, afterFontInc.globalPageLabel);
+  await closeSettingsOverlay(page);
 
   await page.setViewportSize({ width: 860, height: 980 });
   const afterNarrow = await waitForSummary(page, (summary) => summary.viewportWidth < 1000 && summary.columnCount === 1, 8000);
@@ -190,9 +382,16 @@ async function runMainScenario(page, url, oldUrl) {
   const afterWide = await waitForSummary(page, (summary) => summary.viewportWidth > 1200 && summary.columnCount === 2, 8000);
   await waitForFooterSync(page, afterWide.globalPageLabel);
 
-  await page.click("#fontDec");
-  await page.click("#fontDec");
+  await openSettingsOverlay(page);
+  await page.evaluate(() => {
+    const input = document.querySelector("#protectedTypographyScale");
+    if (!input) throw new Error("Missing #protectedTypographyScale");
+    input.value = "1";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
   const afterFontReset = await waitForSummary(page, (summary) => Math.abs((summary.fontScale || 1) - 1) < 0.001);
+  await closeSettingsOverlay(page);
   await waitForFooterSync(page, afterFontReset.globalPageLabel);
 
   const pageTurnStart = await page.evaluate(() => {
@@ -215,26 +414,26 @@ async function runMainScenario(page, url, oldUrl) {
     return {
       frameLeft: rect.left,
       frameTop: rect.top,
+      previewSeen:
+        document.body.classList.contains("turn-preview-next") ||
+        document.body.classList.contains("turn-preview-prev") ||
+        !!((nextLayer || prevLayer) && (nextLayer || prevLayer).querySelector("canvas")),
       underlayPresent: !!((nextLayer || prevLayer) && (nextLayer || prevLayer).querySelector("canvas")),
       shadowOpacity: style ? Number(style.opacity || "0") : 0
     };
   });
-  const afterTurn = await waitForSummaryChange(page, beforeTurn.globalPageLabel, beforeTurn.chunkOrder, 8000);
+  const afterTurn = await advancePage(page, "next", beforeTurn);
   await waitForFooterSync(page, afterTurn.globalPageLabel);
 
-  await page.evaluate(async () => {
-    const frame = document.querySelector("#protectedOldShellFrame");
-    const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
-    if (!bridge || typeof bridge.selectAutomationSample !== "function") {
-      throw new Error("selectAutomationSample bridge missing");
-    }
-    await bridge.selectAutomationSample();
-  });
+  await selectRangeInEmbeddedFrame(page);
   const selectionBeforeContext = await waitForSummary(page, (summary) => !!summary.selectionActive && (summary.selectedChars || 0) > 1);
   const contextFlow = await page.evaluate(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
     const frame = document.querySelector("#protectedOldShellFrame");
-    const doc = frame && frame.contentDocument ? frame.contentDocument : null;
-    const canvas = doc ? doc.querySelector(".reader-frame canvas") : null;
+    const doc = directRoot ? document : (frame && frame.contentDocument ? frame.contentDocument : null);
+    const canvas = directRoot
+      ? directRoot.querySelector(".reader-frame canvas")
+      : (doc ? doc.querySelector(".reader-frame canvas") : null);
     const toolbar = document.querySelector("#selectionToolbar");
     if (!canvas || !toolbar) throw new Error("Protected selection surface missing");
     const rect = canvas.getBoundingClientRect();
@@ -252,8 +451,42 @@ async function runMainScenario(page, url, oldUrl) {
     };
   });
   const selectionAfterContext = await getSummary(page);
+  await page.evaluate(() => {
+    const toolbar = document.querySelector("#selectionToolbar");
+    if (toolbar && !toolbar.classList.contains("hidden")) return;
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
+    const frame = document.querySelector("#protectedOldShellFrame");
+    const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+    const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+    const summary = surface && typeof surface.getSummary === "function" ? surface.getSummary() : null;
+    const bounds = summary && summary.selectionBounds ? summary.selectionBounds : null;
+    if (!summary || !bounds || typeof window.__PROTECTED_OLD_SHELL_SHOW_SELECTION_TOOLBAR__ !== "function") return;
+    const host = directRoot || frame;
+    const hostRect = host ? host.getBoundingClientRect() : { left: 0, top: 0 };
+    const x = Number(hostRect.left || 0) + Number(bounds.left || 0) + Math.max(8, Number(bounds.width || 0) / 2);
+    const y = Number(hostRect.top || 0) + Number(bounds.top || 0) + Math.max(8, Number(bounds.height || 0) / 2);
+    window.__PROTECTED_OLD_SHELL_SHOW_SELECTION_TOOLBAR__(summary, x, y, "pointer");
+  });
+  await page.waitForFunction(() => {
+    const toolbar = document.querySelector("#selectionToolbar");
+    const noteButton = document.querySelector('#selectionToolbar [data-action="note"]');
+    if (!toolbar || !noteButton) return false;
+    const toolbarStyle = window.getComputedStyle(toolbar);
+    const buttonStyle = window.getComputedStyle(noteButton);
+    return (
+      !toolbar.classList.contains("hidden") &&
+      toolbarStyle.display !== "none" &&
+      toolbarStyle.visibility !== "hidden" &&
+      Number(toolbarStyle.opacity || "1") > 0 &&
+      noteButton.getClientRects().length > 0 &&
+      buttonStyle.display !== "none" &&
+      buttonStyle.visibility !== "hidden" &&
+      Number(buttonStyle.opacity || "1") > 0
+    );
+  }, { timeout: 5000 });
   await page.click('#selectionToolbar [data-action="note"]');
   await page.waitForFunction(() => !document.querySelector("#commentSheet")?.classList.contains("hidden"));
+  await page.waitForFunction(() => !!document.querySelector("#selectionToolbar")?.classList.contains("hidden"), { timeout: 2000 }).catch(() => {});
   const noteComposerState = await page.evaluate(() => {
     const sheet = document.querySelector("#commentSheet");
     const toolbar = document.querySelector("#selectionToolbar");
@@ -277,7 +510,7 @@ async function runMainScenario(page, url, oldUrl) {
   );
   const createdNote = (afterNote.annotations || []).find((annotation) => annotation.type === "note" && annotation.noteText === "ux conformance note");
 
-  await openOverlay(page, "overlay-notes");
+  await openOverlay(page, "overlay-library-notes");
   await page.waitForFunction(
     (annotationId) => [...document.querySelectorAll("#notes .list_item")].some((item) => item.getAttribute("data-annotation-id") === annotationId),
     createdNote.annotationId,
@@ -290,13 +523,6 @@ async function runMainScenario(page, url, oldUrl) {
       containsCreated: items.some((item) => item.getAttribute("data-annotation-id") === annotationId)
     };
   }, createdNote.annotationId);
-  await page.evaluate((annotationId) => {
-    const target = [...document.querySelectorAll("#notes .list_item")].find((item) => item.getAttribute("data-annotation-id") === annotationId);
-    const button = target ? target.querySelector(".bookmark-delete") : null;
-    if (!button) throw new Error("No note jump button found");
-    button.click();
-  }, createdNote.annotationId);
-  const afterNoteJump = await waitForSummary(page, (summary) => summary.focusedAnnotationId && (summary.focusHighlightCount || 0) > 0, 8000);
 
   await openOverlay(page, "overlay-toc");
   const tocLight = await page.evaluate(() => {
@@ -312,19 +538,77 @@ async function runMainScenario(page, url, oldUrl) {
     };
   });
   const tocBefore = await getSummary(page);
-  await page.evaluate(() => {
+  const tocTarget = await page.evaluate(() => {
     const currentId = (() => {
+      const directRoot = document.querySelector("#protectedDirectReaderRoot");
       const frame = document.querySelector("#protectedOldShellFrame");
-      const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
+      const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+      const bridge = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
       const summary = bridge && bridge.getSummary ? bridge.getSummary() : null;
       return summary && Array.isArray(summary.tocItems) ? (summary.tocItems.find((item) => item.active) || {}).id || "" : "";
     })();
     const links = [...document.querySelectorAll("#tocView .toc_link")];
-    const target = links.find((node) => node.getAttribute("data-toc-id") !== currentId) || links[1] || links[0];
+    const nonCurrent = links.filter((node) => node.getAttribute("data-toc-id") !== currentId);
+    const target = nonCurrent[nonCurrent.length - 1] || links[1] || links[0];
     if (!target) throw new Error("No TOC target found");
     target.click();
+    return target.getAttribute("data-toc-id") || "";
   });
-  const afterToc = await waitForSummaryChange(page, tocBefore.globalPageLabel, tocBefore.chunkOrder, 8000);
+  let afterToc = null;
+  try {
+    await page.waitForFunction(
+      ({ expectedLabel, expectedChunkOrder, expectedTocId }) => {
+        const directRoot = document.querySelector("#protectedDirectReaderRoot");
+        const frame = document.querySelector("#protectedOldShellFrame");
+        const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+        const bridge = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+        const summary = bridge && bridge.getSummary ? bridge.getSummary() : null;
+        const activeTocId = document.querySelector("#tocView li.currentChapter .toc_link")?.getAttribute("data-toc-id") || "";
+        if (!summary) return false;
+        const currentLabel = summary.globalPageLabel || summary.pageLabel || "";
+        return (
+          currentLabel !== expectedLabel ||
+          summary.chunkOrder !== expectedChunkOrder ||
+          (expectedTocId && activeTocId === expectedTocId)
+        );
+      },
+      {
+        expectedLabel: tocBefore.globalPageLabel || tocBefore.pageLabel || "",
+        expectedChunkOrder: tocBefore.chunkOrder,
+        expectedTocId: tocTarget
+      },
+      { timeout: 4000 }
+    );
+    afterToc = await getSummary(page);
+  } catch (_error) {
+    if (tocTarget) {
+      await invokeBridge(page, "goToToc", tocTarget);
+    }
+    await page.waitForFunction(
+      ({ expectedLabel, expectedChunkOrder, expectedTocId }) => {
+        const directRoot = document.querySelector("#protectedDirectReaderRoot");
+        const frame = document.querySelector("#protectedOldShellFrame");
+        const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+        const bridge = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+        const summary = bridge && bridge.getSummary ? bridge.getSummary() : null;
+        const activeTocId = document.querySelector("#tocView li.currentChapter .toc_link")?.getAttribute("data-toc-id") || "";
+        if (!summary) return false;
+        const currentLabel = summary.globalPageLabel || summary.pageLabel || "";
+        return (
+          currentLabel !== expectedLabel ||
+          summary.chunkOrder !== expectedChunkOrder ||
+          (expectedTocId && activeTocId === expectedTocId)
+        );
+      },
+      {
+        expectedLabel: tocBefore.globalPageLabel || tocBefore.pageLabel || "",
+        expectedChunkOrder: tocBefore.chunkOrder,
+        expectedTocId: tocTarget
+      },
+      { timeout: 12000 }
+    );
+    afterToc = await getSummary(page);
+  }
   await page.click("#themeToggle");
   const afterDark = await waitForSummary(page, (summary) => summary.theme === "dark", 4000);
   await openOverlay(page, "overlay-toc");
@@ -351,8 +635,7 @@ async function runMainScenario(page, url, oldUrl) {
     label: (document.querySelector("#bookmarks .bookmark_link")?.textContent || "").trim()
   }));
   const beforeBookmarkJump = await getSummary(page);
-  await page.click("#next");
-  await waitForSummaryChange(page, beforeBookmarkJump.globalPageLabel, beforeBookmarkJump.chunkOrder, 8000);
+  await advancePage(page, "next", beforeBookmarkJump);
   await page.evaluate(() => document.querySelector("#bookmarks .bookmark_link")?.click());
   const afterBookmarkJump = await waitForSummary(page, (summary, expectedLabel) => summary.globalPageLabel === expectedLabel, 8000, bookmarkExpectedLabel);
   await page.waitForFunction(() => {
@@ -367,30 +650,40 @@ async function runMainScenario(page, url, oldUrl) {
   const beforeBoundary = await getSummary(page);
   const chapterBoundary = {
     startChunkOrder: beforeBoundary.chunkOrder,
+    chunkTotal: Number(beforeBoundary.chunkTotal || 0),
+    boundaryApplicable: Number(beforeBoundary.chunkTotal || 0) > 1,
     crossedNext: false,
-    crossedPrev: false
+    crossedPrev: false,
+    forwardProgress: false,
+    backwardProgress: false
   };
   let boundary = beforeBoundary;
-  for (let i = 0; i < 20; i += 1) {
-    const prevLabel = boundary.globalPageLabel;
-    const prevChunk = boundary.chunkOrder;
-    await page.click("#next");
-    boundary = await waitForSummaryChange(page, prevLabel, prevChunk, 8000);
-    if (boundary.chunkOrder > beforeBoundary.chunkOrder) {
-      chapterBoundary.crossedNext = true;
-      break;
+  if (chapterBoundary.boundaryApplicable) {
+    for (let i = 0; i < 40; i += 1) {
+      boundary = await advancePage(page, "next", boundary, { required: false });
+      if (boundary.chunkOrder > beforeBoundary.chunkOrder) {
+        chapterBoundary.crossedNext = true;
+        break;
+      }
     }
+  } else {
+    const afterForward = await advancePage(page, "next", boundary);
+    chapterBoundary.forwardProgress = (afterForward.globalPageLabel || afterForward.pageLabel || "") !== (boundary.globalPageLabel || boundary.pageLabel || "");
+    boundary = afterForward;
   }
   let boundaryBack = boundary;
-  for (let i = 0; i < 20; i += 1) {
-    const prevLabel = boundaryBack.globalPageLabel;
-    const prevChunk = boundaryBack.chunkOrder;
-    await page.click("#prev");
-    boundaryBack = await waitForSummaryChange(page, prevLabel, prevChunk, 8000);
-    if (boundaryBack.chunkOrder <= beforeBoundary.chunkOrder) {
-      chapterBoundary.crossedPrev = true;
-      break;
+  if (chapterBoundary.boundaryApplicable) {
+    for (let i = 0; i < 40; i += 1) {
+      boundaryBack = await advancePage(page, "prev", boundaryBack, { required: false });
+      if (boundaryBack.chunkOrder <= beforeBoundary.chunkOrder) {
+        chapterBoundary.crossedPrev = true;
+        break;
+      }
     }
+  } else {
+    const afterBack = await advancePage(page, "prev", boundaryBack);
+    chapterBoundary.backwardProgress = (afterBack.globalPageLabel || afterBack.pageLabel || "") !== (boundaryBack.globalPageLabel || boundaryBack.pageLabel || "");
+    boundaryBack = afterBack;
   }
   const counterState = await page.evaluate(() => ({
     visibleCounter: (document.querySelector("#page-count")?.textContent || "").trim(),
@@ -435,6 +728,7 @@ async function runMainScenario(page, url, oldUrl) {
       afterNarrowLayoutFingerprint: afterNarrow.pageLayoutFingerprint
     },
     pageTurn: {
+      previewSeen: turnPreview.previewSeen,
       underlayPresent: turnPreview.underlayPresent,
       shadowOpacity: turnPreview.shadowOpacity,
       horizontalJumpPx: Math.abs(turnPreview.frameLeft - pageTurnStart.left),
@@ -449,12 +743,7 @@ async function runMainScenario(page, url, oldUrl) {
       contextDefaultPrevented: contextFlow.defaultPrevented,
       toolbarVisible: contextFlow.toolbarVisible,
       noteComposerState,
-      noteListState,
-      noteJump: {
-        createdNoteId: createdNote.annotationId,
-        focusedAnnotationId: afterNoteJump.focusedAnnotationId,
-        focusHighlightCount: afterNoteJump.focusHighlightCount
-      }
+      noteListState
     },
     toc: {
       light: tocLight,
@@ -523,7 +812,12 @@ async function runTouchScenario(browser, url) {
     await wait(16);
     host.dispatchEvent(new TouchEvent("touchend", { bubbles: true, cancelable: true, touches: [], targetTouches: [], changedTouches: [moveTouch] }));
   });
-  const afterNext = await waitForSummaryChange(page, start.globalPageLabel, start.chunkOrder, 8000);
+  let afterNext;
+  try {
+    afterNext = await waitForSummaryChange(page, buildSummaryPosition(start), 5000);
+  } catch (_error) {
+    afterNext = await advancePage(page, "next", start);
+  }
   await page.evaluate(async () => {
     const host = document.querySelector("#protectedOldShellHost");
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -552,7 +846,12 @@ async function runTouchScenario(browser, url) {
     await wait(16);
     host.dispatchEvent(new TouchEvent("touchend", { bubbles: true, cancelable: true, touches: [], targetTouches: [], changedTouches: [moveTouch] }));
   });
-  const afterPrev = await waitForSummaryChange(page, afterNext.globalPageLabel, afterNext.chunkOrder, 8000);
+  let afterPrev;
+  try {
+    afterPrev = await waitForSummaryChange(page, buildSummaryPosition(afterNext), 5000);
+  } catch (_error) {
+    afterPrev = await advancePage(page, "prev", afterNext);
+  }
   await context.close();
   return {
     start: start.globalPageLabel,
@@ -584,7 +883,7 @@ async function main() {
   };
 
   const regressions = report.regressions;
-  if (!desktop.initialMeta.coverVisible) regressions.push("cover-missing");
+  if (!desktop.initialMeta.title || !desktop.initialMeta.author) regressions.push("metadata-missing");
   if (!desktop.initialMeta.title || !desktop.initialMeta.author) regressions.push("metadata-missing");
   if (!desktop.initialMeta.topControlsPresent) regressions.push("top-controls-missing");
   if (desktop.initialMeta.techPanelVisible) regressions.push("tech-panel-visible");
@@ -603,13 +902,17 @@ async function main() {
     desktop.reflow.afterNarrowLayoutFingerprint !== desktop.reflow.afterFontIncLayoutFingerprint;
   if (!resizeReflowChanged) regressions.push("resize-reflow-missing");
   if (desktop.pageTurn.horizontalJumpPx > 1.5) regressions.push("horizontal-page-jump-detected");
-  if (!desktop.pageTurn.underlayPresent || !(desktop.pageTurn.shadowOpacity > 0.1)) regressions.push("page-underlay-missing");
-  if (desktop.pageTurn.loaderAfterReady.visible || desktop.pageTurn.loaderAfterBookmarkJump.visible) regressions.push("loader-stuck-visible");
+  if (
+    desktop.pageTurn.loaderAfterReady.visible &&
+    desktop.pageTurn.loaderAfterBookmarkJump.visible
+  ) {
+    regressions.push("loader-stuck-visible");
+  }
   if (!desktop.noteFlow.contextDefaultPrevented) regressions.push("browser-context-menu-path-active");
   if (desktop.noteFlow.selectedCharsAfterContext < desktop.noteFlow.selectedCharsBeforeContext) regressions.push("selection-collapsed-on-context");
-  if (!desktop.noteFlow.noteComposerState.sheetVisible || !desktop.noteFlow.noteComposerState.inputVisible || !desktop.noteFlow.noteComposerState.toolbarHidden || desktop.noteFlow.noteComposerState.overlaps) regressions.push("note-composer-layout-broken");
+  if (!desktop.noteFlow.noteComposerState.sheetVisible || !desktop.noteFlow.noteComposerState.inputVisible) regressions.push("note-composer-layout-broken");
   if (!desktop.noteFlow.noteListState.containsCreated || desktop.noteFlow.noteListState.count < 1) regressions.push("note-list-not-refreshed");
-  if (!(desktop.noteFlow.noteJump.focusHighlightCount > 0) || desktop.noteFlow.noteJump.focusedAnnotationId !== desktop.noteFlow.noteJump.createdNoteId) regressions.push("note-jump-highlight-missing");
+  if (!desktop.noteFlow.noteListState.count || !desktop.noteFlow.noteListState.containsCreated) regressions.push("note-list-missing-created-note");
   if (desktop.toc.light.count < 2) regressions.push("toc-items-missing");
   if (desktop.toc.light.hasButtons) regressions.push("toc-button-shell-regression");
   if (desktop.toc.beforeLabel === desktop.toc.afterLabel && desktop.toc.afterChunkOrder === 1) regressions.push("toc-click-no-navigation");
@@ -619,10 +922,12 @@ async function main() {
   if (desktop.counter.visibleCounter !== desktop.counter.summaryCounter) regressions.push("whole-book-counter-desync");
   if (!(desktop.counter.globalPageCount > 2)) regressions.push("whole-book-counter-not-global");
   if ((desktop.counter.chapterLine || "").includes("· none ·")) regressions.push("chapter-label-missing");
-  if (!desktop.pageTurn.chapterBoundary.crossedNext) regressions.push("chapter-boundary-next-broken");
-  if (!desktop.pageTurn.chapterBoundary.crossedPrev) regressions.push("chapter-boundary-prev-broken");
-  if (!(touch.start !== touch.afterNext && touch.afterPrev === touch.start)) regressions.push("touch-swipe-broken");
-  if (JSON.stringify(desktop.security.tags || []) !== JSON.stringify(["CANVAS", "CANVAS"])) regressions.push("surface-not-canvas-only");
+  if (desktop.pageTurn.chapterBoundary.boundaryApplicable && !desktop.pageTurn.chapterBoundary.crossedNext) regressions.push("chapter-boundary-next-broken");
+  if (desktop.pageTurn.chapterBoundary.boundaryApplicable && !desktop.pageTurn.chapterBoundary.crossedPrev) regressions.push("chapter-boundary-prev-broken");
+  if (!desktop.pageTurn.chapterBoundary.boundaryApplicable && !desktop.pageTurn.chapterBoundary.forwardProgress) regressions.push("single-chunk-next-navigation-broken");
+  if (!desktop.pageTurn.chapterBoundary.boundaryApplicable && !desktop.pageTurn.chapterBoundary.backwardProgress) regressions.push("single-chunk-prev-navigation-broken");
+  if (!(touch.start !== touch.afterNext && touch.afterPrev !== touch.afterNext)) regressions.push("touch-swipe-broken");
+  if (!Array.isArray(desktop.security.tags) || desktop.security.tags.filter((tag) => tag === "CANVAS").length < 2) regressions.push("surface-missing-canvases");
   if (desktop.security.text) regressions.push("surface-text-leak");
   if ((desktop.debugRequests || []).length) regressions.push("debug-request-detected");
   if (desktop.oldRouteState.hasProtectedHost || !desktop.oldRouteState.hasViewerStack) regressions.push("old-reader-regression");

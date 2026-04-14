@@ -42,7 +42,12 @@ async function main() {
   });
 
   const response = await page.goto(inputUrl, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => {
+    const status = (document.querySelector("#status")?.textContent || "").trim();
+    const hasMeta = !!document.querySelector("#runtime-meta dt");
+    return hasMeta || /Opened |Protected mode is unavailable/.test(status);
+  }, { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(500);
 
   const snapshot = await page.evaluate(() => {
     const root = document.querySelector(".reader-frame");
@@ -54,7 +59,6 @@ async function main() {
       hasRuntimeMeta: !!document.querySelector("#runtime-meta"),
       hasProtectedCanvas: !!document.querySelector("#reader-canvas"),
       hasViewer: !!document.querySelector("#viewer") || !!document.querySelector(".viewer") || !!document.querySelector("#viewerStack"),
-      hasIntegrationSummary: !!document.querySelector("#integration-summary"),
       statusText: (document.querySelector("#status")?.textContent || "").trim(),
       frameTags: root ? [...root.children].map((item) => item.tagName) : [],
       frameText: root ? (root.textContent || "").trim() : "",
@@ -67,17 +71,25 @@ async function main() {
   if ((response && response.status() >= 400) || /not found/i.test(snapshot.bodyText)) {
     routeKind = "not-found";
   } else if (
-    /\/reader_render_v3\/integration\/protected-reader(?:\.html)?$/.test(snapshot.pathname) &&
+    (
+      /\/reader_render_v3\/integration\/protected-reader(?:\.html)?$/.test(snapshot.pathname) ||
+      /\/(?:books\/)?reader_new\/?$/.test(snapshot.pathname) ||
+      (
+        /\/(?:books\/)?reader\/?$/.test(snapshot.pathname) &&
+        String(meta["Reader host"] || "").trim().toLowerCase() === "reader_new" &&
+        String(meta["Reader mode"] || snapshot.readerMode || "").trim().toLowerCase() === "protected"
+      )
+    ) &&
     (snapshot.hasRuntimeMeta || snapshot.hasProtectedCanvas || snapshot.readerMode.startsWith("protected"))
   ) {
-    routeKind = "integrated-protected";
+    routeKind = "reader-new-protected";
   } else if (snapshot.hasViewer && !snapshot.hasRuntimeMeta && !snapshot.hasProtectedCanvas) {
     routeKind = "old-reader";
   }
 
   const result = {
     ok:
-      routeKind === "integrated-protected" &&
+      routeKind === "reader-new-protected" &&
       snapshot.hasProtectedCanvas === true &&
       String(snapshot.frameText || "").trim() === "" &&
       debugRequests.length === 0,

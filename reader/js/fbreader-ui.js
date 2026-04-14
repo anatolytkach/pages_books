@@ -6,6 +6,17 @@
 (function () {
   "use strict";
 
+  try {
+    if (
+      window.ReaderPubUnprotectedRuntimeNew &&
+      window.ReaderPubUnprotectedRuntimeNew.shell &&
+      typeof window.ReaderPubUnprotectedRuntimeNew.shell.isEnabled === "function" &&
+      window.ReaderPubUnprotectedRuntimeNew.shell.isEnabled()
+    ) {
+      return;
+    }
+  } catch (eRuntimeSkeletonMode) {}
+
   // -------- device detection --------
   var __fb_desktopRaw = (function () {
     try {
@@ -19,6 +30,98 @@
 
   window.__fb_isDesktop = __fb_isDesktop;
   window.__fb_no_fullscreen__ = __fb_isDesktop;
+
+  function __readerpubCreateReaderEventHub() {
+    var listeners = {};
+    var history = [];
+    var lastSerialized = {};
+    var supportedEvents = [
+      "pageChanged",
+      "selectionChanged",
+      "searchStateChanged",
+      "annotationsChanged",
+      "themeChanged",
+      "readingPositionChanged",
+      "toolbarStateChanged",
+      "sidebarStateChanged",
+      "bookmarkUpdated",
+      "noteFocused"
+    ];
+    function clone(value) {
+      if (value == null) return value;
+      return JSON.parse(JSON.stringify(value));
+    }
+    function subscribe(eventName, listener) {
+      if (typeof listener !== "function") return function () {};
+      listeners[eventName] = listeners[eventName] || [];
+      if (listeners[eventName].indexOf(listener) === -1) listeners[eventName].push(listener);
+      return function () { unsubscribe(eventName, listener); };
+    }
+    function unsubscribe(eventName, listener) {
+      var bucket = listeners[eventName] || [];
+      var index = bucket.indexOf(listener);
+      if (index >= 0) bucket.splice(index, 1);
+    }
+    function emit(eventName, payload, options) {
+      if (supportedEvents.indexOf(eventName) === -1) return false;
+      var serialized = JSON.stringify(payload == null ? null : payload);
+      if (!(options && options.force) && lastSerialized[eventName] === serialized) return false;
+      lastSerialized[eventName] = serialized;
+      var cloned = clone(payload);
+      history.push({ type: eventName, payload: cloned, at: Date.now() });
+      while (history.length > 160) history.shift();
+      var bucket = (listeners[eventName] || []).slice();
+      for (var i = 0; i < bucket.length; i++) {
+        try { bucket[i](cloned, eventName); } catch (e0) {}
+      }
+      var anyBucket = (listeners["*"] || []).slice();
+      for (var j = 0; j < anyBucket.length; j++) {
+        try { anyBucket[j]({ type: eventName, payload: cloned }, eventName); } catch (e1) {}
+      }
+      try { document.dispatchEvent(new CustomEvent("readerpub:" + eventName, { detail: cloned })); } catch (e2) {}
+      return true;
+    }
+    return {
+      channel: "readerpub-reader-events-v1",
+      supportedEvents: supportedEvents.slice(),
+      subscribe: subscribe,
+      unsubscribe: unsubscribe,
+      on: subscribe,
+      off: unsubscribe,
+      emit: emit,
+      getHistory: function () { return clone(history); }
+    };
+  }
+
+  if (!window.__READERPUB_READER_EVENTS__) {
+    window.__READERPUB_READER_EVENTS__ = __readerpubCreateReaderEventHub();
+  }
+
+  function __readerpubEmitReaderEvent(eventName, payload, options) {
+    try {
+      if (window.__READERPUB_READER_EVENTS__ && typeof window.__READERPUB_READER_EVENTS__.emit === "function") {
+        window.__READERPUB_READER_EVENTS__.emit(eventName, payload, options || {});
+      }
+    } catch (e) {}
+  }
+
+  var __fbSelectionActiveValue = false;
+  try {
+    Object.defineProperty(window, "__fbSelectionActive", {
+      configurable: true,
+      enumerable: true,
+      get: function () {
+        return __fbSelectionActiveValue;
+      },
+      set: function (value) {
+        __fbSelectionActiveValue = !!value;
+        __readerpubEmitReaderEvent("selectionChanged", {
+          active: __fbSelectionActiveValue,
+          source: "legacy-shell"
+        });
+      }
+    });
+  } catch (eSelProp) {}
   window.__fbSelectionActive = false;
   try { document.documentElement.classList.toggle("is-desktop", !!__fb_isDesktop); } catch (e) {}
 
@@ -42,6 +145,151 @@
   try {
     if (window.__fbSuppressIosViewportReflow == null) window.__fbSuppressIosViewportReflow = false;
   } catch (e) {}
+
+  function __readerpubDetectOpenSidebarPanel() {
+    try {
+      var selectors = [
+        ["overlay-toc", "toc"],
+        ["overlay-notes", "notes"],
+        ["overlay-bookmarks", "bookmarks"],
+        ["mobileMorePanel", "mobileMore"],
+        ["searchbar", "search"]
+      ];
+      for (var i = 0; i < selectors.length; i++) {
+        var pair = selectors[i];
+        var el = document.getElementById(pair[0]);
+        if (!el) continue;
+        if (!el.classList.contains("hidden")) return pair[1];
+      }
+    } catch (e) {}
+    return "";
+  }
+
+  function __readerpubEmitLegacyShellState() {
+    try {
+      var pageCount = document.getElementById("page-count");
+      var pageLabel = pageCount ? String(pageCount.textContent || "").trim() : "";
+      if (pageLabel) {
+        __readerpubEmitReaderEvent("pageChanged", {
+          pageLabel: pageLabel,
+          globalPageLabel: pageLabel,
+          source: "legacy-shell"
+        });
+        __readerpubEmitReaderEvent("readingPositionChanged", {
+          pageLabel: pageLabel,
+          globalPageLabel: pageLabel,
+          source: "legacy-shell"
+        });
+      }
+
+      var body = document.body;
+      __readerpubEmitReaderEvent("themeChanged", {
+        theme: body && body.classList && body.classList.contains("dark-ui") ? "dark" : "light",
+        source: "legacy-shell"
+      });
+
+      var searchInputMobile = document.getElementById("searchInputMobile");
+      var searchInputDesktop = document.getElementById("searchInputDesktop");
+      var searchCountMobile = document.getElementById("searchCount");
+      var searchCountDesktop = document.getElementById("searchCountDesktop");
+      var query = searchInputMobile && searchInputMobile.value
+        ? String(searchInputMobile.value || "")
+        : String(searchInputDesktop && searchInputDesktop.value || "");
+      var countText = searchCountMobile && searchCountMobile.textContent && String(searchCountMobile.textContent || "").trim()
+        ? String(searchCountMobile.textContent || "").trim()
+        : String(searchCountDesktop && searchCountDesktop.textContent || "").trim();
+      __readerpubEmitReaderEvent("searchStateChanged", {
+        active: !!(body && body.classList && body.classList.contains("search-open")),
+        query: query,
+        countText: countText,
+        source: "legacy-shell"
+      });
+
+      var notes = document.querySelectorAll("#notes li").length;
+      var bookmarks = document.querySelectorAll("#bookmarks li").length;
+      __readerpubEmitReaderEvent("annotationsChanged", {
+        noteCount: Number(notes || 0),
+        bookmarkCount: Number(bookmarks || 0),
+        source: "legacy-shell"
+      });
+      __readerpubEmitReaderEvent("bookmarkUpdated", {
+        bookmarkCount: Number(bookmarks || 0),
+        source: "legacy-shell"
+      });
+
+      var toolbar = document.getElementById("selectionToolbar");
+      var toolbarVisible = !!(toolbar && !toolbar.classList.contains("hidden") && toolbar.getAttribute("aria-hidden") !== "true");
+      __readerpubEmitReaderEvent("toolbarStateChanged", {
+        visible: toolbarVisible,
+        source: "legacy-shell"
+      });
+
+      __readerpubEmitReaderEvent("sidebarStateChanged", {
+        activePanel: __readerpubDetectOpenSidebarPanel(),
+        source: "legacy-shell"
+      });
+    } catch (e) {}
+  }
+
+  function __readerpubInstallLegacyShellObservers() {
+    if (window.__readerpubLegacyShellObserversInstalled) return;
+    window.__readerpubLegacyShellObserversInstalled = true;
+    var scheduleEmit = function () {
+      try {
+        if (window.__readerpubLegacyShellEmitTimer) window.clearTimeout(window.__readerpubLegacyShellEmitTimer);
+      } catch (e0) {}
+      window.__readerpubLegacyShellEmitTimer = window.setTimeout(__readerpubEmitLegacyShellState, 0);
+    };
+    var observerTargets = [
+      document.body,
+      document.getElementById("page-count"),
+      document.getElementById("searchbar"),
+      document.getElementById("searchCount"),
+      document.getElementById("searchCountDesktop"),
+      document.getElementById("selectionToolbar"),
+      document.getElementById("overlay-notes"),
+      document.getElementById("overlay-bookmarks"),
+      document.getElementById("overlay-toc"),
+      document.getElementById("mobileMorePanel"),
+      document.getElementById("bookmarks"),
+      document.getElementById("notes")
+    ];
+    if (window.MutationObserver) {
+      var observer = new MutationObserver(function () { scheduleEmit(); });
+      for (var i = 0; i < observerTargets.length; i++) {
+        var target = observerTargets[i];
+        if (!target) continue;
+        try {
+          observer.observe(target, {
+            subtree: true,
+            childList: true,
+            characterData: true,
+            attributes: true,
+            attributeFilter: ["class", "aria-hidden", "value"]
+          });
+        } catch (eObs) {}
+      }
+    }
+    [
+      document.getElementById("searchInputMobile"),
+      document.getElementById("searchInputDesktop"),
+      document.getElementById("themeToggle"),
+      document.getElementById("slider"),
+      document.getElementById("openNotes"),
+      document.getElementById("openBookmarks"),
+      document.getElementById("searchOpen"),
+      document.getElementById("searchClose"),
+      document.getElementById("bookmark")
+    ].forEach(function (el) {
+      if (!el || !el.addEventListener) return;
+      try { el.addEventListener("click", scheduleEmit, true); } catch (e1) {}
+      try { el.addEventListener("input", scheduleEmit, true); } catch (e2) {}
+      try { el.addEventListener("change", scheduleEmit, true); } catch (e3) {}
+    });
+    scheduleEmit();
+    window.setTimeout(scheduleEmit, 120);
+    window.setTimeout(scheduleEmit, 400);
+  }
 
   function _screenMin() {
     try {
@@ -7360,6 +7608,11 @@
       if (vs) vs.style.willChange = "transform";
       var vcur = document.getElementById("viewer-current");
       if (vcur) vcur.style.willChange = "transform";
+    } catch (e) {}
+
+    try {
+      __readerpubInstallLegacyShellObservers();
+      __readerpubEmitLegacyShellState();
     } catch (e) {}
   });
 })();

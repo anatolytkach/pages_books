@@ -119,6 +119,16 @@
               return host === "127.0.0.1" || host === "localhost" || host === "::1";
             }
 
+            function isReaderNewRoute() {
+              var pathname = String((window.location && window.location.pathname) || "").trim();
+              return (
+                pathname === "/books/reader_new/" ||
+                pathname === "/reader_new/" ||
+                pathname === "/books/reader_new/index.html" ||
+                pathname === "/reader_new/index.html"
+              );
+            }
+
             function fetchBookLocation(source, id) {
               var shard = bookLocationShard(id);
               var path = source
@@ -144,10 +154,23 @@
   const params = new URLSearchParams(location.search);
   const qReaderMode = params.get("reader");
   const qProtectedUx = String(params.get("protectedUx") || params.get("ux") || "").trim().toLowerCase();
-  if (qReaderMode === "protected" && qProtectedUx === "old-shell") {
+  const qResetLocation = String(params.get("resetLocation") || "").trim();
+  const qProtectedArtifactSource = String(params.get("protectedArtifactSource") || params.get("artifactSource") || "").trim().toLowerCase();
+  const qReaderContentSource = String(params.get("readerContentSource") || params.get("bookContentSource") || "").trim().toLowerCase();
+  const qReaderRemoteMode = String(params.get("readerRemoteMode") || params.get("protectedRemoteMode") || "").trim().toLowerCase();
+  const qIsReaderNewRoute = isReaderNewRoute();
+  try {
+    if (isLocalPreviewHost()) {
+      document.cookie = `readerpub_artifact_source=${encodeURIComponent(qProtectedArtifactSource || "local")}; path=/; SameSite=Lax`;
+      document.cookie = `readerpub_content_source=${encodeURIComponent(qReaderContentSource || "local")}; path=/; SameSite=Lax`;
+      document.cookie = `readerpub_remote_mode=${encodeURIComponent(qReaderRemoteMode || "default")}; path=/; SameSite=Lax`;
+    }
+  } catch (eArtifactModeCookie) {}
+  if (qReaderMode === "protected") {
     try {
       const hashId = String(location.hash || "").replace(/^#/, "");
       window.__readerpubProtectedOldShellMode = true;
+      window.__readerpubOldShellMode = "protected";
       window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__ = {
         bookId: String(params.get("id") || params.get("i") || (/^\d+$/.test(hashId) ? hashId : "") || "").trim(),
         source: String(params.get("source") || "").trim(),
@@ -155,14 +178,6 @@
         url: window.location.href
       };
     } catch (eProtectedShell) {}
-  } else if (qReaderMode === "protected") {
-    try {
-      var protectedUrl = new URL("/reader_render_v3/integration/protected-reader.html", window.location.origin);
-      protectedUrl.search = window.location.search || "";
-      protectedUrl.hash = window.location.hash || "";
-      window.location.replace(protectedUrl.toString());
-      return;
-    } catch (eProtectedRedirect) {}
   }
   const AUTO_START_RETURN_KEY = "readerpub_catalog_return_v1";
   const qsource = params.get("source");
@@ -238,7 +253,6 @@
     } catch (eProtectedConfig) {}
     return;
   }
-
   // Always keep canonical params in URL (for reload/share). Preserve CFI hash if present.
   try {
     if (!qid || qid !== id || (source && qsource !== source) || (!source && qsource)) {
@@ -264,6 +278,8 @@
   try {
     window.__readerpubAutostart = isAutostartReader;
     window.__readerpubCatalogReturn = catalogReturnTarget;
+    window.__readerpubContentSourceRequested = qReaderContentSource || "local";
+    window.__readerpubRemoteMode = qReaderRemoteMode || "default";
     // Hero/demo opens should not be treated as a real user-selected reading session.
     window.__readerpubEntryContext = {
       entry: entry,
@@ -363,10 +379,86 @@
   }
 
   function bootReader(bookPath) {
+    if (qIsReaderNewRoute && qReaderMode !== "protected") {
+      window.__readerpubUnprotectedRuntimePath = "disabled";
+      try {
+        document.body.setAttribute("data-unprotected-runtime", "disabled");
+        document.body.classList.remove("unprotected-runtime-new", "unprotected-runtime-shell", "unprotected-runtime-legacy");
+        document.body.classList.add("unprotected-runtime-disabled");
+      } catch (eDisabledRuntimeMark) {}
+      var blockedEl = document.getElementById("viewer");
+      if (blockedEl) {
+        blockedEl.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
+          <h2 style="margin:0 0 10px 0;font-size:18px">reader_new no longer opens the technical unprotected host</h2>
+          <div style="color:#666;font-size:14px;line-height:1.5">
+            This route is now reserved for the unified user-facing shell.
+            Open a protected-style artifact route instead of the retired unprotected skeleton flow.
+          </div>
+        </div>`;
+      }
+      return;
+    }
+
+    var useNewRuntime = false;
+    var runtimeMode = "legacy";
+    try {
+      if (
+        window.ReaderPubUnprotectedRuntimeNew &&
+        window.ReaderPubUnprotectedRuntimeNew.shell
+      ) {
+        if (typeof window.ReaderPubUnprotectedRuntimeNew.shell.getMode === "function") {
+          runtimeMode = String(window.ReaderPubUnprotectedRuntimeNew.shell.getMode() || "legacy");
+        }
+        if (typeof window.ReaderPubUnprotectedRuntimeNew.shell.isEnabled === "function") {
+          useNewRuntime = !!window.ReaderPubUnprotectedRuntimeNew.shell.isEnabled();
+        }
+      }
+    } catch (eRuntimeMode) {}
+
+    if (useNewRuntime) {
+      try {
+        window.__readerpubUnprotectedRuntimePath = "new";
+        if (
+          window.ReaderPubUnprotectedRuntimeNew &&
+          window.ReaderPubUnprotectedRuntimeNew.adapter &&
+          typeof window.ReaderPubUnprotectedRuntimeNew.adapter.bootstrap === "function"
+        ) {
+          window.ReaderPubUnprotectedRuntimeNew.adapter.bootstrap({
+            bookId: id,
+            source: source || "",
+            entry: entry || "",
+            bookPath: bookPath,
+            catalogReturnTarget: catalogReturnTarget,
+            isAutostartReader: isAutostartReader,
+            resetLocation: qResetLocation === "1"
+          });
+          return;
+        }
+      } catch (eNewRuntime) {
+        var runtimeErrorEl = document.getElementById("viewer");
+        if (runtimeErrorEl) {
+          runtimeErrorEl.innerHTML = '<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif"><h2 style="margin:0 0 10px 0;font-size:18px">Runtime bootstrap failed</h2><div style="color:#666;font-size:14px;line-height:1.4">' +
+            String(eNewRuntime && eNewRuntime.message ? eNewRuntime.message : eNewRuntime) +
+            "</div></div>";
+        }
+        return;
+      }
+    }
+
     const opts = {
       openAs: "directory",
       restore: true
     };
+
+    window.__readerpubUnprotectedRuntimePath = "legacy";
+    window.__readerpubUnprotectedRenderHost = "iframe";
+    try {
+      document.body.setAttribute("data-unprotected-runtime", "legacy");
+      document.body.classList.remove("unprotected-runtime-new", "unprotected-runtime-shell");
+      document.body.classList.add("unprotected-runtime-legacy");
+      if (runtimeMode === "legacy") document.body.setAttribute("data-unprotected-runtime-rollback", "true");
+      else document.body.removeAttribute("data-unprotected-runtime-rollback");
+    } catch (eLegacyRuntimeMark) {}
 
     window.reader = ePubReader(bookPath, opts);
     scheduleCatalogEntryHint();
@@ -536,10 +628,29 @@
       }
       var bookPath = "";
       if (locationInfo) {
-        if (isLocalPreviewHost() && locationInfo.localContentPath) {
+        if (
+          isLocalPreviewHost() &&
+          qReaderRemoteMode === "strict" &&
+          qReaderContentSource === "r2" &&
+          locationInfo.contentPath
+        ) {
+          bookPath = String(locationInfo.contentPath);
+          try {
+            window.__readerpubContentSourceResolved = "remote-requested";
+            window.__readerpubContentFallbackDetected = "strict-remote-lock";
+          } catch (eBookSourceResolvedRemote) {}
+        } else if (isLocalPreviewHost() && locationInfo.localContentPath) {
           bookPath = String(locationInfo.localContentPath);
+          try {
+            window.__readerpubContentSourceResolved = "local";
+            window.__readerpubContentFallbackDetected = "none";
+          } catch (eBookSourceResolvedLocal) {}
         } else if (locationInfo.contentPath) {
           bookPath = String(locationInfo.contentPath);
+          try {
+            window.__readerpubContentSourceResolved = "remote-path";
+            window.__readerpubContentFallbackDetected = "none";
+          } catch (eBookSourceResolvedContent) {}
         }
       }
       if (!bookPath) {
@@ -581,6 +692,40 @@
 <script src="js/libs/screenfull.min.js"></script>
 <!-- Render -->
 <script src="js/epub.js"></script>
+<script src="js/unprotected-direct-view.js?v=20260413-phase13-1"></script>
+<script>
+  (function () {
+    function isReaderNewRuntimeSurface() {
+      var pathname = String((window.location && window.location.pathname) || "").trim();
+      return (
+        pathname === "/books/reader_new/" ||
+        pathname === "/reader_new/" ||
+        pathname === "/books/reader_new/index.html" ||
+        pathname === "/reader_new/index.html"
+      );
+    }
+
+    if (isReaderNewRuntimeSurface()) {
+      window.__readerpubUnprotectedRuntimeScriptsSkipped = true;
+      return;
+    }
+
+    var head = document.head || document.getElementsByTagName("head")[0];
+    if (!head) return;
+    [
+      "js/unprotected-runtime-events.js?v=20260413-phase13-skeleton-1",
+      "js/unprotected-runtime-state.js?v=20260413-phase13-skeleton-1",
+      "js/unprotected-render-host.js?v=20260413-phase13-skeleton-1",
+      "js/unprotected-runtime-core.js?v=20260413-phase13-skeleton-1",
+      "js/unprotected-runtime-adapter.js?v=20260413-phase13-skeleton-1",
+      "js/unprotected-runtime-shell.js?v=20260413-phase13-skeleton-1"
+    ].forEach(function (src) {
+      var script = document.createElement("script");
+      script.src = src;
+      head.appendChild(script);
+    });
+  })();
+</script>
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
 <script src="js/reader.js?v=20260315-swipe-select-hold-1"></script>
@@ -593,7 +738,7 @@
 <!--
 -->
 <!-- <script src="js/hooks/extensions/highlight.js"></script> -->
-<script type="module" src="/reader_render_v3/integration/protected-old-shell-host.js"></script>
+<script type="module" src="/reader_render_v3/reader_new/protected-host-ui.js"></script>
 </head>
 <body class="ui-hidden" role="application" aria-label="Reader">
 <div id="container">

@@ -16,8 +16,15 @@ const URL =
 
 async function waitReady(page) {
   await page.waitForFunction(() => {
+    const path = window.location.pathname || "";
+    const runtimeMeta = document.querySelector("#runtime-meta");
+    const metaText = runtimeMeta ? runtimeMeta.textContent || "" : "";
     return (
-      window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+      (
+        path.includes("/reader_new/") ||
+        path.includes("/books/reader_new/") ||
+        /Reader host\s*reader_new/i.test(metaText)
+      ) &&
       !!document.querySelector("#runtime-meta dt") &&
       /Opened /.test(document.querySelector("#status")?.textContent || "")
     );

@@ -2,6 +2,14 @@
   "version": "1",
   "generatedAt": "2026-03-25T18:44:45.979122Z",
   "items": {
+    "19": {
+      "source": "manual",
+      "sourceBookId": "19",
+      "localContentPath": "/books/content/manual/19/",
+      "publicContentPath": "/books/content/manual/19/",
+      "targetPath": "/books/content/manual/19/",
+      "publicPathMode": "target"
+    },
     "77752": {
       "source": "manual",
       "sourceBookId": "1",

@@ -211,11 +211,23 @@ async function runDriveLiveSection(url, requireDrive) {
     });
   }
 
+  async function triggerHarnessControl(selector) {
+    await page.evaluate((targetSelector) => {
+      const node = document.querySelector(targetSelector);
+      if (!node) throw new Error(`Missing control ${targetSelector}`);
+      node.click();
+    }, selector);
+  }
+
   async function waitReady() {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     await page.waitForFunction(() => {
+      const path = window.location.pathname || "";
+      const host = document.querySelector("#runtime-meta dd")?.textContent || "";
       return (
-        window.location.pathname.includes("/reader_render_v3/integration/protected-reader.html") &&
+        (path.includes("/reader_new/") ||
+          path.includes("/books/reader_new/") ||
+          /reader_new/i.test(host)) &&
         !!document.querySelector("#runtime-meta dt") &&
         /Opened /.test(document.querySelector("#status")?.textContent || "")
       );
@@ -258,7 +270,7 @@ async function runDriveLiveSection(url, requireDrive) {
 
   try {
     await waitReady();
-    await page.click("#check-drive-status");
+    await triggerHarnessControl("#check-drive-status");
     await page.waitForTimeout(800);
     let meta = await getMetaMapLocal();
     const availability = {
@@ -287,7 +299,7 @@ async function runDriveLiveSection(url, requireDrive) {
     if (!selected) {
       throw new Error("Failed to create selection for Drive upload.");
     }
-    await page.click("#create-highlight");
+    await triggerHarnessControl("#create-highlight");
     await page.waitForFunction(() => /Created highlight /.test(document.querySelector("#status")?.textContent || ""));
     await page.fill("#note-input", "drive readiness note");
     await page.click("#add-note-highlight");

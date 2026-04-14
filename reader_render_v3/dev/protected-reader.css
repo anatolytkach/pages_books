@@ -419,3 +419,22 @@ body[data-shell-mode="embedded-old-shell"] #overlay-canvas {
 body[data-shell-mode="embedded-old-shell"] .runtime-note {
   display: none;
 }
+
+body[data-reader-surface="integrated"] .app {
+  grid-template-columns: 1fr;
+}
+
+body[data-reader-surface="integrated"] .sidebar,
+body[data-reader-surface="integrated"] .controls-card,
+body[data-reader-surface="integrated"] .annotations-card,
+body[data-reader-surface="integrated"] .main > .card:not(.reader-card):not(.controls-card):not(.annotations-card) {
+  display: none;
+}
+
+body[data-reader-surface="integrated"] .main {
+  gap: 0;
+}
+
+body[data-reader-surface="integrated"] .reader-card {
+  min-height: 100vh;
+}

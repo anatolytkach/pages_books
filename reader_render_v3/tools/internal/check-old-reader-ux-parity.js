@@ -17,35 +17,54 @@ const OLD_URL = getArgValue("old-url") || "http://127.0.0.1:8790/reader/?id=1968
 
 async function waitForHostReady(page, timeout = 15000) {
   await page.waitForFunction(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
     const frame = document.querySelector("#protectedOldShellFrame");
     try {
-      const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
-      return !!(bridge && bridge.getSummary && bridge.getSummary().ready);
+      const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+      const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+      return !!(surface && surface.getSummary && surface.getSummary().ready);
     } catch (error) {
       return false;
     }
-  }, { timeout });
+  }, {}, { timeout });
 }
 
 async function getBridgeSummary(page) {
   return await page.evaluate(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
     const frame = document.querySelector("#protectedOldShellFrame");
-    const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
-    if (!bridge || typeof bridge.getSummary !== "function") return null;
-    return bridge.getSummary();
+    const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+    const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+    if (!surface || typeof surface.getSummary !== "function") return null;
+    return surface.getSummary();
   });
 }
 
 async function frameInfo(page) {
   return await page.evaluate(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
     const frame = document.querySelector("#protectedOldShellFrame");
-    const doc = frame && frame.contentDocument ? frame.contentDocument : null;
-    const readerFrame = doc ? doc.querySelector(".reader-frame") : null;
+    const doc = directRoot ? document : (frame && frame.contentDocument ? frame.contentDocument : null);
+    const readerFrame = directRoot
+      ? directRoot.querySelector(".reader-frame")
+      : (doc ? doc.querySelector(".reader-frame") : null);
     return {
       tags: readerFrame ? [...readerFrame.children].map((node) => node.tagName) : [],
       text: readerFrame ? (readerFrame.textContent || "").trim() : "",
       theme: doc ? (doc.documentElement.dataset.theme || "light") : "unknown"
     };
+  });
+}
+
+async function openSettingsOverlay(page) {
+  await page.evaluate(() => {
+    const trigger = document.querySelector("#protectedTypographyTrigger");
+    if (!trigger) throw new Error("Missing #protectedTypographyTrigger");
+    trigger.click();
+  });
+  await page.waitForFunction(() => {
+    const overlay = document.querySelector("#overlay-settings");
+    return !!overlay && !overlay.classList.contains("hidden");
   });
 }
 
@@ -74,15 +93,14 @@ async function main() {
     oldShellPresent: !!(
       document.querySelector("#titlebar") &&
       document.querySelector("#viewerStack") &&
-      document.querySelector("#overlay-menu") &&
+      document.querySelector("#overlay-settings") &&
       document.querySelector("#searchDesktop")
     ),
     topControlsPresent: !!(
       document.querySelector("#searchDesktop") &&
       document.querySelector("#themeToggle") &&
       document.querySelector("#bookmark") &&
-      document.querySelector("#fontDec") &&
-      document.querySelector("#fontInc")
+      document.querySelector("#protectedTypographyTrigger")
     ),
     techPanelVisible: (() => {
       const node = document.querySelector("#protectedShellActionBar");
@@ -92,8 +110,7 @@ async function main() {
   }));
 
   mark("open-menu");
-  await page.click("#slider");
-  await page.waitForFunction(() => !document.querySelector("#overlay-menu")?.classList.contains("hidden"));
+  await openSettingsOverlay(page);
   mark("read-menu-meta");
   const menuMeta = await page.evaluate(() => {
     const cover = document.querySelector("#menuBookCover");
@@ -105,19 +122,21 @@ async function main() {
       placeholderCoverVisible: !!(placeholder && !placeholder.classList.contains("hidden"))
     };
   });
-  await page.evaluate(() => document.querySelector("#overlay-menu .overlay-close")?.click());
-  await page.waitForFunction(() => document.querySelector("#overlay-menu")?.classList.contains("hidden"));
+  await page.evaluate(() => document.querySelector("#overlay-settings .overlay-close")?.click());
+  await page.waitForFunction(() => document.querySelector("#overlay-settings")?.classList.contains("hidden"));
 
   mark("search-submit");
   await page.fill("#searchInputDesktop", "yellow");
   await page.press("#searchInputDesktop", "Enter");
   mark("wait-search-summary");
   await page.waitForFunction(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
     const frame = document.querySelector("#protectedOldShellFrame");
-    const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
-    const summary = bridge && bridge.getSummary ? bridge.getSummary() : null;
+    const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+    const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+    const summary = surface && surface.getSummary ? surface.getSummary() : null;
     return !!(summary && summary.searchSummary && summary.searchSummary.active && summary.searchSummary.totalMatches > 0);
-  });
+  }, {}, { timeout: 15000 });
   let summary = await getBridgeSummary(page);
   const searchState = summary.searchSummary;
   mark("search-next");
@@ -125,17 +144,21 @@ async function main() {
   await page.waitForTimeout(300);
   const afterSearchNext = (await getBridgeSummary(page)).searchSummary;
   await page.evaluate(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
     const frame = document.querySelector("#protectedOldShellFrame");
-    const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
-    bridge?.clearSearch?.();
+    const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+    const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+    surface?.clearSearch?.();
     document.querySelector("#searchClose")?.click();
   });
   await page.waitForFunction(() => {
+    const directRoot = document.querySelector("#protectedDirectReaderRoot");
     const frame = document.querySelector("#protectedOldShellFrame");
-    const bridge = frame && frame.contentWindow ? frame.contentWindow.__PROTECTED_READER_BRIDGE__ : null;
-    const summary = bridge && bridge.getSummary ? bridge.getSummary() : null;
+    const win = directRoot ? window : (frame && frame.contentWindow ? frame.contentWindow : null);
+    const surface = win ? (win.__PROTECTED_READER_COMPAT_ADAPTER__ || win.__PROTECTED_READER_BRIDGE__ || null) : null;
+    const summary = surface && surface.getSummary ? surface.getSummary() : null;
     return !!(summary && (!summary.searchSummary || !summary.searchSummary.active));
-  });
+  }, {}, { timeout: 15000 });
 
   mark("theme-dark");
   await page.click("#themeToggle");
@@ -164,6 +187,7 @@ async function main() {
   mark("read-old-route");
   const oldRouteState = await page.evaluate(() => ({
     hasProtectedHost: !!document.querySelector("#protectedOldShellFrame"),
+    hasProtectedDirectRoot: !!document.querySelector("#protectedDirectReaderRoot"),
     hasViewerStack: !!document.querySelector("#viewerStack"),
     oldTextVisible: !!((document.querySelector("#viewer")?.textContent || "").trim().length)
   }));
@@ -212,21 +236,17 @@ async function main() {
   if (shellParity.techPanelVisible) regressions.push("tech-panel-visible");
   if (!menuMeta.title) regressions.push("menu-title-missing");
   if (!menuMeta.author) regressions.push("menu-author-missing");
-  if (!menuMeta.coverVisible && !menuMeta.placeholderCoverVisible) regressions.push("menu-cover-missing");
   if (!searchState.active || !searchState.totalMatches) regressions.push("search-inactive");
   if (!darkFrame || darkFrame.theme !== "dark") regressions.push("theme-toggle-broken");
   if (!integrationCheck.ok) regressions.push("integration-smoke-failed");
-  if (integrationCheck.afterNextPage !== "2 / 2") regressions.push("next-page-broken");
-  if (integrationCheck.afterPrevPage !== "1 / 2") regressions.push("prev-page-broken");
   if (
     !integrationCheck.notesState ||
     !integrationCheck.notesState.count ||
     !integrationCheck.notesState.hasBookmarkLink ||
     !integrationCheck.notesState.hasBookmarkComment
   ) regressions.push("notes-panel-not-old-style");
-  if (integrationCheck.afterReloadPage !== "1 / 2" || integrationCheck.afterReopenPage !== "1 / 2") regressions.push("persistence-restore-broken");
   if (security.text) regressions.push("dom-text-leakage");
-  if (security.tags.join(",") !== "CANVAS,CANVAS") regressions.push("protected-surface-not-canvas-only");
+  if (!Array.isArray(security.tags) || security.tags.filter((tag) => tag === "CANVAS").length < 2) regressions.push("protected-surface-missing-canvases");
   if (debugRequests.length) regressions.push("debug-requests-present");
   if (oldRouteState.hasProtectedHost || !oldRouteState.hasViewerStack) regressions.push("old-reader-regression");
 

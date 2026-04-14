@@ -12,5 +12,104 @@
   "discoverCategoryPath": "/discover/category/{slug}.json",
   "discoverPopularPath": "/discover/popular.json",
   "discoverNewestPath": "/discover/newest.json",
-  "bookLocationsPath": "/book-locations.json"
+  "bookLocationsPath": "/book-locations.json",
+  "readerRouting": {
+    "legacyBasePath": "/books/reader1/",
+    "legacyPagesDevBasePath": "/reader1/",
+    "newBasePath": "/books/reader_new/",
+    "newPagesDevBasePath": "/reader_new/"
+  },
+  "readerNewTestSections": {
+    "protected": {
+      "title": "Protected Books For New Reader Testing",
+      "description": "Temporary manual-check section. These cards open the protected integration in reader_new.",
+      "books": [
+        {
+          "id": "19686",
+          "title": "Crome Yellow",
+          "author": "Aldous Huxley",
+          "source": "gutenberg",
+          "hrefQuery": {
+            "reader": "protected",
+            "protectedArtifactBookId": "19686",
+            "protectedArtifactSource": "r2",
+            "readerRemoteMode": "strict",
+            "protectedUx": "old-shell",
+            "renderMode": "shape",
+            "metricsMode": "shape"
+          }
+        },
+        {
+          "id": "45",
+          "title": "Anne of Green Gables",
+          "author": "L. M. Montgomery",
+          "source": "gutenberg",
+          "cover": "/books/content/45/OEBPS/7511515459863362779_cover.jpg",
+          "hrefQuery": {
+            "reader": "protected",
+            "protectedArtifactBookId": "45",
+            "protectedArtifactSource": "r2",
+            "readerRemoteMode": "strict",
+            "protectedUx": "old-shell",
+            "renderMode": "shape",
+            "metricsMode": "shape"
+          }
+        }
+      ]
+    },
+    "unprotected": {
+      "title": "Unprotected Books For New Reader Testing",
+      "description": "Temporary manual-check section. These Gutenberg books open in reader_new using the same shell UX as protected books.",
+      "books": [
+        {
+          "id": "11",
+          "title": "Alice's Adventures in Wonderland",
+          "author": "Lewis Carroll",
+          "source": "gutenberg",
+          "cover": "/books/content/11/OEBPS/4500724211512504931_cover.jpg",
+          "hrefQuery": {
+            "reader": "protected",
+            "protectedArtifactBookId": "11",
+            "protectedArtifactSource": "r2",
+            "readerRemoteMode": "strict",
+            "protectedUx": "old-shell",
+            "renderMode": "shape",
+            "metricsMode": "shape"
+          }
+        },
+        {
+          "id": "84",
+          "title": "Frankenstein; Or, The Modern Prometheus",
+          "author": "Mary Wollstonecraft Shelley",
+          "source": "gutenberg",
+          "cover": "/books/content/84/OEBPS/6171239746783589600_cover.jpg",
+          "hrefQuery": {
+            "reader": "protected",
+            "protectedArtifactBookId": "84",
+            "protectedArtifactSource": "r2",
+            "readerRemoteMode": "strict",
+            "protectedUx": "old-shell",
+            "renderMode": "shape",
+            "metricsMode": "shape"
+          }
+        },
+        {
+          "id": "1342",
+          "title": "Pride and Prejudice",
+          "author": "Jane Austen",
+          "source": "gutenberg",
+          "cover": "/books/content/1342/OEBPS/3996567743618079316_cover.jpg",
+          "hrefQuery": {
+            "reader": "protected",
+            "protectedArtifactBookId": "1342",
+            "protectedArtifactSource": "r2",
+            "readerRemoteMode": "strict",
+            "protectedUx": "old-shell",
+            "renderMode": "shape",
+            "metricsMode": "shape"
+          }
+        }
+      ]
+    }
+  }
 }
