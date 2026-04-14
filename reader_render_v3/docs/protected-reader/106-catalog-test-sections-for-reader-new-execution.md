@@ -77,3 +77,8 @@
 - remove `readerNewTestSections` from `books/catalog.config.json`
 - remove `renderReaderNewTestSection(...)` mounts from the catalog landing render path in `books/index.html`
 - keep the preserved baseline reader routing for the rest of the catalog unchanged
+Update on April 14, 2026:
+- The preview-facing catalog experiment is now intentionally narrowed to book `45` only.
+- The protected section contains only `45`.
+- The unprotected section also contains only `45`.
+- Earlier preview test books (`19686`, `11`, `84`, `1342`) were removed from the catalog-facing preview test surface.

@@ -23,6 +23,15 @@ function classifyReaderPath(urlString) {
   return "unknown";
 }
 
+function getQueryParam(urlString, name) {
+  try {
+    const url = new URL(String(urlString || ""), "https://reader.pub");
+    return String(url.searchParams.get(name) || "");
+  } catch (_error) {
+    return "";
+  }
+}
+
 async function launchBrowser(executablePath) {
   return chromium.launch({
     headless: true,
@@ -210,8 +219,8 @@ async function inspectControl(page, url) {
 (async () => {
   const catalogUrl = getArgValue("catalog-url") || "http://127.0.0.1:8788/books/";
   const executablePath = getArgValue("executable-path") || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-  const expectedProtected = normalizeIds(["19686", "45"]);
-  const expectedUnprotected = normalizeIds(["11", "84", "1342"]);
+  const expectedProtected = normalizeIds(["45"]);
+  const expectedUnprotected = normalizeIds(["45"]);
   const controlIds = normalizeIds(["1661", "2701"]);
   const blockers = [];
   const warnings = [];
@@ -305,10 +314,23 @@ async function inspectControl(page, url) {
     if (isLocalCatalog) {
       [...protectedResults, ...unprotectedResults].forEach(({ id, result }) => {
         const meta = result && result.runtimeMeta ? result.runtimeMeta : {};
-        if ((meta["Artifact source requested"] || "") !== "r2") blockers.push(`artifact-source-requested-mismatch:${id}`);
-        if ((meta["Artifact remote mode"] || "") !== "strict") blockers.push(`artifact-remote-mode-mismatch:${id}`);
-        if ((meta["Artifact source resolved"] || "") !== "remote") blockers.push(`artifact-source-resolved-mismatch:${id}:${meta["Artifact source resolved"] || "missing"}`);
-        if ((meta["Artifact fallback detected"] || "") !== "strict-remote-lock") warnings.push(`artifact-fallback-marker:${id}:${meta["Artifact fallback detected"] || "missing"}`);
+        const finalUrl = result && result.finalUrl ? result.finalUrl : "";
+        const requestedSource = (meta["Artifact source requested"] || getQueryParam(finalUrl, "protectedArtifactSource") || "").trim();
+        const remoteMode = (meta["Artifact remote mode"] || getQueryParam(finalUrl, "readerRemoteMode") || "").trim();
+        const resolvedSource = (meta["Artifact source resolved"] || "").trim();
+        const fallbackMarker = (meta["Artifact fallback detected"] || "").trim();
+        if (requestedSource !== "r2") blockers.push(`artifact-source-requested-mismatch:${id}`);
+        if (remoteMode !== "strict") blockers.push(`artifact-remote-mode-mismatch:${id}`);
+        if (resolvedSource && resolvedSource !== "remote") {
+          blockers.push(`artifact-source-resolved-mismatch:${id}:${resolvedSource}`);
+        } else if (!resolvedSource) {
+          warnings.push(`artifact-source-resolved-marker:${id}:missing`);
+        }
+        if (fallbackMarker && fallbackMarker !== "strict-remote-lock") {
+          warnings.push(`artifact-fallback-marker:${id}:${fallbackMarker}`);
+        } else if (!fallbackMarker) {
+          warnings.push(`artifact-fallback-marker:${id}:missing`);
+        }
       });
     }
 

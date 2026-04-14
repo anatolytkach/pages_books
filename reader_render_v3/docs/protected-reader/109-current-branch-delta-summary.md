@@ -110,10 +110,11 @@ Relevant files:
 - [books/index.html](/Volumes/2T/se_ingest/pages_books/books/index.html)
 - [books/catalog.config.json](/Volumes/2T/se_ingest/pages_books/books/catalog.config.json)
 
-The intent remains narrow:
+The current preview-facing intent is now narrower than the earlier internal experiment:
 
 - temporary test sections in catalog
-- selected books only
+- book `45` only
+- one protected card and one unprotected card
 - no global catalog migration
 
 ## What Changed in Tooling
