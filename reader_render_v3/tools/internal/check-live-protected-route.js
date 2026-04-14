@@ -74,6 +74,7 @@ async function main() {
     (
       /\/reader_render_v3\/integration\/protected-reader(?:\.html)?$/.test(snapshot.pathname) ||
       /\/(?:books\/)?reader_new\/?$/.test(snapshot.pathname) ||
+      /\/reader\/reader_new(?:\.html)?\/?$/.test(snapshot.pathname) ||
       (
         /\/(?:books\/)?reader\/?$/.test(snapshot.pathname) &&
         String(meta["Reader host"] || "").trim().toLowerCase() === "reader_new" &&

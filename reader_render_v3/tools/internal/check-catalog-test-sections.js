@@ -17,7 +17,13 @@ function classifyReaderPath(urlString) {
   try {
     const url = new URL(String(urlString || ""), "https://reader.pub");
     const path = String(url.pathname || "");
-    if (path === "/books/reader_new/" || path === "/reader_new/") return "new";
+    if (
+      path === "/books/reader_new/" ||
+      path === "/reader_new/" ||
+      path === "/reader/reader_new" ||
+      path === "/reader/reader_new/" ||
+      path === "/reader/reader_new.html"
+    ) return "new";
     if (path === "/books/reader1/" || path === "/reader1/" || path === "/books/reader/" || path === "/reader/") return "old";
   } catch (_error) {}
   return "unknown";
@@ -144,7 +150,10 @@ async function inspectProtected(page, url) {
       const pathMatch =
         /\/reader_render_v3\/integration\/protected-reader(?:\.html)?$/.test(path) ||
         path === "/books/reader_new/" ||
-        path === "/reader_new/";
+        path === "/reader_new/" ||
+        path === "/reader/reader_new" ||
+        path === "/reader/reader_new/" ||
+        path === "/reader/reader_new.html";
       const hasProtectedUi = !!document.querySelector("#runtime-meta") || !!document.querySelector("#reader-canvas");
       const hasShellUi = !!(
         document.querySelector("#titlebar") &&
