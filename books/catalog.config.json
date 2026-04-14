@@ -39,6 +39,22 @@
             "renderMode": "shape",
             "metricsMode": "shape"
           }
+        },
+        {
+          "id": "1",
+          "title": "ВОПРОС",
+          "author": "Тони Вивер",
+          "source": "manual",
+          "cover": "/books/content/manual/1/EPUB/media/file83.jpg",
+          "hrefQuery": {
+            "reader": "protected",
+            "protectedArtifactBookId": "1",
+            "protectedArtifactSource": "r2",
+            "readerRemoteMode": "strict",
+            "protectedUx": "old-shell",
+            "renderMode": "shape",
+            "metricsMode": "shape"
+          }
         }
       ]
     },
@@ -52,6 +68,17 @@
           "author": "L. M. Montgomery",
           "source": "gutenberg",
           "cover": "/books/content/45/OEBPS/7511515459863362779_cover.jpg",
+          "hrefQuery": {
+            "readerContentSource": "r2",
+            "readerRemoteMode": "strict"
+          }
+        },
+        {
+          "id": "1",
+          "title": "ВОПРОС",
+          "author": "Тони Вивер",
+          "source": "manual",
+          "cover": "/books/content/manual/1/EPUB/media/file83.jpg",
           "hrefQuery": {
             "readerContentSource": "r2",
             "readerRemoteMode": "strict"

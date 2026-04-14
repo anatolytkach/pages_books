@@ -228,8 +228,8 @@ async function inspectControl(page, url) {
 (async () => {
   const catalogUrl = getArgValue("catalog-url") || "http://127.0.0.1:8788/books/";
   const executablePath = getArgValue("executable-path") || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-  const expectedProtected = normalizeIds(["45"]);
-  const expectedUnprotected = normalizeIds(["45"]);
+  const expectedProtected = normalizeIds(["45", "1"]);
+  const expectedUnprotected = normalizeIds(["45", "1"]);
   const controlIds = normalizeIds(["1661", "2701"]);
   const blockers = [];
   const warnings = [];

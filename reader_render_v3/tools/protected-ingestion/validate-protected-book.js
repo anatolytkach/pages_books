@@ -260,16 +260,50 @@ function validateChunk(chunkInfo, glyphInfo, locations, manifest) {
 }
 
 function validateTocCoverage(manifest, locations, toc) {
+  function splitHrefTarget(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return { path: "", fragment: "" };
+    const hashIndex = raw.indexOf("#");
+    if (hashIndex < 0) return { path: raw, fragment: "" };
+    return {
+      path: raw.slice(0, hashIndex),
+      fragment: raw.slice(hashIndex + 1)
+    };
+  }
+
+  function normalizePathTail(value) {
+    const raw = String(value || "").trim().replace(/\\/g, "/");
+    if (!raw) return "";
+    const noOrigin = raw.replace(/^https?:\/\/[^/]+/i, "");
+    const noLeading = noOrigin.replace(/^\/+/, "");
+    const parts = noLeading.split("/").filter(Boolean);
+    if (!parts.length) return "";
+    const oebpsIndex = parts.lastIndexOf("OEBPS");
+    if (oebpsIndex >= 0) return parts.slice(oebpsIndex).join("/");
+    return parts.join("/");
+  }
+
   const chunks = Array.isArray(locations && locations.chunks) ? locations.chunks : [];
   const covered = new Set();
+  const readingOrderHrefs = new Set();
   for (const chunk of chunks) {
+    const sourceRefs = Array.isArray(chunk && chunk.sourceRefs) ? chunk.sourceRefs : [];
+    for (const sourceRef of sourceRefs) {
+      const href = normalizePathTail(sourceRef && sourceRef.href);
+      if (href) readingOrderHrefs.add(href);
+    }
     const tocAnchors = Array.isArray(chunk && chunk.tocAnchors) ? chunk.tocAnchors : [];
     for (const anchor of tocAnchors) {
       if (anchor && anchor.tocId) covered.add(String(anchor.tocId));
     }
   }
   const tocItems = Array.isArray(toc && toc.items) ? toc.items : [];
-  const missing = tocItems.filter((item) => item && item.href && !covered.has(String(item.id || "")));
+  const missing = tocItems.filter((item) => {
+    if (!item || !item.href || covered.has(String(item.id || ""))) return false;
+    const targetPath = normalizePathTail(splitHrefTarget(item.href).path || item.spineHref);
+    if (!targetPath) return false;
+    return readingOrderHrefs.has(targetPath);
+  });
   if (missing.length) {
     const sample = missing.slice(0, 5).map((item) => `${item.id}:${item.label}`).join(", ");
     throw new Error(`locations.json is missing TOC anchor coverage for ${missing.length} items (${sample})`);

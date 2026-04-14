@@ -199,7 +199,17 @@ function buildStyles(styles, fontPlan) {
 
 function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, runtimeShapeChunks, debugChunks, debugGlyphChunks, styles, fontPlan, debugArtifactEnabled }) {
   const tocCoverage = buildTocCoverage(runtimeChunks, toc);
-  const missingToc = toc.filter((item) => item && item.href && !tocCoverage.has(item.id));
+  const readingOrderHrefs = new Set(
+    (book && Array.isArray(book.spineItems) ? book.spineItems : [])
+      .map((item) => normalizePathTail(item && item.href))
+      .filter(Boolean)
+  );
+  const missingToc = toc.filter((item) => {
+    if (!item || !item.href || tocCoverage.has(item.id)) return false;
+    const targetPath = normalizePathTail(splitHrefTarget(item.href).path || item.spineHref);
+    if (!targetPath) return false;
+    return readingOrderHrefs.has(targetPath);
+  });
   if (missingToc.length) {
     const sample = missingToc.slice(0, 5).map((item) => `${item.id}:${item.label}`).join(", ");
     throw new Error(`Protected build could not map ${missingToc.length} TOC items to chunk anchors (${sample})`);

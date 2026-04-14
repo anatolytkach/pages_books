@@ -18,7 +18,7 @@ export const PROTECTED_READER_PILOT_CONFIG = {
   version: "internal-pilot-v1",
   label: "internal-pilot",
   internalOnly: true,
-  pilotBookIds: normalizeIdList(["19686", "45", "11", "84", "1342"]),
+  pilotBookIds: normalizeIdList(["19686", "45", "11", "84", "1342", "1"]),
   candidateBookIds: normalizeIdList([]),
   blockedBookIds: normalizeIdList([]),
   pilotScopes: normalizeStringList(["default"]),

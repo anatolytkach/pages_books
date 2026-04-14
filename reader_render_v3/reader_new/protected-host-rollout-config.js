@@ -12,7 +12,7 @@ export const PROTECTED_READER_ROLLOUT_CONFIG = {
   requireExplicitOptIn: true,
   internalOnly: true,
   allowAllBooks: false,
-  allowBookIds: normalizeIdList(["19686", "45", "11", "84", "1342"]),
+  allowBookIds: normalizeIdList(["19686", "45", "11", "84", "1342", "1"]),
   denyBookIds: normalizeIdList([])
 };
 
