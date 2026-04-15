@@ -75,6 +75,15 @@ function classList(attrs = {}) {
     .filter(Boolean);
 }
 
+function resolveContentHref(baseHref, target) {
+  const rawBase = String(baseHref || "").trim();
+  const rawTarget = String(target || "").trim();
+  if (!rawTarget) return "";
+  if (/^(?:https?:)?\/\//i.test(rawTarget)) return rawTarget;
+  const baseDir = path.posix.dirname(rawBase || "");
+  return path.posix.normalize(path.posix.join(baseDir === "." ? "" : baseDir, rawTarget));
+}
+
 function blockPresentationFor(tag, attrs = {}) {
   const classes = classList(attrs);
   const inlineStyle = parseInlineStyle(attrs.style || "");
@@ -139,6 +148,17 @@ function blockPresentationFor(tag, attrs = {}) {
     presentation.marginBottomEm = 1;
     presentation.fontSizeScale = 0.9;
   }
+  if (
+    classes.includes("figure-block") ||
+    classes.includes("image-block") ||
+    classes.includes("cover") ||
+    String(attrs.id || "").trim().toLowerCase() === "cover-image"
+  ) {
+    presentation.textAlign = "center";
+    presentation.textIndentEm = 0;
+    presentation.marginTopEm = 1;
+    presentation.marginBottomEm = 1;
+  }
 
   if (inlineStyle["text-align"]) presentation.textAlign = String(inlineStyle["text-align"]).toLowerCase();
   if (inlineStyle["text-indent"]) presentation.textIndentEm = parseCssLengthEm(inlineStyle["text-indent"], presentation.textIndentEm);
@@ -151,6 +171,47 @@ function blockPresentationFor(tag, attrs = {}) {
   if (inlineStyle["font-family"]) presentation.fontFamily = String(inlineStyle["font-family"]).trim();
 
   return presentation;
+}
+
+function extractMediaItems(innerHtml, spineItem, attrs = {}) {
+  const items = [];
+  const tokenRegex = /<(img|image)\b([^>]*)\/?>/gi;
+  let match;
+  while ((match = tokenRegex.exec(String(innerHtml || "")))) {
+    const tagName = String(match[1] || "").toLowerCase();
+    const tokenAttrs = parseAttrs(match[2] || "");
+    const classes = classList(tokenAttrs);
+    const inlineStyle = parseInlineStyle(tokenAttrs.style || "");
+    const sourceHref = tokenAttrs.src || tokenAttrs["xlink:href"] || "";
+    if (!sourceHref) continue;
+    const widthPx = tokenAttrs.width
+      ? Math.round(parseCssLengthEm(tokenAttrs.width, 0) * 16)
+      : Math.round(parseCssLengthEm(inlineStyle.width || "", 0) * 16);
+    const heightPx = tokenAttrs.height
+      ? Math.round(parseCssLengthEm(tokenAttrs.height, 0) * 16)
+      : Math.round(parseCssLengthEm(inlineStyle.height || "", 0) * 16);
+    const isInlineAvatar = classes.includes("inline-avatar");
+    const containerClasses = classList(attrs);
+    items.push({
+      mediaId: `${spineItem.spineId}-media-${String(items.length + 1).padStart(4, "0")}`,
+      kind: "image",
+      tagName,
+      sourceHref,
+      resolvedHref: resolveContentHref(spineItem.href, sourceHref),
+      nodeId: tokenAttrs.id || "",
+      className: tokenAttrs.class || "",
+      widthPx: widthPx > 0 ? widthPx : 0,
+      heightPx: heightPx > 0 ? heightPx : 0,
+      inlineAvatar: isInlineAvatar,
+      placement:
+        isInlineAvatar
+          ? "inline-avatar"
+          : (containerClasses.includes("figure-block") || containerClasses.includes("image-block") || String(attrs.id || "").trim().toLowerCase() === "cover-image")
+            ? "block"
+            : "inline"
+    });
+  }
+  return items;
 }
 
 function extractInlineRuns(innerHtml) {
@@ -282,6 +343,9 @@ function extractInlineRuns(innerHtml) {
 
 function blockTypeForTag(tag, attrs = {}) {
   const className = String(attrs.class || "").toLowerCase();
+  if (/(^|\s)(figure-block|image-block)(\s|$)/.test(className) || String(attrs.id || "").trim().toLowerCase() === "cover-image") {
+    return "figure";
+  }
   if (/^h([1-6])$/i.test(tag)) return `heading-${tag.slice(1)}`;
   if (tag === "li") return "list-item";
   if (tag === "blockquote") return "blockquote";
@@ -296,7 +360,7 @@ function looksLikeNoteHref(href) {
 
 function extractBlocksFromHtml(html, spineItem) {
   const body = extractBody(html);
-  const matches = Array.from(body.matchAll(/<(h[1-6]|p|li|blockquote|pre)\b([^>]*)>([\s\S]*?)<\/\1>/gi));
+  const matches = Array.from(body.matchAll(/<(h[1-6]|p|li|blockquote|pre|div|td)\b([^>]*)>([\s\S]*?)<\/\1>/gi));
   const blocks = [];
   const candidates = matches.length ? matches : [[null, "div", "", body]];
   for (let index = 0; index < candidates.length; index += 1) {
@@ -305,11 +369,16 @@ function extractBlocksFromHtml(html, spineItem) {
     const attrs = parseAttrs(match[2] || "");
     const innerHtml = match[3] || "";
     const plainText = normalizeWhitespace(stripTags(innerHtml));
-    if (!plainText) continue;
+    const mediaItems = extractMediaItems(innerHtml, spineItem, attrs);
+    if (!plainText && !mediaItems.length) continue;
     const inline = extractInlineRuns(innerHtml);
+    const blockType =
+      !plainText && mediaItems.length
+        ? "figure"
+        : blockTypeForTag(tag, attrs);
     blocks.push({
       blockId: `${spineItem.spineId}-b-${String(index + 1).padStart(4, "0")}`,
-      blockType: blockTypeForTag(tag, attrs),
+      blockType,
       tagName: tag,
       text: plainText,
       sourceRef: {
@@ -327,6 +396,7 @@ function extractBlocksFromHtml(html, spineItem) {
         kind: looksLikeNoteHref(item.href) ? "note" : "link"
       })),
       inlineIds: inline.inlineIds,
+      mediaItems,
       blockPresentation: blockPresentationFor(tag, attrs),
       runs: inline.runs,
       styleSignals: {
@@ -335,7 +405,8 @@ function extractBlocksFromHtml(html, spineItem) {
         hasSuperscript: inline.runs.some((run) => run.styleState.superscript),
         hasLinks: inline.linkTargets.length > 0,
         hasDropCap: inline.runs.some((run) => run.styleState.dropCap),
-        hasCustomScale: inline.runs.some((run) => Number(run.styleState.fontScale || 1) !== 1)
+        hasCustomScale: inline.runs.some((run) => Number(run.styleState.fontScale || 1) !== 1),
+        hasMedia: mediaItems.length > 0
       }
     });
   }

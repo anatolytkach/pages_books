@@ -149,6 +149,12 @@
   const qidShort = params.get("i");
   const qCatalogReturn = params.get("catalog_return");
   const qAutostart = params.get("autostart");
+  const requestedContentSource = String(params.get("readerContentSource") || params.get("bookContentSource") || "")
+    .trim()
+    .toLowerCase();
+  const requestedRemoteMode = String(params.get("readerRemoteMode") || params.get("protectedRemoteMode") || "")
+    .trim()
+    .toLowerCase();
   const rawHash = (location.hash || "");
   const hid = rawHash.replace(/^#/, "");
   const hashIsId = /^\d+$/.test(hid);
@@ -529,7 +535,14 @@
       }
       var bookPath = "";
       if (locationInfo) {
-        if (isLocalPreviewHost() && locationInfo.localContentPath) {
+        if (
+          isLocalPreviewHost() &&
+          requestedRemoteMode === "strict" &&
+          requestedContentSource === "r2" &&
+          locationInfo.contentPath
+        ) {
+          bookPath = String(locationInfo.contentPath);
+        } else if (isLocalPreviewHost() && locationInfo.localContentPath) {
           bookPath = String(locationInfo.localContentPath);
         } else if (locationInfo.contentPath) {
           bookPath = String(locationInfo.contentPath);

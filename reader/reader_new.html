@@ -162,8 +162,10 @@
   const qReaderContentSource = String(params.get("readerContentSource") || params.get("bookContentSource") || "").trim().toLowerCase();
   const qReaderRemoteMode = String(params.get("readerRemoteMode") || params.get("protectedRemoteMode") || "").trim().toLowerCase();
   const qIsReaderNewRoute = isReaderNewRoute();
+  const qReaderNewProtectedMode = qIsReaderNewRoute && qReaderMode === "protected";
+  const qReaderNewUnprotectedMode = qIsReaderNewRoute && !qReaderNewProtectedMode;
   const resolvedArtifactSource = qProtectedArtifactSource || (qReaderContentSource === "r2" ? "r2" : "");
-  const resolvedProtectedUx = qProtectedUx || (qIsReaderNewRoute ? "old-shell" : "");
+  const resolvedProtectedUx = qProtectedUx || (qReaderNewProtectedMode ? "old-shell" : "");
   try {
     if (isLocalPreviewHost()) {
       document.cookie = `readerpub_artifact_source=${encodeURIComponent(resolvedArtifactSource || "local")}; path=/; SameSite=Lax`;
@@ -182,8 +184,8 @@
   if (source === "gutenberg") source = "";
   const hasExplicitId = !!((qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId && hid.trim()));
 
-  const resolvedReaderMode = qIsReaderNewRoute ? "protected" : qReaderMode;
-  if (qIsReaderNewRoute) {
+  const resolvedReaderMode = qReaderNewProtectedMode ? "protected" : qReaderMode;
+  if (qReaderNewProtectedMode) {
     try {
       const normalizedParams = new URLSearchParams(location.search || "");
       let changed = false;
@@ -215,6 +217,12 @@
       if (changed) history.replaceState(null, "", normalizedHref);
       window.__readerpubReaderNewNormalizedHref = normalizedHref;
     } catch (eReaderNewNormalize) {}
+  }
+  if (qReaderNewUnprotectedMode) {
+    try {
+      window.__readerpubReaderNewUnprotectedRichMode = true;
+      document.documentElement.setAttribute("data-reader-new-content-mode", "unprotected-rich");
+    } catch (eReaderNewUnprotectedMode) {}
   }
 
   if (resolvedReaderMode === "protected") {
@@ -310,6 +318,7 @@
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
 <script src="js/reader.js?v=20260315-swipe-select-hold-1"></script>
+<script src="js/reader-new-unprotected-boot.js?v=20260415-reader-new-rich-1"></script>
 <script src="js/fullscreen-fix.js"></script>
 <script src="js/fbreader-ui.js?v=20260315-desktop-search-fix-2"></script>
 <!-- Plugins -->

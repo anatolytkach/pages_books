@@ -84,6 +84,7 @@ const elements = {
   copySelection: document.querySelector("#copy-selection"),
   canvas: document.querySelector("#reader-canvas"),
   overlayCanvas: document.querySelector("#overlay-canvas"),
+  mediaLayer: document.querySelector("#reader-media-layer"),
   readerFrame: document.querySelector(".reader-frame")
 };
 
@@ -114,6 +115,27 @@ const readerContractEvents = createProtectedReaderEventChannel({
 });
 
 window.__PROTECTED_READER_EVENTS__ = readerContractEvents;
+
+function ensureMediaLayer() {
+  if (elements.mediaLayer) return elements.mediaLayer;
+  if (!elements.readerFrame) {
+    elements.readerFrame =
+      document.querySelector(".reader-frame") ||
+      (elements.canvas && elements.canvas.parentElement ? elements.canvas.parentElement : null) ||
+      (elements.overlayCanvas && elements.overlayCanvas.parentElement ? elements.overlayCanvas.parentElement : null);
+  }
+  if (!elements.readerFrame) return null;
+  const layer = document.createElement("div");
+  layer.id = "reader-media-layer";
+  layer.style.position = "absolute";
+  layer.style.inset = "0";
+  layer.style.pointerEvents = "none";
+  layer.style.zIndex = "1";
+  layer.style.overflow = "hidden";
+  elements.readerFrame.append(layer);
+  elements.mediaLayer = layer;
+  return layer;
+}
 
 function isEmbeddedOldShellMode() {
   return isProtectedReaderEmbeddedOldShellMode(state);
@@ -1431,10 +1453,12 @@ function renderAnnotationList() {
 
 function refreshCanvas() {
   if (!state.currentSnapshot || !state.currentSnapshot.renderPacket) return;
+  const mediaLayer = ensureMediaLayer();
   state.currentRenderDiagnostics = renderChunkToCanvas({
     canvas: elements.canvas,
     overlayCanvas: elements.overlayCanvas,
     renderPacket: state.currentSnapshot.renderPacket,
+    mediaLayer,
     debugGeometry: state.debugGeometry,
     offscreenCanvasStatus: state.workerClient.offscreenCanvas === "available" ? "inactive" : "not-available"
   });

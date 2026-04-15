@@ -3866,6 +3866,28 @@ function ensureBottomCatalogLink() {
   return link;
 }
 
+function applyUnifiedShellChrome() {
+  installStyles();
+  document.body.classList.add("protected-old-shell");
+  document.body.classList.remove("ui-hidden");
+  document.body.classList.toggle("protected-dev-panel", isDevPanelEnabled());
+  ensureDesktopTopLinks();
+  ensureBottomCatalogLink();
+  ensureLibraryControl();
+  ensureSearchControl();
+  ensureTypographyControl();
+  ensureLibraryOverlay();
+  ensureSettingsOverlay();
+  syncProtectedShellIcons();
+  const loader = document.getElementById("loader");
+  if (loader) {
+    loader.style.display = "none";
+    loader.style.visibility = "hidden";
+    loader.style.opacity = "0";
+    loader.style.pointerEvents = "none";
+  }
+}
+
 function ensureSearchControl() {
   let wrap = document.getElementById("protectedSearchControl");
   if (wrap) return wrap;
@@ -7519,6 +7541,12 @@ function waitForConfigAndBoot() {
 }
 
 waitForConfigAndBoot();
+window.__readerpubApplyUnifiedShellChrome = applyUnifiedShellChrome;
+window.__readerpubEnsureUnifiedShellOverlays = function () {
+  ensureLibraryOverlay();
+  ensureSettingsOverlay();
+  syncProtectedShellIcons();
+};
 window.addEventListener(
   "readerpub:protected-old-shell-config",
   () => {

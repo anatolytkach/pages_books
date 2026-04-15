@@ -104,6 +104,7 @@ async function main() {
           sourceRef: block.sourceRef,
           linkTargets: block.linkTargets,
           inlineIds: block.inlineIds,
+          mediaItems: block.mediaItems,
           blockPresentation: block.blockPresentation,
           styleSignals: block.styleSignals
         })),
@@ -144,6 +145,7 @@ async function main() {
             sourceRef: block.sourceRef,
             linkTargets: block.linkTargets,
             inlineIds: block.inlineIds,
+            mediaItems: block.mediaItems,
             blockPresentation: block.blockPresentation
           }))
         });

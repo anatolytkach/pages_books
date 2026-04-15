@@ -241,6 +241,26 @@ function alignLineWithinWidth(line, width, align = "left") {
   }
 }
 
+function mediaDimensionsForItem(item, columnWidth) {
+  const maxWidth = Math.max(120, Math.round(columnWidth));
+  const rawWidth = Math.max(0, Number(item && item.widthPx || 0));
+  const rawHeight = Math.max(0, Number(item && item.heightPx || 0));
+  if (rawWidth > 0 && rawHeight > 0) {
+    const scale = Math.min(1, maxWidth / rawWidth);
+    return {
+      width: Math.max(16, Math.round(rawWidth * scale)),
+      height: Math.max(16, Math.round(rawHeight * scale))
+    };
+  }
+  if (item && item.inlineAvatar) {
+    return { width: 18, height: 18 };
+  }
+  return {
+    width: maxWidth,
+    height: Math.max(180, Math.round(maxWidth * 0.62))
+  };
+}
+
 function resolveMetricsBackend({ ctx, renderMode, metricsMode, shapeRegistry }) {
   if (shapeRegistry && !(renderMode === "shape" && metricsMode === "text")) {
     return getShapeMetricsBackend(shapeRegistry);
@@ -299,6 +319,7 @@ export function layoutChunk({
   const columnInnerHeight = Math.max(260, pageSlotHeight - resolvedPaddingY * 2);
   const blocks = [];
   const lines = [];
+  const mediaItems = [];
   const orderedBlockIds = [];
   const segmentMap = segmentMapForChunk(chunkModel.chunk);
   const backend = metricsBackend || resolveMetricsBackend({ ctx, renderMode, metricsMode, shapeRegistry });
@@ -342,9 +363,14 @@ export function layoutChunk({
   for (const block of chunkModel.chunk.logicalBlockList) {
     const runs = chunkModel.runsByBlock.get(block.blockId) || [];
     const blockPresentation = block.blockPresentation || {};
+    const blockMediaItems = Array.isArray(block.mediaItems) ? block.mediaItems : [];
+    const inlineAvatar = blockMediaItems.find((item) => item && item.inlineAvatar) || null;
+    const blockLevelMediaItems = inlineAvatar
+      ? blockMediaItems.filter((item) => item && item !== inlineAvatar)
+      : blockMediaItems;
     const blockMarginTop = Math.max(0, Math.round((Number(blockPresentation.marginTopEm || 0) || 0) * 18));
     const blockMarginBottom = Math.max(0, Math.round((Number(blockPresentation.marginBottomEm || 0) || 0) * 18));
-    const firstLineIndentPx = Math.max(0, Math.round((Number(blockPresentation.textIndentEm || 0) || 0) * 17));
+    let firstLineIndentPx = Math.max(0, Math.round((Number(blockPresentation.textIndentEm || 0) || 0) * 17));
     const blockTextAlign = String(blockPresentation.textAlign || "justify").toLowerCase();
     const paragraphShouldJustify =
       block.blockType === "paragraph" &&
@@ -361,6 +387,45 @@ export function layoutChunk({
       } else {
         columnCursorY += blockMarginTop;
       }
+    }
+    for (const mediaItem of blockLevelMediaItems) {
+      const dimensions = mediaDimensionsForItem(mediaItem, columnWidth);
+      if (columnCursorY > 0 && (columnCursorY + dimensions.height) > columnInnerHeight) {
+        advanceFlow(dimensions.height);
+      }
+      const mediaX = resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + Math.max(0, Math.round((columnWidth - dimensions.width) / 2));
+      const mediaY = (pageSlot * pageSlotHeight) + resolvedPaddingY + columnCursorY;
+      mediaItems.push({
+        mediaId: mediaItem.mediaId,
+        blockId: block.blockId,
+        x: mediaX,
+        y: mediaY,
+        width: dimensions.width,
+        height: dimensions.height,
+        pageSlot,
+        columnIndex,
+        resolvedHref: mediaItem.resolvedHref || "",
+        placement: mediaItem.placement || "block",
+        inlineAvatar: !!mediaItem.inlineAvatar
+      });
+      columnCursorY += dimensions.height + 12;
+    }
+    if (inlineAvatar) {
+      const avatar = mediaDimensionsForItem(inlineAvatar, columnWidth);
+      firstLineIndentPx += avatar.width + 8;
+      mediaItems.push({
+        mediaId: inlineAvatar.mediaId,
+        blockId: block.blockId,
+        x: resolvedPaddingX + (columnIndex * (columnWidth + columnGap)),
+        y: (pageSlot * pageSlotHeight) + resolvedPaddingY + columnCursorY + 2,
+        width: avatar.width,
+        height: avatar.height,
+        pageSlot,
+        columnIndex,
+        resolvedHref: inlineAvatar.resolvedHref || "",
+        placement: "inline-avatar",
+        inlineAvatar: true
+      });
     }
     const blockTop = pageSlot * pageSlotHeight + resolvedPaddingY + columnCursorY;
     const blockFragments = [];
@@ -656,6 +721,7 @@ export function layoutChunk({
     paddingY: resolvedPaddingY,
     viewportHeight: effectiveViewportHeight,
     blocks,
+    mediaItems,
     lines,
     orderedBlockIds,
     columnCount,

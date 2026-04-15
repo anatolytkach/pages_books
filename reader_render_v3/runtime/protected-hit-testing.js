@@ -1,12 +1,12 @@
 import { nearestOffsetFromGlyphBoxes } from "./protected-shape-offset-map.js";
 
 function findLine(layout, x, y) {
-  return layout.lines.find((line) =>
-    y >= line.y &&
-    y <= line.y + line.height &&
-    x >= line.x &&
-    x <= line.x + line.width + 12
-  ) || null;
+  return layout.lines.find((line) => {
+    const withinY = y >= line.y && y <= line.y + line.height;
+    if (!withinY) return false;
+    const maxRight = line.x + Math.max(line.width, line.maxWidth || line.width) + 12;
+    return x >= line.x && x <= maxRight;
+  }) || null;
 }
 
 function nearestOffsetInFragment(fragment, x) {

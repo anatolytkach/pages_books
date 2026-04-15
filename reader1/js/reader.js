@@ -6331,6 +6331,22 @@ if (doc) {
 		}
 	}
 
+	window.__fbGetGlobalPageLabelForCfi = function(cfi) {
+		try {
+			var cfiText = String(cfi || "").trim();
+			if (!cfiText) return "";
+			var loc = { start: { cfi: cfiText } };
+			var resolved = getGlobalPageFromLocation(loc);
+			if (!resolved || !resolved.page) {
+				resolved = getGlobalPageFromLocationsFallback(loc);
+			}
+			if (!resolved || !resolved.page) return "";
+			return String(resolved.page);
+		} catch (_error) {
+			return "";
+		}
+	};
+
 	function getUiFontPct() {
 		try {
 			// settings.styles.fontSize like "124%"

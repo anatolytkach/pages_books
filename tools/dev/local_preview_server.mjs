@@ -113,17 +113,38 @@ async function serveFile(res, filePath, route, extraHeaders = {}) {
   }
 }
 
-async function proxyUpstream(res, upstreamUrl, route, extraHeaders = {}) {
+async function readRequestBody(req) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return chunks.length ? Buffer.concat(chunks) : Buffer.alloc(0);
+}
+
+async function proxyUpstream(req, res, upstreamUrl, route, extraHeaders = {}) {
   try {
-    const response = await fetch(upstreamUrl);
-    const headers = {
+    const method = String(req.method || "GET").toUpperCase();
+    const upstreamHeaders = {};
+    const contentType = req.headers["content-type"];
+    const accept = req.headers.accept;
+    const cookie = req.headers.cookie;
+    if (contentType) upstreamHeaders["content-type"] = contentType;
+    if (accept) upstreamHeaders.accept = accept;
+    if (cookie) upstreamHeaders.cookie = cookie;
+    const body = method === "GET" || method === "HEAD" ? undefined : await readRequestBody(req);
+    const response = await fetch(upstreamUrl, {
+      method,
+      headers: upstreamHeaders,
+      body
+    });
+    const responseHeaders = {
       "cache-control": "no-store",
       "x-reader-worker": "1",
       "x-reader-route": route,
       "content-type": response.headers.get("content-type") || "application/octet-stream",
       ...extraHeaders,
     };
-    res.writeHead(response.status, headers);
+    res.writeHead(response.status, responseHeaders);
     if (!response.body) {
       res.end();
       return;
@@ -271,14 +292,14 @@ const server = http.createServer(async (req, res) => {
     cookieRemoteMode === "strict" &&
     cookieContentSource === "r2"
   ) {
-    return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content-strict-remote", {
+    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content-strict-remote", {
       "x-reader-book-source": "remote",
       "x-reader-book-origin": PROD_ORIGIN,
       "x-reader-book-fallback": "strict-remote-lock"
     });
   }
   if (pathname.startsWith("/books/content/") && !existsSync(routed.file)) {
-    return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content", {
+    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content", {
       "x-reader-artifact-source": "remote",
       "x-reader-artifact-origin": PROD_ORIGIN,
       "x-reader-artifact-fallback": "proxy-miss-local"
@@ -289,7 +310,7 @@ const server = http.createServer(async (req, res) => {
       (remoteMode === "strict" && requestedContentSource === "r2") ||
       (cookieRemoteMode === "strict" && cookieContentSource === "r2")
     ) {
-      return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content-strict-remote", {
+      return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content-strict-remote", {
         "x-reader-book-source": "remote",
         "x-reader-book-origin": PROD_ORIGIN,
         "x-reader-book-fallback": "strict-remote-lock"
@@ -306,21 +327,21 @@ const server = http.createServer(async (req, res) => {
     cookieRemoteMode === "strict" &&
     cookieArtifactSource === "r2"
   ) {
-    return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content-strict-remote", {
+    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content-strict-remote", {
       "x-reader-artifact-source": "remote",
       "x-reader-artifact-origin": PROD_ORIGIN,
       "x-reader-artifact-fallback": "strict-remote-lock"
     });
   }
   if (pathname.startsWith("/books/protected-content/") && !existsSync(routed.file)) {
-    return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content", {
+    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content", {
       "x-reader-artifact-source": "remote",
       "x-reader-artifact-origin": PROD_ORIGIN,
       "x-reader-artifact-fallback": "proxy-miss-local"
     });
   }
   if (pathname.startsWith("/books/api/") && !existsSync(routed.file)) {
-    return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-api", {
+    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-api", {
       "x-reader-artifact-source": "remote",
       "x-reader-artifact-origin": PROD_ORIGIN,
       "x-reader-artifact-fallback": "proxy-miss-local"
@@ -331,7 +352,7 @@ const server = http.createServer(async (req, res) => {
       (remoteMode === "strict" && requestedArtifactSource === "r2") ||
       (cookieRemoteMode === "strict" && cookieArtifactSource === "r2")
     ) {
-      return proxyUpstream(res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content-strict-remote", {
+      return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content-strict-remote", {
         "x-reader-artifact-source": "remote",
         "x-reader-artifact-origin": PROD_ORIGIN,
         "x-reader-artifact-fallback": "strict-remote-lock"

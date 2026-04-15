@@ -53,6 +53,7 @@ export function renderChunkToCanvas({
   canvas,
   overlayCanvas,
   renderPacket,
+  mediaLayer = null,
   debugGeometry = false,
   offscreenCanvasStatus = "inactive"
 }) {
@@ -63,6 +64,7 @@ export function renderChunkToCanvas({
     renderMode = "shape",
     glyphOps = [],
     shapeRecords = [],
+    mediaItems = [],
     searchHighlights = [],
     selectionHighlights = [],
     annotationHighlights = [],
@@ -93,6 +95,29 @@ export function renderChunkToCanvas({
   const activeShapeRegistry = createGlyphShapeRegistry({ shapeRecords }, new Map());
   renderGlyphOps(ctx, glyphOps, activeShapeRegistry, { defaultFillStyle: defaultInk });
   ctx.restore();
+
+  if (mediaLayer) {
+    mediaLayer.replaceChildren();
+    mediaLayer.style.width = `${layout.width}px`;
+    mediaLayer.style.height = `${viewportHeight}px`;
+    for (const item of mediaItems || []) {
+      if (!item || !item.assetUrl) continue;
+      const img = document.createElement("img");
+      img.src = item.assetUrl;
+      img.alt = "";
+      img.decoding = "async";
+      img.loading = "eager";
+      img.style.position = "absolute";
+      img.style.left = `${Number(item.x || 0)}px`;
+      img.style.top = `${Number(item.y || 0) - Number(pageWindow && pageWindow.top || 0)}px`;
+      img.style.width = `${Number(item.width || 0)}px`;
+      img.style.height = `${Number(item.height || 0)}px`;
+      img.style.objectFit = "contain";
+      img.style.objectPosition = "center center";
+      img.style.pointerEvents = "none";
+      mediaLayer.append(img);
+    }
+  }
 
   const overlay = clearCanvas(overlayCanvas, layout.width, viewportHeight);
   overlay.clearRect(0, 0, layout.width, viewportHeight);

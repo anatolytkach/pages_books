@@ -229,7 +229,8 @@ function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, 
     },
     source: {
       inputType: book.inputType,
-      bookId: book.bookId
+      bookId: book.bookId,
+      publicRootPath: book.publicRootPath || ""
     },
     chunking: {
       mode: "logical-deterministic",

@@ -3471,6 +3471,60 @@
       return null;
     }
 
+    function isWordChar(ch) {
+      try {
+        return !!ch && !/\s/.test(ch);
+      } catch (e) {}
+      return false;
+    }
+
+    function normalizeRangeToWordBoundaries(range) {
+      if (!range) return range;
+      try {
+        var next = range.cloneRange();
+
+        var startNode = next.startContainer;
+        var startOffset = next.startOffset;
+        if (startNode && startNode.nodeType === 3) {
+          var startText = String(startNode.nodeValue || "");
+          var startIndex = Math.max(0, Math.min(startOffset, startText.length));
+          if (startIndex < startText.length && isWordChar(startText.charAt(startIndex))) {
+            while (startIndex > 0 && isWordChar(startText.charAt(startIndex - 1))) startIndex--;
+            next.setStart(startNode, startIndex);
+          } else if (startIndex > 0 && isWordChar(startText.charAt(startIndex - 1))) {
+            while (startIndex > 0 && isWordChar(startText.charAt(startIndex - 1))) startIndex--;
+            next.setStart(startNode, startIndex);
+          }
+        }
+
+        var endNode = next.endContainer;
+        var endOffset = next.endOffset;
+        if (endNode && endNode.nodeType === 3) {
+          var endText = String(endNode.nodeValue || "");
+          var endIndex = Math.max(0, Math.min(endOffset, endText.length));
+          if (endIndex > 0 && isWordChar(endText.charAt(endIndex - 1))) {
+            while (endIndex < endText.length && isWordChar(endText.charAt(endIndex))) endIndex++;
+            next.setEnd(endNode, endIndex);
+          } else if (endIndex < endText.length && isWordChar(endText.charAt(endIndex))) {
+            while (endIndex < endText.length && isWordChar(endText.charAt(endIndex))) endIndex++;
+            next.setEnd(endNode, endIndex);
+          }
+        }
+
+        return next;
+      } catch (e) {}
+      return range;
+    }
+
+    function syncNativeSelectionToRange(doc, range) {
+      try {
+        var sel = getSelection(doc);
+        if (!sel || !range) return;
+        if (sel.removeAllRanges) sel.removeAllRanges();
+        if (sel.addRange) sel.addRange(range);
+      } catch (e) {}
+    }
+
     function getContentsForDoc(doc) {
       try {
         if (!reader.rendition || typeof reader.rendition.getContents !== "function") return null;
@@ -3750,6 +3804,18 @@
         hideToolbar();
         return;
       }
+      try {
+        if (isReaderNewCompatHost()) {
+          range = normalizeRangeToWordBoundaries(range);
+          syncNativeSelectionToRange(doc, range);
+          sel = getSelection(doc);
+          if (sel && !sel.isCollapsed && sel.rangeCount) {
+            text = String(sel.toString() || "").replace(/^\s+/, "").replace(/\s+$/, "");
+          } else {
+            text = String(range.toString() || "").replace(/^\s+/, "").replace(/\s+$/, "");
+          }
+        }
+      } catch (eNorm) {}
 
       var cfi = null;
       var href = null;
@@ -3775,9 +3841,14 @@
         var sel = getSelection(doc);
         if (!sel || sel.isCollapsed || !sel.rangeCount) return;
         var range = sel.getRangeAt(0).cloneRange();
+        if (isReaderNewCompatHost()) {
+          range = normalizeRangeToWordBoundaries(range);
+          syncNativeSelectionToRange(doc, range);
+          sel = getSelection(doc) || sel;
+        }
         var text = "";
         try {
-          text = sel.toString();
+          text = sel && !sel.isCollapsed ? sel.toString() : range.toString();
           text = text.replace(/^\s+/, "").replace(/\s+$/, "");
         } catch (e) {}
         if (!text) return;
@@ -3886,6 +3957,16 @@
       var lpAnchorRange = null;
       var lpAnchorRect = null;
       var lpDir = 0;
+      var lpHasMeaningfulDrag = false;
+
+      function eventTouchPoint(e) {
+        try {
+          if (e && e.touches && e.touches[0]) return e.touches[0];
+          if (e && e.changedTouches && e.changedTouches[0]) return e.changedTouches[0];
+          if (e && typeof e.clientX === "number" && typeof e.clientY === "number") return e;
+        } catch (e0) {}
+        return null;
+      }
 
       function getTextNodeAt(node, offset) {
         try {
@@ -4137,15 +4218,17 @@
         lpAnchorRange = null;
         lpAnchorRect = null;
         lpDir = 0;
+        lpHasMeaningfulDrag = false;
       }
 
       function onTouchStart(e) {
-        if (!e || !e.touches || !e.touches[0]) return;
+        var pt = eventTouchPoint(e);
+        if (!pt) return;
         try { if (e.cancelable && e.preventDefault) e.preventDefault(); } catch (e0) {}
         try { if (e.stopImmediatePropagation) e.stopImmediatePropagation(); } catch (e1) {}
         try { if (e.stopPropagation) e.stopPropagation(); } catch (e2) {}
-        lpStartX = e.touches[0].clientX;
-        lpStartY = e.touches[0].clientY;
+        lpStartX = pt.clientX;
+        lpStartY = pt.clientY;
         lpLastX = lpStartX;
         lpLastY = lpStartY;
         clearLongPress();
@@ -4163,14 +4246,16 @@
           lpAnchorRange = word;
           lpAnchorRect = rectFromRange(word);
           lpDir = 0;
+          lpHasMeaningfulDrag = false;
           if (word) applyCustomSelection(word, false);
         }, 500);
       }
 
       function onTouchMove(e) {
-        if (!e || !e.touches || !e.touches[0]) return;
-        var x = e.touches[0].clientX;
-        var y = e.touches[0].clientY;
+        var pt = eventTouchPoint(e);
+        if (!pt) return;
+        var x = pt.clientX;
+        var y = pt.clientY;
         if (!lpActive) {
           if (Math.abs(x - lpStartX) > 16 || Math.abs(y - lpStartY) > 16) clearLongPress();
           return;
@@ -4178,6 +4263,10 @@
         try { e.preventDefault(); } catch (e0) {}
         try { if (e.stopImmediatePropagation) e.stopImmediatePropagation(); } catch (e1) {}
         try { if (e.stopPropagation) e.stopPropagation(); } catch (e2) {}
+        if (Math.abs(x - lpStartX) < 18 && Math.abs(y - lpStartY) < 18) {
+          return;
+        }
+        lpHasMeaningfulDrag = true;
         var curr = expandToWord(rangeFromPoint(x, y), x, y);
         if (!curr || !lpAnchorRange) return;
         try {
@@ -4212,6 +4301,9 @@
             doc.__fbSelDragActive = false;
           } catch (e1) {}
           if (state.locked) {
+            if (!lpHasMeaningfulDrag && lpAnchorRange) {
+              applyCustomSelection(lpAnchorRange, false);
+            }
             showToolbarForCurrentSelection();
             setDismissActive(true);
           }
@@ -4221,6 +4313,18 @@
       try { doc.addEventListener("touchstart", onTouchStart, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("touchmove", onTouchMove, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("touchend", onTouchEnd, { passive: false, capture: true }); } catch (e) {}
+      try { doc.addEventListener("pointerdown", function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        onTouchStart(e);
+      }, { passive: false, capture: true }); } catch (e) {}
+      try { doc.addEventListener("pointermove", function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        onTouchMove(e);
+      }, { passive: false, capture: true }); } catch (e) {}
+      try { doc.addEventListener("pointerup", function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        onTouchEnd(e);
+      }, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("pointermove", function(e){
         if (!lpActive) return;
         try { e.preventDefault(); } catch (e0) {}
@@ -4874,6 +4978,49 @@
       try { window.open(url, "_blank", "noopener"); } catch (e) { window.location.href = url; }
     }
 
+    function isReaderNewCompatHost() {
+      try {
+        if (window.__readerpubReaderNewCompat) return true;
+      } catch (e00) {}
+      try {
+        if (window.top && window.top !== window) {
+          var topPath = String((window.top.location && window.top.location.pathname) || "").trim();
+          if (
+            topPath === "/books/reader_new/" ||
+            topPath === "/books/reader_new" ||
+            topPath === "/reader_new/" ||
+            topPath === "/reader_new" ||
+            topPath === "/books/reader_new/index.html" ||
+            topPath === "/reader_new/index.html" ||
+            topPath === "/reader/reader_new" ||
+            topPath === "/reader/reader_new/" ||
+            topPath === "/reader/reader_new.html"
+          ) {
+            return true;
+          }
+        }
+      } catch (e0) {}
+      return false;
+    }
+
+    function openExternalTranslateUrl(text) {
+      var target = "en";
+      try { target = getTranslateTargetLang() || "en"; } catch (e0) {}
+      try {
+        if (typeof window.__readerpubOpenExternalTranslate === "function") {
+          window.__readerpubOpenExternalTranslate(text);
+          return;
+        }
+      } catch (eCompat) {}
+      var translateUrl =
+        "https://translate.google.com/?sl=auto&tl=" +
+        encodeURIComponent(String(target || "en")) +
+        "&text=" +
+        encodeURIComponent(String(text || "")) +
+        "&op=translate";
+      openUrl(translateUrl);
+    }
+
     function handleAction(action) {
       var text = state.text || "";
       if (!text) { hideAndClear(); return; }
@@ -4891,6 +5038,11 @@
           return;
         }
       } else if (action === "translate") {
+        hideAndClear();
+        if (isReaderNewCompatHost()) {
+          openExternalTranslateUrl(text);
+          return;
+        }
         openTranslateDialog(text);
       } else if (action === "search") {
         var qUrl = "https://www.google.com/search?q=" + encodeURIComponent(text);

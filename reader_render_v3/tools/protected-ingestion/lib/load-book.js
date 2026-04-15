@@ -19,6 +19,16 @@ function ensureExists(filePath) {
   return filePath;
 }
 
+function normalizePublicRootPath(rootDir) {
+  const normalizedRoot = path.resolve(rootDir);
+  const workspaceRoot = path.resolve(__dirname, "..", "..", "..", "..");
+  const relativeFromWorkspace = path.relative(workspaceRoot, normalizedRoot).replace(/\\/g, "/");
+  const trimmedRelative = relativeFromWorkspace.replace(/^\/+/, "").replace(/\/+$/, "");
+  const contentMatch = trimmedRelative.match(/(?:^|\/)(books\/content\/.+)$/);
+  if (contentMatch && contentMatch[1]) return `/${contentMatch[1]}`;
+  return `/${trimmedRelative}`;
+}
+
 function stripTags(text) {
   return String(text || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -57,6 +67,7 @@ function parseCurrentStorage(rootDir) {
   return {
     inputType: "current-storage",
     rootDir,
+    publicRootPath: normalizePublicRootPath(rootDir),
     bookId: path.basename(rootDir),
     metadata: {
       title: metadata.title || metadata.bookTitle || path.basename(rootDir),
@@ -125,6 +136,7 @@ function parseLegacyExploded(rootDir) {
   return {
     inputType: "legacy-exploded",
     rootDir,
+    publicRootPath: normalizePublicRootPath(rootDir),
     bookId: path.basename(rootDir),
     metadata: {
       title: titleMatch ? stripTags(titleMatch[1]) : path.basename(rootDir),

@@ -85,6 +85,18 @@ function gatherShapeRecords(shapeBundle, glyphOps) {
   return ((shapeBundle && shapeBundle.shapeRecords) || []).filter((record) => refs.has(record.shapeRef));
 }
 
+function filterMediaItemsForPage(mediaItems, pageWindow) {
+  if (!Array.isArray(mediaItems) || !mediaItems.length) return [];
+  if (!pageWindow) return mediaItems;
+  const top = Number(pageWindow.top || 0);
+  const bottom = top + Number(pageWindow.height || 0);
+  return mediaItems.filter((item) => {
+    const itemTop = Number(item && item.y || 0);
+    const itemBottom = itemTop + Number(item && item.height || 0);
+    return itemBottom >= top && itemTop <= bottom;
+  });
+}
+
 function buildAutomationSelectionPosition(line, offset, projectionMeta = null) {
   const fragment =
     line.fragments.find((item) => offset >= item.startOffset && offset <= item.endOffset) ||
@@ -1279,6 +1291,7 @@ export class ProtectedReaderRuntimeCore {
 
     let glyphOps = [];
     let shapeRecords = [];
+    let mediaItems = [];
     let reconstructionScope = "none";
     let reconstructionCacheSize = 0;
     glyphOps = filterGlyphOpsForPage(
@@ -1292,6 +1305,13 @@ export class ProtectedReaderRuntimeCore {
       page
     );
     shapeRecords = gatherShapeRecords(this.currentChunkModel.shapeBundle, glyphOps);
+    mediaItems = filterMediaItemsForPage(this.currentLayout && this.currentLayout.mediaItems, page).map((item) => ({
+      ...item,
+      assetUrl:
+        item && item.resolvedHref && this.book && this.book.manifest && this.book.manifest.source && this.book.manifest.source.publicRootPath
+          ? `${String(this.book.manifest.source.publicRootPath).replace(/\/$/, "")}/${String(item.resolvedHref).replace(/^\/+/, "")}`
+          : ""
+    }));
 
     const renderDiagnostics = {
       glyphOps: glyphOps.length,
@@ -1357,6 +1377,7 @@ export class ProtectedReaderRuntimeCore {
         pageWindow: page,
         glyphOps,
         shapeRecords,
+        mediaItems,
         searchHighlights,
         selectionHighlights,
         annotationHighlights: annotationOverlay.visibleHighlights,
