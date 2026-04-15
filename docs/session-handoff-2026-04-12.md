@@ -498,6 +498,18 @@
   - reader/reader1
   - pricing/offer data model
 
+## Additional Milestone: Staging Deployment For Bookshelf Workflow
+
+- Deployed the Bookshelf workflow reframe to staging from:
+  - branch `codex/protected-publish-jobs`
+  - commit `8ee3babaa15b5480da12649036505b4d073c2251`
+- Staging URLs:
+  - custom URL: `https://books-staging.reader.pub/books/`
+  - preview URL: `https://6ddd66fe.readerpub-books-staging.pages.dev`
+- Recorded the deployment in:
+  - `deployments/history.jsonl`
+- Cleaned the temporary deploy bundle directory after successful upload
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
