@@ -708,7 +708,7 @@
                     Convert this upload to protected reading format
                   </label>
                 </div>
-                <div class="tenant-help">Protected books are converted to glyph artifacts before publication.</div>
+                <div class="tenant-help">Protected books are prepared in reader-ready format before you review pricing and publish.</div>
               </div>
               <div class="form-group upload-cover-group hidden" id="uploadCoverGroup">
                 <label for="coverInput">Cover Page *</label>
@@ -800,7 +800,7 @@
           <div class="upload-progress-panel" id="uploadProgressPanel">
             <div class="progress-header">
               <span class="spinner dark" id="progressSpinner"></span>
-              <h3 class="progress-title">Progress</h3>
+              <h3 class="progress-title">Preparing Draft</h3>
             </div>
             <div class="tenant-help" id="uploadProgressMeta"></div>
             <p class="progress-note">This may take a few minutes. You can leave this page at any time.</p>
@@ -808,7 +808,7 @@
               <div class="progress-bar-outer">
                 <div class="progress-bar-inner" id="progressBar"></div>
               </div>
-              <div class="progress-text" id="progressText">Uploading...</div>
+              <div class="progress-text" id="progressText">Preparing manuscript...</div>
             </div>
             <div class="progress-stage-grid" id="progressStageGrid"></div>
           </div>
@@ -866,7 +866,7 @@
             </div>
             <div class="section-block">
               <h3 class="section-title">Rights &amp; Pricing</h3>
-              <p class="section-note">Set where this title is published, who can see it, and review pricing options below when they become available.</p>
+              <p class="section-note">Set where this title will be published, who can access it, and review pricing options below when they become available.</p>
               <div class="tenant-picker">
                 <label for="editTenantSelect">Publishing Destination</label>
                 <select id="editTenantSelect"></select>
@@ -1043,7 +1043,7 @@
           heading.textContent = 'Bookshelf';
           uploadHeading.textContent = 'Create New Title';
           uploadBtn.textContent = '+ Create New Title';
-          intro.textContent = 'Manage drafts and published titles here. Create a new title to upload content and move it into review.';
+          intro.textContent = 'Manage draft and published titles here. Create a new title to upload your manuscript and move it into review.';
           return;
         }
 
@@ -1081,7 +1081,7 @@
             select.disabled = false;
             if (display) display.style.display = 'none';
             select.style.display = '';
-            help.textContent = 'Books published here will use the manual personal path.';
+            help.textContent = 'Titles published here will use the manual personal path.';
           } else {
             select.innerHTML = '<option value="">No publishing organizations available</option>';
             select.disabled = true;
@@ -1105,9 +1105,9 @@
         })).join('');
         const organization = getTenantById(selectedId || select.value);
         if (String(selectedId || select.value) === PERSONAL_PUBLISH_TARGET) {
-          help.textContent = 'Books published here will use the manual personal path.';
+          help.textContent = 'Titles published here will use the manual personal path.';
         } else {
-          help.textContent = organization ? `Books published here will use source "${organization.tenant?.slug || ''}".` : '';
+          help.textContent = organization ? `Titles published here will use source "${organization.tenant?.slug || ''}".` : '';
         }
         if (display) {
           if (useReadOnlyDisplay) {
@@ -1270,23 +1270,23 @@
           return {
             badgeClass: 'published',
             badgeLabel: 'Published',
-            detail: 'Live in your Bookshelf and ready to open.',
+            detail: 'Published and ready to open.',
             actionLabel: 'Open',
           };
         }
         if (status === 'ready') {
           if (hasPricingInfo(book)) {
-            return {
-              badgeClass: 'ready',
-              badgeLabel: 'Ready to publish',
-              detail: 'Details and pricing look ready for final review.',
-              actionLabel: 'Publish',
-            };
-          }
+          return {
+            badgeClass: 'ready',
+            badgeLabel: 'Ready to publish',
+            detail: 'Details and pricing are ready for final review.',
+            actionLabel: 'Publish',
+          };
+        }
           return {
             badgeClass: 'ready',
             badgeLabel: 'Ready for pricing',
-            detail: 'Manuscript is ready. Review pricing before publishing.',
+            detail: 'Your manuscript is ready. Review pricing before publishing.',
             actionLabel: 'Review Pricing',
           };
         }
@@ -1294,7 +1294,7 @@
           return {
             badgeClass: 'processing',
             badgeLabel: 'Processing',
-            detail: 'Your manuscript is still being prepared.',
+            detail: 'Your manuscript is still being prepared for review.',
             actionLabel: 'Continue Setup',
           };
         }
@@ -1310,7 +1310,7 @@
           return {
             badgeClass: 'draft',
             badgeLabel: 'Ready for details',
-            detail: 'Add the remaining book details to continue setup.',
+            detail: 'Add the remaining book details to continue.',
             actionLabel: 'Continue Setup',
           };
         }
@@ -1318,7 +1318,7 @@
           badgeClass: status || 'draft',
           badgeLabel: 'Draft',
           detail: hasRequiredBookMetadata(book)
-            ? 'Continue setup to review pricing and publish.'
+            ? 'Continue to pricing and publish review.'
             : 'Finish setting up this draft to continue.',
           actionLabel: 'Continue Setup',
         };
@@ -1541,17 +1541,17 @@
         if ((formState.reader_type || 'legacy') === 'protected') {
           return [
             { key: 'upload', label: 'Upload Manuscript' },
-            { key: 'queue', label: 'Prepare Draft' },
+            { key: 'queue', label: 'Create Draft' },
             { key: 'validate', label: 'Validate Files' },
             { key: 'normalize', label: 'Convert Book' },
-            { key: 'artifact', label: 'Build Reader Format' },
+            { key: 'artifact', label: 'Prepare Reader Format' },
             { key: 'publish', label: 'Ready for Review' },
           ];
         }
         return [
           { key: 'upload', label: 'Upload Manuscript' },
-          { key: 'processing', label: 'Prepare Draft' },
-          { key: 'review', label: 'Convert Book' },
+          { key: 'processing', label: 'Create Draft' },
+          { key: 'review', label: 'Prepare Review Copy' },
           { key: 'done', label: 'Ready for Review' },
         ];
       }
@@ -1658,7 +1658,7 @@
         $uploadProgressPanel.classList.remove('visible');
         $progressWrap.classList.remove('visible');
         $progressBar.style.width = '0%';
-        $progressText.textContent = 'Uploading...';
+        $progressText.textContent = 'Preparing manuscript...';
         $uploadProgressMeta.textContent = '';
         $progressStageGrid.innerHTML = '';
         $progressSpinner.style.display = 'inline-block';
@@ -1722,7 +1722,7 @@
           await new Promise((resolve) => setTimeout(resolve, 2000));
           const job = await apiFetch('GET', `/protected-jobs/${jobId}`);
           $progressBar.style.width = `${uploadProgressPercent(job.status)}%`;
-          $progressText.textContent = job.message || `Processing... (${job.status})`;
+          $progressText.textContent = job.message || `Preparing draft... (${job.status})`;
           renderUploadStages(resolveUploadStageKey(job.status, formState), {
             completed: job.status === 'completed',
             failed: job.status === 'failed' || job.status === 'not_validated',
@@ -1745,7 +1745,7 @@
         }
         await loadMyBooks();
         showView('list');
-        throw new Error('Protected publishing is still running. You can reopen this book from Bookshelf in a few minutes.');
+        throw new Error('This manuscript is still being prepared. You can reopen it from Bookshelf in a few minutes.');
       }
 
       async function handleProtectedUpload(file, organization, formState) {
@@ -1799,10 +1799,10 @@
         } else {
           $progressBar.style.width = '30%';
         }
-        $progressText.textContent = 'Confirming upload...';
+        $progressText.textContent = 'Saving draft...';
         await apiFetch('POST', `/protected-jobs/${job.jobId}/upload-complete`, { body: {} });
         $progressBar.style.width = '40%';
-        $progressText.textContent = 'Queued for protected conversion...';
+        $progressText.textContent = 'Creating review draft...';
         renderUploadStages('queue', { formState });
         return pollProtectedJob(job.jobId, job.bookId);
       }
@@ -1851,7 +1851,7 @@
           }).catch(reject);
         });
 
-        $progressText.textContent = 'Processing...';
+        $progressText.textContent = 'Preparing draft...';
         $progressBar.style.width = '100%';
         renderUploadStages('processing', { formState });
 
@@ -1870,7 +1870,7 @@
                 await openBookEditor(result.bookId);
                 return book;
               }
-              $progressText.textContent = `Processing... (${book.status})`;
+              $progressText.textContent = `Preparing draft... (${book.status})`;
               renderUploadStages('processing', { formState });
             } catch {
               break;
@@ -1944,7 +1944,7 @@
         $uploadProgressPanel.classList.add('visible');
         $progressWrap.classList.add('visible');
         $progressBar.style.width = '0%';
-        $progressText.textContent = 'Uploading...';
+        $progressText.textContent = 'Preparing manuscript...';
         $zone.style.display = 'none';
         $uploadProgressMeta.textContent = `${formState.title} by ${formState.author} - ${formState.source_format.toUpperCase()} - ${readerType === 'protected' ? 'Protected' : 'Standard'}`;
         renderUploadStages('upload', { formState });
@@ -2033,7 +2033,7 @@
           }
           const result = await apiFetch('POST', `/publish/books/${editingBookId}/publish`, { body });
           if (result && result.pendingProtectedConversion) {
-            showAlert($editAlert, result.message || 'Protected conversion started. Publication will finish after processing.', 'success');
+            showAlert($editAlert, result.message || 'Processing has started. This title will return here for review once the manuscript is ready.', 'success');
             const $status = document.getElementById('bookStatus');
             $status.innerHTML = '<span class="status-badge processing">processing</span>';
             editorSavedState = true;
@@ -2042,7 +2042,7 @@
             btn.textContent = 'Processing';
             return;
           }
-          showAlert($editAlert, 'Book published!', 'success');
+          showAlert($editAlert, 'Title published.', 'success');
           const $status = document.getElementById('bookStatus');
           $status.innerHTML = '<span class="status-badge published">published</span>';
           editorSavedState = true;

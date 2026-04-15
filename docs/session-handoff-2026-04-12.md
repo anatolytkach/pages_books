@@ -544,6 +544,23 @@
   - `deployments/history.jsonl`
 - Cleaned the temporary deploy bundle directory after successful upload
 
+## Additional Milestone: Self-Publisher Workflow Wording Polish
+
+- Performed a narrow wording-only polish pass in `books/publish/index.html`
+- Tightened the Bookshelf and draft/review language so manuscript processing no longer implies immediate publication
+- Updated:
+  - progress panel title and progress text
+  - protected helper text
+  - stage labels for protected and legacy flows
+  - protected processing completion and pending messages
+  - direct publish success message
+  - several Bookshelf card detail lines
+- Intentionally left unchanged:
+  - backend/API wording outside this file
+  - publish gating logic
+  - click behavior
+  - reader/reader1
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
