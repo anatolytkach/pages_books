@@ -93,6 +93,73 @@
         margin-bottom: 24px;
       }
 
+      .workflow-steps {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin: 0 0 20px;
+      }
+
+      .workflow-step {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: #fff;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .workflow-step-number {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid currentColor;
+        font-weight: 700;
+        flex: 0 0 24px;
+      }
+
+      .workflow-step.active {
+        color: var(--accent);
+        border-color: rgba(2, 143, 128, 0.35);
+        background: rgba(2, 143, 128, 0.06);
+      }
+
+      .workflow-step.complete {
+        color: var(--ink);
+      }
+
+      .section-block {
+        margin-bottom: 24px;
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.8);
+      }
+
+      .section-block:last-child {
+        margin-bottom: 0;
+      }
+
+      .section-title {
+        margin: 0 0 14px;
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .section-note {
+        margin: -6px 0 14px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
       /* ── Buttons ──────────────────────────── */
       .btn {
         display: inline-flex;
@@ -556,6 +623,7 @@
         .form-row { grid-template-columns: 1fr; }
         .book-item { grid-template-columns: 48px 1fr; }
         .book-item .status-badge { grid-column: 1 / -1; }
+        .workflow-steps { grid-template-columns: 1fr; }
         .upload-selection {
           align-items: flex-start;
           flex-direction: column;
@@ -584,9 +652,9 @@
       <!-- ── My Books view ──────────────── -->
       <div id="view-list" class="view active">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:8px;">
-          <h2 style="margin:0;" id="booksHeading">Publishing Books</h2>
+          <h2 style="margin:0;" id="booksHeading">Bookshelf</h2>
           <div style="display:flex; gap:8px;">
-            <button class="btn" id="uploadBtn">+ Upload Book</button>
+            <button class="btn" id="uploadBtn">+ Create New Title</button>
           </div>
         </div>
         <div id="publishIntro" style="color:var(--muted); font-size:14px; margin:-4px 0 16px;"></div>
@@ -600,101 +668,114 @@
 
       <!-- ── Upload view ────────────────── -->
       <div id="view-upload" class="view">
-        <h2 id="uploadHeading">Upload Book</h2>
+        <h2 id="uploadHeading">Create New Title</h2>
+        <div class="workflow-steps" id="uploadWorkflowSteps"></div>
         <div class="panel">
           <div class="upload-config-panel" id="uploadConfigPanel">
-            <div class="tenant-picker">
-              <label for="uploadTenantSelect">Publishing Source</label>
-              <select id="uploadTenantSelect"></select>
-              <input type="text" id="uploadTenantDisplay" readonly style="display:none;" />
-              <div class="tenant-help" id="uploadTenantHelp"></div>
-            </div>
-            <div class="form-group">
-              <label>Protect Content</label>
-              <div class="choice-row">
-                <label for="uploadProtectContent">
-                  <input type="checkbox" id="uploadProtectContent" checked />
-                  Convert this upload to protected reading format
-                </label>
-              </div>
-              <div class="tenant-help">Protected books are converted to glyph artifacts before publication.</div>
-            </div>
-            <div class="form-group">
-              <label>Visibility</label>
-              <div class="choice-row">
-                <label for="uploadVisibilityPublic">
-                  <input type="radio" name="uploadVisibility" id="uploadVisibilityPublic" value="public" checked />
-                  Public
-                </label>
-                <label for="uploadVisibilityMemberOnly">
-                  <input type="radio" name="uploadVisibility" id="uploadVisibilityMemberOnly" value="tenant_only" />
-                  Member Only
-                </label>
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="uploadSourceFormat">File Type</label>
-              <select id="uploadSourceFormat">
-                <option value="epub">EPUB</option>
-                <option value="docx">DOC</option>
-              </select>
-            </div>
-            <div class="form-row">
+            <div class="section-block">
+              <h3 class="section-title">Book Content</h3>
               <div class="form-group">
-                <label for="uploadTitle">Title *</label>
-                <input type="text" id="uploadTitle" required />
-              </div>
-              <div class="form-group">
-                <label for="uploadAuthor">Author *</label>
-                <input type="text" id="uploadAuthor" required />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="uploadGenre">Genre *</label>
-                <select id="uploadGenre" required>
-                  <option value="">Select genre...</option>
+                <label for="uploadSourceFormat">File Type</label>
+                <select id="uploadSourceFormat">
+                  <option value="epub">EPUB</option>
+                  <option value="docx">DOC</option>
                 </select>
               </div>
               <div class="form-group">
-                <label for="uploadYear">Year Written *</label>
-                <input type="number" id="uploadYear" min="1" max="2030" required />
+                <label>Protect Content</label>
+                <div class="choice-row">
+                  <label for="uploadProtectContent">
+                    <input type="checkbox" id="uploadProtectContent" checked />
+                    Convert this upload to protected reading format
+                  </label>
+                </div>
+                <div class="tenant-help">Protected books are converted to glyph artifacts before publication.</div>
+              </div>
+              <div class="form-group upload-cover-group hidden" id="uploadCoverGroup">
+                <label for="coverInput">Cover Page *</label>
+                <input type="file" id="coverInput" accept=".png,.jpg,.jpeg,.webp,.gif" />
+                <div class="tenant-help" id="uploadCoverHelp">Required for DOC uploads. Use a raster image such as PNG or JPEG.</div>
+              </div>
+              <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">&#8593;</div>
+                <strong>Drop your manuscript here or click to browse</strong>
+                <p id="uploadFormatHelp">Accepts .epub files (max 100 MB).</p>
+                <input type="file" id="fileInput" accept=".epub" />
+              </div>
+              <div class="upload-selection" id="uploadSelection">
+                <div class="upload-selection-meta">
+                  <div class="upload-selection-title" id="uploadSelectionName">No file selected</div>
+                  <div class="upload-selection-subtitle" id="uploadSelectionMeta">Choose a file to upload.</div>
+                </div>
+                <button type="button" class="btn btn-secondary" id="changeUploadFileBtn">Change File</button>
               </div>
             </div>
-            <div class="form-row">
+
+            <div class="section-block">
+              <h3 class="section-title">Book Details</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="uploadTitle">Title *</label>
+                  <input type="text" id="uploadTitle" required />
+                </div>
+                <div class="form-group">
+                  <label for="uploadAuthor">Author *</label>
+                  <input type="text" id="uploadAuthor" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="uploadGenre">Genre *</label>
+                  <select id="uploadGenre" required>
+                    <option value="">Select genre...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="uploadYear">Year Written *</label>
+                  <input type="number" id="uploadYear" min="1" max="2030" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="uploadIsbn">ISBN</label>
+                  <input type="text" id="uploadIsbn" />
+                </div>
+                <div class="form-group">
+                  <label for="uploadLanguage">Language</label>
+                  <input type="text" id="uploadLanguage" value="en" />
+                </div>
+              </div>
               <div class="form-group">
-                <label for="uploadIsbn">ISBN</label>
-                <input type="text" id="uploadIsbn" />
+                <label for="uploadAnnotation">Annotation *</label>
+                <textarea id="uploadAnnotation" required placeholder="Describe this book..."></textarea>
+              </div>
+            </div>
+
+            <div class="section-block">
+              <h3 class="section-title">Publishing Rights</h3>
+              <div class="tenant-picker">
+                <label for="uploadTenantSelect">Publishing Source</label>
+                <select id="uploadTenantSelect"></select>
+                <input type="text" id="uploadTenantDisplay" readonly style="display:none;" />
+                <div class="tenant-help" id="uploadTenantHelp"></div>
               </div>
               <div class="form-group">
-                <label for="uploadLanguage">Language</label>
-                <input type="text" id="uploadLanguage" value="en" />
+                <label>Visibility</label>
+                <div class="choice-row">
+                  <label for="uploadVisibilityPublic">
+                    <input type="radio" name="uploadVisibility" id="uploadVisibilityPublic" value="public" checked />
+                    Public
+                  </label>
+                  <label for="uploadVisibilityMemberOnly">
+                    <input type="radio" name="uploadVisibility" id="uploadVisibilityMemberOnly" value="tenant_only" />
+                    Member Only
+                  </label>
+                </div>
               </div>
             </div>
-            <div class="form-group">
-              <label for="uploadAnnotation">Annotation *</label>
-              <textarea id="uploadAnnotation" required placeholder="Describe this book..."></textarea>
-            </div>
-            <div class="form-group upload-cover-group hidden" id="uploadCoverGroup">
-              <label for="coverInput">Cover Page *</label>
-              <input type="file" id="coverInput" accept=".png,.jpg,.jpeg,.webp,.gif" />
-              <div class="tenant-help" id="uploadCoverHelp">Required for DOC uploads. Use a raster image such as PNG or JPEG.</div>
-            </div>
-            <div class="upload-zone" id="uploadZone">
-              <div class="upload-icon">&#8593;</div>
-              <strong>Drop your manuscript here or click to browse</strong>
-              <p id="uploadFormatHelp">Accepts .epub files (max 100 MB).</p>
-              <input type="file" id="fileInput" accept=".epub" />
-            </div>
-            <div class="upload-selection" id="uploadSelection">
-              <div class="upload-selection-meta">
-                <div class="upload-selection-title" id="uploadSelectionName">No file selected</div>
-                <div class="upload-selection-subtitle" id="uploadSelectionMeta">Choose a file to upload.</div>
-              </div>
-              <button type="button" class="btn btn-secondary" id="changeUploadFileBtn">Change File</button>
-            </div>
+
             <div class="form-actions">
-              <button type="button" class="btn" id="startUploadBtn" disabled>Submit</button>
+              <button type="button" class="btn" id="startUploadBtn" disabled>Upload and Continue</button>
             </div>
           </div>
           <div class="upload-progress-panel" id="uploadProgressPanel">
@@ -713,77 +794,88 @@
             <div class="progress-stage-grid" id="progressStageGrid"></div>
           </div>
         </div>
-        <button class="btn btn-secondary" id="backToList">&larr; Back to My Books</button>
+        <button class="btn btn-secondary" id="backToList">&larr; Back to Bookshelf</button>
       </div>
 
 
       <!-- ── Edit metadata view ─────────── -->
       <div id="view-edit" class="view">
-        <h2>Book Details</h2>
+        <h2>Review and Publish</h2>
+        <div class="workflow-steps" id="editWorkflowSteps"></div>
         <div id="editAlert" class="alert"></div>
         <div class="panel">
           <div id="bookStatus"></div>
-          <div class="tenant-picker">
-            <label for="editTenantSelect">Publishing Destination</label>
-            <select id="editTenantSelect"></select>
-            <div class="tenant-help" id="editTenantHelp"></div>
-          </div>
           <form id="metadataForm">
-            <div class="form-group">
-              <label for="meta-reader-type">Reader Type</label>
-              <select id="meta-reader-type">
-                <option value="legacy">Standard</option>
-                <option value="protected">Protected</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="meta-visibility">Visibility</label>
-              <select id="meta-visibility">
-                <option value="public">Public</option>
-                <option value="tenant_only">Organization only</option>
-              </select>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="meta-title">Title *</label>
-                <input type="text" id="meta-title" required />
+            <div class="section-block">
+              <h3 class="section-title">Book Details</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="meta-title">Title *</label>
+                  <input type="text" id="meta-title" required />
+                </div>
+                <div class="form-group">
+                  <label for="meta-author">Author *</label>
+                  <input type="text" id="meta-author" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="meta-genre">Genre *</label>
+                  <select id="meta-genre" required>
+                    <option value="">Select genre...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="meta-year">Year Written *</label>
+                  <input type="number" id="meta-year" min="1" max="2030" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="meta-isbn">ISBN</label>
+                  <input type="text" id="meta-isbn" />
+                </div>
+                <div class="form-group">
+                  <label for="meta-language">Language</label>
+                  <input type="text" id="meta-language" value="en" />
+                </div>
               </div>
               <div class="form-group">
-                <label for="meta-author">Author *</label>
-                <input type="text" id="meta-author" required />
+                <label for="meta-annotation">Annotation *</label>
+                <textarea id="meta-annotation" required placeholder="Describe this book..."></textarea>
               </div>
             </div>
-            <div class="form-row">
+            <div class="section-block">
+              <h3 class="section-title">Rights &amp; Pricing</h3>
+              <p class="section-note">Set where this title is published, who can see it, and review pricing options below when they become available.</p>
+              <div class="tenant-picker">
+                <label for="editTenantSelect">Publishing Destination</label>
+                <select id="editTenantSelect"></select>
+                <div class="tenant-help" id="editTenantHelp"></div>
+              </div>
               <div class="form-group">
-                <label for="meta-genre">Genre *</label>
-                <select id="meta-genre" required>
-                  <option value="">Select genre...</option>
+                <label for="meta-reader-type">Reader Type</label>
+                <select id="meta-reader-type">
+                  <option value="legacy">Standard</option>
+                  <option value="protected">Protected</option>
                 </select>
               </div>
               <div class="form-group">
-                <label for="meta-year">Year Written *</label>
-                <input type="number" id="meta-year" min="1" max="2030" required />
+                <label for="meta-visibility">Visibility</label>
+                <select id="meta-visibility">
+                  <option value="public">Public</option>
+                  <option value="tenant_only">Organization only</option>
+                </select>
               </div>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="meta-isbn">ISBN</label>
-                <input type="text" id="meta-isbn" />
+            <div class="section-block">
+              <h3 class="section-title">Publish</h3>
+              <div class="form-actions">
+                <button type="button" class="btn" id="saveMetaBtn">Save</button>
+                <button type="button" class="btn" id="publishBtn" disabled>Publish</button>
+                <button type="button" class="btn btn-secondary" id="backFromEdit">&larr; Back</button>
+                <button type="button" class="btn" id="deleteBtn" style="display:none;background:var(--error);border-color:var(--error);margin-left:auto;">Delete</button>
               </div>
-              <div class="form-group">
-                <label for="meta-language">Language</label>
-                <input type="text" id="meta-language" value="en" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="meta-annotation">Annotation *</label>
-              <textarea id="meta-annotation" required placeholder="Describe this book..."></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn" id="saveMetaBtn">Save</button>
-              <button type="button" class="btn" id="publishBtn" disabled>Publish</button>
-              <button type="button" class="btn btn-secondary" id="backFromEdit">&larr; Back</button>
-              <button type="button" class="btn" id="deleteBtn" style="display:none;background:var(--error);border-color:var(--error);margin-left:auto;">Delete</button>
             </div>
           </form>
         </div>
@@ -791,7 +883,7 @@
 
         <!-- Offers section (visible for published/ready books) -->
         <div id="offersSection" class="panel" style="display:none">
-          <h3 style="font-family:'Playfair Display',serif; margin:0 0 16px;">Pricing</h3>
+          <h3 style="font-family:'Playfair Display',serif; margin:0 0 16px;">Rights &amp; Pricing</h3>
           <div id="offersList"></div>
           <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
             <strong style="font-size:14px; color:var(--muted);">Add Offer</strong>
@@ -887,12 +979,37 @@
       const PERSONAL_PUBLISH_TARGET = '__personal__';
       let selectedUploadTenantId = '';
       let selectedEditTenantId = '';
+      const PUBLISHING_WORKFLOW_STEPS = [
+        { key: 'content', label: 'Content' },
+        { key: 'details', label: 'Details' },
+        { key: 'pricing', label: 'Pricing' },
+        { key: 'publish', label: 'Publish' },
+      ];
 
       function getBookReaderType(book) {
         const manifest = book && book.manifest && typeof book.manifest === 'object' ? book.manifest : {};
         const protectedState = manifest.protected && typeof manifest.protected === 'object' ? manifest.protected : {};
         const raw = String(manifest.readerType || manifest.reader_type || (protectedState.enabled ? 'protected' : 'legacy')).trim().toLowerCase();
         return raw === 'protected' ? 'protected' : 'legacy';
+      }
+
+      function renderWorkflowSteps(targetId, currentStepKey) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const currentIndex = Math.max(0, PUBLISHING_WORKFLOW_STEPS.findIndex((step) => step.key === currentStepKey));
+        target.innerHTML = PUBLISHING_WORKFLOW_STEPS.map((step, index) => {
+          const classes = ['workflow-step'];
+          if (index < currentIndex) classes.push('complete');
+          if (index === currentIndex) classes.push('active');
+          return `<div class="${classes.join(' ')}"><span class="workflow-step-number">${index + 1}</span><span>${esc(step.label)}</span></div>`;
+        }).join('');
+      }
+
+      function getEditorWorkflowStep(book) {
+        const status = String(book?.status || '').trim().toLowerCase();
+        if (status === 'published') return 'publish';
+        if (status === 'ready') return 'pricing';
+        return 'details';
       }
 
       function applyPublishingModeCopy() {
@@ -904,17 +1021,17 @@
         if (!heading || !intro || !uploadHeading || !uploadBtn) return;
 
         if (platformAccess.is_superuser) {
-          heading.textContent = 'Publishing Books';
-          uploadHeading.textContent = 'Upload Book';
-          uploadBtn.textContent = '+ Upload Book';
-          intro.textContent = 'You can publish here either to your personal manual path or to an organization you administer.';
+          heading.textContent = 'Bookshelf';
+          uploadHeading.textContent = 'Create New Title';
+          uploadBtn.textContent = '+ Create New Title';
+          intro.textContent = 'Manage drafts and published titles here. Create a new title to upload content and move it into review.';
           return;
         }
 
-        heading.textContent = 'Publishing Books';
-        uploadHeading.textContent = 'Upload Book';
-        uploadBtn.textContent = '+ Upload Book';
-        intro.textContent = 'You can publish here to an allowed organization or self-publisher destination. Personal publishing is not available on this account.';
+        heading.textContent = 'Bookshelf';
+        uploadHeading.textContent = 'Create New Title';
+        uploadBtn.textContent = '+ Create New Title';
+        intro.textContent = 'Manage your drafts here, then review details, pricing, and publish to an allowed organization or self-publisher destination.';
       }
 
       function organizationLabel(item) {
@@ -1117,8 +1234,8 @@
           if (!myBooks.length) {
             $list.innerHTML = `
               <div class="empty-state">
-                <p>You don't have any published books here yet.</p>
-                <p>${platformAccess.is_superuser ? 'Click <strong>Upload Book</strong> to get started.' : 'Click <strong>Upload Book</strong> to publish to one of your allowed organization destinations.'}</p>
+                <p>Your Bookshelf is empty.</p>
+                <p>${platformAccess.is_superuser ? 'Click <strong>Create New Title</strong> to start a draft and upload your manuscript.' : 'Click <strong>Create New Title</strong> to start a draft for one of your allowed publishing destinations.'}</p>
               </div>`;
             return;
           }
@@ -1179,6 +1296,7 @@
         editingBookId = bookId;
         hideAlert($editAlert);
         showView('edit');
+        renderWorkflowSteps('editWorkflowSteps', 'details');
         try {
           const book = await apiFetch('GET', `/publish/books/${bookId}`);
           document.getElementById('meta-title').value = book.title || '';
@@ -1202,6 +1320,7 @@
           }
           syncTenantSelectors();
           updatePublishButtonState(book);
+          renderWorkflowSteps('editWorkflowSteps', getEditorWorkflowStep(book));
 
           // Show delete button for draft/failed books
           const $deleteBtn = document.getElementById('deleteBtn');
@@ -1245,6 +1364,7 @@
         syncTenantSelectors();
         updateUploadAcceptState();
         resetUploadUi();
+        renderWorkflowSteps('uploadWorkflowSteps', 'content');
         showView('upload');
         hideAlert($alert);
       });
@@ -1310,19 +1430,19 @@
       function getUploadStageDefinitions(formState = getUploadFormState()) {
         if ((formState.reader_type || 'legacy') === 'protected') {
           return [
-            { key: 'upload', label: formState.source_format === 'docx' ? 'Upload Files' : 'Upload Book' },
-            { key: 'queue', label: 'Queue Job' },
-            { key: 'validate', label: 'Validate Source' },
-            { key: 'normalize', label: formState.source_format === 'docx' ? 'Build EPUB' : 'Normalize EPUB' },
-            { key: 'artifact', label: 'Build Protected Book' },
-            { key: 'publish', label: 'Publish Book' },
+            { key: 'upload', label: 'Upload Manuscript' },
+            { key: 'queue', label: 'Prepare Draft' },
+            { key: 'validate', label: 'Validate Files' },
+            { key: 'normalize', label: 'Convert Book' },
+            { key: 'artifact', label: 'Build Reader Format' },
+            { key: 'publish', label: 'Ready for Review' },
           ];
         }
         return [
-          { key: 'upload', label: 'Upload Book' },
-          { key: 'processing', label: 'Process EPUB' },
-          { key: 'review', label: 'Prepare Draft' },
-          { key: 'done', label: 'Ready For Review' },
+          { key: 'upload', label: 'Upload Manuscript' },
+          { key: 'processing', label: 'Prepare Draft' },
+          { key: 'review', label: 'Convert Book' },
+          { key: 'done', label: 'Ready for Review' },
         ];
       }
 
@@ -1413,8 +1533,8 @@
         }
         $fileInput.setAttribute('accept', '.epub');
         $uploadFormatHelp.innerHTML = readerType === 'protected'
-          ? 'Accepts .epub files (max 100 MB).<br>Protected uploads are converted in the background and published automatically when processing completes.'
-          : 'Accepts .epub files (max 100 MB).<br>Standard uploads continue through the existing draft-processing flow.';
+          ? 'Accepts .epub files (max 100 MB).<br>Protected uploads are prepared in the background and then opened for review.'
+          : 'Accepts .epub files (max 100 MB).<br>Standard uploads continue into the existing draft review flow.';
         if (selectedUploadFile) {
           const selectedName = String(selectedUploadFile.name || '').toLowerCase();
           const selectedMatches = docMode ? selectedName.endsWith('.docx') : selectedName.endsWith('.epub');
@@ -1501,8 +1621,13 @@
           if (!terminalStatuses.has(job.status)) continue;
           await loadMyBooks();
           if (job.status === 'completed') {
-            showView('list');
-            showAlert($alert, 'Book published.', 'success');
+            if (bookId) {
+              await openBookEditor(bookId);
+              showAlert($editAlert, 'Your manuscript is ready. Review details, pricing, and publish.', 'success');
+            } else {
+              showView('list');
+              showAlert($alert, 'Your manuscript is ready. Review details, pricing, and publish.', 'success');
+            }
             return job;
           }
           if (bookId) await openBookEditor(bookId);
@@ -1510,7 +1635,7 @@
         }
         await loadMyBooks();
         showView('list');
-        throw new Error('Protected publishing is still running. You can reopen this book from Publishing Books in a few minutes.');
+        throw new Error('Protected publishing is still running. You can reopen this book from Bookshelf in a few minutes.');
       }
 
       async function handleProtectedUpload(file, organization, formState) {
@@ -1768,6 +1893,7 @@
           const book = await apiFetch('GET', `/publish/books/${editingBookId}`);
           editorSavedState = true;
           updatePublishButtonState(book);
+          renderWorkflowSteps('editWorkflowSteps', getEditorWorkflowStep(book));
         } catch (err) {
           showAlert($editAlert, err.message);
         } finally {
@@ -1801,6 +1927,7 @@
             const $status = document.getElementById('bookStatus');
             $status.innerHTML = '<span class="status-badge processing">processing</span>';
             editorSavedState = true;
+            renderWorkflowSteps('editWorkflowSteps', 'details');
             btn.disabled = true;
             btn.textContent = 'Processing';
             return;
@@ -1809,6 +1936,7 @@
           const $status = document.getElementById('bookStatus');
           $status.innerHTML = '<span class="status-badge published">published</span>';
           editorSavedState = true;
+          renderWorkflowSteps('editWorkflowSteps', 'publish');
           btn.disabled = true;
           btn.textContent = 'Published';
         } catch (err) {
@@ -1942,6 +2070,7 @@
       });
 
       updateUploadAcceptState();
+      renderWorkflowSteps('uploadWorkflowSteps', 'content');
     </script>
   </body>
 </html>

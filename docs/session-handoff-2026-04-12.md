@@ -453,6 +453,51 @@
   - removed `.tmp_local` and `.tmp_staging_probe_robo`
 - Left unrelated untracked planning docs alone
 
+## Additional Milestone: Minimal KDP-Style Publisher Workflow Reframe
+
+- Reframed the publisher UI in `books/publish/index.html` without changing the backend contract or core data model
+- List view changes:
+  - `Publishing Books` -> `Bookshelf`
+  - `+ Upload Book` -> `+ Create New Title`
+  - intro and empty-state copy now describe drafts, review, pricing, and publish flow
+- Upload view changes:
+  - `Upload Book` -> `Create New Title`
+  - grouped existing fields into:
+    - `Book Content`
+    - `Book Details`
+    - `Publishing Rights`
+  - `Submit` -> `Upload and Continue`
+  - added a lightweight 4-step indicator:
+    - `Content`
+    - `Details`
+    - `Pricing`
+    - `Publish`
+- Edit view changes:
+  - `Book Details` -> `Review and Publish`
+  - grouped existing controls into:
+    - `Book Details`
+    - `Rights & Pricing`
+    - `Publish`
+  - reused the same simple 4-step indicator
+- Upload progress changes:
+  - kept the existing stage/status logic
+  - relabeled visible stages to publishing-oriented checkpoints such as:
+    - `Upload Manuscript`
+    - `Prepare Draft`
+    - `Validate Files`
+    - `Convert Book`
+    - `Build Reader Format`
+    - `Ready for Review`
+- Protected job completion change:
+  - successful protected conversion now opens the existing editor path for the book
+  - success message now tells the user:
+    - `Your manuscript is ready. Review details, pricing, and publish.`
+- Intentionally left unchanged:
+  - backend contracts
+  - publish gating logic except for preserving current behavior in the reframed UI
+  - reader/reader1
+  - pricing/offer data model
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
