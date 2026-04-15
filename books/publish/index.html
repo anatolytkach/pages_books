@@ -551,6 +551,25 @@
       .book-item-info .meta {
         font-size: 13px;
         color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .book-item-info .workflow-meta {
+        font-size: 13px;
+        color: var(--ink);
+      }
+
+      .book-item-info .workflow-action {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 8px;
+        padding: 4px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 600;
       }
 
       .empty-state {
@@ -1219,6 +1238,92 @@
         return '';
       }
 
+      function hasRequiredBookMetadata(book) {
+        return !!(
+          String(book?.title || '').trim() &&
+          String(book?.author || '').trim() &&
+          String(book?.genre_id || '').trim() &&
+          String(book?.annotation || '').trim()
+        );
+      }
+
+      function hasPricingInfo(book) {
+        if (Array.isArray(book?.offers) && book.offers.length > 0) return true;
+        if (Number(book?.offer_count || 0) > 0) return true;
+        if (Number(book?.active_offer_count || 0) > 0) return true;
+        if (book?.pricing_ready === true) return true;
+        return false;
+      }
+
+      function hasUploadedContent(book) {
+        return !!(
+          String(book?.content_id || '').trim() ||
+          book?.source_asset ||
+          String(book?.source_path || '').trim() ||
+          String(book?.source_url || '').trim()
+        );
+      }
+
+      function deriveWorkflowStage(book) {
+        const status = String(book?.status || '').trim().toLowerCase();
+        if (status === 'published') {
+          return {
+            badgeClass: 'published',
+            badgeLabel: 'Published',
+            detail: 'Live in your Bookshelf and ready to open.',
+            actionLabel: 'Open',
+          };
+        }
+        if (status === 'ready') {
+          if (hasPricingInfo(book)) {
+            return {
+              badgeClass: 'ready',
+              badgeLabel: 'Ready to publish',
+              detail: 'Details and pricing look ready for final review.',
+              actionLabel: 'Publish',
+            };
+          }
+          return {
+            badgeClass: 'ready',
+            badgeLabel: 'Ready for pricing',
+            detail: 'Manuscript is ready. Review pricing before publishing.',
+            actionLabel: 'Review Pricing',
+          };
+        }
+        if (status === 'processing') {
+          return {
+            badgeClass: 'processing',
+            badgeLabel: 'Processing',
+            detail: 'Your manuscript is still being prepared.',
+            actionLabel: 'Continue Setup',
+          };
+        }
+        if (status === 'failed') {
+          return {
+            badgeClass: 'failed',
+            badgeLabel: 'Draft',
+            detail: 'This title needs attention before it can move forward.',
+            actionLabel: 'Continue Setup',
+          };
+        }
+        if (hasUploadedContent(book) && !hasRequiredBookMetadata(book)) {
+          return {
+            badgeClass: 'draft',
+            badgeLabel: 'Ready for details',
+            detail: 'Add the remaining book details to continue setup.',
+            actionLabel: 'Continue Setup',
+          };
+        }
+        return {
+          badgeClass: status || 'draft',
+          badgeLabel: 'Draft',
+          detail: hasRequiredBookMetadata(book)
+            ? 'Continue setup to review pricing and publish.'
+            : 'Finish setting up this draft to continue.',
+          actionLabel: 'Continue Setup',
+        };
+      }
+
       async function loadMyBooks() {
         const $list = document.getElementById('bookList');
         try {
@@ -1239,18 +1344,23 @@
               </div>`;
             return;
           }
-          $list.innerHTML = myBooks.map(book => `
-            <div class="book-item" data-id="${book.id}">
-              <div class="book-item-cover">
-                ${book.cover_url ? `<img src="${book.cover_url}" alt="" />` : ''}
+          $list.innerHTML = myBooks.map(book => {
+            const stage = deriveWorkflowStage(book);
+            return `
+              <div class="book-item" data-id="${book.id}">
+                <div class="book-item-cover">
+                  ${book.cover_url ? `<img src="${book.cover_url}" alt="" />` : ''}
+                </div>
+                <div class="book-item-info">
+                  <h3>${esc(book.title)}</h3>
+                  <div class="meta">${esc(book.author)} ${book.year_written ? `(${book.year_written})` : ''}</div>
+                  <div class="workflow-meta">${esc(stage.detail)}</div>
+                  <div class="workflow-action">${esc(stage.actionLabel)}</div>
+                </div>
+                <span class="status-badge ${stage.badgeClass}">${esc(stage.badgeLabel)}</span>
               </div>
-              <div class="book-item-info">
-                <h3>${esc(book.title)}</h3>
-                <div class="meta">${esc(book.author)} ${book.year_written ? `(${book.year_written})` : ''}</div>
-              </div>
-              <span class="status-badge ${book.status}">${book.status}</span>
-            </div>
-          `).join('');
+            `;
+          }).join('');
         } catch (err) {
           $list.innerHTML = `<div class="empty-state"><p>Failed to load books: ${esc(err.message)}</p></div>`;
         }

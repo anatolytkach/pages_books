@@ -510,6 +510,28 @@
   - `deployments/history.jsonl`
 - Cleaned the temporary deploy bundle directory after successful upload
 
+## Additional Milestone: Bookshelf Resumable Workflow Stages
+
+- Enhanced the Bookshelf list in `books/publish/index.html` so each title shows a lightweight user-facing workflow stage using existing fields only
+- Added derived stage logic without backend/schema changes
+- Bookshelf cards now show:
+  - a stage badge
+  - a short status line
+  - an implied next action label such as:
+    - `Continue Setup`
+    - `Review Pricing`
+    - `Publish`
+    - `Open`
+- Stage derivation is conservative and based on current list payload fields such as:
+  - `status`
+  - metadata completeness (`title`, `author`, `genre_id`, `annotation`)
+  - content/upload presence (`content_id`, source asset/path/url)
+  - pricing indicators when present (`offers`, `offer_count`, `active_offer_count`, `pricing_ready`)
+- Intentionally left unchanged:
+  - click behavior for list items
+  - backend/API contracts
+  - extra fetches for offer state resolution
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
