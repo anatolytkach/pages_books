@@ -561,6 +561,18 @@
   - click behavior
   - reader/reader1
 
+## Additional Milestone: Staging Deployment For Workflow Wording Polish
+
+- Deployed the self-publisher workflow wording polish to staging from:
+  - branch `codex/protected-publish-jobs`
+  - commit `24cd908e8c1c9d232eddeabaea51cd6778bd8d78`
+- Staging URLs:
+  - custom URL: `https://books-staging.reader.pub/books/`
+  - preview URL: `https://75a1a891.readerpub-books-staging.pages.dev`
+- Recorded the deployment in:
+  - `deployments/history.jsonl`
+- Cleaned the temporary deploy bundle directory after successful upload
+
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
