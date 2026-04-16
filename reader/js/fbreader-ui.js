@@ -7484,7 +7484,15 @@
 
   waitForReader().then(function (reader) {
     // Desktop: bars must always be visible. Mobile: start hidden (FBReader-like).
-    if (window.__fb_isDesktop || window.__readerpubAutostart) {
+    var isReaderNewUnprotectedCompat = false;
+    try {
+      isReaderNewUnprotectedCompat = !!(
+        document.body &&
+        document.body.getAttribute &&
+        document.body.getAttribute("data-reader-new-content-mode") === "unprotected-iframe"
+      );
+    } catch (eCompatMode) {}
+    if (!isReaderNewUnprotectedCompat && (window.__fb_isDesktop || window.__readerpubAutostart)) {
       showUi();
     } else {
       var skipLateAutoHide = false;

@@ -8037,6 +8037,9 @@ if ($addressBarToggle && $addressBarToggle.length) {
 // Update icon on native fullscreen changes
 ["fullscreenchange","webkitfullscreenchange","mozfullscreenchange","MSFullscreenChange"].forEach(function(evt){
 	document.addEventListener(evt, function(){
+		if (window.__readerpubReaderNewCompat) {
+			return;
+		}
 		var inFs = _nativeIsFullscreen();
 		try {
 			if (inFs) {

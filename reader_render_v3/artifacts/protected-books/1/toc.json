@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "toc-1",
+      "label": "ВОПРОС",
+      "href": "text/title_page.xhtml",
+      "spineHref": "text/title_page.xhtml",
+      "fragment": ""
+    },
+    {
+      "id": "toc-2",
+      "label": "ВОПРОС",
+      "href": "text/ch001.xhtml#вопрос",
+      "spineHref": "text/ch001.xhtml",
+      "fragment": "вопрос"
+    },
+    {
+      "id": "toc-3",
+      "label": "ПРОЛОГ",
+      "href": "text/ch002.xhtml#пролог",
+      "spineHref": "text/ch002.xhtml",
+      "fragment": "пролог"
+    },
+    {
+      "id": "toc-4",
+      "label": "Глава 1. Ультиматум",
+      "href": "text/ch003.xhtml#глава-1.-ультиматум",
+      "spineHref": "text/ch003.xhtml",
+      "fragment": "глава-1.-ультиматум"
+    },
+    {
+      "id": "toc-5",
+      "label": "Глава 2. 1990-1998",
+      "href": "text/ch004.xhtml#глава-2.-1990-1998",
+      "spineHref": "text/ch004.xhtml",
+      "fragment": "глава-2.-1990-1998"
+    },
+    {
+      "id": "toc-6",
+      "label": "Глава 3. Переход",
+      "href": "text/ch005.xhtml#глава-3.-переход",
+      "spineHref": "text/ch005.xhtml",
+      "fragment": "глава-3.-переход"
+    },
+    {
+      "id": "toc-7",
+      "label": "Глава 4. 1999-2007",
+      "href": "text/ch006.xhtml#глава-4.-1999-2007",
+      "spineHref": "text/ch006.xhtml",
+      "fragment": "глава-4.-1999-2007"
+    },
+    {
+      "id": "toc-8",
+      "label": "Глава 5. Тупик",
+      "href": "text/ch007.xhtml#глава-5.-тупик",
+      "spineHref": "text/ch007.xhtml",
+      "fragment": "глава-5.-тупик"
+    },
+    {
+      "id": "toc-9",
+      "label": "Глава 6. 2008-2018",
+      "href": "text/ch008.xhtml#глава-6.-2008-2018",
+      "spineHref": "text/ch008.xhtml",
+      "fragment": "глава-6.-2008-2018"
+    },
+    {
+      "id": "toc-10",
+      "label": "Глава 7. Взрыв и надежда",
+      "href": "text/ch009.xhtml#глава-7.-взрыв-и-надежда",
+      "spineHref": "text/ch009.xhtml",
+      "fragment": "глава-7.-взрыв-и-надежда"
+    },
+    {
+      "id": "toc-11",
+      "label": "Глава 8. 2019-2026",
+      "href": "text/ch010.xhtml#глава-8.-2019-2026",
+      "spineHref": "text/ch010.xhtml",
+      "fragment": "глава-8.-2019-2026"
+    },
+    {
+      "id": "toc-12",
+      "label": "Глава 9. Поколение DD",
+      "href": "text/ch011.xhtml#глава-9.-поколение-dd",
+      "spineHref": "text/ch011.xhtml",
+      "fragment": "глава-9.-поколение-dd"
+    },
+    {
+      "id": "toc-13",
+      "label": "Глава 10. Сэма больше нет",
+      "href": "text/ch012.xhtml#глава-10.-сэма-больше-нет",
+      "spineHref": "text/ch012.xhtml",
+      "fragment": "глава-10.-сэма-больше-нет"
+    },
+    {
+      "id": "toc-14",
+      "label": "Глава 11. Вопросы",
+      "href": "text/ch013.xhtml#глава-11.-вопросы",
+      "spineHref": "text/ch013.xhtml",
+      "fragment": "глава-11.-вопросы"
+    },
+    {
+      "id": "toc-15",
+      "label": "Глава 12. Ответы",
+      "href": "text/ch014.xhtml#глава-12.-ответы",
+      "spineHref": "text/ch014.xhtml",
+      "fragment": "глава-12.-ответы"
+    },
+    {
+      "id": "toc-16",
+      "label": "Глава 13. Пророк",
+      "href": "text/ch015.xhtml#глава-13.-пророк",
+      "spineHref": "text/ch015.xhtml",
+      "fragment": "глава-13.-пророк"
+    },
+    {
+      "id": "toc-17",
+      "label": "ЭПИЛОГ",
+      "href": "text/ch016.xhtml#эпилог",
+      "spineHref": "text/ch016.xhtml",
+      "fragment": "эпилог"
+    },
+    {
+      "id": "toc-18",
+      "label": "От автора",
+      "href": "text/ch017.xhtml#от-автора",
+      "spineHref": "text/ch017.xhtml",
+      "fragment": "от-автора"
+    }
+  ]
+}

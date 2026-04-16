@@ -302,7 +302,7 @@ export function layoutChunk({
       : Number(padding || 0);
   const resolvedPaddingY =
     padding == null
-      ? 20
+      ? 50
       : Number(padding || 0);
   const contentWidth = Math.max(260, effectiveWidth - resolvedPaddingX * 2);
   const effectiveViewportHeight = Math.max(420, Number(viewportHeight || 720));

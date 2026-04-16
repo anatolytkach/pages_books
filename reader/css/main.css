@@ -31,6 +31,7 @@ body {
   /* Must match actual desktop #titlebar height (see #titlebar rule below) */
   --titlebar-h: 32px;
   --bottombar-h: 32px;
+  --reader-book-vertical-gap: calc(var(--titlebar-h) * 1.05);
   --app-vh: 100vh;
   --app-vw: 100vw;
   /* Tap zones for page turns (overlays content on mobile) */
@@ -507,8 +508,8 @@ html.is-desktop #openBookmarks {
   margin: 0;
   width: auto;
   max-width: none;
-  top: var(--titlebar-h);
-  bottom: var(--bottombar-h);
+  top: 0;
+  bottom: 0;
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: auto;
@@ -2653,8 +2654,8 @@ body.ui-hidden #viewerStack{
 /* Reader area: always sit BETWEEN the fixed top/bottom bars (no overlap) */
 #viewerStack{
   position: fixed;
-  top: var(--titlebar-h);
-  bottom: var(--bottombar-h);
+  top: 0;
+  bottom: 0;
   left: var(--viewer-side);
   right: var(--viewer-side);
 }

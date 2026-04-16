@@ -1,8 +1,8 @@
-import { parseProtectedIntegrationRoute } from "./protected-host-routing.js";
-import { resolveProtectedReaderRollout } from "./protected-host-rollout.js";
-import { assessProtectedReaderEligibility } from "./protected-host-eligibility.js";
-import { resolveProtectedReaderPilot } from "./protected-host-pilot.js";
-import { buildProtectedReaderStatus } from "./protected-host-status.js";
+import { parseProtectedIntegrationRoute } from "./protected-host-routing.js?v=20260416-protected-padding-2";
+import { resolveProtectedReaderRollout } from "./protected-host-rollout.js?v=20260416-protected-padding-2";
+import { assessProtectedReaderEligibility } from "./protected-host-eligibility.js?v=20260416-protected-padding-2";
+import { resolveProtectedReaderPilot } from "./protected-host-pilot.js?v=20260416-protected-padding-2";
+import { buildProtectedReaderStatus } from "./protected-host-status.js?v=20260416-protected-padding-2";
 
 const HOST_STYLE_ID = "protected-old-shell-host-css";
 window.__PROTECTED_OLD_SHELL_HOST_LOADED = true;
@@ -7382,7 +7382,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js");
+      await import("../dev/protected-reader.js?v=20260416-protected-render-padding-1");
       const startedAt = Date.now();
       while (Date.now() - startedAt < 20000) {
         const surface = getCompatSurface(root);

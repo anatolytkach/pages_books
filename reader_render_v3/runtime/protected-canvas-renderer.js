@@ -73,7 +73,9 @@ export function renderChunkToCanvas({
     diagnostics = {}
   } = renderPacket;
   const viewportHeight = pageWindow ? pageWindow.height : layout.height;
-  const translateY = pageWindow ? ((layout.paddingY ?? layout.padding) - pageWindow.top) : 0;
+  // Layout coordinates already include internal page padding. When rendering
+  // a paged window we only need to shift by the page's absolute top offset.
+  const translateY = pageWindow ? (0 - pageWindow.top) : 0;
   const currentTheme =
     typeof document !== "undefined" &&
     document &&

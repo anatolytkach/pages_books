@@ -4969,9 +4969,9 @@ var Contents = function () {
 			this.css("margin", "0", true);
 
 			if (axis === "vertical") {
-				this.css("padding", gap / 2 + "px 20px", true);
+				this.css("padding", gap / 2 + "px 50px", true);
 			} else {
-				this.css("padding", "20px " + gap / 2 + "px", true);
+				this.css("padding", "50px " + gap / 2 + "px", true);
 			}
 
 			this.css("box-sizing", "border-box");

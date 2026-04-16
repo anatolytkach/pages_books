@@ -3365,6 +3365,7 @@ function applyThemeToIframes(themeName) {
 	// Desktop: allow spreads (two-page view) when width permits.
 	// Mobile: force single-page to avoid asymmetrical gutters.
 	var isMobileView = (window.matchMedia && window.matchMedia("(max-width: 768px)").matches) || window.innerWidth <= 768;
+	var readerNewCompatMetrics = applyReaderNewCompatGapMetrics();
 
 	// MAIN rendition (current page) renders into #viewer (kept for backwards compatibility)
 	this.rendition = book.renderTo("viewer", {
@@ -3372,7 +3373,8 @@ function applyThemeToIframes(themeName) {
 		width: "100%",
 		height: "100%",
 		spread: isMobileView ? "none" : "auto",
-		flow: "paginated"
+		flow: "paginated",
+		gap: readerNewCompatMetrics.enabled ? readerNewCompatMetrics.gap : undefined
 	});
 
 	// Neighbor renditions for swipe preview (prev/next pages underneath current)
@@ -3383,14 +3385,16 @@ function applyThemeToIframes(themeName) {
 		width: "100%",
 		height: "100%",
 		spread: isMobileView ? "none" : "auto",
-		flow: "paginated"
+		flow: "paginated",
+		gap: readerNewCompatMetrics.enabled ? readerNewCompatMetrics.gap : undefined
 	});
 	this.renditionNext = book.renderTo("viewer-next", {
 		ignoreClass: "annotator-hl",
 		width: "100%",
 		height: "100%",
 		spread: isMobileView ? "none" : "auto",
-		flow: "paginated"
+		flow: "paginated",
+		gap: readerNewCompatMetrics.enabled ? readerNewCompatMetrics.gap : undefined
 	});
 
 	// Ensure swipe/tap handlers are attached for ALL renditions (current + neighbor views),
@@ -6113,6 +6117,92 @@ if (doc) {
 		return isMobile ? "none" : "auto";
 	}
 
+	function isReaderNewCompatGapMode() {
+		try {
+			var params = new URLSearchParams(window.location.search || "");
+			return params.get("readerNewCompatGap") === "1";
+		} catch (e) {}
+		return false;
+	}
+
+	function computeReaderNewCompatGapMetrics() {
+		var disabled = { enabled: false, gap: null, extraInset: 0 };
+		if (!isReaderNewCompatGapMode()) return disabled;
+		if (getCurrentSpreadMode() === "none") return disabled;
+		try {
+			var currentExtraInset = 0;
+			try {
+				var extraInsetRaw = window.getComputedStyle(document.documentElement).getPropertyValue("--readernew-compat-extra-inset");
+				currentExtraInset = parseFloat(extraInsetRaw) || 0;
+			} catch (eInset) {}
+			var viewportWidth = Math.max(
+				1,
+				Math.round(
+					(window.visualViewport && window.visualViewport.width) ||
+					window.innerWidth ||
+					document.documentElement.clientWidth ||
+					1
+				)
+			);
+			var viewerStack = document.getElementById("viewerStack");
+			var computedViewerSide = 0;
+			if (viewerStack && window.getComputedStyle) {
+				var stackStyle = window.getComputedStyle(viewerStack);
+				computedViewerSide = Math.max(0, (parseFloat(stackStyle.left) || 0) - currentExtraInset);
+			}
+			var baseWidth = Math.max(1, Math.round(viewportWidth - computedViewerSide * 2));
+			var section = Math.floor(baseWidth / 12);
+			var autoGap = section % 2 === 0 ? section : Math.max(0, section - 1);
+			var currentCompatGap = Math.max(24, autoGap - 50);
+			var targetGap = Math.max(24, Math.round(currentCompatGap * 1.7));
+			var extraInset = autoGap - targetGap;
+			return {
+				enabled: true,
+				gap: targetGap,
+				extraInset: extraInset
+			};
+		} catch (e) {}
+		return disabled;
+	}
+
+	function applyReaderNewCompatGapMetrics() {
+		var metrics = computeReaderNewCompatGapMetrics();
+		try {
+			document.documentElement.style.setProperty(
+				"--readernew-compat-extra-inset",
+				metrics.enabled ? (metrics.extraInset + "px") : "0px"
+			);
+		} catch (e0) {}
+		try {
+			if (reader) {
+				reader._readerNewCompatGapMetrics = metrics;
+				if (metrics.enabled && typeof metrics.gap === "number") {
+					reader.settings = reader.settings || {};
+					reader.settings.gap = metrics.gap;
+				} else if (reader.settings && Object.prototype.hasOwnProperty.call(reader.settings, "gap")) {
+					delete reader.settings.gap;
+				}
+			}
+		} catch (e1) {}
+		var renditions = [
+			reader && reader.rendition,
+			reader && reader.renditionPrev,
+			reader && reader.renditionNext,
+			reader && reader._pageCalcRendition
+		];
+		for (var i = 0; i < renditions.length; i++) {
+			try {
+				if (!renditions[i]) continue;
+				if (metrics.enabled && typeof metrics.gap === "number") {
+					renditions[i].settings.gap = metrics.gap;
+				} else if (renditions[i].settings && Object.prototype.hasOwnProperty.call(renditions[i].settings, "gap")) {
+					delete renditions[i].settings.gap;
+				}
+			} catch (e2) {}
+		}
+		return metrics;
+	}
+
 	function getViewerSize() {
 		var stack = document.getElementById("viewerStack");
 		if (stack && stack.getBoundingClientRect) {
@@ -6181,6 +6271,7 @@ if (doc) {
 	}
 
 	function ensurePageCalcRendition(reset) {
+		var compatMetrics = applyReaderNewCompatGapMetrics();
 		var size = getViewerSize();
 		if (!reader._pageCalcHost) {
 			var host = document.createElement("div");
@@ -6212,7 +6303,8 @@ if (doc) {
 				width: "100%",
 				height: "100%",
 				spread: getCurrentSpreadMode(),
-				flow: "paginated"
+				flow: "paginated",
+				gap: compatMetrics.enabled ? compatMetrics.gap : undefined
 			});
 			try { reader._pageCalcRendition.themes.register("light", lightThemeCss); } catch (e0) {}
 			try { reader._pageCalcRendition.themes.register("dark", darkThemeCss); } catch (e01) {}
@@ -6894,6 +6986,7 @@ if (doc) {
 		} catch (e0) {}
 		reader._layoutReflowTimer = setTimeout(function () {
 			reader._layoutReflowTimer = null;
+			try { applyReaderNewCompatGapMetrics(); } catch (eCompat) {}
 			try { if (reader.rendition && reader.rendition.resize) reader.rendition.resize(); } catch (e1) {}
 			try { if (reader.renditionPrev && reader.renditionPrev.resize) reader.renditionPrev.resize(); } catch (e2) {}
 			try { if (reader.renditionNext && reader.renditionNext.resize) reader.renditionNext.resize(); } catch (e3) {}

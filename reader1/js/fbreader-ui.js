@@ -289,6 +289,13 @@
 
   function syncBarHeights(withResize) {
     try {
+      if (window.__readerpubReaderNewCompat) {
+        var compatRoot = document.documentElement;
+        compatRoot.style.setProperty("--titlebar-h", "0px");
+        compatRoot.style.setProperty("--bottombar-h", "0px");
+        applyViewerInsets(0, 0, false);
+        return;
+      }
       var root = document.documentElement;
       var top = document.getElementById("titlebar");
       var search = document.getElementById("searchbar");
@@ -324,6 +331,7 @@
     try {
       if (window.__fbUiHiddenObserverInstalled) return;
       window.__fbUiHiddenObserverInstalled = true;
+      if (window.__readerpubReaderNewCompat) return;
       if (!window.MutationObserver) return;
       var mo = new MutationObserver(function (muts) {
         try {
@@ -346,14 +354,26 @@
     } catch (e) {}
   }
   function showUi() {
+    try {
+      if (window.__readerpubReaderNewCompat && typeof window.__readerpubCompatShowUi === "function") {
+        window.__readerpubCompatShowUi();
+        return;
+      }
+    } catch (eCompatShow) {}
     try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs0) {}
-    document.body.classList.remove("ui-hidden");
-    syncBarHeights(false);
+    try { document.body.classList.remove("ui-hidden"); } catch (eBody0) {}
+    try { syncBarHeights(false); } catch (eSync0) {}
   }
   function hideUi() {
+    try {
+      if (window.__readerpubReaderNewCompat && typeof window.__readerpubCompatHideUi === "function") {
+        window.__readerpubCompatHideUi();
+        return;
+      }
+    } catch (eCompatHide) {}
     try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs1) {}
-    document.body.classList.add("ui-hidden");
-    syncBarHeights(false);
+    try { document.body.classList.add("ui-hidden"); } catch (eBody1) {}
+    try { syncBarHeights(false); } catch (eSync1) {}
   }
   try {
     window.__fbShowUi = showUi;
@@ -361,6 +381,12 @@
   } catch (eExposeUi) {}
   function toggleUi() {
     if (window.__fbSelectionActive) return;
+    try {
+      if (window.__readerpubReaderNewCompat && typeof window.__readerpubCompatToggleUi === "function") {
+        window.__readerpubCompatToggleUi();
+        return;
+      }
+    } catch (eCompatToggle) {}
     try {
       if ((window.__fbSuppressUiTapUntil || 0) > Date.now()) return;
     } catch (eSup) {}
@@ -560,9 +586,9 @@
     try {
       var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
       var touch = (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-      if (__fb_isDesktop && !coarse && !touch) return;
+      if (__fb_isDesktop && !window.__readerpubReaderNewCompat && !coarse && !touch) return;
     } catch (e0) {
-      if (__fb_isDesktop) return;
+      if (__fb_isDesktop && !window.__readerpubReaderNewCompat) return;
     }
     var existing = document.getElementById("fb-tap-layer");
     var host = document.getElementById("container") || null;
@@ -589,6 +615,11 @@
     layer.appendChild(right);
     if (!host) host = viewer.parentNode || document.body || viewer;
     host.appendChild(layer);
+    try {
+      left.style.pointerEvents = "auto";
+      center.style.pointerEvents = "auto";
+      right.style.pointerEvents = "auto";
+    } catch (eInitPe) {}
 
     var moved = false;
     var sx = 0,
@@ -946,6 +977,16 @@
       if (Math.abs(t.clientX - sx) > 22 || Math.abs(t.clientY - sy) > 22) moved = true;
     }
 
+    function primeClickTap(e) {
+      moved = false;
+      st = Date.now();
+      var t = (e && (e.touches && e.touches[0])) || (e && (e.changedTouches && e.changedTouches[0])) || e;
+      if (t) {
+        sx = t.clientX;
+        sy = t.clientY;
+      }
+    }
+
     // Use POINTER events only to avoid double-firing (touchend + pointerup).
     // Fallback to touch events only if PointerEvent is unavailable.
     if (window.PointerEvent) {
@@ -1022,6 +1063,21 @@
       right.addEventListener("touchstart", onStart, { passive: true });
       right.addEventListener("touchmove", onMove, { passive: true });
       right.addEventListener("touchend", function (e) { tryEdgeTurn(e, true); }, { passive: false });
+    }
+
+    if (__fb_isDesktop || window.__readerpubReaderNewCompat) {
+      center.addEventListener("click", function (e) {
+        primeClickTap(e);
+        tryToggle(e);
+      }, true);
+      left.addEventListener("click", function (e) {
+        primeClickTap(e);
+        tryEdgeTurn(e, false);
+      }, true);
+      right.addEventListener("click", function (e) {
+        primeClickTap(e);
+        tryEdgeTurn(e, true);
+      }, true);
     }
 
     updateCenterTapBounds();
@@ -1522,8 +1578,9 @@
       }
 
       function onEnd(e) {
-        // Center tap toggles bars on mobile only, and only if it was a real tap (no swipe).
-        if (__fb_isDesktop) return;
+        // In reader_new compat host, center tap/click must toggle the outer shell
+        // on all platforms. In standalone reader1, keep the old mobile-only behavior.
+        if (__fb_isDesktop && !window.__readerpubReaderNewCompat) return;
         try {
           if (document.body && document.body.classList && document.body.classList.contains("search-open")) return;
         } catch (eSearch) {}
@@ -1589,6 +1646,33 @@
         } catch (e2) {}
       }
 
+      function onCompatDesktopClick(e) {
+        if (!window.__readerpubReaderNewCompat || !__fb_isDesktop) return;
+        try {
+          if (document.body && document.body.classList && document.body.classList.contains("search-open")) return;
+        } catch (eSearch) {}
+        try {
+          if (window.__fbSelectionActive) return;
+          var sel = null;
+          if (doc.getSelection) sel = doc.getSelection();
+          else if (doc.defaultView && doc.defaultView.getSelection) sel = doc.defaultView.getSelection();
+          if (sel && !sel.isCollapsed) return;
+        } catch (eSel) {}
+        try {
+          var tgt = e && e.target;
+          if (closestInteractive(tgt)) return;
+          var pt = e;
+          if (!pt || typeof pt.clientX !== "number" || typeof pt.clientY !== "number") return;
+          var x = pt.clientX, y = pt.clientY;
+          var w = doc.defaultView.innerWidth || doc.documentElement.clientWidth;
+          var centerW = w * 0.60;
+          var mx1 = (w - centerW) / 2;
+          var mx2 = mx1 + centerW;
+          if (x < mx1 || x > mx2) return;
+          toggleUi();
+        } catch (eCompatClick) {}
+      }
+
       function blockContextMenu(e) {
         try {
           if (e && e.preventDefault) e.preventDefault();
@@ -1605,12 +1689,14 @@
         doc.addEventListener("pointerdown", onStart, { passive: true, capture: true });
         doc.addEventListener("pointermove", onMove, { passive: true, capture: true });
         doc.addEventListener("pointerup", onEnd, { passive: true, capture: true });
+        doc.addEventListener("click", onCompatDesktopClick, true);
         doc.addEventListener("contextmenu", blockContextMenu, true);
         doc.addEventListener("longpress", blockContextMenu, true);
         if (win) {
           win.addEventListener("pointerdown", onStart, { passive: true, capture: true });
           win.addEventListener("pointermove", onMove, { passive: true, capture: true });
           win.addEventListener("pointerup", onEnd, { passive: true, capture: true });
+          win.addEventListener("click", onCompatDesktopClick, true);
           win.addEventListener("contextmenu", blockContextMenu, true);
         }
       } catch (e) {
@@ -1935,8 +2021,13 @@
       state.preHref = getCurrentHref();
       state.legacyTextHlCleared = false;
       if (isTouchSearchUi()) {
-        // Mobile/tablet: hide bars; keep only search UI and floating search controls.
-        try { hideUi(); } catch (eHide) {}
+        // In reader_new compat host the outer shell owns chrome visibility.
+        // Search should replace the top bar but keep the bottom bar visible.
+        if (!window.__readerpubReaderNewCompat) {
+          try { hideUi(); } catch (eHide) {}
+        } else {
+          try { document.body.classList.remove("ui-hidden"); } catch (eCompatShow) {}
+        }
         document.body.classList.add("search-open");
         if (els.mobileBar) els.mobileBar.classList.remove("hidden");
         try { syncBarHeights(); } catch (e) {}
@@ -3397,10 +3488,12 @@
       dismiss.id = "selectionDismiss";
       document.body.appendChild(dismiss);
     }
-    // Allow native long-press selection: disable the center tap capture layer.
+    // Allow native long-press selection in standalone legacy reader. In
+    // reader_new compat mode the center tap layer is still needed to toggle
+    // the outer shell chrome.
     try {
       var tapCenter = document.getElementById("fb-tap-center");
-      if (tapCenter) tapCenter.style.pointerEvents = "none";
+      if (tapCenter) tapCenter.style.pointerEvents = window.__readerpubReaderNewCompat ? "auto" : "none";
     } catch (e) {}
 
     var state = {
@@ -7298,8 +7391,11 @@
   }
 
   waitForReader().then(function (reader) {
-    // Desktop: bars must always be visible. Mobile: start hidden (FBReader-like).
-    if (window.__fb_isDesktop || window.__readerpubAutostart) {
+    // In reader_new compat host, the outer shell owns bar visibility.
+    // Always start hidden and let the outer shell reveal the bars on center tap.
+    if (window.__readerpubReaderNewCompat) {
+      hideUi();
+    } else if (window.__fb_isDesktop || window.__readerpubAutostart) {
       showUi();
     } else {
       hideUi();
@@ -7316,9 +7412,10 @@
     } catch (e) {}
 	    setupOverlays();
       try { setupMobileMoreMenu(); } catch (eMoreMenu) {}
-	    // Mobile tap/swipe is handled by reader.js attachSwipeToDoc().
-	    // Keep this legacy bridge desktop-only to avoid competing mobile gesture handlers.
-	    if (window.__fb_isDesktop) enableIframeGestures(reader);
+	    // In reader_new compat host, use the direct rendition-doc gesture bridge on all
+	    // platforms so center tap/click can toggle the outer shell reliably.
+	    // In standalone reader1, keep the old desktop-only behavior.
+	    if (window.__readerpubReaderNewCompat || window.__fb_isDesktop) enableIframeGestures(reader);
 
     // Mobile: ultra-robust center tap toggle (works even when the page is inside an iframe).
     // This is the same approach that worked earlier (fix5): a dedicated center hit layer.

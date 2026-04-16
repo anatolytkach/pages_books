@@ -19,6 +19,18 @@
   var params = new URLSearchParams(window.location.search || "");
   var readerMode = String(params.get("reader") || "").trim().toLowerCase();
   if (readerMode === "protected") return;
+  var shellUiHidden = true;
+  var lastKnownPageCount = "";
+  var lastKnownChapterTitle = "";
+  var outerTapLayerInstalled = false;
+  var outerTapCaptureInstalled = false;
+  var lastOuterUserGestureTs = 0;
+  var initialUiLockUntil = Date.now() + 8000;
+
+  function markOuterUserGesture() {
+    lastOuterUserGestureTs = Date.now();
+    initialUiLockUntil = 0;
+  }
 
   function bookLocationShard(id) {
     var raw = String(id || "").trim();
@@ -79,7 +91,25 @@
     if (source) url.searchParams.set("source", String(source));
     if (requestedContentSource) url.searchParams.set("readerContentSource", requestedContentSource);
     if (requestedRemoteMode) url.searchParams.set("readerRemoteMode", requestedRemoteMode);
+    url.searchParams.set("readerNewCompatGap", "1");
+    url.searchParams.set("readerNewCompatRev", "20260416-1");
     return url.toString();
+  }
+
+  function openExternalTranslate(selectionText) {
+    var text = String(selectionText || "").trim();
+    if (!text) return;
+    var url =
+      "https://translate.google.com/?sl=auto&tl=en&text=" +
+      encodeURIComponent(text) +
+      "&op=translate";
+    try {
+      window.open(url, "_blank", "noopener");
+    } catch (_error) {
+      try {
+        window.location.href = url;
+      } catch (_error2) {}
+    }
   }
 
   function setShellText(id, value) {
@@ -115,6 +145,29 @@
     } catch (_error) {}
   }
 
+  function showOuterUi() {
+    try {
+      shellUiHidden = false;
+      document.body.classList.remove("ui-hidden");
+      syncOuterTapLayerState();
+    } catch (_error) {}
+  }
+
+  function hideOuterUi() {
+    try {
+      shellUiHidden = true;
+      document.body.classList.add("ui-hidden");
+      syncOuterTapLayerState();
+    } catch (_error) {}
+  }
+
+  function toggleOuterUi() {
+    try {
+      if (document.body.classList.contains("ui-hidden")) showOuterUi();
+      else hideOuterUi();
+    } catch (_error) {}
+  }
+
   function ensureUnifiedShellOverlays() {
     try {
       if (typeof window.__readerpubEnsureUnifiedShellOverlays === "function") {
@@ -123,13 +176,163 @@
     } catch (_error) {}
   }
 
+  function syncOuterTapLayerState() {
+    try {
+      var layer = document.getElementById("readerNewOuterTapLayer");
+      if (!layer) return;
+      var left = layer.querySelector(".reader-new-tap-left");
+      var center = layer.querySelector(".reader-new-tap-center");
+      var right = layer.querySelector(".reader-new-tap-right");
+      var overlayOpen = !!(document.body && document.body.classList && document.body.classList.contains("overlay-open"));
+      var searchOpen = !!(document.body && document.body.classList && document.body.classList.contains("search-open"));
+      var toolbar = document.getElementById("selectionToolbar");
+      var selectionVisible = !!(toolbar && !toolbar.classList.contains("hidden"));
+      var canHandleTap = !overlayOpen && !selectionVisible && !searchOpen;
+      layer.style.pointerEvents = "none";
+      layer.style.opacity = canHandleTap ? "0.001" : "0";
+      if (left) left.style.pointerEvents = canHandleTap && shellUiHidden ? "auto" : "none";
+      if (right) right.style.pointerEvents = canHandleTap && shellUiHidden ? "auto" : "none";
+      if (center) center.style.pointerEvents = "none";
+    } catch (_error) {}
+  }
+
+  function isChromeInteractionTarget(target) {
+    try {
+      if (!target || !target.closest) return false;
+      return !!target.closest(
+        "#titlebar, #bottombar, #searchbar, #selectionToolbar, #overlay-backdrop, " +
+        "#overlay-library, #overlay-settings, button, input, textarea, select, label, a"
+      );
+    } catch (_error) {}
+    return false;
+  }
+
+  function installOuterTapLayer() {
+    if (outerTapLayerInstalled) {
+      syncOuterTapLayerState();
+      return;
+    }
+    var viewerStack = document.getElementById("viewerStack");
+    if (!viewerStack) return;
+    outerTapLayerInstalled = true;
+
+    var style = document.createElement("style");
+    style.id = "readerNewOuterTapLayerStyle";
+    style.textContent =
+      "body.reader-new-shell-booting #titlebar,body.reader-new-shell-booting #bottombar,body.reader-new-shell-booting #searchbar{visibility:hidden!important;opacity:0!important;transition:none!important;}" +
+      "body[data-reader-new-content-mode='unprotected-iframe'] #viewerStack,body[data-reader-new-content-mode='unprotected-iframe'] #viewer,body[data-reader-new-content-mode='unprotected-iframe'] #viewer-prev,body[data-reader-new-content-mode='unprotected-iframe'] #viewer-next{top:0!important;bottom:0!important;left:0!important;right:0!important;}" +
+      "body[data-reader-new-content-mode='unprotected-iframe'] #titlebar,body[data-reader-new-content-mode='unprotected-iframe'] #bottombar,body[data-reader-new-content-mode='unprotected-iframe'] #searchbar{position:fixed!important;left:0!important;right:0!important;z-index:10020!important;}" +
+      "#readerNewOuterTapLayer{position:absolute;inset:0;z-index:25;display:block;pointer-events:none;opacity:0.001;}" +
+      "#readerNewOuterTapLayer .reader-new-tap-zone{position:absolute;top:0;bottom:0;background:rgba(0,0,0,0.001);}" +
+      "#readerNewOuterTapLayer .reader-new-tap-left{left:0;width:20%;}" +
+      "#readerNewOuterTapLayer .reader-new-tap-center{left:20%;width:60%;}" +
+      "#readerNewOuterTapLayer .reader-new-tap-right{right:0;width:20%;}";
+    if (!document.getElementById(style.id)) document.head.appendChild(style);
+
+    var layer = document.createElement("div");
+    layer.id = "readerNewOuterTapLayer";
+
+    function makeZone(className, handler) {
+      var zone = document.createElement("div");
+      zone.className = "reader-new-tap-zone " + className;
+      var trigger = function (event) {
+        if (event) {
+          event.preventDefault && event.preventDefault();
+          event.stopPropagation && event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+        }
+        markOuterUserGesture();
+        handler();
+      };
+      zone.addEventListener("pointerdown", function (event) {
+        if (event.pointerType && event.pointerType !== "touch" && event.pointerType !== "mouse") return;
+        trigger(event);
+      }, true);
+      zone.addEventListener("touchstart", trigger, { capture: true, passive: false });
+      zone.addEventListener("click", trigger, true);
+      return zone;
+    }
+
+    layer.appendChild(makeZone("reader-new-tap-left", function () {
+      var prev = document.getElementById("prev");
+      if (prev && typeof prev.click === "function") prev.click();
+    }));
+    layer.appendChild(makeZone("reader-new-tap-center", function () {
+      if (shellUiHidden) showOuterUi();
+      else hideOuterUi();
+    }));
+    layer.appendChild(makeZone("reader-new-tap-right", function () {
+      var next = document.getElementById("next");
+      if (next && typeof next.click === "function") next.click();
+    }));
+
+    viewerStack.appendChild(layer);
+    syncOuterTapLayerState();
+
+    if (!outerTapCaptureInstalled) {
+      outerTapCaptureInstalled = true;
+      var lastTapTs = 0;
+      var captureTrigger = function (event) {
+        try {
+          var now = Date.now();
+          if (now - lastTapTs < 250) return;
+          var eventTarget = event && event.target && event.target.nodeType === 1
+            ? event.target
+            : event && event.target && event.target.parentElement
+              ? event.target.parentElement
+              : null;
+          if (isChromeInteractionTarget(eventTarget)) return;
+          var overlayOpen = !!(document.body && document.body.classList && document.body.classList.contains("overlay-open"));
+          var toolbar = document.getElementById("selectionToolbar");
+          var selectionVisible = !!(toolbar && !toolbar.classList.contains("hidden"));
+          if (overlayOpen || selectionVisible) return;
+          var pt =
+            (event && event.changedTouches && event.changedTouches[0]) ||
+            (event && event.touches && event.touches[0]) ||
+            event;
+          if (!pt || typeof pt.clientX !== "number" || typeof pt.clientY !== "number") return;
+          var viewerStack = document.getElementById("viewerStack");
+          if (!viewerStack) return;
+          var rect = viewerStack.getBoundingClientRect();
+          if (!rect || pt.clientX < rect.left || pt.clientX > rect.right || pt.clientY < rect.top || pt.clientY > rect.bottom) return;
+          var relX = (pt.clientX - rect.left) / Math.max(1, rect.width);
+          var zoneName = relX < 0.2 ? "left" : (relX > 0.8 ? "right" : "center");
+          lastTapTs = now;
+          markOuterUserGesture();
+          if (event.preventDefault) event.preventDefault();
+          if (event.stopPropagation) event.stopPropagation();
+          if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+          if (zoneName === "left") {
+            var prev = document.getElementById("prev");
+            if (prev && typeof prev.click === "function") prev.click();
+            return;
+          }
+          if (zoneName === "right") {
+            var next = document.getElementById("next");
+            if (next && typeof next.click === "function") next.click();
+            return;
+          }
+          if (shellUiHidden) showOuterUi();
+          else hideOuterUi();
+        } catch (_error) {}
+      };
+      document.addEventListener("pointerdown", captureTrigger, true);
+      document.addEventListener("touchstart", captureTrigger, { capture: true, passive: false });
+      document.addEventListener("click", captureTrigger, true);
+    }
+  }
+
   function applyUnifiedShellChromeWhenReady() {
     var attempts = 0;
+    function restoreDesiredUiVisibility() {
+      if (shellUiHidden) hideOuterUi();
+      else showOuterUi();
+    }
     function applyOnce() {
       attempts += 1;
       try {
         document.body.classList.add("protected-old-shell");
-        document.body.classList.remove("ui-hidden");
+        document.body.classList.add("reader-new-shell-booting");
       } catch (_error) {}
       hideOuterLoader();
       tuneUnifiedShellForUnprotected();
@@ -139,9 +342,13 @@
           window.__readerpubApplyUnifiedShellChrome();
           tuneUnifiedShellForUnprotected();
           ensureUnifiedShellOverlays();
+          restoreDesiredUiVisibility();
+          try { document.body.classList.remove("reader-new-shell-booting"); } catch (_error2) {}
           return true;
         }
       } catch (_error) {}
+      restoreDesiredUiVisibility();
+      try { document.body.classList.remove("reader-new-shell-booting"); } catch (_error3) {}
       return false;
     }
     if (applyOnce()) return;
@@ -162,13 +369,36 @@
         "#titlebar,#bottombar,#prev,#next,#divider,#loader,#overlay-backdrop," +
         "#overlay-toc,#overlay-bookmarks,#overlay-notes,#overlay-mybooks,#overlay-voice,#overlay-menu{display:none!important;}" +
         "html,body{height:100%!important;overflow:hidden!important;}" +
-        "#container,#main,#viewerStack,#viewer{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;}" +
+        "#container,#main{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;}" +
+        "#viewer{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;}" +
         "#viewer-prev,#viewer-next,#swipe-shadow{display:none!important;}";
       doc.head.appendChild(style);
     } catch (_error) {}
   }
 
-    function syncShellFromIframe(frame) {
+  function attachCompatRelocatedBridge(frame) {
+    try {
+      if (!frame || !frame.contentWindow) return;
+      var win = frame.contentWindow;
+      if (win.__readerpubCompatRelocatedBridgeAttached) return;
+      var reader = win.reader;
+      var rendition = reader && reader.rendition;
+      if (!rendition || typeof rendition.on !== "function") return;
+      win.__readerpubCompatRelocatedBridgeAttached = true;
+      rendition.on("relocated", function () {
+        try {
+          var searchOpen = !!document.body.classList.contains("search-open");
+          var overlayOpen = !!document.body.classList.contains("overlay-open");
+          if (!searchOpen && !overlayOpen && !shellUiHidden) {
+            hideOuterUi();
+          }
+          syncShellFromIframe(frame);
+        } catch (_error) {}
+      });
+    } catch (_error) {}
+  }
+
+  function syncShellFromIframe(frame) {
       try {
         var doc = frame.contentDocument;
         if (!doc) return;
@@ -178,9 +408,13 @@
       var bookTitle = innerTitle ? String(innerTitle.textContent || "").trim() : "";
       var chapterTitle = innerChapter ? String(innerChapter.textContent || "").trim() : "";
       var pageCount = innerPageCount ? String(innerPageCount.textContent || "").trim() : "";
+      var pageChanged = !!(pageCount && lastKnownPageCount && pageCount !== lastKnownPageCount);
+      var chapterChanged = !!(chapterTitle && lastKnownChapterTitle && chapterTitle !== lastKnownChapterTitle);
       setShellText("book-title", bookTitle);
       setShellText("chapter-title", chapterTitle);
       setShellText("page-count", pageCount);
+      if (pageCount) lastKnownPageCount = pageCount;
+      if (chapterTitle) lastKnownChapterTitle = chapterTitle;
       var innerSearchCountDesktop = doc.getElementById("searchCountDesktop");
       var innerSearchCountMobile = doc.getElementById("searchCount");
       var outerSearchCountDesktop = document.getElementById("searchCountDesktop");
@@ -214,6 +448,26 @@
       if (innerBody) {
         document.body.classList.toggle("dark-ui", innerBody.classList.contains("dark-ui"));
         document.body.classList.toggle("protected-theme-dark", innerBody.classList.contains("dark-ui"));
+        var searchOpen = innerBody.classList.contains("search-open");
+        var searchMinimized = innerBody.classList.contains("search-minimized");
+        var overlayOpen = !!document.body.classList.contains("overlay-open");
+        var initialUiLockActive = !lastOuterUserGestureTs && Date.now() < initialUiLockUntil;
+        document.body.classList.toggle("search-open", searchOpen);
+        document.body.classList.toggle("search-minimized", searchMinimized);
+        var titlebar = document.getElementById("titlebar");
+        var searchbar = document.getElementById("searchbar");
+        var hideAllChrome = !!(searchOpen && searchMinimized);
+        if (titlebar) titlebar.classList.toggle("hidden", !!searchOpen || hideAllChrome);
+        if (searchbar) searchbar.classList.toggle("hidden", !searchOpen || hideAllChrome);
+        if (hideAllChrome) {
+          shellUiHidden = true;
+          document.body.classList.add("ui-hidden");
+        } else if (initialUiLockActive && !searchOpen && !overlayOpen) {
+          shellUiHidden = true;
+          document.body.classList.add("ui-hidden");
+        } else if ((pageChanged || chapterChanged) && !shellUiHidden) {
+          if (!overlayOpen) hideOuterUi();
+        }
       }
       var innerNotesShareBtn = doc.getElementById("copyNotesLinkBtn");
       var outerNotesShareBtn = document.getElementById("protectedNotesShareBtn");
@@ -228,6 +482,7 @@
       if (bookTitle) {
         document.title = chapterTitle ? bookTitle + " — " + chapterTitle : bookTitle;
       }
+      syncOuterTapLayerState();
     } catch (_error) {}
   }
 
@@ -635,17 +890,39 @@
       }, true);
     }
 
-    function forwardClick(parentId, childId) {
+    function invokeFrameAction(childId, options) {
+      try {
+        if (options && options.frameAction && frame && frame.contentWindow) {
+          var fn = frame.contentWindow[options.frameAction];
+          if (typeof fn === "function") {
+            fn();
+            return true;
+          }
+        }
+      } catch (_error) {}
+      var target = getFrameNode(childId);
+      if (target && typeof target.click === "function") {
+        target.click();
+        return true;
+      }
+      return false;
+    }
+
+    function forwardClick(parentId, childId, options) {
       var parent = document.getElementById(parentId);
       if (!parent || parent.__readerpubIframeCompatBound) return;
       parent.__readerpubIframeCompatBound = true;
       parent.addEventListener("click", function (event) {
-        var target = getFrameNode(childId);
-        if (target && typeof target.click === "function") {
+        if (invokeFrameAction(childId, options)) {
+          markOuterUserGesture();
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation && event.stopImmediatePropagation();
-          target.click();
+          if (options && options.hideUiAfter) {
+            window.setTimeout(function () {
+              hideOuterUi();
+            }, 0);
+          }
           window.setTimeout(function () {
             syncShellFromIframe(frame);
           }, 50);
@@ -653,8 +930,8 @@
       }, true);
     }
 
-    forwardClick("prev", "prev");
-    forwardClick("next", "next");
+    forwardClick("prev", "prev", { hideUiAfter: true, frameAction: "__fbGoPrevPage" });
+    forwardClick("next", "next", { hideUiAfter: true, frameAction: "__fbGoNextPage" });
     forwardClick("slider", "slider");
     forwardClick("openBookmarks", "openBookmarks");
     forwardClick("openNotes", "openNotes");
@@ -712,7 +989,9 @@
     window.__readerpubReaderNewUnprotectedRichMode = "iframe";
 
     try {
-      document.body.classList.remove("ui-hidden", "unprotected-runtime-new", "unprotected-runtime-shell");
+      document.body.classList.remove("unprotected-runtime-new", "unprotected-runtime-shell");
+      shellUiHidden = true;
+      document.body.classList.add("ui-hidden");
       document.body.classList.add("unprotected-runtime-legacy");
       document.body.setAttribute("data-unprotected-runtime", "legacy");
       document.body.setAttribute("data-reader-new-content-mode", "unprotected-iframe");
@@ -749,6 +1028,7 @@
     if (viewerPrev) viewerPrev.innerHTML = "";
     if (viewerNext) viewerNext.innerHTML = "";
     viewer.innerHTML = "";
+    installOuterTapLayer();
 
     var frame = document.createElement("iframe");
     frame.id = "reader-new-unprotected-iframe";
@@ -762,6 +1042,28 @@
     frame.style.background = "#fff";
     frame.src = window.__readerpubLegacyReaderUrl;
     frame.addEventListener("load", function () {
+      try {
+        if (frame.contentWindow) {
+          frame.contentWindow.__readerpubReaderNewCompat = true;
+          frame.contentWindow.__readerpubCompatIsUiHidden = function () {
+            return !!shellUiHidden;
+          };
+          frame.contentWindow.__readerpubCompatShowUi = function () {
+            var recentUserGesture = (Date.now() - lastOuterUserGestureTs) < 1500;
+            var overlayOpen = !!document.body.classList.contains("overlay-open");
+            var searchOpen = !!document.body.classList.contains("search-open");
+            if (recentUserGesture || overlayOpen || searchOpen) {
+              showOuterUi();
+            }
+          };
+          frame.contentWindow.__readerpubCompatHideUi = hideOuterUi;
+          frame.contentWindow.__readerpubCompatToggleUi = function () {
+            markOuterUserGesture();
+            toggleOuterUi();
+          };
+          frame.contentWindow.__readerpubOpenExternalTranslate = openExternalTranslate;
+        }
+      } catch (_error) {}
       installIframeChrome(frame);
       syncShellFromIframe(frame);
       bindShellControls(frame);
@@ -770,13 +1072,16 @@
         if (window.__readerpubUnprotectedCompatSyncTimer) {
           window.clearInterval(window.__readerpubUnprotectedCompatSyncTimer);
         }
+        var compatSyncAttempts = 0;
         window.__readerpubUnprotectedCompatSyncTimer = window.setInterval(function () {
-          installIframeChrome(frame);
-          applyUnifiedShellChromeWhenReady();
-          bindShellControls(frame);
+          attachCompatRelocatedBridge(frame);
           syncShellFromIframe(frame);
-          tuneUnifiedShellForUnprotected();
-        }, 350);
+          compatSyncAttempts += 1;
+          if (compatSyncAttempts >= 16) {
+            window.clearInterval(window.__readerpubUnprotectedCompatSyncTimer);
+            window.__readerpubUnprotectedCompatSyncTimer = null;
+          }
+        }, 500);
       } catch (_error) {}
     });
     viewer.appendChild(frame);

@@ -547,7 +547,7 @@
     this.viewport({ width: width, height: height, scale: 1.0, scalable: "no" });
     this.css("overflow-y", "hidden");
     this.css("margin", "0", true);
-    this.css("padding", axis === "vertical" ? gap / 2 + "px 20px" : "20px " + gap / 2 + "px", true);
+    this.css("padding", axis === "vertical" ? gap / 2 + "px 50px" : "50px " + gap / 2 + "px", true);
     this.css("box-sizing", "border-box");
     this.css("max-width", "inherit");
     this.css(COLUMN_AXIS, "horizontal");
