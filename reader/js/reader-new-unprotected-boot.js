@@ -92,7 +92,7 @@
     if (requestedContentSource) url.searchParams.set("readerContentSource", requestedContentSource);
     if (requestedRemoteMode) url.searchParams.set("readerRemoteMode", requestedRemoteMode);
     url.searchParams.set("readerNewCompatGap", "1");
-    url.searchParams.set("readerNewCompatRev", "20260416-1");
+    url.searchParams.set("readerNewCompatRev", "20260416-27");
     return url.toString();
   }
 
@@ -370,8 +370,11 @@
         "#overlay-toc,#overlay-bookmarks,#overlay-notes,#overlay-mybooks,#overlay-voice,#overlay-menu{display:none!important;}" +
         "html,body{height:100%!important;overflow:hidden!important;}" +
         "#container,#main{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;}" +
-        "#viewer{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;}" +
-        "#viewer-prev,#viewer-next,#swipe-shadow{display:none!important;}";
+        "#viewerStack{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;left:0!important;right:0!important;}" +
+        "#viewer,#viewer-prev,#viewer-next{position:absolute!important;top:0!important;bottom:0!important;width:auto!important;height:100%!important;max-width:none!important;left:var(--readernew-compat-page-inset,0px)!important;right:var(--readernew-compat-page-inset,0px)!important;}" +
+        "#viewerStack.swipe-reveal-prev #viewer-prev{left:0!important;right:var(--readernew-compat-page-inset,0px)!important;}" +
+        "#viewerStack.swipe-reveal-next #viewer-next{left:var(--readernew-compat-page-inset,0px)!important;right:0!important;}" +
+        "html.fb-swipe-margins #main::before,html.fb-swipe-margins #main::after{display:none!important;}";
       doc.head.appendChild(style);
     } catch (_error) {}
   }

@@ -131,31 +131,39 @@ body.dark-ui .arrow:hover {
 /* Light theme: show arrow on hover (desktop) */
 html.is-desktop #prev,
 html.is-desktop #next {
-  width: calc(var(--arrow-hit) + var(--arrow-gap));
+  top: 50%;
+  bottom: auto;
+  width: 34px;
+  height: 96px;
+  transform: translateY(-50%);
+  opacity: 1;
 }
 
 html.is-desktop #prev {
-  left: 0;
+  left: 8px;
 }
 
 html.is-desktop #next {
-  right: 0;
+  right: 8px;
 }
 
 html.is-desktop body:not(.dark-ui) .arrow {
-  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+  color: rgba(141,141,141,0.92) !important;
+  transition: color 160ms ease, opacity 160ms ease;
+  border-radius: 10px;
+  box-shadow: none !important;
 }
 
 html.is-desktop body:not(.dark-ui) .arrow:hover {
-  color: #8d8d8d !important;
-  background: rgba(236, 236, 236, 0.98);
+  color: rgba(120,120,120,0.96) !important;
+  background: transparent !important;
   opacity: 1;
 }
 
 html.is-desktop body:not(.dark-ui) .arrow:active,
 html.is-desktop body:not(.dark-ui) .arrow.active {
-  color: #8d8d8d !important;
-  background: rgba(230, 230, 230, 0.99);
+  color: rgba(120,120,120,0.96) !important;
+  background: rgba(136,136,136,0.28) !important;
   opacity: 1;
 }
 
@@ -689,6 +697,26 @@ html.fb-swipe-underlay-right #main::after {
   box-shadow: 6px 0 10px rgba(0,0,0,0.28);
 }
 
+@media (hover: hover) and (pointer: fine) {
+  #viewerStack.swiping #viewer::before,
+  #viewerStack.swiping #viewer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(136,136,136,0.28);
+    pointer-events: none;
+    z-index: 7;
+  }
+  #viewerStack.swiping #viewer::before {
+    left: -1px;
+  }
+  #viewerStack.swiping #viewer::after {
+    right: -1px;
+  }
+}
+
 /* Iframes */
 #viewerStack iframe,
 #viewer iframe,
@@ -809,6 +837,8 @@ body.dark-ui #bottombar {
   background: transparent;
   opacity: 0;
 }
+
+
 
 #sidebar {
   /* FBReader-like: overlay drawer (does NOT push the book) */

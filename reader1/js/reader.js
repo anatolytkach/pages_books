@@ -3552,11 +3552,29 @@ function applyThemeToIframes(themeName) {
 		this.renditionPrev.on("rendered", function(section, view){
 			try {
 				try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
+				try {
+					var baseKey = self._neighborBaseKeyExpected || "";
+					var token = self._neighborPrevExpected || 0;
+					var loc = self.renditionPrev && self.renditionPrev.currentLocation ? self.renditionPrev.currentLocation() : null;
+					var locKey = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
+					if (baseKey && token && locKey && locKey !== baseKey) {
+						self.__markNeighborReady("prev", token, baseKey);
+					}
+				} catch (ePrevRenderedReady) {}
 			} catch(e){}
 		});
 		this.renditionNext.on("rendered", function(section, view){
 			try {
 				try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
+				try {
+					var baseKey = self._neighborBaseKeyExpected || "";
+					var token = self._neighborNextExpected || 0;
+					var loc = self.renditionNext && self.renditionNext.currentLocation ? self.renditionNext.currentLocation() : null;
+					var locKey = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
+					if (baseKey && token && locKey && locKey !== baseKey) {
+						self.__markNeighborReady("next", token, baseKey);
+					}
+				} catch (eNextRenderedReady) {}
 			} catch(e){}
 		});
 		this.renditionPrev.on("relocated", function(location){
@@ -4300,6 +4318,31 @@ if (!doc) return;
 				try {
 					if (!doc || doc.__uiTapAttached) return;
 					doc.__uiTapAttached = true;
+					try {
+						var compatDesktop = false;
+						var compatMetrics = null;
+						var compatInsetPx = "0px";
+						try { compatDesktop = isReaderNewCompatGapMode() && getCurrentSpreadMode() !== "none"; } catch (eCompatMode) {}
+						try {
+							compatMetrics = computeReaderNewCompatGapMetrics();
+							if (compatMetrics && compatMetrics.enabled && typeof compatMetrics.sideInset === "number") {
+								compatInsetPx = Math.max(0, Math.round(compatMetrics.sideInset)) + "px";
+							}
+						} catch (eCompatMetrics) {}
+						if (compatDesktop && doc && doc.head && !doc.getElementById("readerNewCompatDesktopInset")) {
+							var compatStyle = doc.createElement("style");
+							compatStyle.id = "readerNewCompatDesktopInset";
+							compatStyle.textContent =
+								"html,body{box-sizing:border-box!important;}" +
+								"body{padding-left:0!important;padding-right:0!important;}" +
+								"img,svg,video,figure,picture{max-width:100%!important;}";
+							doc.head.appendChild(compatStyle);
+						}
+						if (compatDesktop && doc && doc.body && doc.body.style) {
+							try { doc.body.style.setProperty("padding-left", "0px", "important"); } catch (eCompatInsetBodyL) {}
+							try { doc.body.style.setProperty("padding-right", "0px", "important"); } catch (eCompatInsetBodyR) {}
+						}
+					} catch (eCompatInset) {}
 
 					var win = doc.defaultView || window;
 					var st = { x: 0, y: 0, ts: 0, moved: false };
@@ -4799,6 +4842,20 @@ function attachSwipeToDoc(doc) {
 						return Promise.resolve();
 					}
 
+					function waitForRenderableNeighborLayer(isNext, timeoutMs) {
+						return new Promise(function(resolve){
+							var startedAt = Date.now();
+							function check() {
+								try {
+									if (hasRenderableNeighborLayer(!!isNext)) return resolve();
+								} catch (_e0) {}
+								if ((Date.now() - startedAt) >= (timeoutMs || 260)) return resolve();
+								setTimeout(check, 32);
+							}
+							check();
+						});
+					}
+
 				function isInteractive(el) {
 					try {
 						if (!el) return false;
@@ -4921,11 +4978,13 @@ function attachSwipeToDoc(doc) {
 						var loc = reader && reader._lastRelocated
 							? reader._lastRelocated
 							: (rendition && rendition.currentLocation && rendition.currentLocation());
-						return !!(
+						var ready = !!(
 							reader &&
 							reader.__neighborReadyForTurn &&
 							reader.__neighborReadyForTurn(loc, isNextTurn)
 						);
+						if (ready) return true;
+						try { return hasRenderableNeighborLayer(isNextTurn); } catch (eDomReady) {}
 					} catch (e) {}
 					return false;
 				}
@@ -5008,10 +5067,17 @@ function attachSwipeToDoc(doc) {
 						if (!iframe) return false;
 						var doc2 = iframe.contentDocument || null;
 						if (!doc2) return false;
+						try {
+							if (String(doc2.readyState || "").toLowerCase() !== "complete") return false;
+						} catch (eReadyState) {}
 						var body = doc2.body || null;
 						if (!body) return false;
-						if (body.children && body.children.length > 0) return true;
-						if ((body.textContent || "").trim()) return true;
+						var text = "";
+						try { text = String(body.innerText || body.textContent || "").trim(); } catch (eText) {}
+						if (text.length > 24) return true;
+						try {
+							if (body.querySelector && body.querySelector("img,svg,canvas,video,picture,figure")) return true;
+						} catch (eMedia) {}
 					} catch (e0) {}
 					return false;
 				}
@@ -5058,7 +5124,7 @@ function attachSwipeToDoc(doc) {
 								!!isNext
 							));
 						} catch (eReady) {}
-						if (!canRevealUnderlay && !isDesktopReader) {
+						if (!canRevealUnderlay) {
 							try { canRevealUnderlay = hasRenderableNeighborLayer(!!isNext); } catch (eReadyDom) {}
 						}
 						if (canRevealUnderlay) {
@@ -5073,7 +5139,7 @@ function attachSwipeToDoc(doc) {
 						} else {
 							try {
 								stack.classList.add("swiping");
-								setShadow(off);
+								if (!isDesktopReader) setShadow(off);
 								setSwipeOverlayAlpha(0);
 							} catch (eRevealFallback) {}
 						}
@@ -5161,11 +5227,14 @@ function attachSwipeToDoc(doc) {
 									try {
 										if (reader && reader.__updateSwipeNeighbors && locForTurn) reader.__updateSwipeNeighbors(locForTurn);
 									} catch (eRefresh) {}
-									((reader && reader.__ensureNeighborRenderedForTurn)
-										? reader.__ensureNeighborRenderedForTurn(locForTurn, !!isNext, 420)
-										: Promise.resolve())
-										.catch(function(){})
-										.finally(function(){ runCommit(); });
+									Promise.all([
+										(reader && reader.__ensureNeighborRenderedForTurn)
+											? reader.__ensureNeighborRenderedForTurn(locForTurn, !!isNext, 900)
+											: Promise.resolve(),
+										waitForRenderableNeighborLayer(!!isNext, 900)
+									])
+									.catch(function(){})
+									.finally(function(){ runCommit(); });
 								} else if (isIosLike && win && typeof win.requestAnimationFrame === "function") {
 									try { ensureNeighborsReady().catch(function(){}); } catch (eWarm) {}
 									win.requestAnimationFrame(function(){ runCommit(); });
@@ -5197,6 +5266,7 @@ function attachSwipeToDoc(doc) {
 							} catch (e1) {}
 						}
 					};
+					try { window.__fbQuickSwipeTurn = doc.__fbQuickSwipeTurn; } catch (eExposeQuickTurnWin) {}
 				} catch (eExposeQuickTurn) {}
 
 					function onStart(x, y, target) {
@@ -6126,7 +6196,7 @@ if (doc) {
 	}
 
 	function computeReaderNewCompatGapMetrics() {
-		var disabled = { enabled: false, gap: null, extraInset: 0 };
+		var disabled = { enabled: false, gap: null, extraInset: 0, sideInset: null, pageInset: 0 };
 		if (!isReaderNewCompatGapMode()) return disabled;
 		if (getCurrentSpreadMode() === "none") return disabled;
 		try {
@@ -6155,11 +6225,13 @@ if (doc) {
 			var autoGap = section % 2 === 0 ? section : Math.max(0, section - 1);
 			var currentCompatGap = Math.max(24, autoGap - 50);
 			var targetGap = Math.max(24, Math.round(currentCompatGap * 1.7));
-			var extraInset = autoGap - targetGap;
+			var extraInset = 0;
 			return {
 				enabled: true,
 				gap: targetGap,
-				extraInset: extraInset
+				extraInset: extraInset,
+				sideInset: targetGap,
+				pageInset: Math.round(targetGap / 2)
 			};
 		} catch (e) {}
 		return disabled;
@@ -6171,6 +6243,10 @@ if (doc) {
 			document.documentElement.style.setProperty(
 				"--readernew-compat-extra-inset",
 				metrics.enabled ? (metrics.extraInset + "px") : "0px"
+			);
+			document.documentElement.style.setProperty(
+				"--readernew-compat-page-inset",
+				(metrics.enabled && typeof metrics.pageInset === "number") ? (metrics.pageInset + "px") : "0px"
 			);
 		} catch (e0) {}
 		try {
@@ -8406,6 +8482,12 @@ EPUBJS.reader.ReaderController = function(book) {
 	}
 
 	function runQuickSwipeByUi(isNext) {
+		try {
+			if (typeof window.__fbQuickSwipeTurn === "function") {
+				window.__fbQuickSwipeTurn(!!isNext);
+				return;
+			}
+		} catch (eGlobalQuickTurn) {}
 		var activeDoc = getActiveSwipeDoc();
 		if (activeDoc && typeof activeDoc.__fbQuickSwipeTurn === "function") {
 			try {
