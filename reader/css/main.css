@@ -3836,6 +3836,12 @@ html.is-tablet #next {
   display: none !important;
 }
 
+body.reader-new-unprotected-narrow-mouse #prev,
+body.reader-new-unprotected-narrow-mouse #next {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 /* Touch geometry and icon layout (single source of truth) */
 html.is-phone #searchCount,
 html.is-tablet #searchCount,

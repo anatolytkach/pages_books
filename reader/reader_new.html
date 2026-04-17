@@ -184,7 +184,54 @@
   if (source === "gutenberg") source = "";
   const hasExplicitId = !!((qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId && hid.trim()));
 
+  function resolveLegacyReaderBasePath() {
+    if (
+      qIsReaderNewRoute &&
+      (
+        location.pathname === "/reader_new/" ||
+        location.pathname === "/reader_new/index.html" ||
+        location.pathname === "/reader/reader_new" ||
+        location.pathname === "/reader/reader_new/" ||
+        location.pathname === "/reader/reader_new.html"
+      )
+    ) {
+      return "/reader1/";
+    }
+    return "/books/reader1/";
+  }
+
+  function buildLegacyReaderRedirectHref() {
+    const nextParams = new URLSearchParams();
+    if (id) nextParams.set("id", id);
+    if (source && source !== "gutenberg") nextParams.set("source", source);
+    [
+      "entry",
+      "catalog_return",
+      "autostart",
+      "readerContentSource",
+      "bookContentSource",
+      "readerRemoteMode",
+      "protectedRemoteMode",
+      "resetLocation",
+      "cover",
+      "unprotectedRuntime"
+    ].forEach(function(key) {
+      const value = String(params.get(key) || "").trim();
+      if (!value) return;
+      nextParams.set(key, value);
+    });
+    const query = nextParams.toString();
+    return `${resolveLegacyReaderBasePath()}${query ? `?${query}` : ""}${hashIsCfi ? rawHash : ""}`;
+  }
+
   const resolvedReaderMode = qReaderNewProtectedMode ? "protected" : qReaderMode;
+  if (qReaderNewUnprotectedMode) {
+    try {
+      const legacyHref = buildLegacyReaderRedirectHref();
+      window.location.replace(legacyHref);
+      return;
+    } catch (eReaderNewLegacyRedirect) {}
+  }
   if (qReaderNewProtectedMode) {
     try {
       const normalizedParams = new URLSearchParams(location.search || "");
@@ -217,12 +264,6 @@
       if (changed) history.replaceState(null, "", normalizedHref);
       window.__readerpubReaderNewNormalizedHref = normalizedHref;
     } catch (eReaderNewNormalize) {}
-  }
-  if (qReaderNewUnprotectedMode) {
-    try {
-      window.__readerpubReaderNewUnprotectedRichMode = true;
-      document.documentElement.setAttribute("data-reader-new-content-mode", "unprotected-rich");
-    } catch (eReaderNewUnprotectedMode) {}
   }
 
   if (resolvedReaderMode === "protected") {
@@ -318,9 +359,9 @@
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
 <script src="js/reader.js?v=20260315-swipe-select-hold-1"></script>
-  <script src="js/reader-new-unprotected-boot.js?v=20260416-reader-new-rich-34"></script>
+    <script src="js/reader-new-unprotected-boot.js?v=20260416-reader-new-rich-57"></script>
 <script src="js/fullscreen-fix.js"></script>
-<script src="js/fbreader-ui.js?v=20260415-unprotected-shell-autostart-fix-1"></script>
+<script src="js/fbreader-ui.js?v=20260416-unprotected-iframe-gestures-2"></script>
 <!-- Plugins -->
 <!--
 -->

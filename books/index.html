@@ -3387,7 +3387,111 @@
             legacyPagesDevBasePath: String(routing.legacyPagesDevBasePath || "/reader1/"),
             newBasePath: String(routing.newBasePath || "/books/reader_new/"),
             newPagesDevBasePath: String(routing.newPagesDevBasePath || "/reader_new/"),
+            protectedBooks: Array.isArray(routing.protectedBooks) ? routing.protectedBooks : [],
           };
+        }
+
+        function normalizeBookSourceKey(source) {
+          const normalized = String(source || "").trim().toLowerCase();
+          return normalized && normalized !== "gutenberg" ? normalized : "gutenberg";
+        }
+
+        function getProtectedBookRoutingEntries() {
+          const routing = getReaderRoutingConfig();
+          return (Array.isArray(routing.protectedBooks) ? routing.protectedBooks : [])
+            .map((entry) => {
+              if (!entry || typeof entry !== "object") return null;
+              const id = String(entry.id || "").trim();
+              if (!/^\d+$/.test(id)) return null;
+              const query = entry.query && typeof entry.query === "object" ? entry.query : {};
+              const normalizedQuery = {};
+              Object.keys(query).forEach((key) => {
+                const value = String(query[key] || "").trim();
+                if (!value) return;
+                normalizedQuery[key] = value;
+              });
+              return {
+                id,
+                source: normalizeBookSourceKey(entry.source),
+                query: normalizedQuery,
+              };
+            })
+            .filter(Boolean);
+        }
+
+        function resolveProtectedBookRoutingEntry(bookOrId, sourceOverride) {
+          const target = normalizeBookTarget(bookOrId, sourceOverride);
+          if (!/^\d+$/.test(target.id)) return null;
+          const sourceKey = normalizeBookSourceKey(target.source);
+          const entries = getProtectedBookRoutingEntries();
+          return entries.find((entry) => entry.id === target.id && entry.source === sourceKey) || null;
+        }
+
+        function buildLegacyReaderQueryString(overrides) {
+          const query = overrides && typeof overrides === "object" ? overrides : {};
+          const passthroughKeys = [
+            "readerContentSource",
+            "bookContentSource",
+            "readerRemoteMode",
+            "protectedRemoteMode",
+            "catalog_return",
+            "autostart",
+            "resetLocation",
+            "unprotectedRuntime",
+          ];
+          const params = new URLSearchParams();
+          passthroughKeys.forEach((key) => {
+            const value = String(query[key] || "").trim();
+            if (!value) return;
+            params.set(key, value);
+          });
+          const serialized = params.toString();
+          return serialized ? `&${serialized}` : "";
+        }
+
+        function buildLegacyReaderUrl(bookOrId, cover, sourceOverride, entryOverride, queryOverrides) {
+          const target = normalizeBookTarget(bookOrId, sourceOverride);
+          const id = target.id;
+          const source = target.source;
+          const entry = String(entryOverride || "catalog").trim();
+          const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
+          const routing = getReaderRoutingConfig();
+          const base = isPagesDev ? routing.legacyPagesDevBasePath : routing.legacyBasePath;
+          let url = `${base}?id=${encodeURIComponent(id)}`;
+          if (source && source !== "gutenberg") url += `&source=${encodeURIComponent(source)}`;
+          const coverHint = String(cover || "").trim();
+          if (coverHint) url += `&cover=${encodeURIComponent(coverHint)}`;
+          if (entry) url += `&entry=${encodeURIComponent(entry)}`;
+          url += buildLegacyReaderQueryString(queryOverrides);
+          return url;
+        }
+
+        function buildProtectedReaderUrl(bookOrId, sourceOverride, entryOverride, queryOverrides) {
+          const target = normalizeBookTarget(bookOrId, sourceOverride);
+          const entry = String(entryOverride || "catalog").trim();
+          const routeEntry = resolveProtectedBookRoutingEntry(target, target.source);
+          if (!routeEntry) {
+            return buildLegacyReaderUrl(target, "", target.source, entry, queryOverrides);
+          }
+          const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
+          const routing = getReaderRoutingConfig();
+          const base = isPagesDev ? routing.newPagesDevBasePath : routing.newBasePath;
+          const params = new URLSearchParams();
+          params.set("id", target.id);
+          if (target.source && target.source !== "gutenberg") params.set("source", target.source);
+          if (entry) params.set("entry", entry);
+          const mergedQuery = {
+            ...routeEntry.query,
+            ...(queryOverrides && typeof queryOverrides === "object" ? queryOverrides : {}),
+          };
+          if (!mergedQuery.reader) mergedQuery.reader = "protected";
+          if (!mergedQuery.protectedArtifactBookId) mergedQuery.protectedArtifactBookId = target.id;
+          Object.keys(mergedQuery).forEach((key) => {
+            const value = String(mergedQuery[key] || "").trim();
+            if (!value) return;
+            params.set(key, value);
+          });
+          return `${base}?${params.toString()}`;
         }
 
         function getReaderNewTestSectionsConfig() {
@@ -3401,39 +3505,19 @@
         }
 
         function openReaderUrl(bookOrId, cover, sourceOverride, entryOverride) {
-          const target = normalizeBookTarget(bookOrId, sourceOverride);
-          const id = target.id;
-          const source = target.source;
-          const entry = String(entryOverride || "catalog").trim();
-          const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
-          const routing = getReaderRoutingConfig();
-          const base = isPagesDev ? routing.legacyPagesDevBasePath : routing.legacyBasePath;
-          let url = `${base}?id=${encodeURIComponent(id)}`;
-          if (source && source !== "gutenberg") url += `&source=${encodeURIComponent(source)}`;
-          const coverHint = String(cover || "").trim();
-          if (coverHint) url += `&cover=${encodeURIComponent(coverHint)}`;
-          if (entry) url += `&entry=${encodeURIComponent(entry)}`;
-          return url;
+          const routeEntry = resolveProtectedBookRoutingEntry(bookOrId, sourceOverride);
+          if (routeEntry) {
+            return buildProtectedReaderUrl(bookOrId, sourceOverride, entryOverride);
+          }
+          return buildLegacyReaderUrl(bookOrId, cover, sourceOverride, entryOverride);
         }
 
         function openReaderNewUrl(bookOrId, sourceOverride, entryOverride, queryOverrides) {
-          const target = normalizeBookTarget(bookOrId, sourceOverride);
-          const id = target.id;
-          const source = target.source;
-          const entry = String(entryOverride || "catalog-test").trim();
-          const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
-          const routing = getReaderRoutingConfig();
-          const base = isPagesDev ? routing.newPagesDevBasePath : routing.newBasePath;
-          let url = `${base}?id=${encodeURIComponent(id)}`;
-          if (source && source !== "gutenberg") url += `&source=${encodeURIComponent(source)}`;
-          if (entry) url += `&entry=${encodeURIComponent(entry)}`;
-          const overrides = queryOverrides && typeof queryOverrides === "object" ? queryOverrides : {};
-          Object.keys(overrides).forEach((key) => {
-            const value = String(overrides[key] || "").trim();
-            if (!value) return;
-            url += `&${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
-          });
-          return url;
+          const routeEntry = resolveProtectedBookRoutingEntry(bookOrId, sourceOverride);
+          if (!routeEntry) {
+            return buildLegacyReaderUrl(bookOrId, "", sourceOverride, entryOverride || "catalog-test", queryOverrides);
+          }
+          return buildProtectedReaderUrl(bookOrId, sourceOverride, entryOverride || "catalog-test", queryOverrides);
         }
 
         function hydrateStaticReaderLinks() {
@@ -3455,6 +3539,9 @@
           },
           resolveReaderNewUrl: function(bookOrId, source, entryOverride, queryOverrides) {
             return openReaderNewUrl(bookOrId, source, entryOverride, queryOverrides);
+          },
+          getAllowlist: function() {
+            return getProtectedBookRoutingEntries().map((entry) => ({ id: entry.id, source: entry.source }));
           },
           getTestSectionsConfig: function() {
             return JSON.parse(JSON.stringify(getReaderNewTestSectionsConfig()));
@@ -4295,7 +4382,9 @@
           );
           const grid = el("div", "bookGrid");
           books.forEach((book) => {
-            const href = openReaderNewUrl(book, book.source, "catalog-test", book.hrefQuery || {});
+            const href = sectionKind === "protected"
+              ? buildProtectedReaderUrl(book, book.source, "catalog-test", book.hrefQuery || {})
+              : buildLegacyReaderUrl(book, "", book.source, "catalog-test", book.hrefQuery || {});
             const card = createBookCard(book, {
               href,
               entry: "catalog-test",

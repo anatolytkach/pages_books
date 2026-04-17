@@ -19,13 +19,27 @@
   var params = new URLSearchParams(window.location.search || "");
   var readerMode = String(params.get("reader") || "").trim().toLowerCase();
   if (readerMode === "protected") return;
+  try {
+    window.__fb_use_iframe_gestures_only = true;
+    window.__fb_disable_auto_fullscreen = true;
+  } catch (_flagError) {}
   var shellUiHidden = true;
   var lastKnownPageCount = "";
   var lastKnownChapterTitle = "";
   var outerTapLayerInstalled = false;
+  var outerNarrowMouseSwipeInstalled = false;
   var outerTapCaptureInstalled = false;
   var lastOuterUserGestureTs = 0;
   var initialUiLockUntil = Date.now() + 8000;
+
+  function syncNarrowMouseCompatMode() {
+    try {
+      var fine = !!(window.matchMedia && window.matchMedia("(pointer: fine)").matches);
+      var narrow = Math.max(window.innerWidth || 0, (window.visualViewport && window.visualViewport.width) || 0) <= 1024;
+      if (document.body) document.body.classList.toggle("reader-new-unprotected-narrow-mouse", !!(fine && narrow));
+      syncOuterNarrowMouseSwipeState();
+    } catch (_modeError) {}
+  }
 
   function markOuterUserGesture() {
     lastOuterUserGestureTs = Date.now();
@@ -87,12 +101,19 @@
 
   function buildLegacyReaderUrl(id, source, requestedContentSource, requestedRemoteMode, locationInfo) {
     var url = new URL(resolveLegacyReaderBasePath(), window.location.origin);
+    var outerParams = null;
+    try { outerParams = new URLSearchParams(window.location.search || ""); } catch (_outerParamsError) { outerParams = null; }
     url.searchParams.set("id", resolveLegacyReaderId(id, locationInfo));
     if (source) url.searchParams.set("source", String(source));
     if (requestedContentSource) url.searchParams.set("readerContentSource", requestedContentSource);
     if (requestedRemoteMode) url.searchParams.set("readerRemoteMode", requestedRemoteMode);
     url.searchParams.set("readerNewCompatGap", "1");
-    url.searchParams.set("readerNewCompatRev", "20260416-27");
+    url.searchParams.set("readerNewCompatRev", "20260416-50");
+    try {
+      if (outerParams && outerParams.get("readerNewDragDebug") === "1") {
+        url.searchParams.set("readerNewDragDebug", "1");
+      }
+    } catch (_readerNewDragDebugError) {}
     return url.toString();
   }
 
@@ -196,6 +217,330 @@
     } catch (_error) {}
   }
 
+  function syncOuterNarrowMouseSwipeState() {
+    try {
+      var layer = document.getElementById("readerNewOuterMouseSwipeLayer");
+      if (!layer) return;
+      var narrowMouse = !!(document.body && document.body.classList && document.body.classList.contains("reader-new-unprotected-narrow-mouse"));
+      var overlayOpen = !!(document.body && document.body.classList && document.body.classList.contains("overlay-open"));
+      var searchOpen = !!(document.body && document.body.classList && document.body.classList.contains("search-open"));
+      var toolbar = document.getElementById("selectionToolbar");
+      var selectionVisible = !!(toolbar && !toolbar.classList.contains("hidden"));
+      layer.style.pointerEvents = "none";
+      layer.style.display = (narrowMouse && !overlayOpen && !selectionVisible) ? "block" : "none";
+    } catch (_error) {}
+  }
+
+  function installOuterNarrowMouseSwipe(frame) {
+    if (window.__fb_use_iframe_gestures_only) {
+      syncOuterNarrowMouseSwipeState();
+      return;
+    }
+    if (outerNarrowMouseSwipeInstalled) {
+      syncOuterNarrowMouseSwipeState();
+      return;
+    }
+    var viewerStack = document.getElementById("viewerStack");
+    if (!viewerStack) return;
+    outerNarrowMouseSwipeInstalled = true;
+
+    var style = document.createElement("style");
+    style.id = "readerNewOuterMouseSwipeStyle";
+    style.textContent =
+      "#readerNewOuterMouseSwipeLayer{position:absolute;inset:0;z-index:24;background:transparent;pointer-events:none;}" +
+      "#readerNewOuterMouseSwipeLayer.is-dragging{cursor:grabbing;}" +
+      "body.reader-new-unprotected-narrow-mouse #readerNewOuterMouseSwipeLayer{cursor:grab;}";
+    if (!document.getElementById(style.id)) document.head.appendChild(style);
+
+    var layer = document.createElement("div");
+    layer.id = "readerNewOuterMouseSwipeLayer";
+    viewerStack.appendChild(layer);
+
+    var drag = { active: false, engaged: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
+
+    function commitOuterNarrowSwipe(dx, dy, event) {
+      try {
+        window.__outerNarrowSwipeDebug = window.__outerNarrowSwipeDebug || [];
+        window.__outerNarrowSwipeDebug.push({ stage: "commit", dx: dx, dy: dy, ts: Date.now() });
+      } catch (_debugCommitError) {}
+      if (Math.abs(dx) < 56 || Math.abs(dx) <= Math.abs(dy) * 1.15) return false;
+      try {
+        if (document.body && document.body.classList.contains("search-open")) return false;
+      } catch (_searchError) {}
+      try {
+        var isNext = dx < 0;
+        var frameDoc = frame && frame.contentDocument ? frame.contentDocument : null;
+        var innerTrigger = frameDoc ? frameDoc.getElementById(isNext ? "next" : "prev") : null;
+        if (innerTrigger && typeof innerTrigger.click === "function") {
+          try {
+            window.__outerNarrowSwipeDebug.push({ stage: "commit-inner-trigger-click", id: isNext ? "next" : "prev", ts: Date.now() });
+          } catch (_debugInnerTriggerClickError) {}
+          innerTrigger.click();
+        } else if (frame && frame.contentWindow && isNext && typeof frame.contentWindow.__fbGoNextPage === "function") {
+          try {
+            window.__outerNarrowSwipeDebug.push({ stage: "commit-direct-next", ts: Date.now() });
+          } catch (_debugDirectNextError) {}
+          frame.contentWindow.__fbGoNextPage();
+        } else if (frame && frame.contentWindow && !isNext && typeof frame.contentWindow.__fbGoPrevPage === "function") {
+          try {
+            window.__outerNarrowSwipeDebug.push({ stage: "commit-direct-prev", ts: Date.now() });
+          } catch (_debugDirectPrevError) {}
+          frame.contentWindow.__fbGoPrevPage();
+        } else {
+          var trigger = document.getElementById(isNext ? "next" : "prev");
+          if (trigger && typeof trigger.click === "function") {
+            try {
+              window.__outerNarrowSwipeDebug.push({ stage: "commit-trigger-click", id: isNext ? "next" : "prev", ts: Date.now() });
+            } catch (_debugTriggerClickError) {}
+            trigger.click();
+          } else {
+            try {
+              window.__outerNarrowSwipeDebug.push({ stage: "commit-no-target", ts: Date.now() });
+            } catch (_debugNoTargetError) {}
+            return false;
+          }
+        }
+      } catch (_turnError) {
+        try {
+          window.__outerNarrowSwipeDebug.push({ stage: "commit-error", message: String(_turnError && _turnError.message || _turnError || ""), ts: Date.now() });
+        } catch (_debugTurnError) {}
+        return false;
+      }
+      try {
+        if (event && typeof event.preventDefault === "function") event.preventDefault();
+        if (event && typeof event.stopPropagation === "function") event.stopPropagation();
+        if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
+      } catch (_eventError) {}
+      return true;
+    }
+
+    function canUseNarrowMouseSwipe(event) {
+      try {
+        if (!document.body || !document.body.classList.contains("reader-new-unprotected-narrow-mouse")) return false;
+        if (document.body.classList.contains("search-open")) return false;
+        if (document.body.classList.contains("overlay-open")) return false;
+        var toolbar = document.getElementById("selectionToolbar");
+        if (toolbar && !toolbar.classList.contains("hidden")) return false;
+        if (event && isChromeInteractionTarget(event.target)) return false;
+        var viewerStackRect = viewerStack.getBoundingClientRect();
+        var x = event ? event.clientX : 0;
+        var y = event ? event.clientY : 0;
+        return !!(
+          viewerStackRect &&
+          x >= viewerStackRect.left &&
+          x <= viewerStackRect.right &&
+          y >= viewerStackRect.top &&
+          y <= viewerStackRect.bottom
+        );
+      } catch (_gateError) {}
+      return false;
+    }
+
+    function finish(event) {
+      if (!drag.active) return;
+      drag.active = false;
+      layer.classList.remove("is-dragging");
+      try {
+        document.removeEventListener("mousemove", onMove, true);
+        document.removeEventListener("mouseup", onUp, true);
+        document.removeEventListener("pointermove", onMove, true);
+        document.removeEventListener("pointerup", onUp, true);
+      } catch (_removeError) {}
+      if (!drag.engaged) return;
+      var dx = drag.lastX - drag.startX;
+      var dy = drag.lastY - drag.startY;
+      drag.engaged = false;
+      commitOuterNarrowSwipe(dx, dy, event);
+    }
+
+    function onMove(event) {
+      if (!drag.active) {
+        try {
+          if (!event || event.pointerType !== "mouse") return;
+          if (!(event.buttons & 1)) return;
+          if (!canUseNarrowMouseSwipe(event)) return;
+          drag.active = true;
+          drag.engaged = false;
+          drag.startX = drag.lastX = event.clientX;
+          drag.startY = drag.lastY = event.clientY;
+          layer.classList.add("is-dragging");
+          try {
+            window.__outerNarrowSwipeDebug = window.__outerNarrowSwipeDebug || [];
+            window.__outerNarrowSwipeDebug.push({ stage: "auto-start", x: event.clientX, y: event.clientY, buttons: event.buttons, ts: Date.now() });
+          } catch (_debugAutoStartError) {}
+        } catch (_autoStartError) {
+          return;
+        }
+      }
+      if (!drag.active) return;
+      drag.lastX = event.clientX;
+      drag.lastY = event.clientY;
+      var dx = drag.lastX - drag.startX;
+      var dy = drag.lastY - drag.startY;
+      if (!drag.engaged && Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+        drag.engaged = true;
+        try {
+          window.__outerNarrowSwipeDebug = window.__outerNarrowSwipeDebug || [];
+          window.__outerNarrowSwipeDebug.push({ stage: "engaged", dx: dx, dy: dy, ts: Date.now() });
+        } catch (_debugEngagedError) {}
+      }
+      if (drag.engaged) {
+        try {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+        } catch (_moveError) {}
+      }
+    }
+
+    function onUp(event) {
+      finish(event);
+    }
+
+    function onDown(event) {
+      try {
+        if (!event || event.button !== 0) return;
+        if (drag.active) return;
+        if (!canUseNarrowMouseSwipe(event)) return;
+        drag.active = true;
+        drag.engaged = false;
+        drag.startX = drag.lastX = event.clientX;
+        drag.startY = drag.lastY = event.clientY;
+        layer.classList.add("is-dragging");
+        document.addEventListener("mousemove", onMove, true);
+        document.addEventListener("mouseup", onUp, true);
+        document.addEventListener("pointermove", onMove, true);
+        document.addEventListener("pointerup", onUp, true);
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation && event.stopImmediatePropagation();
+      } catch (_downError) {}
+    }
+
+    function onPointerDown(event) {
+      try {
+        if (!event || event.pointerType !== "mouse") return;
+        onDown(event);
+      } catch (_pointerDownError) {}
+    }
+
+    document.addEventListener("mousedown", onDown, true);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", onUp, true);
+
+    syncOuterNarrowMouseSwipeState();
+  }
+
+  function installInnerCompatNarrowMouseDrag(frame) {
+    try {
+      if (!frame || !frame.contentDocument || !frame.contentWindow) return;
+      var doc = frame.contentDocument;
+      var win = frame.contentWindow;
+      if (doc.__readerNewCompatNarrowMouseDragInstalled) return;
+      doc.__readerNewCompatNarrowMouseDragInstalled = true;
+
+      var drag = { active: false, engaged: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
+
+      function searchOpen() {
+        try { return !!(document.body && document.body.classList.contains("search-open")); } catch (_e) {}
+        return false;
+      }
+
+      function narrowMouseEnabled() {
+        try { return !!(document.body && document.body.classList.contains("reader-new-unprotected-narrow-mouse")); } catch (_e) {}
+        return false;
+      }
+
+      function isChromeTarget(target) {
+        try {
+          if (!target || !target.closest) return false;
+          return !!target.closest(
+            "#titlebar,#bottombar,#searchbar,#selectionToolbar,#overlay-backdrop,#overlay-toc,#overlay-bookmarks,#overlay-notes,#overlay-mybooks,#overlay-voice,#overlay-menu,button,input,textarea,select,label,a"
+          );
+        } catch (_e) {}
+        return false;
+      }
+
+      function withinViewer(x, y) {
+        try {
+          var stack = doc.getElementById("viewerStack");
+          if (!stack || !stack.getBoundingClientRect) return false;
+          var rect = stack.getBoundingClientRect();
+          return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+        } catch (_e) {}
+        return false;
+      }
+
+      function finish(ev) {
+        if (!drag.active) return;
+        drag.active = false;
+        var dx = drag.lastX - drag.startX;
+        var dy = drag.lastY - drag.startY;
+        var engaged = drag.engaged;
+        drag.engaged = false;
+        if (!engaged) return;
+        if (searchOpen()) return;
+        if (Math.abs(dx) < 56 || Math.abs(dx) <= Math.abs(dy) * 1.15) return;
+        try {
+          var isNext = dx < 0;
+          var trigger = doc.getElementById(isNext ? "next" : "prev");
+          if (trigger && typeof trigger.click === "function") {
+            trigger.click();
+          } else if (isNext && typeof win.__fbGoNextPage === "function") {
+            win.__fbGoNextPage();
+          } else if (!isNext && typeof win.__fbGoPrevPage === "function") {
+            win.__fbGoPrevPage();
+          }
+          if (ev && ev.preventDefault) ev.preventDefault();
+          if (ev && ev.stopPropagation) ev.stopPropagation();
+          if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+        } catch (_e) {}
+      }
+
+      doc.addEventListener("mousedown", function (ev) {
+        try {
+          if (!narrowMouseEnabled()) return;
+          if (searchOpen()) return;
+          if (!ev || ev.button !== 0) return;
+          if (isChromeTarget(ev.target)) return;
+          if (!withinViewer(ev.clientX, ev.clientY)) return;
+          drag.active = true;
+          drag.engaged = false;
+          drag.startX = drag.lastX = ev.clientX;
+          drag.startY = drag.lastY = ev.clientY;
+        } catch (_e) {}
+      }, true);
+
+      doc.addEventListener("mousemove", function (ev) {
+        try {
+          if (!drag.active) return;
+          drag.lastX = ev.clientX;
+          drag.lastY = ev.clientY;
+          var dx = drag.lastX - drag.startX;
+          var dy = drag.lastY - drag.startY;
+          if (!drag.engaged && Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+            drag.engaged = true;
+          }
+          if (drag.engaged) {
+            if (ev.preventDefault) ev.preventDefault();
+            if (ev.stopPropagation) ev.stopPropagation();
+            if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+          }
+        } catch (_e) {}
+      }, true);
+
+      doc.addEventListener("mouseup", function (ev) {
+        finish(ev);
+      }, true);
+
+      doc.addEventListener("mouseleave", function () {
+        drag.active = false;
+        drag.engaged = false;
+      }, true);
+    } catch (_error) {}
+  }
+
   function isChromeInteractionTarget(target) {
     try {
       if (!target || !target.closest) return false;
@@ -208,6 +553,18 @@
   }
 
   function installOuterTapLayer() {
+    if (window.__fb_use_iframe_gestures_only) {
+      try {
+        var existingStyle = document.getElementById("readerNewOuterTapLayerStyle");
+        if (existingStyle && existingStyle.parentNode) existingStyle.parentNode.removeChild(existingStyle);
+      } catch (_removeStyleError) {}
+      try {
+        var existingLayer = document.getElementById("readerNewOuterTapLayer");
+        if (existingLayer && existingLayer.parentNode) existingLayer.parentNode.removeChild(existingLayer);
+      } catch (_removeLayerError) {}
+      outerTapLayerInstalled = false;
+      return;
+    }
     if (outerTapLayerInstalled) {
       syncOuterTapLayerState();
       return;
@@ -379,6 +736,14 @@
     } catch (_error) {}
   }
 
+  try {
+    syncNarrowMouseCompatMode();
+    window.addEventListener("resize", syncNarrowMouseCompatMode, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncNarrowMouseCompatMode, { passive: true });
+    }
+  } catch (_resizeHookError) {}
+
   function attachCompatRelocatedBridge(frame) {
     try {
       if (!frame || !frame.contentWindow) return;
@@ -457,6 +822,7 @@
         var initialUiLockActive = !lastOuterUserGestureTs && Date.now() < initialUiLockUntil;
         document.body.classList.toggle("search-open", searchOpen);
         document.body.classList.toggle("search-minimized", searchMinimized);
+        syncOuterNarrowMouseSwipeState();
         var titlebar = document.getElementById("titlebar");
         var searchbar = document.getElementById("searchbar");
         var hideAllChrome = !!(searchOpen && searchMinimized);
@@ -1068,8 +1434,15 @@
         }
       } catch (_error) {}
       installIframeChrome(frame);
+      installInnerCompatNarrowMouseDrag(frame);
       syncShellFromIframe(frame);
       bindShellControls(frame);
+      try {
+        if (!window.__fb_use_iframe_gestures_only) {
+          installOuterNarrowMouseSwipe(frame);
+          syncOuterNarrowMouseSwipeState();
+        }
+      } catch (_outerSwipeInstallError) {}
       tuneUnifiedShellForUnprotected();
       try {
         if (window.__readerpubUnprotectedCompatSyncTimer) {

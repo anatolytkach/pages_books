@@ -17,7 +17,87 @@
     "legacyBasePath": "/books/reader1/",
     "legacyPagesDevBasePath": "/reader1/",
     "newBasePath": "/books/reader_new/",
-    "newPagesDevBasePath": "/reader_new/"
+    "newPagesDevBasePath": "/reader_new/",
+    "protectedBooks": [
+      {
+        "id": "19686",
+        "source": "gutenberg",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "19686",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "old-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      },
+      {
+        "id": "45",
+        "source": "gutenberg",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "45",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "old-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      },
+      {
+        "id": "11",
+        "source": "gutenberg",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "11",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "old-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      },
+      {
+        "id": "84",
+        "source": "gutenberg",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "84",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "old-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      },
+      {
+        "id": "1342",
+        "source": "gutenberg",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "1342",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "old-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      },
+      {
+        "id": "1",
+        "source": "manual",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "1",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "old-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      }
+    ]
   },
   "readerNewTestSections": {
     "protected": {
@@ -59,8 +139,8 @@
       ]
     },
     "unprotected": {
-      "title": "Unprotected Books For New Reader Testing",
-      "description": "Temporary manual-check section. This card opens Anne of Green Gables in reader_new unprotected mode, but with the same UX host contract as protected mode.",
+      "title": "Unprotected Books Routed To Legacy Reader",
+      "description": "Temporary manual-check section. These cards stay in reader1 even when opened from the reader_new test area.",
       "books": [
         {
           "id": "45",

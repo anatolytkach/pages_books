@@ -809,6 +809,13 @@
   // detect a center tap on EVERY page.
   function installCenterTapLayer() {
     try {
+      if (window.__fb_use_iframe_gestures_only) {
+        var existingCompatLayer = document.getElementById("fb-tap-layer");
+        if (existingCompatLayer && existingCompatLayer.parentNode) existingCompatLayer.parentNode.removeChild(existingCompatLayer);
+        return;
+      }
+    } catch (eCompatOnly) {}
+    try {
       var isProtectedOldShell = !!(document.body && document.body.classList && document.body.classList.contains("protected-old-shell"));
       if (isProtectedOldShell && !__fb_isDesktop) return;
     } catch (eProtected) {}
@@ -7540,11 +7547,16 @@
     // overlay layer (events may not reach the iframe on the first page).
     // This makes fullscreen enter on the FIRST swipe, not the second.
     try {
-      if (!window.__fb_no_fullscreen__ && !window.__fb_disable_auto_fullscreen) {
+      if (!window.__fb_use_iframe_gestures_only && !window.__fb_no_fullscreen__ && !window.__fb_disable_auto_fullscreen) {
         var vs = document.getElementById("viewerStack") || document.getElementById("viewer");
         if (vs && !vs.__fbFsCaptureAttached) {
           vs.__fbFsCaptureAttached = true;
-          var cap = function () { try { window.__tryFsFromIframe(); } catch(e){} };
+          var cap = function (ev) {
+            try {
+              if (ev && ev.type === "pointerdown" && ev.pointerType && ev.pointerType !== "touch") return;
+            } catch (eCapGuard) {}
+            try { window.__tryFsFromIframe(); } catch(e){}
+          };
           vs.addEventListener("pointerdown", cap, { passive: true, capture: true });
           vs.addEventListener("touchstart", cap, { passive: true, capture: true });
         }

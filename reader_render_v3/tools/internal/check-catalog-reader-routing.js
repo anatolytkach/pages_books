@@ -89,6 +89,24 @@ async function inspectUnprotected(page, url) {
   }, pageErrors.slice());
 }
 
+async function inspectLegacy(page, url) {
+  const pageErrors = [];
+  page.on("pageerror", (error) => {
+    pageErrors.push(String(error && error.message ? error.message : error));
+  });
+  await page.goto(url, { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(1500);
+  return page.evaluate((pageErrors) => {
+    return JSON.parse(JSON.stringify({
+      finalUrl: window.location.href,
+      pathname: window.location.pathname,
+      hasViewer: !!document.querySelector("#viewer") || !!document.querySelector("#viewerStack") || !!document.querySelector(".viewer"),
+      iframeCount: document.querySelectorAll("iframe").length,
+      pageErrors
+    }));
+  }, pageErrors.slice());
+}
+
 async function inspectProtected(page, url) {
   const debugRequests = [];
   page.on("request", (req) => {
@@ -165,7 +183,7 @@ async function inspectControl(page, url) {
       recordExpectation(id, catalogState.resolved[id], "new", "protected");
     });
     unprotectedIds.forEach((id) => {
-      recordExpectation(id, catalogState.resolved[id], "new", "unprotected");
+      recordExpectation(id, catalogState.resolved[id], "old", "unprotected");
     });
     controlIds.forEach((id) => {
       recordExpectation(id, catalogState.resolved[id], "old", "control");
@@ -173,7 +191,7 @@ async function inspectControl(page, url) {
 
     ["11", "84", "1342", "1661", "2701"].forEach((id) => {
       if (!catalogState.heroLinks[id]) return;
-      const expectedKind = unprotectedIds.includes(id) ? "new" : "old";
+      const expectedKind = protectedIds.includes(id) ? "new" : "old";
       recordExpectation(id, catalogState.heroLinks[id], expectedKind, "hero");
     });
 
@@ -188,7 +206,7 @@ async function inspectControl(page, url) {
     const unprotectedResults = [];
     for (const id of unprotectedIds) {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
-      const result = await inspectUnprotected(page, new URL(catalogState.resolved[id], catalogUrl).toString());
+      const result = await inspectLegacy(page, new URL(catalogState.resolved[id], catalogUrl).toString());
       unprotectedResults.push({ id, result });
       await page.close();
     }
@@ -212,9 +230,8 @@ async function inspectControl(page, url) {
     if (!protectedOpenOk) blockers.push("protected-open-failed");
 
     const unprotectedOpenOk = unprotectedResults.every(({ result }) => {
-      return result.runtimePath === "new" &&
-        Number(result.iframeCount || 0) === 0 &&
-        result.ready === true &&
+      return classifyReaderPath(result.finalUrl) === "old" &&
+        result.hasViewer === true &&
         (!Array.isArray(result.pageErrors) || result.pageErrors.length === 0);
     });
     if (!unprotectedOpenOk) blockers.push("unprotected-open-failed");
