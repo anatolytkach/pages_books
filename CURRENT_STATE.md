@@ -20,7 +20,10 @@
 - `reader1` no longer uses the old left-sidebar runtime for active navigation; current unprotected shell behavior is centered on the right-side unified overlays.
 - `reader1` shell icon assets used by the top-bar unified shell are now served from `reader1/icons/`, so cloud preview does not depend on `reader_render_v3` asset paths for those controls.
 - `reader1` selection actions now use a horizontal icon-only toolbar; `Translate` opens external Google Translate instead of an internal translation sub-toolbar.
+- `reader1` touch selection toolbar positioning must stay near the selected text without overlapping the selection; top-edge touch selections use the same non-overlapping near-selection rule instead of a distant fallback.
+- `reader1` note/comment quote text on phones and tablets is normalized to a single inline flow rather than preserving line-by-line selection breaks.
 - `reader1` TTS now defaults the language picker from book metadata, keeps the language list alphabetized, and skips forward when the current page has no readable text.
+- `reader1` TTS now auto-advances across chapter boundaries and should continue until the user stops playback or reading reaches the true end of the book.
 - `reader1` touch page-turn behavior depends on the production-style `reader.js` gesture pipeline, and the outer `fb-tap-layer` must remain non-interactive by default; enabling pointer events on its left/center/right zones breaks swipe/drag on phones and tablets.
 - `reader1` paginated mobile layout depends on the legacy `epub.js` body padding baseline of `20px` top/bottom; increasing that internal padding inflates visible vertical page margins even when the shell bars are overlayed and hidden.
 

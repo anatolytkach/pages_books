@@ -4333,6 +4333,10 @@
       setDismissActive(false);
     }
 
+    function normalizeInlineText(val) {
+      return String(val || "").replace(/\s+/g, " ").trim();
+    }
+
     function showToolbarAt(doc, range) {
       if (!doc || !range) return;
       var rect = null;
@@ -4377,6 +4381,17 @@
         topBar = (document.getElementById("titlebar") || document.getElementById("searchbar") || {}).offsetHeight || 0;
         bottomBar = (document.getElementById("bottombar") || {}).offsetHeight || 0;
       } catch (e0) {}
+      try {
+        var body = document.body;
+        var uiHidden = !!(body && body.classList && body.classList.contains("ui-hidden"));
+        var searchOpen = !!(body && body.classList && body.classList.contains("search-open") && !body.classList.contains("search-minimized"));
+        if (uiHidden) {
+          topBar = 0;
+          bottomBar = 0;
+        } else if (searchOpen) {
+          topBar = (document.getElementById("searchbar") || {}).offsetHeight || topBar || 0;
+        }
+      } catch (eUiState) {}
       var boundsPrimary = {
         left: margin,
         right: Math.max(margin, window.innerWidth - margin),
@@ -4414,10 +4429,23 @@
           candidates.push({ x: x, y: y, d: dx + dy });
         }
 
-        addCandidate(selRight + gap, selCenterY - tbH / 2);
-        addCandidate(selLeft - tbW - gap, selCenterY - tbH / 2);
-        addCandidate(selCenterX - tbW / 2, selTop - tbH - gap);
-        addCandidate(selCenterX - tbW / 2, selBottom + gap);
+        var isTouchLike = false;
+        try {
+          isTouchLike = !!(
+            (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) ||
+            (navigator && navigator.maxTouchPoints > 0)
+          );
+        } catch (eTouchPos) {}
+
+        if (isTouchLike) {
+          addCandidate(selCenterX - tbW / 2, selTop - tbH - gap);
+          addCandidate(selCenterX - tbW / 2, selBottom + gap);
+        } else {
+          addCandidate(selRight + gap, selCenterY - tbH / 2);
+          addCandidate(selLeft - tbW - gap, selCenterY - tbH / 2);
+          addCandidate(selCenterX - tbW / 2, selTop - tbH - gap);
+          addCandidate(selCenterX - tbW / 2, selBottom + gap);
+        }
 
         if (!candidates.length) return null;
         candidates.sort(function (a, b) { return a.d - b.d; });
@@ -4439,6 +4467,37 @@
         if (finalX > maxX) finalX = maxX;
         pos = { x: finalX, y: finalY };
       }
+
+      try {
+        var touchClamp = !!(
+          (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) ||
+          (navigator && navigator.maxTouchPoints > 0)
+        );
+        if (touchClamp) {
+          var nearAboveY = Math.round(selTop - tbH - gap);
+          var nearBelowY = Math.round(selBottom + gap);
+          var boundedAboveY = Math.max(boundsFallback.top, Math.min(boundsFallback.bottom - tbH, nearAboveY));
+          var boundedBelowY = Math.max(boundsFallback.top, Math.min(boundsFallback.bottom - tbH, nearBelowY));
+          var aboveFits = (boundedAboveY + tbH) <= (selTop - gap);
+          var belowFits = boundedBelowY >= (selBottom + gap);
+          var targetNearY = aboveFits ? boundedAboveY : boundedBelowY;
+          if (!aboveFits && !belowFits) {
+            targetNearY = boundedBelowY;
+          }
+          var maxVerticalJump = Math.max(tbH + 20, 120);
+          if (Math.abs(pos.y - targetNearY) > maxVerticalJump) {
+            pos.y = targetNearY;
+            pos.x = Math.max(boundsFallback.left, Math.min(boundsFallback.right - tbW, Math.round(selCenterX - tbW / 2)));
+          }
+          if (pos.y + tbH > selTop - 2 && pos.y < selBottom + 2) {
+            if (aboveFits) {
+              pos.y = boundedAboveY;
+            } else {
+              pos.y = boundedBelowY;
+            }
+          }
+        }
+      } catch (eTouchClamp) {}
 
       toolbar.style.left = pos.x + "px";
       toolbar.style.top = pos.y + "px";
@@ -4490,8 +4549,7 @@
 
       var text = "";
       try {
-        text = sel.toString();
-        text = text.replace(/^\\s+/, "").replace(/\\s+$/, "");
+        text = normalizeInlineText(sel.toString());
       } catch (e) {}
       if (!text) {
         hideToolbar();
@@ -4509,9 +4567,9 @@
         syncNativeSelectionToRange(doc, range);
         sel = getSelection(doc);
         if (sel && !sel.isCollapsed && sel.rangeCount) {
-          text = String(sel.toString() || "").replace(/^\s+/, "").replace(/\s+$/, "");
+          text = normalizeInlineText(sel.toString() || "");
         } else {
-          text = String(range.toString() || "").replace(/^\s+/, "").replace(/\s+$/, "");
+          text = normalizeInlineText(range.toString() || "");
         }
       } catch (eNorm) {}
 
@@ -4544,8 +4602,7 @@
         sel = getSelection(doc) || sel;
         var text = "";
         try {
-          text = sel && !sel.isCollapsed ? sel.toString() : range.toString();
-          text = text.replace(/^\s+/, "").replace(/\s+$/, "");
+          text = normalizeInlineText(sel && !sel.isCollapsed ? sel.toString() : range.toString());
         } catch (e) {}
         if (!text) return;
 
@@ -4874,7 +4931,7 @@
       } catch (eNormRange) {}
       state.doc = doc;
       state.range = range;
-      state.text = (range.toString() || "").replace(/^\s+/, "").replace(/\s+$/, "");
+      state.text = normalizeInlineText(range.toString() || "");
       if (!state.text) return;
       try {
         var contents = getContentsForDoc(doc);
@@ -5766,7 +5823,7 @@
         } catch (eRectFrame) {}
         var payload = {
           cfi: cfi,
-          quote: text,
+          quote: normalizeInlineText(text),
           href: state.href || getCurrentHref(),
           anchorRect: anchorRect
         };
@@ -5953,6 +6010,10 @@
       return words.join(" ");
     }
 
+    function normalizeQuoteText(val) {
+      return String(val || "").replace(/\s+/g, " ").trim();
+    }
+
     function close() {
       sheet.classList.add("hidden");
       backdrop.classList.add("hidden");
@@ -6007,7 +6068,7 @@
       pending = payload || null;
       openedAt = Date.now();
       input.value = "";
-      quoteEl.textContent = String((pending && pending.quote) || "").trim();
+      quoteEl.textContent = normalizeQuoteText((pending && pending.quote) || "");
       sheet.classList.remove("hidden");
       backdrop.classList.remove("hidden");
       try {
@@ -7896,11 +7957,30 @@
         if (idx >= segments.length) {
           stopSegmentSweep();
           clearHighlight();
-          state.speakPending = false;
-          state.enabled = false;
-          state.resumeFromStopCfi = "";
-          state.resumeLocKey = "";
-          setButtonState(false);
+          state.speakPending = true;
+          setButtonState(true);
+          requestAutoNextPage().then(function (moved) {
+            if (!state.enabled || myToken !== state.token) return;
+            if (!moved) {
+              state.speakPending = false;
+              state.enabled = false;
+              state.resumeFromStopCfi = "";
+              state.resumeLocKey = "";
+              setButtonState(false);
+              return;
+            }
+            state.restartTimer = setTimeout(function () {
+              if (!state.enabled || myToken !== state.token) return;
+              startCurrentPage("", 20, "", 3);
+            }, 120);
+          }).catch(function () {
+            if (!state.enabled || myToken !== state.token) return;
+            state.speakPending = false;
+            state.enabled = false;
+            state.resumeFromStopCfi = "";
+            state.resumeLocKey = "";
+            setButtonState(false);
+          });
           return;
         }
         var seg = segments[idx];
