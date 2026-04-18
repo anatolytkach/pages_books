@@ -1509,20 +1509,7 @@ async function persistReadingStateFromSnapshot(snapshot) {
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
 }
 
-async function loadArtifact(artifactRoot) {
-  if (state.workerClient.mode !== "worker") {
-    state.artifactLoadStatus = "secure-worker-unavailable";
-    renderRuntimeMeta();
-    throw new Error(state.workerClient.unavailableReason || "Protected mode is unavailable in this environment.");
-  }
-  state.artifactRoot = artifactRoot;
-  state.artifactLoadStatus = "loading";
-  state.artifactSourceResolved = "unknown";
-  state.artifactOriginResolved = "unknown";
-  state.artifactFallbackDetected = "unknown";
-  syncArtifactInput();
-  syncLocationParams();
-  setStatus(`Loading runtime-safe artifact ${artifactRoot}...`);
+async function probeArtifactDiagnostics(artifactRoot) {
   try {
     const manifestProbeUrl = new URL(`${artifactRoot.replace(/\/$/, "")}/manifest.json`, window.location.href);
     manifestProbeUrl.searchParams.set("readerArtifactSource", state.artifactSourceRequested || "local");
@@ -1543,6 +1530,8 @@ async function loadArtifact(artifactRoot) {
       renderRuntimeMeta();
       throw new Error(`Artifact preflight failed (${probeResponse.status}) for ${manifestProbeUrl.toString()}`);
     }
+    renderRuntimeMeta();
+    return true;
   } catch (error) {
     if (/Artifact preflight failed/.test(String(error && error.message ? error.message : error))) {
       throw error;
@@ -1550,20 +1539,13 @@ async function loadArtifact(artifactRoot) {
     state.artifactSourceResolved = "unavailable";
     state.artifactOriginResolved = "unavailable";
     state.artifactFallbackDetected = "unavailable";
+    renderRuntimeMeta();
+    return false;
   }
-  const snapshot = await state.workerClient.initBook({
-    artifactRoot,
-    renderMode: "shape",
-    metricsMode: state.metricsMode,
-    fontScale: state.fontScale,
-    fontMode: state.fontMode,
-    ...getGenerationPayload(),
-    ...getViewportConfig(),
-    annotations: []
-  });
-  const bookId = (snapshot.bookSummary && snapshot.bookSummary.bookId) ||
-    "protected-book";
-  state.compatBook = await loadProtectedBook(artifactRoot);
+}
+
+async function initializeCompatRepository(bookId, compatBookPromise) {
+  state.compatBook = await compatBookPromise;
   state.annotationRepository = createProtectedAnnotationRepository({
     bookId,
     book: state.compatBook,
@@ -1571,6 +1553,12 @@ async function loadArtifact(artifactRoot) {
   });
   state.annotationStore = state.annotationRepository.store;
   await state.annotationRepository.ensureHydrated();
+  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
+  renderAnnotationList();
+  renderRuntimeMeta();
+}
+
+function resetCompatStateForArtifactLoad() {
   state.selectedAnnotationId = null;
   state.lastCompatReport = null;
   state.persistedReadingState = null;
@@ -1584,14 +1572,30 @@ async function loadArtifact(artifactRoot) {
   state.sharePayloadParseStatus = state.entryConfig && state.entryConfig.compatShareImportStatus
     ? state.entryConfig.compatShareImportStatus
     : "none";
-  state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   elements.noteInput.value = "";
   setTextareaValue(elements.annotationImport, "");
   setTextareaValue(elements.handoffState, "");
   setTextareaValue(elements.compatJson, "");
-  if (snapshot.bookSummary) state.bookSummary = snapshot.bookSummary;
-  if (snapshot.tocItems) state.tocItems = snapshot.tocItems;
-  const restored = await restoreReadingStateIfAvailable(bookId);
+}
+
+async function finalizeArtifactLoad({
+  artifactRoot,
+  snapshot,
+  bookId,
+  compatBookPromise,
+  blockForRestore = false,
+  repositoryReadyPromise = null,
+  restoredPromise = null,
+  diagnosticsPromise = null
+}) {
+  if (repositoryReadyPromise) {
+    await repositoryReadyPromise;
+  } else {
+    await initializeCompatRepository(bookId, compatBookPromise);
+  }
+  const restored = restoredPromise
+    ? await restoredPromise
+    : await restoreReadingStateIfAvailable(bookId);
   const finalSnapshot = restored && restored.snapshot ? {
     ...restored.snapshot,
     bookSummary: restored.snapshot.bookSummary || snapshot.bookSummary,
@@ -1602,7 +1606,11 @@ async function loadArtifact(artifactRoot) {
   }
   applySnapshot(finalSnapshot);
   await refreshTurnPreviews();
+  if (diagnosticsPromise) {
+    await diagnosticsPromise;
+  }
   state.artifactLoadStatus = "loaded";
+  renderRuntimeMeta();
   await autoImportCompatPayload();
   if (state.annotationStore && state.annotationStore.all().length) {
     await requestAndApply("getRuntimeStatus");
@@ -1630,6 +1638,61 @@ async function loadArtifact(artifactRoot) {
     `Opened ${finalSnapshot.chunkSummary.chunkId} (${finalSnapshot.chunkSummary.order}/${finalSnapshot.chunkSummary.total}) in ${state.renderMode}/${state.metricsMode} mode.${persistenceWarning}`,
     persistenceWarning ? "warning" : "ok"
   );
+  return finalSnapshot;
+}
+
+async function loadArtifact(artifactRoot) {
+  if (state.workerClient.mode !== "worker") {
+    state.artifactLoadStatus = "secure-worker-unavailable";
+    renderRuntimeMeta();
+    throw new Error(state.workerClient.unavailableReason || "Protected mode is unavailable in this environment.");
+  }
+  state.artifactRoot = artifactRoot;
+  state.artifactLoadStatus = "loading";
+  state.artifactSourceResolved = "unknown";
+  state.artifactOriginResolved = "unknown";
+  state.artifactFallbackDetected = "unknown";
+  syncArtifactInput();
+  syncLocationParams();
+  setStatus(`Loading runtime-safe artifact ${artifactRoot}...`);
+  const diagnosticsPromise = probeArtifactDiagnostics(artifactRoot);
+  const compatBookPromise = loadProtectedBook(artifactRoot);
+  const snapshot = await state.workerClient.initBook({
+    artifactRoot,
+    renderMode: "shape",
+    metricsMode: state.metricsMode,
+    fontScale: state.fontScale,
+    fontMode: state.fontMode,
+    ...getGenerationPayload(),
+    ...getViewportConfig(),
+    annotations: []
+  });
+  const bookId = (snapshot.bookSummary && snapshot.bookSummary.bookId) ||
+    "protected-book";
+  resetCompatStateForArtifactLoad();
+  if (snapshot.bookSummary) state.bookSummary = snapshot.bookSummary;
+  if (snapshot.tocItems) state.tocItems = snapshot.tocItems;
+  const blockForRestore = !!(
+    state.entryConfig &&
+    state.entryConfig.explicitRestoreToken &&
+    String(state.entryConfig.explicitRestoreToken).trim()
+  );
+  if (!blockForRestore) {
+    state.artifactLoadStatus = "restoring";
+    renderRuntimeMeta();
+  }
+  const repositoryReadyPromise = initializeCompatRepository(bookId, compatBookPromise);
+  const restoredPromise = repositoryReadyPromise.then(() => restoreReadingStateIfAvailable(bookId));
+  await finalizeArtifactLoad({
+    artifactRoot,
+    snapshot,
+    bookId,
+    compatBookPromise,
+    blockForRestore,
+    repositoryReadyPromise,
+    restoredPromise,
+    diagnosticsPromise
+  });
 }
 
 function getCanvasPoint(event) {

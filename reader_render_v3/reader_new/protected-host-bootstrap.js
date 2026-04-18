@@ -11,13 +11,39 @@ function normalizeFontMode(value) {
   return String(value || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
 }
 
-function getInitialFontModeFromLocation() {
+function getInitialFontModeFromEnvironment() {
   try {
     const url = new URL(window.location.href);
-    return normalizeFontMode(url.searchParams.get("protectedFontMode") || url.searchParams.get("fontMode"));
+    const explicit = url.searchParams.get("protectedFontMode") || url.searchParams.get("fontMode");
+    if (explicit != null && String(explicit).trim()) {
+      return normalizeFontMode(explicit);
+    }
   } catch (_error) {
-    return "sans";
   }
+  try {
+    return normalizeFontMode(window.localStorage.getItem("reader_new:protected-font-mode"));
+  } catch (_error) {
+  }
+  return "sans";
+}
+
+function getInitialFontScaleFromEnvironment() {
+  try {
+    const url = new URL(window.location.href);
+    const explicit = Number(url.searchParams.get("protectedFontScale") || "");
+    if (Number.isFinite(explicit) && explicit > 0) {
+      return Math.max(0.8, Math.min(1.6, Number(explicit.toFixed(2))));
+    }
+  } catch (_error) {
+  }
+  try {
+    const stored = Number(window.localStorage.getItem("reader_new:protected-font-scale") || "");
+    if (Number.isFinite(stored) && stored > 0) {
+      return Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2))));
+    }
+  } catch (_error) {
+  }
+  return 1.1;
 }
 
 function setDlRows(container, rows) {
@@ -92,7 +118,8 @@ export async function bootstrapProtectedReaderIntegration() {
     driveMode: route.driveMode,
     compatTransport: route.compatTransport,
     automationSafe: !!route.automationSafe,
-    fontMode: getInitialFontModeFromLocation(),
+    fontMode: getInitialFontModeFromEnvironment(),
+    fontScale: getInitialFontScaleFromEnvironment(),
     readerNewRoute: route,
     shareState: route.shareState,
     compatImportPayload: null,

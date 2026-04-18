@@ -10,6 +10,8 @@
 ## Practically Relevant Current Decisions
 
 - Historical numbered protected-reader docs exist, but the current branch delta summary is the canonical high-signal starting point for that subsystem.
+- `reader_render_v3/package.json` now exposes fast `ui:smoke*` local checks for `reader_new` protected old-shell UI flows, and the host publishes `window.__READERPUB_READER_NEW_UI_STATE__` as the smoke-readiness marker used by those checks.
+- `reader_new` protected old-shell boot now waits for persisted resume restoration before the first visible protected snapshot, so users should not see a default-start page flash before jumping to their saved position; the shell must stay hidden after boot until the user explicitly taps/clicks the reading surface center.
 
 ## Known Transitional Reality
 

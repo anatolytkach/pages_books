@@ -32,6 +32,14 @@ export function normalizeProtectedReaderGeneration(value, fallback = 0) {
 
 function getInitialFontScale() {
   try {
+    if (protectedReaderEntryConfig && Number.isFinite(Number(protectedReaderEntryConfig.fontScale))) {
+      const configured = Number(protectedReaderEntryConfig.fontScale);
+      if (configured > 0) {
+        return Math.max(0.8, Math.min(1.6, Number(configured.toFixed(2))));
+      }
+    }
+  } catch (_error) {}
+  try {
     const params = new URLSearchParams(window.location.search || "");
     const raw = Number(params.get("protectedFontScale") || "");
     if (Number.isFinite(raw) && raw > 0) {
