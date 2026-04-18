@@ -4568,22 +4568,6 @@ function attachSwipeToDoc(doc) {
 				if (!doc || doc.__swipeNavAttached) return;
 				doc.__swipeNavAttached = true;
 				var win = doc.defaultView || window;
-				var compatOuterMouseDoc = false;
-				try {
-					var fineCompat = !!(window.matchMedia && window.matchMedia("(pointer: fine)").matches);
-					var narrowCompat = Math.max(
-						window.innerWidth || 0,
-						(window.visualViewport && window.visualViewport.width) || 0
-					) <= 1024;
-					compatOuterMouseDoc = !!(doc === document && isReaderNewCompatGapMode() && fineCompat && narrowCompat);
-				} catch (_compatOuterMouseDocError) {}
-				function pushMouseCompatTrace(stage, extra) {
-					try {
-						window.__readerNewDragDebug = window.__readerNewDragDebug || [];
-						window.__readerNewDragDebug.push(Object.assign({ stage: stage, ts: Date.now() }, extra || {}));
-						if (window.__readerNewDragDebug.length > 200) window.__readerNewDragDebug.shift();
-					} catch (eDbg) {}
-				}
 				function isTabletMode() {
 					try {
 						if (document.documentElement && document.documentElement.classList.contains("is-tablet")) return true;
@@ -4883,20 +4867,6 @@ function attachSwipeToDoc(doc) {
 						return Promise.resolve();
 					}
 
-					function waitForRenderableNeighborLayer(isNext, timeoutMs) {
-						return new Promise(function(resolve){
-							var startedAt = Date.now();
-							function check() {
-								try {
-									if (hasRenderableNeighborLayer(!!isNext)) return resolve();
-								} catch (_e0) {}
-								if ((Date.now() - startedAt) >= (timeoutMs || 260)) return resolve();
-								setTimeout(check, 32);
-							}
-							check();
-						});
-					}
-
 				function isInteractive(el) {
 					try {
 						if (!el) return false;
@@ -5019,13 +4989,11 @@ function attachSwipeToDoc(doc) {
 						var loc = reader && reader._lastRelocated
 							? reader._lastRelocated
 							: (rendition && rendition.currentLocation && rendition.currentLocation());
-						var ready = !!(
+						return !!(
 							reader &&
 							reader.__neighborReadyForTurn &&
 							reader.__neighborReadyForTurn(loc, isNextTurn)
 						);
-						if (ready) return true;
-						try { return hasRenderableNeighborLayer(isNextTurn); } catch (eDomReady) {}
 					} catch (e) {}
 					return false;
 				}
@@ -5165,7 +5133,7 @@ function attachSwipeToDoc(doc) {
 								!!isNext
 							));
 						} catch (eReady) {}
-						if (!canRevealUnderlay) {
+						if (!canRevealUnderlay && !isDesktopReader) {
 							try { canRevealUnderlay = hasRenderableNeighborLayer(!!isNext); } catch (eReadyDom) {}
 						}
 						if (canRevealUnderlay) {
@@ -5180,7 +5148,7 @@ function attachSwipeToDoc(doc) {
 						} else {
 							try {
 								stack.classList.add("swiping");
-								if (!isDesktopReader) setShadow(off);
+								setShadow(off);
 								setSwipeOverlayAlpha(0);
 							} catch (eRevealFallback) {}
 						}
@@ -5268,12 +5236,9 @@ function attachSwipeToDoc(doc) {
 									try {
 										if (reader && reader.__updateSwipeNeighbors && locForTurn) reader.__updateSwipeNeighbors(locForTurn);
 									} catch (eRefresh) {}
-									Promise.all([
-										(reader && reader.__ensureNeighborRenderedForTurn)
-											? reader.__ensureNeighborRenderedForTurn(locForTurn, !!isNext, 900)
-											: Promise.resolve(),
-										waitForRenderableNeighborLayer(!!isNext, 900)
-									])
+									((reader && reader.__ensureNeighborRenderedForTurn)
+										? reader.__ensureNeighborRenderedForTurn(locForTurn, !!isNext, 420)
+										: Promise.resolve())
 									.catch(function(){})
 									.finally(function(){ runCommit(); });
 								} else if (isIosLike && win && typeof win.requestAnimationFrame === "function") {
@@ -5307,28 +5272,21 @@ function attachSwipeToDoc(doc) {
 							} catch (e1) {}
 						}
 					};
-					try { window.__fbQuickSwipeTurn = doc.__fbQuickSwipeTurn; } catch (eExposeQuickTurnWin) {}
 				} catch (eExposeQuickTurn) {}
 
-					function onStart(x, y, target, gestureType) {
+					function onStart(x, y, target) {
 					if (state.lock) return;
 					if (isSelectionActive()) return;
-						try {
-							var __topWinSearchStart = (win && win.parent) ? win.parent : window;
-							if (isBlockingSearchUi(__topWinSearchStart)) return;
-						} catch (eSearchStart) {}
 						// Mobile: fullscreen MUST be requested synchronously in the same gesture stack.
 						// Calling parent via postMessage is async and often only works after several swipes.
 						try {
-							var fsGestureType = String(gestureType || "").toLowerCase();
 							// IMPORTANT: do NOT request fullscreen on the iframe element.
 							// Some Android WebViews will jump to the start of the book and then stop responding.
 							var topWin = (win && win.parent) ? win.parent : window;
-							if (fsGestureType !== "mouse" && topWin && typeof topWin.__tryFsFromIframe === 'function') { topWin.__tryFsFromIframe(); }
+							if (topWin && typeof topWin.__tryFsFromIframe === 'function') { topWin.__tryFsFromIframe(); }
 						} catch(eFs) {}
 					var abs = toAbsXY(x, y);
 					state.tracking = true;
-					state.gestureType = String(gestureType || "").toLowerCase();
 					state.horizontal = false;
 					state.selectionUnlocked = false;
 					state.startedOnInteractive = isInteractive(target);
@@ -5337,9 +5295,6 @@ function attachSwipeToDoc(doc) {
 					state.downTs = Date.now();
 					state.startX = state.lastX = abs.x;
 					state.startY = state.lastY = abs.y;
-					try {
-						if (state.gestureType === "mouse") pushMouseCompatTrace("start", { x: abs.x, y: abs.y });
-					} catch (_dbgStart) {}
 					state.appliedDx = 1e9;
 						state.filteredDx = 0;
 						state.lastDir = 0;
@@ -5401,17 +5356,6 @@ function attachSwipeToDoc(doc) {
 				function onMove(ev, x, y) {
 					if (!state.tracking || state.lock) return;
 					if (state.selectionUnlocked) return;
-					try {
-						var __topWinSearchMove = (win && win.parent) ? win.parent : window;
-						if (isBlockingSearchUi(__topWinSearchMove)) {
-							state.tracking = false;
-							clearSelectionTimer();
-							state.selectionUnlocked = false;
-							unlockSwipeSelection();
-							resetTransform();
-							return;
-						}
-					} catch (eSearchMove) {}
 					if (isSelectionActive()) {
 						state.tracking = false;
 						clearSelectionTimer();
@@ -5424,9 +5368,6 @@ function attachSwipeToDoc(doc) {
 					state.lastX = abs.x; state.lastY = abs.y;
 					var dx = abs.x - state.startX;
 					var dy = abs.y - state.startY;
-					try {
-						if (state.gestureType === "mouse") pushMouseCompatTrace("move", { dx: dx, dy: dy, horizontal: !!state.horizontal, waitingNeighbors: !!state.waitingNeighbors });
-					} catch (_dbgMove) {}
 						// Do not quantize/ignore small deltas here.
 						// Ignoring micro-deltas causes visible "stutter" when the finger moves slowly.
 						state.lastRawDx = dx;
@@ -5438,9 +5379,6 @@ function attachSwipeToDoc(doc) {
 						if (Math.abs(dx) > horizontalThreshold && Math.abs(dx) > Math.abs(dy) * 1.15) {
 							clearSelectionTimer();
 							state.horizontal = true;
-							try {
-								if (state.gestureType === "mouse") pushMouseCompatTrace("horizontal", { dx: dx, dy: dy });
-							} catch (_dbgHorizontal) {}
 							try {
 								doc.documentElement.style.touchAction = "none";
 								if (doc.body) doc.body.style.touchAction = "none";
@@ -5457,16 +5395,6 @@ function attachSwipeToDoc(doc) {
 				function onEnd(ev, x, y) {
 					if (!state.tracking) return;
 					clearSelectionTimer();
-					try {
-						var __topWinSearchGlobal = (win && win.parent) ? win.parent : window;
-						if (isBlockingSearchUi(__topWinSearchGlobal)) {
-							state.tracking = false;
-							state.selectionUnlocked = false;
-							unlockSwipeSelection();
-							resetTransform();
-							return;
-						}
-					} catch (eSearchGlobal) {}
 					if (isSelectionActive()) {
 						state.tracking = false;
 						state.selectionUnlocked = false;
@@ -5494,13 +5422,9 @@ function attachSwipeToDoc(doc) {
 						resetTransform();
 						return;
 					}
-					if (compatOuterMouseDoc && !state.horizontal) {
-						resetTransform();
-						return;
-					}
 					try {
 						var __topWinTapSearch0 = (win && win.parent) ? win.parent : window;
-						if (isBlockingSearchUi(__topWinTapSearch0)) {
+						if (__topWinTapSearch0 && __topWinTapSearch0.document && __topWinTapSearch0.document.body && __topWinTapSearch0.document.body.classList.contains("search-open")) {
 							resetTransform();
 							return;
 						}
@@ -5545,11 +5469,9 @@ function attachSwipeToDoc(doc) {
 								var inCenter = (effectiveTapZone === "center");
 								// Short tap only
 								var dt = Date.now() - (state.downTs || Date.now());
-								var mouseMobileTap = (state.gestureType === "mouse" && isMobileUi((win && win.parent) ? win.parent : window));
-								var edgeTapAllowed = !mouseMobileTap;
 								// Some Android devices report longer press durations for a normal tap.
 								if (!moved && dt < 900) {
-									if ((effectiveTapZone === "left" || effectiveTapZone === "right") && edgeTapAllowed) {
+									if (effectiveTapZone === "left" || effectiveTapZone === "right") {
 										commitTapTurn(effectiveTapZone === "right");
 										if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
 										if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
@@ -5590,15 +5512,12 @@ function attachSwipeToDoc(doc) {
 
 					var dx = abs.x - state.startX;
 					var dy = abs.y - state.startY;
-					try {
-						if (state.gestureType === "mouse") pushMouseCompatTrace("end", { dx: dx, dy: dy, horizontal: !!state.horizontal });
-					} catch (_dbgEnd) {}
 							// Treat small drags as TAPs (Android jitter): if movement is small, toggle UI in center.
 							try {
 								if (!state.startedOnInteractive) {
 									try {
 										var __topWinTapSearch1 = (win && win.parent) ? win.parent : window;
-										if (isBlockingSearchUi(__topWinTapSearch1)) {
+										if (__topWinTapSearch1 && __topWinTapSearch1.document && __topWinTapSearch1.document.body && __topWinTapSearch1.document.body.classList.contains("search-open")) {
 											resetTransform();
 											return;
 										}
@@ -5638,10 +5557,8 @@ function attachSwipeToDoc(doc) {
 									}
 									var inCenter2 = (effectiveTapZone2 === "center");
 									var slop = Math.max(35, wTap2 * 0.04); // 4% width, min 35px
-									var mouseMobileTap2 = (state.gestureType === "mouse" && isMobileUi((win && win.parent) ? win.parent : window));
-									var edgeTapAllowed2 = !mouseMobileTap2;
 									if (dtTap2 < 900 && Math.abs(dx) < slop && Math.abs(dy) < 35) {
-											if ((effectiveTapZone2 === "left" || effectiveTapZone2 === "right") && edgeTapAllowed2) {
+											if (effectiveTapZone2 === "left" || effectiveTapZone2 === "right") {
 												commitTapTurn(effectiveTapZone2 === "right");
 												if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
 												if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
@@ -5694,7 +5611,7 @@ function attachSwipeToDoc(doc) {
 						if (state.pointerActive) return;
 						if (!ev.touches || ev.touches.length !== 1) return;
 						var t = ev.touches[0];
-						onStart(t.clientX, t.clientY, ev.target, "touch");
+						onStart(t.clientX, t.clientY, ev.target);
 					} catch (e) {}
 				}
 				function _onTouchMove(ev){
@@ -5714,175 +5631,59 @@ function attachSwipeToDoc(doc) {
 					} catch (e) { try { resetTransform(); } catch(e2){} }
 				}
 
-				function toLocalTopMouse(ev) {
+				// Capture touch inside the iframe (doesn't bubble to parent)
+				doc.addEventListener("touchstart", _onTouchStart, { passive: true, capture: true });
+				doc.addEventListener("touchmove", _onTouchMove, { passive: false, capture: true });
+				// passive:false so we can reliably preventDefault on iOS/Android when committing the swipe
+				doc.addEventListener("touchend", _onTouchEnd, { passive: false, capture: true });
+				doc.addEventListener("touchcancel", function(){
 					try {
-						var fr = win && win.frameElement && win.frameElement.getBoundingClientRect ? win.frameElement.getBoundingClientRect() : null;
-						if (fr) {
-							return {
-								x: ev.clientX - fr.left,
-								y: ev.clientY - fr.top
-							};
-						}
-					} catch (e) {}
-					return { x: ev.clientX, y: ev.clientY };
-				}
-
-				function detachTopMouseBridge() {
-					try {
-						var topWin = (win && win.parent) ? win.parent : window;
-						var topDoc = topWin && topWin.document;
-						if (topDoc && state._topMouseMove) topDoc.removeEventListener("mousemove", state._topMouseMove, true);
-						if (topDoc && state._topMouseUp) topDoc.removeEventListener("mouseup", state._topMouseUp, true);
-					} catch (e) {}
-					state._topMouseMove = null;
-					state._topMouseUp = null;
-				}
-
-				if (!compatOuterMouseDoc) {
-					// Capture touch inside the iframe (doesn't bubble to parent)
-					doc.addEventListener("touchstart", _onTouchStart, { passive: true, capture: true });
-					doc.addEventListener("touchmove", _onTouchMove, { passive: false, capture: true });
-					// passive:false so we can reliably preventDefault on iOS/Android when committing the swipe
-					doc.addEventListener("touchend", _onTouchEnd, { passive: false, capture: true });
-					doc.addEventListener("touchcancel", function(){
-						try {
-							clearSelectionTimer();
-							state.selectionUnlocked = false;
-							unlockSwipeSelection();
-							resetTransform();
-						} catch(e){}
-					}, { passive: true, capture: true });
-					// Pointer events fallback (some tablets only dispatch pointer events)
-					if (win && win.PointerEvent) {
-						doc.addEventListener("pointerdown", function(ev){
-							try {
-								var allowMouseCompat = false;
-								try { allowMouseCompat = (ev && ev.pointerType === "mouse" && isMobileUi((win && win.parent) ? win.parent : window)); } catch (eCompatMouse) {}
-								if (!ev || (ev.pointerType !== "touch" && !allowMouseCompat)) return;
-								state.pointerActive = true;
-								state.pointerId = ev.pointerId;
-								onStart(ev.clientX, ev.clientY, ev.target, ev.pointerType || "pointer");
-							} catch (e) {}
-						}, { passive: true, capture: true });
-						doc.addEventListener("pointermove", function(ev){
-							try {
-								if (!state.pointerActive || ev.pointerId !== state.pointerId) return;
-								onMove(ev, ev.clientX, ev.clientY);
-							} catch (e) {}
-						}, { passive: false, capture: true });
-						doc.addEventListener("pointerup", function(ev){
-							try {
-								if (!state.pointerActive || ev.pointerId !== state.pointerId) return;
-								state.pointerActive = false;
-								state.pointerId = null;
-								onEnd(ev, ev.clientX, ev.clientY);
-							} catch (e) { try { resetTransform(); } catch(e2){} }
-						}, { passive: false, capture: true });
-						doc.addEventListener("pointercancel", function(ev){
-							try {
-								if (state.pointerId !== null && ev && ev.pointerId !== state.pointerId) return;
-								state.pointerActive = false;
-								state.pointerId = null;
-							} catch (e) {}
-							try {
-								clearSelectionTimer();
-								state.selectionUnlocked = false;
-								unlockSwipeSelection();
-							} catch (e1) {}
-							try { resetTransform(); } catch(e2){}
-						}, { passive: true, capture: true });
-					}
-				}
-				doc.addEventListener("mousedown", function(ev){
-					try {
-						var topWinMouse = (win && win.parent) ? win.parent : window;
-						if (!ev || !isMobileUi(topWinMouse)) return;
-						if (state.pointerActive) return;
-						if (ev.button !== 0) return;
-						if (compatOuterMouseDoc) {
-							try {
-								if (ev.target && ev.target.closest && ev.target.closest("#titlebar,#bottombar,#searchbar,#selectionToolbar,#overlay-backdrop,#overlay-library,#overlay-settings,button,input,textarea,select,label,a")) return;
-							} catch (_compatChromeHitError) {}
-							try {
-								var stackRect = stack && stack.getBoundingClientRect ? stack.getBoundingClientRect() : null;
-								if (stackRect && (ev.clientX < stackRect.left || ev.clientX > stackRect.right || ev.clientY < stackRect.top || ev.clientY > stackRect.bottom)) return;
-							} catch (_compatStackRectError) {}
-						}
-						state.mouseActive = true;
-						detachTopMouseBridge();
-						try {
-							var topDoc = topWinMouse && topWinMouse.document;
-							if (topDoc) {
-								state._topMouseMove = function(topEv){
-									try {
-										if (!state.mouseActive) return;
-										var pt = toLocalTopMouse(topEv);
-										onMove(topEv, pt.x, pt.y);
-									} catch (e) {}
-								};
-								state._topMouseUp = function(topEv){
-									try {
-										if (!state.mouseActive) return;
-										state.mouseActive = false;
-										var pt = toLocalTopMouse(topEv);
-										onEnd(topEv, pt.x, pt.y);
-									} catch (e) { try { resetTransform(); } catch(e2){} }
-									detachTopMouseBridge();
-								};
-								topDoc.addEventListener("mousemove", state._topMouseMove, true);
-								topDoc.addEventListener("mouseup", state._topMouseUp, true);
-							}
-						} catch (eTopMouse) {}
-						onStart(ev.clientX, ev.clientY, ev.target, "mouse");
-						if (ev.preventDefault) ev.preventDefault();
-						if (ev.stopPropagation) ev.stopPropagation();
-					} catch (e) {}
-				}, { passive: false, capture: true });
-				doc.addEventListener("mousemove", function(ev){
-					try {
-						if (!state.mouseActive) return;
-						onMove(ev, ev.clientX, ev.clientY);
-					} catch (e) {}
-				}, { passive: false, capture: true });
-				doc.addEventListener("mouseup", function(ev){
-					try {
-						if (!state.mouseActive) return;
-						state.mouseActive = false;
-						onEnd(ev, ev.clientX, ev.clientY);
-					} catch (e) { try { resetTransform(); } catch(e2){} }
-					detachTopMouseBridge();
-				}, { passive: false, capture: true });
-				doc.addEventListener("mouseleave", function(){
-					try {
-						if (!state.mouseActive) return;
-						state.mouseActive = false;
 						clearSelectionTimer();
 						state.selectionUnlocked = false;
 						unlockSwipeSelection();
 						resetTransform();
-					} catch (e) {}
-					detachTopMouseBridge();
+					} catch(e){}
 				}, { passive: true, capture: true });
+				// Pointer events fallback (some tablets only dispatch pointer events)
+				if (win && win.PointerEvent) {
+					doc.addEventListener("pointerdown", function(ev){
+						try {
+							if (!ev || ev.pointerType !== "touch") return;
+							state.pointerActive = true;
+							state.pointerId = ev.pointerId;
+							onStart(ev.clientX, ev.clientY, ev.target);
+						} catch (e) {}
+					}, { passive: true, capture: true });
+					doc.addEventListener("pointermove", function(ev){
+						try {
+							if (!state.pointerActive || ev.pointerId !== state.pointerId) return;
+							onMove(ev, ev.clientX, ev.clientY);
+						} catch (e) {}
+					}, { passive: false, capture: true });
+					doc.addEventListener("pointerup", function(ev){
+						try {
+							if (!state.pointerActive || ev.pointerId !== state.pointerId) return;
+							state.pointerActive = false;
+							state.pointerId = null;
+							onEnd(ev, ev.clientX, ev.clientY);
+						} catch (e) { try { resetTransform(); } catch(e2){} }
+					}, { passive: false, capture: true });
+					doc.addEventListener("pointercancel", function(ev){
+						try {
+							if (state.pointerId !== null && ev && ev.pointerId !== state.pointerId) return;
+							state.pointerActive = false;
+							state.pointerId = null;
+						} catch (e) {}
+						try {
+							clearSelectionTimer();
+							state.selectionUnlocked = false;
+							unlockSwipeSelection();
+						} catch (e1) {}
+						try { resetTransform(); } catch(e2){}
+					}, { passive: true, capture: true });
+				}
 			} catch (e) {}
 		}
-
-		function attachReaderNewCompatOuterSwipeDoc() {
-			try {
-				if (!isReaderNewCompatGapMode()) return;
-				var fine = !!(window.matchMedia && window.matchMedia("(pointer: fine)").matches);
-				var narrow = Math.max(
-					window.innerWidth || 0,
-					(window.visualViewport && window.visualViewport.width) || 0
-				) <= 1024;
-				if (!fine || !narrow) return;
-				attachSwipeToDoc(document);
-			} catch (eOuterSwipe) {}
-		}
-		try {
-			window.__fbAttachOuterSwipeToDoc = function () {
-				try { attachReaderNewCompatOuterSwipeDoc(); } catch (eExposeOuterSwipe) {}
-			};
-		} catch (eExposeOuterSwipeInit) {}
 
 		// Pre-render neighbor pages (prev + next) into the always-mounted renditions.
 		// This is what makes the swipe reveal stable and identical on iOS + Android.
@@ -5946,7 +5747,6 @@ function attachSwipeToDoc(doc) {
 
 try { rendition.hooks.content.register(function(contents){ primeThemeForContents(contents, reader.currentTheme || "light"); }); } catch (e) {}
 try { rendition.hooks.content.register(attachToDoc); } catch (e) {}
-try { attachReaderNewCompatOuterSwipeDoc(); } catch (eOuterInit) {}
 
 // CRITICAL: Attach swipe/tap handlers via epub.js content hooks as well.
 // Relying on rendition.on("rendered", ...) to supply `view.document` is not

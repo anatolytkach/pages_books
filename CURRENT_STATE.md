@@ -21,6 +21,7 @@
 - `reader1` shell icon assets used by the top-bar unified shell are now served from `reader1/icons/`, so cloud preview does not depend on `reader_render_v3` asset paths for those controls.
 - `reader1` selection actions now use a horizontal icon-only toolbar; `Translate` opens external Google Translate instead of an internal translation sub-toolbar.
 - `reader1` TTS now defaults the language picker from book metadata, keeps the language list alphabetized, and skips forward when the current page has no readable text.
+- `reader1` touch page-turn behavior depends on the production-style `reader.js` gesture pipeline, and the outer `fb-tap-layer` must remain non-interactive by default; enabling pointer events on its left/center/right zones breaks swipe/drag on phones and tablets.
 
 ## How To Use This File
 

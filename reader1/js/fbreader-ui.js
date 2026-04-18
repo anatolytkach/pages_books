@@ -620,11 +620,6 @@
     layer.appendChild(right);
     if (!host) host = viewer.parentNode || document.body || viewer;
     host.appendChild(layer);
-    try {
-      left.style.pointerEvents = "auto";
-      center.style.pointerEvents = "auto";
-      right.style.pointerEvents = "auto";
-    } catch (eInitPe) {}
 
     var moved = false;
     var sx = 0,
