@@ -205,6 +205,10 @@ function resolveSupportedFontMode(value, summary = HOST_STATE.lastSummary, fallb
 
 function isTouchShellMode() {
   try {
+    const root = document.documentElement;
+    if (root && root.classList && root.classList.contains("is-desktop")) return false;
+  } catch (_error) {}
+  try {
     if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
   } catch (_error) {}
   try {
@@ -213,13 +217,6 @@ function isTouchShellMode() {
   try {
     const ua = String((navigator && navigator.userAgent) || "");
     if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) return true;
-  } catch (_error) {}
-  try {
-    const vw = Math.max(
-      Number(window.innerWidth || 0),
-      Number((document.documentElement && document.documentElement.clientWidth) || 0)
-    );
-    if (vw && vw <= 1024) return true;
   } catch (_error) {}
   return false;
 }
