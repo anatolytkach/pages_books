@@ -237,12 +237,28 @@ function showShellUi(source = "programmatic") {
   }
 }
 
+function desktopSearchLocksShellUi() {
+  if (isTouchShellMode()) return false;
+  try {
+    const wrap = document.getElementById("protectedSearchControl");
+    if (wrap && wrap.classList.contains("is-open")) return true;
+  } catch (_error) {}
+  try {
+    const active = document.activeElement;
+    if (active && active.id === "searchInputDesktop") return true;
+  } catch (_error) {}
+  return false;
+}
+
 function hideShellUi(source = "programmatic") {
   if (
     source !== "touch-center" &&
     isTouchShellMode() &&
     Date.now() < Number(HOST_STATE.suppressTouchAutoHideUntil || 0)
   ) {
+    return;
+  }
+  if (desktopSearchLocksShellUi()) {
     return;
   }
   try {
@@ -270,6 +286,12 @@ function installTouchUiVisibilityGuard() {
   HOST_STATE.touchUiGuardInstalled = true;
   if (!window.MutationObserver || !document.body) return;
   const observer = new MutationObserver(() => {
+    if (desktopSearchLocksShellUi()) {
+      if (document.body.classList.contains("ui-hidden")) {
+        document.body.classList.remove("ui-hidden");
+      }
+      return;
+    }
     if (!isTouchShellMode()) return;
     if (Date.now() >= Number(HOST_STATE.suppressTouchAutoHideUntil || 0)) return;
     if (!document.body.classList.contains("ui-hidden")) return;
@@ -1610,6 +1632,7 @@ function installStyles() {
       display: none !important;
     }
     body.protected-old-shell #searchFloatControls {
+      display: none !important;
       gap: 4px;
       padding: 8px 10px;
       border-radius: 10px;
@@ -3779,7 +3802,7 @@ function updateSearchControls(summary) {
   if (desktopCount) desktopCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
   if (mobileCount) mobileCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
   if (desktopNav) desktopNav.style.display = search.active && search.totalMatches ? "inline-flex" : "none";
-  if (mobileFloat) mobileFloat.classList.toggle("hidden", !(search.active && search.totalMatches));
+  if (mobileFloat) mobileFloat.classList.add("hidden");
   if (desktopAction) {
     desktopAction.classList.toggle("is-clear", !!search.active);
     desktopAction.classList.toggle("is-mag", !search.active);
@@ -7308,6 +7331,9 @@ function bindShellControls() {
       document.body.classList.add("search-open");
       document.body.classList.add("search-minimized");
       hideShellUi("search-submit-touch");
+    } else {
+      document.body.classList.remove("search-minimized");
+      showShellUi("search-submit-desktop");
     }
   }
   async function clearSearch({ preserveOrigin = false } = {}) {
