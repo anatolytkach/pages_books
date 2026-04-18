@@ -13,6 +13,7 @@
 - `reader_render_v3/package.json` now exposes fast `ui:smoke*` local checks for `reader_new` protected old-shell UI flows, and the host publishes `window.__READERPUB_READER_NEW_UI_STATE__` as the smoke-readiness marker used by those checks.
 - `reader_new` protected old-shell boot now waits for persisted resume restoration before the first visible protected snapshot, so users should not see a default-start page flash before jumping to their saved position; the shell must stay hidden after boot until the user explicitly taps/clicks the reading surface center.
 - protected `reader_new` reading-state persistence now stores a text-anchor resume hint in addition to the restore token: plain reading restores by the saved visible-page midpoint, while active selection/focused-note flows restore by that anchor text so reopening after a viewport resize stays on the same text slice instead of drifting to a chapter/page start.
+- protected `reader_new` bootstrap must read initial typography from the same book-scoped old-shell localStorage keys that the settings UI writes, so reload starts with the user’s persisted font scale/mode instead of first painting with a default and then resyncing.
 - local `wrangler pages dev` fallback now proxies `/books/api/*`, `/books/content/*`, and `/books/protected-content/*` to `https://reader.pub` when the local worker has no R2 binding, so the local catalog and protected-reader checks can run against Cloudflare-backed book data.
 
 ## Known Transitional Reality

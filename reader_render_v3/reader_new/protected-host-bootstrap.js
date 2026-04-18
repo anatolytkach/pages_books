@@ -11,7 +11,23 @@ function normalizeFontMode(value) {
   return String(value || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
 }
 
-function getInitialFontModeFromEnvironment() {
+function getLegacyFontModeStorageKey() {
+  return "reader_new:protected-font-mode";
+}
+
+function getLegacyFontScaleStorageKey() {
+  return "reader_new:protected-font-scale";
+}
+
+function getBookScopedFontModeStorageKey(bookId = "") {
+  return `readerpub:protected-old-shell:font-mode:${String(bookId || "").trim()}`;
+}
+
+function getBookScopedFontScaleStorageKey(bookId = "") {
+  return `readerpub:protected-old-shell:font-scale:${String(bookId || "").trim()}`;
+}
+
+function getInitialFontModeFromEnvironment(bookId = "") {
   try {
     const url = new URL(window.location.href);
     const explicit = url.searchParams.get("protectedFontMode") || url.searchParams.get("fontMode");
@@ -21,13 +37,24 @@ function getInitialFontModeFromEnvironment() {
   } catch (_error) {
   }
   try {
-    return normalizeFontMode(window.localStorage.getItem("reader_new:protected-font-mode"));
+    const scopedBookId = String(bookId || "").trim();
+    const scoped =
+      scopedBookId
+        ? window.localStorage.getItem(getBookScopedFontModeStorageKey(scopedBookId))
+        : "";
+    if (scoped != null && String(scoped).trim()) {
+      return normalizeFontMode(scoped);
+    }
+  } catch (_error) {
+  }
+  try {
+    return normalizeFontMode(window.localStorage.getItem(getLegacyFontModeStorageKey()));
   } catch (_error) {
   }
   return "sans";
 }
 
-function getInitialFontScaleFromEnvironment() {
+function getInitialFontScaleFromEnvironment(bookId = "") {
   try {
     const url = new URL(window.location.href);
     const explicit = Number(url.searchParams.get("protectedFontScale") || "");
@@ -37,7 +64,19 @@ function getInitialFontScaleFromEnvironment() {
   } catch (_error) {
   }
   try {
-    const stored = Number(window.localStorage.getItem("reader_new:protected-font-scale") || "");
+    const scopedBookId = String(bookId || "").trim();
+    const raw =
+      scopedBookId
+        ? window.localStorage.getItem(getBookScopedFontScaleStorageKey(scopedBookId))
+        : "";
+    const stored = Number(raw || "");
+    if (Number.isFinite(stored) && stored > 0) {
+      return Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2))));
+    }
+  } catch (_error) {
+  }
+  try {
+    const stored = Number(window.localStorage.getItem(getLegacyFontScaleStorageKey()) || "");
     if (Number.isFinite(stored) && stored > 0) {
       return Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2))));
     }
@@ -118,8 +157,8 @@ export async function bootstrapProtectedReaderIntegration() {
     driveMode: route.driveMode,
     compatTransport: route.compatTransport,
     automationSafe: !!route.automationSafe,
-    fontMode: getInitialFontModeFromEnvironment(),
-    fontScale: getInitialFontScaleFromEnvironment(),
+    fontMode: getInitialFontModeFromEnvironment(route.bookId),
+    fontScale: getInitialFontScaleFromEnvironment(route.bookId),
     readerNewRoute: route,
     shareState: route.shareState,
     compatImportPayload: null,
