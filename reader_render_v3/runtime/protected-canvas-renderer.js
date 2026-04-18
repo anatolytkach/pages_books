@@ -18,13 +18,6 @@ function drawHighlightRect(ctx, rect) {
   const y = rect.y + 2;
   const width = rect.width;
   const height = Math.max(12, rect.height - 4);
-  const radius = Math.min(6, Math.max(2, Math.floor(height / 3)));
-  if (typeof ctx.roundRect === "function") {
-    ctx.beginPath();
-    ctx.roundRect(x, y, width, height, radius);
-    ctx.fill();
-    return;
-  }
   ctx.fillRect(x, y, width, height);
 }
 
@@ -90,6 +83,21 @@ export function renderChunkToCanvas({
   ctx.fillRect(0, 0, layout.width, viewportHeight);
   ctx.save();
   ctx.translate(0, translateY);
+  ctx.fillStyle = currentTheme === "dark"
+    ? "rgba(0, 130, 116, 0.72)"
+    : "rgba(165, 244, 236, 0.72)";
+  for (const rect of annotationHighlights) {
+    drawHighlightRect(ctx, rect);
+  }
+  for (const rect of searchHighlights || []) {
+    drawHighlightRect(ctx, rect);
+  }
+  for (const span of selectionHighlights || []) {
+    drawHighlightRect(ctx, span);
+  }
+  for (const rect of focusHighlights || []) {
+    drawHighlightRect(ctx, rect);
+  }
 
   if (renderMode !== "shape") {
     throw new Error("Protected render packets must stay shape-only in main thread.");
@@ -125,26 +133,6 @@ export function renderChunkToCanvas({
   overlay.clearRect(0, 0, layout.width, viewportHeight);
   overlay.save();
   overlay.translate(0, translateY);
-  overlay.fillStyle = "rgba(243, 221, 111, 0.34)";
-  for (const rect of annotationHighlights) {
-    drawHighlightRect(overlay, rect);
-  }
-
-  overlay.fillStyle = "rgba(97, 194, 250, 0.36)";
-  for (const rect of searchHighlights || []) {
-    drawHighlightRect(overlay, rect);
-  }
-
-  overlay.fillStyle = "rgba(148, 154, 165, 0.24)";
-  for (const span of selectionHighlights || []) {
-    drawHighlightRect(overlay, span);
-  }
-
-  overlay.fillStyle = "rgba(59, 168, 255, 0.46)";
-  for (const rect of focusHighlights || []) {
-    drawHighlightRect(overlay, rect);
-  }
-
   if (debugGeometry) {
     overlay.strokeStyle = "rgba(68, 102, 140, 0.28)";
     overlay.lineWidth = 1;

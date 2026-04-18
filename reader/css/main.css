@@ -1871,32 +1871,34 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
 
 /* Selection toolbar (FBReader-like) */
 .selection-toolbar{
+  --selection-toolbar-icon-visual-height: 19.4px;
   position: fixed;
   z-index: 10050;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 6px 8px;
+  flex-direction: row;
+  gap: 4px;
+  padding: 4px;
   background: var(--fbbar-bg);
   color: var(--fbbar-fg);
   border: 1px solid var(--fbbar-border);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: 0 6px 16px rgba(0,0,0,.18);
-  align-items: stretch;
+  align-items: center;
 }
 .selection-toolbar.hidden{ display: none; }
 .selection-toolbar .sel-btn{
-  width: auto;
-  height: auto;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   background: transparent;
   border: 0;
   color: inherit;
   cursor: pointer;
-  padding: 5px 6px;
-  gap: 10px;
+  padding: 0;
+  gap: 0;
+  border-radius: 8px;
 }
 .selection-toolbar .sel-icon{
   width: 26px;
@@ -1907,8 +1909,10 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
   flex: 0 0 26px;
 }
 .selection-toolbar .sel-btn svg{
-  width: 24px;
-  height: 24px;
+  width: auto;
+  height: var(--selection-toolbar-icon-visual-height);
+  max-width: none;
+  display: block;
   stroke: currentColor;
   fill: none;
   stroke-width: 1.6;
@@ -1916,13 +1920,12 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
   stroke-linejoin: round;
 }
 .selection-toolbar .sel-label{
-  font-size: 17px;
-  line-height: 1.2;
-  white-space: nowrap;
+  display: none;
 }
-.selection-toolbar .sel-note .sel-icon svg{
-  transform: scale(0.7);
-  transform-origin: center;
+.selection-toolbar .sel-btn:hover,
+.selection-toolbar .sel-btn:focus-visible{
+  background: rgba(255,255,255,0.08);
+  outline: none;
 }
 
 #selectionDismiss{
@@ -2117,17 +2120,21 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
 }
 
 @media (hover: none) and (pointer: coarse){
+  .selection-toolbar{
+    --selection-toolbar-icon-visual-height: 23.5px;
+  }
+  .selection-toolbar{
+    gap: 3px;
+    padding: 4px;
+  }
+  .selection-toolbar .sel-btn{
+    width: 46px;
+    height: 46px;
+  }
   .selection-toolbar .sel-icon{
     width: 32px;
     height: 32px;
     flex: 0 0 32px;
-  }
-  .selection-toolbar .sel-btn svg{
-    width: 29px;
-    height: 29px;
-  }
-  .selection-toolbar .sel-label{
-    font-size: 21px;
   }
   .selection-translate{
     align-items: flex-end;
@@ -2154,10 +2161,14 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
     align-items: stretch;
   }
 }
-@media (hover: hover) and (pointer: fine){
-  .selection-toolbar .sel-share{ display: none; }
+.selection-toolbar .sel-share{ display: none; }
+html.is-phone .selection-toolbar .sel-share,
+html.is-tablet .selection-toolbar .sel-share{
+  display: flex;
 }
-html.is-desktop .selection-toolbar .sel-share{ display: none; }
+@media (hover: none) and (pointer: coarse){
+  .selection-toolbar .sel-share{ display: flex; }
+}
 
 
 /* Font size controls (no color changes)

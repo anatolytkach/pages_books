@@ -1930,6 +1930,42 @@ function schedulePointerMove(point) {
   });
 }
 
+function scheduleWordSelectionLongPress(gesture, startPoint, pointerType) {
+  if (!gesture || !startPoint) return;
+  gesture.longPressTimer = window.setTimeout(() => {
+    const activeGesture = state.pointerGesture;
+    if (!activeGesture.active || activeGesture !== gesture) return;
+    if (activeGesture.moved || activeGesture.selectionStarted) return;
+    if (String(activeGesture.pointerType || "") !== String(pointerType || "")) return;
+    activeGesture.longPressTimer = null;
+    activeGesture.selectionStarted = true;
+    if (pointerType === "touch") {
+      activeGesture.touchSelectionPending = false;
+      activeGesture.touchSelectionActive = true;
+      activeGesture.touchSelectionClaimed = true;
+      recordPointerDebug("touch:longpress-fired", {
+        startCanvasPoint: activeGesture.startCanvasPoint
+      });
+      syncTouchSelectionState();
+    } else {
+      recordPointerDebug("mouse:longpress-fired", {
+        startCanvasPoint: activeGesture.startCanvasPoint
+      });
+    }
+    enqueuePointerRequest(async () => {
+      const snapshot = await selectWordAt(startPoint);
+      recordPointerDebug(`${pointerType}:select-word-result`, {
+        selectionActive: !!(snapshot && snapshot.selectionActive),
+        selectedChars: Number(snapshot && snapshot.selectedChars || 0),
+        selectionBounds: snapshot && snapshot.selectionBounds ? snapshot.selectionBounds : null
+      });
+    }).catch((error) => {
+      console.error(error);
+      setStatus(error.message || String(error), "error");
+    });
+  }, 500);
+}
+
 function handlePointerDown(event) {
   if (!state.currentSnapshot) {
     recordPointerDebug("pointerdown:ignored-no-snapshot", {
@@ -1953,7 +1989,7 @@ function handlePointerDown(event) {
   }
   state.pointerGesture = {
     active: true,
-    selectionStarted: event.pointerType !== "touch",
+    selectionStarted: false,
     pointerId: event.pointerId ?? "mouse",
     pointerType: event.pointerType || "mouse",
     inputSource: String(event.__protectedInputSource || (event.pointerType || "mouse")),
@@ -1979,31 +2015,11 @@ function handlePointerDown(event) {
   syncTouchSelectionState();
   const startPoint = state.pointerGesture.startCanvasPoint;
   if (event.pointerType === "touch") {
-    state.pointerGesture.longPressTimer = window.setTimeout(() => {
-      const gesture = state.pointerGesture;
-      if (!gesture.active || gesture.pointerType !== "touch" || gesture.moved || gesture.selectionStarted) return;
-      gesture.longPressTimer = null;
-      gesture.selectionStarted = true;
-      gesture.touchSelectionPending = false;
-      gesture.touchSelectionActive = true;
-      gesture.touchSelectionClaimed = true;
-      recordPointerDebug("touch:longpress-fired", {
-        startCanvasPoint: gesture.startCanvasPoint
-      });
-      syncTouchSelectionState();
-      enqueuePointerRequest(async () => {
-        const snapshot = await selectWordAt(startPoint);
-        recordPointerDebug("touch:select-word-result", {
-          selectionActive: !!(snapshot && snapshot.selectionActive),
-          selectedChars: Number(snapshot && snapshot.selectedChars || 0),
-          selectionBounds: snapshot && snapshot.selectionBounds ? snapshot.selectionBounds : null
-        });
-      }).catch((error) => {
-        console.error(error);
-        setStatus(error.message || String(error), "error");
-      });
-    }, 500);
+    scheduleWordSelectionLongPress(state.pointerGesture, startPoint, "touch");
     return;
+  }
+  if (event.pointerType === "mouse") {
+    scheduleWordSelectionLongPress(state.pointerGesture, startPoint, "mouse");
   }
   enqueuePointerRequest(async () => {
     await requestAndApply("pointerDown", {
@@ -2042,6 +2058,20 @@ function handlePointerMove(event) {
       syncTouchSelectionState();
     }
     return;
+  }
+  if (gesture.pointerType === "mouse" && !gesture.selectionStarted) {
+    if (deltaX > 6 || deltaY > 6) {
+      if (gesture.longPressTimer) {
+        try {
+          window.clearTimeout(gesture.longPressTimer);
+        } catch (_error) {}
+        gesture.longPressTimer = null;
+      }
+      recordPointerDebug("mouse:longpress-cancelled-by-move", {
+        deltaX,
+        deltaY
+      });
+    }
   }
   event.preventDefault();
   schedulePointerMove(point);
