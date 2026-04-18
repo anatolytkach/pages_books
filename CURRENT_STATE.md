@@ -22,6 +22,7 @@
 - `reader1` selection actions now use a horizontal icon-only toolbar; `Translate` opens external Google Translate instead of an internal translation sub-toolbar.
 - `reader1` TTS now defaults the language picker from book metadata, keeps the language list alphabetized, and skips forward when the current page has no readable text.
 - `reader1` touch page-turn behavior depends on the production-style `reader.js` gesture pipeline, and the outer `fb-tap-layer` must remain non-interactive by default; enabling pointer events on its left/center/right zones breaks swipe/drag on phones and tablets.
+- `reader1` paginated mobile layout depends on the legacy `epub.js` body padding baseline of `20px` top/bottom; increasing that internal padding inflates visible vertical page margins even when the shell bars are overlayed and hidden.
 
 ## How To Use This File
 
