@@ -4375,6 +4375,10 @@
       var tbH = toolbar.offsetHeight || 0;
       var margin = 8;
       var gap = 8;
+      var viewportLeft = 0;
+      var viewportTop = 0;
+      var viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+      var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
       var topBar = 0;
       var bottomBar = 0;
       try {
@@ -4392,17 +4396,33 @@
           topBar = (document.getElementById("searchbar") || {}).offsetHeight || topBar || 0;
         }
       } catch (eUiState) {}
+      var isTouchLike = false;
+      try {
+        isTouchLike = !!(
+          (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) ||
+          (navigator && navigator.maxTouchPoints > 0)
+        );
+      } catch (eTouchLike) {}
+      try {
+        var vv = window.visualViewport;
+        if (isTouchLike && vv && vv.width && vv.height) {
+          viewportLeft = Math.max(0, vv.offsetLeft || 0);
+          viewportTop = Math.max(0, vv.offsetTop || 0);
+          viewportWidth = vv.width;
+          viewportHeight = vv.height;
+        }
+      } catch (eViewport) {}
       var boundsPrimary = {
-        left: margin,
-        right: Math.max(margin, window.innerWidth - margin),
-        top: Math.max(margin, topBar + margin),
-        bottom: Math.max(margin, window.innerHeight - bottomBar - margin)
+        left: viewportLeft + margin,
+        right: Math.max(viewportLeft + margin, viewportLeft + viewportWidth - margin),
+        top: Math.max(viewportTop + margin, viewportTop + topBar + margin),
+        bottom: Math.max(viewportTop + margin, viewportTop + viewportHeight - bottomBar - margin)
       };
       var boundsFallback = {
-        left: margin,
-        right: Math.max(margin, window.innerWidth - margin),
-        top: margin,
-        bottom: Math.max(margin, window.innerHeight - margin)
+        left: viewportLeft + margin,
+        right: Math.max(viewportLeft + margin, viewportLeft + viewportWidth - margin),
+        top: viewportTop + margin,
+        bottom: Math.max(viewportTop + margin, viewportTop + viewportHeight - margin)
       };
 
       function pickPosition(bounds) {
@@ -4428,14 +4448,6 @@
           var dy = Math.max(0, selTop - (y + tbH), y - selBottom);
           candidates.push({ x: x, y: y, d: dx + dy });
         }
-
-        var isTouchLike = false;
-        try {
-          isTouchLike = !!(
-            (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) ||
-            (navigator && navigator.maxTouchPoints > 0)
-          );
-        } catch (eTouchPos) {}
 
         if (isTouchLike) {
           addCandidate(selCenterX - tbW / 2, selTop - tbH - gap);
