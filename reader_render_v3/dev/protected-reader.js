@@ -1107,12 +1107,41 @@ async function restoreReadingStateIfAvailable(bookId) {
     state.readingStateRestoreApplied = true;
     state.persistedReadingState = readingState;
     state.lastReadingStateSaveAt = readingState.updatedAt || null;
+    const parsed = parseRestoreToken(readingState.restoreToken);
+    const targetGlobalOffset = Number.isFinite(Number(readingState.resumeAnchorGlobalOffset))
+      ? Number(readingState.resumeAnchorGlobalOffset)
+      : Number(parsed && parsed.position && parsed.position.globalOffset);
+    const targetChunkOrder = Number.isFinite(Number(readingState && readingState.globalPosition && readingState.globalPosition.chunkOrder))
+      ? Number(readingState.globalPosition.chunkOrder)
+      : Number.isFinite(Number(parsed && parsed.position && parsed.position.chunkOrder))
+        ? Number(parsed.position.chunkOrder)
+        : null;
+    const useVisibleRangeHint = String(readingState.resumeAnchorSource || "") === "page-midpoint";
     return {
-      snapshot: await state.workerClient.restoreFromToken({
-        token: readingState.restoreToken,
-        ...getViewportConfig(),
-        annotations: getCurrentAnnotations()
-      }),
+      snapshot: Number.isFinite(targetGlobalOffset)
+        ? await state.workerClient.goToChunk({
+            chunkIndex: Number.isFinite(targetChunkOrder) ? Math.max(0, Math.floor(targetChunkOrder)) : 0,
+            globalOffset: targetGlobalOffset,
+            preferredGlobalStartOffset:
+              useVisibleRangeHint &&
+              readingState.visibleRange &&
+              Number.isFinite(Number(readingState.visibleRange.globalStartOffset))
+                ? Number(readingState.visibleRange.globalStartOffset)
+                : null,
+            preferredGlobalEndOffset:
+              useVisibleRangeHint &&
+              readingState.visibleRange &&
+              Number.isFinite(Number(readingState.visibleRange.globalEndOffset))
+                ? Number(readingState.visibleRange.globalEndOffset)
+                : null,
+            ...getViewportConfig(),
+            annotations: getCurrentAnnotations()
+          })
+        : await state.workerClient.restoreFromToken({
+            token: readingState.restoreToken,
+            ...getViewportConfig(),
+            annotations: getCurrentAnnotations()
+          }),
       source: "protected-persisted",
       readingState
     };
@@ -1493,10 +1522,43 @@ function applySnapshot(snapshot) {
 async function persistReadingStateFromSnapshot(snapshot) {
   if (!state.annotationRepository || !snapshot || !snapshot.restoreToken || !state.bookSummary) return;
   const parsed = parseRestoreToken(snapshot.restoreToken);
+  const pageSummary = snapshot.pageSummary && typeof snapshot.pageSummary === "object"
+    ? snapshot.pageSummary
+    : {};
+  const focusSummary = snapshot.runtimeMeta && snapshot.runtimeMeta.focusSummary && typeof snapshot.runtimeMeta.focusSummary === "object"
+    ? snapshot.runtimeMeta.focusSummary
+    : {};
+  const focusedAnnotation = focusSummary.annotationId && state.annotationStore
+    ? state.annotationStore.get(focusSummary.annotationId)
+    : null;
+  const selectionRange = snapshot.rangeDescriptor && snapshot.rangeDescriptor.start
+    ? snapshot.rangeDescriptor
+    : null;
+  const pageStartOffset = Number(pageSummary.globalStartOffset || (parsed.position && parsed.position.globalOffset) || 0);
+  const pageEndOffset = Number(pageSummary.globalEndOffset || pageStartOffset || 0);
+  const midpointOffset = pageEndOffset > pageStartOffset
+    ? Math.round(pageStartOffset + ((pageEndOffset - pageStartOffset) / 2))
+    : pageStartOffset;
+  const resumeAnchorGlobalOffset = focusedAnnotation && focusedAnnotation.rangeDescriptor && focusedAnnotation.rangeDescriptor.start
+    ? Number(focusedAnnotation.rangeDescriptor.start.globalOffset || midpointOffset || 0)
+    : selectionRange
+      ? Number(selectionRange.start.globalOffset || midpointOffset || 0)
+      : midpointOffset;
+  const resumeAnchorSource = focusedAnnotation && focusedAnnotation.annotationId
+    ? "focused-annotation"
+    : selectionRange
+      ? "selection-start"
+      : "page-midpoint";
   const previous = await state.annotationRepository.loadReadingState(state.bookSummary.bookId);
   const nextState = await state.annotationRepository.saveReadingState(state.bookSummary.bookId, {
     restoreToken: snapshot.restoreToken,
     globalPosition: parsed.position || null,
+    visibleRange: {
+      globalStartOffset: pageStartOffset,
+      globalEndOffset: pageEndOffset
+    },
+    resumeAnchorGlobalOffset,
+    resumeAnchorSource,
     page: {
       pageIndex: parsed.pageIndex,
       pageCount: parsed.pageCount

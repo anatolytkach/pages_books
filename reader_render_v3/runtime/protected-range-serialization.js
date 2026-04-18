@@ -43,6 +43,10 @@ export function createRestoreDescriptor({ globalModel, chunkModel, layout, page 
     bookId: globalModel.bookId,
     pageIndex: page.pageIndex,
     pageCount: page.pageCount,
+    visibleRange: {
+      globalStartOffset: Number(page.globalStartOffset || position.globalOffset || 0),
+      globalEndOffset: Number(page.globalEndOffset || position.globalOffset || 0)
+    },
     position
   };
 }

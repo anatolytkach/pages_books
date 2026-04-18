@@ -93,3 +93,52 @@ export function findPageIndexForOffset(paginationModel, localOffset) {
     null;
   return page ? page.pageIndex : 0;
 }
+
+export function findBestPageIndexForVisibleRange(
+  paginationModel,
+  globalStartOffset,
+  globalEndOffset,
+  fallbackPageIndex = 0
+) {
+  const pages = paginationModel && Array.isArray(paginationModel.pages) ? paginationModel.pages : [];
+  const targetStart = Number(globalStartOffset);
+  const targetEnd = Number(globalEndOffset);
+  if (!pages.length) return Math.max(0, Number(fallbackPageIndex || 0));
+  if (!Number.isFinite(targetStart) || !Number.isFinite(targetEnd) || targetEnd <= targetStart) {
+    return Math.max(0, Math.min(Number(fallbackPageIndex || 0), pages.length - 1));
+  }
+
+  const targetCenter = targetStart + ((targetEnd - targetStart) / 2);
+  let bestPage = null;
+
+  for (const page of pages) {
+    const pageStart = Number(page && page.globalStartOffset);
+    const pageEnd = Number(page && page.globalEndOffset);
+    if (!Number.isFinite(pageStart) || !Number.isFinite(pageEnd) || pageEnd <= pageStart) continue;
+    const overlap = Math.max(0, Math.min(pageEnd, targetEnd) - Math.max(pageStart, targetStart));
+    if (overlap <= 0) continue;
+    const pageCenter = pageStart + ((pageEnd - pageStart) / 2);
+    const candidate = {
+      pageIndex: Number(page.pageIndex || 0),
+      overlap,
+      startDistance: Math.abs(pageStart - targetStart),
+      centerDistance: Math.abs(pageCenter - targetCenter)
+    };
+    if (
+      !bestPage ||
+      candidate.overlap > bestPage.overlap ||
+      (candidate.overlap === bestPage.overlap && candidate.startDistance < bestPage.startDistance) ||
+      (
+        candidate.overlap === bestPage.overlap &&
+        candidate.startDistance === bestPage.startDistance &&
+        candidate.centerDistance < bestPage.centerDistance
+      )
+    ) {
+      bestPage = candidate;
+    }
+  }
+
+  return bestPage
+    ? bestPage.pageIndex
+    : Math.max(0, Math.min(Number(fallbackPageIndex || 0), pages.length - 1));
+}

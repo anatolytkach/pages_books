@@ -4,7 +4,11 @@ import {
   findGlobalOffsetForToc,
   getActiveTocAnchorForPosition
 } from "./protected-navigation-model.js";
-import { buildPaginationModel, findPageIndexForOffset } from "./protected-pagination-model.js?v=20260416-protected-padding-3";
+import {
+  buildPaginationModel,
+  findBestPageIndexForVisibleRange,
+  findPageIndexForOffset
+} from "./protected-pagination-model.js?v=20260416-protected-padding-3";
 import {
   buildSerializableRange,
   createRestoreDescriptor,
@@ -500,6 +504,8 @@ export class ProtectedReaderRuntimeCore {
     chunkIndex,
     pageIndex = null,
     globalOffset = null,
+    preferredGlobalStartOffset = null,
+    preferredGlobalEndOffset = null,
     annotations = [],
     includeBook = false,
     runtimeFontMode = this.getCurrentRuntimeFontMode()
@@ -535,10 +541,22 @@ export class ProtectedReaderRuntimeCore {
         resolvedOffset && resolvedOffset.chunkId === this.currentChunkModel.chunk.chunkId
           ? resolvedOffset.localOffset
           : 0;
-      this.currentPageIndex = findPageIndexForOffset(
+      const fallbackPageIndex = findPageIndexForOffset(
         this.currentPaginationModel,
         Math.max(0, localOffset)
       );
+      const hasPreferredVisibleRange =
+        Number.isFinite(Number(preferredGlobalStartOffset)) &&
+        Number.isFinite(Number(preferredGlobalEndOffset)) &&
+        Number(preferredGlobalEndOffset) > Number(preferredGlobalStartOffset);
+      this.currentPageIndex = hasPreferredVisibleRange
+        ? findBestPageIndexForVisibleRange(
+            this.currentPaginationModel,
+            Number(preferredGlobalStartOffset),
+            Number(preferredGlobalEndOffset),
+            fallbackPageIndex
+          )
+        : fallbackPageIndex;
     } else if (pageIndex != null) {
       this.currentPageIndex = Math.max(0, Math.min(pageIndex, this.currentPaginationModel.pages.length - 1));
     } else {
@@ -1155,6 +1173,14 @@ export class ProtectedReaderRuntimeCore {
     return this.goToChunk({
       chunkIndex,
       globalOffset: descriptor.position.globalOffset,
+      preferredGlobalStartOffset:
+        descriptor.visibleRange && Number.isFinite(Number(descriptor.visibleRange.globalStartOffset))
+          ? Number(descriptor.visibleRange.globalStartOffset)
+          : null,
+      preferredGlobalEndOffset:
+        descriptor.visibleRange && Number.isFinite(Number(descriptor.visibleRange.globalEndOffset))
+          ? Number(descriptor.visibleRange.globalEndOffset)
+          : null,
       annotations
     });
   }
