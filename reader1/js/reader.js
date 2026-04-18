@@ -3301,7 +3301,6 @@ function applyThemeToIframes(themeName) {
 		contained : undefined,
 		bookKey : undefined,
 		styles : undefined,
-		sidebarReflow: false,
 		generatePagination: false,
 		history: true
 	});
@@ -3346,7 +3345,6 @@ function applyThemeToIframes(themeName) {
 	this.book = book = new ePub(this.settings.bookPath, this.settings);
 
 	this.offline = false;
-	this.sidebarOpen = false;
 	if(!this.settings.bookmarks) {
 		this.settings.bookmarks = [];
 	}
@@ -4349,9 +4347,23 @@ if (!doc) return;
 
 					function isMobileUi(topWin) {
 						try {
+							if (topWin.document && topWin.document.documentElement) {
+								var root = topWin.document.documentElement;
+								if (root.classList.contains("is-phone") || root.classList.contains("is-tablet")) return true;
+							}
 							if (topWin.matchMedia && topWin.matchMedia('(pointer: coarse)').matches) return true;
 							if (topWin.matchMedia && topWin.matchMedia('(max-width: 768px)').matches) return true;
 							if (topWin.navigator && topWin.navigator.maxTouchPoints && topWin.navigator.maxTouchPoints > 0) return true;
+							if ("ontouchstart" in topWin) return true;
+						} catch (e) {}
+						return false;
+					}
+
+					function isBlockingSearchUi(topWin) {
+						try {
+							var body = topWin && topWin.document ? topWin.document.body : null;
+							if (!body || !body.classList) return false;
+							return body.classList.contains("search-open") && !body.classList.contains("search-minimized");
 						} catch (e) {}
 						return false;
 					}
@@ -4442,7 +4454,7 @@ if (!doc) return;
 						if (!ev || st._interactive) return;
 						try {
 							var __topWinSearch = (win && win.parent) ? win.parent : window;
-							if (__topWinSearch && __topWinSearch.document && __topWinSearch.document.body && __topWinSearch.document.body.classList.contains("search-open")) return;
+							if (isBlockingSearchUi(__topWinSearch)) return;
 								if (__topWinSearch && __topWinSearch.document && __topWinSearch.document.body && __topWinSearch.document.body.classList.contains("mobile-more-open")) {
 									try { if (typeof __topWinSearch.__fb_closeMobileMore === "function") __topWinSearch.__fb_closeMobileMore(); } catch (eCloseMore0) {}
 									try { __topWinSearch.__fbSuppressUiTapUntil = Date.now() + 600; } catch (eSupMore0) {}
@@ -4520,7 +4532,7 @@ if (!doc) return;
 								} catch (ePtrUpMode) {}
 								try {
 									var __topWinSearchP = (win && win.parent) ? win.parent : window;
-									if (__topWinSearchP && __topWinSearchP.document && __topWinSearchP.document.body && __topWinSearchP.document.body.classList.contains("search-open")) return;
+									if (isBlockingSearchUi(__topWinSearchP)) return;
 										if (__topWinSearchP && __topWinSearchP.document && __topWinSearchP.document.body && __topWinSearchP.document.body.classList.contains("mobile-more-open")) {
 											try { if (typeof __topWinSearchP.__fb_closeMobileMore === "function") __topWinSearchP.__fb_closeMobileMore(); } catch (eCloseMore1) {}
 											try { __topWinSearchP.__fbSuppressUiTapUntil = Date.now() + 600; } catch (eSupMore1) {}
@@ -5303,7 +5315,7 @@ function attachSwipeToDoc(doc) {
 					if (isSelectionActive()) return;
 						try {
 							var __topWinSearchStart = (win && win.parent) ? win.parent : window;
-							if (__topWinSearchStart && __topWinSearchStart.document && __topWinSearchStart.document.body && __topWinSearchStart.document.body.classList.contains("search-open")) return;
+							if (isBlockingSearchUi(__topWinSearchStart)) return;
 						} catch (eSearchStart) {}
 						// Mobile: fullscreen MUST be requested synchronously in the same gesture stack.
 						// Calling parent via postMessage is async and often only works after several swipes.
@@ -5391,7 +5403,7 @@ function attachSwipeToDoc(doc) {
 					if (state.selectionUnlocked) return;
 					try {
 						var __topWinSearchMove = (win && win.parent) ? win.parent : window;
-						if (__topWinSearchMove && __topWinSearchMove.document && __topWinSearchMove.document.body && __topWinSearchMove.document.body.classList.contains("search-open")) {
+						if (isBlockingSearchUi(__topWinSearchMove)) {
 							state.tracking = false;
 							clearSelectionTimer();
 							state.selectionUnlocked = false;
@@ -5447,7 +5459,7 @@ function attachSwipeToDoc(doc) {
 					clearSelectionTimer();
 					try {
 						var __topWinSearchGlobal = (win && win.parent) ? win.parent : window;
-						if (__topWinSearchGlobal && __topWinSearchGlobal.document && __topWinSearchGlobal.document.body && __topWinSearchGlobal.document.body.classList.contains("search-open")) {
+						if (isBlockingSearchUi(__topWinSearchGlobal)) {
 							state.tracking = false;
 							state.selectionUnlocked = false;
 							unlockSwipeSelection();
@@ -5488,7 +5500,7 @@ function attachSwipeToDoc(doc) {
 					}
 					try {
 						var __topWinTapSearch0 = (win && win.parent) ? win.parent : window;
-						if (__topWinTapSearch0 && __topWinTapSearch0.document && __topWinTapSearch0.document.body && __topWinTapSearch0.document.body.classList.contains("search-open")) {
+						if (isBlockingSearchUi(__topWinTapSearch0)) {
 							resetTransform();
 							return;
 						}
@@ -5586,7 +5598,7 @@ function attachSwipeToDoc(doc) {
 								if (!state.startedOnInteractive) {
 									try {
 										var __topWinTapSearch1 = (win && win.parent) ? win.parent : window;
-										if (__topWinTapSearch1 && __topWinTapSearch1.document && __topWinTapSearch1.document.body && __topWinTapSearch1.document.body.classList.contains("search-open")) {
+										if (isBlockingSearchUi(__topWinTapSearch1)) {
 											resetTransform();
 											return;
 										}
@@ -6138,25 +6150,7 @@ if (doc) {
 
 	function buildFittedPageCounterLabel(pageLabel, tocTitle) {
 		var pageOnly = String(pageLabel || "");
-		var title = String(tocTitle || "").trim();
-		if (!title) return pageOnly;
-		var full = pageOnly + " - " + title;
-		var maxW = getPageCountMaxLabelWidth();
-		if (!maxW) return full;
-		if (measurePageCountLabelWidth(full) <= maxW) return full;
-
-		var prefix = pageOnly + " - ";
-		var ellipsis = "…";
-		var lo = 0;
-		var hi = title.length;
-		while (lo < hi) {
-			var mid = Math.ceil((lo + hi) / 2);
-			var probe = prefix + title.slice(0, mid) + ellipsis;
-			if (measurePageCountLabelWidth(probe) <= maxW) lo = mid;
-			else hi = mid - 1;
-		}
-		if (lo <= 0) return pageOnly;
-		return prefix + title.slice(0, lo) + ellipsis;
+		return pageOnly;
 	}
 	try {
 		if (pageCountEl && !String(pageCountEl.textContent || "").trim()) {
@@ -7226,7 +7220,12 @@ if (doc) {
 			}
 			if (suppress) return true;
 			var body = document.body || null;
-			if (body && body.classList && body.classList.contains("search-open")) return true;
+			if (
+				body &&
+				body.classList &&
+				body.classList.contains("search-open") &&
+				!body.classList.contains("search-minimized")
+			) return true;
 		} catch (e) {}
 		return false;
 	}
@@ -7438,7 +7437,6 @@ if (doc) {
 		reader.ReaderController = EPUBJS.reader.ReaderController.call(reader, book);
 		reader.SettingsController = EPUBJS.reader.SettingsController.call(reader, book);
 		reader.ControlsController = EPUBJS.reader.ControlsController.call(reader, book);
-		reader.SidebarController = EPUBJS.reader.SidebarController.call(reader, book);
 		reader.BookmarksController = EPUBJS.reader.BookmarksController.call(reader, book);
 		reader.NotesController = EPUBJS.reader.NotesController.call(reader, book);
 
@@ -7742,7 +7740,6 @@ EPUBJS.reader.BookmarksController = function() {
 	}
 	var createBookmarkItem = function(bm) {
 		var listitem = document.createElement("li"),
-				link = document.createElement("a"),
 				btn = document.createElement("button"),
 				wrap = document.createElement("div");
 
@@ -7750,50 +7747,52 @@ EPUBJS.reader.BookmarksController = function() {
 		listitem.setAttribute("data-cfi", bm.cfi);
 		listitem.id = "bookmark-" + (counter++);
 
-		function getProgressLabelFromCfi(cfi) {
+		function getBookmarkPageNumber(cfi) {
 			try {
-				if (!reader || !reader.book || !reader.book.locations) return null;
-				var pctF = (typeof reader.book.locations.percentageFromCfi === "function")
-					? reader.book.locations.percentageFromCfi(cfi)
-					: null;
-				if (typeof pctF !== 'number' || isNaN(pctF)) return null;
-				var pct = Math.round(Math.max(0, Math.min(1, pctF)) * 100);
-				// Append current TOC title for this CFI (same format as footer)
-				var tocTitle = "";
-				try {
-					var item = reader.book.spine.get(cfi);
-					var href = item && item.href ? _bmNormalizeHref(item.href) : "";
-					if (href && reader._tocMap && reader._tocMap[href]) tocTitle = reader._tocMap[href];
-				} catch (e2) {}
-				return tocTitle ? (String(pct) + "% - " + tocTitle) : (String(pct) + "%");
-			} catch (e) {
-				return null;
-			}
+				if (window.__fbGetGlobalPageLabelForCfi) {
+					var pageNo = String(window.__fbGetGlobalPageLabelForCfi(cfi) || "").trim();
+					if (pageNo) return pageNo;
+				}
+			} catch (e0) {}
+			return "";
 		}
 
-		var label = "";
-		if (bm && bm.quote) {
-			label = bm.quote;
-		} else {
-			label = getProgressLabelFromCfi(bm.cfi);
-			if (!label) label = "…";
+		function getBookmarkChapterTitle(cfi) {
+			try {
+				var item = reader.book.spine.get(cfi);
+				var href = item && item.href ? _bmNormalizeHref(item.href) : "";
+				if (href && reader._tocMap && reader._tocMap[href]) return String(reader._tocMap[href] || "").trim();
+			} catch (e1) {}
+			return "";
 		}
 
-		link.textContent = label;
-		link.href = bm.cfi;
-		link.classList.add('bookmark_link');
-		link.setAttribute('data-cfi', bm.cfi);
+		var pageLabel = getBookmarkPageNumber(bm.cfi) || "…";
+		var chapterTitle = getBookmarkChapterTitle(bm.cfi);
 
-		link.addEventListener("click", function(event){
-			var cfi = this.getAttribute('href');
-			rendition.display(cfi);
-			// Close overlays after choosing a bookmark
-			try { if (window.__fbCloseOverlays) window.__fbCloseOverlays(); } catch(e) {}
-			event.preventDefault();
-		}, false);
+		var pageMeta = document.createElement("div");
+		pageMeta.className = "bookmark-page-label";
+		pageMeta.textContent = pageLabel;
+		wrap.appendChild(pageMeta);
+		if (chapterTitle) {
+			var chapterMeta = document.createElement("div");
+			chapterMeta.className = "bookmark-comment";
+			chapterMeta.textContent = chapterTitle;
+			wrap.appendChild(chapterMeta);
+		}
 
 		wrap.className = "bookmark-text";
-		wrap.appendChild(link);
+		wrap.classList.add('bookmark_link');
+		wrap.setAttribute('data-cfi', bm.cfi);
+		wrap.addEventListener("click", function(event){
+			var cfi = this.getAttribute('data-cfi');
+			if (!cfi) return;
+			rendition.display(cfi);
+			try {
+				if (window.__fbCloseAndHideAfterNavigation) window.__fbCloseAndHideAfterNavigation();
+				else if (window.__fbCloseOverlays) window.__fbCloseOverlays();
+			} catch(e) {}
+			event.preventDefault();
+		}, false);
 		if (bm && bm.comment) {
 			var comment = document.createElement("div");
 			comment.className = "bookmark-comment";
@@ -8537,7 +8536,12 @@ EPUBJS.reader.NotesController = function() {
 		}
 
 		var openSidebar = function(){
-			reader.ReaderController.slideOut();
+			try {
+				if (window.__fbOpenLibraryOverlayTab) {
+					window.__fbOpenLibraryOverlayTab("notes");
+					return;
+				}
+			} catch (eOpenOverlay) {}
 			show();
 		};
 
@@ -8592,15 +8596,7 @@ EPUBJS.reader.ReaderController = function(book) {
 	var book = this.book;
 	var rendition = this.rendition;
 	var slideIn = function() {
-		var currentPosition = rendition.currentLocation().start.cfi;
-		if (reader.settings.sidebarReflow){
-			$main.removeClass('single');
-			$main.one("transitionend", function(){
-				rendition.resize();
-			});
-		} else {
-			$main.removeClass("closed");
-		}
+		$main.removeClass("closed");
 	};
 
 	var slideOut = function() {
@@ -8608,15 +8604,7 @@ EPUBJS.reader.ReaderController = function(book) {
 		if (!location) {
 			return;
 		}
-		var currentPosition = location.start.cfi;
-		if (reader.settings.sidebarReflow){
-			$main.addClass('single');
-			$main.one("transitionend", function(){
-				rendition.resize();
-			});
-		} else {
-			$main.addClass("closed");
-		}
+		$main.addClass("closed");
 	};
 
 	var showLoader = function() {
@@ -8800,12 +8788,6 @@ EPUBJS.reader.SettingsController = function() {
 		$settings.removeClass("md-show");
 	};
 
-	var $sidebarReflowSetting = $('#sidebarReflow');
-
-	$sidebarReflowSetting.on('click', function() {
-		reader.settings.sidebarReflow = !reader.settings.sidebarReflow;
-	});
-
 	$settings.find(".closer").on("click", function() {
 		hide();
 	});
@@ -8817,61 +8799,6 @@ EPUBJS.reader.SettingsController = function() {
 	return {
 		"show" : show,
 		"hide" : hide
-	};
-};
-EPUBJS.reader.SidebarController = function(book) {
-	var reader = this;
-	// Sidebar removed in this UI
-	if (!document.getElementById('sidebar')) {
-		return { show: function(){}, hide: function(){}, getActivePanel: function(){ return null; }, changePanelTo: function(){} };
-	}
-
-	var $sidebar = $("#sidebar"),
-			$panels = $("#panels"),
-			$slider = $("#slider");
-
-	var activePanel = "Toc";
-
-	var changePanelTo = function(viewName) {
-		var controllerName = viewName + "Controller";
-		
-		if(activePanel == viewName || typeof reader[controllerName] === 'undefined' ) return;
-		reader[activePanel+ "Controller"].hide();
-		reader[controllerName].show();
-		activePanel = viewName;
-
-		$panels.find('.active').removeClass("active");
-		$panels.find("#show-" + viewName ).addClass("active");
-	};
-	
-	var getActivePanel = function() {
-		return activePanel;
-	};
-	
-	var show = function() {
-		reader.sidebarOpen = true;
-		reader.ReaderController.slideOut();
-		$sidebar.addClass("open");
-	};
-
-	var hide = function() {
-		reader.sidebarOpen = false;
-		reader.ReaderController.slideIn();
-		$sidebar.removeClass("open");
-	};
-
-	$panels.find(".show_view").on("click", function(event) {
-		var view = $(this).data("view");
-
-		changePanelTo(view);
-		event.preventDefault();
-	});
-
-	return {
-		'show' : show,
-		'hide' : hide,
-		'getActivePanel' : getActivePanel,
-		'changePanelTo' : changePanelTo
 	};
 };
 EPUBJS.reader.TocController = function(toc) {
@@ -9065,7 +8992,10 @@ EPUBJS.reader.TocController = function(toc) {
 			$(this).parent('li').addClass("currentChapter");
 
 			// Close overlays after choosing a chapter
-			try { if (window.__fbCloseOverlays) window.__fbCloseOverlays(); } catch(e) {}
+			try {
+				if (window.__fbCloseAndHideAfterNavigation) window.__fbCloseAndHideAfterNavigation();
+				else if (window.__fbCloseOverlays) window.__fbCloseOverlays();
+			} catch(e) {}
 
 	});
 
