@@ -6,6 +6,15 @@ import { buildProtectedReaderStatus } from "./protected-host-status.js?v=2026041
 
 const HOST_STYLE_ID = "protected-old-shell-host-css";
 window.__PROTECTED_OLD_SHELL_HOST_LOADED = true;
+window.__READERPUB_READER_NEW_UI_STATE__ = window.__READERPUB_READER_NEW_UI_STATE__ || {
+  status: "boot-pending",
+  ready: false,
+  overlay: "",
+  lastSummary: null,
+  lastStatusText: "",
+  routeHref: "",
+  updatedAt: 0
+};
 const HOST_STATE = {
   route: null,
   rolloutStatus: null,
@@ -118,6 +127,22 @@ function ensureHostGenerations() {
   if (HOST_STATE.activeLayoutGeneration <= 0) HOST_STATE.activeLayoutGeneration = 1;
   HOST_STATE.readerConfig.configGeneration = HOST_STATE.activeConfigGeneration;
   HOST_STATE.readerConfig.layoutGeneration = HOST_STATE.activeLayoutGeneration;
+}
+
+function setReaderNewUiSmokeState(patch = {}) {
+  const current = window.__READERPUB_READER_NEW_UI_STATE__ || {};
+  const next = {
+    ...current,
+    ...patch,
+    updatedAt: Date.now()
+  };
+  if (!("routeHref" in patch)) {
+    try {
+      next.routeHref = window.location.href;
+    } catch (_error) {}
+  }
+  window.__READERPUB_READER_NEW_UI_STATE__ = next;
+  return next;
 }
 
 function classifyBridgeUpdate(method) {
@@ -1720,7 +1745,7 @@ function installStyles() {
       border: 0;
       border-radius: 0;
       background: transparent;
-      color: rgba(255,255,255,0.96);
+      color: #00d1bb;
       font: inherit;
       padding: 0;
       text-align: center;
@@ -1729,13 +1754,13 @@ function installStyles() {
     }
     #protectedNotesShareBtn:disabled,
     #protectedNotesShareBtn.is-disabled {
-      color: rgba(255,255,255,0.34);
+      color: rgba(0,209,187,0.42);
       cursor: default;
       opacity: 0.55;
       pointer-events: none;
     }
     #protectedNotesShareBtn.is-copied {
-      color: rgba(255,255,255,1);
+      color: #00d1bb;
     }
     #protectedNotesShareBtn.is-failed {
       color: #ffb1b1;
@@ -2039,9 +2064,38 @@ function installStyles() {
       width: 360px;
       max-width: min(100vw, 360px);
       z-index: 9999;
+      display: flex;
+      flex-direction: column;
     }
     #overlay-settings .overlay-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
       padding-top: 16px;
+    }
+    #overlay-settings .overlay-footer {
+      flex: 0 0 auto;
+      margin-top: auto;
+      padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+      border-top: 1px solid rgba(255,255,255,0.14);
+      background: rgba(72,72,72,0.96);
+    }
+    #overlay-settings .overlay-footer .protected-settings-footer-button {
+      appearance: none;
+      -webkit-appearance: none;
+      display: block;
+      width: 100%;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #00d1bb;
+      font: 600 13px/1.3 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0.01em;
+      text-align: center;
+      cursor: pointer;
+    }
+    #overlay-settings .overlay-footer .protected-settings-footer-button:disabled {
+      color: rgba(255,255,255,0.42);
+      cursor: not-allowed;
     }
     #protectedSettingsTextSection,
     #protectedSettingsVoiceSection {
@@ -2120,16 +2174,16 @@ function installStyles() {
       color: #ffffff;
     }
     .protected-typography-mode.is-active {
-      color: #ffffff;
+      color: #00d1bb;
     }
     .protected-typography-mode.is-active .sample {
-      color: #ffffff;
+      color: #00d1bb;
       text-decoration: underline;
       text-underline-offset: 5px;
       text-decoration-thickness: 1.5px;
     }
     .protected-typography-mode.is-active .label {
-      color: #ffffff;
+      color: #00d1bb;
     }
     .protected-typography-mode[aria-disabled="true"] {
       opacity: 0.42;
@@ -2156,9 +2210,56 @@ function installStyles() {
       text-align: center;
     }
     #protectedTypographyScale {
+      --protected-typography-scale-pct: 37.5%;
+      appearance: none;
+      -webkit-appearance: none;
       width: 100%;
       margin: 0;
-      accent-color: #d3d3d3;
+      height: 6px;
+      border-radius: 999px;
+      outline: none;
+      background: linear-gradient(
+        to right,
+        #00d1bb 0%,
+        #00d1bb var(--protected-typography-scale-pct),
+        rgba(255,255,255,0.28) var(--protected-typography-scale-pct),
+        rgba(255,255,255,0.28) 100%
+      );
+      accent-color: #00d1bb;
+    }
+    #protectedTypographyScale::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 999px;
+      background: transparent;
+    }
+    #protectedTypographyScale::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      margin-top: -6px;
+      border: 0;
+      border-radius: 50%;
+      background: #00d1bb;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+    }
+    #protectedTypographyScale::-moz-range-track {
+      height: 6px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.28);
+    }
+    #protectedTypographyScale::-moz-range-progress {
+      height: 6px;
+      border-radius: 999px;
+      background: #00d1bb;
+    }
+    #protectedTypographyScale::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border: 0;
+      border-radius: 50%;
+      background: #00d1bb;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
     }
     #protectedSettingsVoiceMount .voice-picker-status,
     #protectedSettingsVoiceMount .voice-picker-label,
@@ -2450,7 +2551,7 @@ function installStyles() {
     body.protected-old-shell #next::before {
       content: none;
       pointer-events: none;
-      opacity: 0;
+      opacity: 1;
       transition: opacity 160ms ease;
     }
     body.protected-old-shell #prev::after,
@@ -2584,6 +2685,45 @@ function getProtectedNotesShareLabel() {
   return isPhoneOrTabletShell() ? "Share book with Notes" : "Copy book link with Notes";
 }
 
+function getProtectedBookShareButton() {
+  return document.getElementById("protectedSettingsShareButton");
+}
+
+function getProtectedBookShareLabel() {
+  return isPhoneOrTabletShell() ? "Share book" : "Copy link to book";
+}
+
+function clearProtectedBookShareButtonState(button = getProtectedBookShareButton()) {
+  if (!button) return;
+  button.classList.remove("is-copied");
+  button.classList.remove("is-failed");
+}
+
+function buildProtectedBookShareUrl() {
+  const url = new URL(window.location.href || "", window.location.origin);
+  ["n", "notesShare", "notes", "notesz"].forEach((key) => url.searchParams.delete(key));
+  url.hash = "";
+  return url.toString();
+}
+
+function updateProtectedBookShareButtonState() {
+  const button = getProtectedBookShareButton();
+  if (!button) return;
+  const label = getProtectedBookShareLabel();
+  let shareUrl = "";
+  try {
+    shareUrl = buildProtectedBookShareUrl();
+  } catch (_error) {
+    shareUrl = "";
+  }
+  clearProtectedBookShareButtonState(button);
+  button.textContent = label;
+  button.disabled = !shareUrl;
+  button.setAttribute("aria-disabled", shareUrl ? "false" : "true");
+  button.setAttribute("aria-label", label);
+  button.setAttribute("title", label);
+}
+
 function clearProtectedNotesShareButtonState(button = getProtectedNotesShareButton()) {
   if (!button) return;
   button.classList.remove("is-pressed");
@@ -2697,6 +2837,52 @@ async function handleProtectedNotesShare(event) {
   }
 }
 
+function updateTypographyScaleVisual(input) {
+  if (!input) return;
+  const min = Number(input.min || 0.8);
+  const max = Number(input.max || 1.6);
+  const value = Number(input.value || min);
+  const range = max - min;
+  const pct = range > 0 ? ((value - min) / range) * 100 : 0;
+  input.style.setProperty("--protected-typography-scale-pct", `${Math.max(0, Math.min(100, pct)).toFixed(2)}%`);
+}
+
+async function handleProtectedBookShare(event) {
+  event && event.preventDefault && event.preventDefault();
+  const button = getProtectedBookShareButton();
+  if (!button || button.disabled) return;
+  const idleLabel = getProtectedBookShareLabel();
+  clearProtectedBookShareButtonState(button);
+  try {
+    const shareUrl = buildProtectedBookShareUrl();
+    const summary = HOST_STATE.lastSummary || {};
+    const shareTitle = String(summary.bookTitle || document.title || "Book").trim();
+    if (isPhoneOrTabletShell()) {
+      if (!navigator.share) throw new Error("Share unavailable");
+      await navigator.share({ title: shareTitle, url: shareUrl }).catch((error) => {
+        if (error && error.name === "AbortError") return;
+        throw error;
+      });
+      setHostActionStatus("Book link shared.");
+    } else {
+      await copyTextToClipboard(shareUrl);
+      button.classList.add("is-copied");
+      button.textContent = "Copied";
+      setHostActionStatus("Book link copied.");
+    }
+  } catch (_error) {
+    button.classList.add("is-failed");
+    button.textContent = isPhoneOrTabletShell() ? "Share unavailable" : "Copy failed";
+    setHostActionStatus(isPhoneOrTabletShell() ? "Book sharing is unavailable." : "Book link copy failed.");
+  } finally {
+    window.setTimeout(() => {
+      updateProtectedBookShareButtonState();
+      if (!button.disabled) button.textContent = idleLabel;
+      clearProtectedBookShareButtonState(button);
+    }, isPhoneOrTabletShell() ? 1500 : 1200);
+  }
+}
+
 function getShellPreferredFontMode() {
   try {
     const params = new URLSearchParams(window.location.search || "");
@@ -2769,6 +2955,7 @@ function persistShellFontScale(fontScale) {
 }
 
 function openOverlayById(id) {
+  setReaderNewUiSmokeState({ overlay: String(id || "") });
   if (id === "overlay-toc") {
     openLibraryOverlay("toc");
     return;
@@ -2792,6 +2979,10 @@ function closeOverlayById(id) {
   if (!panel) return;
   panel.classList.add("hidden");
   panel.setAttribute("aria-hidden", "true");
+  const current = window.__READERPUB_READER_NEW_UI_STATE__ || {};
+  if (current.overlay === String(id || "")) {
+    setReaderNewUiSmokeState({ overlay: "" });
+  }
 }
 
 function closeAllShellOverlays() {
@@ -3759,6 +3950,7 @@ function closeTypographyPanel() {
     document.body.classList.remove("overlay-open");
   } catch (_error) {}
   if (trigger) trigger.setAttribute("aria-expanded", "false");
+  setReaderNewUiSmokeState({ overlay: "" });
 }
 
 function toggleTypographyPanel(forceOpen) {
@@ -3792,6 +3984,7 @@ function toggleTypographyPanel(forceOpen) {
   try {
     document.body.classList.add("overlay-open");
   } catch (_error) {}
+  setReaderNewUiSmokeState({ overlay: "overlay-settings" });
 }
 
 function ensureTypographyControl() {
@@ -3869,7 +4062,6 @@ function ensureBottomCatalogLink() {
 function applyUnifiedShellChrome() {
   installStyles();
   document.body.classList.add("protected-old-shell");
-  document.body.classList.remove("ui-hidden");
   document.body.classList.toggle("protected-dev-panel", isDevPanelEnabled());
   ensureDesktopTopLinks();
   ensureBottomCatalogLink();
@@ -4091,6 +4283,7 @@ function closeLibraryOverlay() {
     document.body.classList.remove("overlay-open");
   } catch (_error) {}
   if (trigger) trigger.setAttribute("aria-expanded", "false");
+  setReaderNewUiSmokeState({ overlay: "" });
 }
 
 function openLibraryOverlay(tab = "toc") {
@@ -4115,6 +4308,7 @@ function openLibraryOverlay(tab = "toc") {
     document.body.classList.add("overlay-open");
   } catch (_error) {}
   switchLibraryTab(tab);
+  setReaderNewUiSmokeState({ overlay: "overlay-library" });
 }
 
 function closeSearchOverlay() {
@@ -4135,6 +4329,7 @@ function closeSearchOverlay() {
     document.body.classList.remove("overlay-open");
   } catch (_error) {}
   if (trigger) trigger.setAttribute("aria-expanded", "false");
+  setReaderNewUiSmokeState({ overlay: "" });
 }
 
 function openSearchOverlay() {
@@ -4159,6 +4354,7 @@ function openSearchOverlay() {
   } catch (_error) {}
   HOST_STATE.searchSidebarSubmitted = false;
   HOST_STATE.searchSidebarPendingQuery = String((HOST_STATE.lastSummary && HOST_STATE.lastSummary.searchSummary && HOST_STATE.lastSummary.searchSummary.query) || "");
+  setReaderNewUiSmokeState({ overlay: "overlay-search" });
   updateSearchControls(HOST_STATE.lastSummary);
   void refreshSearchSidebarState();
   const input = document.getElementById("protectedSearchInput");
@@ -4421,6 +4617,9 @@ function ensureSettingsOverlay() {
             <div id="protectedSettingsVoiceMount"></div>
           </section>
         </div>
+        <div class="overlay-footer">
+          <button type="button" id="protectedSettingsShareButton" class="protected-settings-footer-button"></button>
+        </div>
       `;
       document.body.appendChild(overlay);
     }
@@ -4453,6 +4652,7 @@ function ensureSettingsOverlay() {
       }
     });
   }
+  updateProtectedBookShareButtonState();
   return panel;
 }
 
@@ -4475,6 +4675,7 @@ function updateTypographyControl(summary = HOST_STATE.lastSummary) {
   if (scaleInput && document.activeElement !== scaleInput) {
     scaleInput.value = currentScale.toFixed(1);
   }
+  updateTypographyScaleVisual(scaleInput);
   ["sans", "serif"].forEach((mode) => {
     const button = document.getElementById(mode === "sans" ? "protectedTypographySans" : "protectedTypographySerif");
     if (!button) return;
@@ -5580,6 +5781,19 @@ function updateFromSummary(summary) {
   ensureHostGenerations();
   if (isStaleSummary(summary)) return;
   HOST_STATE.lastSummary = summary;
+  setReaderNewUiSmokeState({
+    status: summary.ready ? "ready" : "loading",
+    ready: !!summary.ready,
+    lastSummary: {
+      ready: !!summary.ready,
+      pageLabel: String(summary.pageLabel || summary.globalPageLabel || ""),
+      chapterLabel: String(summary.chapterLabel || ""),
+      bookId: String(summary.bookId || ""),
+      bookTitle: String(summary.bookTitle || ""),
+      statusText: String(summary.statusText || "")
+    },
+    lastStatusText: String(summary.statusText || "")
+  });
   const supportedFontModes = getSupportedFontModes(summary);
   const effectiveSummaryFontMode = resolveSupportedFontMode(
     summary.runtimeFontMode || summary.fontMode || HOST_STATE.readerConfig.fontMode,
@@ -6852,6 +7066,7 @@ function bindShellControls() {
   const typographyTrigger = document.getElementById("protectedTypographyTrigger");
   const typographyPanel = document.getElementById("protectedTypographyPanel");
   const typographyScale = document.getElementById("protectedTypographyScale");
+  const settingsShareButton = document.getElementById("protectedSettingsShareButton");
   const fontModeButtons = [
     document.getElementById("protectedTypographySans"),
     document.getElementById("protectedTypographySerif")
@@ -6983,14 +7198,19 @@ function bindShellControls() {
     event.stopPropagation();
     event.stopImmediatePropagation && event.stopImmediatePropagation();
   }, true);
+  typographyScale && typographyScale.addEventListener("input", (event) => {
+    updateTypographyScaleVisual(event.currentTarget);
+  });
   typographyScale && typographyScale.addEventListener("change", async (event) => {
     const nextScale = persistShellFontScale(
       Math.max(0.8, Math.min(1.6, Number(event.currentTarget && event.currentTarget.value || 1)))
     );
+    updateTypographyScaleVisual(event.currentTarget);
     HOST_STATE.lastAppliedFontScale = nextScale;
     HOST_STATE.fontScaleSynced = true;
     await invokeBridge("setFontScale", nextScale);
   });
+  settingsShareButton && settingsShareButton.addEventListener("click", handleProtectedBookShare);
   fontModeButtons.forEach((button) => {
     button.addEventListener("click", async (event) => {
       const target = event.currentTarget;
@@ -7454,6 +7674,11 @@ async function ensureDirectProtectedHost() {
 function setUnavailableMessage(message) {
   HOST_STATE.loadingCount = 0;
   setShellLoading(false);
+  setReaderNewUiSmokeState({
+    status: "unavailable",
+    ready: false,
+    lastStatusText: String(message || "")
+  });
   const viewer = document.getElementById("viewer");
   if (viewer) {
     viewer.innerHTML = `<div style="padding:18px;font-family:Georgia,'Times New Roman',serif;color:#29415e">${message}</div>`;
@@ -7470,6 +7695,7 @@ function setUnavailableMessage(message) {
 async function bootOldShellProtectedHost() {
   window.__PROTECTED_OLD_SHELL_HOST_BOOT_STARTED = true;
   if (!window.__readerpubProtectedOldShellMode) return;
+  setReaderNewUiSmokeState({ status: "booting", ready: false });
   installStyles();
   installNoteComposerCloseHook();
   document.body.classList.add("protected-old-shell");
@@ -7489,6 +7715,7 @@ async function bootOldShellProtectedHost() {
   HOST_STATE.rolloutStatus = rolloutStatus;
 
   if (rolloutStatus.action === "redirect-to-old-reader-with-reason") {
+    setReaderNewUiSmokeState({ status: "redirecting", ready: false });
     window.location.replace(rolloutStatus.fallbackUrl);
     return;
   }
@@ -7501,14 +7728,21 @@ async function bootOldShellProtectedHost() {
   await ensureProtectedHost();
   HOST_STATE.loadingCount = 0;
   setShellLoading(false);
+  setReaderNewUiSmokeState({ status: "host-mounted", ready: !!(HOST_STATE.lastSummary && HOST_STATE.lastSummary.ready) });
 }
 
 function scheduleHostBoot() {
   window.__PROTECTED_OLD_SHELL_HOST_BOOT_SCHEDULED = true;
+  setReaderNewUiSmokeState({ status: "boot-scheduled", ready: false });
   const run = () => {
     bootOldShellProtectedHost().catch((error) => {
       console.error(error);
       window.__PROTECTED_OLD_SHELL_HOST_ERROR = error && error.message ? error.message : String(error);
+      setReaderNewUiSmokeState({
+        status: "boot-failed",
+        ready: false,
+        lastStatusText: error && error.message ? error.message : String(error)
+      });
       setUnavailableMessage(error && error.message ? error.message : "Protected old-shell host failed to boot.");
     });
   };
