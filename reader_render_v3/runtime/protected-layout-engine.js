@@ -47,6 +47,11 @@ function buildTokenSlices(segment, wordBoundaryModel) {
   return buildTokenSlicesWithText(segment, wordBoundaryModel, "");
 }
 
+const LEADING_NO_BREAK_PUNCTUATION = new Set(["“", "‘", "«", "‹", "\"", "(", "[", "{"]);
+const TRAILING_NO_BREAK_PUNCTUATION = new Set([
+  ".", ",", ";", ":", "!", "?", "…", "”", "’", "»", "›", "\"", "'", ")", "]", "}", "—", "–"
+]);
+
 function isCoreWordChar(char) {
   return /[\p{L}\p{N}]/u.test(String(char || ""));
 }
@@ -109,6 +114,53 @@ function tokenizeTextSpan(text, startOffset) {
   return tokens;
 }
 
+function tokenTextForRange(text, segmentStart, token) {
+  const source = Array.from(String(text || ""));
+  const localStart = Math.max(0, Number(token.startOffset || 0) - Number(segmentStart || 0));
+  const localEnd = Math.max(localStart, Number(token.endOffset || 0) - Number(segmentStart || 0));
+  return source.slice(localStart, localEnd).join("");
+}
+
+function mergeNoBreakPunctuationTokens(tokens, segmentStart, text = "") {
+  if (!Array.isArray(tokens) || tokens.length < 2) return Array.isArray(tokens) ? tokens.slice() : [];
+  const merged = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!token) continue;
+    const tokenText = tokenTextForRange(text, segmentStart, token);
+    const previous = merged.length ? merged[merged.length - 1] : null;
+    const next = index + 1 < tokens.length ? tokens[index + 1] : null;
+    if (
+      token.kind === "punctuation" &&
+      tokenText &&
+      previous &&
+      previous.kind === "word" &&
+      previous.endOffset === token.startOffset &&
+      Array.from(tokenText).every((char) => TRAILING_NO_BREAK_PUNCTUATION.has(char))
+    ) {
+      previous.endOffset = token.endOffset;
+      continue;
+    }
+    if (
+      token.kind === "punctuation" &&
+      tokenText &&
+      next &&
+      next.kind === "word" &&
+      token.endOffset === next.startOffset &&
+      Array.from(tokenText).every((char) => LEADING_NO_BREAK_PUNCTUATION.has(char))
+    ) {
+      merged.push({
+        ...next,
+        startOffset: token.startOffset
+      });
+      index += 1;
+      continue;
+    }
+    merged.push({ ...token });
+  }
+  return merged;
+}
+
 function buildTokenSlicesWithText(segment, wordBoundaryModel, text = "") {
   const tokens = [];
   const words = ((wordBoundaryModel && wordBoundaryModel.words) || [])
@@ -134,6 +186,18 @@ function buildTokenSlicesWithText(segment, wordBoundaryModel, text = "") {
           kind: "gap"
         });
       }
+    } else if (
+      tokens.length &&
+      tokens[tokens.length - 1] &&
+      tokens[tokens.length - 1].kind === "word" &&
+      tokens[tokens.length - 1].endOffset === word.startOffset
+    ) {
+      tokens.push({
+        startOffset: cursor,
+        endOffset: cursor,
+        kind: "gap",
+        syntheticText: " "
+      });
     }
     tokens.push(word);
     cursor = word.endOffset;
@@ -152,7 +216,8 @@ function buildTokenSlicesWithText(segment, wordBoundaryModel, text = "") {
       });
     }
   }
-  return tokens.length ? tokens : [{
+  const merged = mergeNoBreakPunctuationTokens(tokens, segment.start, text);
+  return merged.length ? merged : [{
     startOffset: segment.start,
     endOffset: segment.end,
     kind: "gap"
@@ -161,11 +226,29 @@ function buildTokenSlicesWithText(segment, wordBoundaryModel, text = "") {
 
 function buildTokenSlicesFromText(segment, text = "") {
   const tokens = tokenizeTextSpan(text, segment.start);
-  return tokens.length ? tokens : [{
+  const merged = mergeNoBreakPunctuationTokens(tokens, segment.start, text);
+  return merged.length ? merged : [{
     startOffset: segment.start,
     endOffset: segment.end,
     kind: "gap"
   }];
+}
+
+function hasContiguousWordBoundaryGap(wordBoundaryModel, offset) {
+  const words = (wordBoundaryModel && wordBoundaryModel.words) || [];
+  if (!words.length) return false;
+  let previous = null;
+  let next = null;
+  for (const word of words) {
+    if (!word) continue;
+    if (word.endOffset === offset) previous = word;
+    if (word.startOffset === offset) {
+      next = word;
+      break;
+    }
+    if (word.startOffset > offset) break;
+  }
+  return !!(previous && next);
 }
 
 function justifyLineToWidth(line, targetWidth) {
@@ -527,16 +610,19 @@ export function layoutChunk({
       glyphEndIndex
     }) {
       ctx.font = font.css;
-      const tokenText = backend.name === "text"
-        ? reconstructRangeText(chunkModel, token.startOffset, token.endOffset, reconstructionScope)
-        : "";
+      const tokenText = token && typeof token.syntheticText === "string"
+        ? token.syntheticText
+        : reconstructRangeText(chunkModel, token.startOffset, token.endOffset, reconstructionScope);
       const measure = backend.measureRun({
         text: tokenText,
         glyphs,
         font,
         ctx
       });
-      const widthPx = measure.width;
+      let widthPx = measure.width;
+      if (token.kind === "gap" && /\s/u.test(tokenText)) {
+        widthPx = Math.max(widthPx, ctx.measureText(tokenText).width);
+      }
       const line = ensureLine(font.lineHeight);
       line.height = Math.max(line.height, measure.lineHeight || font.lineHeight);
       line.ascentPx = Math.max(line.ascentPx || 0, measure.ascentPx || 0);
@@ -548,6 +634,12 @@ export function layoutChunk({
             Number(font.trailingSpacingPx || 0) +
             (font.fontStyle === "italic" ? Math.max(0.75, Math.round(font.size * 0.03 * 1000) / 1000) : 0);
       const adjustedWidthPx = widthPx + (spacingPx > 0 ? spacingPx : 0);
+      const charPositions =
+        token.kind === "gap" &&
+        /\s/u.test(tokenText) &&
+        (!Array.isArray(measure.charPositions) || measure.charPositions.length <= 1)
+          ? [0, adjustedWidthPx]
+          : measure.charPositions;
       const currentWidth = line.fragments.reduce((sum, item) => sum + item.width, 0);
       metricsStats.glyphCount += measure.glyphCount || glyphs.length;
       metricsStats.extractedCount += measure.extractedCount || 0;
@@ -594,9 +686,10 @@ export function layoutChunk({
         width: adjustedWidthPx,
         height: font.lineHeight,
         baselineY: line.y + font.size,
+        ascentPx: Number(measure.ascentPx || Math.round(font.size * 0.8)),
         startOffset: token.startOffset,
         endOffset: token.endOffset,
-        charPositions: measure.charPositions,
+        charPositions,
         glyphBoxes: measure.glyphBoxes || [],
         glyphCount: glyphs.length,
         fillStyle: font.fillStyle || ""
@@ -605,9 +698,11 @@ export function layoutChunk({
       blockFragments.push(fragment);
     }
 
+    let previousRunContext = null;
     runs.forEach((run, runIndex) => {
       if (run.hardBreak) {
         commitLine();
+        previousRunContext = null;
         return;
       }
       const style = styles.get(run.styleToken) || {};
@@ -620,6 +715,54 @@ export function layoutChunk({
       const segmentText = reconstructionScope
         ? reconstructRangeText(chunkModel, effectiveSegment.start, effectiveSegment.end, reconstructionScope)
         : "";
+      if (
+        previousRunContext &&
+        Number(effectiveSegment.start || 0) > Number(previousRunContext.endOffset || 0)
+      ) {
+        const gapStart = Number(previousRunContext.endOffset || 0);
+        const gapEnd = Number(effectiveSegment.start || 0);
+        const interRunText = reconstructionScope
+          ? reconstructRangeText(chunkModel, gapStart, gapEnd, reconstructionScope)
+          : "";
+        if (interRunText && /\s/u.test(interRunText)) {
+          placeToken({
+            token: {
+              startOffset: gapStart,
+              endOffset: gapEnd,
+              kind: "gap"
+            },
+            font,
+            styleToken: run.styleToken,
+            segmentId: `${block.blockId}:gap:${runIndex}`,
+            runKey: `${block.blockId}:${Math.max(0, runIndex - 1)}`,
+            glyphs: [],
+            glyphStartIndex: 0,
+            glyphEndIndex: 0,
+            sourceRef: run.sourceRef || block.sourceRef
+          });
+        }
+      } else if (
+        previousRunContext &&
+        Number(effectiveSegment.start || 0) === Number(previousRunContext.endOffset || 0) &&
+        hasContiguousWordBoundaryGap(chunkModel.wordBoundaryModel, Number(effectiveSegment.start || 0))
+      ) {
+        placeToken({
+          token: {
+            startOffset: effectiveSegment.start,
+            endOffset: effectiveSegment.start,
+            kind: "gap",
+            syntheticText: " "
+          },
+          font,
+          styleToken: run.styleToken,
+          segmentId: `${block.blockId}:boundary-gap:${runIndex}`,
+          runKey: `${block.blockId}:${Math.max(0, runIndex - 1)}`,
+          glyphs: [],
+          glyphStartIndex: 0,
+          glyphEndIndex: 0,
+          sourceRef: run.sourceRef || block.sourceRef
+        });
+      }
       const tokens = buildTokenSlicesWithText(
         effectiveSegment,
         chunkModel.wordBoundaryModel,
@@ -646,6 +789,9 @@ export function layoutChunk({
           sourceRef: run.sourceRef || block.sourceRef
         });
       });
+      previousRunContext = {
+        endOffset: effectiveSegment.end
+      };
     });
 
     commitLine();
@@ -666,7 +812,7 @@ export function layoutChunk({
       if (!dropCapFragment) continue;
       for (const fragment of line.fragments) {
         if (fragment === dropCapFragment) {
-          fragment.baselineY = line.y + fragment.font.size;
+          fragment.baselineY = line.y + Math.max(1, Number(fragment.ascentPx || Math.round(fragment.font.size * 0.8)));
           continue;
         }
         const shift = Math.max(0, Math.round((line.height - fragment.font.lineHeight) * 0.72));
