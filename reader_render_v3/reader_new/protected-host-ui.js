@@ -553,13 +553,9 @@ function installStyles() {
     @media (orientation: portrait) {
       html.is-phone body.protected-shell #protectedDirectReaderRoot .reader-frame,
       html.is-tablet body.protected-shell #protectedDirectReaderRoot .reader-frame {
-        inset:
-          calc(0px + env(safe-area-inset-top, 0px))
-          calc(14px + env(safe-area-inset-right, 0px))
-          calc(0px + env(safe-area-inset-bottom, 0px))
-          calc(14px + env(safe-area-inset-left, 0px));
-        width: auto;
-        height: auto;
+        inset: 0;
+        width: 100%;
+        height: 100%;
       }
     }
     @media (orientation: landscape) {
@@ -5054,6 +5050,14 @@ function clearPageTurnPreview({ clearNeighbors = false } = {}) {
   }
   if (prevLayer) prevLayer.style.opacity = "0";
   if (nextLayer) nextLayer.style.opacity = "0";
+  if (prevLayer) {
+    prevLayer.style.transform = "";
+    prevLayer.style.transition = "";
+  }
+  if (nextLayer) {
+    nextLayer.style.transform = "";
+    nextLayer.style.transition = "";
+  }
   if (currentLayer) {
     currentLayer.replaceChildren();
     currentLayer.style.opacity = "0";
@@ -5090,9 +5094,9 @@ function clearPageTurnPreview({ clearNeighbors = false } = {}) {
 }
 
 function updateCurrentTurnLayerTransform(dx) {
-  const currentSurface = getCurrentTurnSurface();
-  if (!currentSurface) return;
-  currentSurface.style.transform = `translate3d(${Math.round(dx)}px, 0, 0)`;
+  const currentLayer = getCurrentTurnLayer();
+  if (!currentLayer) return;
+  currentLayer.style.transform = `translate3d(${Math.round(dx)}px, 0, 0)`;
 }
 
 function cloneCanvasesFromNodes(canvases) {
@@ -5394,8 +5398,14 @@ function settleTurnPreview(direction) {
     currentSurface.style.transition = "";
   }
   flushPageTurnLayout();
-  if (prevLayer) prevLayer.style.opacity = direction === "prev" ? "1" : "0";
-  if (nextLayer) nextLayer.style.opacity = direction === "next" ? "1" : "0";
+  if (prevLayer) {
+    prevLayer.style.opacity = direction === "prev" ? "1" : "0";
+    prevLayer.style.transform = "";
+  }
+  if (nextLayer) {
+    nextLayer.style.opacity = direction === "next" ? "1" : "0";
+    nextLayer.style.transform = "";
+  }
   if (shadow) {
     shadow.style.opacity = "0";
     shadow.style.left = "";
@@ -7393,7 +7403,7 @@ function installTouchSwipe(target) {
         });
       }
       const hasNeighborLayer = hasFreshNeighborLayer(direction);
-      if (!gesture.previewVisible) {
+      if (!gesture.previewVisible && (hasNeighborLayer || gesture.prepared)) {
         gesture.previewVisible = beginPageTurnPreviewFromCanvases(
           gesture.frozenCanvases && gesture.frozenCanvases.length
             ? gesture.frozenCanvases
@@ -7422,7 +7432,6 @@ function installTouchSwipe(target) {
           }
           updatePageTurnPresentation(dx);
         } else {
-          updateCurrentTurnLayerTransform(dx);
           scheduleTouchRevealActivation(direction);
         }
       }
