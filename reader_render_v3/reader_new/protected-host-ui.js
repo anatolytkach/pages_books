@@ -550,6 +550,26 @@ function installStyles() {
       background: transparent;
       touch-action: none;
     }
+    @media (orientation: portrait) {
+      html.is-phone body.protected-shell #protectedDirectReaderRoot .reader-frame,
+      html.is-tablet body.protected-shell #protectedDirectReaderRoot .reader-frame {
+        inset:
+          calc(0px + env(safe-area-inset-top, 0px))
+          calc(14px + env(safe-area-inset-right, 0px))
+          calc(0px + env(safe-area-inset-bottom, 0px))
+          calc(14px + env(safe-area-inset-left, 0px));
+        width: auto;
+        height: auto;
+      }
+    }
+    @media (orientation: landscape) {
+      html.is-phone body.protected-shell #protectedDirectReaderRoot .reader-frame,
+      html.is-tablet body.protected-shell #protectedDirectReaderRoot .reader-frame {
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+    }
     #protectedDirectReaderRoot #reader-canvas,
     #protectedDirectReaderRoot #overlay-canvas {
       position: absolute;
@@ -2756,14 +2776,14 @@ function installStyles() {
       html.is-phone body.protected-shell #next,
       html.is-tablet body.protected-shell #prev,
       html.is-tablet body.protected-shell #next {
-        display: flex !important;
-        opacity: 1;
+        display: none !important;
+        opacity: 0 !important;
       }
       html.is-phone body.protected-shell #prev::after,
       html.is-phone body.protected-shell #next::after,
       html.is-tablet body.protected-shell #prev::after,
       html.is-tablet body.protected-shell #next::after {
-        opacity: 1;
+        opacity: 0 !important;
       }
     }
     @media (max-width: 820px) {
@@ -2776,6 +2796,15 @@ function installStyles() {
         left: auto;
         right: 0;
         width: min(100vw, 360px);
+      }
+    }
+    @media (orientation: portrait) {
+      html.is-phone body.protected-shell #overlay-settings,
+      html.is-tablet body.protected-shell #overlay-settings {
+        top: 0 !important;
+        bottom: auto !important;
+        height: 67svh !important;
+        max-height: 67svh !important;
       }
     }
   `;
@@ -4956,6 +4985,55 @@ function getCurrentTurnSurface() {
   return document.getElementById("viewer");
 }
 
+function getProtectedReaderFrameInsets() {
+  try {
+    const viewer = getCurrentTurnSurface();
+    const frame = document.querySelector("#protectedDirectReaderRoot .reader-frame");
+    if (!viewer || !frame) return null;
+    const viewerRect = viewer.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    return {
+      left: Math.max(0, Math.round(frameRect.left - viewerRect.left)),
+      right: Math.max(0, Math.round(viewerRect.right - frameRect.right)),
+      top: Math.max(0, Math.round(frameRect.top - viewerRect.top)),
+      bottom: Math.max(0, Math.round(viewerRect.bottom - frameRect.bottom))
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function syncPageTurnLayerGeometry() {
+  const insets = getProtectedReaderFrameInsets();
+  [
+    document.getElementById("protectedOldShellCurrentLayer"),
+    document.getElementById("viewer-prev"),
+    document.getElementById("viewer-next")
+  ].filter(Boolean).forEach((layer) => {
+    if (!insets) {
+      layer.style.left = "0px";
+      layer.style.right = "0px";
+      layer.style.top = "0px";
+      layer.style.bottom = "0px";
+      return;
+    }
+    layer.style.left = `${insets.left}px`;
+    layer.style.right = `${insets.right}px`;
+    layer.style.top = `${insets.top}px`;
+    layer.style.bottom = `${insets.bottom}px`;
+  });
+}
+
+function flushPageTurnLayout() {
+  try {
+    syncPageTurnLayerGeometry();
+    const currentSurface = getCurrentTurnSurface();
+    const currentLayer = getCurrentTurnLayer();
+    currentSurface && currentSurface.getBoundingClientRect();
+    currentLayer && currentLayer.getBoundingClientRect();
+  } catch (_error) {}
+}
+
 function clearPageTurnPreview({ clearNeighbors = false } = {}) {
   const stack = document.getElementById("viewerStack");
   const prevLayer = document.getElementById("viewer-prev");
@@ -4987,6 +5065,7 @@ function clearPageTurnPreview({ clearNeighbors = false } = {}) {
     currentSurface.style.transform = "";
     currentSurface.style.transition = "";
   }
+  flushPageTurnLayout();
   if (frame) {
     frame.style.pointerEvents = "auto";
     frame.style.opacity = "1";
@@ -5314,6 +5393,7 @@ function settleTurnPreview(direction) {
     currentSurface.style.transform = "";
     currentSurface.style.transition = "";
   }
+  flushPageTurnLayout();
   if (prevLayer) prevLayer.style.opacity = direction === "prev" ? "1" : "0";
   if (nextLayer) nextLayer.style.opacity = direction === "next" ? "1" : "0";
   if (shadow) {
@@ -6047,6 +6127,7 @@ function attachProtectedSurfaceInteractions(frame) {
 
 function updateFromSummary(summary) {
   if (!summary) return;
+  syncPageTurnLayerGeometry();
   ensureHostGenerations();
   if (isStaleSummary(summary)) return;
   HOST_STATE.lastSummary = summary;
@@ -7600,6 +7681,7 @@ function bindShellControls() {
     openSearchOverlay();
   });
   const typographyControl = ensureTypographyControl();
+  ensureSettingsOverlay();
   const typographyTrigger = document.getElementById("protectedTypographyTrigger");
   const typographyPanel = document.getElementById("protectedTypographyPanel");
   const typographyScale = document.getElementById("protectedTypographyScale");
@@ -7743,6 +7825,27 @@ function bindShellControls() {
     HOST_STATE.fontScaleSynced = true;
     await invokeBridge("setFontScale", nextScale);
   };
+  let typographyScalePreviewTimer = null;
+  let activeTypographyScaleDrag = null;
+  const previewTypographyScale = (input) => {
+    if (!input) return;
+    const nextScale = persistShellFontScale(
+      Math.max(0.8, Math.min(1.6, Number(input.value || 1)))
+    );
+    updateTypographyScaleVisual(input);
+    HOST_STATE.lastAppliedFontScale = nextScale;
+    HOST_STATE.fontScaleSynced = true;
+    if (typographyScalePreviewTimer) {
+      window.clearTimeout(typographyScalePreviewTimer);
+      typographyScalePreviewTimer = null;
+    }
+    typographyScalePreviewTimer = window.setTimeout(() => {
+      typographyScalePreviewTimer = null;
+      invokeBridge("setFontScale", nextScale).catch(() => {
+        HOST_STATE.fontScaleSynced = false;
+      });
+    }, 0);
+  };
   const updateTypographyScaleFromClientX = (input, clientX) => {
     if (!input || !Number.isFinite(clientX)) return false;
     const rect = input.getBoundingClientRect();
@@ -7759,17 +7862,31 @@ function bindShellControls() {
   };
   typographyScale && typographyScale.addEventListener("input", (event) => {
     updateTypographyScaleVisual(event.currentTarget);
+    previewTypographyScale(event.currentTarget);
   });
   typographyScale && typographyScale.addEventListener("change", async (event) => {
     await commitTypographyScale(event.currentTarget);
   });
+  const releaseTypographyScaleDrag = async () => {
+    if (!activeTypographyScaleDrag) return;
+    const input = activeTypographyScaleDrag;
+    activeTypographyScaleDrag = null;
+    await commitTypographyScale(input);
+  };
+  const handleTypographyScaleDragMove = (clientX) => {
+    if (!activeTypographyScaleDrag) return false;
+    if (!updateTypographyScaleFromClientX(activeTypographyScaleDrag, clientX)) return false;
+    previewTypographyScale(activeTypographyScaleDrag);
+    return true;
+  };
   typographyScale && typographyScale.addEventListener("pointerdown", async (event) => {
     if (String(event.pointerType || "").toLowerCase() !== "touch") return;
     if (!updateTypographyScaleFromClientX(event.currentTarget, Number(event.clientX || 0))) return;
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation && event.stopImmediatePropagation();
-    await commitTypographyScale(event.currentTarget);
+    activeTypographyScaleDrag = event.currentTarget;
+    previewTypographyScale(event.currentTarget);
   }, true);
   typographyScale && typographyScale.addEventListener("touchstart", async (event) => {
     const touch = event.touches && event.touches[0] ? event.touches[0] : null;
@@ -7777,8 +7894,26 @@ function bindShellControls() {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation && event.stopImmediatePropagation();
-    await commitTypographyScale(event.currentTarget);
+    activeTypographyScaleDrag = event.currentTarget;
+    previewTypographyScale(event.currentTarget);
   }, { capture: true, passive: false });
+  window.addEventListener("pointermove", (event) => {
+    if (String(event.pointerType || "").toLowerCase() !== "touch") return;
+    if (!handleTypographyScaleDragMove(Number(event.clientX || 0))) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+  }, true);
+  window.addEventListener("touchmove", (event) => {
+    const touch = event.touches && event.touches[0] ? event.touches[0] : null;
+    if (!touch || !handleTypographyScaleDragMove(Number(touch.clientX || 0))) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+  }, { capture: true, passive: false });
+  window.addEventListener("pointerup", () => { void releaseTypographyScaleDrag(); }, true);
+  window.addEventListener("touchend", () => { void releaseTypographyScaleDrag(); }, true);
+  window.addEventListener("touchcancel", () => { activeTypographyScaleDrag = null; }, true);
   settingsShareButton && bindPrimaryAction(settingsShareButton, handleProtectedBookShare);
   fontModeButtons.forEach((button) => {
     button.addEventListener("click", async (event) => {
@@ -8008,6 +8143,7 @@ function bindShellControls() {
   searchClose && bindPrimaryAction(searchClose, async () => {
     await clearSearch({ preserveOrigin: true });
     await restoreSearchOrigin({ closeMobileUi: true });
+    hideShellUi("search-close");
   }, { touchOnly: false });
   floatClose && bindPrimaryAction(floatClose, async () => {
     await clearSearch({ preserveOrigin: false });
@@ -8232,10 +8368,14 @@ async function ensureDirectProtectedHost() {
   viewer.append(host);
   HOST_STATE.frame = root;
   HOST_STATE.directSurfaceRoot = root;
+  syncPageTurnLayerGeometry();
+  window.addEventListener("resize", syncPageTurnLayerGeometry, { passive: true });
+  window.addEventListener("orientationchange", syncPageTurnLayerGeometry, { passive: true });
   setShellLoading(true);
   installTouchSwipe(host);
 
   await ensureDirectProtectedRuntimeMounted(root);
+  syncPageTurnLayerGeometry();
   attachProtectedSurfaceInteractions(root);
   clearHostEventSubscriptions();
   installCompatEventSubscriptions(root);
