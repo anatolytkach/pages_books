@@ -4828,12 +4828,17 @@ function getCurrentTurnLayer() {
   return document.getElementById("protectedOldShellCurrentLayer");
 }
 
+function getCurrentTurnSurface() {
+  return document.getElementById("viewer");
+}
+
 function clearPageTurnPreview({ clearNeighbors = false } = {}) {
   const stack = document.getElementById("viewerStack");
   const prevLayer = document.getElementById("viewer-prev");
   const nextLayer = document.getElementById("viewer-next");
   const shadow = document.getElementById("swipe-shadow");
   const currentLayer = getCurrentTurnLayer();
+  const currentSurface = getCurrentTurnSurface();
   const frame = HOST_STATE.frame;
   if (clearNeighbors) {
     if (prevLayer) {
@@ -4853,6 +4858,10 @@ function clearPageTurnPreview({ clearNeighbors = false } = {}) {
     currentLayer.style.visibility = "hidden";
     currentLayer.style.transform = "";
     currentLayer.style.transition = "";
+  }
+  if (currentSurface) {
+    currentSurface.style.transform = "";
+    currentSurface.style.transition = "";
   }
   if (frame) {
     frame.style.pointerEvents = "auto";
@@ -4878,9 +4887,9 @@ function clearPageTurnPreview({ clearNeighbors = false } = {}) {
 }
 
 function updateCurrentTurnLayerTransform(dx) {
-  const currentLayer = getCurrentTurnLayer();
-  if (!currentLayer) return;
-  currentLayer.style.transform = `translate3d(${Math.round(dx)}px, 0, 0)`;
+  const currentSurface = getCurrentTurnSurface();
+  if (!currentSurface) return;
+  currentSurface.style.transform = `translate3d(${Math.round(dx)}px, 0, 0)`;
 }
 
 function cloneCanvasesFromNodes(canvases) {
@@ -4897,11 +4906,20 @@ function cloneCanvasesFromNodes(canvases) {
     if (!ctx) return null;
     ctx.drawImage(source, 0, 0, width, height);
     const computed = window.getComputedStyle(source);
+    const rect = source.getBoundingClientRect();
+    const computedWidth = Number.parseFloat(computed.width || "");
+    const computedHeight = Number.parseFloat(computed.height || "");
+    const resolvedWidth = computedWidth > 0
+      ? computed.width
+      : `${Math.max(1, Math.round(rect.width || 0) || width)}px`;
+    const resolvedHeight = computedHeight > 0
+      ? computed.height
+      : `${Math.max(1, Math.round(rect.height || 0) || height)}px`;
     target.style.position = computed.position || "absolute";
     target.style.left = computed.left || "0px";
     target.style.top = computed.top || "0px";
-    target.style.width = computed.width || `${Math.round(source.getBoundingClientRect().width || 0)}px`;
-    target.style.height = computed.height || `${Math.round(source.getBoundingClientRect().height || 0)}px`;
+    target.style.width = resolvedWidth;
+    target.style.height = resolvedHeight;
     target.style.transform = computed.transform && computed.transform !== "none" ? computed.transform : "";
     target.style.transformOrigin = computed.transformOrigin || "";
     return target;
@@ -5150,8 +5168,8 @@ function updatePageTurnPresentation(dx) {
 }
 
 function updateCurrentTurnAnimationOnly(dx) {
-  const currentLayer = getCurrentTurnLayer();
-  if (!currentLayer || !dx) return;
+  const currentSurface = getCurrentTurnSurface();
+  if (!currentSurface || !dx) return;
   updateCurrentTurnLayerTransform(dx);
 }
 
@@ -5159,6 +5177,7 @@ function settleTurnPreview(direction) {
   const stack = document.getElementById("viewerStack");
   const shadow = document.getElementById("swipe-shadow");
   const currentLayer = getCurrentTurnLayer();
+  const currentSurface = getCurrentTurnSurface();
   const prevLayer = document.getElementById("viewer-prev");
   const nextLayer = document.getElementById("viewer-next");
   if (currentLayer) {
@@ -5166,6 +5185,10 @@ function settleTurnPreview(direction) {
     currentLayer.style.visibility = "hidden";
     currentLayer.style.transform = "";
     currentLayer.style.transition = "";
+  }
+  if (currentSurface) {
+    currentSurface.style.transform = "";
+    currentSurface.style.transition = "";
   }
   if (prevLayer) prevLayer.style.opacity = direction === "prev" ? "1" : "0";
   if (nextLayer) nextLayer.style.opacity = direction === "next" ? "1" : "0";
@@ -6433,13 +6456,16 @@ function beginPageTurnPreview() {
 
 function beginPageTurnPreviewFromCanvases(liveCanvases) {
   const currentLayer = getCurrentTurnLayer();
+  const currentSurface = getCurrentTurnSurface();
   const frame = HOST_STATE.frame;
-  if (!currentLayer || !frame || !liveCanvases.length) return false;
+  if (!currentLayer || !currentSurface || !frame || !liveCanvases.length) return false;
   currentLayer.replaceChildren(buildTurnLayer(liveCanvases));
   currentLayer.style.visibility = "visible";
   currentLayer.style.opacity = "1";
   currentLayer.style.transition = "none";
   currentLayer.style.transform = "translate3d(0px, 0, 0)";
+  currentSurface.style.transition = "none";
+  currentSurface.style.transform = "translate3d(0px, 0, 0)";
   frame.style.pointerEvents = "none";
   frame.style.opacity = "0";
   frame.style.visibility = "hidden";
@@ -6463,9 +6489,10 @@ function clearTurnOverlayOnly() {
 
 function animatePageTurnTo(fromDx, toDx, durationMs = 280) {
   const currentLayer = getCurrentTurnLayer();
+  const currentSurface = getCurrentTurnSurface();
   const stack = document.getElementById("viewerStack");
   const shadow = document.getElementById("swipe-shadow");
-  if (!currentLayer || !stack) return;
+  if (!currentLayer || !currentSurface || !stack) return;
   const width = Math.max(1, stack.getBoundingClientRect().width || window.innerWidth || 1);
   const startDx = Number(fromDx) || 0;
   const targetDx = Number(toDx) || 0;
@@ -6497,8 +6524,8 @@ function animatePageTurnTo(fromDx, toDx, durationMs = 280) {
     };
     overlayRaf = rafFn(step);
   };
-  currentLayer.style.transition = `transform ${durationMs}ms ease-out`;
-  currentLayer.style.transform = `translate3d(${Math.round(startDx)}px, 0, 0)`;
+  currentSurface.style.transition = `transform ${durationMs}ms ease-out`;
+  currentSurface.style.transform = `translate3d(${Math.round(startDx)}px, 0, 0)`;
   if (shadow) {
     try {
       const shadowWidth = Math.max(6, shadow.getBoundingClientRect().width || 6);
@@ -6509,7 +6536,7 @@ function animatePageTurnTo(fromDx, toDx, durationMs = 280) {
     } catch (_error) {}
   }
   window.requestAnimationFrame(() => {
-    currentLayer.style.transform = `translate3d(${Math.round(targetDx)}px, 0, 0)`;
+    currentSurface.style.transform = `translate3d(${Math.round(targetDx)}px, 0, 0)`;
     animateOverlay(startDx, targetDx);
   });
 }

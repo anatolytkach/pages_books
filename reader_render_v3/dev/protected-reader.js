@@ -949,7 +949,7 @@ function isPreviewSnapshotStale(snapshot, expectedPreviewKey) {
 }
 
 async function refreshTurnPreview(direction, refreshKey) {
-  if (!state.currentSnapshot || !isEmbeddedProtectedShellMode()) return;
+  if (!state.currentSnapshot || !isProtectedShellHostMode()) return;
   window.__PROTECTED_TURN_PREVIEW_DEBUG__ = window.__PROTECTED_TURN_PREVIEW_DEBUG__ || {};
   window.__PROTECTED_TURN_PREVIEW_DEBUG__[direction] = {
     stage: "start",
@@ -994,7 +994,7 @@ async function refreshTurnPreview(direction, refreshKey) {
 }
 
 async function refreshTurnPreviews() {
-  if (!isEmbeddedProtectedShellMode() || !state.currentSnapshot) return;
+  if (!isProtectedShellHostMode() || !state.currentSnapshot) return;
   const refreshKey = getTurnPreviewKey();
   const run = async () => {
     state.turnPreviewRefreshToken += 1;
