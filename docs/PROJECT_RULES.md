@@ -40,13 +40,13 @@
 
 ## Updating Context Files
 
-- Update root context files after significant architecture, ownership, tooling, or workflow changes.
-- Do not update root context files for trivial UI or copy edits.
+- Update context files in `docs/` after significant architecture, ownership, tooling, or workflow changes.
+- Do not update context files in `docs/` for trivial UI or copy edits.
 - Use:
-  - `PROJECT_CONTEXT.md` for stable architecture and tool entry points;
-  - `PROJECT_RULES.md` for standing workflow rules;
-  - `CURRENT_STATE.md` for current accepted operational reality;
-  - `COMPONENT_GUIDE.md` for component boundaries and cross-component risks.
+  - `docs/PROJECT_CONTEXT.md` for stable architecture and tool entry points;
+  - `docs/PROJECT_RULES.md` for standing workflow rules;
+  - `docs/CURRENT_STATE.md` for current accepted operational reality;
+  - `docs/COMPONENT_GUIDE.md` for component boundaries and cross-component risks.
 
 ## Verification
 

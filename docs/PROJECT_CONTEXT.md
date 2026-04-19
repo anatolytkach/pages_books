@@ -147,7 +147,7 @@ The deployed public site serves `https://reader.pub/books/`.
 
 ## Documentation Entry Points
 
-- Root files (`PROJECT_CONTEXT.md`, `PROJECT_RULES.md`, `CURRENT_STATE.md`, `COMPONENT_GUIDE.md`) are the handoff entry point.
+- Context files in `docs/` (`docs/PROJECT_CONTEXT.md`, `docs/PROJECT_RULES.md`, `docs/CURRENT_STATE.md`, `docs/COMPONENT_GUIDE.md`) are the handoff entry point.
 - Tooling instructions live in:
   - `docs/README.md`
   - `tools/README.md`

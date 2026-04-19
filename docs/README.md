@@ -3,12 +3,12 @@
 This directory is limited to operational documentation that is still required
 for the current repository.
 
-Repository startup context does not live here. Start with the root files:
+Repository startup context lives here. Start with:
 
-- `PROJECT_CONTEXT.md`
-- `PROJECT_RULES.md`
-- `CURRENT_STATE.md`
-- `COMPONENT_GUIDE.md`
+- `docs/PROJECT_CONTEXT.md`
+- `docs/PROJECT_RULES.md`
+- `docs/CURRENT_STATE.md`
+- `docs/COMPONENT_GUIDE.md`
 - `AGENTS.md`
 
 ## Tooling Docs Kept In The Repository

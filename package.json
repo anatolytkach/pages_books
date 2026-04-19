@@ -1,0 +1,35 @@
+{
+  "name": "pages_books",
+  "version": "1.0.0",
+  "description": "",
+  "main": "_worker.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "dependencies": {
+    "harfbuzzjs": "^0.4.15",
+    "opentype.js": "^1.3.4",
+    "string.prototype.codepointat": "^0.2.1",
+    "tiny-inflate": "^1.0.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anatolytkach/pages_books.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/anatolytkach/pages_books/issues"
+  },
+  "homepage": "https://github.com/anatolytkach/pages_books#readme"
+}

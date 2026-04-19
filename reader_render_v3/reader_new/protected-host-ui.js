@@ -5456,18 +5456,21 @@ function updateSwipeOverlayAlpha(dx, width) {
   }
 }
 
-async function openProtectedNoteComposer() {
+async function openProtectedNoteComposer(debugCaptureOverride = null) {
   const backdrop = document.getElementById("commentBackdrop");
   const sheet = document.getElementById("commentSheet");
   const input = document.getElementById("commentInput");
   const save = document.getElementById("commentSave");
   const cancel = document.getElementById("commentCancel");
+  const quote = document.getElementById("commentSelectionQuote");
   if (!sheet || !input || !save || !cancel) {
     await invokeBridge("addNoteToSelection", "");
     return;
   }
   hideSelectionToolbar();
-  let capture = HOST_STATE.cachedSelectionActionState;
+  let capture = debugCaptureOverride && debugCaptureOverride.hasSelection
+    ? JSON.parse(JSON.stringify(debugCaptureOverride))
+    : HOST_STATE.cachedSelectionActionState;
   if (!capture || !capture.hasSelection || !capture.rangeDescriptor) {
     capture = await invokeBridgeRaw("captureSelectionForUserAction");
   }
@@ -5478,8 +5481,26 @@ async function openProtectedNoteComposer() {
   if (!rangeDescriptor) {
     throw new Error("Selection anchor is unavailable for note creation.");
   }
+  const normalizedQuote = String(capture && capture.clipboardText ? capture.clipboardText : "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  try {
+    HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
+    const nextSummary = await invokeBridgeRaw("clearSelection");
+    if (nextSummary) updateFromSummary(nextSummary);
+  } catch (_error) {}
   backdrop && backdrop.classList.remove("hidden");
   sheet.classList.remove("hidden");
+  if (quote) {
+    if (normalizedQuote) {
+      quote.textContent = normalizedQuote;
+      quote.classList.remove("hidden");
+    } else {
+      quote.textContent = "";
+      quote.classList.add("hidden");
+    }
+  }
   input.value = "";
   window.setTimeout(() => {
     try {
@@ -5487,15 +5508,32 @@ async function openProtectedNoteComposer() {
     } catch (error) {}
   }, 0);
   return new Promise((resolve) => {
+    let actionLockUntil = 0;
+    const shouldSkipSheetAction = () => Date.now() < actionLockUntil;
+    const markSheetActionHandled = () => {
+      actionLockUntil = Date.now() + 500;
+    };
     const close = () => {
       backdrop && backdrop.classList.add("hidden");
       sheet.classList.add("hidden");
+      if (quote) {
+        quote.textContent = "";
+        quote.classList.add("hidden");
+      }
       save.removeEventListener("click", onSave, true);
+      save.removeEventListener("pointerup", onSave, true);
+      save.removeEventListener("touchend", onSave, true);
       cancel.removeEventListener("click", onCancel, true);
+      cancel.removeEventListener("pointerup", onCancel, true);
+      cancel.removeEventListener("touchend", onCancel, true);
       backdrop && backdrop.removeEventListener("click", onCancel, true);
+      backdrop && backdrop.removeEventListener("pointerup", onCancel, true);
+      backdrop && backdrop.removeEventListener("touchend", onCancel, true);
       resolve();
     };
     const onCancel = async (event) => {
+      if (shouldSkipSheetAction()) return;
+      markSheetActionHandled();
       event && event.preventDefault();
       event && event.stopPropagation && event.stopPropagation();
       event && event.stopImmediatePropagation && event.stopImmediatePropagation();
@@ -5508,6 +5546,8 @@ async function openProtectedNoteComposer() {
       close();
     };
     const onSave = async (event) => {
+      if (shouldSkipSheetAction()) return;
+      markSheetActionHandled();
       event && event.preventDefault();
       event && event.stopPropagation && event.stopPropagation();
       event && event.stopImmediatePropagation && event.stopImmediatePropagation();
@@ -5516,7 +5556,7 @@ async function openProtectedNoteComposer() {
           "addNoteFromRangeDescriptor",
           rangeDescriptor,
           input.value || "",
-          capture && capture.clipboardText ? capture.clipboardText : ""
+          normalizedQuote
         );
         HOST_STATE.cachedSelectionActionState = null;
         HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
@@ -5530,8 +5570,14 @@ async function openProtectedNoteComposer() {
       }
     };
     save.addEventListener("click", onSave, true);
+    save.addEventListener("pointerup", onSave, true);
+    save.addEventListener("touchend", onSave, { capture: true, passive: false });
     cancel.addEventListener("click", onCancel, true);
+    cancel.addEventListener("pointerup", onCancel, true);
+    cancel.addEventListener("touchend", onCancel, { capture: true, passive: false });
     backdrop && backdrop.addEventListener("click", onCancel, true);
+    backdrop && backdrop.addEventListener("pointerup", onCancel, true);
+    backdrop && backdrop.addEventListener("touchend", onCancel, { capture: true, passive: false });
   });
 }
 
@@ -8504,6 +8550,15 @@ window.__readerpubEnsureUnifiedShellOverlays = function () {
   ensureSettingsOverlay();
   syncProtectedShellIcons();
 };
+try {
+  const host = String((window.location && window.location.hostname) || "").trim().toLowerCase();
+  if (host === "127.0.0.1" || host === "localhost" || host === "::1") {
+    window.__readerpubDebugOpenProtectedNoteComposer = openProtectedNoteComposer;
+    window.__readerpubDebugOpenProtectedNoteComposerWithCapture = function (capture) {
+      return openProtectedNoteComposer(capture || null);
+    };
+  }
+} catch (_error) {}
 window.addEventListener(
   "readerpub:protected-shell-config",
   () => {

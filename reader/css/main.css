@@ -3517,6 +3517,22 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   font-weight: 600;
   margin-bottom: 8px;
 }
+.comment-selection-quote{
+  margin-bottom: 10px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--fbbar-border) 88%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fbbar-bg) 86%, #ffffff 14%);
+  color: color-mix(in srgb, var(--fbbar-fg) 90%, #6a7480 10%);
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-height: min(28vh, 180px);
+  overflow: auto;
+}
+.comment-selection-quote.hidden{ display: none !important; }
 .comment-input{
   width: 100%;
   border: 1px solid var(--fbbar-border);
@@ -3555,6 +3571,10 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
     padding-bottom: calc(12px + env(safe-area-inset-bottom));
     transform: none;
     max-width: 100vw;
+  }
+  .comment-selection-quote{
+    font-size: 14px;
+    max-height: min(22vh, 160px);
   }
 }
 
