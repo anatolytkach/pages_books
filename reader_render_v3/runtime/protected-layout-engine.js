@@ -290,6 +290,8 @@ export function layoutChunk({
 }) {
   const ctx = createScratchContext();
   const effectiveWidth = Math.max(1, Number(width || 0));
+  const effectiveViewportHeight = Math.max(420, Number(viewportHeight || 720));
+  const isPortraitViewport = effectiveViewportHeight > effectiveWidth;
   const resolvedPaddingX =
     padding == null
       ? (
@@ -302,10 +304,9 @@ export function layoutChunk({
       : Number(padding || 0);
   const resolvedPaddingY =
     padding == null
-      ? 50
+      ? (isPortraitViewport ? 25 : 50)
       : Number(padding || 0);
   const contentWidth = Math.max(260, effectiveWidth - resolvedPaddingX * 2);
-  const effectiveViewportHeight = Math.max(420, Number(viewportHeight || 720));
   const forceLandscapeSpread = effectiveWidth > effectiveViewportHeight && effectiveWidth >= 700;
   const columnCount = effectiveWidth >= 1120 || forceLandscapeSpread ? 2 : 1;
   const isCompactLandscapeSpread = columnCount > 1 && effectiveViewportHeight <= 820;
