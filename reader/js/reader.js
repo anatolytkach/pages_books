@@ -4363,24 +4363,6 @@ if (!doc) return;
 						if (isProtectedOldShell && isMobileOrTablet) return;
 					} catch (eProtectedUiTap) {}
 					doc.__uiTapAttached = true;
-					try {
-						var compatDesktop = false;
-						try { compatDesktop = isReaderNewCompatGapMode() && getCurrentSpreadMode() !== "none"; } catch (eCompatMode) {}
-						if (compatDesktop && doc && doc.head && !doc.getElementById("readerNewCompatDesktopInset")) {
-							var compatStyle = doc.createElement("style");
-							compatStyle.id = "readerNewCompatDesktopInset";
-							compatStyle.textContent =
-								"html,body{box-sizing:border-box!important;}" +
-								"body{padding-left:112px!important;padding-right:112px!important;}" +
-								"img,svg,video,figure,picture{max-width:100%!important;}";
-							doc.head.appendChild(compatStyle);
-						}
-						if (compatDesktop && doc && doc.body && doc.body.style) {
-							try { doc.body.style.setProperty("padding-left", "140px", "important"); } catch (eCompatInsetBodyL) {}
-							try { doc.body.style.setProperty("padding-right", "140px", "important"); } catch (eCompatInsetBodyR) {}
-						}
-					} catch (eCompatInset) {}
-
 					var win = doc.defaultView || window;
 					var st = { x: 0, y: 0, ts: 0, moved: false };
 
@@ -8099,9 +8081,6 @@ if ($addressBarToggle && $addressBarToggle.length) {
 // Update icon on native fullscreen changes
 ["fullscreenchange","webkitfullscreenchange","mozfullscreenchange","MSFullscreenChange"].forEach(function(evt){
 	document.addEventListener(evt, function(){
-		if (window.__readerpubReaderNewCompat) {
-			return;
-		}
 		var inFs = _nativeIsFullscreen();
 		try {
 			if (inFs) {

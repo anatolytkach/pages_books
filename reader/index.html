@@ -119,16 +119,6 @@
               return host === "127.0.0.1" || host === "localhost" || host === "::1";
             }
 
-            function isReaderNewRoute() {
-              var pathname = String((window.location && window.location.pathname) || "").trim();
-              return (
-                pathname === "/books/reader_new/" ||
-                pathname === "/reader_new/" ||
-                pathname === "/books/reader_new/index.html" ||
-                pathname === "/reader_new/index.html"
-              );
-            }
-
             function fetchBookLocation(source, id) {
               var shard = bookLocationShard(id);
               var path = source
@@ -158,7 +148,6 @@
   const qProtectedArtifactSource = String(params.get("protectedArtifactSource") || params.get("artifactSource") || "").trim().toLowerCase();
   const qReaderContentSource = String(params.get("readerContentSource") || params.get("bookContentSource") || "").trim().toLowerCase();
   const qReaderRemoteMode = String(params.get("readerRemoteMode") || params.get("protectedRemoteMode") || "").trim().toLowerCase();
-  const qIsReaderNewRoute = isReaderNewRoute();
   try {
     if (isLocalPreviewHost()) {
       document.cookie = `readerpub_artifact_source=${encodeURIComponent(qProtectedArtifactSource || "local")}; path=/; SameSite=Lax`;
@@ -379,26 +368,6 @@
   }
 
   function bootReader(bookPath) {
-    if (qIsReaderNewRoute && qReaderMode !== "protected") {
-      window.__readerpubUnprotectedRuntimePath = "disabled";
-      try {
-        document.body.setAttribute("data-unprotected-runtime", "disabled");
-        document.body.classList.remove("unprotected-runtime-new", "unprotected-runtime-shell", "unprotected-runtime-legacy");
-        document.body.classList.add("unprotected-runtime-disabled");
-      } catch (eDisabledRuntimeMark) {}
-      var blockedEl = document.getElementById("viewer");
-      if (blockedEl) {
-        blockedEl.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
-          <h2 style="margin:0 0 10px 0;font-size:18px">reader_new no longer opens the technical unprotected host</h2>
-          <div style="color:#666;font-size:14px;line-height:1.5">
-            This route is now reserved for the unified user-facing shell.
-            Open a protected-style artifact route instead of the retired unprotected skeleton flow.
-          </div>
-        </div>`;
-      }
-      return;
-    }
-
     var useNewRuntime = false;
     var runtimeMode = "legacy";
     try {
@@ -695,21 +664,6 @@
 <script src="js/unprotected-direct-view.js?v=20260413-phase13-1"></script>
 <script>
   (function () {
-    function isReaderNewRuntimeSurface() {
-      var pathname = String((window.location && window.location.pathname) || "").trim();
-      return (
-        pathname === "/books/reader_new/" ||
-        pathname === "/reader_new/" ||
-        pathname === "/books/reader_new/index.html" ||
-        pathname === "/reader_new/index.html"
-      );
-    }
-
-    if (isReaderNewRuntimeSurface()) {
-      window.__readerpubUnprotectedRuntimeScriptsSkipped = true;
-      return;
-    }
-
     var head = document.head || document.getElementsByTagName("head")[0];
     if (!head) return;
     [

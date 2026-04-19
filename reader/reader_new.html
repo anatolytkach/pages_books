@@ -72,173 +72,120 @@
   }
 </style>
 <script>
-            "use strict";
+  (function () {
+    "use strict";
 
-            function getQueryParam(name) {
-              try {
-                var params = new URLSearchParams(window.location.search || "");
-                var v = params.get(name);
-                return v ? decodeURIComponent(v) : "";
-              } catch (e) {
-                // Fallback for older browsers
-                var search = window.location.search || "";
-                if (!search || search.length < 2) return "";
-                var pairs = search.substring(1).split("&");
-                for (var i = 0; i < pairs.length; i++) {
-                  var parts = pairs[i].split("=");
-                  if (parts[0] === name) return decodeURIComponent(parts[1] || "");
-                }
-                return "";
-              }
-            }
-
-            function inferOpenAs(path) {
-              var p = (path || "").toLowerCase();
-              if (p.endsWith(".epub")) return "epub";
-              if (p.endsWith(".opf")) return "opf";
-              // For a directory-based EPUB (unpacked), we expect META-INF/container.xml under the base path
-              if (p.endsWith("/")) return "directory";
-              // If user passes something like "book" without trailing slash, still treat as directory
-              if (p && !p.includes(".")) return "directory";
-              return undefined;
-            }
-
-            function bookLocationShard(id) {
-              var raw = String(id || "").trim();
-              if (/^\d+$/.test(raw)) {
-                var value = Number(raw) % 100;
-                return String(value).padStart(2, "0");
-              }
-              var total = 0;
-              for (var i = 0; i < raw.length; i++) total = (total + raw.charCodeAt(i)) % 100;
-              return String(total).padStart(2, "0");
-            }
-
-            function isLocalPreviewHost() {
-              var host = String((window.location && window.location.hostname) || "").trim().toLowerCase();
-              return host === "127.0.0.1" || host === "localhost" || host === "::1";
-            }
-
-            function isReaderNewRoute() {
-              var pathname = String((window.location && window.location.pathname) || "").trim();
-              return (
-                pathname === "/books/reader_new/" ||
-                pathname === "/reader_new/" ||
-                pathname === "/reader/reader_new" ||
-                pathname === "/reader/reader_new/" ||
-                pathname === "/books/reader_new/index.html" ||
-                pathname === "/reader_new/index.html" ||
-                pathname === "/reader/reader_new.html"
-              );
-            }
-
-            try {
-              if (isReaderNewRoute()) {
-                var __readerpubEntryParams = new URLSearchParams(window.location.search || "");
-                var __readerpubEntryMode = String(__readerpubEntryParams.get("reader") || "").trim().toLowerCase();
-                if (__readerpubEntryMode !== "protected") {
-                  window.__readerpubReaderNewProtectedOnly = true;
-                }
-              }
-            } catch (eReaderNewProtectedOnlyBootstrap) {}
-
-            function fetchBookLocation(source, id) {
-              var shard = bookLocationShard(id);
-              var path = source
-                ? `/books/api/book-locations/${encodeURIComponent(source)}/${shard}.json?v=${Date.now()}`
-                : `/books/api/book-locations/${shard}.json?v=${Date.now()}`;
-              return fetch(path, { cache: "no-store" })
-                .then(function(response){
-                  if (!response.ok) throw new Error(`book-locations fetch failed (${response.status})`);
-                  return response.json();
-                })
-                .then(function(payload){
-                  var items = payload && payload.items ? payload.items : {};
-                  var item = items && items[id] ? items[id] : null;
-                  return item || null;
-                });
-            }
-
-            document.onreadystatechange = function () {
-              if (document.readyState == "complete") {
-                // Book source: ONLY from catalog (exploded EPUB directories on R2).
-// Expect book id in either ?id=75586 or #75586 (hash).
-(function(){
-  const params = new URLSearchParams(location.search);
-  const qReaderMode = String(params.get("reader") || "").trim().toLowerCase();
-  const qProtectedUx = String(params.get("protectedUx") || params.get("ux") || "").trim().toLowerCase();
-  const qResetLocation = String(params.get("resetLocation") || "").trim();
-  const qProtectedArtifactSource = String(params.get("protectedArtifactSource") || params.get("artifactSource") || "").trim().toLowerCase();
-  const qReaderContentSource = String(params.get("readerContentSource") || params.get("bookContentSource") || "").trim().toLowerCase();
-  const qReaderRemoteMode = String(params.get("readerRemoteMode") || params.get("protectedRemoteMode") || "").trim().toLowerCase();
-  const qIsReaderNewRoute = isReaderNewRoute();
-  const qReaderNewProtectedMode = qIsReaderNewRoute && qReaderMode === "protected";
-  const resolvedArtifactSource = qProtectedArtifactSource || (qReaderContentSource === "r2" ? "r2" : "");
-  const normalizedProtectedUx = qProtectedUx === "protected-shell"
-    ? "protected-shell"
-    : "";
-  const resolvedProtectedUx = normalizedProtectedUx || (qReaderNewProtectedMode ? "protected-shell" : "");
-  try {
-    if (isLocalPreviewHost()) {
-      document.cookie = `readerpub_artifact_source=${encodeURIComponent(resolvedArtifactSource || "local")}; path=/; SameSite=Lax`;
-      document.cookie = `readerpub_content_source=${encodeURIComponent(qReaderContentSource || "local")}; path=/; SameSite=Lax`;
-      document.cookie = `readerpub_remote_mode=${encodeURIComponent(qReaderRemoteMode || "default")}; path=/; SameSite=Lax`;
+    function isLocalPreviewHost() {
+      var host = String((window.location && window.location.hostname) || "").trim().toLowerCase();
+      return host === "127.0.0.1" || host === "localhost" || host === "::1";
     }
-  } catch (eArtifactModeCookie) {}
-  const rawHash = (location.hash || "");
-  const hid = rawHash.replace(/^#/, "");
-  const hashIsId = /^\d+$/.test(hid);
-  const hashIsCfi = /^epubcfi\(/i.test(hid);
-  const qid = params.get("id");
-  const qidShort = params.get("i");
-  let id = (qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId ? hid.trim() : "") || "";
-  let source = String(params.get("source") || "").trim();
-  if (source === "gutenberg") source = "";
-  const hasExplicitId = !!((qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId && hid.trim()));
 
-  function renderProtectedOnlyEntryMessage(title, body) {
-    const el = document.getElementById("viewer");
-    if (!el) return;
-    el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
-      <h2 style="margin:0 0 10px 0;font-size:18px">${String(title || "")}</h2>
-      <div style="color:#666;font-size:14px;line-height:1.4">${String(body || "")}</div>
-    </div>`;
-  }
+    function isReaderNewRoute() {
+      var pathname = String((window.location && window.location.pathname) || "").trim();
+      return (
+        pathname === "/books/reader_new/" ||
+        pathname === "/reader_new/" ||
+        pathname === "/reader/reader_new" ||
+        pathname === "/reader/reader_new/" ||
+        pathname === "/books/reader_new/index.html" ||
+        pathname === "/reader_new/index.html" ||
+        pathname === "/reader/reader_new.html"
+      );
+    }
 
-  const resolvedReaderMode = qReaderNewProtectedMode ? "protected" : qReaderMode;
-  if (qIsReaderNewRoute && !qReaderNewProtectedMode) {
-    try {
-      window.__readerpubReaderNewProtectedOnly = true;
-      window.__readerpubReaderNewInvalidEntry = {
-        reason: "protected-only-route",
-        route: String(location.pathname || ""),
-        readerMode: String(qReaderMode || "")
+    function renderEntryMessage(title, body) {
+      var render = function () {
+        var el = document.getElementById("viewer");
+        if (!el) return;
+        el.innerHTML =
+          '<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">' +
+          '<h2 style="margin:0 0 10px 0;font-size:18px">' + String(title || "") + "</h2>" +
+          '<div style="color:#666;font-size:14px;line-height:1.4">' + String(body || "") + "</div>" +
+          "</div>";
       };
-    } catch (eProtectedOnlyFlag) {}
-    renderProtectedOnlyEntryMessage(
-      "Protected reader only",
-      "This reader accepts only protected book entries. Open the book from the catalog or use a protected reader URL."
-    );
-    return;
-  }
-  if (qReaderNewProtectedMode) {
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", render, { once: true });
+      } else {
+        render();
+      }
+    }
+
+    function dispatchProtectedConfig(config) {
+      try {
+        window.__readerpubProtectedShellMode = true;
+        window.__readerpubOldShellMode = "protected";
+        window.__READERPUB_PROTECTED_HOST_CONFIG__ = config;
+        window.dispatchEvent(
+          new CustomEvent("readerpub:protected-host-config", { detail: config })
+        );
+        window.dispatchEvent(
+          new CustomEvent("readerpub:protected-shell-config", { detail: config })
+        );
+      } catch (eProtectedConfig) {}
+    }
+
+    if (!isReaderNewRoute()) return;
+
+    var params = new URLSearchParams(window.location.search || "");
+    var readerMode = String(params.get("reader") || "").trim().toLowerCase();
+    var rawHash = String(window.location.hash || "");
+    var hashValue = rawHash.replace(/^#/, "");
+    var hashIsId = /^\d+$/.test(hashValue);
+    var hashIsCfi = /^epubcfi\(/i.test(hashValue);
+    var id = String(params.get("id") || params.get("i") || (hashIsId ? hashValue : "")).trim();
+    var source = String(params.get("source") || "").trim();
+    var protectedArtifactSource = String(
+      params.get("protectedArtifactSource") || params.get("artifactSource") || ""
+    ).trim().toLowerCase();
+    var readerContentSource = String(
+      params.get("readerContentSource") || params.get("bookContentSource") || ""
+    ).trim().toLowerCase();
+    var readerRemoteMode = String(
+      params.get("readerRemoteMode") || params.get("protectedRemoteMode") || ""
+    ).trim().toLowerCase();
+    var resolvedArtifactSource = protectedArtifactSource || (readerContentSource === "r2" ? "r2" : "");
+
+    if (readerMode !== "protected") {
+      try {
+        window.__readerpubReaderNewProtectedOnly = true;
+        window.__readerpubReaderNewInvalidEntry = {
+          reason: "protected-only-route",
+          route: String(window.location.pathname || ""),
+          readerMode: String(readerMode || "")
+        };
+      } catch (eProtectedOnlyFlag) {}
+      renderEntryMessage(
+        "Protected reader only",
+        "This reader accepts only protected book entries. Open the book from the catalog or use a protected reader URL."
+      );
+      return;
+    }
+
+    if (!/^\d+$/.test(id)) {
+      renderEntryMessage(
+        "No protected book selected",
+        'Open a protected book from the catalog or pass a protected reader URL with <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">reader=protected</code> and a valid book id.'
+      );
+      return;
+    }
+
     try {
-      const normalizedParams = new URLSearchParams(location.search || "");
-      let changed = false;
+      var normalizedParams = new URLSearchParams(window.location.search || "");
+      var changed = false;
       if (normalizedParams.get("reader") !== "protected") {
         normalizedParams.set("reader", "protected");
         changed = true;
       }
-      if (id && normalizedParams.get("protectedArtifactBookId") !== String(id)) {
-        normalizedParams.set("protectedArtifactBookId", String(id));
+      if (normalizedParams.get("protectedArtifactBookId") !== id) {
+        normalizedParams.set("protectedArtifactBookId", id);
         changed = true;
       }
       if (resolvedArtifactSource && normalizedParams.get("protectedArtifactSource") !== resolvedArtifactSource) {
         normalizedParams.set("protectedArtifactSource", resolvedArtifactSource);
         changed = true;
       }
-      if (normalizedParams.get("protectedUx") !== (resolvedProtectedUx || "protected-shell")) {
-        normalizedParams.set("protectedUx", resolvedProtectedUx || "protected-shell");
+      if (normalizedParams.get("protectedUx") !== "protected-shell") {
+        normalizedParams.set("protectedUx", "protected-shell");
         changed = true;
       }
       if (!normalizedParams.get("renderMode")) {
@@ -249,92 +196,42 @@
         normalizedParams.set("metricsMode", "shape");
         changed = true;
       }
-      const normalizedHref = `${location.pathname}?${normalizedParams.toString()}${hashIsCfi ? rawHash : ""}`;
+
+      var normalizedHref = window.location.pathname + "?" + normalizedParams.toString() + (hashIsCfi ? rawHash : "");
       if (changed) history.replaceState(null, "", normalizedHref);
       window.__readerpubReaderNewNormalizedHref = normalizedHref;
     } catch (eReaderNewNormalize) {}
-  }
 
-  if (resolvedReaderMode === "protected") {
     try {
-      window.__readerpubProtectedShellMode = true;
-      window.__readerpubOldShellMode = "protected";
-      window.__READERPUB_PROTECTED_HOST_CONFIG__ = {
-        bookId: String(id || "").trim(),
-        protectedArtifactBookId: String(id || "").trim(),
-        protectedArtifactSource: String(resolvedArtifactSource || "").trim(),
-        source: String(source || "").trim(),
-        entry: String(params.get("entry") || "").trim(),
-        shellMode: "protected-shell",
-        url: String(window.__readerpubReaderNewNormalizedHref || window.location.href || "")
-      };
-    } catch (eProtectedShell) {}
-  }
-  const AUTO_START_RETURN_KEY = "readerpub_catalog_return_v1";
-  const qentry = params.get("entry");
-  const qCatalogReturn = params.get("catalog_return");
-  const qAutostart = params.get("autostart");
+      if (isLocalPreviewHost()) {
+        document.cookie = "readerpub_artifact_source=" + encodeURIComponent(resolvedArtifactSource || "local") + "; path=/; SameSite=Lax";
+        document.cookie = "readerpub_content_source=" + encodeURIComponent(readerContentSource || "local") + "; path=/; SameSite=Lax";
+        document.cookie = "readerpub_remote_mode=" + encodeURIComponent(readerRemoteMode || "default") + "; path=/; SameSite=Lax";
+      }
+    } catch (eArtifactModeCookie) {}
 
-  // Fallback: remember last opened book id/source
-  try {
-    if (!/^\d+$/.test(id)) {
-      const lastId = localStorage && localStorage.getItem("readerpub:lastid");
-      if (lastId && /^\d+$/.test(lastId)) id = lastId;
-    }
-    if (!source && !hasExplicitId) {
-      const lastSource = localStorage && localStorage.getItem("readerpub:lastsource");
-      if (lastSource && lastSource !== "gutenberg") source = lastSource;
-    }
-  } catch (e0) {}
-
-  if(!/^\d+$/.test(id)){
-    renderProtectedOnlyEntryMessage(
-      "No protected book selected",
-      'Open a protected book from the catalog or pass a protected reader URL with <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">reader=protected</code> and a valid book id.'
-    );
-    return;
-  }
-
-  const storedCatalogReturn = (function(){
+    var autoStartReturnKey = "readerpub_catalog_return_v1";
+    var catalogReturnTarget = "";
     try {
-      return sessionStorage.getItem(AUTO_START_RETURN_KEY) || "";
+      catalogReturnTarget =
+        String(params.get("catalog_return") || "").trim() ||
+        String(sessionStorage.getItem(autoStartReturnKey) || "").trim();
     } catch (eStorage) {
-      return "";
+      catalogReturnTarget = String(params.get("catalog_return") || "").trim();
     }
-  })();
 
-  const catalogReturnTarget = qCatalogReturn || storedCatalogReturn || "";
-  const isAutostartReader = qAutostart === "1" && !!catalogReturnTarget;
-  const entry = (qentry && qentry.trim()) || "";
-  if (window.__readerpubProtectedShellMode) {
-    try {
-      window.__READERPUB_PROTECTED_HOST_CONFIG__ = {
-        bookId: id,
-        protectedArtifactBookId: String(id || "").trim(),
-        protectedArtifactSource: String(resolvedArtifactSource || "").trim(),
-        source: source || "",
-        entry: entry,
-        shellMode: "protected-shell",
-        url: String(window.__readerpubReaderNewNormalizedHref || window.location.href || ""),
-        catalogReturnTarget: catalogReturnTarget,
-        isAutostartReader: isAutostartReader
-      };
-      window.dispatchEvent(
-        new CustomEvent("readerpub:protected-host-config", {
-          detail: window.__READERPUB_PROTECTED_HOST_CONFIG__
-        })
-      );
-      window.dispatchEvent(
-        new CustomEvent("readerpub:protected-shell-config", {
-          detail: window.__READERPUB_PROTECTED_HOST_CONFIG__
-        })
-      );
-    } catch (eProtectedConfig) {}
-    return;
-  }
-})();
-              }
-            };
+    dispatchProtectedConfig({
+      bookId: id,
+      protectedArtifactBookId: id,
+      protectedArtifactSource: String(resolvedArtifactSource || "").trim(),
+      source: source === "gutenberg" ? "" : source,
+      entry: String(params.get("entry") || "").trim(),
+      shellMode: "protected-shell",
+      url: String(window.__readerpubReaderNewNormalizedHref || window.location.href || ""),
+      catalogReturnTarget: catalogReturnTarget,
+      isAutostartReader: String(params.get("autostart") || "").trim() === "1" && !!catalogReturnTarget
+    });
+  })();
 
         </script>
 <!-- File Storage -->

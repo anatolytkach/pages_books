@@ -7,12 +7,6 @@
   "use strict";
 
   try {
-    if (window.__readerpubReaderNewProtectedOnly) {
-      return;
-    }
-  } catch (eProtectedOnlySkip) {}
-
-  try {
     if (
       window.ReaderPubUnprotectedRuntimeNew &&
       window.ReaderPubUnprotectedRuntimeNew.shell &&
@@ -7497,15 +7491,7 @@
 
   waitForReader().then(function (reader) {
     // Desktop: bars must always be visible. Mobile: start hidden (FBReader-like).
-    var isReaderNewUnprotectedCompat = false;
     var isProtectedOldShell = false;
-    try {
-      isReaderNewUnprotectedCompat = !!(
-        document.body &&
-        document.body.getAttribute &&
-        document.body.getAttribute("data-reader-new-content-mode") === "unprotected-iframe"
-      );
-    } catch (eCompatMode) {}
     try {
       isProtectedOldShell = !!(
         document.body &&
@@ -7513,7 +7499,7 @@
         document.body.classList.contains("protected-old-shell")
       );
     } catch (eProtectedOldShellFlag) {}
-    if (!isProtectedOldShell && !isReaderNewUnprotectedCompat && (window.__fb_isDesktop || window.__readerpubAutostart)) {
+    if (!isProtectedOldShell && (window.__fb_isDesktop || window.__readerpubAutostart)) {
       showUi();
     } else {
       var skipLateAutoHide = false;

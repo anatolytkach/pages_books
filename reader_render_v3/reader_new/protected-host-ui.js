@@ -68,7 +68,6 @@ const HOST_STATE = {
   turnPreviewPromise: null,
   lastTurnPreviewKey: "",
   turnInFlight: false,
-  suppressTouchAutoHideUntil: 0,
   suppressSyntheticClickUntil: 0,
   touchUiGuardInstalled: false,
   viewportEnvironmentInstalled: false,
@@ -316,9 +315,6 @@ function showShellUi(source = "programmatic") {
   try {
     if (source === "touch-center") window.__readerpubProtectedUserShowUiAt = Date.now();
   } catch (_error) {}
-  if (source === "touch-center" && isTouchShellMode()) {
-    HOST_STATE.suppressTouchAutoHideUntil = Date.now() + 900;
-  }
 }
 
 function desktopSearchLocksShellUi() {
@@ -335,13 +331,6 @@ function desktopSearchLocksShellUi() {
 }
 
 function hideShellUi(source = "programmatic") {
-  if (
-    source !== "touch-center" &&
-    isTouchShellMode() &&
-    Date.now() < Number(HOST_STATE.suppressTouchAutoHideUntil || 0)
-  ) {
-    return;
-  }
   if (desktopSearchLocksShellUi()) {
     return;
   }
@@ -372,10 +361,6 @@ function installTouchUiVisibilityGuard() {
       }
       return;
     }
-    if (!isTouchShellMode()) return;
-    if (Date.now() >= Number(HOST_STATE.suppressTouchAutoHideUntil || 0)) return;
-    if (!document.body.classList.contains("ui-hidden")) return;
-    document.body.classList.remove("ui-hidden");
   });
   observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
@@ -5897,7 +5882,6 @@ function attachProtectedSurfaceInteractions(frame) {
     doc.addEventListener("pointercancel", () => {
       desktopSurfaceClickState.armed = false;
     }, true);
-    installTouchSwipe(doc);
   };
   if (!isDirectRenderHostMode() && frame && typeof frame.addEventListener === "function") {
     frame.addEventListener("load", wire);
