@@ -50,6 +50,7 @@ const HOST_STATE = {
   pendingSelectionToolbar: null,
   releaseSelectionToolbarAnchor: null,
   lastSelectionReleaseAt: 0,
+  suppressShellToggleUntil: 0,
   touchSelectionInProgress: false,
   suppressSelectionDismissUntil: 0,
   cachedSelectionActionState: null,
@@ -62,6 +63,9 @@ const HOST_STATE = {
   searchClearSuppressUntil: 0,
   searchReturnOriginToken: "",
   searchReturnOriginOffset: 0,
+  bookMetadataLanguages: null,
+  bookMetadataLanguagesPromise: null,
+  bookMetadataLanguagesBookId: "",
   bookmarkPageLookupToken: 0,
   bookmarkPageLookupSignature: "",
   turnPreviewSyncTimer: null,
@@ -82,6 +86,8 @@ const HOST_STATE = {
 const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-shell:bookmarks:";
 const FONT_SCALE_STORAGE_PREFIX = "readerpub:protected-shell:font-scale:";
 const FONT_MODE_STORAGE_PREFIX = "readerpub:protected-shell:font-mode:";
+const HOST_TTS_VOICE_URI_STORAGE_KEY = "readerpub:protected-shell:tts:voice-uri";
+const HOST_TTS_VOICE_LANG_STORAGE_KEY = "readerpub:protected-shell:tts:voice-lang";
 const PROTECTED_SEARCH_ICON_SRC = "icons/search.svg?v=20260303-icons-tight-x-3";
 const PROTECTED_TOC_ICON_SRC = "/reader_render_v3/assets/toc.svg";
 const PROTECTED_SETTINGS_ICON_SRC = "/reader_render_v3/assets/settings.svg";
@@ -293,7 +299,10 @@ function resolveSupportedFontMode(value, summary = HOST_STATE.lastSummary, fallb
 function isTouchShellMode() {
   try {
     const root = document.documentElement;
-    if (root && root.classList && root.classList.contains("is-desktop")) return false;
+    if (root && root.classList) {
+      if (root.classList.contains("is-phone") || root.classList.contains("is-tablet")) return true;
+      if (root.classList.contains("is-desktop")) return false;
+    }
   } catch (_error) {}
   try {
     if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
@@ -340,6 +349,9 @@ function hideShellUi(source = "programmatic") {
 }
 
 function toggleShellUi(source = "programmatic") {
+  if (Date.now() < Number(HOST_STATE.suppressShellToggleUntil || 0)) {
+    return;
+  }
   if (document.body.classList.contains("ui-hidden")) {
     showShellUi(source);
     if (source === "touch-center" && isTouchShellMode()) {
@@ -348,6 +360,57 @@ function toggleShellUi(source = "programmatic") {
     return;
   }
   hideShellUi(source);
+}
+
+function suppressShellToggle(durationMs = 550) {
+  HOST_STATE.suppressShellToggleUntil = Math.max(
+    Number(HOST_STATE.suppressShellToggleUntil || 0),
+    Date.now() + Math.max(0, Number(durationMs || 0))
+  );
+}
+
+function bindPrimaryAction(target, handler, options = {}) {
+  if (!target || target.__protectedPrimaryActionBound) return;
+  target.__protectedPrimaryActionBound = true;
+  const touchOnly = options.touchOnly !== false;
+  const suppressWindowMs = Number(options.suppressWindowMs || 700);
+  let suppressClickUntil = 0;
+  let lastInvocationAt = 0;
+  const invoke = (event) => {
+    const now = Date.now();
+    if (now - lastInvocationAt < 300) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation && event.stopImmediatePropagation();
+      }
+      return;
+    }
+    lastInvocationAt = now;
+    suppressClickUntil = now + suppressWindowMs;
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+    }
+    void handler(event);
+  };
+  target.addEventListener("pointerdown", (event) => {
+    if (touchOnly && String(event.pointerType || "").toLowerCase() !== "touch") return;
+    invoke(event);
+  }, true);
+  target.addEventListener("touchstart", (event) => {
+    invoke(event);
+  }, { capture: true, passive: false });
+  target.addEventListener("click", (event) => {
+    if (Date.now() < suppressClickUntil) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+      return;
+    }
+    invoke(event);
+  }, true);
 }
 
 function installTouchUiVisibilityGuard() {
@@ -716,7 +779,6 @@ function installStyles() {
     html:not(.is-phone):not(.is-tablet) body.protected-shell #title-controls > #ttsToggleDesktop,
     html:not(.is-phone):not(.is-tablet) body.protected-shell #title-controls > #themeToggle,
     html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedLibraryControl,
-    html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedSearchControl,
     html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedTypographyControl {
       width: 24px;
       min-width: 24px;
@@ -725,10 +787,12 @@ function installStyles() {
     html:not(.is-phone):not(.is-tablet) body.protected-shell #ttsToggleDesktop .tts-icon,
     html:not(.is-phone):not(.is-tablet) body.protected-shell #themeToggle .theme-icon,
     html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedLibraryTrigger img,
-    html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedSearchTrigger img,
     html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedTypographyTrigger img {
       width: 18px;
       height: 18px;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedSearchControl {
+      display: none !important;
     }
     body.protected-shell #themeToggle,
     body.protected-shell #ttsToggleDesktop,
@@ -808,6 +872,20 @@ function installStyles() {
     html.is-tablet body.protected-shell #ttsToggleMobile {
       display: none !important;
     }
+    html.is-phone body.protected-shell #searchbar,
+    html.is-tablet body.protected-shell #searchbar {
+      --titlebar-h: 48px;
+      min-height: 48px !important;
+      height: 48px !important;
+      padding-top: 8px !important;
+      padding-bottom: 8px !important;
+      align-items: center;
+      box-sizing: content-box;
+    }
+    html.is-phone body.protected-shell #searchFloatControls:not(.hidden),
+    html.is-tablet body.protected-shell #searchFloatControls:not(.hidden) {
+      display: inline-flex !important;
+    }
     @media (min-width: 820px) {
       body.protected-shell #titlebar {
         --titlebar-h: 43px;
@@ -884,7 +962,6 @@ function installStyles() {
       body.protected-shell #title-controls > #ttsToggleDesktop,
       body.protected-shell #title-controls > #themeToggle,
       body.protected-shell #protectedLibraryControl,
-      body.protected-shell #protectedSearchControl,
       body.protected-shell #protectedTypographyControl {
         width: 24px;
         min-width: 24px;
@@ -893,13 +970,23 @@ function installStyles() {
       body.protected-shell #ttsToggleDesktop .tts-icon,
       body.protected-shell #themeToggle .theme-icon,
       body.protected-shell #protectedLibraryTrigger img,
-      body.protected-shell #protectedSearchTrigger img,
       body.protected-shell #protectedTypographyTrigger img {
         width: 18px;
         height: 18px;
       }
+      html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedSearchControl {
+        display: none !important;
+      }
       body.protected-shell #protectedBottomCatalogLink {
         display: none !important;
+      }
+      html.is-phone body.protected-shell #searchbar,
+      html.is-tablet body.protected-shell #searchbar {
+        --titlebar-h: 43px;
+        min-height: 43px !important;
+        height: 43px !important;
+        padding-top: 3px !important;
+        padding-bottom: 3px !important;
       }
       html.is-phone body.protected-shell.search-open:not(.search-minimized) #searchbar,
       html.is-tablet body.protected-shell.search-open:not(.search-minimized) #searchbar {
@@ -920,6 +1007,14 @@ function installStyles() {
         padding-bottom: 3px !important;
         position: relative;
         align-items: center;
+      }
+      html.is-phone body.protected-shell #searchbar,
+      html.is-tablet body.protected-shell #searchbar {
+        --titlebar-h: 43px;
+        min-height: 43px !important;
+        height: 43px !important;
+        padding-top: 3px !important;
+        padding-bottom: 3px !important;
       }
       html.is-phone body.protected-shell #opener,
       html.is-tablet body.protected-shell #opener {
@@ -1098,10 +1193,6 @@ function installStyles() {
         display: block;
         fill: currentColor !important;
         stroke: none !important;
-      }
-      html.is-phone body.protected-shell #protectedBottomCatalogLink,
-      html.is-tablet body.protected-shell #protectedBottomCatalogLink {
-        display: none !important;
       }
     }
     body.protected-shell #bottombar #bookmark {
@@ -1686,18 +1777,18 @@ function installStyles() {
     body.protected-shell #searchFloatControls {
       display: none !important;
       gap: 4px;
-      padding: 8px 10px;
+      padding: 4px 10px;
       border-radius: 10px;
     }
     body.protected-shell #searchFloatControls .search-float-btn {
-      width: 43px;
-      height: 43px;
-      min-width: 43px;
-      min-height: 43px;
+      width: 39px;
+      height: 39px;
+      min-width: 39px;
+      min-height: 39px;
     }
     body.protected-shell #searchFloatControls .search-float-btn svg {
-      width: 24px;
-      height: 24px;
+      width: 36px;
+      height: 36px;
       display: block;
       fill: none;
       stroke: currentColor;
@@ -1706,14 +1797,14 @@ function installStyles() {
       stroke-linejoin: round;
     }
     body.protected-shell #searchFloatReturn.search-float-btn {
-      width: 36px;
-      height: 36px;
-      min-width: 36px;
-      min-height: 36px;
+      width: 39px;
+      height: 39px;
+      min-width: 39px;
+      min-height: 39px;
     }
     body.protected-shell #searchFloatReturn.search-float-btn img {
-      width: 19px;
-      height: 19px;
+      width: 28px;
+      height: 28px;
       display: block;
       object-fit: contain;
       filter: brightness(0) saturate(100%) invert(100%);
@@ -3458,11 +3549,10 @@ function renderToc(summary) {
     link.className = "toc_link";
     link.dataset.tocId = item.id || "";
     link.textContent = item.label;
-    link.addEventListener("click", async (event) => {
-      event.preventDefault();
+    bindPrimaryAction(link, async () => {
       await invokeBridge("goToToc", item.id);
       closeAllShellOverlays();
-    });
+    }, { touchOnly: false });
     li.append(link);
     list.append(li);
   }
@@ -3784,7 +3874,7 @@ function createOldStyleNoteItem(annotation) {
   link.className = "bookmark_link";
   link.href = "#";
   link.textContent = annotation.quote || "…";
-  link.addEventListener("click", openNote);
+  bindPrimaryAction(link, openNote, { touchOnly: false });
   wrap.append(link);
 
   const comment = document.createElement("div");
@@ -3890,6 +3980,9 @@ function updateSearchControls(summary) {
   if (mobileCount) mobileCount.textContent = search.active && search.totalMatches ? `${search.currentMatch}/${search.totalMatches}` : "0/0";
   if (desktopNav) desktopNav.style.display = search.active && search.totalMatches ? "inline-flex" : "none";
   if (mobileFloat) mobileFloat.classList.add("hidden");
+  if (mobileFloat && isTouchShellMode() && document.body.classList.contains("search-open") && search.active && search.totalMatches) {
+    mobileFloat.classList.remove("hidden");
+  }
   if (desktopAction) {
     desktopAction.classList.toggle("is-clear", !!search.active);
     desktopAction.classList.toggle("is-mag", !search.active);
@@ -4039,11 +4132,12 @@ function readCurrentFontScale(summary = HOST_STATE.lastSummary) {
   return Math.max(0.8, Math.min(1.6, Number(normalized.toFixed(2))));
 }
 
-function closeTypographyPanel() {
+function closeTypographyPanel(options = {}) {
   const wrap = document.getElementById("protectedTypographyControl");
   const trigger = document.getElementById("protectedTypographyTrigger");
   const overlay = document.getElementById("overlay-settings");
   const backdrop = document.getElementById("overlay-backdrop");
+  const hideShellAfterClose = !!(options && options.hideShellAfterClose);
   if (wrap) wrap.classList.remove("is-open");
   if (overlay) {
     overlay.classList.add("hidden");
@@ -4058,6 +4152,7 @@ function closeTypographyPanel() {
   } catch (_error) {}
   if (trigger) trigger.setAttribute("aria-expanded", "false");
   setReaderNewUiSmokeState({ overlay: "" });
+  if (hideShellAfterClose) hideShellUi("overlay-close");
 }
 
 function toggleTypographyPanel(forceOpen) {
@@ -4162,6 +4257,34 @@ function ensureBottomCatalogLink() {
     <span class="protected-top-link-icon">${PROTECTED_CATALOG_ICON_SVG}</span>
     <span class="protected-top-link-label">ReaderPub Books</span>
   `;
+  let suppressClickUntil = 0;
+  const navigateToCatalog = (event = null) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+    }
+    const href = String(link.getAttribute("href") || link.href || "").trim();
+    if (!href) return;
+    suppressClickUntil = Date.now() + 700;
+    window.location.href = href;
+  };
+  link.addEventListener("pointerup", (event) => {
+    if (String(event.pointerType || "").toLowerCase() !== "touch") return;
+    navigateToCatalog(event);
+  }, true);
+  link.addEventListener("touchend", (event) => {
+    navigateToCatalog(event);
+  }, { capture: true, passive: false });
+  link.addEventListener("click", (event) => {
+    if (Date.now() < suppressClickUntil) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+      return;
+    }
+    navigateToCatalog(event);
+  }, true);
   bottomBar.appendChild(link);
   return link;
 }
@@ -4379,11 +4502,12 @@ function switchLibraryTab(nextTab = "toc") {
   HOST_STATE.libraryActiveTab = activeTab;
 }
 
-function closeLibraryOverlay() {
+function closeLibraryOverlay(options = {}) {
   const wrap = document.getElementById("protectedLibraryControl");
   const trigger = document.getElementById("protectedLibraryTrigger");
   const overlay = document.getElementById("overlay-library");
   const backdrop = document.getElementById("overlay-backdrop");
+  const hideShellAfterClose = !!(options && options.hideShellAfterClose);
   if (wrap) wrap.classList.remove("is-open");
   if (overlay) {
     overlay.classList.add("hidden");
@@ -4398,6 +4522,7 @@ function closeLibraryOverlay() {
   } catch (_error) {}
   if (trigger) trigger.setAttribute("aria-expanded", "false");
   setReaderNewUiSmokeState({ overlay: "" });
+  if (hideShellAfterClose) hideShellUi("overlay-close");
 }
 
 function openLibraryOverlay(tab = "toc") {
@@ -4425,11 +4550,12 @@ function openLibraryOverlay(tab = "toc") {
   setReaderNewUiSmokeState({ overlay: "overlay-library" });
 }
 
-function closeSearchOverlay() {
+function closeSearchOverlay(options = {}) {
   const wrap = document.getElementById("protectedSearchControl");
   const trigger = document.getElementById("protectedSearchTrigger");
   const overlay = document.getElementById("overlay-search");
   const backdrop = document.getElementById("overlay-backdrop");
+  const hideShellAfterClose = !!(options && options.hideShellAfterClose);
   if (wrap) wrap.classList.remove("is-open");
   if (overlay) {
     overlay.classList.add("hidden");
@@ -4444,6 +4570,7 @@ function closeSearchOverlay() {
   } catch (_error) {}
   if (trigger) trigger.setAttribute("aria-expanded", "false");
   setReaderNewUiSmokeState({ overlay: "" });
+  if (hideShellAfterClose) hideShellUi("overlay-close");
 }
 
 function openSearchOverlay() {
@@ -4579,9 +4706,8 @@ function ensureSearchOverlay() {
     `;
     document.body.appendChild(overlay);
     const close = overlay.querySelector(".overlay-close");
-    close && close.addEventListener("click", (event) => {
-      event.preventDefault();
-      closeSearchOverlay();
+    close && bindPrimaryAction(close, () => {
+      closeSearchOverlay({ hideShellAfterClose: true });
     });
   }
   return overlay;
@@ -4628,13 +4754,11 @@ function ensureLibraryOverlay() {
     `;
     document.body.appendChild(overlay);
     const close = overlay.querySelector(".overlay-close");
-    close && close.addEventListener("click", (event) => {
-      event.preventDefault();
-      closeLibraryOverlay();
+    close && bindPrimaryAction(close, () => {
+      closeLibraryOverlay({ hideShellAfterClose: true });
     });
     overlay.querySelectorAll(".protected-library-tab").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
+      bindPrimaryAction(button, () => {
         const id = String(button.id || "");
         if (id.endsWith("-toc")) switchLibraryTab("toc");
         else if (id.endsWith("-notes")) switchLibraryTab("notes");
@@ -4647,7 +4771,7 @@ function ensureLibraryOverlay() {
       notesShareButton.addEventListener("mousedown", () => notesShareButton.classList.add("is-pressed"));
       notesShareButton.addEventListener("mouseup", () => notesShareButton.classList.remove("is-pressed"));
       notesShareButton.addEventListener("mouseleave", () => notesShareButton.classList.remove("is-pressed"));
-      notesShareButton.addEventListener("click", handleProtectedNotesShare);
+      bindPrimaryAction(notesShareButton, handleProtectedNotesShare);
     }
     const maybeCloseLibraryAfterNavigationTap = (event) => {
       const target = event.target && event.target.closest
@@ -4739,13 +4863,12 @@ function ensureSettingsOverlay() {
     }
     panel = overlay.querySelector("#protectedTypographyPanel");
     const close = overlay.querySelector(".overlay-close");
-    close && close.addEventListener("click", (event) => {
-      event.preventDefault();
-      closeTypographyPanel();
+    close && bindPrimaryAction(close, () => {
+      closeTypographyPanel({ hideShellAfterClose: true });
     });
     const backdrop = document.getElementById("overlay-backdrop");
-    backdrop && backdrop.addEventListener("click", () => {
-      if (!overlay.classList.contains("hidden")) closeTypographyPanel();
+    backdrop && bindPrimaryAction(backdrop, () => {
+      if (!overlay.classList.contains("hidden")) closeTypographyPanel({ hideShellAfterClose: true });
     });
   }
   const bookCardMount = document.getElementById("protectedSettingsBookCardMount");
@@ -4766,6 +4889,7 @@ function ensureSettingsOverlay() {
       }
     });
   }
+  void refreshHostTtsVoicePicker();
   updateProtectedBookShareButtonState();
   return panel;
 }
@@ -5647,8 +5771,6 @@ async function handleAction(action) {
   const dismissSelectionUi = (event) => {
     if (Date.now() < Number(HOST_STATE.suppressSelectionDismissUntil || 0)) return;
     if (toolbar.contains(event.target)) return;
-    suppressSelectionToolbarReopen(1000);
-    hideSelectionToolbar();
     const target = event.target;
     const withinProtectedOverlay = !!(
       target &&
@@ -5662,6 +5784,9 @@ async function handleAction(action) {
       (summary && (summary.focusedAnnotationId || summary.selectionActive))
     );
     if (withinProtectedOverlay || !shouldClear || !primaryButton) return;
+    suppressShellToggle();
+    suppressSelectionToolbarReopen(1000);
+    hideSelectionToolbar();
     void invokeBridgeRaw("clearSelection")
       .then((nextSummary) => {
         if (nextSummary) updateFromSummary(nextSummary);
@@ -5753,7 +5878,8 @@ function attachProtectedSurfaceInteractions(frame) {
     const desktopSurfaceClickState = {
       armed: false,
       startX: 0,
-      startY: 0
+      startY: 0,
+      selectionDismissed: false
     };
     const blockContextMenu = (event) => {
       const target = event.target;
@@ -5802,6 +5928,7 @@ function attachProtectedSurfaceInteractions(frame) {
       desktopSurfaceClickState.armed = !!(inProtectedSurface && primaryButton);
       desktopSurfaceClickState.startX = Number(event.clientX || 0);
       desktopSurfaceClickState.startY = Number(event.clientY || 0);
+      desktopSurfaceClickState.selectionDismissed = false;
     }, true);
     doc.addEventListener("pointermove", (event) => {
       if (!desktopSurfaceClickState.armed) return;
@@ -5822,9 +5949,12 @@ function attachProtectedSurfaceInteractions(frame) {
       );
       if (!inProtectedSurface || !shouldClear || !primaryButton) return;
       if (isTouchPointer) {
+        suppressShellToggle();
         hideSelectionToolbar();
         return;
       }
+      desktopSurfaceClickState.selectionDismissed = true;
+      suppressShellToggle();
       suppressSelectionToolbarReopen(1000);
       hideSelectionToolbar();
       void invokeBridgeRaw("clearSelection")
@@ -5841,6 +5971,7 @@ function attachProtectedSurfaceInteractions(frame) {
         (summary && (summary.focusedAnnotationId || summary.selectionActive))
       );
       if (!shouldClear) return;
+      suppressShellToggle();
       hideSelectionToolbar();
     }, { capture: true, passive: true });
     doc.addEventListener("click", (event) => {
@@ -5861,11 +5992,13 @@ function attachProtectedSurfaceInteractions(frame) {
       const primaryButton = event.button == null || event.button === 0;
       const summary = getBridgeSummaryFromFrame(frame);
       const hasSelection = !!(summary && (summary.selectionActive || summary.focusedAnnotationId));
-      if (!desktopSurfaceClickState.armed || !inProtectedSurface || !primaryButton || hasSelection) {
+      if (!desktopSurfaceClickState.armed || !inProtectedSurface || !primaryButton || hasSelection || desktopSurfaceClickState.selectionDismissed || Date.now() < Number(HOST_STATE.suppressShellToggleUntil || 0)) {
         desktopSurfaceClickState.armed = false;
+        desktopSurfaceClickState.selectionDismissed = false;
         return;
       }
       desktopSurfaceClickState.armed = false;
+      desktopSurfaceClickState.selectionDismissed = false;
       toggleShellUi("desktop-click");
     }, true);
     doc.addEventListener("mouseup", (event) => {
@@ -6250,6 +6383,283 @@ function setHostTtsButtonState(active) {
 
 function normalizeTtsLang(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function loadStoredHostTtsVoiceUri() {
+  try {
+    return String(localStorage.getItem(HOST_TTS_VOICE_URI_STORAGE_KEY) || "").trim();
+  } catch (_error) {
+    return "";
+  }
+}
+
+function saveStoredHostTtsVoiceUri(value) {
+  try {
+    const next = String(value || "").trim();
+    if (next) localStorage.setItem(HOST_TTS_VOICE_URI_STORAGE_KEY, next);
+    else localStorage.removeItem(HOST_TTS_VOICE_URI_STORAGE_KEY);
+  } catch (_error) {}
+}
+
+function loadStoredHostTtsVoiceLang() {
+  try {
+    return normalizeTtsLang(localStorage.getItem(HOST_TTS_VOICE_LANG_STORAGE_KEY) || "");
+  } catch (_error) {
+    return "";
+  }
+}
+
+function saveStoredHostTtsVoiceLang(value) {
+  try {
+    const next = normalizeTtsLang(value);
+    if (next) localStorage.setItem(HOST_TTS_VOICE_LANG_STORAGE_KEY, next);
+    else localStorage.removeItem(HOST_TTS_VOICE_LANG_STORAGE_KEY);
+  } catch (_error) {}
+}
+
+async function getProtectedBookMetadataLanguages() {
+  const bookId = String(getCurrentBookId() || "").trim();
+  if (
+    bookId &&
+    HOST_STATE.bookMetadataLanguagesBookId === bookId &&
+    Array.isArray(HOST_STATE.bookMetadataLanguages)
+  ) {
+    return HOST_STATE.bookMetadataLanguages;
+  }
+  if (
+    bookId &&
+    HOST_STATE.bookMetadataLanguagesBookId === bookId &&
+    HOST_STATE.bookMetadataLanguagesPromise
+  ) {
+    return HOST_STATE.bookMetadataLanguagesPromise;
+  }
+  if (!bookId) {
+    return [];
+  }
+  const manifestUrl = new URL(`/books/protected-content/${encodeURIComponent(bookId)}/manifest.json`, window.location.origin);
+  HOST_STATE.bookMetadataLanguagesBookId = bookId;
+  HOST_STATE.bookMetadataLanguagesPromise = fetch(manifestUrl.toString(), { credentials: "same-origin" })
+    .then((response) => {
+      if (!response.ok) return [];
+      return response.json();
+    })
+    .then((payload) => {
+      const langs = payload && payload.metadata && Array.isArray(payload.metadata.languages)
+        ? payload.metadata.languages.map((lang) => normalizeTtsLang(lang)).filter(Boolean)
+        : [];
+      HOST_STATE.bookMetadataLanguages = Array.from(new Set(langs));
+      return HOST_STATE.bookMetadataLanguages;
+    })
+    .catch(() => {
+      HOST_STATE.bookMetadataLanguages = [];
+      return HOST_STATE.bookMetadataLanguages;
+    })
+    .finally(() => {
+      HOST_STATE.bookMetadataLanguagesPromise = null;
+    });
+  return HOST_STATE.bookMetadataLanguagesPromise;
+}
+
+function buildHostTtsLangLabel(tag) {
+  const raw = String(tag || "").trim();
+  if (!raw) return "";
+  const normalized = normalizeTtsLang(raw);
+  const [langCode = "", regionCodeRaw = ""] = normalized.split("-");
+  const regionCode = regionCodeRaw.toUpperCase();
+  try {
+    if (typeof Intl !== "undefined" && typeof Intl.DisplayNames === "function") {
+      const langNames = new Intl.DisplayNames(["en"], { type: "language" });
+      const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+      const langName = langCode ? langNames.of(langCode) : "";
+      const regionName = regionCode ? regionNames.of(regionCode) : "";
+      if (langName && regionName) return `${langName} (${regionName})`;
+      if (langName) return langName;
+    }
+  } catch (_error) {}
+  if (langCode && regionCode) return `${langCode} (${regionCode})`;
+  return normalized;
+}
+
+function resolveHostTtsMetadataLang(metadataLanguages, availableLanguages) {
+  const candidates = Array.isArray(metadataLanguages) ? metadataLanguages.map((lang) => normalizeTtsLang(lang)).filter(Boolean) : [];
+  return candidates[0] || "";
+}
+
+function closeHostTtsDropdowns() {
+  document.querySelectorAll("#voiceLangDropdown, #voiceDropdown").forEach((root) => {
+    root.classList.remove("is-open");
+    const toggle = root.querySelector(".voice-picker-dropdown-toggle");
+    if (toggle) toggle.setAttribute("aria-expanded", "false");
+  });
+}
+
+function syncHostTtsDropdown(selectEl, dropdownEl, toggleEl, listEl) {
+  if (!selectEl || !dropdownEl || !toggleEl || !listEl) return;
+  listEl.replaceChildren();
+  const options = Array.from(selectEl.options || []);
+  options.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `voice-picker-option${option.selected ? " is-selected" : ""}`;
+    button.setAttribute("role", "option");
+    button.setAttribute("aria-selected", option.selected ? "true" : "false");
+    button.dataset.value = String(option.value || "");
+    button.textContent = String(option.textContent || "").trim();
+    bindPrimaryAction(button, () => {
+      const nextValue = String(button.dataset.value || "");
+      if (selectEl.value !== nextValue) {
+        selectEl.value = nextValue;
+        selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+      } else {
+        syncHostTtsDropdown(selectEl, dropdownEl, toggleEl, listEl);
+      }
+      closeHostTtsDropdowns();
+    }, { touchOnly: false });
+    listEl.append(button);
+  });
+  const selectedOption = selectEl.options && selectEl.selectedIndex >= 0 ? selectEl.options[selectEl.selectedIndex] : null;
+  toggleEl.textContent = selectedOption ? String(selectedOption.textContent || "").trim() : "";
+}
+
+function bindHostTtsDropdown(dropdownEl, toggleEl) {
+  if (!dropdownEl || !toggleEl || dropdownEl.dataset.hostBound === "yes") return;
+  dropdownEl.dataset.hostBound = "yes";
+  bindPrimaryAction(toggleEl, () => {
+    const open = dropdownEl.classList.contains("is-open");
+    closeHostTtsDropdowns();
+    if (!open) {
+      dropdownEl.classList.add("is-open");
+      toggleEl.setAttribute("aria-expanded", "true");
+    }
+  }, { touchOnly: false });
+}
+
+async function refreshHostTtsVoicePicker({ preserveVoice = true } = {}) {
+  const synth = window.speechSynthesis || null;
+  const voiceLangSelect = document.getElementById("voiceLangSelect");
+  const voiceLangDropdown = document.getElementById("voiceLangDropdown");
+  const voiceLangToggle = document.getElementById("voiceLangToggle");
+  const voiceLangList = document.getElementById("voiceLangList");
+  const voiceSelect = document.getElementById("voiceSelect");
+  const voiceDropdown = document.getElementById("voiceDropdown");
+  const voiceToggle = document.getElementById("voiceToggle");
+  const voiceList = document.getElementById("voiceList");
+  const voiceStatus = document.getElementById("voiceStatus");
+  if (!voiceLangSelect || !voiceSelect || !voiceLangDropdown || !voiceDropdown || !voiceLangToggle || !voiceToggle || !voiceLangList || !voiceList) return;
+
+  bindHostTtsDropdown(voiceLangDropdown, voiceLangToggle);
+  bindHostTtsDropdown(voiceDropdown, voiceToggle);
+  if (!document.body.dataset.hostTtsDismissBound) {
+    document.body.dataset.hostTtsDismissBound = "yes";
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target && target.closest && target.closest("#voiceLangDropdown, #voiceDropdown")) return;
+      closeHostTtsDropdowns();
+    }, true);
+  }
+  if (!voiceLangSelect.dataset.hostBound) {
+    voiceLangSelect.dataset.hostBound = "yes";
+    voiceLangSelect.addEventListener("change", () => {
+      voiceLangSelect.dataset.userSelected = "yes";
+      voiceLangSelect.dataset.userSelectedBookId = String(getCurrentBookId() || "");
+      saveStoredHostTtsVoiceLang(voiceLangSelect.value || "");
+      saveStoredHostTtsVoiceUri("");
+      void refreshHostTtsVoicePicker({ preserveVoice: false });
+    });
+  }
+  if (!voiceSelect.dataset.hostBound) {
+    voiceSelect.dataset.hostBound = "yes";
+    voiceSelect.addEventListener("change", () => {
+      saveStoredHostTtsVoiceUri(voiceSelect.value || "");
+      syncHostTtsDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
+    });
+  }
+  if (synth && !document.body.dataset.hostTtsVoicesChangedBound) {
+    document.body.dataset.hostTtsVoicesChangedBound = "yes";
+    try {
+      synth.addEventListener("voiceschanged", () => {
+        void refreshHostTtsVoicePicker();
+      });
+    } catch (_error) {
+      try {
+        synth.onvoiceschanged = () => {
+          void refreshHostTtsVoicePicker();
+        };
+      } catch (_error2) {}
+    }
+  }
+
+  const voices = await getHostTtsVoices(synth);
+  const metadataLanguages = await getProtectedBookMetadataLanguages();
+  const normalizedVoices = Array.isArray(voices) ? voices.filter(Boolean) : [];
+  const currentLang = normalizeTtsLang(voiceLangSelect.value || loadStoredHostTtsVoiceLang());
+  const currentVoiceUri = String(voiceSelect.value || loadStoredHostTtsVoiceUri()).trim();
+
+  if (!normalizedVoices.length) {
+    voiceLangSelect.innerHTML = "";
+    voiceSelect.innerHTML = "";
+    syncHostTtsDropdown(voiceLangSelect, voiceLangDropdown, voiceLangToggle, voiceLangList);
+    syncHostTtsDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
+    if (voiceStatus) voiceStatus.textContent = "No system voices found. Install a voice in your device settings.";
+    return;
+  }
+
+  const langs = Array.from(new Map(
+    normalizedVoices
+      .map((voice) => normalizeTtsLang(voice.lang))
+      .filter(Boolean)
+      .map((lang) => [lang, lang])
+  ).values()).sort((a, b) => buildHostTtsLangLabel(a).localeCompare(buildHostTtsLangLabel(b), "en", { sensitivity: "base" }));
+  const metadataLang = resolveHostTtsMetadataLang(metadataLanguages, langs);
+  const orderedLangs = metadataLang
+    ? [metadataLang, ...langs.filter((lang) => lang !== metadataLang)]
+    : langs;
+  const currentBookId = String(getCurrentBookId() || "");
+  const userSelectedBookId = String(voiceLangSelect.dataset.userSelectedBookId || "");
+  const userSelectedLang = voiceLangSelect.dataset.userSelected === "yes" && (!currentBookId || currentBookId === userSelectedBookId);
+  const selectedLang = userSelectedLang && orderedLangs.includes(currentLang)
+    ? currentLang
+    : (metadataLang || (orderedLangs.includes(currentLang) ? currentLang : "") || orderedLangs[0] || "");
+  voiceLangSelect.innerHTML = "";
+  orderedLangs.forEach((lang) => {
+    const option = document.createElement("option");
+    option.value = lang;
+    option.textContent = buildHostTtsLangLabel(lang);
+    option.selected = lang === selectedLang;
+    voiceLangSelect.append(option);
+  });
+  saveStoredHostTtsVoiceLang(selectedLang);
+
+  const filteredVoices = normalizedVoices
+    .filter((voice) => {
+      if (!selectedLang) return true;
+      const voiceLang = normalizeTtsLang(voice.lang);
+      if (voiceLang === selectedLang) return true;
+      if (!selectedLang.includes("-")) {
+        return voiceLang.startsWith(`${selectedLang}-`);
+      }
+      return false;
+    })
+    .sort((left, right) => {
+      const byName = String(left.name || "").localeCompare(String(right.name || ""), "en", { sensitivity: "base" });
+      if (byName !== 0) return byName;
+      return String(left.voiceURI || "").localeCompare(String(right.voiceURI || ""), "en", { sensitivity: "base" });
+    });
+  const selectedVoiceUri = preserveVoice && filteredVoices.some((voice) => String(voice.voiceURI || "") === currentVoiceUri)
+    ? currentVoiceUri
+    : String((filteredVoices[0] && filteredVoices[0].voiceURI) || "");
+  voiceSelect.innerHTML = "";
+  filteredVoices.forEach((voice) => {
+    const option = document.createElement("option");
+    option.value = String(voice.voiceURI || "");
+    option.textContent = `${String(voice.name || "Voice")}${voice.lang ? ` (${voice.lang})` : ""}`;
+    option.selected = option.value === selectedVoiceUri;
+    voiceSelect.append(option);
+  });
+  saveStoredHostTtsVoiceUri(selectedVoiceUri);
+  syncHostTtsDropdown(voiceLangSelect, voiceLangDropdown, voiceLangToggle, voiceLangList);
+  syncHostTtsDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
+  if (voiceStatus) voiceStatus.textContent = "Select a voice for reading aloud.";
 }
 
 function pickHostTtsVoice(voices, payload = null) {
@@ -7114,6 +7524,7 @@ function bindShellControls() {
   const theme = document.getElementById("themeToggle");
   const tts = document.getElementById("ttsToggleDesktop");
   const bookmark = document.getElementById("bookmark");
+  const legacySearchOpen = document.getElementById("searchOpen");
   const mobileMoreToggle = document.getElementById("mobileMoreToggle");
   const mobileMorePanel = document.getElementById("mobileMorePanel");
   syncProtectedShellIcons();
@@ -7131,6 +7542,9 @@ function bindShellControls() {
   if (mobileMorePanel) {
     try { mobileMorePanel.remove(); } catch (_error) {}
   }
+  if (isTouchShellMode() && legacySearchOpen) {
+    try { legacySearchOpen.remove(); } catch (_error) {}
+  }
   if (catalogLink || bottomCatalogLink) {
     const legacyCatalogLink = document.querySelector('#menuView a.menu-item[aria-label="Catalog"]');
     if (legacyCatalogLink && legacyCatalogLink.getAttribute("href")) {
@@ -7138,22 +7552,17 @@ function bindShellControls() {
       if (bottomCatalogLink) bottomCatalogLink.setAttribute("href", legacyCatalogLink.getAttribute("href"));
     }
   }
-  tts && tts.addEventListener("click", async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation && event.stopImmediatePropagation();
+  tts && bindPrimaryAction(tts, async () => {
     await toggleHostTts();
-  }, true);
-  theme && theme.addEventListener("click", async (event) => {
-    event.preventDefault();
+  });
+  theme && bindPrimaryAction(theme, async () => {
     const currentTheme = HOST_STATE.lastSummary && HOST_STATE.lastSummary.theme === "dark" ? "dark" : "light";
     const nextTheme = currentTheme === "dark" ? "light" : "dark";
     document.body.classList.toggle("protected-theme-dark", nextTheme === "dark");
     document.body.classList.toggle("dark-ui", nextTheme === "dark");
     await invokeBridge("setTheme", nextTheme);
   });
-  bookmark && bookmark.addEventListener("click", (event) => {
-    event.preventDefault();
+  bookmark && bindPrimaryAction(bookmark, async () => {
     const summary = HOST_STATE.lastSummary;
     if (!summary || !summary.restoreToken) return;
     const bookmarks = getCurrentBookmarks();
@@ -7168,9 +7577,7 @@ function bindShellControls() {
     renderBookmarks(summary);
     updateBookmarkControl(summary);
   });
-  libraryTrigger && libraryTrigger.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
+  libraryTrigger && bindPrimaryAction(libraryTrigger, async () => {
     const wrap = document.getElementById("protectedLibraryControl");
     if (wrap && wrap.classList.contains("is-open")) {
       closeLibraryOverlay();
@@ -7178,9 +7585,13 @@ function bindShellControls() {
     }
     openLibraryOverlay("toc");
   });
-  searchTrigger && searchTrigger.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
+  searchTrigger && bindPrimaryAction(searchTrigger, async () => {
+    if (isTouchShellMode()) {
+      closeSearchOverlay();
+      openLegacySearchUi();
+      showShellUi("touch-search-open");
+      return;
+    }
     const wrap = document.getElementById("protectedSearchControl");
     if (wrap && wrap.classList.contains("is-open")) {
       closeSearchOverlay();
@@ -7197,9 +7608,7 @@ function bindShellControls() {
     document.getElementById("protectedTypographySans"),
     document.getElementById("protectedTypographySerif")
   ].filter(Boolean);
-  typographyTrigger && typographyTrigger.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
+  typographyTrigger && bindPrimaryAction(typographyTrigger, async () => {
     toggleTypographyPanel();
   });
   const dismissTypographyPanel = (event) => {
@@ -7221,8 +7630,8 @@ function bindShellControls() {
           event.stopPropagation();
           event.stopImmediatePropagation && event.stopImmediatePropagation();
         } catch (_error) {}
-        closeSearchOverlay();
-        closeLibraryOverlay();
+        closeSearchOverlay({ hideShellAfterClose: true });
+        closeLibraryOverlay({ hideShellAfterClose: true });
         return;
       }
       if (
@@ -7238,8 +7647,8 @@ function bindShellControls() {
         event.stopPropagation();
         event.stopImmediatePropagation && event.stopImmediatePropagation();
       } catch (_error) {}
-      closeLibraryOverlay();
-      closeSearchOverlay();
+      closeLibraryOverlay({ hideShellAfterClose: true });
+      closeSearchOverlay({ hideShellAfterClose: true });
       return;
     }
     if (!wrap || !wrap.classList.contains("is-open")) return;
@@ -7249,7 +7658,7 @@ function bindShellControls() {
         event.stopPropagation();
         event.stopImmediatePropagation && event.stopImmediatePropagation();
       } catch (_error) {}
-      closeTypographyPanel();
+      closeTypographyPanel({ hideShellAfterClose: true });
       return;
     }
     if (
@@ -7262,7 +7671,7 @@ function bindShellControls() {
       event.stopPropagation();
       event.stopImmediatePropagation && event.stopImmediatePropagation();
     } catch (_error) {}
-    closeTypographyPanel();
+    closeTypographyPanel({ hideShellAfterClose: true });
   };
   document.addEventListener("mousedown", dismissTypographyPanel, true);
   document.addEventListener("click", dismissTypographyPanel, true);
@@ -7324,19 +7733,53 @@ function bindShellControls() {
     event.stopPropagation();
     event.stopImmediatePropagation && event.stopImmediatePropagation();
   }, true);
+  const commitTypographyScale = async (input) => {
+    if (!input) return;
+    const nextScale = persistShellFontScale(
+      Math.max(0.8, Math.min(1.6, Number(input.value || 1)))
+    );
+    updateTypographyScaleVisual(input);
+    HOST_STATE.lastAppliedFontScale = nextScale;
+    HOST_STATE.fontScaleSynced = true;
+    await invokeBridge("setFontScale", nextScale);
+  };
+  const updateTypographyScaleFromClientX = (input, clientX) => {
+    if (!input || !Number.isFinite(clientX)) return false;
+    const rect = input.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return false;
+    const min = Number(input.min || 0.8);
+    const max = Number(input.max || 1.6);
+    const step = Number(input.step || 0.1) || 0.1;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const rawValue = min + ((max - min) * ratio);
+    const snapped = Math.round(rawValue / step) * step;
+    input.value = String(Math.max(min, Math.min(max, Number(snapped.toFixed(2)))));
+    updateTypographyScaleVisual(input);
+    return true;
+  };
   typographyScale && typographyScale.addEventListener("input", (event) => {
     updateTypographyScaleVisual(event.currentTarget);
   });
   typographyScale && typographyScale.addEventListener("change", async (event) => {
-    const nextScale = persistShellFontScale(
-      Math.max(0.8, Math.min(1.6, Number(event.currentTarget && event.currentTarget.value || 1)))
-    );
-    updateTypographyScaleVisual(event.currentTarget);
-    HOST_STATE.lastAppliedFontScale = nextScale;
-    HOST_STATE.fontScaleSynced = true;
-    await invokeBridge("setFontScale", nextScale);
+    await commitTypographyScale(event.currentTarget);
   });
-  settingsShareButton && settingsShareButton.addEventListener("click", handleProtectedBookShare);
+  typographyScale && typographyScale.addEventListener("pointerdown", async (event) => {
+    if (String(event.pointerType || "").toLowerCase() !== "touch") return;
+    if (!updateTypographyScaleFromClientX(event.currentTarget, Number(event.clientX || 0))) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+    await commitTypographyScale(event.currentTarget);
+  }, true);
+  typographyScale && typographyScale.addEventListener("touchstart", async (event) => {
+    const touch = event.touches && event.touches[0] ? event.touches[0] : null;
+    if (!touch || !updateTypographyScaleFromClientX(event.currentTarget, Number(touch.clientX || 0))) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+    await commitTypographyScale(event.currentTarget);
+  }, { capture: true, passive: false });
+  settingsShareButton && bindPrimaryAction(settingsShareButton, handleProtectedBookShare);
   fontModeButtons.forEach((button) => {
     button.addEventListener("click", async (event) => {
       const target = event.currentTarget;
@@ -7376,18 +7819,34 @@ function bindShellControls() {
 
   function openLegacySearchUi() {
     if (!mobileBar) return;
+    const titleBar = document.getElementById("titlebar");
+    if (titleBar) {
+      const rect = titleBar.getBoundingClientRect();
+      if (rect && rect.height > 0) {
+        const exactHeight = `${Math.round(rect.height)}px`;
+        mobileBar.style.height = exactHeight;
+        mobileBar.style.minHeight = exactHeight;
+      }
+    }
     document.body.classList.add("search-open");
     document.body.classList.remove("search-minimized");
     mobileBar.classList.remove("hidden");
     const query = String((HOST_STATE.lastSummary && HOST_STATE.lastSummary.searchSummary && HOST_STATE.lastSummary.searchSummary.query) || HOST_STATE.searchSidebarPendingQuery || "");
     if (mobileInput) mobileInput.value = query;
     updateSearchControls(HOST_STATE.lastSummary);
+    window.setTimeout(() => {
+      try { mobileInput && mobileInput.focus(); } catch (_error) {}
+    }, 0);
   }
 
   function closeLegacySearchUi() {
     document.body.classList.remove("search-open");
     document.body.classList.remove("search-minimized");
     if (mobileBar) mobileBar.classList.add("hidden");
+    if (mobileBar) {
+      mobileBar.style.removeProperty("height");
+      mobileBar.style.removeProperty("min-height");
+    }
   }
 
   function rememberSearchOrigin(summary = HOST_STATE.lastSummary) {
@@ -7525,47 +7984,39 @@ function bindShellControls() {
     event.preventDefault();
     await invokeSearchBridge("searchNextResult");
   });
-  mobilePrev && mobilePrev.addEventListener("click", async (event) => {
-    event.preventDefault();
+  mobilePrev && bindPrimaryAction(mobilePrev, async () => {
     await invokeSearchBridge("searchPrevResult");
-  });
-  mobileNext && mobileNext.addEventListener("click", async (event) => {
-    event.preventDefault();
+  }, { touchOnly: false });
+  mobileNext && bindPrimaryAction(mobileNext, async () => {
     await invokeSearchBridge("searchNextResult");
-  });
-  floatPrev && floatPrev.addEventListener("click", async (event) => {
-    event.preventDefault();
+  }, { touchOnly: false });
+  floatPrev && bindPrimaryAction(floatPrev, async () => {
     await invokeSearchBridge("searchPrevResult");
-  });
-  floatNext && floatNext.addEventListener("click", async (event) => {
-    event.preventDefault();
+  }, { touchOnly: false });
+  floatNext && bindPrimaryAction(floatNext, async () => {
     await invokeSearchBridge("searchNextResult");
-  });
-  mobileClear && mobileClear.addEventListener("click", async (event) => {
-    event.preventDefault();
+  }, { touchOnly: false });
+  mobileClear && bindPrimaryAction(mobileClear, async () => {
     if (mobileInput) mobileInput.value = "";
     if (searchInput) searchInput.value = "";
     await clearSearch();
-  });
+  }, { touchOnly: false });
   searchOpen && searchOpen.addEventListener("click", (event) => {
     event.preventDefault();
     openLegacySearchUi();
   });
-  searchClose && searchClose.addEventListener("click", async (event) => {
-    event.preventDefault();
+  searchClose && bindPrimaryAction(searchClose, async () => {
     await clearSearch({ preserveOrigin: true });
     await restoreSearchOrigin({ closeMobileUi: true });
-  });
-  floatClose && floatClose.addEventListener("click", async (event) => {
-    event.preventDefault();
+  }, { touchOnly: false });
+  floatClose && bindPrimaryAction(floatClose, async () => {
+    await clearSearch({ preserveOrigin: false });
+    closeLegacySearchUi();
+  }, { touchOnly: false });
+  floatReturn && bindPrimaryAction(floatReturn, async () => {
     await clearSearch({ preserveOrigin: true });
     await restoreSearchOrigin({ closeMobileUi: true });
-  });
-  floatReturn && floatReturn.addEventListener("click", async (event) => {
-    event.preventDefault();
-    await clearSearch({ preserveOrigin: true });
-    await restoreSearchOrigin({ closeMobileUi: true });
-  });
+  }, { touchOnly: false });
   searchReturn && searchReturn.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
