@@ -292,6 +292,7 @@ export function layoutChunk({
   const effectiveWidth = Math.max(1, Number(width || 0));
   const effectiveViewportHeight = Math.max(420, Number(viewportHeight || 720));
   const isPortraitViewport = effectiveViewportHeight > effectiveWidth;
+  const isCompactLandscapeViewport = !isPortraitViewport && effectiveViewportHeight <= 900;
   const resolvedPaddingX =
     padding == null
       ? (
@@ -304,7 +305,7 @@ export function layoutChunk({
       : Number(padding || 0);
   const resolvedPaddingY =
     padding == null
-      ? (isPortraitViewport ? 25 : 50)
+      ? ((isPortraitViewport || isCompactLandscapeViewport) ? 25 : 50)
       : Number(padding || 0);
   const contentWidth = Math.max(260, effectiveWidth - resolvedPaddingX * 2);
   const forceLandscapeSpread = effectiveWidth > effectiveViewportHeight && effectiveWidth >= 700;
