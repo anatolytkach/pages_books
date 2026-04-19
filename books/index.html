@@ -3383,12 +3383,20 @@
             ? config.readerRouting
             : {};
           return {
-            legacyBasePath: String(routing.legacyBasePath || "/books/reader1/"),
-            legacyPagesDevBasePath: String(routing.legacyPagesDevBasePath || "/reader1/"),
-            newBasePath: String(routing.newBasePath || "/books/reader_new/"),
-            newPagesDevBasePath: String(routing.newPagesDevBasePath || "/reader_new/"),
+            legacyBasePath: String(routing.legacyBasePath || "").trim(),
+            legacyPagesDevBasePath: String(routing.legacyPagesDevBasePath || "").trim(),
+            newBasePath: String(routing.newBasePath || "").trim(),
+            newPagesDevBasePath: String(routing.newPagesDevBasePath || "").trim(),
             protectedBooks: Array.isArray(routing.protectedBooks) ? routing.protectedBooks : [],
           };
+        }
+
+        function getRequiredReaderRouteBase(pathValue, configKey) {
+          const base = String(pathValue || "").trim();
+          if (!base) {
+            throw new Error(`catalog.config.json missing readerRouting.${configKey}`);
+          }
+          return base;
         }
 
         function normalizeBookSourceKey(source) {
@@ -3456,7 +3464,9 @@
           const entry = String(entryOverride || "catalog").trim();
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
           const routing = getReaderRoutingConfig();
-          const base = isPagesDev ? routing.legacyPagesDevBasePath : routing.legacyBasePath;
+          const base = isPagesDev
+            ? getRequiredReaderRouteBase(routing.legacyPagesDevBasePath, "legacyPagesDevBasePath")
+            : getRequiredReaderRouteBase(routing.legacyBasePath, "legacyBasePath");
           let url = `${base}?id=${encodeURIComponent(id)}`;
           if (source && source !== "gutenberg") url += `&source=${encodeURIComponent(source)}`;
           const coverHint = String(cover || "").trim();
@@ -3475,7 +3485,9 @@
           }
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
           const routing = getReaderRoutingConfig();
-          const base = isPagesDev ? routing.newPagesDevBasePath : routing.newBasePath;
+          const base = isPagesDev
+            ? getRequiredReaderRouteBase(routing.newPagesDevBasePath, "newPagesDevBasePath")
+            : getRequiredReaderRouteBase(routing.newBasePath, "newBasePath");
           const params = new URLSearchParams();
           params.set("id", target.id);
           if (target.source && target.source !== "gutenberg") params.set("source", target.source);
@@ -3494,7 +3506,26 @@
           return `${base}?${params.toString()}`;
         }
 
+        function isReaderNewTestHost() {
+          const host = String(window.location.hostname || "").toLowerCase();
+          const isLocalHost =
+            host === "127.0.0.1" ||
+            host === "localhost" ||
+            host === "::1" ||
+            host.endsWith(".local");
+          const isPagesPreview =
+            host.endsWith(".pages.dev") ||
+            host === "reader-books.pages.dev";
+          return isLocalHost || isPagesPreview;
+        }
+
         function getReaderNewTestSectionsConfig() {
+          if (!isReaderNewTestHost()) {
+            return {
+              protected: { books: [] },
+              unprotected: { books: [] },
+            };
+          }
           const sections = config && config.readerNewTestSections && typeof config.readerNewTestSections === "object"
             ? config.readerNewTestSections
             : {};
@@ -4384,9 +4415,16 @@
           );
           const grid = el("div", "bookGrid");
           books.forEach((book) => {
-            const href = sectionKind === "protected"
-              ? buildProtectedReaderUrl(book, book.source, "catalog-test", book.hrefQuery || {})
-              : buildLegacyReaderUrl(book, "", book.source, "catalog-test", book.hrefQuery || {});
+            const hrefQuery = book && book.hrefQuery && typeof book.hrefQuery === "object"
+              ? book.hrefQuery
+              : {};
+            const forceProtected =
+              isReaderNewTestHost() &&
+              sectionKind === "protected" &&
+              String(hrefQuery.reader || "").trim().toLowerCase() === "protected";
+            const href = forceProtected
+              ? buildProtectedReaderUrl(book, book.source, "catalog-test", hrefQuery)
+              : buildLegacyReaderUrl(book, "", book.source, "catalog-test", hrefQuery);
             const card = createBookCard(book, {
               href,
               entry: "catalog-test",

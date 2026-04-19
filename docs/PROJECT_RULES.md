@@ -11,6 +11,7 @@
 - Code, configuration, and the current worktree are authoritative.
 - Root context files must follow the code.
 - Do not record guesses as facts.
+- Do not introduce silent fallback routes, path substitutions, or alternate behaviors when config or user-requested behavior is missing. Fail explicitly instead.
 
 ## Reader Rules
 
