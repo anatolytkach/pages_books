@@ -33,19 +33,6 @@
         }
       },
       {
-        "id": "45",
-        "source": "gutenberg",
-        "query": {
-          "reader": "protected",
-          "protectedArtifactBookId": "45",
-          "protectedArtifactSource": "r2",
-          "readerRemoteMode": "strict",
-          "protectedUx": "protected-shell",
-          "renderMode": "shape",
-          "metricsMode": "shape"
-        }
-      },
-      {
         "id": "11",
         "source": "gutenberg",
         "query": {
@@ -77,19 +64,6 @@
         "query": {
           "reader": "protected",
           "protectedArtifactBookId": "1342",
-          "protectedArtifactSource": "r2",
-          "readerRemoteMode": "strict",
-          "protectedUx": "protected-shell",
-          "renderMode": "shape",
-          "metricsMode": "shape"
-        }
-      },
-      {
-        "id": "1",
-        "source": "manual",
-        "query": {
-          "reader": "protected",
-          "protectedArtifactBookId": "1",
           "protectedArtifactSource": "r2",
           "readerRemoteMode": "strict",
           "protectedUx": "protected-shell",
