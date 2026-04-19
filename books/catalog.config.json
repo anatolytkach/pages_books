@@ -14,8 +14,8 @@
   "discoverNewestPath": "/discover/newest.json",
   "bookLocationsPath": "/book-locations.json",
   "readerRouting": {
-    "legacyBasePath": "/books/reader1/",
-    "legacyPagesDevBasePath": "/reader1/",
+    "legacyBasePath": "/books/reader/",
+    "legacyPagesDevBasePath": "/books/reader/",
     "newBasePath": "/books/reader_new/",
     "newPagesDevBasePath": "/reader_new/",
     "protectedBooks": [
@@ -27,7 +27,7 @@
           "protectedArtifactBookId": "19686",
           "protectedArtifactSource": "r2",
           "readerRemoteMode": "strict",
-          "protectedUx": "old-shell",
+          "protectedUx": "protected-shell",
           "renderMode": "shape",
           "metricsMode": "shape"
         }
@@ -40,7 +40,7 @@
           "protectedArtifactBookId": "45",
           "protectedArtifactSource": "r2",
           "readerRemoteMode": "strict",
-          "protectedUx": "old-shell",
+          "protectedUx": "protected-shell",
           "renderMode": "shape",
           "metricsMode": "shape"
         }
@@ -53,7 +53,7 @@
           "protectedArtifactBookId": "11",
           "protectedArtifactSource": "r2",
           "readerRemoteMode": "strict",
-          "protectedUx": "old-shell",
+          "protectedUx": "protected-shell",
           "renderMode": "shape",
           "metricsMode": "shape"
         }
@@ -66,7 +66,7 @@
           "protectedArtifactBookId": "84",
           "protectedArtifactSource": "r2",
           "readerRemoteMode": "strict",
-          "protectedUx": "old-shell",
+          "protectedUx": "protected-shell",
           "renderMode": "shape",
           "metricsMode": "shape"
         }
@@ -79,7 +79,7 @@
           "protectedArtifactBookId": "1342",
           "protectedArtifactSource": "r2",
           "readerRemoteMode": "strict",
-          "protectedUx": "old-shell",
+          "protectedUx": "protected-shell",
           "renderMode": "shape",
           "metricsMode": "shape"
         }
@@ -92,7 +92,7 @@
           "protectedArtifactBookId": "1",
           "protectedArtifactSource": "r2",
           "readerRemoteMode": "strict",
-          "protectedUx": "old-shell",
+          "protectedUx": "protected-shell",
           "renderMode": "shape",
           "metricsMode": "shape"
         }
@@ -115,7 +115,7 @@
             "protectedArtifactBookId": "45",
             "protectedArtifactSource": "r2",
             "readerRemoteMode": "strict",
-            "protectedUx": "old-shell",
+            "protectedUx": "protected-shell",
             "renderMode": "shape",
             "metricsMode": "shape"
           }
@@ -131,7 +131,7 @@
             "protectedArtifactBookId": "1",
             "protectedArtifactSource": "r2",
             "readerRemoteMode": "strict",
-            "protectedUx": "old-shell",
+            "protectedUx": "protected-shell",
             "renderMode": "shape",
             "metricsMode": "shape"
           }
@@ -140,7 +140,7 @@
     },
     "unprotected": {
       "title": "Unprotected Books Routed To Legacy Reader",
-      "description": "Temporary manual-check section. These cards stay in reader1 even when opened from the reader_new test area.",
+      "description": "Temporary manual-check section. These cards stay in the legacy unprotected reader even when opened from the reader_new test area.",
       "books": [
         {
           "id": "45",

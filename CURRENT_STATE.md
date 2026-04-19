@@ -1,38 +1,86 @@
 # Current State
 
-## Current Reader Transition State
+## Current Reader Roles
 
-- The repository is in a transitional state where `reader_new` work and legacy `reader1` work coexist.
-- Catalog and preview routing now treat `reader_new` as a protected-only user-facing route.
-- `books/catalog.config.json` now contains the explicit protected-book allowlist used by catalog/test routing.
-- The protected-reader subsystem has an active current-branch summary in `reader_render_v3/docs/protected-reader/109-current-branch-delta-summary.md`.
+- `reader1/` is the current reader for unprotected books.
+- `reader/reader_new.html` plus `reader_render_v3/` is the current reader stack for protected books only.
+- The protected reader is fail-closed: invalid protected opens do not fall back into another reader path.
 
-## Practically Relevant Current Decisions
+## Current Protected Reader Reality
 
-- Historical numbered protected-reader docs exist, but the current branch delta summary is the canonical high-signal starting point for that subsystem.
-- `reader_render_v3/package.json` now exposes fast `ui:smoke*` local checks for `reader_new` protected old-shell UI flows, and the host publishes `window.__READERPUB_READER_NEW_UI_STATE__` as the smoke-readiness marker used by those checks.
-- `reader_new` protected old-shell boot now waits for persisted resume restoration before the first visible protected snapshot, so users should not see a default-start page flash before jumping to their saved position; the shell must stay hidden after boot until the user explicitly taps/clicks the reading surface center.
-- protected `reader_new` reading-state persistence now stores a text-anchor resume hint in addition to the restore token: plain reading restores by the saved visible-page midpoint, while active selection/focused-note flows restore by that anchor text so reopening after a viewport resize stays on the same text slice instead of drifting to a chapter/page start.
-- protected `reader_new` bootstrap must read initial typography from the same book-scoped old-shell localStorage keys that the settings UI writes, so reload starts with the user’s persisted font scale/mode instead of first painting with a default and then resyncing.
-- local `wrangler pages dev` fallback now proxies `/books/api/*`, `/books/content/*`, and `/books/protected-content/*` to `https://reader.pub` when the local worker has no R2 binding, so the local catalog and protected-reader checks can run against Cloudflare-backed book data.
+- Active protected reader route and host vocabulary use `protected-shell`.
+- Active protected-reader smoke tooling uses the protected host bridge surface and the canonical protected-shell route.
+- The protected host owns its own shell visibility, overlay behavior, search UI, settings UI, menu metadata, and typography persistence.
+- Protected reading-state restore starts from the saved protected reading position and saved typography state instead of first painting a default page/layout.
 
-## Known Transitional Reality
+## Current Catalog / Routing Reality
 
-- Direct/internal compat artifacts for unprotected development may still exist in code, but user-facing catalog/test opens for unprotected books route to `reader1`.
-- `reader1` remains the practical comparison point for existing unprotected EPUB behavior.
-- `reader1` now keeps its legacy EPUB engine but uses a reader shell that is intentionally aligned much more closely to the current `reader_new` UX family for unprotected books.
-- `reader1` shell parity work currently includes right-side `Book Navigation` and `Settings` overlays, touch full-screen overlay behavior, and shared top/bottom bar icon family with `reader_new`, while leaving the legacy reading engine and core DOM in place.
-- `reader1` no longer uses the old left-sidebar runtime for active navigation; current unprotected shell behavior is centered on the right-side unified overlays.
-- `reader1` shell icon assets used by the top-bar unified shell are now served from `reader1/icons/`, so cloud preview does not depend on `reader_render_v3` asset paths for those controls.
-- `reader1` selection actions now use a horizontal icon-only toolbar; `Translate` opens external Google Translate instead of an internal translation sub-toolbar.
-- `reader1` touch selection toolbar positioning must stay near the selected text without overlapping the selection; top-edge touch selections use the same non-overlapping near-selection rule instead of a distant fallback.
-- `reader1` note/comment quote text on phones and tablets is normalized to a single inline flow rather than preserving line-by-line selection breaks.
-- `reader1` TTS now defaults the language picker from book metadata, keeps the language list alphabetized, and skips forward when the current page has no readable text.
-- `reader1` TTS now auto-advances across chapter boundaries and should continue until the user stops playback or reading reaches the true end of the book.
-- `reader1` touch page-turn behavior depends on the production-style `reader.js` gesture pipeline, and the outer `fb-tap-layer` must remain non-interactive by default; enabling pointer events on its left/center/right zones breaks swipe/drag on phones and tablets.
-- `reader1` paginated mobile layout depends on the legacy `epub.js` body padding baseline of `20px` top/bottom; increasing that internal padding inflates visible vertical page margins even when the shell bars are overlayed and hidden.
+- Catalog routing distinguishes the two readers:
+  - unprotected books open `reader1`;
+  - protected books open `reader_new`.
+- Local `wrangler pages dev` fallback proxies `/books/api/*`, `/books/content/*`, and `/books/protected-content/*` to `https://reader.pub` when local R2 bindings are absent, so local catalog and protected-reader checks can use Cloudflare-backed data.
 
-## How To Use This File
+## Current Protected Tooling Reality
 
-- Keep this file focused on what is true now.
-- When a significant task changes routing, ownership, active migration state, or accepted current behavior, update this file in the same change.
+- `reader_render_v3/package.json` provides the main protected smoke commands:
+  - `ui:smoke:desktop`
+  - `ui:smoke:settings`
+  - `ui:smoke:library`
+  - `ui:smoke:search`
+  - `ui:smoke:mobile`
+  - `ui:smoke:mobile-settings`
+  - `ui:smoke:canonical-url`
+- Protected artifact build and validation entrypoints are:
+  - `protected:build`
+  - `protected:build:debug`
+  - `protected:validate`
+- Protected font/corpus support entrypoints are:
+  - `protected:audit`
+  - `protected:fonts:scan`
+  - `protected:fonts:plan`
+- The kept protected internal verification surface is now centered on:
+  - `reader-new-ui-smoke.js`
+  - `check-protected-reader-readiness.js`
+  - `check-live-rollout-smoke.js`
+  - `check-live-protected-route.js`
+  - `check-catalog-reader-routing.js`
+  - `check-catalog-test-sections.js`
+
+## Current Reader1 Tooling Reality
+
+- `tools/reader1/unpack_epub.py` is the current EPUB-to-`reader1` packaging entrypoint.
+- `tools/reader1/publish_books.py` is the current `reader1` publish pipeline entrypoint.
+- The `reader1` publish CLI exposes:
+  - `status`
+  - `run`
+  - `resume`
+  - `publish-epub`
+  - `publish-dir`
+  - `publish-zip`
+
+## Current Content / Publishing Tooling Reality
+
+- Source-document to EPUB helpers live under `books/content/`:
+  - `make_epub_from_docx.sh`
+  - `make_epub_from_pdf.sh`
+  - `gen_epub_css_from_docx.py`
+  - `epub_publish.sh`
+- Catalog index generation lives under `tools/catalog/`.
+- Gutenberg catalog-sync support also lives under `tools/catalog/`.
+- SEO generation and upload helpers live under `tools/seo/`.
+- Selective catalog/content publication to Cloudflare-backed storage currently goes through `books/content/epub_publish.sh`.
+- SEO manifest publication currently goes through `tools/seo/upload_seo_indexes.sh`.
+
+## Handoff Guidance
+
+- Root context files are the startup documentation for this repository.
+- The intended handoff picture is:
+  - `reader1` for unprotected books;
+  - `reader_new` plus `reader_render_v3` for protected books.
+- Operational tooling instructions live in:
+  - `docs/README.md`
+  - `docs/gutenberg-pipeline.md`
+  - `tools/README.md`
+  - `reader_render_v3/tools/protected-ingestion/README.md`
+  - `reader_render_v3/tools/protected-fonts/README.md`
+- Historical and exploratory docs outside that set are no longer part of the intended handoff package.

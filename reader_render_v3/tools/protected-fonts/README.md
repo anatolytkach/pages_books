@@ -1,8 +1,8 @@
 # Protected Fonts Tooling
 
-This folder contains local-only audit tooling for the protected reader project.
+This folder contains audit and planning tooling for the protected reader stack.
 
-It does not modify the current public reader, catalog, R2 book layout, or routing.
+It does not modify catalog routing or the live reader paths.
 
 ## Commands
 
@@ -14,8 +14,8 @@ npm --prefix reader_render_v3 run protected:audit
 
 Generates or refreshes:
 
-- `/Volumes/2T/se_ingest/pages_books/reader_render_v3/docs/protected-reader/01-baseline-audit.md`
-- `/Volumes/2T/se_ingest/pages_books/reader_render_v3/docs/protected-reader/02-protected-format-v0.md`
+- `/Volumes/2T/se_ingest/pages_books/reader_render_v3/artifacts/protected-fonts/audit-report.md`
+- `/Volumes/2T/se_ingest/pages_books/reader_render_v3/artifacts/protected-fonts/format-report.md`
 
 ```bash
 npm --prefix reader_render_v3 run protected:fonts:scan -- --input <path>
@@ -53,9 +53,9 @@ Exploded books are detected by one or more of:
 - Superscript signals used by notes/footnotes
 - Presence of bold / italic / bold-italic markers from HTML and CSS heuristics
 
-## Dependencies recorded for later shaping work
+## Dependencies recorded by the tooling
 
 - `harfbuzzjs` for shaping
 - `opentype.js` for glyph path extraction
 
-These dependencies are intentionally introduced here, but not wired into `reader_render_v3` yet.
+These dependencies are used by the audit/planning layer and remain separate from the live protected runtime path.

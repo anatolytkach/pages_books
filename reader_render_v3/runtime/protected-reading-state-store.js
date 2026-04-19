@@ -4,7 +4,9 @@ function cloneJson(value) {
 
 export function normalizePersistedReadingState(state) {
   if (!state || typeof state !== "object") return null;
-  return cloneJson(state);
+  const normalized = cloneJson(state);
+  delete normalized.compat;
+  return normalized;
 }
 
 export function extractReadingStateFromBundle(bundle) {

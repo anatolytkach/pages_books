@@ -275,9 +275,9 @@ export function createProtectedDriveTransport({ fileApi = createGoogleDriveFileA
           remoteFile: null,
           syncFile: null,
           handoffState: null,
-          compatibility: {
+          syncAssessment: {
             status: "missing",
-            compatible: false,
+            allowed: false,
             warning: "No remote protected sync file was found in Google Drive."
           },
           freshness: compareProtectedDriveFreshness({
@@ -289,19 +289,19 @@ export function createProtectedDriveTransport({ fileApi = createGoogleDriveFileA
       const raw = await fileApi.downloadFile(remoteFile.fileId, !!interactive);
       const syncFile = normalizeProtectedSyncBundle(raw);
       const handoffState = buildProtectedDriveHandoffState(syncFile, remoteFile);
-      const compatibility = assessProtectedSyncTransportImport({
+      const syncAssessment = assessProtectedSyncTransportImport({
         syncFile,
         handoffState,
         bookFingerprint
       });
       return {
-        status: compatibility.compatible ? "downloaded" : compatibility.status,
+        status: syncAssessment.allowed ? "downloaded" : syncAssessment.status,
         identity,
         remoteFile,
         syncFile,
         serializedSyncFile: serializeProtectedSyncBundle(syncFile),
         handoffState,
-        compatibility,
+        syncAssessment,
         freshness: compareProtectedDriveFreshness({
           localUpdatedAt,
           remoteModifiedAt: remoteFile.modifiedAt

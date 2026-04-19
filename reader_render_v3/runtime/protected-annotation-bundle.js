@@ -8,48 +8,50 @@ function cloneJson(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
-export function assessProtectedBundleCompatibility(bundle, bookFingerprint) {
+export function assessProtectedBundleAssessment(bundle, bookFingerprint) {
   if (!bundle) {
     return {
       status: "missing",
-      compatible: false,
+      allowed: false,
       warning: "No persisted bundle was found."
     };
   }
   if (!bookFingerprint || !bookFingerprint.bookId) {
     return {
       status: "book-identity-missing",
-      compatible: true,
-      warning: "Book fingerprint is unavailable; using bookId-only compatibility."
+      allowed: true,
+      warning: "Book fingerprint is unavailable; using bookId-only matching."
     };
   }
   if (String(bundle.bookId) !== String(bookFingerprint.bookId)) {
     return {
       status: "book-mismatch",
-      compatible: false,
+      allowed: false,
       warning: `Persisted bundle belongs to ${bundle.bookId}, expected ${bookFingerprint.bookId}.`
     };
   }
   if (!bundle.bookFingerprint || !bundle.bookFingerprint.fingerprint) {
     return {
       status: "legacy-upgraded",
-      compatible: true,
+      allowed: true,
       warning: "Persisted bundle predates fingerprinting and was upgraded in place."
     };
   }
   if (String(bundle.bookFingerprint.fingerprint) !== String(bookFingerprint.fingerprint)) {
     return {
       status: "fingerprint-mismatch",
-      compatible: false,
+      allowed: false,
       warning: "Persisted bundle fingerprint does not match the current protected artifact."
     };
   }
   return {
     status: "exact",
-    compatible: true,
+    allowed: true,
     warning: ""
   };
 }
+
+export const assessProtectedBundleCompatibility = assessProtectedBundleAssessment;
 
 export function normalizeProtectedAnnotationBundle(payload) {
   const parsed = typeof payload === "string" ? JSON.parse(payload) : payload;

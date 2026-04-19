@@ -45,7 +45,7 @@
           next.searchParams.set(key, value);
         });
         if (!next.searchParams.get("reader")) next.searchParams.set("reader", "protected");
-        if (!next.searchParams.get("protectedUx")) next.searchParams.set("protectedUx", "old-shell");
+        if (!next.searchParams.get("protectedUx")) next.searchParams.set("protectedUx", "protected-shell");
         next.hash = current.hash || "";
         var nextHref = next.toString();
         var link = document.getElementById("redirect-link");

@@ -1,15 +1,9 @@
-# Protected Ingestion Dry-Run
+# Protected Ingestion
 
-This module builds a local-only protected book artifact for `reader_render_v3`.
+This module builds local protected book artifacts for `reader_render_v3`.
 
-It does **not**:
-
-- write to R2
-- change the current catalog
-- change the current public reader
-- change live routing
-
-It is a dry-run builder for a future protected pipeline.
+The build and validate commands operate on artifact directories only. They do
+not publish content by themselves.
 
 ## Commands
 
@@ -72,13 +66,10 @@ The runtime-safe selection layer stores only logical range metadata and does not
 
 Readable debug fields such as `char` and `fullText` live only inside the optional `debug/` subtree.
 
-## Current limitations
+## Scope
 
-- no final renderer
-- no pagination engine
-- no canvas integration
-- no server protection
-- no note runtime
-- no full footnote runtime
+- Builds artifact directories under `reader_render_v3/artifacts/protected-books/`
+- Validates runtime-safe artifact structure
+- Supports debug artifact output with `--debug-artifact`
 
-The goal of this step is only to prove that one current book can be deterministically converted into a chunk-based protected artifact while preserving source traceability.
+Publishing protected artifacts to remote storage is handled outside this module.

@@ -13,10 +13,10 @@ function getStoredValue(key) {
   return "";
 }
 
-function getProtectedOldShellConfig() {
+function getProtectedHostConfig() {
   try {
-    if (typeof window !== "undefined" && window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__) {
-      return window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__;
+    if (typeof window !== "undefined" && window.__READERPUB_PROTECTED_HOST_CONFIG__) {
+      return window.__READERPUB_PROTECTED_HOST_CONFIG__;
     }
   } catch (_error) {}
   return null;
@@ -35,7 +35,7 @@ function normalizeBookId(url) {
 }
 
 function normalizeArtifactBookId(url, fallbackBookId = "") {
-  const hostConfig = getProtectedOldShellConfig();
+  const hostConfig = getProtectedHostConfig();
   const params = url.searchParams;
   const explicit =
     String(
@@ -59,14 +59,6 @@ function normalizeSource(url, bookId) {
   return lastSource && lastSource !== "gutenberg" ? lastSource : "";
 }
 
-function resolveReaderBasePath(url) {
-  const hostname = String(url && url.hostname ? url.hostname : "").trim().toLowerCase();
-  const pathname = String(url && url.pathname ? url.pathname : "").trim();
-  if (pathname.startsWith("/reader/")) return "/reader/";
-  if (hostname.endsWith(".pages.dev")) return "/reader/";
-  return "/books/reader/";
-}
-
 function isReaderNewPath(url) {
   const pathname = String(url && url.pathname ? url.pathname : "").trim();
   return (
@@ -78,7 +70,7 @@ function isReaderNewPath(url) {
 }
 
 function resolveProtectedArtifactRoot(url, artifactBookId) {
-  const hostConfig = getProtectedOldShellConfig();
+  const hostConfig = getProtectedHostConfig();
   const artifactSource = String(
     url.searchParams.get("protectedArtifactSource") ||
       url.searchParams.get("readerContentSource") ||
@@ -100,7 +92,7 @@ function resolveProtectedArtifactRoot(url, artifactBookId) {
 }
 
 export function parseProtectedIntegrationRoute(input = window.location.href) {
-  const hostConfig = getProtectedOldShellConfig();
+  const hostConfig = getProtectedHostConfig();
   const baseOrigin =
     typeof window !== "undefined" && window.location && window.location.origin
       ? window.location.origin
@@ -114,7 +106,6 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
     String(url.searchParams.get("restoreToken") || "").trim() ||
     String(url.searchParams.get("rt") || "").trim() ||
     "";
-  const readerBasePath = resolveReaderBasePath(url);
   const artifactRoot = resolveProtectedArtifactRoot(url, artifactBookId);
   const artifactSource = String(
     url.searchParams.get("protectedArtifactSource") ||
@@ -133,40 +124,6 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
   )
     .trim()
     .toLowerCase();
-
-  const oldReaderUrl = new URL(readerBasePath, url.origin);
-  const protectedUrl = new URL(readerBasePath, url.origin);
-
-  if (bookId) {
-    oldReaderUrl.searchParams.set("id", bookId);
-    protectedUrl.searchParams.set("id", bookId);
-  }
-  if (source) {
-    oldReaderUrl.searchParams.set("source", source);
-    protectedUrl.searchParams.set("source", source);
-  }
-  if (artifactBookId && artifactBookId !== bookId) {
-    protectedUrl.searchParams.set("protectedArtifactBookId", artifactBookId);
-  }
-  for (const key of ["entry", "catalog_return", "autostart", "title", "slug", "renderMode", "metricsMode", "debugGeometry"]) {
-    const value = String(url.searchParams.get(key) || "").trim();
-    if (value) {
-      oldReaderUrl.searchParams.set(key, value);
-      protectedUrl.searchParams.set(key, value);
-    }
-  }
-  for (const key of ["n", "notesShare", "notes", "notesz"]) {
-    const value = String(url.searchParams.get(key) || "").trim();
-    if (value) {
-      oldReaderUrl.searchParams.set(key, value);
-      protectedUrl.searchParams.set(key, value);
-    }
-  }
-  protectedUrl.searchParams.set("reader", "protected");
-  if (url.hash) {
-    oldReaderUrl.hash = url.hash;
-    protectedUrl.hash = url.hash;
-  }
 
   const lastCfi = bookId ? String(getStoredValue(`readerpub:lastcfi:${bookId}`) || "").trim() : "";
   const uxValue = String(
@@ -206,18 +163,14 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
     artifactRoot,
     shareState,
     lastCfi,
-    readerBasePath,
-    oldReaderUrl: `${oldReaderUrl.pathname}${oldReaderUrl.search}${oldReaderUrl.hash}`,
-    protectedReaderUrl: `${protectedUrl.pathname}${protectedUrl.search}${protectedUrl.hash}`,
     explicitProtectedRequest:
       String(url.searchParams.get("reader") || "").trim() === "protected" ||
       isReaderNewPath(url),
-    uxShellMode: uxValue === "old-shell" ? "old-shell" : "standalone",
-    embeddedMode: embeddedValue === "old-shell" ? "old-shell" : "none",
+    shellMode: uxValue === "protected-shell" ? "protected-shell" : "standalone",
+    embeddedShellMode: embeddedValue === "protected-shell" ? "protected-shell" : "none",
     renderHost: "direct",
     driveMode:
       driveValue === "disabled" ? "disabled" : driveValue === "optional" ? "optional" : "full",
-    compatTransport: "adapter",
     automationSafe,
     explicitRestoreToken,
     forceWorkerUnavailable: ["disabled", "fail", "broken"].includes(

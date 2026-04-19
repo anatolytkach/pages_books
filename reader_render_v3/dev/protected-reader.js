@@ -8,7 +8,7 @@ import {
   escapeProtectedReaderHtml as escapeHtml,
   isProtectedReaderAutomationSafeMode,
   isProtectedReaderDriveUiDisabled,
-  isProtectedReaderEmbeddedOldShellMode,
+  isProtectedReaderEmbeddedShellMode,
   loadProtectedBook,
   loadProtectedChunkModel,
   normalizeProtectedReaderFontMode as normalizeFontMode,
@@ -24,8 +24,8 @@ import {
   serializeRangeDescriptor
 } from "./protected-reader-runtime-core.js";
 import {
-  createProtectedReaderCompatAdapter
-} from "./protected-reader-compat-adapter.js";
+  createProtectedReaderHostBridge
+} from "./protected-reader-host-bridge.js";
 import {
   createProtectedReaderEventChannel,
   PROTECTED_READER_CANONICAL_EVENT_NAMES
@@ -76,7 +76,7 @@ const elements = {
   noteInput: document.querySelector("#note-input"),
   annotationImport: document.querySelector("#annotation-import"),
   handoffState: document.querySelector("#handoff-state"),
-  compatJson: document.querySelector("#compat-json"),
+  importReportJson: document.querySelector("#import-report-json"),
   syncFileInput: document.querySelector("#sync-file-input"),
   annotationCount: document.querySelector("#annotation-count"),
   annotationList: document.querySelector("#annotation-list"),
@@ -94,7 +94,7 @@ const readerContractEvents = createProtectedReaderEventChannel({
     try {
       window.__PROTECTED_READER_EVENT_HISTORY__ = readerContractEvents.getHistory();
     } catch (_error) {}
-    if (!isEmbeddedOldShellMode()) return;
+    if (!isEmbeddedProtectedShellMode()) return;
     const renderHostMode =
       state && state.entryConfig && String(state.entryConfig.renderHost || "").trim().toLowerCase() === "direct"
         ? "direct"
@@ -103,7 +103,7 @@ const readerContractEvents = createProtectedReaderEventChannel({
     try {
       window.parent.postMessage(
         {
-          channel: "protected-old-shell-v1",
+          channel: "protected-shell-v1",
           type: "reader-event",
           eventName,
           payload
@@ -137,13 +137,15 @@ function ensureMediaLayer() {
   return layer;
 }
 
-function isEmbeddedOldShellMode() {
-  return isProtectedReaderEmbeddedOldShellMode(state);
+function isEmbeddedProtectedShellMode() {
+  return isProtectedReaderEmbeddedShellMode(state);
 }
 
-function isOldShellCompatHostMode() {
-  const shellMode = state && state.entryConfig ? String(state.entryConfig.uxShellMode || "").trim().toLowerCase() : "";
-  return isEmbeddedOldShellMode() || shellMode === "old-shell";
+function isProtectedShellHostMode() {
+  const shellMode = state && state.entryConfig
+    ? String(state.entryConfig.shellMode || "").trim().toLowerCase()
+    : "";
+  return isEmbeddedProtectedShellMode() || shellMode === "protected-shell";
 }
 
 function isDriveUiDisabled() {
@@ -154,9 +156,9 @@ function isAutomationSafeMode() {
   return isProtectedReaderAutomationSafeMode(state);
 }
 
-if (isEmbeddedOldShellMode()) {
-  document.documentElement.dataset.shellMode = "embedded-old-shell";
-  document.body.dataset.shellMode = "embedded-old-shell";
+if (isEmbeddedProtectedShellMode()) {
+  document.documentElement.dataset.shellMode = "embedded-protected-shell";
+  document.body.dataset.shellMode = "embedded-protected-shell";
   document.body.dataset.driveMode = state.entryConfig && state.entryConfig.driveMode ? state.entryConfig.driveMode : "full";
 }
 
@@ -384,12 +386,12 @@ function buildBridgeSummary() {
     : "";
   return {
     ready: !!state.currentSnapshot,
-    compatTransport: getCompatTransportMode(),
+    hostBridgeMode: getHostBridgeMode(),
     configGeneration: state.configGeneration,
     layoutGeneration: state.layoutGeneration,
     hostedMode: !!state.hostedMode,
     hostMode: state.hostedMode ? "reader_new" : "dev-shell",
-    embeddedMode: isEmbeddedOldShellMode(),
+    embeddedMode: isEmbeddedProtectedShellMode(),
     readerMode: state.hostedMode ? "protected" : "dev-shell",
     bookId: state.bookSummary ? state.bookSummary.bookId : "",
     bookTitle: state.bookSummary && state.bookSummary.metadata ? state.bookSummary.metadata.title || "" : "",
@@ -430,12 +432,12 @@ function buildBridgeSummary() {
         ? normalizeFontMode(runtimeMeta.typographySummary.fontMode || state.fontMode)
         : state.fontMode,
     supportedFontModes:
-      state.compatBook && state.compatBook.artifactContract && Array.isArray(state.compatBook.artifactContract.supportedFontModes)
-        ? state.compatBook.artifactContract.supportedFontModes.slice()
+      state.protectedBook && state.protectedBook.artifactContract && Array.isArray(state.protectedBook.artifactContract.supportedFontModes)
+        ? state.protectedBook.artifactContract.supportedFontModes.slice()
         : ["sans"],
     artifactContractKind:
-      state.compatBook && state.compatBook.artifactContract
-        ? state.compatBook.artifactContract.kind || ""
+      state.protectedBook && state.protectedBook.artifactContract
+        ? state.protectedBook.artifactContract.kind || ""
         : "",
     runtimeFontMode:
       runtimeMeta && runtimeMeta.typographySummary
@@ -494,9 +496,10 @@ function buildBridgeSummary() {
       annotationId: annotation.annotationId,
       type: annotation.type,
       noteText: annotation.noteText || "",
-      quote: annotation && annotation.metadata && annotation.metadata.compatQuote
-        ? String(annotation.metadata.compatQuote)
-        : "",
+      quote:
+        annotation && annotation.metadata && annotation.metadata.selectionQuote
+          ? String(annotation.metadata.selectionQuote)
+          : "",
       globalRange: `${annotation.rangeDescriptor.start.globalOffset}..${annotation.rangeDescriptor.end.globalOffset}`
     })),
     tocItems: (state.tocItems || []).map((item) => ({
@@ -706,8 +709,8 @@ function emitReaderContractEventsFromSummary(summary, options = {}) {
   readerContractEvents.emitFromSummary(summary || buildBridgeSummary(), options);
 }
 
-function getCompatTransportMode() {
-  return "adapter";
+function getHostBridgeMode() {
+  return "direct";
 }
 
 function getArtifactRootFromLocation() {
@@ -772,7 +775,7 @@ function syncArtifactInput() {
 
 function getViewportHeight() {
   const frameHeight = Math.round((elements.readerFrame ? elements.readerFrame.clientHeight : 0) || 0);
-  if (isOldShellCompatHostMode()) {
+  if (isProtectedShellHostMode()) {
     return Math.max(420, frameHeight || 720);
   }
   return Math.max(420, frameHeight - 40 || 720);
@@ -780,7 +783,7 @@ function getViewportHeight() {
 
 function getViewportWidth() {
   const frameWidth = Math.round((elements.readerFrame ? elements.readerFrame.clientWidth : 0) || 0);
-  if (isOldShellCompatHostMode()) {
+  if (isProtectedShellHostMode()) {
     return Math.max(280, frameWidth || 760);
   }
   return Math.max(420, frameWidth || 760);
@@ -946,7 +949,7 @@ function isPreviewSnapshotStale(snapshot, expectedPreviewKey) {
 }
 
 async function refreshTurnPreview(direction, refreshKey) {
-  if (!state.currentSnapshot || !isEmbeddedOldShellMode()) return;
+  if (!state.currentSnapshot || !isEmbeddedProtectedShellMode()) return;
   window.__PROTECTED_TURN_PREVIEW_DEBUG__ = window.__PROTECTED_TURN_PREVIEW_DEBUG__ || {};
   window.__PROTECTED_TURN_PREVIEW_DEBUG__[direction] = {
     stage: "start",
@@ -991,7 +994,7 @@ async function refreshTurnPreview(direction, refreshKey) {
 }
 
 async function refreshTurnPreviews() {
-  if (!isEmbeddedOldShellMode() || !state.currentSnapshot) return;
+  if (!isEmbeddedProtectedShellMode() || !state.currentSnapshot) return;
   const refreshKey = getTurnPreviewKey();
   const run = async () => {
     state.turnPreviewRefreshToken += 1;
@@ -1030,8 +1033,8 @@ async function syncRepositoryAnnotations() {
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
 }
 
-async function autoImportCompatPayload() {
-  if (!state.hostedMode || !state.annotationRepository || !state.compatBook) return false;
+async function autoImportSharedPayload() {
+  if (!state.hostedMode || !state.annotationRepository || !state.protectedBook) return false;
   const route = state.entryConfig && state.entryConfig.readerNewRoute;
   if (state.annotationStore && state.annotationStore.all().length) return false;
   if (!route) return false;
@@ -1047,35 +1050,35 @@ async function autoImportCompatPayload() {
     };
   }
 
-  state.compatShareImportStatus = resolved.mode || "none";
+  state.shareImportStatus = resolved.mode || "none";
   state.sharePayloadParseStatus = resolved.mode || "none";
-  state.compatShareWarnings = Array.isArray(resolved.warnings) ? resolved.warnings : [];
+  state.shareImportWarnings = Array.isArray(resolved.warnings) ? resolved.warnings : [];
 
   if (!resolved.payload) {
-    state.lastCompatReport = {
+    state.importReport = {
       total: 0,
       exact: 0,
       approximate: 0,
       unresolved: 0,
       createdHighlights: 0,
       createdNotes: 0,
-      warnings: state.compatShareWarnings
+      warnings: state.shareImportWarnings
     };
-    elements.compatJson.value = JSON.stringify(state.lastCompatReport, null, 2);
+    elements.importReportJson.value = JSON.stringify(state.importReport, null, 2);
     state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
     renderRuntimeMeta();
     return false;
   }
 
   const result = await state.annotationRepository.importProductionPayload(resolved.payload, {
-    book: state.compatBook,
+    book: state.protectedBook,
     merge: false,
     preserveReadingStateIfMissing: true
   });
-  state.lastCompatReport = result.report;
-  state.compatShareImportStatus = resolved.mode || "loaded";
+  state.importReport = result.report;
+  state.shareImportStatus = resolved.mode || "loaded";
   state.sharePayloadParseStatus = resolved.mode || "loaded";
-  elements.compatJson.value = JSON.stringify(result.report, null, 2);
+  elements.importReportJson.value = JSON.stringify(result.report, null, 2);
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
   renderAnnotationList();
   renderRuntimeMeta();
@@ -1083,7 +1086,7 @@ async function autoImportCompatPayload() {
 }
 
 async function restoreReadingStateIfAvailable(bookId) {
-  if (!state.annotationRepository || !state.compatBook) return null;
+  if (!state.annotationRepository || !state.protectedBook) return null;
   const effectiveBookId = bookId || (state.bookSummary && state.bookSummary.bookId) || state.annotationRepository.bookId;
   const explicitRestoreToken = state.entryConfig && state.entryConfig.explicitRestoreToken
     ? String(state.entryConfig.explicitRestoreToken).trim()
@@ -1160,23 +1163,23 @@ async function restoreReadingStateIfAvailable(bookId) {
           }
         }
       },
-      { book: state.compatBook, merge: true }
+      { book: state.protectedBook, merge: true }
     );
-    const compatReadingState = result.report && result.report.readingState && result.report.readingState.protectedReadingState;
-    if (compatReadingState && compatReadingState.globalPosition) {
+    const restoredReadingState = result.report && result.report.readingState && result.report.readingState.protectedReadingState;
+    if (restoredReadingState && restoredReadingState.globalPosition) {
       state.readingStateSource = "production-fallback";
       state.readingStateRestoreApplied = true;
-      state.persistedReadingState = compatReadingState;
-      state.lastReadingStateSaveAt = compatReadingState.updatedAt || null;
+      state.persistedReadingState = restoredReadingState;
+      state.lastReadingStateSaveAt = restoredReadingState.updatedAt || null;
       return {
         snapshot: await state.workerClient.goToChunk({
-          chunkIndex: compatReadingState.globalPosition.chunkOrder,
-          globalOffset: compatReadingState.globalPosition.globalOffset,
+          chunkIndex: restoredReadingState.globalPosition.chunkOrder,
+          globalOffset: restoredReadingState.globalPosition.globalOffset,
           ...getViewportConfig(),
           annotations: getCurrentAnnotations()
         }),
         source: "production-fallback",
-        readingState: compatReadingState
+        readingState: restoredReadingState
       };
     }
   }
@@ -1245,7 +1248,7 @@ function renderRuntimeMeta() {
         ["Protected artifact", state.rolloutStatus && state.rolloutStatus.artifactAvailable ? "yes" : "no"],
         ["Worker available", state.rolloutStatus && state.rolloutStatus.workerAvailable ? "yes" : "no"],
         ["Book allowed", state.rolloutStatus && state.rolloutStatus.bookAllowed ? "yes" : "no"],
-        ["Fallback reason", state.rolloutStatus && state.rolloutStatus.fallbackReason ? state.rolloutStatus.fallbackReason : "none"],
+        ["Unavailable reason", state.rolloutStatus && state.rolloutStatus.unavailableReason ? state.rolloutStatus.unavailableReason : "none"],
         ["Worker mode", state.workerClient.mode],
         ["Worker protocol", "inactive"],
         ["Artifact load status", state.artifactLoadStatus],
@@ -1327,7 +1330,7 @@ function renderRuntimeMeta() {
     ["Denylisted", state.rolloutStatus && state.rolloutStatus.denylisted ? "yes" : "no"],
     ["Protected artifact", state.rolloutStatus && state.rolloutStatus.artifactAvailable ? "yes" : "no"],
     ["Worker available", state.rolloutStatus && state.rolloutStatus.workerAvailable ? "yes" : "no"],
-    ["Fallback reason", state.rolloutStatus && state.rolloutStatus.fallbackReason ? state.rolloutStatus.fallbackReason : "none"],
+    ["Unavailable reason", state.rolloutStatus && state.rolloutStatus.unavailableReason ? state.rolloutStatus.unavailableReason : "none"],
     ["Rollout warnings", state.rolloutStatus && state.rolloutStatus.warnings && state.rolloutStatus.warnings.length ? state.rolloutStatus.warnings.join(", ") : "none"],
     ["Reading state source", state.readingStateSource],
     ["Persisted page index", state.persistedReadingState && state.persistedReadingState.page ? state.persistedReadingState.page.pageIndex ?? "n/a" : "n/a"],
@@ -1337,13 +1340,13 @@ function renderRuntimeMeta() {
     ["Restore applied", state.readingStateRestoreApplied ? "yes" : "no"],
     ["Storage backend", persistenceDiagnostics ? persistenceDiagnostics.storageBackend : "inactive"],
     ["Bundle schema version", persistenceDiagnostics ? persistenceDiagnostics.schemaVersion : "n/a"],
-    ["Bundle compatibility", persistenceDiagnostics ? persistenceDiagnostics.compatibilityStatus : "n/a"],
-    ["Bundle compatibility warning", persistenceDiagnostics && persistenceDiagnostics.compatibilityWarning ? persistenceDiagnostics.compatibilityWarning : "none"],
+    ["Bundle status", persistenceDiagnostics ? persistenceDiagnostics.persistenceStatus : "n/a"],
+    ["Bundle warning", persistenceDiagnostics && persistenceDiagnostics.persistenceWarning ? persistenceDiagnostics.persistenceWarning : "none"],
     ["Persisted bundle updated", persistenceDiagnostics && persistenceDiagnostics.lastSavedAt ? new Date(persistenceDiagnostics.lastSavedAt).toISOString() : "n/a"],
     ["Reading-state saved", persistenceDiagnostics ? (persistenceDiagnostics.readingStateSaved ? "yes" : "no") : "n/a"],
     ["Persisted annotation count", persistenceDiagnostics ? persistenceDiagnostics.annotationCount : "n/a"],
     ["Book fingerprint", persistenceDiagnostics ? persistenceDiagnostics.bookFingerprint : "n/a"],
-    ["File sync compatibility", state.fileSyncCompatibilityStatus],
+    ["File sync status", state.syncAssessmentStatus],
     ["Last file transfer", state.lastFileTransferResult || "none"],
     ["Handoff state", state.currentHandoffState ? state.currentHandoffState.kind : "none"],
     ["Handoff file", state.currentHandoffState && state.currentHandoffState.fileName ? state.currentHandoffState.fileName : "none"],
@@ -1364,11 +1367,11 @@ function renderRuntimeMeta() {
     ["Artifact source resolved", state.artifactSourceResolved || "unknown"],
     ["Artifact origin resolved", state.artifactOriginResolved || "unknown"],
     ["Artifact fallback detected", state.artifactFallbackDetected || "unknown"],
-    ["Compat share import", state.compatShareImportStatus],
+    ["Share import", state.shareImportStatus],
     ["Share payload parse", state.sharePayloadParseStatus],
     ["Annotation repository", state.annotationRepository ? "active" : "inactive"],
-    ["Compat mode", state.annotationRepository ? "repository-active" : "inactive"],
-    ["Last import report", state.lastCompatReport ? `${state.lastCompatReport.exact} exact / ${state.lastCompatReport.approximate} approx / ${state.lastCompatReport.unresolved} unresolved` : "none"],
+    ["Protected repository", state.annotationRepository ? "repository-active" : "inactive"],
+    ["Last import report", state.importReport ? `${state.importReport.exact} exact / ${state.importReport.approximate} approx / ${state.importReport.unresolved} unresolved` : "none"],
     ["Geometry overlay", state.debugGeometry ? "on" : "off"],
     ["Shape source", diagnostics.shapeSource || "none"]
   ]);
@@ -1563,7 +1566,7 @@ async function persistReadingStateFromSnapshot(snapshot) {
       pageIndex: parsed.pageIndex,
       pageCount: parsed.pageCount
     },
-    compat: previous && previous.compat ? previous.compat : null,
+    productionSnapshot: previous && previous.productionSnapshot ? previous.productionSnapshot : null,
     updatedAt: Date.now()
   });
   state.persistedReadingState = nextState;
@@ -1606,11 +1609,11 @@ async function probeArtifactDiagnostics(artifactRoot) {
   }
 }
 
-async function initializeCompatRepository(bookId, compatBookPromise) {
-  state.compatBook = await compatBookPromise;
+async function initializeProtectedRepository(bookId, protectedBookPromise) {
+  state.protectedBook = await protectedBookPromise;
   state.annotationRepository = createProtectedAnnotationRepository({
     bookId,
-    book: state.compatBook,
+    book: state.protectedBook,
     persistence: state.hostedMode ? state.entryConfig.repositoryPersistence || null : null
   });
   state.annotationStore = state.annotationRepository.store;
@@ -1620,31 +1623,35 @@ async function initializeCompatRepository(bookId, compatBookPromise) {
   renderRuntimeMeta();
 }
 
-function resetCompatStateForArtifactLoad() {
+function resetProtectedStateForArtifactLoad() {
   state.selectedAnnotationId = null;
-  state.lastCompatReport = null;
+  state.importReport = null;
+  state.protectedBook = null;
   state.persistedReadingState = null;
   state.lastReadingStateSaveAt = null;
   state.readingStateRestoreApplied = false;
-  state.fileSyncCompatibilityStatus = "none";
+  state.syncAssessmentStatus = "none";
   state.lastFileTransferResult = null;
   state.currentSyncTransport = null;
   state.currentHandoffState = null;
   state.driveState = createInitialProtectedDriveState();
-  state.sharePayloadParseStatus = state.entryConfig && state.entryConfig.compatShareImportStatus
-    ? state.entryConfig.compatShareImportStatus
+  state.shareImportStatus = state.entryConfig && state.entryConfig.shareImportStatus
+    ? state.entryConfig.shareImportStatus
+    : "none";
+  state.sharePayloadParseStatus = state.shareImportStatus
+    ? state.shareImportStatus
     : "none";
   elements.noteInput.value = "";
   setTextareaValue(elements.annotationImport, "");
   setTextareaValue(elements.handoffState, "");
-  setTextareaValue(elements.compatJson, "");
+  setTextareaValue(elements.importReportJson, "");
 }
 
 async function finalizeArtifactLoad({
   artifactRoot,
   snapshot,
   bookId,
-  compatBookPromise,
+  protectedBookPromise,
   blockForRestore = false,
   repositoryReadyPromise = null,
   restoredPromise = null,
@@ -1653,7 +1660,7 @@ async function finalizeArtifactLoad({
   if (repositoryReadyPromise) {
     await repositoryReadyPromise;
   } else {
-    await initializeCompatRepository(bookId, compatBookPromise);
+    await initializeProtectedRepository(bookId, protectedBookPromise);
   }
   const restored = restoredPromise
     ? await restoredPromise
@@ -1673,12 +1680,12 @@ async function finalizeArtifactLoad({
   }
   state.artifactLoadStatus = "loaded";
   renderRuntimeMeta();
-  await autoImportCompatPayload();
+  await autoImportSharedPayload();
   if (state.annotationStore && state.annotationStore.all().length) {
     await requestAndApply("getRuntimeStatus");
   }
-  const persistenceWarning = state.persistenceDiagnostics && state.persistenceDiagnostics.compatibilityWarning
-    ? ` Warning: ${state.persistenceDiagnostics.compatibilityWarning}`
+  const persistenceWarning = state.persistenceDiagnostics && state.persistenceDiagnostics.persistenceWarning
+    ? ` Warning: ${state.persistenceDiagnostics.persistenceWarning}`
     : "";
   if (!isDriveUiDisabled()) {
     try {
@@ -1692,7 +1699,7 @@ async function finalizeArtifactLoad({
       configured: false,
       authorized: false,
       remotePresent: false,
-      lastWarning: "drive-disabled-for-embedded-old-shell"
+      lastWarning: "drive-disabled-for-embedded-protected-shell"
     });
     renderRuntimeMeta();
   }
@@ -1718,7 +1725,7 @@ async function loadArtifact(artifactRoot) {
   syncLocationParams();
   setStatus(`Loading runtime-safe artifact ${artifactRoot}...`);
   const diagnosticsPromise = probeArtifactDiagnostics(artifactRoot);
-  const compatBookPromise = loadProtectedBook(artifactRoot);
+  const protectedBookPromise = loadProtectedBook(artifactRoot);
   const snapshot = await state.workerClient.initBook({
     artifactRoot,
     renderMode: "shape",
@@ -1731,7 +1738,7 @@ async function loadArtifact(artifactRoot) {
   });
   const bookId = (snapshot.bookSummary && snapshot.bookSummary.bookId) ||
     "protected-book";
-  resetCompatStateForArtifactLoad();
+  resetProtectedStateForArtifactLoad();
   if (snapshot.bookSummary) state.bookSummary = snapshot.bookSummary;
   if (snapshot.tocItems) state.tocItems = snapshot.tocItems;
   const blockForRestore = !!(
@@ -1743,13 +1750,13 @@ async function loadArtifact(artifactRoot) {
     state.artifactLoadStatus = "restoring";
     renderRuntimeMeta();
   }
-  const repositoryReadyPromise = initializeCompatRepository(bookId, compatBookPromise);
+  const repositoryReadyPromise = initializeProtectedRepository(bookId, protectedBookPromise);
   const restoredPromise = repositoryReadyPromise.then(() => restoreReadingStateIfAvailable(bookId));
   await finalizeArtifactLoad({
     artifactRoot,
     snapshot,
     bookId,
-    compatBookPromise,
+    protectedBookPromise,
     blockForRestore,
     repositoryReadyPromise,
     restoredPromise,
@@ -1860,8 +1867,12 @@ function notifySelectionReleased(clientX, clientY, snapshot, pointerType) {
   if (!snapshot || !snapshot.selectionActive || Number(snapshot.selectedChars || 0) <= 0) return;
   try {
     if (window.parent && window.parent !== window) {
-      if (typeof window.parent.__PROTECTED_OLD_SHELL_SHOW_SELECTION_TOOLBAR__ === "function") {
-        window.parent.__PROTECTED_OLD_SHELL_SHOW_SELECTION_TOOLBAR__(
+      const showSelectionToolbar =
+        typeof window.parent.__PROTECTED_SHELL_SHOW_SELECTION_TOOLBAR__ === "function"
+          ? window.parent.__PROTECTED_SHELL_SHOW_SELECTION_TOOLBAR__
+            : null;
+      if (showSelectionToolbar) {
+        showSelectionToolbar(
           {
             selectionActive: !!snapshot.selectionActive,
             selectedChars: Number(snapshot.selectedChars || 0),
@@ -2366,7 +2377,9 @@ async function addNoteFromRangeDescriptor(rangeDescriptor, noteText = "", quoteT
     rangeDescriptor,
     noteText: normalizedText,
     metadata: normalizedQuote
-      ? { compatQuote: normalizedQuote }
+      ? {
+          selectionQuote: normalizedQuote
+        }
       : {}
   });
   state.selectedAnnotationId = note.annotationId;
@@ -2420,7 +2433,7 @@ async function exportAnnotations() {
   setTextareaValue(elements.handoffState, transport.serializedHandoffState);
   await navigator.clipboard.writeText(transport.serializedSyncFile);
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
-  state.fileSyncCompatibilityStatus = "exact";
+  state.syncAssessmentStatus = "exact";
   state.lastFileTransferResult = "protected-sync-export";
   renderRuntimeMeta();
   setStatus("Exported protected sync file.", "ok");
@@ -2439,7 +2452,7 @@ async function downloadSyncFile() {
     mimeType: transport.mimeType
   });
   state.lastFileTransferResult = `protected-sync-download:${result.fileName}`;
-  state.fileSyncCompatibilityStatus = "exact";
+  state.syncAssessmentStatus = "exact";
   renderRuntimeMeta();
   setStatus(`Downloaded protected sync file ${result.fileName}.`, "ok");
 }
@@ -2464,19 +2477,20 @@ async function importAnnotations() {
   const handoffPayload = getTextareaValue(elements.handoffState);
   const handoffState = handoffPayload ? normalizeProtectedSyncTransportHandoff(handoffPayload) : null;
   const assessed = await state.annotationRepository.assessSyncTransport(payload, handoffState);
-  state.fileSyncCompatibilityStatus = assessed.status;
-  if (!assessed.compatible) {
+  state.syncAssessmentStatus = assessed.status;
+  if (!assessed.allowed) {
     state.lastFileTransferResult = `protected-sync-import:${assessed.status}`;
     renderRuntimeMeta();
-    throw new Error(assessed.warning || "Protected sync handoff is incompatible.");
+    throw new Error(assessed.warning || "Protected sync handoff cannot be applied.");
   }
   let result = null;
   try {
     result = await state.annotationRepository.importSyncFile(payload);
   } catch (error) {
-    if (error && error.compatibility) {
-      state.fileSyncCompatibilityStatus = error.compatibility.status;
-      state.lastFileTransferResult = `protected-sync-import:${error.compatibility.status}`;
+    const syncAssessment = error && error.syncAssessment;
+    if (syncAssessment) {
+      state.syncAssessmentStatus = syncAssessment.status;
+      state.lastFileTransferResult = `protected-sync-import:${syncAssessment.status}`;
       renderRuntimeMeta();
     }
     throw error;
@@ -2484,8 +2498,6 @@ async function importAnnotations() {
   state.readingStateSource = "protected-sync-file-import";
   state.selectedAnnotationId = null;
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
-  state.fileSyncCompatibilityStatus = result.compatibility.status;
-  state.lastFileTransferResult = `protected-sync-import:${result.compatibility.status}`;
   state.currentHandoffState = handoffState;
   state.currentSyncTransport = handoffState
     ? buildProtectedSyncTransport({
@@ -2508,7 +2520,12 @@ async function importAnnotations() {
   } else {
     await requestAndApply("getRuntimeStatus");
   }
+  const importAssessment = result.syncAssessment || null;
   renderAnnotationList();
+  if (importAssessment) {
+    state.syncAssessmentStatus = importAssessment.status;
+    state.lastFileTransferResult = `protected-sync-import:${importAssessment.status}`;
+  }
   renderRuntimeMeta();
   setStatus("Imported protected sync file.", "ok");
 }
@@ -2530,15 +2547,15 @@ async function handleSyncFileChosen(event) {
       source: "file-picker"
     }
   });
-  const compatibility = await state.annotationRepository.assessSyncTransport(payload, transport.handoffState);
+  const syncAssessment = await state.annotationRepository.assessSyncTransport(payload, transport.handoffState);
   state.currentSyncTransport = transport;
   state.currentHandoffState = transport.handoffState;
   setTextareaValue(elements.annotationImport, transport.serializedSyncFile);
   setTextareaValue(elements.handoffState, transport.serializedHandoffState);
-  state.fileSyncCompatibilityStatus = compatibility.status;
-  state.lastFileTransferResult = `protected-sync-load:${compatibility.status}`;
+  state.syncAssessmentStatus = syncAssessment.status;
+  state.lastFileTransferResult = `protected-sync-load:${syncAssessment.status}`;
   renderRuntimeMeta();
-  setStatus(`Loaded protected sync file ${file.name}.`, compatibility.compatible ? "ok" : "warning");
+  setStatus(`Loaded protected sync file ${file.name}.`, syncAssessment.allowed ? "ok" : "warning");
 }
 
 async function refreshDriveStatus({ interactive = false } = {}) {
@@ -2548,7 +2565,7 @@ async function refreshDriveStatus({ interactive = false } = {}) {
       authorized: false,
       remotePresent: false,
       transportStatus: "disabled",
-      lastWarning: "drive-disabled-for-embedded-old-shell"
+      lastWarning: "drive-disabled-for-embedded-protected-shell"
     });
     renderRuntimeMeta();
     return state.driveState;
@@ -2655,20 +2672,21 @@ async function downloadSyncFileFromDrive() {
     localUpdatedAt: getLocalStateUpdatedAt(),
     interactive: true
   });
+  const downloadAssessment = result.syncAssessment || null;
   state.driveState = mergeProtectedDriveState(state.driveState, {
     configured: true,
     authorized: true,
-    transportStatus: result.compatibility.compatible ? "downloaded" : "error",
+    transportStatus: downloadAssessment && downloadAssessment.allowed ? "downloaded" : "error",
     remotePresent: !!(result.remoteFile && result.remoteFile.fileId),
     remoteFileId: result.remoteFile && result.remoteFile.fileId ? result.remoteFile.fileId : "",
     remoteFileName: result.remoteFile && result.remoteFile.name ? result.remoteFile.name : "",
     remoteModifiedAt: result.remoteFile && result.remoteFile.modifiedAt ? result.remoteFile.modifiedAt : "",
     remoteSize: result.remoteFile && result.remoteFile.size ? result.remoteFile.size : 0,
     freshness: result.freshness || "unknown",
-    lastDownloadResult: result.compatibility.status,
+    lastDownloadResult: downloadAssessment ? downloadAssessment.status : "unknown",
     pendingRemoteSyncFile: result.serializedSyncFile || null,
     pendingRemoteHandoffState: result.handoffState || null,
-    lastWarning: result.compatibility.warning || ""
+    lastWarning: downloadAssessment && downloadAssessment.warning ? downloadAssessment.warning : ""
   });
   if (result.serializedSyncFile) {
     setTextareaValue(elements.annotationImport, result.serializedSyncFile);
@@ -2676,10 +2694,10 @@ async function downloadSyncFileFromDrive() {
   if (result.handoffState) {
     setTextareaValue(elements.handoffState, JSON.stringify(result.handoffState, null, 2));
   }
-  state.fileSyncCompatibilityStatus = result.compatibility.status;
+  state.syncAssessmentStatus = downloadAssessment ? downloadAssessment.status : "unknown";
   renderRuntimeMeta();
-  if (!result.compatibility.compatible) {
-    setStatus(result.compatibility.warning || "Downloaded Drive state is incompatible.", "warning");
+  if (!downloadAssessment || !downloadAssessment.allowed) {
+    setStatus((downloadAssessment && downloadAssessment.warning) || "Downloaded Drive state cannot be applied.", "warning");
     return result;
   }
   setStatus("Downloaded protected sync file from Google Drive.", "ok");
@@ -2707,24 +2725,24 @@ async function applyDownloadedDriveState() {
 }
 
 async function importProductionPayload() {
-  if (!state.annotationRepository || !state.compatBook) throw new Error("Nothing is loaded yet.");
-  const payload = getTextareaValue(elements.compatJson);
+  if (!state.annotationRepository || !state.protectedBook) throw new Error("Nothing is loaded yet.");
+  const payload = getTextareaValue(elements.importReportJson);
   if (!payload) throw new Error("Paste production snapshot fragment JSON before importing.");
   const result = await state.annotationRepository.importProductionSnapshotFragment(payload, {
-    book: state.compatBook,
+    book: state.protectedBook,
     preserveReadingStateIfMissing: true
   });
-  state.lastCompatReport = result.report;
-  state.compatShareImportStatus = "manual-snapshot-import";
+  state.importReport = result.report;
+  state.shareImportStatus = "manual-snapshot-import";
   state.selectedAnnotationId = null;
   setTextareaValue(elements.annotationImport, JSON.stringify(
     await state.annotationRepository.exportSyncFile(state.bookSummary.bookId),
     null,
     2
   ));
-  setTextareaValue(elements.compatJson, JSON.stringify(result.report, null, 2));
+  setTextareaValue(elements.importReportJson, JSON.stringify(result.report, null, 2));
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
-  state.fileSyncCompatibilityStatus = "production-snapshot-import";
+  state.syncAssessmentStatus = "production-snapshot-import";
   state.lastFileTransferResult = "production-snapshot-import";
   renderAnnotationList();
   await requestAndApply("getRuntimeStatus");
@@ -2737,39 +2755,41 @@ async function importProductionPayload() {
 async function exportProductionNotes() {
   if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
   const result = await state.annotationRepository.exportProductionPayload();
-  setTextareaValue(elements.compatJson, JSON.stringify(result.productionNotes, null, 2));
-  state.lastCompatReport = result.report;
-  await navigator.clipboard.writeText(elements.compatJson ? elements.compatJson.value : "");
+  setTextareaValue(elements.importReportJson, JSON.stringify(result.productionNotes, null, 2));
+  state.importReport = result.report;
+  await navigator.clipboard.writeText(elements.importReportJson ? elements.importReportJson.value : "");
   renderRuntimeMeta();
-  setStatus("Exported production-compatible notes array.", "ok");
+  setStatus("Exported production notes array.", "ok");
 }
 
 async function exportSharePayload() {
   if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
   const result = await state.annotationRepository.exportProductionPayload();
-  setTextareaValue(elements.compatJson, JSON.stringify(result.sharePayload, null, 2));
-  state.lastCompatReport = result.report;
-  await navigator.clipboard.writeText(elements.compatJson ? elements.compatJson.value : "");
+  setTextareaValue(elements.importReportJson, JSON.stringify(result.sharePayload, null, 2));
+  state.importReport = result.report;
+  await navigator.clipboard.writeText(elements.importReportJson ? elements.importReportJson.value : "");
   renderRuntimeMeta();
-  setStatus("Exported production-compatible share payload.", "ok");
+  setStatus("Exported production share payload.", "ok");
 }
 
 async function exportSnapshotPatch() {
   if (!state.annotationRepository) throw new Error("Nothing is loaded yet.");
   const result = await state.annotationRepository.exportProductionSnapshotPatch();
-  setTextareaValue(elements.compatJson, JSON.stringify(result.snapshotPatch, null, 2));
-  state.lastCompatReport = result.protectedSyncBundle && result.protectedSyncBundle.compat && result.protectedSyncBundle.compat.productionSnapshotPatch
+  setTextareaValue(elements.importReportJson, JSON.stringify(result.snapshotPatch, null, 2));
+  state.importReport = result.protectedSyncBundle
+    && result.protectedSyncBundle.syncCapabilities
+    && result.protectedSyncBundle.syncCapabilities.productionSnapshotPatch
     ? {
         total: result.protectedSyncBundle.metadata?.annotationCount || 0,
         exact: 0,
         approximate: 0,
         unresolved: 0
       }
-    : state.lastCompatReport;
+    : state.importReport;
   state.lastFileTransferResult = "production-snapshot-export";
-  await navigator.clipboard.writeText(elements.compatJson ? elements.compatJson.value : "");
+  await navigator.clipboard.writeText(elements.importReportJson ? elements.importReportJson.value : "");
   renderRuntimeMeta();
-  setStatus("Exported production-compatible snapshot patch.", "ok");
+  setStatus("Exported production snapshot patch.", "ok");
 }
 
 async function deleteSelectedAnnotation() {
@@ -2821,7 +2841,7 @@ async function clearLocalProtectedState() {
   state.readingStateSource = "default-start";
   state.readingStateRestoreApplied = false;
   state.persistenceDiagnostics = state.annotationRepository.getPersistenceDiagnostics();
-  state.fileSyncCompatibilityStatus = "none";
+  state.syncAssessmentStatus = "none";
   state.lastFileTransferResult = "cleared";
   state.currentSyncTransport = null;
   state.currentHandoffState = null;
@@ -3107,7 +3127,7 @@ function bridgeGetPageNumbersForGlobalOffsets(globalOffsets = []) {
 }
 
 async function bridgeGetReadAloudPayload() {
-  if (!state.currentSnapshot || !state.compatBook) {
+  if (!state.currentSnapshot || !state.protectedBook) {
     return {
       text: "",
       pageLabel: "",
@@ -3131,7 +3151,7 @@ async function bridgeGetReadAloudPayload() {
       globalPageLabel: buildBridgeSummary().globalPageLabel
     };
   }
-  const chunkModel = await loadProtectedChunkModel(state.compatBook, chunkOrder, {
+  const chunkModel = await loadProtectedChunkModel(state.protectedBook, chunkOrder, {
     runtimeFontMode: state.fontMode
   });
   const rawText = reconstructVisibleWindow(chunkModel, pageWindow) || "";
@@ -3185,7 +3205,7 @@ async function bridgeSetFontMode(fontMode = "sans", generationMeta = null) {
   return buildBridgeSummary();
 }
 
-function buildEmbeddedCompatHandlers() {
+function buildEmbeddedHostHandlers() {
   return {
     getSummary: buildBridgeSummary,
     getDebugLayoutState: buildDebugLayoutState,
@@ -3227,23 +3247,23 @@ function buildEmbeddedCompatHandlers() {
   };
 }
 
-function installCompatAdapter() {
-  window.__PROTECTED_READER_COMPAT_ADAPTER__ = createProtectedReaderCompatAdapter(
-    buildEmbeddedCompatHandlers(),
+function installHostBridge() {
+  window.__PROTECTED_READER_HOST_BRIDGE__ = createProtectedReaderHostBridge(
+    buildEmbeddedHostHandlers(),
     {
-      getCompatInfo: () => ({
-        transport: "adapter",
-        embeddedMode: isEmbeddedOldShellMode(),
+      getHostBridgeInfo: () => ({
+        hostBridgeMode: "direct",
+        embeddedMode: isEmbeddedProtectedShellMode(),
         hostedMode: !!state.hostedMode,
         implementedMethods:
-          window.__PROTECTED_READER_COMPAT_ADAPTER__ &&
-          Array.isArray(window.__PROTECTED_READER_COMPAT_ADAPTER__.implementedMethods)
-            ? window.__PROTECTED_READER_COMPAT_ADAPTER__.implementedMethods.slice()
+          window.__PROTECTED_READER_HOST_BRIDGE__ &&
+          Array.isArray(window.__PROTECTED_READER_HOST_BRIDGE__.implementedMethods)
+            ? window.__PROTECTED_READER_HOST_BRIDGE__.implementedMethods.slice()
             : []
       })
     }
   );
-  return window.__PROTECTED_READER_COMPAT_ADAPTER__;
+  return window.__PROTECTED_READER_HOST_BRIDGE__;
 }
 
 function installDebugSurface() {
@@ -3265,7 +3285,7 @@ async function boot() {
   installNativeToolbarBlock();
   syncArtifactInput();
   installDebugSurface();
-  installCompatAdapter();
+  installHostBridge();
 
   if (elements.artifactForm) {
     elements.artifactForm.addEventListener("submit", async (event) => {
@@ -3576,7 +3596,7 @@ async function boot() {
     elements.syncFileInput.addEventListener("change", (event) => {
       handleSyncFileChosen(event).catch((error) => {
         console.error(error);
-        state.fileSyncCompatibilityStatus = "corrupt";
+        state.syncAssessmentStatus = "corrupt";
         state.lastFileTransferResult = "protected-sync-load:corrupt";
         renderRuntimeMeta();
         setStatus(error.message || String(error), "error");

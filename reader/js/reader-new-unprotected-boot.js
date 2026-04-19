@@ -19,6 +19,7 @@
   var params = new URLSearchParams(window.location.search || "");
   var readerMode = String(params.get("reader") || "").trim().toLowerCase();
   if (readerMode === "protected") return;
+  if (window.__readerpubReaderNewProtectedOnly) return;
   try {
     window.__fb_use_iframe_gestures_only = true;
     window.__fb_disable_auto_fullscreen = true;

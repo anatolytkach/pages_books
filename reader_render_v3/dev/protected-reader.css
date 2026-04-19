@@ -363,31 +363,31 @@ button:hover {
   }
 }
 
-body[data-shell-mode="embedded-old-shell"] {
+body[data-shell-mode="embedded-protected-shell"] {
   background: transparent;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-body[data-shell-mode="embedded-old-shell"] .app {
+body[data-shell-mode="embedded-protected-shell"] .app {
   grid-template-columns: 1fr;
   gap: 0;
   padding: 0;
   min-height: 100vh;
 }
 
-body[data-shell-mode="embedded-old-shell"] .sidebar,
-body[data-shell-mode="embedded-old-shell"] .controls-card,
-body[data-shell-mode="embedded-old-shell"] .annotations-card,
-body[data-shell-mode="embedded-old-shell"] .main > .card:not(.reader-card):not(.controls-card):not(.annotations-card) {
+body[data-shell-mode="embedded-protected-shell"] .sidebar,
+body[data-shell-mode="embedded-protected-shell"] .controls-card,
+body[data-shell-mode="embedded-protected-shell"] .annotations-card,
+body[data-shell-mode="embedded-protected-shell"] .main > .card:not(.reader-card):not(.controls-card):not(.annotations-card) {
   display: none;
 }
 
-body[data-shell-mode="embedded-old-shell"] .main {
+body[data-shell-mode="embedded-protected-shell"] .main {
   gap: 0;
 }
 
-body[data-shell-mode="embedded-old-shell"] .reader-card {
+body[data-shell-mode="embedded-protected-shell"] .reader-card {
   min-height: 100vh;
   border: 0;
   border-radius: 0;
@@ -396,7 +396,7 @@ body[data-shell-mode="embedded-old-shell"] .reader-card {
   background: transparent;
 }
 
-body[data-shell-mode="embedded-old-shell"] .reader-frame {
+body[data-shell-mode="embedded-protected-shell"] .reader-frame {
   min-height: 100vh;
   border: 0;
   border-radius: 0;
@@ -404,19 +404,19 @@ body[data-shell-mode="embedded-old-shell"] .reader-frame {
   background: linear-gradient(180deg, #fffdfa 0%, #fbf7ef 100%);
 }
 
-html[data-theme="dark"] body[data-shell-mode="embedded-old-shell"] .reader-frame {
+html[data-theme="dark"] body[data-shell-mode="embedded-protected-shell"] .reader-frame {
   background: #141e2c;
 }
 
-body[data-shell-mode="embedded-old-shell"] #reader-canvas,
-body[data-shell-mode="embedded-old-shell"] #overlay-canvas {
+body[data-shell-mode="embedded-protected-shell"] #reader-canvas,
+body[data-shell-mode="embedded-protected-shell"] #overlay-canvas {
   top: 0;
   left: 0;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-body[data-shell-mode="embedded-old-shell"] .runtime-note {
+body[data-shell-mode="embedded-protected-shell"] .runtime-note {
   display: none;
 }
 

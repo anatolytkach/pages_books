@@ -7,10 +7,10 @@ function driveConfiguredInDocument(doc = document) {
   }
 }
 
-function hasHardCompatFailure(route, options = {}) {
-  if (typeof options.hardCompatFailure === "boolean") return options.hardCompatFailure;
+function hasHardProtectedBlock(route, options = {}) {
+  if (typeof options.hardProtectedBlock === "boolean") return options.hardProtectedBlock;
   const query = route && route.query ? route.query : {};
-  const raw = String(query.protectedCompat || query.protectedHardCompat || "").trim().toLowerCase();
+  const raw = String(query.hardProtectedBlock || "").trim().toLowerCase();
   return ["fail", "hard-fail", "fatal"].includes(raw);
 }
 
@@ -45,7 +45,7 @@ export async function assessProtectedReaderEligibility(route, rollout, options =
       : defaultWorkerAvailability(route);
   const artifact = await checkProtectedArtifact(route.artifactRoot, fetchImpl);
   const warnings = [];
-  const hardCompatFailure = hasHardCompatFailure(route, options);
+  const hardProtectedBlock = hasHardProtectedBlock(route, options);
   if (!driveConfiguredInDocument(options.document || (typeof document !== "undefined" ? document : null))) {
     warnings.push("drive-unconfigured");
   }
@@ -61,8 +61,8 @@ export async function assessProtectedReaderEligibility(route, rollout, options =
   } else if (!rollout.bookAllowed) {
     status = "ineligible-book-not-allowed";
     eligible = false;
-  } else if (hardCompatFailure) {
-    status = "ineligible-hard-compat-failure";
+  } else if (hardProtectedBlock) {
+    status = "ineligible-hard-blocked";
     eligible = false;
   } else if (!artifact.available) {
     status = "ineligible-no-protected-artifact";
@@ -90,6 +90,6 @@ export async function assessProtectedReaderEligibility(route, rollout, options =
     allowlisted: rollout.allowlisted,
     denylisted: rollout.denylisted,
     driveConfigured: !warnings.includes("drive-unconfigured"),
-    hardCompatFailure
+    hardProtectedBlock
   };
 }

@@ -135,6 +135,28 @@ function textResponse(body, status = 200, extraHeaders = {}) {
   return new Response(body, { status, headers });
 }
 
+function buildReaderBooksUpstreamUrl(pathname, requestUrl) {
+  const upstream = new URL(`https://reader.pub${pathname}`);
+  const source = requestUrl instanceof URL ? requestUrl : new URL(String(requestUrl || "https://reader.pub"));
+  upstream.search = source.search || "";
+  return upstream;
+}
+
+async function proxyReaderBooksUpstream(request, pathname, route) {
+  const upstreamUrl = buildReaderBooksUpstreamUrl(pathname, request.url);
+  const upstreamRequest = new Request(upstreamUrl.toString(), request);
+  const response = await fetch(upstreamRequest);
+  const headers = new Headers(response.headers);
+  headers.set("x-reader-worker", "1");
+  headers.set("x-reader-route", route);
+  headers.set("x-reader-upstream", "reader.pub");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function xmlResponse(body, status = 200, extraHeaders = {}) {
   const headers = new Headers({
     "content-type": "application/xml; charset=utf-8",
@@ -1883,13 +1905,7 @@ export default {
       const decodedKey = `api/${decodedPath.slice("/books/api/".length)}`;
       const rawKey = `api/${path.slice("/books/api/".length)}`;
       if (!env.READER_BOOKS) {
-        const headers = new Headers({
-          "content-type": "text/plain; charset=utf-8",
-          "cache-control": "no-store",
-        });
-        headers.set("x-reader-worker", "1");
-        headers.set("x-reader-route", "r2-missing");
-        return new Response("R2 binding missing", { status: 500, headers });
+        return proxyReaderBooksUpstream(request, path, "proxy-reader-books-api");
       }
       let object = await env.READER_BOOKS.get(decodedKey);
       if (!object && rawKey !== decodedKey) {
@@ -1917,13 +1933,7 @@ export default {
       const decodedKey = `content/${decodedPath.slice("/books/content/".length)}`;
       const rawKey = `content/${path.slice("/books/content/".length)}`;
       if (!env.READER_BOOKS) {
-        const headers = new Headers({
-          "content-type": "text/plain; charset=utf-8",
-          "cache-control": "no-store",
-        });
-        headers.set("x-reader-worker", "1");
-        headers.set("x-reader-route", "r2-content-missing");
-        return new Response("R2 binding missing", { status: 500, headers });
+        return proxyReaderBooksUpstream(request, path, "proxy-reader-books-content");
       }
       let object = await env.READER_BOOKS.get(decodedKey);
       if (!object && rawKey !== decodedKey) {
@@ -1945,6 +1955,10 @@ export default {
       headers.set("x-reader-worker", "1");
       headers.set("x-reader-route", "r2-content");
       return new Response(object.body, { headers });
+    }
+
+    if (decodedPath.startsWith("/books/protected-content/") && !env.READER_BOOKS) {
+      return proxyReaderBooksUpstream(request, path, "proxy-reader-books-protected-content");
     }
 
     if (path === "/books/ping") {

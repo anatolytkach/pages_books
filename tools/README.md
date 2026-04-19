@@ -41,4 +41,6 @@
 - `tools/reader1/publish_books.py` is only for non-Gutenberg books.
 - Gutenberg books must continue to use the legacy Gutenberg pipeline and remain source-less in root storage.
 - Detailed operational instructions live in:
-  - `docs/README.md`, section `7.6 Reader1 publish pipeline`
+  - `docs/gutenberg-pipeline.md`
+  - `reader_render_v3/tools/protected-ingestion/README.md`
+  - `reader_render_v3/tools/protected-fonts/README.md`

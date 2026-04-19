@@ -1,4 +1,4 @@
-import { assessProtectedBundleCompatibility } from "./protected-annotation-bundle.js";
+import { assessProtectedBundleAssessment } from "./protected-annotation-bundle.js";
 import { buildProtectedFileState, normalizeProtectedFileState } from "./protected-file-state.js";
 
 export const PROTECTED_SYNC_FILE_KIND = "protected-sync-file-v1";
@@ -9,7 +9,7 @@ function cloneJson(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
-function sanitizeProductionCompatMetadata(value) {
+function sanitizeProductionAnchorMetadata(value) {
   if (!value || typeof value !== "object") return null;
   return {
     id: value.id ? String(value.id) : "",
@@ -18,7 +18,7 @@ function sanitizeProductionCompatMetadata(value) {
   };
 }
 
-function sanitizeCompatSection(value) {
+function sanitizeSyncCapabilities(value) {
   if (!value || typeof value !== "object") return {};
   const production = value.production && typeof value.production === "object" ? value.production : {};
   return {
@@ -38,9 +38,10 @@ function sanitizeAnnotationForSyncFile(annotation) {
   delete metadata.quote;
   delete metadata.contextBefore;
   delete metadata.contextAfter;
-  if (metadata.productionCompat) {
-    metadata.productionCompat = sanitizeProductionCompatMetadata(metadata.productionCompat);
+  if (metadata.productionAnchor) {
+    metadata.productionAnchor = sanitizeProductionAnchorMetadata(metadata.productionAnchor);
   }
+  delete metadata.productionCompat;
   const sanitized = {
     ...cloneJson(annotation),
     metadata
@@ -81,7 +82,7 @@ export function normalizeProtectedSyncBundle(payload) {
     exportedAt: parsed.exportedAt ? new Date(parsed.exportedAt).toISOString() : new Date().toISOString(),
     state: buildProtectedFileState(parsed.state || {}),
     metadata: parsed.metadata && typeof parsed.metadata === "object" ? cloneJson(parsed.metadata) : {},
-    compat: sanitizeCompatSection(parsed.compat)
+    syncCapabilities: sanitizeSyncCapabilities(parsed.syncCapabilities)
   };
 }
 
@@ -93,7 +94,7 @@ export function createProtectedSyncBundle({
   readingState = null,
   annotations = [],
   metadata = {},
-  compat = {},
+  syncCapabilities = {},
   exportedAt = new Date().toISOString()
 } = {}) {
   return normalizeProtectedSyncBundle({
@@ -110,7 +111,7 @@ export function createProtectedSyncBundle({
       annotations: sanitizeAnnotationsForSyncFile(annotations)
     }),
     metadata,
-    compat
+    syncCapabilities
   });
 }
 
@@ -137,7 +138,7 @@ export function convertProtectedBundleToSyncBundle(bundle, options = {}) {
       ...(parsedState.metadata && typeof parsedState.metadata === "object" ? cloneJson(parsedState.metadata) : {}),
       ...(options.metadata && typeof options.metadata === "object" ? cloneJson(options.metadata) : {})
     },
-    compat: sanitizeCompatSection(options.compat)
+    syncCapabilities: sanitizeSyncCapabilities(options.syncCapabilities)
   });
 }
 
@@ -162,7 +163,7 @@ export function convertSyncBundleToProtectedState(syncBundle) {
   };
 }
 
-export function assessProtectedSyncFileCompatibility(syncBundle, bookFingerprint) {
+export function assessProtectedSyncFileAssessment(syncBundle, bookFingerprint) {
   let parsed = null;
   try {
     parsed = normalizeProtectedSyncBundle(syncBundle);
@@ -171,22 +172,24 @@ export function assessProtectedSyncFileCompatibility(syncBundle, bookFingerprint
     if (/schema version/i.test(message)) {
       return {
         status: "schema-unsupported",
-        compatible: false,
+        allowed: false,
         warning: message
       };
     }
     return {
       status: "corrupt",
-      compatible: false,
+      allowed: false,
       warning: message
     };
   }
-  const compatibility = assessProtectedBundleCompatibility(
+  const bundleAssessment = assessProtectedBundleAssessment(
     {
       bookId: parsed.bookId,
       bookFingerprint: parsed.bookFingerprint
     },
     bookFingerprint
   );
-  return compatibility;
+  return bundleAssessment;
 }
+
+export const assessProtectedSyncFileCompatibility = assessProtectedSyncFileAssessment;

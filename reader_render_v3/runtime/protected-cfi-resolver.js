@@ -40,13 +40,13 @@ function buildRangeFromBlock(globalModel, chunkEntry, blockBoundary) {
   return {
     kind: "protected-range-v1",
     bookId: globalModel.bookId,
-    selectionMode: "compat-import",
+    selectionMode: "production-import",
     wordSnapped: false,
     start: buildPosition(globalModel, chunkEntry, blockBoundary, startOffset),
     end: buildPosition(globalModel, chunkEntry, blockBoundary, endOffset),
     sourceAnchors: [
       {
-        type: "compat-block-anchor",
+        type: "production-block-anchor",
         blockId: blockBoundary.blockId,
         locationId: blockBoundary.locationId,
         href: blockBoundary.sourceRef?.href || ""
@@ -221,7 +221,7 @@ export function buildProtectedCfiResolver(book) {
 
     return {
       status: "unresolved",
-      reason: "no-compatible-anchor",
+      reason: "no-production-anchor",
       chunkId: "",
       rangeDescriptor: null,
       sourceRef: null,
@@ -271,7 +271,7 @@ export function buildProtectedCfiResolver(book) {
         reason: result.reason,
         protectedReadingState: {
           globalPosition: cloneRangeEdge(result.rangeDescriptor.start),
-          compat: {
+          productionSnapshot: {
             cfi: String(cfi || "")
           },
           updatedAt: readingState.updatedAt || Date.now()

@@ -5,7 +5,7 @@ import {
   exportProtectedAnnotationsToProductionNotes,
   exportProtectedBundleToProductionSnapshot,
   importProductionNotesToProtectedBundle
-} from "./protected-annotation-compat.js";
+} from "./protected-production-notes.js";
 import {
   buildProductionBookShareState,
   parseProductionShareState
@@ -18,7 +18,7 @@ import {
   buildProductionSnapshotPatchFromProtectedState,
   convertProductionSnapshotFragmentToImportPayload,
   convertProtectedSyncFileToProtectedBundle
-} from "./protected-sync-compat.js";
+} from "./protected-sync-conversion.js";
 import {
   assessProtectedSyncTransportImport,
   buildProtectedSyncTransport
@@ -274,7 +274,7 @@ export function createProtectedAnnotationRepository({
           annotationCount: store.all().length,
           readingStateSaved: !!readingState
         },
-        compat: {
+        syncCapabilities: {
           production: {
             snapshotPatchAvailable: true,
             notesExportAvailable: true,
@@ -304,10 +304,10 @@ export function createProtectedAnnotationRepository({
     },
     async importSyncFile(syncFile, options = {}) {
       await this.ensureHydrated();
-      const compatibility = assessSyncFileImport(syncFile, persistenceManager.bookFingerprint);
-      if (!compatibility.compatible) {
-        const error = new Error(compatibility.warning || "Protected sync file is incompatible.");
-        error.compatibility = compatibility;
+      const syncAssessment = assessSyncFileImport(syncFile, persistenceManager.bookFingerprint);
+      if (!syncAssessment.allowed) {
+        const error = new Error(syncAssessment.warning || "Protected sync file cannot be applied.");
+        error.syncAssessment = syncAssessment;
         throw error;
       }
       const protectedBundle = convertProtectedSyncFileToProtectedBundle(syncFile);
@@ -315,7 +315,7 @@ export function createProtectedAnnotationRepository({
       return {
         annotations: store.all(),
         readingState,
-        compatibility
+        syncAssessment
       };
     },
     async exportProductionSnapshotPatch() {

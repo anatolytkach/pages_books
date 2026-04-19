@@ -426,44 +426,44 @@ async function main() {
   const build = await runNpm(["--prefix", "reader_render_v3", "run", "protected:build", "--", "--input", "books/content/19686", "--output", "artifacts/protected-books/19686"]);
   const validate = await runNpm(["--prefix", "reader_render_v3", "run", "protected:validate", "--", "--input", "artifacts/protected-books/19686"]);
 
-  const selection = (await runNodeScript("reader_render_v3/tools/annotation-compat/check-selection-highlight-flow.js", [
+  const selection = (await runNodeScript("reader_render_v3/tools/annotation-sync/check-selection-highlight-flow.js", [
     `--url=${url}`
   ])).json;
 
-  const persistence = (await runNodeScript("reader_render_v3/tools/annotation-compat/check-local-persistence-e2e.js", [
+  const persistence = (await runNodeScript("reader_render_v3/tools/annotation-sync/check-local-persistence-e2e.js", [
     `--url=${url}`
   ])).json;
 
-  const sync = (await runNodeScript("reader_render_v3/tools/annotation-compat/check-transport-roundtrip.js", [
+  const sync = (await runNodeScript("reader_render_v3/tools/annotation-sync/check-transport-roundtrip.js", [
     `--url=${url}`
   ])).json;
 
-  const driveAvailability = (await runNodeScript("reader_render_v3/tools/annotation-compat/check-drive-ui-availability.js", [
+  const driveAvailability = (await runNodeScript("reader_render_v3/tools/annotation-sync/check-drive-ui-availability.js", [
     `--url=${url}`
   ])).json;
 
-  const copySurface = (await runNodeScript("reader_render_v3/tools/annotation-compat/check-copy-surface-hardening.js", [
+  const copySurface = (await runNodeScript("reader_render_v3/tools/annotation-sync/check-copy-surface-hardening.js", [
     `--url=${url}`
   ])).json;
 
-  const rolloutMatrix = (await runNodeScript("reader_render_v3/tools/annotation-compat/check-rollout-matrix.js", [
+  const rolloutMatrix = (await runNodeScript("reader_render_v3/tools/annotation-sync/check-rollout-matrix.js", [
     `--base-url=${new URL(url).origin}`,
     `--reader-path=${readerPath}`
   ])).json;
 
-  const rolloutEligibility = (await runNodeScript("reader_render_v3/tools/annotation-compat/check-rollout-eligibility.js", [
+  const rolloutEligibility = (await runNodeScript("reader_render_v3/tools/annotation-sync/check-rollout-eligibility.js", [
     "--url", url,
     "--worker", "available"
   ])).json;
 
-  const rolloutHardCompat = (await runNodeScript("reader_render_v3/tools/annotation-compat/check-rollout-eligibility.js", [
+  const rolloutHardBlock = (await runNodeScript("reader_render_v3/tools/annotation-sync/check-rollout-eligibility.js", [
     "--url", url,
     "--worker", "available",
-    "--compat", "hard-fail"
+    "--hardProtectedBlock", "hard-fail"
   ])).json;
 
   const importReadingState = fs.existsSync("/tmp/reader_render_v3_prod_notes.json")
-    ? (await runNodeScript("reader_render_v3/tools/annotation-compat/check-import-reading-state.js", [
+    ? (await runNodeScript("reader_render_v3/tools/annotation-sync/check-import-reading-state.js", [
         `--url=${url}`
       ])).json
     : null;
@@ -555,7 +555,8 @@ async function main() {
     rolloutMatrix.protectedWorkerUnavailable.meta["Rollout decision"] === "protected-unavailable-show-message" &&
     /protectedFallbackReason=ineligible-no-protected-artifact/.test(rolloutMatrix.protectedArtifactMissing.url || "") &&
     rolloutEligibility.status.action === "open-protected-reader" &&
-    rolloutHardCompat.status.action === "redirect-to-old-reader-with-reason";
+    rolloutHardBlock.status.action === "protected-unavailable-show-message" &&
+    rolloutHardBlock.status.unavailableReason === "ineligible-hard-blocked";
   if (!rolloutOk) regressions.push("rollout");
 
   const driveSectionOk = drive.ok === true || drive.ok === "skipped";
@@ -637,7 +638,7 @@ async function main() {
         details: {
           matrix: rolloutMatrix,
           eligibility: rolloutEligibility,
-          hardCompat: rolloutHardCompat
+          hardProtectedBlock: rolloutHardBlock
         }
       },
       liveRoute: {

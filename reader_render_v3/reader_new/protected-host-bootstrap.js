@@ -20,11 +20,37 @@ function getLegacyFontScaleStorageKey() {
 }
 
 function getBookScopedFontModeStorageKey(bookId = "") {
-  return `readerpub:protected-old-shell:font-mode:${String(bookId || "").trim()}`;
+  return `readerpub:protected-shell:font-mode:${String(bookId || "").trim()}`;
 }
 
 function getBookScopedFontScaleStorageKey(bookId = "") {
-  return `readerpub:protected-old-shell:font-scale:${String(bookId || "").trim()}`;
+  return `readerpub:protected-shell:font-scale:${String(bookId || "").trim()}`;
+}
+
+function migratePriorProtectedScopedStorageValue({ bookId = "", currentKey = "", valueSuffix = "", normalize }) {
+  try {
+    const scopedBookId = String(bookId || "").trim();
+    if (!scopedBookId || !currentKey || !valueSuffix || typeof normalize !== "function") return "";
+    const currentValue = window.localStorage.getItem(currentKey);
+    if (currentValue != null && String(currentValue).trim()) {
+      return normalize(currentValue);
+    }
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const candidateKey = String(window.localStorage.key(index) || "");
+      if (!candidateKey || candidateKey === currentKey) continue;
+      if (!candidateKey.startsWith("readerpub:protected-")) continue;
+      if (!candidateKey.endsWith(valueSuffix)) continue;
+      const legacyValue = window.localStorage.getItem(candidateKey);
+      if (legacyValue == null || !String(legacyValue).trim()) continue;
+      const normalizedValue = normalize(legacyValue);
+      if (String(normalizedValue || "").trim()) {
+        window.localStorage.setItem(currentKey, String(normalizedValue));
+        return normalizedValue;
+      }
+    }
+  } catch (_error) {
+  }
+  return "";
 }
 
 function getInitialFontModeFromEnvironment(bookId = "") {
@@ -38,12 +64,14 @@ function getInitialFontModeFromEnvironment(bookId = "") {
   }
   try {
     const scopedBookId = String(bookId || "").trim();
-    const scoped =
-      scopedBookId
-        ? window.localStorage.getItem(getBookScopedFontModeStorageKey(scopedBookId))
-        : "";
-    if (scoped != null && String(scoped).trim()) {
-      return normalizeFontMode(scoped);
+    const scoped = migratePriorProtectedScopedStorageValue({
+      bookId: scopedBookId,
+      currentKey: getBookScopedFontModeStorageKey(scopedBookId),
+      valueSuffix: `:font-mode:${scopedBookId}`,
+      normalize: normalizeFontMode
+    });
+    if (scoped) {
+      return scoped;
     }
   } catch (_error) {
   }
@@ -65,10 +93,16 @@ function getInitialFontScaleFromEnvironment(bookId = "") {
   }
   try {
     const scopedBookId = String(bookId || "").trim();
-    const raw =
-      scopedBookId
-        ? window.localStorage.getItem(getBookScopedFontScaleStorageKey(scopedBookId))
-        : "";
+    const raw = migratePriorProtectedScopedStorageValue({
+      bookId: scopedBookId,
+      currentKey: getBookScopedFontScaleStorageKey(scopedBookId),
+      valueSuffix: `:font-scale:${scopedBookId}`,
+      normalize: (value) => {
+        const stored = Number(value || "");
+        if (!Number.isFinite(stored) || stored <= 0) return "";
+        return String(Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2)))));
+      }
+    });
     const stored = Number(raw || "");
     if (Number.isFinite(stored) && stored > 0) {
       return Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2))));
@@ -117,8 +151,7 @@ function renderProtectedUnavailable(status, route) {
     ["Protected artifact", status.artifactAvailable ? "yes" : "no"],
     ["Worker available", status.workerAvailable ? "yes" : "no"],
     ["Drive configured", status.driveConfigured ? "yes" : "no"],
-    ["Fallback reason", status.fallbackReason || "none"],
-    ["Fallback target", route.oldReaderUrl]
+    ["Unavailable reason", status.unavailableReason || "none"]
   ]);
 }
 
@@ -128,11 +161,6 @@ export async function bootstrapProtectedReaderIntegration() {
   const eligibility = await assessProtectedReaderEligibility(route, rollout);
   const pilot = resolveProtectedReaderPilot(route, rollout, eligibility);
   const rolloutStatus = buildProtectedReaderStatus(route, rollout, eligibility, pilot);
-
-  if (rolloutStatus.action === "redirect-to-old-reader-with-reason") {
-    window.location.replace(rolloutStatus.fallbackUrl);
-    return { action: rolloutStatus.action, route, rollout, eligibility, rolloutStatus };
-  }
 
   if (rolloutStatus.action === "protected-unavailable-show-message") {
     renderProtectedUnavailable(rolloutStatus, route);
@@ -151,19 +179,19 @@ export async function bootstrapProtectedReaderIntegration() {
     debugGeometry: route.debugGeometry,
     explicitRestoreToken: route.explicitRestoreToken || "",
     forceWorkerUnavailable: !!route.forceWorkerUnavailable,
-    uxShellMode: route.uxShellMode,
-    embeddedMode: route.embeddedMode,
+    shellMode: route.shellMode,
+    embeddedShellMode: route.embeddedShellMode,
     renderHost: route.renderHost,
     driveMode: route.driveMode,
-    compatTransport: route.compatTransport,
     automationSafe: !!route.automationSafe,
     fontMode: getInitialFontModeFromEnvironment(route.bookId),
     fontScale: getInitialFontScaleFromEnvironment(route.bookId),
     readerNewRoute: route,
     shareState: route.shareState,
-    compatImportPayload: null,
-    compatShareImportStatus: getProtectedShareMode(route),
-    compatShareWarnings: [],
+    importPayload: null,
+    shareImportStatus: getProtectedShareMode(route),
+    shareImportWarnings: [],
+    importReport: null,
     fallbackCfi: route.lastCfi || "",
     repositoryPersistence: {
       type: "localStorage",

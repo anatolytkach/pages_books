@@ -31,7 +31,7 @@ async function main() {
   const { stdout } = await execFileAsync(
     "node",
     [
-      "reader_render_v3/tools/annotation-compat/check-rollout-matrix.js",
+      "reader_render_v3/tools/annotation-sync/check-rollout-matrix.js",
       `--base-url=${baseUrl}`,
       `--reader-path=${readerPath}`
     ],

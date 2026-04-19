@@ -103,11 +103,11 @@ export function createProtectedReaderRuntimeState() {
     workerClient: createProtectedWorkerClient({
       forceUnavailable: shouldForceWorkerUnavailable()
     }),
-    compatBook: null,
+    protectedBook: null,
     annotationRepository: null,
     annotationStore: null,
     selectedAnnotationId: null,
-    lastCompatReport: null,
+    importReport: null,
     pendingSelectionRangeDescriptor: null,
     entryConfig: protectedReaderEntryConfig,
     hostedMode: isHostedProtectedMode,
@@ -118,17 +118,17 @@ export function createProtectedReaderRuntimeState() {
     readingStateRestoreApplied: false,
     persistedReadingState: null,
     lastReadingStateSaveAt: null,
-    compatShareImportStatus:
-      protectedReaderEntryConfig && protectedReaderEntryConfig.compatShareImportStatus
-        ? protectedReaderEntryConfig.compatShareImportStatus
+    shareImportStatus:
+      protectedReaderEntryConfig && protectedReaderEntryConfig.shareImportStatus
+        ? protectedReaderEntryConfig.shareImportStatus
         : "none",
-    compatShareWarnings:
-      protectedReaderEntryConfig && Array.isArray(protectedReaderEntryConfig.compatShareWarnings)
-        ? protectedReaderEntryConfig.compatShareWarnings
+    shareImportWarnings:
+      protectedReaderEntryConfig && Array.isArray(protectedReaderEntryConfig.shareImportWarnings)
+        ? protectedReaderEntryConfig.shareImportWarnings
         : [],
     sharePayloadParseStatus:
-      protectedReaderEntryConfig && protectedReaderEntryConfig.compatShareImportStatus
-        ? protectedReaderEntryConfig.compatShareImportStatus
+      protectedReaderEntryConfig && protectedReaderEntryConfig.shareImportStatus
+        ? protectedReaderEntryConfig.shareImportStatus
         : "none",
     artifactLoadStatus: "idle",
     artifactSourceRequested:
@@ -143,7 +143,7 @@ export function createProtectedReaderRuntimeState() {
     artifactOriginResolved: "unknown",
     artifactFallbackDetected: "unknown",
     persistenceDiagnostics: null,
-    fileSyncCompatibilityStatus: "none",
+    syncAssessmentStatus: "none",
     lastFileTransferResult: null,
     currentSyncTransport: null,
     currentHandoffState: null,
@@ -187,9 +187,18 @@ export function createProtectedReaderRuntimeState() {
   };
 }
 
-export function isProtectedReaderEmbeddedOldShellMode(state) {
-  return !!(state && state.entryConfig && state.entryConfig.embeddedMode === "old-shell");
+export function isProtectedReaderEmbeddedShellMode(state) {
+  return !!(
+    state &&
+    state.entryConfig &&
+    (
+      state.entryConfig.embeddedShellMode === "protected-shell" ||
+      state.entryConfig.embeddedMode === "protected-shell"
+    )
+  );
 }
+
+export const isProtectedReaderEmbeddedOldShellMode = isProtectedReaderEmbeddedShellMode;
 
 export function isProtectedReaderDriveUiDisabled(state) {
   return !!(state && state.entryConfig && state.entryConfig.driveMode === "disabled");

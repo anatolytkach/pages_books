@@ -1,5 +1,5 @@
 import {
-  assessProtectedSyncFileCompatibility,
+  assessProtectedSyncFileAssessment,
   normalizeProtectedSyncBundle,
   serializeProtectedSyncBundle
 } from "./protected-sync-bundle.js";
@@ -58,15 +58,15 @@ export function assessProtectedSyncTransportImport({
   handoffState = null,
   bookFingerprint = null
 } = {}) {
-  const syncCompatibility = assessProtectedSyncFileCompatibility(syncFile, bookFingerprint);
-  if (!syncCompatibility.compatible) return syncCompatibility;
-  if (!handoffState) return syncCompatibility;
-  const handoffCompatibility = assessProtectedHandoffState(handoffState, bookFingerprint);
-  if (!handoffCompatibility.compatible) return handoffCompatibility;
+  const syncAssessment = assessProtectedSyncFileAssessment(syncFile, bookFingerprint);
+  if (!syncAssessment.allowed) return syncAssessment;
+  if (!handoffState) return syncAssessment;
+  const handoffAssessment = assessProtectedHandoffState(handoffState, bookFingerprint);
+  if (!handoffAssessment.allowed) return handoffAssessment;
   return {
-    status: syncCompatibility.status === "exact" ? handoffCompatibility.status : syncCompatibility.status,
-    compatible: true,
-    warning: syncCompatibility.warning || handoffCompatibility.warning || ""
+    status: syncAssessment.status === "exact" ? handoffAssessment.status : syncAssessment.status,
+    allowed: true,
+    warning: syncAssessment.warning || handoffAssessment.warning || ""
   };
 }
 

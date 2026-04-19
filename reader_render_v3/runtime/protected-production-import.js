@@ -46,7 +46,7 @@ export async function importProductionPayloadToProtected({ book, payload }) {
     });
     if (!resolution.rangeDescriptor) continue;
 
-    const highlightId = `hl_compat_${note.id}`;
+    const highlightId = `hl_production_import_${note.id}`;
     annotations.push({
       annotationId: highlightId,
       type: "highlight",
@@ -59,14 +59,14 @@ export async function importProductionPayloadToProtected({ book, payload }) {
         source: "production-import",
         resolutionStatus: resolution.status,
         resolutionReason: resolution.reason,
-        productionCompat: note
+        productionAnchor: note
       }
     });
     createdHighlights += 1;
 
     if (note.comment) {
       annotations.push({
-        annotationId: `note_compat_${note.id}`,
+        annotationId: `note_production_import_${note.id}`,
         type: "note",
         bookId: resolver.globalModel.bookId,
         rangeDescriptor: resolution.rangeDescriptor,
@@ -79,7 +79,7 @@ export async function importProductionPayloadToProtected({ book, payload }) {
           source: "production-import",
           resolutionStatus: resolution.status,
           resolutionReason: resolution.reason,
-          productionCompat: note
+          productionAnchor: note
         }
       });
       createdNotes += 1;

@@ -23,8 +23,8 @@ export async function exportProtectedAnnotationsToProduction({
   let approximate = 0;
 
   for (const highlight of highlights) {
-    const compat = highlight.metadata?.productionCompat || null;
-    if (!compat || !compat.cfi) {
+    const productionAnchor = highlight.metadata?.productionAnchor || null;
+    if (!productionAnchor || !productionAnchor.cfi) {
       unresolved.push({
         annotationId: highlight.annotationId,
         reason: "missing-production-anchor"
@@ -36,11 +36,11 @@ export async function exportProtectedAnnotationsToProduction({
     if (status === "exact") exact += 1;
     else approximate += 1;
     productionNotes.push({
-      id: compat.id || highlight.annotationId,
-      cfi: String(compat.cfi),
-      href: compat.href ? String(compat.href) : null,
-      quote: normalizeQuote(compat.quote || ""),
-      comment: linkedNote ? String(linkedNote.noteText || "") : String(compat.comment || "")
+      id: productionAnchor.id || highlight.annotationId,
+      cfi: String(productionAnchor.cfi),
+      href: productionAnchor.href ? String(productionAnchor.href) : null,
+      quote: normalizeQuote(productionAnchor.quote || ""),
+      comment: linkedNote ? String(linkedNote.noteText || "") : String(productionAnchor.comment || "")
     });
   }
 
@@ -53,9 +53,9 @@ export async function exportProtectedAnnotationsToProduction({
 
   const snapshotPatch = createProductionSnapshotPatch({
     bookId,
-    readingState: readingState?.compat?.cfi
+    readingState: readingState?.productionSnapshot?.cfi
       ? {
-          cfi: readingState.compat.cfi,
+          cfi: readingState.productionSnapshot.cfi,
           updatedAt: readingState.updatedAt || Date.now()
         }
       : null,
@@ -75,7 +75,7 @@ export async function exportProtectedAnnotationsToProduction({
       unresolved: unresolved.length,
       unresolvedItems: unresolved,
       warnings: unresolved.length
-        ? ["Some protected annotations do not yet carry production-compatible CFI anchors."]
+        ? ["Some protected annotations do not yet carry production CFI anchors."]
         : []
     }
   };

@@ -9,6 +9,7 @@ npm-debug.log*
 .yarn*
 .pnpm-store
 /node_modules
+/reader_render_v3/node_modules
 /.wrangler
 /.cache
 /dist

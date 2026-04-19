@@ -3966,7 +3966,7 @@
                     hint: "Open book",
                     cover: resolveCoverUrl(item.cover),
                     href: openBookUrl(item.id, item.source, item.cover),
-                    openInNewTab: false,
+                    openInNewTab: true,
                   };
                 }
                 if (item.type === "author") {
@@ -4320,6 +4320,8 @@
           card.className = `bookCard${opts.withSelection ? " withSelection" : ""}`;
           if (isInteractive) {
             card.href = opts.href || openBookUrl(book, book.source, book.cover, opts.entry);
+            card.target = "_blank";
+            card.rel = "noopener noreferrer";
           }
           if (opts.dataBookOpenUrl) {
             card.setAttribute("data-book-open-url", opts.dataBookOpenUrl);
@@ -6094,7 +6096,7 @@
           const effectTarget = resolveBookOpeningTarget(target);
           if (effectTarget) effectTarget.classList.add("book-opening");
           window.setTimeout(() => {
-            window.location.href = href;
+            window.open(href, "_blank", "noopener,noreferrer");
           }, 180);
         });
 

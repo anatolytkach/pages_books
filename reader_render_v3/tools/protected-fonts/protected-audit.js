@@ -5,9 +5,9 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const docsDir = path.join(ROOT, "docs", "protected-reader");
-const auditPath = path.join(docsDir, "01-baseline-audit.md");
-const specPath = path.join(docsDir, "02-protected-format-v0.md");
+const artifactsDir = path.join(ROOT, "artifacts", "protected-fonts");
+const auditPath = path.join(artifactsDir, "audit-report.md");
+const specPath = path.join(artifactsDir, "format-report.md");
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });

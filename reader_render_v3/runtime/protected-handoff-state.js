@@ -140,21 +140,21 @@ export function assessProtectedHandoffState(handoffState, bookFingerprint) {
   } catch (error) {
     return {
       status: "corrupt",
-      compatible: false,
+      allowed: false,
       warning: error && error.message ? error.message : "Protected handoff state is corrupt."
     };
   }
   if (!bookFingerprint || !bookFingerprint.bookId) {
     return {
       status: "book-identity-missing",
-      compatible: true,
+      allowed: true,
       warning: "Book fingerprint is unavailable; handoff state was checked by bookId only."
     };
   }
   if (String(parsed.bookId) !== String(bookFingerprint.bookId)) {
     return {
       status: "wrong-book",
-      compatible: false,
+      allowed: false,
       warning: `Handoff state belongs to ${parsed.bookId}, expected ${bookFingerprint.bookId}.`
     };
   }
@@ -165,13 +165,13 @@ export function assessProtectedHandoffState(handoffState, bookFingerprint) {
   ) {
     return {
       status: "fingerprint-mismatch",
-      compatible: false,
+      allowed: false,
       warning: "Handoff state fingerprint does not match the current protected artifact."
     };
   }
   return {
     status: "exact",
-    compatible: true,
+    allowed: true,
     warning: ""
   };
 }

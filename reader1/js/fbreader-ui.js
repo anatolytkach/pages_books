@@ -4425,13 +4425,14 @@
         bottom: Math.max(viewportTop + margin, viewportTop + viewportHeight - margin)
       };
 
+      function clamp(val, min, max) {
+        if (val < min) return min;
+        if (val > max) return max;
+        return val;
+      }
+
       function pickPosition(bounds) {
         var candidates = [];
-        function clamp(val, min, max) {
-          if (val < min) return min;
-          if (val > max) return max;
-          return val;
-        }
         function addCandidate(x, y) {
           if (!tbW || !tbH) return;
           var maxX = bounds.right - tbW;
@@ -4464,7 +4465,28 @@
         return candidates[0];
       }
 
-      var pos = pickPosition(boundsPrimary) || pickPosition(boundsFallback);
+      function pickTouchPosition(bounds) {
+        var touchGap = 14;
+        var minX = bounds.left;
+        var maxX = bounds.right - tbW;
+        var minY = bounds.top;
+        var maxY = bounds.bottom - tbH;
+        if (maxX < minX) maxX = minX;
+        if (maxY < minY) maxY = minY;
+        var x = clamp(Math.round(selCenterX - tbW / 2), minX, maxX);
+        var belowY = Math.round(selBottom + touchGap);
+        var aboveY = Math.round(selTop - tbH - touchGap);
+        if (belowY <= maxY) return { x: x, y: belowY };
+        if (aboveY >= minY) return { x: x, y: aboveY };
+        if (Math.abs(maxY - belowY) <= Math.abs(minY - aboveY)) {
+          return { x: x, y: maxY };
+        }
+        return { x: x, y: minY };
+      }
+
+      var pos = isTouchLike
+        ? (pickTouchPosition(boundsPrimary) || pickTouchPosition(boundsFallback))
+        : (pickPosition(boundsPrimary) || pickPosition(boundsFallback));
       if (!pos) {
         var yTop = Math.round(selTop - tbH - gap);
         var yBottom = Math.round(selBottom + gap);
@@ -4479,37 +4501,6 @@
         if (finalX > maxX) finalX = maxX;
         pos = { x: finalX, y: finalY };
       }
-
-      try {
-        var touchClamp = !!(
-          (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) ||
-          (navigator && navigator.maxTouchPoints > 0)
-        );
-        if (touchClamp) {
-          var nearAboveY = Math.round(selTop - tbH - gap);
-          var nearBelowY = Math.round(selBottom + gap);
-          var boundedAboveY = Math.max(boundsFallback.top, Math.min(boundsFallback.bottom - tbH, nearAboveY));
-          var boundedBelowY = Math.max(boundsFallback.top, Math.min(boundsFallback.bottom - tbH, nearBelowY));
-          var aboveFits = (boundedAboveY + tbH) <= (selTop - gap);
-          var belowFits = boundedBelowY >= (selBottom + gap);
-          var targetNearY = aboveFits ? boundedAboveY : boundedBelowY;
-          if (!aboveFits && !belowFits) {
-            targetNearY = boundedBelowY;
-          }
-          var maxVerticalJump = Math.max(tbH + 20, 120);
-          if (Math.abs(pos.y - targetNearY) > maxVerticalJump) {
-            pos.y = targetNearY;
-            pos.x = Math.max(boundsFallback.left, Math.min(boundsFallback.right - tbW, Math.round(selCenterX - tbW / 2)));
-          }
-          if (pos.y + tbH > selTop - 2 && pos.y < selBottom + 2) {
-            if (aboveFits) {
-              pos.y = boundedAboveY;
-            } else {
-              pos.y = boundedBelowY;
-            }
-          }
-        }
-      } catch (eTouchClamp) {}
 
       toolbar.style.left = pos.x + "px";
       toolbar.style.top = pos.y + "px";

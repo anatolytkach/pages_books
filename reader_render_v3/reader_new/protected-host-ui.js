@@ -4,8 +4,9 @@ import { assessProtectedReaderEligibility } from "./protected-host-eligibility.j
 import { resolveProtectedReaderPilot } from "./protected-host-pilot.js?v=20260416-protected-padding-2";
 import { buildProtectedReaderStatus } from "./protected-host-status.js?v=20260416-protected-padding-2";
 
-const HOST_STYLE_ID = "protected-old-shell-host-css";
-window.__PROTECTED_OLD_SHELL_HOST_LOADED = true;
+const HOST_STYLE_ID = "protected-shell-host-css";
+window.__PROTECTED_HOST_LOADED = true;
+window.__PROTECTED_SHELL_HOST_LOADED = true;
 window.__READERPUB_READER_NEW_UI_STATE__ = window.__READERPUB_READER_NEW_UI_STATE__ || {
   status: "boot-pending",
   ready: false,
@@ -20,7 +21,7 @@ const HOST_STATE = {
   rolloutStatus: null,
   lastSummary: null,
   lastContractEventAt: 0,
-  compatEventUnsubscribe: [],
+  hostEventUnsubscribe: [],
   activeConfigGeneration: 0,
   activeLayoutGeneration: 0,
   frame: null,
@@ -70,6 +71,7 @@ const HOST_STATE = {
   suppressTouchAutoHideUntil: 0,
   suppressSyntheticClickUntil: 0,
   touchUiGuardInstalled: false,
+  viewportEnvironmentInstalled: false,
   tts: {
     active: false,
     token: 0
@@ -78,9 +80,9 @@ const HOST_STATE = {
   directRuntimeBootPromise: null
 };
 
-const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-old-shell:bookmarks:";
-const FONT_SCALE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-scale:";
-const FONT_MODE_STORAGE_PREFIX = "readerpub:protected-old-shell:font-mode:";
+const BOOKMARK_STORAGE_PREFIX = "readerpub:protected-shell:bookmarks:";
+const FONT_SCALE_STORAGE_PREFIX = "readerpub:protected-shell:font-scale:";
+const FONT_MODE_STORAGE_PREFIX = "readerpub:protected-shell:font-mode:";
 const PROTECTED_SEARCH_ICON_SRC = "icons/search.svg?v=20260303-icons-tight-x-3";
 const PROTECTED_TOC_ICON_SRC = "/reader_render_v3/assets/toc.svg";
 const PROTECTED_SETTINGS_ICON_SRC = "/reader_render_v3/assets/settings.svg";
@@ -116,6 +118,92 @@ const PROTECTED_BOTTOM_CATALOG_ICON_SVG = `
     <path d="M9 12h6"></path>
   </svg>
 `;
+
+function detectIosDevice() {
+  try {
+    const ua = navigator.userAgent || "";
+    const iOS = /iP(ad|hone|od)/i.test(ua);
+    const iPadOS = /Macintosh/i.test(ua) && navigator.maxTouchPoints && navigator.maxTouchPoints > 1;
+    return !!(iOS || iPadOS);
+  } catch (_error) {
+    return false;
+  }
+}
+
+function getScreenMinDimension() {
+  try {
+    const sw = (screen && screen.width) ? screen.width : 0;
+    const sh = (screen && screen.height) ? screen.height : 0;
+    const minS = Math.min(sw || 0, sh || 0);
+    if (minS) return minS;
+  } catch (_error) {}
+  try {
+    return Math.min(window.innerWidth || 0, window.innerHeight || 0);
+  } catch (_error) {
+    return 0;
+  }
+}
+
+function isTabletViewportHost() {
+  try {
+    const ua = navigator.userAgent || "";
+    const minS = getScreenMinDimension();
+    if (/SM-T/i.test(ua)) return true;
+    if (/iPad/i.test(ua)) return true;
+    if (/Macintosh/i.test(ua) && navigator.maxTouchPoints && navigator.maxTouchPoints > 1) return minS >= 700;
+    if (/Android/i.test(ua) && /Mobile/i.test(ua) && minS >= 600) return true;
+    if (/Android/i.test(ua) && !/Mobile/i.test(ua)) return minS >= 600;
+    if (/Tablet|PlayBook|Silk|Kindle|Nexus 7|Nexus 9/i.test(ua)) return minS >= 600;
+  } catch (_error) {}
+  try {
+    const coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    return !!(coarse && Math.min(window.innerWidth || 0, window.innerHeight || 0) >= 600);
+  } catch (_error) {
+    return false;
+  }
+}
+
+function syncProtectedViewportEnvironment() {
+  const root = document.documentElement;
+  if (!root) return;
+  try {
+    const vv = window.visualViewport;
+    const h = (vv && vv.height) ? vv.height : (window.innerHeight || 0);
+    const w = (vv && vv.width) ? vv.width : (window.innerWidth || 0);
+    if (h) root.style.setProperty("--app-vh", `${h}px`);
+    if (w) root.style.setProperty("--app-vw", `${w}px`);
+  } catch (_error) {}
+  try {
+    const isTablet = isTabletViewportHost();
+    const isPhone = !isTablet && getScreenMinDimension() > 0 && getScreenMinDimension() < 700;
+    const isDesktop = !isTablet && (() => {
+      try {
+        if (window.matchMedia && window.matchMedia("(min-width: 769px)").matches) return true;
+        if (window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches) return true;
+      } catch (_error) {}
+      return false;
+    })();
+    root.classList.toggle("is-ios", detectIosDevice());
+    root.classList.toggle("is-tablet", !!isTablet);
+    root.classList.toggle("is-phone", !!isPhone);
+    root.classList.toggle("is-desktop", !!isDesktop);
+    root.classList.toggle("tablet-portrait", !!(isTablet && (window.innerHeight || 0) > (window.innerWidth || 0)));
+    root.classList.toggle("tablet-landscape", !!(isTablet && !((window.innerHeight || 0) > (window.innerWidth || 0))));
+  } catch (_error) {}
+}
+
+function installProtectedViewportEnvironmentSync() {
+  if (HOST_STATE.viewportEnvironmentInstalled) return;
+  HOST_STATE.viewportEnvironmentInstalled = true;
+  syncProtectedViewportEnvironment();
+  window.addEventListener("resize", syncProtectedViewportEnvironment, { passive: true });
+  window.addEventListener("orientationchange", syncProtectedViewportEnvironment, { passive: true });
+  try {
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncProtectedViewportEnvironment, { passive: true });
+    }
+  } catch (_error) {}
+}
 
 function normalizeGeneration(value, fallback = 0) {
   const next = Number(value);
@@ -223,11 +311,7 @@ function isTouchShellMode() {
 
 function showShellUi(source = "programmatic") {
   try {
-    if (typeof window.__fbShowUi === "function") {
-      window.__fbShowUi();
-    } else {
-      document.body.classList.remove("ui-hidden");
-    }
+    document.body.classList.remove("ui-hidden");
   } catch (_error) {}
   try {
     if (source === "touch-center") window.__readerpubProtectedUserShowUiAt = Date.now();
@@ -262,11 +346,7 @@ function hideShellUi(source = "programmatic") {
     return;
   }
   try {
-    if (typeof window.__fbHideUi === "function") {
-      window.__fbHideUi();
-    } else {
-      document.body.classList.add("ui-hidden");
-    }
+    document.body.classList.add("ui-hidden");
   } catch (_error) {}
 }
 
@@ -296,9 +376,6 @@ function installTouchUiVisibilityGuard() {
     if (Date.now() >= Number(HOST_STATE.suppressTouchAutoHideUntil || 0)) return;
     if (!document.body.classList.contains("ui-hidden")) return;
     document.body.classList.remove("ui-hidden");
-    try {
-      if (typeof window.__fbShowUi === "function") window.__fbShowUi();
-    } catch (_error) {}
   });
   observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
@@ -308,54 +385,54 @@ function installStyles() {
   const style = document.createElement("style");
   style.id = HOST_STYLE_ID;
   style.textContent = `
-    body.protected-old-shell {
+    body.protected-shell {
       overflow: hidden;
       -webkit-tap-highlight-color: transparent !important;
     }
-    body.protected-old-shell #ttsToggleMobile,
-    body.protected-old-shell #addressBarToggle,
-    body.protected-old-shell #fullscreen {
+    body.protected-shell #ttsToggleMobile,
+    body.protected-shell #addressBarToggle,
+    body.protected-shell #fullscreen {
       display: none !important;
     }
-    body.protected-old-shell #viewerStack {
+    body.protected-shell #viewerStack {
       overflow: hidden;
       -webkit-tap-highlight-color: transparent !important;
     }
-    body.protected-old-shell #fb-tap-layer {
+    body.protected-shell #fb-tap-layer {
       display: none !important;
     }
-    body.protected-old-shell #loader {
+    body.protected-shell #loader {
       display: none !important;
       visibility: hidden !important;
       opacity: 0 !important;
       pointer-events: none !important;
     }
-    body.protected-old-shell #viewer,
-    body.protected-old-shell #viewerStack.swiping #viewer {
+    body.protected-shell #viewer,
+    body.protected-shell #viewerStack.swiping #viewer {
       background: transparent !important;
     }
-    body.protected-old-shell #viewer-prev,
-    body.protected-old-shell #viewer-next {
+    body.protected-shell #viewer-prev,
+    body.protected-shell #viewer-next {
       display: block;
       pointer-events: none;
       -webkit-tap-highlight-color: transparent !important;
     }
-    body.protected-old-shell #viewer-prev .protected-turn-layer,
-    body.protected-old-shell #viewer-next .protected-turn-layer {
+    body.protected-shell #viewer-prev .protected-turn-layer,
+    body.protected-shell #viewer-next .protected-turn-layer {
       position: absolute;
       inset: 0;
       display: block;
       overflow: hidden;
       background: transparent;
     }
-    body.protected-old-shell #viewer-prev .protected-turn-layer canvas,
-    body.protected-old-shell #viewer-next .protected-turn-layer canvas {
+    body.protected-shell #viewer-prev .protected-turn-layer canvas,
+    body.protected-shell #viewer-next .protected-turn-layer canvas {
       position: absolute;
       display: block;
     }
-    body.protected-old-shell #swipe-shadow {
+    body.protected-shell #swipe-shadow {
     }
-    body.protected-old-shell #viewerStack.swiping #swipe-shadow {
+    body.protected-shell #viewerStack.swiping #swipe-shadow {
       opacity: 0 !important;
     }
     #protectedOldShellStatus {
@@ -457,13 +534,13 @@ function installStyles() {
       position: absolute;
       display: block;
     }
-    body.protected-old-shell #viewerStack.swiping #protectedOldShellCurrentLayer {
+    body.protected-shell #viewerStack.swiping #protectedOldShellCurrentLayer {
       box-shadow: none;
     }
-    body.protected-old-shell #viewerStack.swiping.shadow-right #protectedOldShellCurrentLayer {
+    body.protected-shell #viewerStack.swiping.shadow-right #protectedOldShellCurrentLayer {
       box-shadow: 6px 0 10px rgba(0,0,0,0.28);
     }
-    body.protected-old-shell #viewerStack.swiping.shadow-left #protectedOldShellCurrentLayer {
+    body.protected-shell #viewerStack.swiping.shadow-left #protectedOldShellCurrentLayer {
       box-shadow: -6px 0 10px rgba(0,0,0,0.28);
     }
     @keyframes protected-page-turn-next {
@@ -517,19 +594,15 @@ function installStyles() {
       box-shadow: 0 14px 32px rgba(23, 33, 50, 0.12);
       backdrop-filter: blur(12px);
     }
-    body.protected-old-shell.protected-dev-panel #protectedShellActionBar {
+    body.protected-shell.protected-dev-panel #protectedShellActionBar {
       display: flex;
     }
-    body.protected-old-shell #protectedSearchControl,
-    body.protected-old-shell #overlay-search {
-      display: none !important;
-    }
-    body.protected-old-shell #title-controls {
+    body.protected-shell #title-controls {
       display: inline-flex;
       align-items: center;
       gap: 14px;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #titlebar {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #titlebar {
       --titlebar-h: 43px;
       min-height: 43px !important;
       height: 43px !important;
@@ -538,7 +611,7 @@ function installStyles() {
       position: relative;
       align-items: center;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #title-controls {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #title-controls {
       position: absolute;
       right: 8px;
       top: 50%;
@@ -546,16 +619,16 @@ function installStyles() {
       z-index: 2;
       gap: 14px;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #opener {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #opener {
       display: none !important;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #slider,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #openNotes,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #openBookmarks,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #overlay-menu {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #slider,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #openNotes,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #openBookmarks,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #overlay-menu {
       display: none !important;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #metainfo {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #metainfo {
       position: absolute;
       left: 50%;
       top: 50%;
@@ -567,7 +640,7 @@ function installStyles() {
       pointer-events: none;
       text-align: center;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #metaText {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #metaText {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -575,21 +648,21 @@ function installStyles() {
       width: 100%;
       line-height: 1.18;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #book-title,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #chapter-title {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #book-title,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #chapter-title {
       width: 100%;
       text-align: center;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #book-title {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #book-title {
       font-size: 14px;
       font-weight: 600;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #chapter-title {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #chapter-title {
       margin-top: 4px;
       font-size: 11px;
       opacity: 0.9;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-left-links {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell .protected-top-left-links {
       position: absolute;
       left: 16px;
       top: 50%;
@@ -601,7 +674,7 @@ function installStyles() {
       min-width: 0;
       max-width: min(24vw, 320px);
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell .protected-top-link {
       display: inline-flex !important;
       align-items: center;
       gap: 10px;
@@ -623,23 +696,23 @@ function installStyles() {
       overflow: visible !important;
       line-height: 1 !important;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link-icon {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell .protected-top-link-icon {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex: 0 0 auto;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link-label {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell .protected-top-link-label {
       display: block;
       min-width: 0;
       overflow: visible;
       text-overflow: clip;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link:hover,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link:focus-visible {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell .protected-top-link:hover,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell .protected-top-link:focus-visible {
       opacity: 0.92;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link svg {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell .protected-top-link svg {
       width: 20px;
       height: 20px;
       display: block;
@@ -649,74 +722,74 @@ function installStyles() {
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell .protected-top-link-catalog svg,
-    html.is-phone body.protected-old-shell #protectedBottomCatalogLink svg,
-    html.is-tablet body.protected-old-shell #protectedBottomCatalogLink svg {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell .protected-top-link-catalog svg,
+    html.is-phone body.protected-shell #protectedBottomCatalogLink svg,
+    html.is-tablet body.protected-shell #protectedBottomCatalogLink svg {
       fill: currentColor !important;
       stroke: none !important;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #title-controls > #ttsToggleDesktop,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #title-controls > #themeToggle,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedLibraryControl,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedSearchControl,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedTypographyControl {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #title-controls > #ttsToggleDesktop,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #title-controls > #themeToggle,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedLibraryControl,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedSearchControl,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedTypographyControl {
       width: 24px;
       min-width: 24px;
       height: 24px;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #ttsToggleDesktop .tts-icon,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #themeToggle .theme-icon,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedLibraryTrigger img,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedSearchTrigger img,
-    html:not(.is-phone):not(.is-tablet) body.protected-old-shell #protectedTypographyTrigger img {
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #ttsToggleDesktop .tts-icon,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #themeToggle .theme-icon,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedLibraryTrigger img,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedSearchTrigger img,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #protectedTypographyTrigger img {
       width: 18px;
       height: 18px;
     }
-    body.protected-old-shell #themeToggle,
-    body.protected-old-shell #ttsToggleDesktop,
-    body.protected-old-shell #bookmark {
+    body.protected-shell #themeToggle,
+    body.protected-shell #ttsToggleDesktop,
+    body.protected-shell #bookmark {
       display: inline-flex !important;
     }
-    body.protected-old-shell #mobileMoreToggle,
-    body.protected-old-shell #mobileMorePanel,
-    body.protected-old-shell #mobileMoreBackdrop {
+    body.protected-shell #mobileMoreToggle,
+    body.protected-shell #mobileMorePanel,
+    body.protected-shell #mobileMoreBackdrop {
       display: none !important;
     }
-    html.is-phone body.protected-old-shell #opener,
-    html.is-tablet body.protected-old-shell #opener {
+    html.is-phone body.protected-shell #opener,
+    html.is-tablet body.protected-shell #opener {
       min-width: 24px;
       margin-right: 4px;
     }
-    html.is-phone body.protected-old-shell #opener #openNotes,
-    html.is-phone body.protected-old-shell #opener #openBookmarks,
-    html.is-tablet body.protected-old-shell #opener #openNotes,
-    html.is-tablet body.protected-old-shell #opener #openBookmarks {
+    html.is-phone body.protected-shell #opener #openNotes,
+    html.is-phone body.protected-shell #opener #openBookmarks,
+    html.is-tablet body.protected-shell #opener #openNotes,
+    html.is-tablet body.protected-shell #opener #openBookmarks {
       display: none !important;
     }
-    html.is-phone body.protected-old-shell .protected-top-left-links,
-    html.is-tablet body.protected-old-shell .protected-top-left-links {
+    html.is-phone body.protected-shell .protected-top-left-links,
+    html.is-tablet body.protected-shell .protected-top-left-links {
       display: none !important;
     }
-    html.is-phone body.protected-old-shell #title-controls,
-    html.is-tablet body.protected-old-shell #title-controls {
+    html.is-phone body.protected-shell #title-controls,
+    html.is-tablet body.protected-shell #title-controls {
       gap: 12px !important;
       transform: translateX(6px);
     }
-    html.is-phone body.protected-old-shell #title-controls > #ttsToggleDesktop,
-    html.is-phone body.protected-old-shell #title-controls > #themeToggle,
-    html.is-phone body.protected-old-shell #protectedLibraryControl,
-    html.is-phone body.protected-old-shell #protectedSearchControl,
-    html.is-phone body.protected-old-shell #protectedTypographyControl,
-    html.is-tablet body.protected-old-shell #title-controls > #ttsToggleDesktop,
-    html.is-tablet body.protected-old-shell #title-controls > #themeToggle,
-    html.is-tablet body.protected-old-shell #protectedLibraryControl,
-    html.is-tablet body.protected-old-shell #protectedSearchControl,
-    html.is-tablet body.protected-old-shell #protectedTypographyControl {
+    html.is-phone body.protected-shell #title-controls > #ttsToggleDesktop,
+    html.is-phone body.protected-shell #title-controls > #themeToggle,
+    html.is-phone body.protected-shell #protectedLibraryControl,
+    html.is-phone body.protected-shell #protectedSearchControl,
+    html.is-phone body.protected-shell #protectedTypographyControl,
+    html.is-tablet body.protected-shell #title-controls > #ttsToggleDesktop,
+    html.is-tablet body.protected-shell #title-controls > #themeToggle,
+    html.is-tablet body.protected-shell #protectedLibraryControl,
+    html.is-tablet body.protected-shell #protectedSearchControl,
+    html.is-tablet body.protected-shell #protectedTypographyControl {
       width: 28px;
       min-width: 28px;
     }
-    body.protected-old-shell #title-controls > #ttsToggleDesktop,
-    body.protected-old-shell #title-controls > #themeToggle,
+    body.protected-shell #title-controls > #ttsToggleDesktop,
+    body.protected-shell #title-controls > #themeToggle,
     #protectedLibraryTrigger,
     #protectedSearchTrigger,
     #protectedTypographyTrigger {
@@ -733,25 +806,25 @@ function installStyles() {
       border: 0;
       box-sizing: border-box;
     }
-    body.protected-old-shell #ttsToggleDesktop {
+    body.protected-shell #ttsToggleDesktop {
       order: 59;
       display: inline-flex !important;
     }
-    body.protected-old-shell #ttsToggleDesktop .tts-icon {
+    body.protected-shell #ttsToggleDesktop .tts-icon {
       width: 20px;
       height: 20px;
       object-fit: contain;
     }
-    html.is-phone body.protected-old-shell #ttsToggleDesktop,
-    html.is-tablet body.protected-old-shell #ttsToggleDesktop {
+    html.is-phone body.protected-shell #ttsToggleDesktop,
+    html.is-tablet body.protected-shell #ttsToggleDesktop {
       display: inline-flex !important;
     }
-    html.is-phone body.protected-old-shell #ttsToggleMobile,
-    html.is-tablet body.protected-old-shell #ttsToggleMobile {
+    html.is-phone body.protected-shell #ttsToggleMobile,
+    html.is-tablet body.protected-shell #ttsToggleMobile {
       display: none !important;
     }
     @media (min-width: 820px) {
-      body.protected-old-shell #titlebar {
+      body.protected-shell #titlebar {
         --titlebar-h: 43px;
         min-height: 43px !important;
         height: 43px !important;
@@ -760,16 +833,16 @@ function installStyles() {
         position: relative;
         align-items: center;
       }
-      body.protected-old-shell #opener {
+      body.protected-shell #opener {
         display: none !important;
       }
-      body.protected-old-shell #slider,
-      body.protected-old-shell #openNotes,
-      body.protected-old-shell #openBookmarks,
-      body.protected-old-shell #overlay-menu {
+      body.protected-shell #slider,
+      body.protected-shell #openNotes,
+      body.protected-shell #openBookmarks,
+      body.protected-shell #overlay-menu {
         display: none !important;
       }
-      body.protected-old-shell #metainfo {
+      body.protected-shell #metainfo {
         position: absolute;
         left: 50%;
         top: 50%;
@@ -781,7 +854,7 @@ function installStyles() {
         pointer-events: none;
         text-align: center;
       }
-      body.protected-old-shell #metaText {
+      body.protected-shell #metaText {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -789,21 +862,21 @@ function installStyles() {
         width: 100%;
         line-height: 1.18;
       }
-      body.protected-old-shell #book-title,
-      body.protected-old-shell #chapter-title {
+      body.protected-shell #book-title,
+      body.protected-shell #chapter-title {
         width: 100%;
         text-align: center;
       }
-      body.protected-old-shell #book-title {
+      body.protected-shell #book-title {
         font-size: 14px;
         font-weight: 600;
       }
-      body.protected-old-shell #chapter-title {
+      body.protected-shell #chapter-title {
         margin-top: 4px;
         font-size: 11px;
         opacity: 0.9;
       }
-      body.protected-old-shell .protected-top-left-links {
+      body.protected-shell .protected-top-left-links {
         position: absolute;
         left: 16px;
         top: 50%;
@@ -815,7 +888,7 @@ function installStyles() {
         min-width: 0;
         max-width: min(24vw, 320px);
       }
-      body.protected-old-shell #title-controls {
+      body.protected-shell #title-controls {
         position: absolute;
         right: 8px;
         top: 50%;
@@ -823,38 +896,38 @@ function installStyles() {
         z-index: 2;
         gap: 14px !important;
       }
-      body.protected-old-shell #title-controls > #ttsToggleDesktop,
-      body.protected-old-shell #title-controls > #themeToggle,
-      body.protected-old-shell #protectedLibraryControl,
-      body.protected-old-shell #protectedSearchControl,
-      body.protected-old-shell #protectedTypographyControl {
+      body.protected-shell #title-controls > #ttsToggleDesktop,
+      body.protected-shell #title-controls > #themeToggle,
+      body.protected-shell #protectedLibraryControl,
+      body.protected-shell #protectedSearchControl,
+      body.protected-shell #protectedTypographyControl {
         width: 24px;
         min-width: 24px;
         height: 24px;
       }
-      body.protected-old-shell #ttsToggleDesktop .tts-icon,
-      body.protected-old-shell #themeToggle .theme-icon,
-      body.protected-old-shell #protectedLibraryTrigger img,
-      body.protected-old-shell #protectedSearchTrigger img,
-      body.protected-old-shell #protectedTypographyTrigger img {
+      body.protected-shell #ttsToggleDesktop .tts-icon,
+      body.protected-shell #themeToggle .theme-icon,
+      body.protected-shell #protectedLibraryTrigger img,
+      body.protected-shell #protectedSearchTrigger img,
+      body.protected-shell #protectedTypographyTrigger img {
         width: 18px;
         height: 18px;
       }
-      body.protected-old-shell #protectedBottomCatalogLink {
+      body.protected-shell #protectedBottomCatalogLink {
         display: none !important;
       }
-      html.is-phone body.protected-old-shell.search-open:not(.search-minimized) #searchbar,
-      html.is-tablet body.protected-old-shell.search-open:not(.search-minimized) #searchbar {
+      html.is-phone body.protected-shell.search-open:not(.search-minimized) #searchbar,
+      html.is-tablet body.protected-shell.search-open:not(.search-minimized) #searchbar {
         display: flex !important;
       }
-      html.is-phone body.protected-old-shell #searchFloatControls:not(.hidden),
-      html.is-tablet body.protected-old-shell #searchFloatControls:not(.hidden) {
+      html.is-phone body.protected-shell #searchFloatControls:not(.hidden),
+      html.is-tablet body.protected-shell #searchFloatControls:not(.hidden) {
         display: inline-flex !important;
       }
     }
     @media (orientation: landscape) {
-      html.is-phone body.protected-old-shell #titlebar,
-      html.is-tablet body.protected-old-shell #titlebar {
+      html.is-phone body.protected-shell #titlebar,
+      html.is-tablet body.protected-shell #titlebar {
         --titlebar-h: 43px;
         min-height: 43px !important;
         height: 43px !important;
@@ -863,22 +936,22 @@ function installStyles() {
         position: relative;
         align-items: center;
       }
-      html.is-phone body.protected-old-shell #opener,
-      html.is-tablet body.protected-old-shell #opener {
+      html.is-phone body.protected-shell #opener,
+      html.is-tablet body.protected-shell #opener {
         display: none !important;
       }
-      html.is-phone body.protected-old-shell #slider,
-      html.is-phone body.protected-old-shell #openNotes,
-      html.is-phone body.protected-old-shell #openBookmarks,
-      html.is-phone body.protected-old-shell #overlay-menu,
-      html.is-tablet body.protected-old-shell #slider,
-      html.is-tablet body.protected-old-shell #openNotes,
-      html.is-tablet body.protected-old-shell #openBookmarks,
-      html.is-tablet body.protected-old-shell #overlay-menu {
+      html.is-phone body.protected-shell #slider,
+      html.is-phone body.protected-shell #openNotes,
+      html.is-phone body.protected-shell #openBookmarks,
+      html.is-phone body.protected-shell #overlay-menu,
+      html.is-tablet body.protected-shell #slider,
+      html.is-tablet body.protected-shell #openNotes,
+      html.is-tablet body.protected-shell #openBookmarks,
+      html.is-tablet body.protected-shell #overlay-menu {
         display: none !important;
       }
-      html.is-phone body.protected-old-shell #metainfo,
-      html.is-tablet body.protected-old-shell #metainfo {
+      html.is-phone body.protected-shell #metainfo,
+      html.is-tablet body.protected-shell #metainfo {
         position: absolute;
         left: 50%;
         top: 50%;
@@ -890,8 +963,8 @@ function installStyles() {
         pointer-events: none;
         text-align: center;
       }
-      html.is-phone body.protected-old-shell #metaText,
-      html.is-tablet body.protected-old-shell #metaText {
+      html.is-phone body.protected-shell #metaText,
+      html.is-tablet body.protected-shell #metaText {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -899,26 +972,26 @@ function installStyles() {
         width: 100%;
         line-height: 1.18;
       }
-      html.is-phone body.protected-old-shell #book-title,
-      html.is-phone body.protected-old-shell #chapter-title,
-      html.is-tablet body.protected-old-shell #book-title,
-      html.is-tablet body.protected-old-shell #chapter-title {
+      html.is-phone body.protected-shell #book-title,
+      html.is-phone body.protected-shell #chapter-title,
+      html.is-tablet body.protected-shell #book-title,
+      html.is-tablet body.protected-shell #chapter-title {
         width: 100%;
         text-align: center;
       }
-      html.is-phone body.protected-old-shell #book-title,
-      html.is-tablet body.protected-old-shell #book-title {
+      html.is-phone body.protected-shell #book-title,
+      html.is-tablet body.protected-shell #book-title {
         font-size: 14px;
         font-weight: 600;
       }
-      html.is-phone body.protected-old-shell #chapter-title,
-      html.is-tablet body.protected-old-shell #chapter-title {
+      html.is-phone body.protected-shell #chapter-title,
+      html.is-tablet body.protected-shell #chapter-title {
         margin-top: 4px;
         font-size: 11px;
         opacity: 0.9;
       }
-      html.is-phone body.protected-old-shell .protected-top-left-links,
-      html.is-tablet body.protected-old-shell .protected-top-left-links {
+      html.is-phone body.protected-shell .protected-top-left-links,
+      html.is-tablet body.protected-shell .protected-top-left-links {
         position: absolute;
         left: 16px;
         top: 50%;
@@ -930,8 +1003,8 @@ function installStyles() {
         min-width: 0;
         max-width: min(24vw, 320px);
       }
-      html.is-phone body.protected-old-shell .protected-top-link,
-      html.is-tablet body.protected-old-shell .protected-top-link {
+      html.is-phone body.protected-shell .protected-top-link,
+      html.is-tablet body.protected-shell .protected-top-link {
         display: inline-flex !important;
         align-items: center;
         gap: 10px;
@@ -953,22 +1026,22 @@ function installStyles() {
         overflow: visible !important;
         line-height: 1 !important;
       }
-      html.is-phone body.protected-old-shell .protected-top-link-icon,
-      html.is-tablet body.protected-old-shell .protected-top-link-icon {
+      html.is-phone body.protected-shell .protected-top-link-icon,
+      html.is-tablet body.protected-shell .protected-top-link-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         flex: 0 0 auto;
       }
-      html.is-phone body.protected-old-shell .protected-top-link-label,
-      html.is-tablet body.protected-old-shell .protected-top-link-label {
+      html.is-phone body.protected-shell .protected-top-link-label,
+      html.is-tablet body.protected-shell .protected-top-link-label {
         display: block;
         min-width: 0;
         overflow: visible;
         text-overflow: clip;
       }
-      html.is-phone body.protected-old-shell .protected-top-link svg,
-      html.is-tablet body.protected-old-shell .protected-top-link svg {
+      html.is-phone body.protected-shell .protected-top-link svg,
+      html.is-tablet body.protected-shell .protected-top-link svg {
         width: 20px;
         height: 20px;
         display: block;
@@ -978,13 +1051,13 @@ function installStyles() {
         stroke-linecap: round;
         stroke-linejoin: round;
       }
-      html.is-phone body.protected-old-shell .protected-top-link-catalog svg,
-      html.is-tablet body.protected-old-shell .protected-top-link-catalog svg {
+      html.is-phone body.protected-shell .protected-top-link-catalog svg,
+      html.is-tablet body.protected-shell .protected-top-link-catalog svg {
         fill: currentColor !important;
         stroke: none !important;
       }
-      html.is-phone body.protected-old-shell #title-controls,
-      html.is-tablet body.protected-old-shell #title-controls {
+      html.is-phone body.protected-shell #title-controls,
+      html.is-tablet body.protected-shell #title-controls {
         position: absolute;
         right: 8px;
         top: 50%;
@@ -992,35 +1065,35 @@ function installStyles() {
         z-index: 2;
         gap: 14px !important;
       }
-      html.is-phone body.protected-old-shell #title-controls > #ttsToggleDesktop,
-      html.is-phone body.protected-old-shell #title-controls > #themeToggle,
-      html.is-phone body.protected-old-shell #protectedLibraryControl,
-      html.is-phone body.protected-old-shell #protectedSearchControl,
-      html.is-phone body.protected-old-shell #protectedTypographyControl,
-      html.is-tablet body.protected-old-shell #title-controls > #ttsToggleDesktop,
-      html.is-tablet body.protected-old-shell #title-controls > #themeToggle,
-      html.is-tablet body.protected-old-shell #protectedLibraryControl,
-      html.is-tablet body.protected-old-shell #protectedSearchControl,
-      html.is-tablet body.protected-old-shell #protectedTypographyControl {
+      html.is-phone body.protected-shell #title-controls > #ttsToggleDesktop,
+      html.is-phone body.protected-shell #title-controls > #themeToggle,
+      html.is-phone body.protected-shell #protectedLibraryControl,
+      html.is-phone body.protected-shell #protectedSearchControl,
+      html.is-phone body.protected-shell #protectedTypographyControl,
+      html.is-tablet body.protected-shell #title-controls > #ttsToggleDesktop,
+      html.is-tablet body.protected-shell #title-controls > #themeToggle,
+      html.is-tablet body.protected-shell #protectedLibraryControl,
+      html.is-tablet body.protected-shell #protectedSearchControl,
+      html.is-tablet body.protected-shell #protectedTypographyControl {
         width: 24px;
         min-width: 24px;
         height: 24px;
       }
-      html.is-phone body.protected-old-shell #ttsToggleDesktop .tts-icon,
-      html.is-phone body.protected-old-shell #themeToggle .theme-icon,
-      html.is-phone body.protected-old-shell #protectedLibraryTrigger img,
-      html.is-phone body.protected-old-shell #protectedSearchTrigger img,
-      html.is-phone body.protected-old-shell #protectedTypographyTrigger img,
-      html.is-tablet body.protected-old-shell #ttsToggleDesktop .tts-icon,
-      html.is-tablet body.protected-old-shell #themeToggle .theme-icon,
-      html.is-tablet body.protected-old-shell #protectedLibraryTrigger img,
-      html.is-tablet body.protected-old-shell #protectedSearchTrigger img,
-      html.is-tablet body.protected-old-shell #protectedTypographyTrigger img {
+      html.is-phone body.protected-shell #ttsToggleDesktop .tts-icon,
+      html.is-phone body.protected-shell #themeToggle .theme-icon,
+      html.is-phone body.protected-shell #protectedLibraryTrigger img,
+      html.is-phone body.protected-shell #protectedSearchTrigger img,
+      html.is-phone body.protected-shell #protectedTypographyTrigger img,
+      html.is-tablet body.protected-shell #ttsToggleDesktop .tts-icon,
+      html.is-tablet body.protected-shell #themeToggle .theme-icon,
+      html.is-tablet body.protected-shell #protectedLibraryTrigger img,
+      html.is-tablet body.protected-shell #protectedSearchTrigger img,
+      html.is-tablet body.protected-shell #protectedTypographyTrigger img {
         width: 18px;
         height: 18px;
       }
-      html.is-phone body.protected-old-shell #protectedBottomCatalogLink,
-      html.is-tablet body.protected-old-shell #protectedBottomCatalogLink {
+      html.is-phone body.protected-shell #protectedBottomCatalogLink,
+      html.is-tablet body.protected-shell #protectedBottomCatalogLink {
         position: absolute;
         left: calc(12px + env(safe-area-inset-left, 0px));
         top: 50%;
@@ -1033,20 +1106,20 @@ function installStyles() {
         font: 600 12px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         white-space: nowrap;
       }
-      html.is-phone body.protected-old-shell #protectedBottomCatalogLink svg,
-      html.is-tablet body.protected-old-shell #protectedBottomCatalogLink svg {
+      html.is-phone body.protected-shell #protectedBottomCatalogLink svg,
+      html.is-tablet body.protected-shell #protectedBottomCatalogLink svg {
         width: 18px;
         height: 18px;
         display: block;
         fill: currentColor !important;
         stroke: none !important;
       }
-      html.is-phone body.protected-old-shell #protectedBottomCatalogLink,
-      html.is-tablet body.protected-old-shell #protectedBottomCatalogLink {
+      html.is-phone body.protected-shell #protectedBottomCatalogLink,
+      html.is-tablet body.protected-shell #protectedBottomCatalogLink {
         display: none !important;
       }
     }
-    body.protected-old-shell #bottombar #bookmark {
+    body.protected-shell #bottombar #bookmark {
       display: inline-flex !important;
       position: absolute;
       right: calc(12px + env(safe-area-inset-right, 0px));
@@ -1057,26 +1130,26 @@ function installStyles() {
       align-items: center;
       justify-content: center;
     }
-    html.is-phone body.protected-old-shell #bottombar #bookmark,
-    html.is-tablet body.protected-old-shell #bottombar #bookmark {
+    html.is-phone body.protected-shell #bottombar #bookmark,
+    html.is-tablet body.protected-shell #bottombar #bookmark {
       display: inline-flex !important;
       right: calc(14px + env(safe-area-inset-right, 0px));
     }
     @media (orientation: portrait) {
-      html.is-phone body.protected-old-shell #opener,
-      html.is-tablet body.protected-old-shell #opener,
-      html.is-phone body.protected-old-shell #slider,
-      html.is-phone body.protected-old-shell #openNotes,
-      html.is-phone body.protected-old-shell #openBookmarks,
-      html.is-phone body.protected-old-shell #overlay-menu,
-      html.is-tablet body.protected-old-shell #slider,
-      html.is-tablet body.protected-old-shell #openNotes,
-      html.is-tablet body.protected-old-shell #openBookmarks,
-      html.is-tablet body.protected-old-shell #overlay-menu {
+      html.is-phone body.protected-shell #opener,
+      html.is-tablet body.protected-shell #opener,
+      html.is-phone body.protected-shell #slider,
+      html.is-phone body.protected-shell #openNotes,
+      html.is-phone body.protected-shell #openBookmarks,
+      html.is-phone body.protected-shell #overlay-menu,
+      html.is-tablet body.protected-shell #slider,
+      html.is-tablet body.protected-shell #openNotes,
+      html.is-tablet body.protected-shell #openBookmarks,
+      html.is-tablet body.protected-shell #overlay-menu {
         display: none !important;
       }
-      html.is-phone body.protected-old-shell #bottombar #page-count,
-      html.is-tablet body.protected-old-shell #bottombar #page-count {
+      html.is-phone body.protected-shell #bottombar #page-count,
+      html.is-tablet body.protected-shell #bottombar #page-count {
         position: absolute;
         right: calc(52px + env(safe-area-inset-right, 0px));
         left: auto;
@@ -1086,28 +1159,28 @@ function installStyles() {
         text-align: right;
         white-space: nowrap;
       }
-      html.is-phone body.protected-old-shell #metaText,
-      html.is-tablet body.protected-old-shell #metaText {
+      html.is-phone body.protected-shell #metaText,
+      html.is-tablet body.protected-shell #metaText {
         line-height: 1.18;
       }
-      html.is-phone body.protected-old-shell #chapter-title,
-      html.is-tablet body.protected-old-shell #chapter-title {
+      html.is-phone body.protected-shell #chapter-title,
+      html.is-tablet body.protected-shell #chapter-title {
         margin-top: 4px;
       }
-      html.is-phone body.protected-old-shell #overlay-settings,
-      html.is-phone body.protected-old-shell #overlay-library,
-      html.is-phone body.protected-old-shell #overlay-search {
+      html.is-phone body.protected-shell #overlay-settings,
+      html.is-phone body.protected-shell #overlay-library,
+      html.is-phone body.protected-shell #overlay-search {
         left: 0;
         right: 0;
         width: 100vw;
         max-width: 100vw;
       }
     }
-    body.protected-old-shell #protectedBottomCatalogLink {
+    body.protected-shell #protectedBottomCatalogLink {
       display: none;
     }
-    html.is-phone body.protected-old-shell #protectedBottomCatalogLink,
-    html.is-tablet body.protected-old-shell #protectedBottomCatalogLink {
+    html.is-phone body.protected-shell #protectedBottomCatalogLink,
+    html.is-tablet body.protected-shell #protectedBottomCatalogLink {
       position: absolute;
       left: calc(12px + env(safe-area-inset-left, 0px));
       top: 50%;
@@ -1120,16 +1193,16 @@ function installStyles() {
       font: 600 12px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       white-space: nowrap;
     }
-    html.is-phone body.protected-old-shell #protectedBottomCatalogLink svg,
-    html.is-tablet body.protected-old-shell #protectedBottomCatalogLink svg {
+    html.is-phone body.protected-shell #protectedBottomCatalogLink svg,
+    html.is-tablet body.protected-shell #protectedBottomCatalogLink svg {
       width: 18px;
       height: 18px;
       display: block;
       fill: currentColor;
       stroke: none;
     }
-    html.is-phone body.protected-old-shell.android #addressBarToggle,
-    html.is-tablet body.protected-old-shell.android #addressBarToggle {
+    html.is-phone body.protected-shell.android #addressBarToggle,
+    html.is-tablet body.protected-shell.android #addressBarToggle {
       display: inline-flex !important;
       position: absolute;
       right: calc(14px + env(safe-area-inset-right, 0px));
@@ -1152,8 +1225,8 @@ function installStyles() {
       justify-content: center;
       overflow: visible;
     }
-    html.is-phone body.protected-old-shell.android #addressBarToggle .ab-icon,
-    html.is-tablet body.protected-old-shell.android #addressBarToggle .ab-icon {
+    html.is-phone body.protected-shell.android #addressBarToggle .ab-icon,
+    html.is-tablet body.protected-shell.android #addressBarToggle .ab-icon {
       width: 18px !important;
       height: 18px !important;
       min-width: 18px !important;
@@ -1164,29 +1237,29 @@ function installStyles() {
       padding: 0 !important;
       transform: none !important;
     }
-    html.is-phone body.protected-old-shell.android #addressBarToggle.ab-state-full .ab-icon-full,
-    html.is-tablet body.protected-old-shell.android #addressBarToggle.ab-state-full .ab-icon-full {
+    html.is-phone body.protected-shell.android #addressBarToggle.ab-state-full .ab-icon-full,
+    html.is-tablet body.protected-shell.android #addressBarToggle.ab-state-full .ab-icon-full {
       display: block !important;
     }
-    html.is-phone body.protected-old-shell.android #addressBarToggle.ab-state-small .ab-icon-small,
-    html.is-tablet body.protected-old-shell.android #addressBarToggle.ab-state-small .ab-icon-small {
+    html.is-phone body.protected-shell.android #addressBarToggle.ab-state-small .ab-icon-small,
+    html.is-tablet body.protected-shell.android #addressBarToggle.ab-state-small .ab-icon-small {
       display: block !important;
     }
-    html.is-phone body.protected-old-shell.android #bottombar #bookmark,
-    html.is-tablet body.protected-old-shell.android #bottombar #bookmark {
+    html.is-phone body.protected-shell.android #bottombar #bookmark,
+    html.is-tablet body.protected-shell.android #bottombar #bookmark {
       right: calc(52px + env(safe-area-inset-right, 0px));
     }
     @media (orientation: portrait) {
-      html.is-phone body.protected-old-shell.android #bottombar #page-count,
-      html.is-tablet body.protected-old-shell.android #bottombar #page-count {
+      html.is-phone body.protected-shell.android #bottombar #page-count,
+      html.is-tablet body.protected-shell.android #bottombar #page-count {
         right: calc(92px + env(safe-area-inset-right, 0px));
       }
     }
     @media (orientation: landscape) {
-      html.is-phone body.protected-old-shell #bottombar #page-count,
-      html.is-tablet body.protected-old-shell #bottombar #page-count,
-      html.is-phone body.protected-old-shell.android #bottombar #page-count,
-      html.is-tablet body.protected-old-shell.android #bottombar #page-count {
+      html.is-phone body.protected-shell #bottombar #page-count,
+      html.is-tablet body.protected-shell #bottombar #page-count,
+      html.is-phone body.protected-shell.android #bottombar #page-count,
+      html.is-tablet body.protected-shell.android #bottombar #page-count {
         position: absolute;
         left: 50%;
         right: auto;
@@ -1196,13 +1269,13 @@ function installStyles() {
         text-align: center;
         white-space: nowrap;
       }
-      html.is-phone body.protected-old-shell #overlay-backdrop:not(.hidden),
-      html.is-tablet body.protected-old-shell #overlay-backdrop:not(.hidden) {
+      html.is-phone body.protected-shell #overlay-backdrop:not(.hidden),
+      html.is-tablet body.protected-shell #overlay-backdrop:not(.hidden) {
         display: block !important;
       }
     }
-    body.protected-old-shell #fontDec,
-    body.protected-old-shell #fontInc {
+    body.protected-shell #fontDec,
+    body.protected-shell #fontInc {
       display: none !important;
     }
     #protectedLibraryControl {
@@ -1216,7 +1289,7 @@ function installStyles() {
       order: 62;
     }
     #protectedSearchControl {
-      display: none;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       width: 32px;
@@ -1273,7 +1346,7 @@ function installStyles() {
       vertical-align: middle;
       order: 64;
     }
-    body.protected-old-shell #themeToggle {
+    body.protected-shell #themeToggle {
       order: 60;
     }
     #protectedTypographyTrigger {
@@ -1304,14 +1377,14 @@ function installStyles() {
       display: block;
       object-fit: contain;
     }
-    body.protected-old-shell #themeToggle .theme-icon {
+    body.protected-shell #themeToggle .theme-icon {
       width: 20px;
       height: 20px;
       display: block;
       object-fit: contain;
     }
-    body.protected-old-shell #themeToggle,
-    body.protected-old-shell #ttsToggleDesktop,
+    body.protected-shell #themeToggle,
+    body.protected-shell #ttsToggleDesktop,
     #protectedLibraryTrigger,
     #protectedSearchTrigger,
     #protectedTypographyTrigger {
@@ -1324,10 +1397,10 @@ function installStyles() {
       width: 32px !important;
       min-width: 32px !important;
     }
-    body.protected-old-shell #themeToggle:hover,
-    body.protected-old-shell #themeToggle:focus-visible,
-    body.protected-old-shell #ttsToggleDesktop:hover,
-    body.protected-old-shell #ttsToggleDesktop:focus-visible,
+    body.protected-shell #themeToggle:hover,
+    body.protected-shell #themeToggle:focus-visible,
+    body.protected-shell #ttsToggleDesktop:hover,
+    body.protected-shell #ttsToggleDesktop:focus-visible,
     #protectedLibraryTrigger:hover,
     #protectedLibraryTrigger:focus-visible,
     #protectedSearchTrigger:hover,
@@ -1345,9 +1418,6 @@ function installStyles() {
       width: 360px;
       max-width: min(100vw, 360px);
       z-index: 9999;
-    }
-    #overlay-search {
-      display: none !important;
     }
     #overlay-library .overlay-scroll {
       display: flex;
@@ -1371,9 +1441,6 @@ function installStyles() {
       width: 0;
       height: 0;
       display: none;
-    }
-    #protectedSearchPanel {
-      display: none !important;
     }
     #protectedSearchInputWrap {
       position: relative;
@@ -1516,17 +1583,17 @@ function installStyles() {
     #protectedSearchEmpty {
       display: none !important;
     }
-    body.protected-old-shell #searchReturnDesktop {
+    body.protected-shell #searchReturnDesktop {
       display: none;
     }
-    body.protected-old-shell.search-active #searchReturnDesktop {
+    body.protected-shell.search-active #searchReturnDesktop {
       display: inline-flex;
     }
-    body.protected-old-shell #searchDesktop .search-nav.desktop {
+    body.protected-shell #searchDesktop .search-nav.desktop {
       gap: 2px;
     }
-    body.protected-old-shell #searchDesktop .search-nav.desktop .search-arrow,
-    body.protected-old-shell #searchbar .search-nav .search-arrow {
+    body.protected-shell #searchDesktop .search-nav.desktop .search-arrow,
+    body.protected-shell #searchbar .search-nav .search-arrow {
       width: 28px;
       height: 28px;
       min-width: 28px;
@@ -1538,8 +1605,8 @@ function installStyles() {
       align-items: center;
       justify-content: center;
     }
-    body.protected-old-shell #searchDesktop .search-nav.desktop .search-arrow svg,
-    body.protected-old-shell #searchbar .search-nav .search-arrow svg {
+    body.protected-shell #searchDesktop .search-nav.desktop .search-arrow svg,
+    body.protected-shell #searchbar .search-nav .search-arrow svg {
       width: 20px;
       height: 20px;
       display: block;
@@ -1549,7 +1616,7 @@ function installStyles() {
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-    body.protected-old-shell #searchReturnDesktop.search-return {
+    body.protected-shell #searchReturnDesktop.search-return {
       order: -1;
       width: 22px;
       height: 22px;
@@ -1560,43 +1627,43 @@ function installStyles() {
       align-items: center;
       justify-content: center;
     }
-    body.protected-old-shell #searchReturnDesktop.search-return img {
+    body.protected-shell #searchReturnDesktop.search-return img {
       width: 14px;
       height: 14px;
       display: block;
     }
-    body.protected-old-shell #searchActionDesktop.search-action {
+    body.protected-shell #searchActionDesktop.search-action {
       width: 20px;
       height: 20px;
       color: rgba(255,255,255,0.54);
     }
-    body.protected-old-shell #searchInputDesktop.search-input {
+    body.protected-shell #searchInputDesktop.search-input {
       width: 187px;
       min-width: 187px;
       max-width: 187px;
     }
-    body.protected-old-shell #searchActionDesktop.search-action img.search-field-mag-icon,
-    body.protected-old-shell #searchbar .search-input-wrap.mobile .search-infield-icon img.search-field-mag-icon {
+    body.protected-shell #searchActionDesktop.search-action img.search-field-mag-icon,
+    body.protected-shell #searchbar .search-input-wrap.mobile .search-infield-icon img.search-field-mag-icon {
       width: 18px;
       height: 18px;
       display: block;
       object-fit: contain;
       filter: brightness(0) saturate(100%) invert(77%) sepia(0%) saturate(0%) hue-rotate(158deg) brightness(92%) contrast(91%);
     }
-    body.protected-old-shell #searchActionDesktop.search-action .search-mag-svg,
-    body.protected-old-shell #searchbar .search-input-wrap.mobile .search-infield-icon .search-mag-svg {
+    body.protected-shell #searchActionDesktop.search-action .search-mag-svg,
+    body.protected-shell #searchbar .search-input-wrap.mobile .search-infield-icon .search-mag-svg {
       display: none !important;
     }
-    body.protected-old-shell #searchActionDesktop.search-action.is-clear img.search-field-mag-icon {
+    body.protected-shell #searchActionDesktop.search-action.is-clear img.search-field-mag-icon {
       display: none !important;
     }
-    body.protected-old-shell #searchActionDesktop.search-action.is-mag .search-clear-x {
+    body.protected-shell #searchActionDesktop.search-action.is-mag .search-clear-x {
       display: none !important;
     }
-    body.protected-old-shell #searchbar .search-input-wrap.mobile {
+    body.protected-shell #searchbar .search-input-wrap.mobile {
       position: relative;
     }
-    body.protected-old-shell #searchbar .search-input-wrap.mobile .search-infield-icon {
+    body.protected-shell #searchbar .search-input-wrap.mobile .search-infield-icon {
       left: auto;
       right: 8px;
       width: 18px;
@@ -1607,14 +1674,14 @@ function installStyles() {
       color: rgba(255,255,255,0.54);
       pointer-events: none;
     }
-    body.protected-old-shell #searchbar .search-input-wrap.mobile.has-clear .search-infield-icon {
+    body.protected-shell #searchbar .search-input-wrap.mobile.has-clear .search-infield-icon {
       display: none;
     }
-    body.protected-old-shell #searchInputMobile {
+    body.protected-shell #searchInputMobile {
       padding-left: 10px;
       padding-right: 38px;
     }
-    body.protected-old-shell #searchClearMobile {
+    body.protected-shell #searchClearMobile {
       right: 8px;
       width: 18px;
       height: 18px;
@@ -1628,22 +1695,22 @@ function installStyles() {
       line-height: 1;
       color: rgba(255,255,255,0.78);
     }
-    body.protected-old-shell #searchClearMobile.hidden {
+    body.protected-shell #searchClearMobile.hidden {
       display: none !important;
     }
-    body.protected-old-shell #searchFloatControls {
+    body.protected-shell #searchFloatControls {
       display: none !important;
       gap: 4px;
       padding: 8px 10px;
       border-radius: 10px;
     }
-    body.protected-old-shell #searchFloatControls .search-float-btn {
+    body.protected-shell #searchFloatControls .search-float-btn {
       width: 43px;
       height: 43px;
       min-width: 43px;
       min-height: 43px;
     }
-    body.protected-old-shell #searchFloatControls .search-float-btn svg {
+    body.protected-shell #searchFloatControls .search-float-btn svg {
       width: 24px;
       height: 24px;
       display: block;
@@ -1653,13 +1720,13 @@ function installStyles() {
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-    body.protected-old-shell #searchFloatReturn.search-float-btn {
+    body.protected-shell #searchFloatReturn.search-float-btn {
       width: 36px;
       height: 36px;
       min-width: 36px;
       min-height: 36px;
     }
-    body.protected-old-shell #searchFloatReturn.search-float-btn img {
+    body.protected-shell #searchFloatReturn.search-float-btn img {
       width: 19px;
       height: 19px;
       display: block;
@@ -1785,50 +1852,50 @@ function installStyles() {
     #protectedNotesShareBtn.is-failed {
       color: #ffb1b1;
     }
-    body.protected-old-shell #overlay-library #tocView ul,
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList,
-    body.protected-old-shell #overlay-library #bookmarksView ul,
-    body.protected-old-shell #overlay-library #notes,
-    body.protected-old-shell #overlay-library #mybooks {
+    body.protected-shell #overlay-library #tocView ul,
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList,
+    body.protected-shell #overlay-library #bookmarksView ul,
+    body.protected-shell #overlay-library #notes,
+    body.protected-shell #overlay-library #mybooks {
       padding-left: 20px;
       margin-top: 0;
       margin-bottom: 24px;
     }
-    body.protected-old-shell #overlay-library #tocView li,
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList li,
-    body.protected-old-shell #overlay-library #bookmarksView li,
-    body.protected-old-shell #overlay-library #notes > li.list_item,
-    body.protected-old-shell #overlay-library #mybooks > li.list_item {
+    body.protected-shell #overlay-library #tocView li,
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList li,
+    body.protected-shell #overlay-library #bookmarksView li,
+    body.protected-shell #overlay-library #notes > li.list_item,
+    body.protected-shell #overlay-library #mybooks > li.list_item {
       width: auto;
       background: transparent;
       border: 0;
       box-shadow: none;
     }
-    body.protected-old-shell #overlay-library #tocView a,
-    body.protected-old-shell #overlay-library #tocView .toc_link,
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList a,
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList button.bookmark_link,
-    body.protected-old-shell #overlay-library #notesView a,
-    body.protected-old-shell #overlay-library #notesView button.bookmark_link,
-    body.protected-old-shell #overlay-library #bookmarksView a,
-    body.protected-old-shell #overlay-library #bookmarksView button.bookmark_link,
-    body.protected-old-shell #overlay-library #notes .bookmark_link,
-    body.protected-old-shell #overlay-library #notes .bookmark-comment,
-    body.protected-old-shell #overlay-library #mybooks a,
-    body.protected-old-shell #overlay-library #mybooks .book-title,
-    body.protected-old-shell #overlay-library #mybooks .book-meta {
+    body.protected-shell #overlay-library #tocView a,
+    body.protected-shell #overlay-library #tocView .toc_link,
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList a,
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList button.bookmark_link,
+    body.protected-shell #overlay-library #notesView a,
+    body.protected-shell #overlay-library #notesView button.bookmark_link,
+    body.protected-shell #overlay-library #bookmarksView a,
+    body.protected-shell #overlay-library #bookmarksView button.bookmark_link,
+    body.protected-shell #overlay-library #notes .bookmark_link,
+    body.protected-shell #overlay-library #notes .bookmark-comment,
+    body.protected-shell #overlay-library #mybooks a,
+    body.protected-shell #overlay-library #mybooks .book-title,
+    body.protected-shell #overlay-library #mybooks .book-meta {
       color: inherit;
       background: transparent !important;
     }
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList {
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList {
       list-style: none;
     }
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList > li.list_item,
-    body.protected-old-shell #overlay-library #notesView > li.list_item,
-    body.protected-old-shell #overlay-library #notes > li.list_item,
-    body.protected-old-shell #overlay-library #bookmarksView > li.list_item,
-    body.protected-old-shell #overlay-library #bookmarks > li.list_item,
-    body.protected-old-shell #overlay-library #mybooks > li.list_item {
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList > li.list_item,
+    body.protected-shell #overlay-library #notesView > li.list_item,
+    body.protected-shell #overlay-library #notes > li.list_item,
+    body.protected-shell #overlay-library #bookmarksView > li.list_item,
+    body.protected-shell #overlay-library #bookmarks > li.list_item,
+    body.protected-shell #overlay-library #mybooks > li.list_item {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
@@ -1841,28 +1908,28 @@ function installStyles() {
       -webkit-touch-callout: none;
       touch-action: manipulation;
     }
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList > li.list_item:last-child,
-    body.protected-old-shell #overlay-library #notesView > li.list_item:last-child,
-    body.protected-old-shell #overlay-library #notes > li.list_item:last-child,
-    body.protected-old-shell #overlay-library #bookmarksView > li.list_item:last-child,
-    body.protected-old-shell #overlay-library #bookmarks > li.list_item:last-child,
-    body.protected-old-shell #overlay-library #mybooks > li.list_item:last-child {
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList > li.list_item:last-child,
+    body.protected-shell #overlay-library #notesView > li.list_item:last-child,
+    body.protected-shell #overlay-library #notes > li.list_item:last-child,
+    body.protected-shell #overlay-library #bookmarksView > li.list_item:last-child,
+    body.protected-shell #overlay-library #bookmarks > li.list_item:last-child,
+    body.protected-shell #overlay-library #mybooks > li.list_item:last-child {
       margin-bottom: 0;
       border-bottom: 0;
     }
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-text,
-    body.protected-old-shell #overlay-library #notesView .bookmark-text,
-    body.protected-old-shell #overlay-library #notes .bookmark-text,
-    body.protected-old-shell #overlay-library #bookmarksView .bookmark-text,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark-text,
-    body.protected-old-shell #overlay-library #mybooks .bookmark-text {
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList .bookmark-text,
+    body.protected-shell #overlay-library #notesView .bookmark-text,
+    body.protected-shell #overlay-library #notes .bookmark-text,
+    body.protected-shell #overlay-library #bookmarksView .bookmark-text,
+    body.protected-shell #overlay-library #bookmarks .bookmark-text,
+    body.protected-shell #overlay-library #mybooks .bookmark-text {
       flex: 1 1 auto;
       min-width: 0;
       margin: 0;
       padding: 0;
     }
-    body.protected-old-shell #overlay-library #notesView .bookmark-page-label,
-    body.protected-old-shell #overlay-library #notes .bookmark-page-label {
+    body.protected-shell #overlay-library #notesView .bookmark-page-label,
+    body.protected-shell #overlay-library #notes .bookmark-page-label {
       display: block;
       margin: 0 0 6px;
       padding: 0;
@@ -1870,12 +1937,12 @@ function installStyles() {
       line-height: 1.1;
       color: rgba(255,255,255,0.95);
     }
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark_link,
-    body.protected-old-shell #overlay-library #notesView .bookmark_link,
-    body.protected-old-shell #overlay-library #notes .bookmark_link,
-    body.protected-old-shell #overlay-library #bookmarksView .bookmark_link,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark_link,
-    body.protected-old-shell #overlay-library #mybooks .bookmark_link {
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList .bookmark_link,
+    body.protected-shell #overlay-library #notesView .bookmark_link,
+    body.protected-shell #overlay-library #notes .bookmark_link,
+    body.protected-shell #overlay-library #bookmarksView .bookmark_link,
+    body.protected-shell #overlay-library #bookmarks .bookmark_link,
+    body.protected-shell #overlay-library #mybooks .bookmark_link {
       margin: 0;
       padding: 0;
       display: block;
@@ -1894,7 +1961,7 @@ function installStyles() {
       -webkit-touch-callout: none;
       touch-action: manipulation;
     }
-    body.protected-old-shell #overlay-library #mybooks .bookmark_link {
+    body.protected-shell #overlay-library #mybooks .bookmark_link {
       color: rgba(255,255,255,0.96);
       font-size: 0.96em;
       font-weight: 600;
@@ -1906,8 +1973,8 @@ function installStyles() {
       text-overflow: ellipsis;
       max-height: calc(1.24em * 2);
     }
-    body.protected-old-shell #overlay-library #notesView .bookmark_link,
-    body.protected-old-shell #overlay-library #notes .bookmark_link {
+    body.protected-shell #overlay-library #notesView .bookmark_link,
+    body.protected-shell #overlay-library #notes .bookmark_link {
       font-size: 0.84em;
       line-height: 1.32;
       display: -webkit-box;
@@ -1917,12 +1984,12 @@ function installStyles() {
       text-overflow: ellipsis;
       color: rgba(255,255,255,0.92);
     }
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-comment,
-    body.protected-old-shell #overlay-library #notesView .bookmark-comment,
-    body.protected-old-shell #overlay-library #notes .bookmark-comment,
-    body.protected-old-shell #overlay-library #bookmarksView .bookmark-comment,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark-comment,
-    body.protected-old-shell #overlay-library #mybooks .bookmark-comment {
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList .bookmark-comment,
+    body.protected-shell #overlay-library #notesView .bookmark-comment,
+    body.protected-shell #overlay-library #notes .bookmark-comment,
+    body.protected-shell #overlay-library #bookmarksView .bookmark-comment,
+    body.protected-shell #overlay-library #bookmarks .bookmark-comment,
+    body.protected-shell #overlay-library #mybooks .bookmark-comment {
       margin: 6px 0 0;
       padding: 0;
       font-size: 0.84em;
@@ -1930,17 +1997,17 @@ function installStyles() {
       user-select: none;
       -webkit-user-select: none;
     }
-    body.protected-old-shell #overlay-library #mybooks .bookmark-comment {
+    body.protected-shell #overlay-library #mybooks .bookmark-comment {
       color: rgba(255,255,255,0.56);
       font-size: 0.78em;
       line-height: 1.24;
     }
-    body.protected-old-shell #protectedSettingsBookCardMount {
+    body.protected-shell #protectedSettingsBookCardMount {
       margin: 0 0 18px;
       padding: 0 0 18px;
       border-bottom: 1px solid rgba(255,255,255,0.14);
     }
-    body.protected-old-shell #protectedSettingsBookCardMount #menuBookCard {
+    body.protected-shell #protectedSettingsBookCardMount #menuBookCard {
       display: flex;
       gap: 14px;
       align-items: center;
@@ -1952,10 +2019,10 @@ function installStyles() {
       box-shadow: none;
       overflow: hidden;
     }
-    body.protected-old-shell #protectedSettingsBookCardMount #menuBookCard > * {
+    body.protected-shell #protectedSettingsBookCardMount #menuBookCard > * {
       min-width: 0;
     }
-    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-cover-wrap {
+    body.protected-shell #protectedSettingsBookCardMount .menu-book-cover-wrap {
       width: 104px;
       height: 148px;
       display: flex;
@@ -1966,58 +2033,58 @@ function installStyles() {
       max-width: 104px;
       overflow: hidden;
     }
-    body.protected-old-shell #protectedSettingsBookCardMount #menuBookCover,
-    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-cover,
-    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-cover-placeholder {
+    body.protected-shell #protectedSettingsBookCardMount #menuBookCover,
+    body.protected-shell #protectedSettingsBookCardMount .menu-book-cover,
+    body.protected-shell #protectedSettingsBookCardMount .menu-book-cover-placeholder {
       width: 100%;
       height: 100%;
     }
-    body.protected-old-shell #protectedSettingsBookCardMount #menuBookCover,
-    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-cover {
+    body.protected-shell #protectedSettingsBookCardMount #menuBookCover,
+    body.protected-shell #protectedSettingsBookCardMount .menu-book-cover {
       display: block;
       object-fit: contain;
       object-position: left center;
     }
-    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-cover-placeholder {
+    body.protected-shell #protectedSettingsBookCardMount .menu-book-cover-placeholder {
       background: transparent;
       border: 0;
     }
-    body.protected-old-shell #protectedSettingsBookCardMount .menu-book-meta {
+    body.protected-shell #protectedSettingsBookCardMount .menu-book-meta {
       min-width: 0;
       flex: 1 1 auto;
       display: flex;
       flex-direction: column;
       justify-content: center;
     }
-    body.protected-old-shell #protectedSettingsBookCardMount #menuBookTitle,
-    body.protected-old-shell #protectedSettingsBookCardMount #menuBookAuthor {
+    body.protected-shell #protectedSettingsBookCardMount #menuBookTitle,
+    body.protected-shell #protectedSettingsBookCardMount #menuBookAuthor {
       width: auto;
       text-align: left;
       line-height: 1.35;
     }
-    body.protected-old-shell #protectedSettingsBookCardMount #menuBookTitle {
+    body.protected-shell #protectedSettingsBookCardMount #menuBookTitle {
       font-size: 18px;
       font-weight: 600;
       margin: 0;
     }
-    body.protected-old-shell #protectedSettingsBookCardMount #menuBookAuthor {
+    body.protected-shell #protectedSettingsBookCardMount #menuBookAuthor {
       font-size: 14px;
       opacity: 0.9;
       margin: 8px 0 0;
     }
-    body.protected-old-shell #overlay-library #notesView .bookmark-comment,
-    body.protected-old-shell #overlay-library #notes .bookmark-comment {
+    body.protected-shell #overlay-library #notesView .bookmark-comment,
+    body.protected-shell #overlay-library #notes .bookmark-comment {
       margin-top: 10px;
       font-size: 1em;
       line-height: 1.34;
       color: rgba(255,255,255,0.96);
     }
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-delete,
-    body.protected-old-shell #overlay-library #notesView .bookmark-delete,
-    body.protected-old-shell #overlay-library #notes .bookmark-delete,
-    body.protected-old-shell #overlay-library #bookmarksView .bookmark-delete,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete,
-    body.protected-old-shell #overlay-library #mybooks .bookmark-delete {
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList .bookmark-delete,
+    body.protected-shell #overlay-library #notesView .bookmark-delete,
+    body.protected-shell #overlay-library #notes .bookmark-delete,
+    body.protected-shell #overlay-library #bookmarksView .bookmark-delete,
+    body.protected-shell #overlay-library #bookmarks .bookmark-delete,
+    body.protected-shell #overlay-library #mybooks .bookmark-delete {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -2038,27 +2105,27 @@ function installStyles() {
       -webkit-user-select: none;
       touch-action: manipulation;
     }
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-delete:hover,
-    body.protected-old-shell #overlay-library #notesView .bookmark-delete:hover,
-    body.protected-old-shell #overlay-library #notes .bookmark-delete:hover,
-    body.protected-old-shell #overlay-library #bookmarksView .bookmark-delete:hover,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete:hover,
-    body.protected-old-shell #overlay-library #mybooks .bookmark-delete:hover {
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList .bookmark-delete:hover,
+    body.protected-shell #overlay-library #notesView .bookmark-delete:hover,
+    body.protected-shell #overlay-library #notes .bookmark-delete:hover,
+    body.protected-shell #overlay-library #bookmarksView .bookmark-delete:hover,
+    body.protected-shell #overlay-library #bookmarks .bookmark-delete:hover,
+    body.protected-shell #overlay-library #mybooks .bookmark-delete:hover {
       opacity: 1;
     }
-    body.protected-old-shell #overlay-library #protectedLibraryBookmarksList .bookmark-delete svg,
-    body.protected-old-shell #overlay-library #notesView .bookmark-delete svg,
-    body.protected-old-shell #overlay-library #notes .bookmark-delete svg,
-    body.protected-old-shell #overlay-library #bookmarksView .bookmark-delete svg,
-    body.protected-old-shell #overlay-library #bookmarks .bookmark-delete svg,
-    body.protected-old-shell #overlay-library #mybooks .bookmark-delete svg {
+    body.protected-shell #overlay-library #protectedLibraryBookmarksList .bookmark-delete svg,
+    body.protected-shell #overlay-library #notesView .bookmark-delete svg,
+    body.protected-shell #overlay-library #notes .bookmark-delete svg,
+    body.protected-shell #overlay-library #bookmarksView .bookmark-delete svg,
+    body.protected-shell #overlay-library #bookmarks .bookmark-delete svg,
+    body.protected-shell #overlay-library #mybooks .bookmark-delete svg {
       width: 18px;
       height: 18px;
       stroke: currentColor;
       stroke-width: 1.8;
       fill: none;
     }
-    body.protected-old-shell #overlay-library #tocView button {
+    body.protected-shell #overlay-library #tocView button {
       appearance: none;
       -webkit-appearance: none;
       background: transparent;
@@ -2070,12 +2137,12 @@ function installStyles() {
       text-align: left;
       box-shadow: none;
     }
-    body.protected-old-shell #overlay-library #tocView li.currentChapter > a.toc_link,
-    body.protected-old-shell #overlay-library #tocView li.currentChapter > .toc_link {
+    body.protected-shell #overlay-library #tocView li.currentChapter > a.toc_link,
+    body.protected-shell #overlay-library #tocView li.currentChapter > .toc_link {
       background: transparent !important;
       text-decoration: underline;
     }
-    body.protected-old-shell #overlay-library .notes-copy-link-wrap {
+    body.protected-shell #overlay-library .notes-copy-link-wrap {
       display: none !important;
     }
     #overlay-settings {
@@ -2393,67 +2460,67 @@ function installStyles() {
     #overlay-menu [data-menu="voice"] {
       display: none !important;
     }
-    body.protected-old-shell .protected-control-disabled,
-    body.protected-old-shell .protected-control-disabled:hover {
+    body.protected-shell .protected-control-disabled,
+    body.protected-shell .protected-control-disabled:hover {
       opacity: 0.42;
       cursor: not-allowed;
       pointer-events: none;
       background: transparent;
     }
-    body.protected-old-shell #page-count {
+    body.protected-shell #page-count {
       visibility: visible;
     }
-    body.protected-old-shell.protected-theme-dark {
+    body.protected-shell.protected-theme-dark {
       background: #101926;
     }
-    body.protected-old-shell.protected-theme-dark #main,
-    body.protected-old-shell.protected-theme-dark #viewerStack,
-    body.protected-old-shell.protected-theme-dark #viewer,
-    body.protected-old-shell.protected-theme-dark #viewer-prev,
-    body.protected-old-shell.protected-theme-dark #viewer-next {
+    body.protected-shell.protected-theme-dark #main,
+    body.protected-shell.protected-theme-dark #viewerStack,
+    body.protected-shell.protected-theme-dark #viewer,
+    body.protected-shell.protected-theme-dark #viewer-prev,
+    body.protected-shell.protected-theme-dark #viewer-next {
       background: #101926 !important;
     }
-    body.protected-old-shell.protected-theme-dark #protectedOldShellHost {
+    body.protected-shell.protected-theme-dark #protectedOldShellHost {
       background: transparent;
     }
-    body.protected-old-shell.protected-theme-dark #book-title,
-    body.protected-old-shell.protected-theme-dark #chapter-title,
-    body.protected-old-shell.protected-theme-dark #page-count {
+    body.protected-shell.protected-theme-dark #book-title,
+    body.protected-shell.protected-theme-dark #chapter-title,
+    body.protected-shell.protected-theme-dark #page-count {
       color: #eef4fb;
     }
-    body.protected-old-shell.protected-theme-dark #searchDesktop,
-    body.protected-old-shell.protected-theme-dark #searchbar {
+    body.protected-shell.protected-theme-dark #searchDesktop,
+    body.protected-shell.protected-theme-dark #searchbar {
       color: #eef4fb;
     }
-    body.protected-old-shell.protected-theme-dark #protectedTypographyTrigger[aria-expanded="true"] {
+    body.protected-shell.protected-theme-dark #protectedTypographyTrigger[aria-expanded="true"] {
       color: #ffffff;
     }
-    body.protected-old-shell #menuBookCoverPlaceholder {
+    body.protected-shell #menuBookCoverPlaceholder {
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
     }
-    body.protected-old-shell #overlay-toc #tocView ul,
-    body.protected-old-shell #overlay-bookmarks #bookmarksView ul {
+    body.protected-shell #overlay-toc #tocView ul,
+    body.protected-shell #overlay-bookmarks #bookmarksView ul {
       padding-left: 20px;
     }
-    body.protected-old-shell #overlay-toc #tocView li,
-    body.protected-old-shell #overlay-bookmarks #bookmarksView li {
+    body.protected-shell #overlay-toc #tocView li,
+    body.protected-shell #overlay-bookmarks #bookmarksView li {
       width: auto;
       background: transparent;
       border: 0;
       box-shadow: none;
     }
-    body.protected-old-shell #overlay-toc #tocView a,
-    body.protected-old-shell #overlay-toc #tocView .toc_link,
-    body.protected-old-shell #overlay-bookmarks #bookmarksView a {
+    body.protected-shell #overlay-toc #tocView a,
+    body.protected-shell #overlay-toc #tocView .toc_link,
+    body.protected-shell #overlay-bookmarks #bookmarksView a {
       display: inline;
       background: transparent;
       border: 0;
       box-shadow: none;
       color: inherit;
     }
-    body.protected-old-shell #overlay-toc #tocView button {
+    body.protected-shell #overlay-toc #tocView button {
       appearance: none;
       -webkit-appearance: none;
       background: transparent;
@@ -2465,24 +2532,24 @@ function installStyles() {
       text-align: left;
       box-shadow: none;
     }
-    body.protected-old-shell #overlay-toc #tocView .toc_toggle:before {
+    body.protected-shell #overlay-toc #tocView .toc_toggle:before {
       color: currentColor;
       opacity: 0.7;
     }
-    body.protected-old-shell #overlay-toc #tocView li.currentChapter > a.toc_link,
-    body.protected-old-shell #overlay-toc #tocView li.currentChapter > .toc_link {
+    body.protected-shell #overlay-toc #tocView li.currentChapter > a.toc_link,
+    body.protected-shell #overlay-toc #tocView li.currentChapter > .toc_link {
       background: transparent !important;
       text-decoration: underline;
     }
-    body.protected-old-shell.protected-theme-dark #overlay-toc #tocView a,
-    body.protected-old-shell.protected-theme-dark #overlay-toc #tocView .toc_link,
-    body.protected-old-shell.protected-theme-dark #overlay-bookmarks #bookmarksView a,
-    body.protected-old-shell.protected-theme-dark #overlay-bookmarks #bookmarksView .bookmark-comment {
+    body.protected-shell.protected-theme-dark #overlay-toc #tocView a,
+    body.protected-shell.protected-theme-dark #overlay-toc #tocView .toc_link,
+    body.protected-shell.protected-theme-dark #overlay-bookmarks #bookmarksView a,
+    body.protected-shell.protected-theme-dark #overlay-bookmarks #bookmarksView .bookmark-comment {
       color: #d7dee8;
       background: transparent !important;
     }
-    body.protected-old-shell.protected-theme-dark #overlay-toc #tocView li.currentChapter > a.toc_link,
-    body.protected-old-shell.protected-theme-dark #overlay-toc #tocView li.currentChapter > .toc_link {
+    body.protected-shell.protected-theme-dark #overlay-toc #tocView li.currentChapter > a.toc_link,
+    body.protected-shell.protected-theme-dark #overlay-toc #tocView li.currentChapter > .toc_link {
       color: #eef4fb;
       background: transparent !important;
     }
@@ -2509,7 +2576,7 @@ function installStyles() {
       font-weight: 600;
       white-space: nowrap;
     }
-    body.protected-old-shell .reader-engine-badge {
+    body.protected-shell .reader-engine-badge {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -2524,11 +2591,11 @@ function installStyles() {
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
-    body.protected-old-shell .reader-engine-badge {
+    body.protected-shell .reader-engine-badge {
       display: none !important;
     }
-    body.protected-old-shell #prev,
-    body.protected-old-shell #next {
+    body.protected-shell #prev,
+    body.protected-shell #next {
       appearance: none;
       -webkit-appearance: none;
       width: 78px;
@@ -2556,10 +2623,10 @@ function installStyles() {
       outline: none !important;
       box-shadow: none !important;
     }
-    body.protected-old-shell #prev:focus,
-    body.protected-old-shell #next:focus,
-    body.protected-old-shell #prev:focus-visible,
-    body.protected-old-shell #next:focus-visible,
+    body.protected-shell #prev:focus,
+    body.protected-shell #next:focus,
+    body.protected-shell #prev:focus-visible,
+    body.protected-shell #next:focus-visible,
     .protected-nav-edge:focus,
     .protected-nav-edge:focus-visible,
     .protected-nav-edge:active {
@@ -2567,15 +2634,15 @@ function installStyles() {
       box-shadow: none !important;
       -webkit-tap-highlight-color: transparent !important;
     }
-    body.protected-old-shell #prev::before,
-    body.protected-old-shell #next::before {
+    body.protected-shell #prev::before,
+    body.protected-shell #next::before {
       content: none;
       pointer-events: none;
       opacity: 1;
       transition: opacity 160ms ease;
     }
-    body.protected-old-shell #prev::after,
-    body.protected-old-shell #next::after {
+    body.protected-shell #prev::after,
+    body.protected-shell #next::after {
       content: "";
       position: absolute;
       width: 16px;
@@ -2589,37 +2656,37 @@ function installStyles() {
       opacity: 0;
       transition: opacity 160ms ease;
     }
-    body.protected-old-shell #next::after {
+    body.protected-shell #next::after {
       margin-left: -12px;
       transform: rotate(45deg);
     }
-    body.protected-old-shell #prev::after {
+    body.protected-shell #prev::after {
       margin-left: -4px;
       transform: rotate(-135deg);
     }
-    body.protected-old-shell.protected-theme-dark #prev::after,
-    body.protected-old-shell.protected-theme-dark #next::after {
+    body.protected-shell.protected-theme-dark #prev::after,
+    body.protected-shell.protected-theme-dark #next::after {
       border-top-color: rgba(214, 222, 232, 0.96);
       border-right-color: rgba(214, 222, 232, 0.96);
     }
-    html.is-desktop body.protected-old-shell #prev,
-    html.is-desktop body.protected-old-shell #next,
-    html.is-desktop body.protected-old-shell #prev::after,
-    html.is-desktop body.protected-old-shell #next::after {
+    html.is-desktop body.protected-shell #prev,
+    html.is-desktop body.protected-shell #next,
+    html.is-desktop body.protected-shell #prev::after,
+    html.is-desktop body.protected-shell #next::after {
       opacity: 1;
     }
     @media (orientation: landscape) {
-      html.is-phone body.protected-old-shell #prev,
-      html.is-phone body.protected-old-shell #next,
-      html.is-tablet body.protected-old-shell #prev,
-      html.is-tablet body.protected-old-shell #next {
+      html.is-phone body.protected-shell #prev,
+      html.is-phone body.protected-shell #next,
+      html.is-tablet body.protected-shell #prev,
+      html.is-tablet body.protected-shell #next {
         display: flex !important;
         opacity: 1;
       }
-      html.is-phone body.protected-old-shell #prev::after,
-      html.is-phone body.protected-old-shell #next::after,
-      html.is-tablet body.protected-old-shell #prev::after,
-      html.is-tablet body.protected-old-shell #next::after {
+      html.is-phone body.protected-shell #prev::after,
+      html.is-phone body.protected-shell #next::after,
+      html.is-tablet body.protected-shell #prev::after,
+      html.is-tablet body.protected-shell #next::after {
         opacity: 1;
       }
     }
@@ -2695,6 +2762,30 @@ function getFontScaleStorageKey() {
 
 function getFontModeStorageKey() {
   return `${FONT_MODE_STORAGE_PREFIX}${getCurrentBookId()}`;
+}
+
+function migratePriorProtectedShellStorageValue({ currentKey = "", valueSuffix = "", normalize }) {
+  try {
+    if (!currentKey || !valueSuffix || typeof normalize !== "function") return "";
+    const currentValue = window.localStorage.getItem(currentKey);
+    if (currentValue != null && String(currentValue).trim()) {
+      return normalize(currentValue);
+    }
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const candidateKey = String(window.localStorage.key(index) || "");
+      if (!candidateKey || candidateKey === currentKey) continue;
+      if (!candidateKey.startsWith("readerpub:protected-")) continue;
+      if (!candidateKey.endsWith(valueSuffix)) continue;
+      const legacyValue = window.localStorage.getItem(candidateKey);
+      if (legacyValue == null || !String(legacyValue).trim()) continue;
+      const normalizedValue = normalize(legacyValue);
+      if (String(normalizedValue || "").trim()) {
+        window.localStorage.setItem(currentKey, String(normalizedValue));
+        return normalizedValue;
+      }
+    }
+  } catch (_error) {}
+  return "";
 }
 
 function getProtectedNotesShareButton() {
@@ -2912,7 +3003,12 @@ function getShellPreferredFontMode() {
     }
   } catch (_error) {}
   try {
-    return normalizeFontMode(window.localStorage.getItem(getFontModeStorageKey()));
+    const currentValue = migratePriorProtectedShellStorageValue({
+      currentKey: getFontModeStorageKey(),
+      valueSuffix: `:font-mode:${getCurrentBookId()}`,
+      normalize: normalizeFontMode
+    });
+    if (currentValue) return currentValue;
   } catch (_error) {}
   return "sans";
 }
@@ -2927,23 +3023,20 @@ function persistShellFontMode(fontMode) {
 
 function getShellPreferredFontScale() {
   try {
-    const raw = window.localStorage.getItem(getFontScaleStorageKey());
+    const raw = migratePriorProtectedShellStorageValue({
+      currentKey: getFontScaleStorageKey(),
+      valueSuffix: `:font-scale:${getCurrentBookId()}`,
+      normalize: (value) => {
+        const stored = Number(value || "");
+        if (!Number.isFinite(stored) || stored <= 0) return "";
+        return String(Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2)))));
+      }
+    });
     const stored = Number(raw || "");
     if (Number.isFinite(stored) && stored > 0) {
       return Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2))));
     }
   } catch (_error) {}
-  try {
-    const settings = window.reader && window.reader.settings ? window.reader.settings : null;
-    const pct = settings &&
-      settings.styles &&
-      settings.styles.fontSize
-        ? parseInt(String(settings.styles.fontSize).replace(/[^0-9]/g, ""), 10)
-        : settings && settings.fontSizePct
-          ? parseInt(String(settings.fontSizePct).replace(/[^0-9]/g, ""), 10)
-          : 0;
-    if (Number.isFinite(pct) && pct > 0) return Math.max(0.8, Math.min(1.6, Number((pct / 100).toFixed(2))));
-  } catch (error) {}
   try {
     const ua = (navigator && navigator.userAgent) ? navigator.userAgent : "";
     const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
@@ -2956,20 +3049,8 @@ function getShellPreferredFontScale() {
 
 function persistShellFontScale(fontScale) {
   const normalizedScale = Math.max(0.8, Math.min(1.6, Number(fontScale || 1)));
-  const pct = Math.max(80, Math.min(160, Math.round(normalizedScale * 100)));
-  const value = `${pct}%`;
   try {
     window.localStorage.setItem(getFontScaleStorageKey(), String(normalizedScale));
-  } catch (_error) {}
-  try {
-    if (!window.reader) return normalizedScale;
-    window.reader.settings = window.reader.settings || {};
-    window.reader.settings.styles = window.reader.settings.styles || {};
-    window.reader.settings.styles.fontSize = value;
-    window.reader.settings.fontSizePct = pct;
-    if (typeof window.reader.saveSettings === "function") {
-      window.reader.saveSettings();
-    }
   } catch (_error) {}
   return normalizedScale;
 }
@@ -3009,12 +3090,6 @@ function closeAllShellOverlays() {
   closeSearchOverlay();
   closeLibraryOverlay();
   closeTypographyPanel();
-  try {
-    if (typeof window.__fbCloseOverlays === "function") {
-      window.__fbCloseOverlays();
-      return;
-    }
-  } catch (error) {}
   [
     "overlay-toc",
     "overlay-bookmarks",
@@ -3070,6 +3145,37 @@ function getBookmarkStorageKeys(bookId = getCurrentBookId()) {
   if (normalizedPrimary) aliases.add(normalizedPrimary);
   if (!aliases.size) aliases.add("unknown");
   return [...aliases].map((id) => getBookmarkStorageKey(id));
+}
+
+function migrateLegacyStoredBookmarks(bookId = getCurrentBookId()) {
+  try {
+    const aliases = getRestoreTokenBookIdAliases();
+    const normalizedPrimary = String(bookId || "").trim();
+    if (normalizedPrimary) aliases.add(normalizedPrimary);
+    if (!aliases.size) aliases.add("unknown");
+    let didMigrate = false;
+    for (const id of aliases) {
+      const currentKey = getBookmarkStorageKey(id);
+      const currentRaw = window.localStorage.getItem(currentKey);
+      if (currentRaw != null && String(currentRaw).trim()) continue;
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const candidateKey = String(window.localStorage.key(index) || "");
+        if (!candidateKey || candidateKey === currentKey) continue;
+        if (!candidateKey.startsWith("readerpub:protected-")) continue;
+        if (!candidateKey.endsWith(`:bookmarks:${id}`)) continue;
+        const legacyRaw = window.localStorage.getItem(candidateKey);
+        if (legacyRaw == null || !String(legacyRaw).trim()) continue;
+        const parsed = JSON.parse(legacyRaw);
+        const normalized = normalizeStoredBookmarks(parsed, id);
+        window.localStorage.setItem(currentKey, JSON.stringify(normalized));
+        didMigrate = true;
+        break;
+      }
+    }
+    return didMigrate;
+  } catch (_error) {
+    return false;
+  }
 }
 
 function parseHostRestoreToken(token) {
@@ -3160,6 +3266,7 @@ function normalizeStoredBookmarks(bookmarks, bookId = getCurrentBookId()) {
 
 function loadStoredBookmarks(bookId = getCurrentBookId()) {
   try {
+    migrateLegacyStoredBookmarks(bookId);
     const merged = [];
     for (const storageKey of getBookmarkStorageKeys(bookId)) {
       const raw = window.localStorage.getItem(storageKey);
@@ -3249,11 +3356,6 @@ function setMenuBookMeta(summary) {
       cover = rawCover;
     }
   }
-  try {
-    if (typeof window.__fbUpdateMenuBookMeta === "function") {
-      window.__fbUpdateMenuBookMeta({ title, author, cover });
-    }
-  } catch (error) {}
   const titleNode = document.getElementById("menuBookTitle");
   const authorNode = document.getElementById("menuBookAuthor");
   const coverNode = document.getElementById("menuBookCover");
@@ -4081,7 +4183,6 @@ function ensureBottomCatalogLink() {
 
 function applyUnifiedShellChrome() {
   installStyles();
-  document.body.classList.add("protected-old-shell");
   document.body.classList.toggle("protected-dev-panel", isDevPanelEnabled());
   ensureDesktopTopLinks();
   ensureBottomCatalogLink();
@@ -4103,10 +4204,18 @@ function applyUnifiedShellChrome() {
 function ensureSearchControl() {
   let wrap = document.getElementById("protectedSearchControl");
   if (wrap) return wrap;
+  const titleControls = document.getElementById("title-controls");
+  const themeToggle = document.getElementById("themeToggle");
+  if (!titleControls || !themeToggle) return null;
   wrap = document.createElement("span");
   wrap.id = "protectedSearchControl";
-  wrap.hidden = true;
-  document.body.appendChild(wrap);
+  wrap.innerHTML = `
+    <button type="button" id="protectedSearchTrigger" aria-label="Search" aria-controls="overlay-search" aria-expanded="false">
+      <img src="${PROTECTED_SEARCH_ICON_SRC}" alt="" aria-hidden="true" />
+    </button>
+  `;
+  titleControls.insertBefore(wrap, themeToggle);
+  ensureSearchOverlay();
   return wrap;
 }
 
@@ -5553,7 +5662,7 @@ async function handleAction(action) {
   };
   document.addEventListener("pointerdown", dismissSelectionUi, true);
   document.addEventListener("touchstart", dismissSelectionUi, { capture: true, passive: true });
-  window.__PROTECTED_OLD_SHELL_SHOW_SELECTION_TOOLBAR__ = (summary, clientX = 160, clientY = 160, pointerType = "") => {
+  window.__PROTECTED_SHELL_SHOW_SELECTION_TOOLBAR__ = (summary, clientX = 160, clientY = 160, pointerType = "") => {
     window.__protectedToolbarDebug = {
       ...(window.__protectedToolbarDebug || {}),
       hostInvokeAt: Date.now(),
@@ -5614,7 +5723,7 @@ function getBridgeSummaryFromFrame(frame) {
     return HOST_STATE.lastSummary;
   }
   try {
-    const bridge = getCompatSurface(frame);
+    const bridge = getHostBridgeSurface(frame);
     return bridge && typeof bridge.getSummary === "function" ? bridge.getSummary() : null;
   } catch (error) {
     return null;
@@ -6032,7 +6141,7 @@ function applyCanonicalReaderEvent(eventName, payload = {}) {
   emitShellReaderEvent(eventName, payload);
   const current = HOST_STATE.lastSummary && typeof HOST_STATE.lastSummary === "object"
     ? HOST_STATE.lastSummary
-    : { ready: true, compatTransport: getCompatTransportMode() };
+    : { ready: true, hostBridgeMode: getHostBridgeMode() };
   const nextSummary = {
     ...current,
     ...buildSummaryPatchFromCanonicalEvent(eventName, payload)
@@ -6040,38 +6149,38 @@ function applyCanonicalReaderEvent(eventName, payload = {}) {
   updateFromSummary(nextSummary);
 }
 
-function getCompatTransportMode() {
-  return "adapter";
+function getHostBridgeMode() {
+  return "direct";
 }
 
-function getCompatSurface(frame = HOST_STATE.frame) {
+function getHostBridgeSurface(frame = HOST_STATE.frame) {
   try {
     const win = getProtectedSurfaceWindow(frame);
     if (!win) return null;
-    return win.__PROTECTED_READER_COMPAT_ADAPTER__ || null;
+    return win.__PROTECTED_READER_HOST_BRIDGE__ || null;
   } catch (error) {
     return null;
   }
 }
 
 function getBridge() {
-  return getCompatSurface(HOST_STATE.frame);
+  return getHostBridgeSurface(HOST_STATE.frame);
 }
 
-function clearCompatEventSubscriptions() {
-  const unsubscribers = Array.isArray(HOST_STATE.compatEventUnsubscribe) ? HOST_STATE.compatEventUnsubscribe : [];
+function clearHostEventSubscriptions() {
+  const unsubscribers = Array.isArray(HOST_STATE.hostEventUnsubscribe) ? HOST_STATE.hostEventUnsubscribe : [];
   while (unsubscribers.length) {
     const unsubscribe = unsubscribers.pop();
     try {
       if (typeof unsubscribe === "function") unsubscribe();
     } catch (_error) {}
   }
-  HOST_STATE.compatEventUnsubscribe = [];
+  HOST_STATE.hostEventUnsubscribe = [];
 }
 
 function installCompatEventSubscriptions(frame = HOST_STATE.frame) {
-  clearCompatEventSubscriptions();
-  const surface = getCompatSurface(frame);
+  clearHostEventSubscriptions();
+  const surface = getHostBridgeSurface(frame);
   if (!surface || typeof surface.subscribe !== "function") return false;
   const eventNames = [
     "pageChanged",
@@ -6087,7 +6196,7 @@ function installCompatEventSubscriptions(frame = HOST_STATE.frame) {
       const unsubscribe = surface.subscribe(eventName, (payload) => {
         applyCanonicalReaderEvent(eventName, payload || {});
       });
-      if (typeof unsubscribe === "function") HOST_STATE.compatEventUnsubscribe.push(unsubscribe);
+      if (typeof unsubscribe === "function") HOST_STATE.hostEventUnsubscribe.push(unsubscribe);
     } catch (_error) {}
   }
   return true;
@@ -6096,7 +6205,7 @@ function installCompatEventSubscriptions(frame = HOST_STATE.frame) {
 async function invokeBridge(method, ...args) {
   const bridge = getBridge();
   if (!bridge || typeof bridge[method] !== "function") {
-    throw new Error(`Protected compat method unavailable: ${method}`);
+    throw new Error(`Protected host bridge method unavailable: ${method}`);
   }
   const fastUiMethod = method === "setTheme";
   const generationMeta = allocateBridgeGeneration(method);
@@ -6119,7 +6228,7 @@ async function invokeBridge(method, ...args) {
 async function invokeBridgeRaw(method, ...args) {
   const bridge = getBridge();
   if (!bridge || typeof bridge[method] !== "function") {
-    throw new Error(`Protected compat method unavailable: ${method}`);
+    throw new Error(`Protected host bridge method unavailable: ${method}`);
   }
   return bridge[method](...args);
 }
@@ -6327,20 +6436,6 @@ function ensureActionBar() {
   });
   document.getElementById("protectedShellOpenNotes").addEventListener("click", openNotesOverlay);
   return bar;
-}
-
-function installNoteComposerCloseHook() {
-  window.__fbOnNoteCommentClosed = async ({ reason } = {}) => {
-    const normalizedReason = String(reason || "close");
-    if (normalizedReason === "save") return;
-    hideSelectionToolbar();
-    HOST_STATE.cachedSelectionActionState = null;
-    HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
-    try {
-      const nextSummary = await invokeBridgeRaw("clearSelection");
-      if (nextSummary) updateFromSummary(nextSummary);
-    } catch (error) {}
-  };
 }
 
 async function ensurePageTurnPreviewsReady() {
@@ -7604,9 +7699,9 @@ function buildDirectProtectedRenderMarkup() {
             <span>Protected handoff metadata</span>
             <textarea id="handoff-state" name="handoff-state" rows="6"></textarea>
           </label>
-          <label class="annotation-field" for="compat-json">
-            <span>Production snapshot / compatibility JSON</span>
-            <textarea id="compat-json" name="compat-json" rows="8"></textarea>
+          <label class="annotation-field" for="import-report-json">
+            <span>Share/import JSON / report</span>
+            <textarea id="import-report-json" name="import-report-json" rows="8"></textarea>
           </label>
           <div id="annotation-list" class="annotation-list"></div>
         </section>
@@ -7628,7 +7723,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       await import("../dev/protected-reader.js?v=20260416-protected-render-padding-1");
       const startedAt = Date.now();
       while (Date.now() - startedAt < 20000) {
-        const surface = getCompatSurface(root);
+        const surface = getHostBridgeSurface(root);
         try {
           const summary = surface && typeof surface.getSummary === "function" ? surface.getSummary() : null;
           if (summary && summary.ready) return;
@@ -7680,9 +7775,9 @@ async function ensureDirectProtectedHost() {
 
   await ensureDirectProtectedRuntimeMounted(root);
   attachProtectedSurfaceInteractions(root);
-  clearCompatEventSubscriptions();
+  clearHostEventSubscriptions();
   installCompatEventSubscriptions(root);
-  const bridge = getCompatSurface(root);
+  const bridge = getHostBridgeSurface(root);
   if (bridge && typeof bridge.getSummary === "function") {
     try {
       updateFromSummary(bridge.getSummary());
@@ -7715,13 +7810,13 @@ function setUnavailableMessage(message) {
   });
 }
 
-async function bootOldShellProtectedHost() {
-  window.__PROTECTED_OLD_SHELL_HOST_BOOT_STARTED = true;
-  if (!window.__readerpubProtectedOldShellMode) return;
+async function bootProtectedShellHost() {
+  window.__PROTECTED_SHELL_HOST_BOOT_STARTED = true;
+  if (!window.__readerpubProtectedShellMode) return;
   setReaderNewUiSmokeState({ status: "booting", ready: false });
+  installProtectedViewportEnvironmentSync();
   installStyles();
-  installNoteComposerCloseHook();
-  document.body.classList.add("protected-old-shell");
+  document.body.classList.add("protected-shell");
   document.body.classList.toggle("protected-dev-panel", isDevPanelEnabled());
   installTouchUiVisibilityGuard();
   hideShellUi();
@@ -7737,12 +7832,6 @@ async function bootOldShellProtectedHost() {
   HOST_STATE.route = route;
   HOST_STATE.rolloutStatus = rolloutStatus;
 
-  if (rolloutStatus.action === "redirect-to-old-reader-with-reason") {
-    setReaderNewUiSmokeState({ status: "redirecting", ready: false });
-    window.location.replace(rolloutStatus.fallbackUrl);
-    return;
-  }
-
   if (rolloutStatus.action === "protected-unavailable-show-message") {
     setUnavailableMessage(rolloutStatus.message);
     return;
@@ -7755,18 +7844,18 @@ async function bootOldShellProtectedHost() {
 }
 
 function scheduleHostBoot() {
-  window.__PROTECTED_OLD_SHELL_HOST_BOOT_SCHEDULED = true;
+  window.__PROTECTED_SHELL_HOST_BOOT_SCHEDULED = true;
   setReaderNewUiSmokeState({ status: "boot-scheduled", ready: false });
   const run = () => {
-    bootOldShellProtectedHost().catch((error) => {
+    bootProtectedShellHost().catch((error) => {
       console.error(error);
-      window.__PROTECTED_OLD_SHELL_HOST_ERROR = error && error.message ? error.message : String(error);
+      window.__PROTECTED_SHELL_HOST_ERROR = error && error.message ? error.message : String(error);
       setReaderNewUiSmokeState({
         status: "boot-failed",
         ready: false,
         lastStatusText: error && error.message ? error.message : String(error)
       });
-      setUnavailableMessage(error && error.message ? error.message : "Protected old-shell host failed to boot.");
+      setUnavailableMessage(error && error.message ? error.message : "Protected shell host failed to boot.");
     });
   };
   if (document.readyState === "loading") {
@@ -7777,7 +7866,7 @@ function scheduleHostBoot() {
 }
 
 function waitForConfigAndBoot() {
-  const hasProtectedConfig = !!window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__;
+  const hasProtectedConfig = !!window.__READERPUB_PROTECTED_HOST_CONFIG__;
   if (hasProtectedConfig) {
     scheduleHostBoot();
     return;
@@ -7785,7 +7874,7 @@ function waitForConfigAndBoot() {
   let attempts = 0;
   const timer = window.setInterval(() => {
     attempts += 1;
-    const nextProtectedConfig = !!window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__;
+    const nextProtectedConfig = !!window.__READERPUB_PROTECTED_HOST_CONFIG__;
     if (nextProtectedConfig) {
       window.clearInterval(timer);
       scheduleHostBoot();
@@ -7805,7 +7894,14 @@ window.__readerpubEnsureUnifiedShellOverlays = function () {
   syncProtectedShellIcons();
 };
 window.addEventListener(
-  "readerpub:protected-old-shell-config",
+  "readerpub:protected-shell-config",
+  () => {
+    waitForConfigAndBoot();
+  },
+  { once: true }
+);
+window.addEventListener(
+  "readerpub:protected-host-config",
   () => {
     waitForConfigAndBoot();
   },

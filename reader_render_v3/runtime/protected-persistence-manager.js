@@ -1,5 +1,5 @@
 import {
-  assessProtectedBundleCompatibility,
+  assessProtectedBundleAssessment,
   createProtectedAnnotationBundle,
   normalizeProtectedAnnotationBundle
 } from "./protected-annotation-bundle.js";
@@ -20,8 +20,8 @@ function createEmptyDiagnostics({
   return {
     storageBackend,
     schemaVersion,
-    compatibilityStatus: "none",
-    compatibilityWarning: "",
+    persistenceStatus: "none",
+    persistenceWarning: "",
     readingStateSaved: false,
     annotationCount: 0,
     lastSavedAt: null,
@@ -112,8 +112,8 @@ export function createProtectedPersistenceManager({
       if (!localStore || !localStore.available) {
         diagnostics = {
           ...diagnostics,
-          compatibilityStatus: "memory-only",
-          compatibilityWarning: "Persistence backend is unavailable; using in-memory state only."
+          persistenceStatus: "memory-only",
+          persistenceWarning: "Persistence backend is unavailable; using in-memory state only."
         };
         return {
           applied: false,
@@ -127,8 +127,8 @@ export function createProtectedPersistenceManager({
       } catch (error) {
         diagnostics = {
           ...diagnostics,
-          compatibilityStatus: "corrupt",
-          compatibilityWarning: "Persisted protected state could not be read."
+          persistenceStatus: "corrupt",
+          persistenceWarning: "Persisted protected state could not be read."
         };
         return {
           applied: false,
@@ -139,8 +139,8 @@ export function createProtectedPersistenceManager({
       if (!stored) {
         diagnostics = {
           ...diagnostics,
-          compatibilityStatus: "none",
-          compatibilityWarning: ""
+          persistenceStatus: "none",
+          persistenceWarning: ""
         };
         return {
           applied: false,
@@ -154,8 +154,8 @@ export function createProtectedPersistenceManager({
       } catch (error) {
         diagnostics = {
           ...diagnostics,
-          compatibilityStatus: "corrupt",
-          compatibilityWarning: error && error.message ? error.message : "Persisted protected bundle is corrupt."
+          persistenceStatus: "corrupt",
+          persistenceWarning: error && error.message ? error.message : "Persisted protected bundle is corrupt."
         };
         return {
           applied: false,
@@ -163,16 +163,16 @@ export function createProtectedPersistenceManager({
           diagnostics: this.getDiagnostics()
         };
       }
-      const compatibility = assessProtectedBundleCompatibility(parsed, bookFingerprint);
+      const bundleAssessment = assessProtectedBundleAssessment(parsed, bookFingerprint);
       diagnostics = {
         ...diagnostics,
-        compatibilityStatus: compatibility.status,
-        compatibilityWarning: compatibility.warning || "",
+        persistenceStatus: bundleAssessment.status,
+        persistenceWarning: bundleAssessment.warning || "",
         annotationCount: Array.isArray(parsed.annotations) ? parsed.annotations.length : 0,
         readingStateSaved: !!parsed.readingState,
         lastSavedAt: parsed.updatedAt || null
       };
-      if (!compatibility.compatible) {
+      if (!bundleAssessment.allowed) {
         return {
           applied: false,
           bundle: this.getCurrentBundle(),
@@ -188,11 +188,11 @@ export function createProtectedPersistenceManager({
         readingState: parsed.readingState,
         metadata: {
           ...cloneJson(parsed.metadata || {}),
-          compatibilityStatus: compatibility.status
+          persistenceStatus: bundleAssessment.status
         },
         updatedAt: parsed.updatedAt || new Date().toISOString()
       });
-      if (compatibility.status === "legacy-upgraded") {
+      if (bundleAssessment.status === "legacy-upgraded") {
         await persistBundle();
       }
       return {
@@ -221,14 +221,14 @@ export function createProtectedPersistenceManager({
     },
     async saveBundle(bundle) {
       const parsed = normalizeProtectedAnnotationBundle(bundle);
-      const compatibility = assessProtectedBundleCompatibility(parsed, bookFingerprint);
+      const bundleAssessment = assessProtectedBundleAssessment(parsed, bookFingerprint);
       diagnostics = {
         ...diagnostics,
-        compatibilityStatus: compatibility.status,
-        compatibilityWarning: compatibility.warning || ""
+        persistenceStatus: bundleAssessment.status,
+        persistenceWarning: bundleAssessment.warning || ""
       };
-      if (!compatibility.compatible) {
-        throw new Error(compatibility.warning || "Protected bundle is incompatible with the current book.");
+      if (!bundleAssessment.allowed) {
+        throw new Error(bundleAssessment.warning || "Protected bundle does not match the current book.");
       }
       currentBundle = createProtectedAnnotationBundle({
         bookId,
@@ -260,7 +260,7 @@ export function createProtectedPersistenceManager({
           storageBackend: localStore ? localStore.type : "memory",
           bookFingerprint
         }),
-        compatibilityStatus: "cleared"
+        persistenceStatus: "cleared"
       };
       if (localStore && localStore.available) {
         await localStore.remove(persistenceKey);

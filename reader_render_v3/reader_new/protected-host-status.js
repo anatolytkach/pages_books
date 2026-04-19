@@ -1,10 +1,3 @@
-function withFallbackReason(oldReaderUrl, reason, baseUrl = "http://127.0.0.1") {
-  const url = new URL(oldReaderUrl, baseUrl);
-  url.searchParams.set("protectedFallbackReason", reason);
-  url.searchParams.set("protectedRequested", "1");
-  return `${url.pathname}${url.search}${url.hash}`;
-}
-
 function statusMessage(status) {
   switch (status) {
     case "eligible":
@@ -19,8 +12,8 @@ function statusMessage(status) {
       return "Protected mode is disabled by rollout policy.";
     case "ineligible-book-not-allowed":
       return "Protected mode is not enabled for this book.";
-    case "ineligible-hard-compat-failure":
-      return "Protected mode is blocked by a hard compatibility failure.";
+    case "ineligible-hard-blocked":
+      return "Protected mode is blocked by a hard protected-reader guard.";
     default:
       return "Protected mode is unavailable.";
   }
@@ -29,20 +22,15 @@ function statusMessage(status) {
 export function buildProtectedReaderStatus(route, rollout, eligibility, pilot = null) {
   const status = eligibility.status;
   let action = "open-protected-reader";
-  let fallbackUrl = "";
-  if (status === "ineligible-worker-unavailable") {
+  if (status === "ineligible-worker-unavailable" || !eligibility.eligible) {
     action = "protected-unavailable-show-message";
-  } else if (!eligibility.eligible) {
-    action = "redirect-to-old-reader-with-reason";
-    fallbackUrl = withFallbackReason(route.oldReaderUrl, status, route.url || "http://127.0.0.1");
   }
   return {
     kind: "protected-reader-status-v1",
     action,
     status,
     message: statusMessage(status),
-    fallbackReason: eligibility.eligible ? "" : status,
-    fallbackUrl,
+    unavailableReason: eligibility.eligible ? "" : status,
     rolloutEnabled: rollout.rolloutEnabled,
     explicitProtectedRequest: rollout.explicitProtectedRequest,
     bookAllowed: rollout.bookAllowed,
