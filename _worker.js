@@ -30,6 +30,7 @@ import {
 } from "./api/shared/worker-helpers.mjs";
 import { handleIdentityApiRoute } from "./api/identity/handlers.mjs";
 import { handlePublishingApiRoute } from "./api/publishing/handlers.mjs";
+import { handleReaderApiRoute } from "./api/reader/handlers.mjs";
 import { handleReaderAccessApiRoute } from "./api/reader-access/handlers.mjs";
 
 function notesShareCorsHeaders() {
@@ -2957,6 +2958,9 @@ export default {
       if (extractedResponse) return extractedResponse;
 
       extractedResponse = await handleCatalogApiRoute(extractedApiContext);
+      if (extractedResponse) return extractedResponse;
+
+      extractedResponse = await handleReaderApiRoute(extractedApiContext);
       if (extractedResponse) return extractedResponse;
 
       extractedResponse = await handleReaderAccessApiRoute(extractedApiContext);
