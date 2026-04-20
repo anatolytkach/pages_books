@@ -1,4 +1,10 @@
 import {
+  attachCatalogSnapshot,
+  buildCatalogBookInsert,
+  buildCatalogMetadataPatch,
+  getCatalogBook,
+} from "../catalog/book-record.mjs";
+import {
   completeProtectedPublishingUpload,
   createProtectedPublishingJob,
   downloadProtectedPublishingNormalizedEpub,
@@ -14,6 +20,11 @@ import {
   getBookReaderConfig,
   getRequestedReaderType,
 } from "../protected-publishing/shared.mjs";
+import {
+  attachPublishingSnapshot,
+  buildPublishingBookInsert,
+  buildPublishingStatePatch,
+} from "./pipeline-record.mjs";
 
 export async function handlePublishingApiRoute(context, deps) {
   const {
@@ -177,7 +188,7 @@ export async function handlePublishingApiRoute(context, deps) {
       params: `published_by_user_id=eq.${user.sub}&select=*,tenant:tenants!books_published_by_tenant_id_fkey(id,slug,name,tenant_type)&order=created_at.desc`,
     });
     if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-    return jsonResponse(data || [], 200, apiCorsHeaders);
+    return jsonResponse((data || []).map((item) => attachPublishingSnapshot(attachCatalogSnapshot(item))), 200, apiCorsHeaders);
   }
 
   const publishBookMatch = apiPath.match(/^\/publish\/books\/([0-9a-f-]+)$/);
@@ -194,7 +205,7 @@ export async function handlePublishingApiRoute(context, deps) {
       params: `book_id=eq.${bookId}&select=*&order=created_at.desc&limit=1`,
     });
     if (assets && assets.length) book.source_asset = assets[0];
-    return jsonResponse(book, 200, apiCorsHeaders);
+    return jsonResponse(attachPublishingSnapshot(attachCatalogSnapshot(book), { sourceAsset: book.source_asset }), 200, apiCorsHeaders);
   }
 
   const metaMatch = apiPath.match(/^\/publish\/books\/([0-9a-f-]+)\/metadata$/);
@@ -205,21 +216,19 @@ export async function handlePublishingApiRoute(context, deps) {
     const body = await request.json().catch(() => null);
     if (!body) return jsonResponse({ error: "Invalid JSON" }, 400, apiCorsHeaders);
 
-    const allowed = ["title", "author", "genre_id", "year_written", "isbn", "language", "annotation", "cover_url"];
-    const updates = {};
-    for (const key of allowed) {
-      if (body[key] !== undefined) updates[key] = body[key];
-    }
+    const updates = buildCatalogMetadataPatch(body);
     if (body.reader_type !== undefined || body.readerType !== undefined || body.protected !== undefined) {
       const { data: existingBook } = await sbFetch("books", {
         params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=id,content_id,manifest`,
         single: true,
       });
       if (!existingBook) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-      updates.manifest = buildBookManifest(existingBook.manifest, {
-        readerType: getRequestedReaderType(body, existingBook),
-        contentId: String(existingBook.content_id || "").trim(),
-      });
+      Object.assign(updates, buildPublishingStatePatch({
+        manifest: buildBookManifest(existingBook.manifest, {
+          readerType: getRequestedReaderType(body, existingBook),
+          contentId: String(existingBook.content_id || "").trim(),
+        }),
+      }));
     }
     if (!Object.keys(updates).length) {
       return jsonResponse({ error: "No fields to update" }, 400, apiCorsHeaders);
@@ -311,16 +320,18 @@ export async function handlePublishingApiRoute(context, deps) {
       lastError: requestedReaderType === "protected" ? readerConfig.protected.lastError : "",
     });
 
-    if (requestedReaderType === "protected" && readerConfig.protected.artifactStatus !== "ready") {
+        if (requestedReaderType === "protected" && readerConfig.protected.artifactStatus !== "ready") {
       const { data, error } = await sbFetch("books", {
         method: "PATCH",
         params: tenantContext.personal
           ? `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=is.null&select=*`
           : `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
         body: {
-          status: "processing",
-          visibility,
-          manifest: nextManifest,
+          ...buildCatalogMetadataPatch({ visibility }),
+          ...buildPublishingStatePatch({
+            status: "processing",
+            manifest: nextManifest,
+          }),
         },
         single: true,
       });
@@ -338,22 +349,24 @@ export async function handlePublishingApiRoute(context, deps) {
         ? `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=is.null&select=*`
         : `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
       body: {
-        status: "published",
-        visibility,
-        manifest: buildBookManifest(nextManifest, {
-          readerType: requestedReaderType,
-          contentId: String(book.content_id || ""),
-          visibility,
-          source,
-          sourceBookId: String(book.content_id || ""),
-          tenantId: tenantContext.personal ? "" : tenantContext.tenantId,
-          tenantSlug: tenantContext.personal ? "" : source,
-          publishRequested: false,
-          artifactStatus: requestedReaderType === "protected" ? "ready" : "",
-          protectedContentPath: requestedReaderType === "protected"
-            ? (readerConfig.protectedContentPath || `/books/protected-content/${book.content_id}`)
-            : "",
-          publishedAt: new Date().toISOString(),
+        ...buildCatalogMetadataPatch({ visibility }),
+        ...buildPublishingStatePatch({
+          status: "published",
+          manifest: buildBookManifest(nextManifest, {
+            readerType: requestedReaderType,
+            contentId: String(book.content_id || ""),
+            visibility,
+            source,
+            sourceBookId: String(book.content_id || ""),
+            tenantId: tenantContext.personal ? "" : tenantContext.tenantId,
+            tenantSlug: tenantContext.personal ? "" : source,
+            publishRequested: false,
+            artifactStatus: requestedReaderType === "protected" ? "ready" : "",
+            protectedContentPath: requestedReaderType === "protected"
+              ? (readerConfig.protectedContentPath || `/books/protected-content/${book.content_id}`)
+              : "",
+            publishedAt: new Date().toISOString(),
+          }),
         }),
       },
       single: true,
@@ -393,25 +406,28 @@ export async function handlePublishingApiRoute(context, deps) {
     const visibility = readerConfig.protected.visibility || book.visibility || "public";
     const source = readerConfig.protected.source || String(book?.tenant?.slug || "").trim() || "manual";
     const sourceBookId = readerConfig.protected.sourceBookId || String(book.content_id || "");
+    const catalogBook = getCatalogBook(book);
     const { data, error } = await sbFetch("books", {
       method: "PATCH",
       params: `id=eq.${bookId}&select=*`,
       body: {
-        status: "published",
-        visibility,
-        manifest: buildBookManifest(book.manifest, {
-          readerType: "protected",
-          contentId: String(book.content_id || ""),
-          visibility,
-          source,
-          sourceBookId,
-          tenantId: String(book.published_by_tenant_id || ""),
-          tenantSlug: String(book?.tenant?.slug || ""),
-          publishRequested: false,
-          artifactStatus: "ready",
-          protectedContentPath: readerConfig.protectedContentPath || `/books/protected-content/${book.content_id}`,
-          publishedAt: new Date().toISOString(),
-          lastError: "",
+        ...buildCatalogMetadataPatch({ visibility: catalogBook.visibility || visibility }),
+        ...buildPublishingStatePatch({
+          status: "published",
+          manifest: buildBookManifest(book.manifest, {
+            readerType: "protected",
+            contentId: String(book.content_id || ""),
+            visibility,
+            source,
+            sourceBookId,
+            tenantId: String(book.published_by_tenant_id || ""),
+            tenantSlug: String(book?.tenant?.slug || ""),
+            publishRequested: false,
+            artifactStatus: "ready",
+            protectedContentPath: readerConfig.protectedContentPath || `/books/protected-content/${book.content_id}`,
+            publishedAt: new Date().toISOString(),
+            lastError: "",
+          }),
         }),
       },
       single: true,
@@ -488,18 +504,27 @@ export async function handlePublishingApiRoute(context, deps) {
         protectedContentPath: requestedReaderType === "protected" ? `/books/protected-content/${contentId}` : "",
       });
 
-      const { data: book, error: bookErr } = await sbFetch("books", {
-        method: "POST",
-        body: {
+      const catalogInsert = buildCatalogBookInsert({
+        metadata: {
           title: filename.replace(/\.epub$/i, "").replace(/[_-]/g, " "),
           author: "Unknown",
           genre_id: "fiction",
           annotation: "",
-          content_id: String(contentId),
-          published_by_tenant_id: tenantContext.personal ? null : tenantContext.tenantId,
-          published_by_user_id: user.sub,
-          status: "processing",
-          manifest: initialManifest,
+        },
+        contentId: String(contentId),
+        publishedByTenantId: tenantContext.personal ? null : tenantContext.tenantId,
+        publishedByUserId: user.sub,
+      });
+      const publishingInsert = buildPublishingBookInsert({
+        status: "processing",
+        manifest: initialManifest,
+      });
+
+      const { data: book, error: bookErr } = await sbFetch("books", {
+        method: "POST",
+        body: {
+          ...catalogInsert,
+          ...publishingInsert,
         },
         single: true,
       });
@@ -522,24 +547,28 @@ export async function handlePublishingApiRoute(context, deps) {
         const epubResult = await processEpub(env, fileBytes, book.id, String(contentId));
 
         const metaUpdates = {
-          status: "ready",
-          manifest: buildBookManifest(initialManifest, {
-            readerType: requestedReaderType,
-            contentId: String(contentId),
-            artifactStatus: requestedReaderType === "protected" ? "pending" : "",
-            publishRequested: false,
-            visibility: "public",
-            source,
-            sourceBookId: String(contentId),
-            tenantId: tenantContext.personal ? "" : tenantContext.tenantId,
-            tenantSlug: tenantContext.personal ? "" : source,
-            protectedContentPath: requestedReaderType === "protected" ? `/books/protected-content/${contentId}` : "",
+          ...buildPublishingStatePatch({
+            status: "ready",
+            manifest: buildBookManifest(initialManifest, {
+              readerType: requestedReaderType,
+              contentId: String(contentId),
+              artifactStatus: requestedReaderType === "protected" ? "pending" : "",
+              publishRequested: false,
+              visibility: "public",
+              source,
+              sourceBookId: String(contentId),
+              tenantId: tenantContext.personal ? "" : tenantContext.tenantId,
+              tenantSlug: tenantContext.personal ? "" : source,
+              protectedContentPath: requestedReaderType === "protected" ? `/books/protected-content/${contentId}` : "",
+            }),
           }),
         };
-        if (epubResult.title) metaUpdates.title = epubResult.title;
-        if (epubResult.author) metaUpdates.author = epubResult.author;
-        if (epubResult.language) metaUpdates.language = epubResult.language;
-        if (epubResult.coverUrl) metaUpdates.cover_url = epubResult.coverUrl;
+        Object.assign(metaUpdates, buildCatalogMetadataPatch({
+          ...(epubResult.title ? { title: epubResult.title } : {}),
+          ...(epubResult.author ? { author: epubResult.author } : {}),
+          ...(epubResult.language ? { language: epubResult.language } : {}),
+          ...(epubResult.coverUrl ? { cover_url: epubResult.coverUrl } : {}),
+        }));
 
         await sbFetch("books", {
           method: "PATCH",
@@ -556,7 +585,7 @@ export async function handlePublishingApiRoute(context, deps) {
         await sbFetch("books", {
           method: "PATCH",
           params: `id=eq.${book.id}`,
-          body: { status: "failed" },
+          body: buildPublishingStatePatch({ status: "failed" }),
         });
         await sbFetch("source_assets", {
           method: "PATCH",

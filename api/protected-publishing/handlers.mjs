@@ -1,5 +1,14 @@
 import { createR2PresignedUploadUrl } from "./r2-presign.mjs";
+import {
+  buildCatalogBookInsert,
+  buildCatalogMetadataPatch,
+} from "../catalog/book-record.mjs";
 import { createPublishingJob, fetchPublishingJob, updatePublishingJob } from "./storage.mjs";
+import {
+  buildPublishingBookInsert,
+  buildPublishingStatePatch,
+  buildSourceAssetStatePatch,
+} from "../publishing/pipeline-record.mjs";
 import { dispatchProtectedPublishJob } from "./github-dispatch.mjs";
 import { buildBookManifest } from "./shared.mjs";
 
@@ -254,7 +263,7 @@ export async function createProtectedPublishingJob(context) {
   const source = tenantContext.personal ? "manual" : (await getTenantSourceSlug(tenantContext.tenantId) || "manual");
   const protectedContentPath = `/books/${buildProtectedPrefix(contentId)}`;
   const converterKey = sourceFormat === "docx" ? "docx-to-protected" : "epub-to-protected";
-  const commonBookPayload = {
+  const catalogPayload = buildCatalogMetadataPatch({
     title: normalizeText(body?.title) || filename.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "),
     author: normalizeText(body?.author) || "Unknown",
     annotation: normalizeText(body?.annotation || body?.description),
@@ -262,6 +271,8 @@ export async function createProtectedPublishingJob(context) {
     year_written: body?.year_written || null,
     language: normalizeText(body?.language) || "und",
     visibility,
+  });
+  const publishingPayload = buildPublishingStatePatch({
     status: "draft",
     manifest: buildBookManifest(book?.manifest, {
       readerType: "protected",
@@ -276,16 +287,19 @@ export async function createProtectedPublishingJob(context) {
       protectedContentPath,
       lastError: "",
     }),
-  };
+  });
 
   if (!book) {
     const createResult = await sbFetch("books", {
       method: "POST",
       body: {
-        ...commonBookPayload,
-        content_id: contentId,
-        published_by_tenant_id: tenantContext.personal ? null : tenantContext.tenantId,
-        published_by_user_id: user.sub,
+        ...buildCatalogBookInsert({
+          metadata: catalogPayload,
+          contentId,
+          publishedByTenantId: tenantContext.personal ? null : tenantContext.tenantId,
+          publishedByUserId: user.sub,
+        }),
+        ...buildPublishingBookInsert(publishingPayload),
       },
       single: true,
     });
@@ -297,7 +311,10 @@ export async function createProtectedPublishingJob(context) {
     const updateResult = await sbFetch("books", {
       method: "PATCH",
       params: `id=eq.${book.id}&select=*`,
-      body: commonBookPayload,
+      body: {
+        ...catalogPayload,
+        ...publishingPayload,
+      },
       single: true,
     });
     if (updateResult.error || !updateResult.data) {
@@ -322,8 +339,8 @@ export async function createProtectedPublishingJob(context) {
     visibility,
     tenant_id: tenantContext.personal ? null : tenantContext.tenantId,
     tenant_slug: tenantContext.personal ? null : source,
-    submitted_title: commonBookPayload.title,
-    submitted_author: commonBookPayload.author,
+    submitted_title: catalogPayload.title,
+    submitted_author: catalogPayload.author,
     publication_date: body?.publication_date || null,
     triggered_by_user_id: user.sub,
   };
@@ -354,16 +371,16 @@ export async function createProtectedPublishingJob(context) {
     return { error: updatedJob.error || "Unable to update publishing job", status: 500 };
   }
 
-  await updateBookSourceAsset(sbFetch, book.id, {
-    book_id: book.id,
+  await updateBookSourceAsset(sbFetch, book.id, buildSourceAssetStatePatch({
+    bookId: book.id,
     filename,
     format: sourceFormat,
-    r2_key: sourceObjectKey,
-    file_size_bytes: null,
-    validation_status: "pending",
-    validation_errors: null,
-    uploaded_by: user.sub,
-  });
+    r2Key: sourceObjectKey,
+    fileSizeBytes: null,
+    validationStatus: "pending",
+    validationErrors: null,
+    uploadedBy: user.sub,
+  }));
 
   async function createUploadTarget(objectKey, contentType, workerPath) {
     try {
@@ -598,7 +615,7 @@ export async function completeProtectedPublishingUpload(context) {
   await sbFetch("books", {
     method: "PATCH",
     params: `id=eq.${jobResult.data.book_id}&published_by_user_id=eq.${user.sub}&select=*`,
-    body: { status: "processing" },
+    body: buildPublishingStatePatch({ status: "processing" }),
     single: true,
   });
 
@@ -687,7 +704,7 @@ export async function failProtectedPublishingJob(context) {
   await sbFetch("books", {
     method: "PATCH",
     params: `id=eq.${jobResult.data.book_id}&select=*`,
-    body: {
+    body: buildPublishingStatePatch({
       status: "failed",
       manifest: buildBookManifest({}, {
         readerType: "protected",
@@ -698,19 +715,19 @@ export async function failProtectedPublishingJob(context) {
         protectedContentPath: `/books/${jobResult.data.protected_prefix}`,
         lastError: payload?.error_message || "Protected publishing failed",
       }),
-    },
+    }),
     single: true,
   });
 
-  await updateBookSourceAsset(sbFetch, jobResult.data.book_id, {
-    book_id: jobResult.data.book_id,
+  await updateBookSourceAsset(sbFetch, jobResult.data.book_id, buildSourceAssetStatePatch({
+    bookId: jobResult.data.book_id,
     filename: jobResult.data.source_filename,
     format: jobResult.data.source_format,
-    r2_key: jobResult.data.source_r2_key,
-    validation_status: isValidationFailure ? "invalid" : "error",
-    validation_errors: payload?.validation_errors || [{ message: payload?.error_message || "Protected publishing failed" }],
-    uploaded_by: jobResult.data.triggered_by_user_id,
-  });
+    r2Key: jobResult.data.source_r2_key,
+    validationStatus: isValidationFailure ? "invalid" : "error",
+    validationErrors: payload?.validation_errors || [{ message: payload?.error_message || "Protected publishing failed" }],
+    uploadedBy: jobResult.data.triggered_by_user_id,
+  }));
 
   return {
     status: 200,
@@ -747,24 +764,28 @@ export async function finalizeProtectedPublishingJob(context) {
     method: "PATCH",
     params: `id=eq.${jobResult.data.book_id}&select=*`,
     body: {
-      title: jobResult.data.submitted_title || book.title,
-      author: jobResult.data.submitted_author || book.author,
-      ...(publishedCoverUrl ? { cover_url: publishedCoverUrl } : {}),
-      status: "published",
-      visibility: jobResult.data.visibility || book.visibility || "public",
-      manifest: buildBookManifest(book.manifest, {
-        readerType: "protected",
-        contentId: jobResult.data.content_id,
-        artifactStatus: "ready",
-        publishRequested: false,
+      ...buildCatalogMetadataPatch({
+        title: jobResult.data.submitted_title || book.title,
+        author: jobResult.data.submitted_author || book.author,
         visibility: jobResult.data.visibility || book.visibility || "public",
-        source,
-        sourceBookId: jobResult.data.content_id,
-        tenantId: normalizeText(jobResult.data.tenant_id),
-        tenantSlug: source,
-        protectedContentPath,
-        lastError: "",
-        publishedAt: new Date().toISOString(),
+        ...(publishedCoverUrl ? { cover_url: publishedCoverUrl } : {}),
+      }),
+      ...buildPublishingStatePatch({
+        status: "published",
+        manifest: buildBookManifest(book.manifest, {
+          readerType: "protected",
+          contentId: jobResult.data.content_id,
+          artifactStatus: "ready",
+          publishRequested: false,
+          visibility: jobResult.data.visibility || book.visibility || "public",
+          source,
+          sourceBookId: jobResult.data.content_id,
+          tenantId: normalizeText(jobResult.data.tenant_id),
+          tenantSlug: source,
+          protectedContentPath,
+          lastError: "",
+          publishedAt: new Date().toISOString(),
+        }),
       }),
     },
     single: true,
@@ -773,15 +794,15 @@ export async function finalizeProtectedPublishingJob(context) {
     return { error: bookUpdate.error || "Unable to publish book", status: 500 };
   }
 
-  await updateBookSourceAsset(sbFetch, jobResult.data.book_id, {
-    book_id: jobResult.data.book_id,
+  await updateBookSourceAsset(sbFetch, jobResult.data.book_id, buildSourceAssetStatePatch({
+    bookId: jobResult.data.book_id,
     filename: jobResult.data.source_filename,
     format: jobResult.data.source_format,
-    r2_key: jobResult.data.source_r2_key,
-    validation_status: "valid",
-    validation_errors: null,
-    uploaded_by: jobResult.data.triggered_by_user_id,
-  });
+    r2Key: jobResult.data.source_r2_key,
+    validationStatus: "valid",
+    validationErrors: null,
+    uploadedBy: jobResult.data.triggered_by_user_id,
+  }));
 
   if ((jobResult.data.visibility || "public") === "public") {
     try {
