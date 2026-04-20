@@ -9,6 +9,7 @@ import {
   buildPublishingStatePatch,
   buildSourceAssetStatePatch,
 } from "../publishing/pipeline-record.mjs";
+import { can, PERMISSIONS } from "../permissions/policy.mjs";
 import { dispatchProtectedPublishJob } from "./github-dispatch.mjs";
 import { buildBookManifest } from "./shared.mjs";
 
@@ -166,7 +167,7 @@ async function publishUploadedCoverToContent(env, contentId, coverUpload) {
   return `/books/${targetKey}`;
 }
 
-async function canUserAccessPublishingJob(sbFetch, job, userId) {
+async function checkPublishingJobAccess(sbFetch, { job, userId }) {
   const normalizedUserId = normalizeText(userId);
   if (!job || !normalizedUserId) return false;
   if (normalizeText(job.triggered_by_user_id) === normalizedUserId) return true;
@@ -177,6 +178,15 @@ async function canUserAccessPublishingJob(sbFetch, job, userId) {
     single: true,
   });
   return Boolean(membership?.id);
+}
+
+async function canUserAccessPublishingJob(sbFetch, job, userId) {
+  const decision = await can({ userId }, PERMISSIONS.artifactReprocess, {
+    job,
+    checkPublishingJobAccess: ({ job: currentJob, userId: currentUserId }) =>
+      checkPublishingJobAccess(sbFetch, { job: currentJob, userId: currentUserId }),
+  });
+  return decision.allowed;
 }
 
 async function updateBookSourceAsset(sbFetch, bookId, payload) {

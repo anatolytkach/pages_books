@@ -11,6 +11,7 @@ import {
   userCanAccessTenantBookForAccess,
   verifySupabaseJwt,
 } from "./worker-helpers.mjs";
+import { can, PERMISSIONS } from "../permissions/policy.mjs";
 
 function escapeHtml(value) {
   return String(value || "")
@@ -387,7 +388,7 @@ export async function createApiContext({ request, env, url }) {
     });
   };
 
-  const getPlatformSuperuserStatus = async () => {
+  const hasPlatformSuperuserAccess = async () => {
     if (!user) return false;
     if (bootstrapSuperuserEmails.has(normalizeEmail(user.email))) return true;
     const { data, error } = await sbFetch("platform_superusers", {
@@ -400,9 +401,14 @@ export async function createApiContext({ request, env, url }) {
   const requireSuperuser = async () => {
     const authErr = requireAuth();
     if (authErr) return authErr;
-    if (await getPlatformSuperuserStatus()) return null;
+    const decision = await can({ user }, PERMISSIONS.platformManageSuperusers, {
+      hasPlatformSuperuserAccess,
+    });
+    if (decision.allowed) return null;
     return jsonResponse({ error: "Superuser access required" }, 403, apiCorsHeaders);
   };
+
+  const getPlatformSuperuserStatus = async () => hasPlatformSuperuserAccess();
 
   const getTenantAdminMemberships = async () => {
     if (!user) return [];
@@ -447,15 +453,23 @@ export async function createApiContext({ request, env, url }) {
     }));
   };
 
-  const canManageTenantUsers = async (tenantId) => {
+  const hasTenantUserManagementAccess = async (tenantId) => {
     const normalizedTenantId = String(tenantId || "").trim();
     if (!normalizedTenantId || !user) return false;
-    if (await getPlatformSuperuserStatus()) return true;
+    if (await hasPlatformSuperuserAccess()) return true;
     const { data: membership } = await sbFetch("tenant_memberships", {
       params: `tenant_id=eq.${normalizedTenantId}&user_id=eq.${user.sub}&is_active=eq.true&select=role`,
       single: true,
     });
     return !!membership && ["owner", "admin"].includes(String(membership.role || ""));
+  };
+
+  const canManageTenantUsers = async (tenantId) => {
+    const decision = await can({ user }, PERMISSIONS.tenantManageMembers, {
+      tenantId,
+      hasTenantUserManagementAccess,
+    });
+    return decision.allowed;
   };
 
   const listPlatformTenantsWithRoster = async () => {
@@ -515,7 +529,7 @@ export async function createApiContext({ request, env, url }) {
     return userCanAccessTenantBookForAccess(env, book, userId, fetch);
   };
 
-  const resolvePublishingTenant = async ({ tenantId = "", tenantSlug = "" } = {}) => {
+  const resolvePublishingTenantAccess = async ({ tenantId = "", tenantSlug = "" } = {}) => {
     const [isSuperuser, memberships] = await Promise.all([
       getPlatformSuperuserStatus(),
       getTenantPublishingMemberships(),
@@ -526,40 +540,64 @@ export async function createApiContext({ request, env, url }) {
 
     if (!normalizedTenantId && !normalizedTenantSlug && isSuperuser) {
       return {
-        tenantId: "",
-        tenantSlug: "",
-        membership: null,
-        personal: true,
+        allowed: true,
+        tenantContext: {
+          tenantId: "",
+          tenantSlug: "",
+          membership: null,
+          personal: true,
+        },
       };
     }
 
     if (!memberships.length) {
-      return { error: jsonResponse({ error: "Publishing access required" }, 403, apiCorsHeaders) };
+      return { allowed: false, error: "Publishing access required", status: 403 };
     }
 
     let match = null;
     if (normalizedTenantId) {
       match = memberships.find((item) => String(item.tenant_id || "") === normalizedTenantId) || null;
       if (!match) {
-        return { error: jsonResponse({ error: "Not authorized for requested tenant" }, 403, apiCorsHeaders) };
+        return { allowed: false, error: "Not authorized for requested tenant", status: 403 };
       }
     } else if (normalizedTenantSlug) {
       match = memberships.find((item) => String(item?.tenants?.slug || "").toLowerCase() === normalizedTenantSlug) || null;
       if (!match) {
-        return { error: jsonResponse({ error: "Not authorized for requested tenant" }, 403, apiCorsHeaders) };
+        return { allowed: false, error: "Not authorized for requested tenant", status: 403 };
       }
     } else if (memberships.length === 1) {
       match = memberships[0];
     } else {
-      return { error: jsonResponse({ error: "tenant_id or tenant_slug is required when you administer multiple tenants" }, 400, apiCorsHeaders) };
+      return {
+        allowed: false,
+        error: "tenant_id or tenant_slug is required when you administer multiple tenants",
+        status: 400,
+      };
     }
 
     return {
-      tenantId: String(match.tenant_id || ""),
-      tenantSlug: String(match?.tenants?.slug || ""),
-      membership: match,
-      personal: false,
+      allowed: true,
+      tenantContext: {
+        tenantId: String(match.tenant_id || ""),
+        tenantSlug: String(match?.tenants?.slug || ""),
+        membership: match,
+        personal: false,
+      },
     };
+  };
+
+  const resolvePublishingTenant = async ({ tenantId = "", tenantSlug = "" } = {}) => {
+    const decision = await can({ user }, PERMISSIONS.titlePublish, {
+      tenantId,
+      tenantSlug,
+      resolvePublishingTenantAccess,
+    });
+    if (!decision.allowed) {
+      return {
+        error: jsonResponse({ error: decision.error || "Publishing access required" }, decision.status || 403, apiCorsHeaders),
+      };
+    }
+    return decision.tenantContext;
   };
 
   const getTenantSourceSlug = async (tenantId) => {
@@ -581,6 +619,8 @@ export async function createApiContext({ request, env, url }) {
     env,
     getActiveUserTenantIds,
     getPlatformSuperuserStatus,
+    hasPlatformSuperuserAccess,
+    hasTenantUserManagementAccess,
     getTenantAdminMemberships,
     getTenantPublishingMemberships,
     getTenantSourceSlug,
@@ -593,6 +633,7 @@ export async function createApiContext({ request, env, url }) {
     requireAuth,
     requireInternalTaskAuth,
     requireSuperuser,
+    resolvePublishingTenantAccess,
     resolveBookContentAccessForRequest: (args) => resolveBookContentAccessForRequest({ ...args, fetchImpl: fetch }),
     resolvePublishingTenant,
     roleRank,
