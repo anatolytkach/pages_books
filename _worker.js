@@ -16,17 +16,21 @@ import {
   getRequestedReaderType,
   normalizeReaderType,
 } from "./api/protected-publishing/shared.mjs";
-
-function jsonResponse(payload, status = 200, extraHeaders = {}) {
-  const headers = new Headers({
-    "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store",
-    "access-control-allow-origin": "*",
-    ...extraHeaders,
-  });
-  headers.set("x-reader-worker", "1");
-  return new Response(JSON.stringify(payload), { status, headers });
-}
+import { handleCatalogApiRoute } from "./api/catalog/handlers.mjs";
+import { handleCommerceApiRoute } from "./api/commerce/handlers.mjs";
+import { createApiContext } from "./api/shared/context.mjs";
+import {
+  buildApiOptionsResponse,
+  getSupabaseAdminConfig as sharedGetSupabaseAdminConfig,
+  jsonResponse,
+  readJsonSafe as sharedReadJsonSafe,
+  resolveBookContentAccessForRequest as sharedResolveBookContentAccessForRequest,
+  sbFetchWithEnv as sharedSbFetchWithEnv,
+  verifySupabaseJwt as sharedVerifySupabaseJwt,
+} from "./api/shared/worker-helpers.mjs";
+import { handleIdentityApiRoute } from "./api/identity/handlers.mjs";
+import { handlePublishingApiRoute } from "./api/publishing/handlers.mjs";
+import { handleReaderAccessApiRoute } from "./api/reader-access/handlers.mjs";
 
 function notesShareCorsHeaders() {
   return {
@@ -100,14 +104,6 @@ function normalizeNotes(raw) {
     if (out.length >= 500) break;
   }
   return out;
-}
-
-async function readJsonSafe(response) {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -2945,21 +2941,35 @@ export default {
     ) {
       // CORS preflight for all platform API routes
       if (request.method === "OPTIONS") {
-        return new Response(null, {
-          status: 204,
-          headers: {
-            "access-control-allow-origin": "*",
-            "access-control-allow-methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
-            "access-control-allow-headers": "content-type, authorization",
-            "access-control-max-age": "86400",
-            "x-reader-worker": "1",
-          },
-        });
+        return buildApiOptionsResponse();
       }
 
       const apiPath = normalizedPath.startsWith("/books/api/v1/")
         ? normalizedPath.slice("/books/api/v1".length)
         : normalizedPath.slice("/api/v1".length);
+
+      const extractedApiContext = {
+        ...(await createApiContext({ request, env, url })),
+        apiPath,
+      };
+
+      let extractedResponse = await handleIdentityApiRoute(extractedApiContext);
+      if (extractedResponse) return extractedResponse;
+
+      extractedResponse = await handleCatalogApiRoute(extractedApiContext);
+      if (extractedResponse) return extractedResponse;
+
+      extractedResponse = await handleReaderAccessApiRoute(extractedApiContext);
+      if (extractedResponse) return extractedResponse;
+
+      extractedResponse = await handleCommerceApiRoute(extractedApiContext);
+      if (extractedResponse) return extractedResponse;
+
+      extractedResponse = await handlePublishingApiRoute(extractedApiContext, {
+        processEpub,
+        updateCatalogIndexes,
+      });
+      if (extractedResponse) return extractedResponse;
 
       // Parse JWT if present (does not reject — some routes are public)
       let user = null;
