@@ -51,6 +51,14 @@ export async function can(actorContext = {}, permissionKey, resourceContext = {}
       };
     }
 
+    case PERMISSIONS.offerManage: {
+      const allowed = await resourceContext.checkOfferManagementAccess?.({
+        bookId: resourceContext.bookId,
+        userId: actorContext.userId,
+      });
+      return { allowed: !!allowed };
+    }
+
     case PERMISSIONS.artifactReprocess: {
       const allowed = await resourceContext.checkPublishingJobAccess?.({
         job: resourceContext.job,
@@ -60,7 +68,6 @@ export async function can(actorContext = {}, permissionKey, resourceContext = {}
     }
 
     case PERMISSIONS.readerAccess:
-    case PERMISSIONS.offerManage:
     default:
       return { allowed: false };
   }
