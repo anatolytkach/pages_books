@@ -1,3 +1,5 @@
+import { resolveReaderBookEntitlement } from "../entitlements/service.mjs";
+
 export async function handleCommerceApiRoute(context) {
   const {
     apiCorsHeaders,
@@ -102,55 +104,13 @@ export async function handleCommerceApiRoute(context) {
 
   const entitlementMatch = apiPath.match(/^\/books\/([0-9a-f-]+)\/entitlement$/);
   if (entitlementMatch && request.method === "GET") {
-    const bookId = entitlementMatch[1];
-    const { data: book } = await sbFetch("books", {
-      params: `id=eq.${bookId}&select=id,is_free,status,visibility,published_by_tenant_id,published_by_user_id`,
-      single: true,
+    const result = await resolveReaderBookEntitlement({
+      sbFetch,
+      bookId: entitlementMatch[1],
+      user,
     });
-    if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-    if (book.is_free) {
-      return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
-    }
-
-    if (!user) {
-      const { data: offers } = await sbFetch("book_offers", {
-        params: `book_id=eq.${bookId}&is_active=eq.true&select=*`,
-      });
-      return jsonResponse({ access: "none", offers: offers || [] }, 200, apiCorsHeaders);
-    }
-
-    if (await userCanAccessTenantBook(book, user.sub)) {
-      return jsonResponse({ access: "full", type: "tenant_membership" }, 200, apiCorsHeaders);
-    }
-
-    const { data: entitlements } = await sbFetch("entitlements", {
-      params: `user_id=eq.${user.sub}&book_id=eq.${bookId}&is_active=eq.true&select=*&order=created_at.desc`,
-    });
-    if (entitlements && entitlements.length > 0) {
-      for (const ent of entitlements) {
-        if (ent.entitlement_type === "purchase") {
-          return jsonResponse({ access: "full", type: "purchase" }, 200, apiCorsHeaders);
-        }
-        if (ent.entitlement_type === "rental") {
-          if (!ent.expires_at || new Date(ent.expires_at) > new Date()) {
-            return jsonResponse({
-              access: "full",
-              type: "rental",
-              expires_at: ent.expires_at,
-            }, 200, apiCorsHeaders);
-          }
-        }
-      }
-    }
-
-    const { data: offers } = await sbFetch("book_offers", {
-      params: `book_id=eq.${bookId}&is_active=eq.true&select=*`,
-    });
-    if (!offers || !offers.length) {
-      return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
-    }
-
-    return jsonResponse({ access: "none", offers }, 200, apiCorsHeaders);
+    if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
+    return jsonResponse(result.data, result.status || 200, apiCorsHeaders);
   }
 
   return null;

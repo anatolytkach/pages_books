@@ -1,3 +1,7 @@
+import {
+  canConsumeReaderBook,
+  resolveReaderContentAccess,
+} from "../entitlements/service.mjs";
 import { getBookReaderConfig } from "../protected-publishing/shared.mjs";
 
 function normalizeText(value) {
@@ -97,31 +101,11 @@ export async function getReaderLocationPayload({ sbFetch, contentId, user, userC
     return { error: "Book not found", status: 404 };
   }
 
-  let hasAccess = false;
-
-  if (book.status !== "published" || book.is_free || book.visibility === "public") {
-    hasAccess = true;
-  } else if (user && book.published_by_user_id === user.sub) {
-    hasAccess = true;
-  } else if (user && await userCanAccessTenantBook(book, user.sub)) {
-    hasAccess = true;
-  } else if (user) {
-    const { data: entitlements } = await sbFetch("entitlements", {
-      params: `user_id=eq.${user.sub}&book_id=eq.${book.id}&is_active=eq.true&select=entitlement_type,expires_at&order=created_at.desc`,
-    });
-    if (entitlements && entitlements.length > 0) {
-      for (const ent of entitlements) {
-        if (ent.entitlement_type === "purchase") {
-          hasAccess = true;
-          break;
-        }
-        if (ent.entitlement_type === "rental" && (!ent.expires_at || new Date(ent.expires_at) > new Date())) {
-          hasAccess = true;
-          break;
-        }
-      }
-    }
-  }
+  const hasAccess = await canConsumeReaderBook({
+    sbFetch,
+    book,
+    user,
+  });
 
   if (!hasAccess) {
     return { error: "Access denied", status: 403 };

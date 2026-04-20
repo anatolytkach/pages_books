@@ -1,3 +1,8 @@
+import {
+  getActiveUserTenantIdsForReaderEntitlements,
+  resolveReaderContentAccess,
+} from "../entitlements/service.mjs";
+
 export function jsonResponse(payload, status = 200, extraHeaders = {}) {
   const headers = new Headers({
     "content-type": "application/json; charset=utf-8",
@@ -139,13 +144,10 @@ export async function sbRpcWithEnv(env, fn, args = {}, fetchImpl = fetch) {
 }
 
 export async function getActiveUserTenantIdsForAccess(env, userId, fetchImpl = fetch) {
-  const normalizedUserId = String(userId || "").trim();
-  if (!normalizedUserId) return [];
-  const { data, error } = await sbFetchWithEnv(env, "tenant_memberships", {
-    params: `user_id=eq.${normalizedUserId}&is_active=eq.true&select=tenant_id`,
-  }, fetchImpl);
-  if (error || !Array.isArray(data)) return [];
-  return [...new Set(data.map((row) => String(row.tenant_id || "").trim()).filter(Boolean))];
+  return getActiveUserTenantIdsForReaderEntitlements({
+    sbFetch: (table, options = {}) => sbFetchWithEnv(env, table, options, fetchImpl),
+    userId,
+  });
 }
 
 export async function userCanAccessTenantBookForAccess(env, book, userId, fetchImpl = fetch) {
@@ -159,41 +161,9 @@ export async function userCanAccessTenantBookForAccess(env, book, userId, fetchI
 }
 
 export async function resolveBookContentAccessForRequest({ env, contentId, user = null, fetchImpl = fetch }) {
-  const { data: book } = await sbFetchWithEnv(env, "books", {
-    params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free,visibility,published_by_tenant_id,published_by_user_id`,
-    single: true,
-  }, fetchImpl);
-
-  if (!book) return { access: "full", type: "free", book: null, offers: [] };
-  if (book.is_free) return { access: "full", type: "free", book, offers: [] };
-  if (book.status !== "published") return { access: "full", type: "unpublished", book, offers: [] };
-  if (user && book.published_by_user_id === user.sub) {
-    return { access: "full", type: "publisher", book, offers: [] };
-  }
-  if (user && await userCanAccessTenantBookForAccess(env, book, user.sub, fetchImpl)) {
-    return { access: "full", type: "tenant_membership", book, offers: [] };
-  }
-
-  if (user) {
-    const { data: entitlements } = await sbFetchWithEnv(env, "entitlements", {
-      params: `user_id=eq.${user.sub}&book_id=eq.${book.id}&is_active=eq.true&select=*&order=created_at.desc`,
-    }, fetchImpl);
-    if (entitlements && entitlements.length > 0) {
-      for (const ent of entitlements) {
-        if (ent.entitlement_type === "purchase") {
-          return { access: "full", type: "purchase", book, offers: [] };
-        }
-        if (ent.entitlement_type === "rental" && (!ent.expires_at || new Date(ent.expires_at) > new Date())) {
-          return { access: "full", type: "rental", expires_at: ent.expires_at, book, offers: [] };
-        }
-      }
-    }
-  }
-
-  const { data: offers } = await sbFetchWithEnv(env, "book_offers", {
-    params: `book_id=eq.${book.id}&is_active=eq.true&select=*`,
-  }, fetchImpl);
-  if (!offers || !offers.length) return { access: "full", type: "free", book, offers: [] };
-
-  return { access: "none", type: "offers_required", book, offers };
+  return resolveReaderContentAccess({
+    sbFetch: (table, options = {}) => sbFetchWithEnv(env, table, options, fetchImpl),
+    contentId,
+    user,
+  });
 }
