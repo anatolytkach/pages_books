@@ -189,6 +189,14 @@ async function canUserAccessPublishingJob(sbFetch, job, userId) {
   return decision.allowed;
 }
 
+async function checkOwnedTitleAccess({ book, userId, tenantContext = null }) {
+  if (!book || !userId) return false;
+  if (String(book.published_by_user_id || "") !== String(userId)) return false;
+  if (!tenantContext) return true;
+  if (tenantContext.personal) return !String(book.published_by_tenant_id || "").trim();
+  return String(book.published_by_tenant_id || "") === String(tenantContext.tenantId || "");
+}
+
 async function updateBookSourceAsset(sbFetch, bookId, payload) {
   const { data: existingAsset } = await sbFetch("source_assets", {
     params: `book_id=eq.${bookId}&select=id&order=created_at.desc&limit=1`,
@@ -252,12 +260,18 @@ export async function createProtectedPublishingJob(context) {
 
   if (existingBookId) {
     const { data: existingBook } = await sbFetch("books", {
-      params: tenantContext.personal
-        ? `id=eq.${existingBookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=is.null&select=*`
-        : `id=eq.${existingBookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
+      params: `id=eq.${existingBookId}&select=*`,
       single: true,
     });
     if (!existingBook) {
+      return { error: "Book not found", status: 404 };
+    }
+    const decision = await can({ userId: user.sub }, PERMISSIONS.titleEditMetadata, {
+      book: existingBook,
+      tenantContext,
+      checkTitleAccess: checkOwnedTitleAccess,
+    });
+    if (!decision.allowed) {
       return { error: "Book not found", status: 404 };
     }
     book = existingBook;

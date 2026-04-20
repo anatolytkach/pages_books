@@ -20,11 +20,20 @@ import {
   getBookReaderConfig,
   getRequestedReaderType,
 } from "../protected-publishing/shared.mjs";
+import { can, PERMISSIONS } from "../permissions/policy.mjs";
 import {
   attachPublishingSnapshot,
   buildPublishingBookInsert,
   buildPublishingStatePatch,
 } from "./pipeline-record.mjs";
+
+async function checkOwnedTitleAccess({ book, userId, tenantContext = null }) {
+  if (!book || !userId) return false;
+  if (String(book.published_by_user_id || "") !== String(userId)) return false;
+  if (!tenantContext) return true;
+  if (tenantContext.personal) return !String(book.published_by_tenant_id || "").trim();
+  return String(book.published_by_tenant_id || "") === String(tenantContext.tenantId || "");
+}
 
 export async function handlePublishingApiRoute(context, deps) {
   const {
@@ -197,10 +206,15 @@ export async function handlePublishingApiRoute(context, deps) {
     if (authErr) return authErr;
     const bookId = publishBookMatch[1];
     const { data: book } = await sbFetch("books", {
-      params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*,tenant:tenants!books_published_by_tenant_id_fkey(id,slug,name,tenant_type)`,
+      params: `id=eq.${bookId}&select=*,tenant:tenants!books_published_by_tenant_id_fkey(id,slug,name,tenant_type)`,
       single: true,
     });
     if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+    const decision = await can({ userId: user.sub }, PERMISSIONS.titleView, {
+      book,
+      checkTitleAccess: checkOwnedTitleAccess,
+    });
+    if (!decision.allowed) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
     const { data: assets } = await sbFetch("source_assets", {
       params: `book_id=eq.${bookId}&select=*&order=created_at.desc&limit=1`,
     });
@@ -219,10 +233,15 @@ export async function handlePublishingApiRoute(context, deps) {
     const updates = buildCatalogMetadataPatch(body);
     if (body.reader_type !== undefined || body.readerType !== undefined || body.protected !== undefined) {
       const { data: existingBook } = await sbFetch("books", {
-        params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=id,content_id,manifest`,
+        params: `id=eq.${bookId}&select=id,content_id,manifest,published_by_user_id,published_by_tenant_id`,
         single: true,
       });
       if (!existingBook) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+      const decision = await can({ userId: user.sub }, PERMISSIONS.titleEditMetadata, {
+        book: existingBook,
+        checkTitleAccess: checkOwnedTitleAccess,
+      });
+      if (!decision.allowed) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
       Object.assign(updates, buildPublishingStatePatch({
         manifest: buildBookManifest(existingBook.manifest, {
           readerType: getRequestedReaderType(body, existingBook),
@@ -236,7 +255,7 @@ export async function handlePublishingApiRoute(context, deps) {
 
     const { data, error } = await sbFetch("books", {
       method: "PATCH",
-      params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*`,
+      params: `id=eq.${bookId}&select=*`,
       body: updates,
       single: true,
     });
@@ -249,10 +268,15 @@ export async function handlePublishingApiRoute(context, deps) {
     if (authErr) return authErr;
     const bookId = publishBookMatch[1];
     const { data: book } = await sbFetch("books", {
-      params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=id,status`,
+      params: `id=eq.${bookId}&select=id,status,published_by_user_id,published_by_tenant_id`,
       single: true,
     });
     if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+    const decision = await can({ userId: user.sub }, PERMISSIONS.titleEditMetadata, {
+      book,
+      checkTitleAccess: checkOwnedTitleAccess,
+    });
+    if (!decision.allowed) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
     if (book.status === "published") {
       return jsonResponse({ error: "Cannot delete a published book. Unpublish it first." }, 400, apiCorsHeaders);
     }
@@ -263,7 +287,7 @@ export async function handlePublishingApiRoute(context, deps) {
     });
     await sbFetch("books", {
       method: "DELETE",
-      params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}`,
+      params: `id=eq.${bookId}`,
     });
     return jsonResponse({ deleted: true }, 200, apiCorsHeaders);
   }
@@ -286,12 +310,16 @@ export async function handlePublishingApiRoute(context, deps) {
     if (tenantContext.error) return tenantContext.error;
 
     const { data: book } = await sbFetch("books", {
-      params: tenantContext.personal
-        ? `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=is.null&select=*`
-        : `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
+      params: `id=eq.${bookId}&select=*`,
       single: true,
     });
     if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
+    const publishDecision = await can({ userId: user.sub }, PERMISSIONS.titlePublish, {
+      book,
+      tenantContext,
+      checkTitlePublishAccess: checkOwnedTitleAccess,
+    });
+    if (!publishDecision.allowed) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
     if (book.status !== "ready") {
       return jsonResponse({ error: `Book status is '${book.status}', must be 'ready' to publish` }, 400, apiCorsHeaders);
     }
@@ -323,9 +351,7 @@ export async function handlePublishingApiRoute(context, deps) {
         if (requestedReaderType === "protected" && readerConfig.protected.artifactStatus !== "ready") {
       const { data, error } = await sbFetch("books", {
         method: "PATCH",
-        params: tenantContext.personal
-          ? `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=is.null&select=*`
-          : `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
+        params: `id=eq.${bookId}&select=*`,
         body: {
           ...buildCatalogMetadataPatch({ visibility }),
           ...buildPublishingStatePatch({
@@ -345,9 +371,7 @@ export async function handlePublishingApiRoute(context, deps) {
 
     const { data, error } = await sbFetch("books", {
       method: "PATCH",
-      params: tenantContext.personal
-        ? `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=is.null&select=*`
-        : `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
+      params: `id=eq.${bookId}&select=*`,
       body: {
         ...buildCatalogMetadataPatch({ visibility }),
         ...buildPublishingStatePatch({

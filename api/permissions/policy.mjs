@@ -4,6 +4,16 @@ export { PERMISSIONS };
 
 export async function can(actorContext = {}, permissionKey, resourceContext = {}) {
   switch (permissionKey) {
+    case PERMISSIONS.titleView:
+    case PERMISSIONS.titleEditMetadata: {
+      const allowed = await resourceContext.checkTitleAccess?.({
+        book: resourceContext.book,
+        userId: actorContext.userId,
+        tenantContext: resourceContext.tenantContext || null,
+      });
+      return { allowed: !!allowed };
+    }
+
     case PERMISSIONS.platformManageSuperusers: {
       const allowed = await resourceContext.hasPlatformSuperuserAccess?.();
       return { allowed: !!allowed };
@@ -15,6 +25,14 @@ export async function can(actorContext = {}, permissionKey, resourceContext = {}
     }
 
     case PERMISSIONS.titlePublish: {
+      if (resourceContext.book && resourceContext.checkTitlePublishAccess) {
+        const allowed = await resourceContext.checkTitlePublishAccess({
+          book: resourceContext.book,
+          userId: actorContext.userId,
+          tenantContext: resourceContext.tenantContext || null,
+        });
+        return { allowed: !!allowed };
+      }
       const access = await resourceContext.resolvePublishingTenantAccess?.({
         tenantId: resourceContext.tenantId,
         tenantSlug: resourceContext.tenantSlug,
@@ -41,8 +59,6 @@ export async function can(actorContext = {}, permissionKey, resourceContext = {}
       return { allowed: !!allowed };
     }
 
-    case PERMISSIONS.titleView:
-    case PERMISSIONS.titleEditMetadata:
     case PERMISSIONS.readerAccess:
     case PERMISSIONS.offerManage:
     default:

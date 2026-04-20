@@ -1,3 +1,5 @@
+import { can, PERMISSIONS } from "../permissions/policy.mjs";
+
 export async function handleIdentityApiRoute(context) {
   const {
     apiCorsHeaders,
@@ -5,9 +7,9 @@ export async function handleIdentityApiRoute(context) {
     applyInvitationTokenForUser,
     attachProfilesToMemberships,
     buildInviteUrl,
-    canManageTenantUsers,
     createPasswordUser,
     getPlatformSuperuserStatus,
+    hasTenantUserManagementAccess,
     getTenantAdminMemberships,
     getTenantPublishingMemberships,
     inspectInvitationToken,
@@ -331,7 +333,11 @@ export async function handleIdentityApiRoute(context) {
     });
     if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
 
-    if (!(await canManageTenantUsers(tenant.id))) {
+    const decision = await can({ userId: user.sub }, PERMISSIONS.tenantManageMembers, {
+      tenantId: tenant.id,
+      hasTenantUserManagementAccess,
+    });
+    if (!decision.allowed) {
       return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
     }
 
@@ -351,7 +357,11 @@ export async function handleIdentityApiRoute(context) {
       single: true,
     });
     if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
-    if (!(await canManageTenantUsers(tenant.id))) {
+    const decision = await can({ userId: user.sub }, PERMISSIONS.tenantManageMembers, {
+      tenantId: tenant.id,
+      hasTenantUserManagementAccess,
+    });
+    if (!decision.allowed) {
       return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
     }
 
@@ -384,7 +394,11 @@ export async function handleIdentityApiRoute(context) {
       single: true,
     });
     if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
-    if (!(await canManageTenantUsers(tenant.id))) {
+    const decision = await can({ userId: user.sub }, PERMISSIONS.tenantManageMembers, {
+      tenantId: tenant.id,
+      hasTenantUserManagementAccess,
+    });
+    if (!decision.allowed) {
       return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
     }
 
@@ -425,7 +439,11 @@ export async function handleIdentityApiRoute(context) {
     });
     if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
 
-    if (!(await canManageTenantUsers(tenant.id))) {
+    const decision = await can({ userId: user.sub }, PERMISSIONS.tenantManageMembers, {
+      tenantId: tenant.id,
+      hasTenantUserManagementAccess,
+    });
+    if (!decision.allowed) {
       return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
     }
 
