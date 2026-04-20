@@ -576,3 +576,174 @@
 ## Short Handoff Summary
 
 The protected DOCX staging pipeline was run end to end for `sample.docx`, producing `contentId=200083`. The job completed successfully and the protected artifact inspection showed `146` extracted shapes, `4` synthetic shapes, and `0` placeholders, with Linux fallback font mapping resolving Arial to `LiberationSans-Regular.ttf`. That is the strongest confirmation so far that the font fix is working for new conversions.
+
+## Current Refactor State
+
+- Date: `2026-04-19`
+- Worktree path: `C:\Users\yaran\Test1\pages_books\.worktrees\merge-reader-render-v3-staging-trim`
+- Current branch: `refactor/module-boundaries-v1`
+- Current HEAD: `d4f2853e92c89917f0cf259399bb7803e8cbdfd9`
+- Worktree status at handoff update:
+  - clean
+  - no uncommitted tracked or untracked changes
+
+## Current Goal
+
+- Continue the modular-monolith refactor without changing external behavior
+- Establish clearer internal boundaries for:
+  - catalog
+  - publishing
+  - reader
+  - permissions
+  - entitlements
+  - commerce
+
+## Completed Refactor Phases In This Branch
+
+### Phase 1: Route-Domain Extraction
+
+- `_worker.js` remains the routing shell
+- Extracted route handlers under `api/`:
+  - `api/catalog/handlers.mjs`
+  - `api/publishing/handlers.mjs`
+  - `api/identity/handlers.mjs`
+  - `api/commerce/handlers.mjs`
+  - `api/reader-access/handlers.mjs`
+- Added small shared worker/context helpers:
+  - `api/shared/worker-helpers.mjs`
+  - `api/shared/context.mjs`
+
+### Phase 2: Catalog vs Publishing Separation
+
+- Introduced catalog projection/writer helpers:
+  - `api/catalog/book-record.mjs`
+- Introduced publishing pipeline projection/writer helpers:
+  - `api/publishing/pipeline-record.mjs`
+- Publishing and protected-publishing handlers now separate:
+  - catalog metadata ownership
+  - publishing pipeline/job/artifact state
+- Existing API responses still preserve the legacy top-level fields
+- Added nested snapshots for internal/domain clarity:
+  - `catalog`
+  - `publishing`
+
+### Phase 3: Reader Service Boundary
+
+- Added:
+  - `api/reader/service.mjs`
+  - `api/reader/handlers.mjs`
+- Reader-facing API entry points now sit behind a reader service boundary for:
+  - reader session/init payloads
+  - reader package/location loading
+  - note CRUD
+  - note package create/read/list/delete
+- `api/reader-access/handlers.mjs` delegates access/location loading to the reader service
+
+### Phase 4: Initial Permissions Boundary
+
+- Added:
+  - `api/permissions/vocabulary.mjs`
+  - `api/permissions/policy.mjs`
+- Introduced central policy entry point:
+  - `can(actorContext, permissionKey, resourceContext)`
+- Initial vocabulary:
+  - `title.view`
+  - `title.edit_metadata`
+  - `title.publish`
+  - `artifact.reprocess`
+  - `reader.access`
+  - `offer.manage`
+  - `tenant.manage_members`
+  - `platform.manage_superusers`
+- Wrapped high-value existing checks in context/protected publishing through the policy layer
+
+### Phase 5: Incremental Policy Adoption
+
+- Replaced a targeted set of direct checks with `can(...)` in:
+  - `api/publishing/handlers.mjs`
+  - `api/protected-publishing/handlers.mjs`
+  - `api/identity/handlers.mjs`
+- High-value policy-backed checks now include:
+  - title view/edit ownership checks for publish drafts
+  - title publish ownership + tenant-match checks
+  - tenant member-management checks
+  - protected publishing job access checks
+
+### Phase 6: Reader Entitlements Boundary
+
+- Added:
+  - `api/entitlements/service.mjs`
+- Reader-consumption access is now structurally separated from staff/admin permissions
+- The entitlement service now owns:
+  - tenant membership reader grants
+  - publisher reader grants
+  - purchase/rental grant resolution
+  - active offer lookup for reader access
+  - content-consumption access resolution
+- Reader and commerce paths now consume that service rather than duplicating inline access logic
+
+### Phase 7: Commerce Boundary Tightening
+
+- Added:
+  - `api/commerce/service.mjs`
+- `api/commerce/handlers.mjs` is now a thin route adapter for commerce operations
+- Commerce service now owns:
+  - `GET /me/entitlements`
+  - `GET /books/:id/offers`
+  - offer create validation and payload shaping
+  - offer update validation and patch shaping
+  - commerce-facing entitlement view delegation
+- Offer-management authorization now flows through:
+  - `PERMISSIONS.offerManage`
+
+## Files Introduced During Refactor Stream
+
+- `api/shared/worker-helpers.mjs`
+- `api/shared/context.mjs`
+- `api/catalog/handlers.mjs`
+- `api/catalog/book-record.mjs`
+- `api/publishing/handlers.mjs`
+- `api/publishing/pipeline-record.mjs`
+- `api/identity/handlers.mjs`
+- `api/commerce/handlers.mjs`
+- `api/commerce/service.mjs`
+- `api/reader-access/handlers.mjs`
+- `api/reader/service.mjs`
+- `api/reader/handlers.mjs`
+- `api/permissions/vocabulary.mjs`
+- `api/permissions/policy.mjs`
+- `api/entitlements/service.mjs`
+
+## Verification
+
+- Latest verification command:
+  - `npm.cmd test`
+- Latest result:
+  - `99` JS tests passed
+  - `3` Python tests passed
+- No deploy was performed for the refactor phases in this branch
+
+## What Is Intentionally Deferred
+
+- removing the legacy inline fallback copies that still remain in `_worker.js`
+- full migration of all remaining authorization checks to `can(...)`
+- full migration of all reader-consumption paths to the entitlement service outside the extracted main paths
+- full cleanup of duplicated legacy commerce/access code still present in `_worker.js`
+- any broad integrations abstraction
+- reader/reader1/reader_render_v3 unification
+- schema changes or backend contract changes
+
+## Most Important Remaining Mixed Areas
+
+- `_worker.js` still contains legacy inline route logic and duplicated pre-extraction code paths
+- some direct ownership/management checks still exist outside the targeted migrated files
+- note-share public routes remain inline rather than behind the reader boundary
+- protected-content direct delivery in `_worker.js` still uses the legacy route shell and old access flow around it
+- commerce and entitlement persistence still use the existing storage model rather than an explicit event boundary
+
+## Recommended Next Step
+
+- Phase 8 should thin `_worker.js` further by removing redundant legacy inline logic for already-extracted route families, but only where route precedence and behavior can be preserved exactly
+- If the next priority is resilience rather than more refactor work:
+  - keep updating this handoff after each milestone
+  - commit and push immediately after each meaningful phase
