@@ -351,6 +351,14 @@
   function detectReader1OpenSpec(bookPath) {
     var normalized = String(bookPath || "");
     if (!normalized.endsWith("/")) normalized += "/";
+    if (normalized.indexOf("/books/content/manual/") !== -1) {
+      return Promise.resolve({
+        path: normalized,
+        openAs: "directory",
+        format: "legacy",
+        rootPath: normalized
+      });
+    }
     var manifestPath = normalized + "reader1-manifest.json";
     return fetch(manifestPath, { cache: "no-store" })
       .then(function(response){

@@ -1,0 +1,54 @@
+{
+  "version": 4,
+  "mode": "protected-runtime-safe",
+  "artifactContract": {
+    "kind": "dual-family-static-v1",
+    "supportedFontModes": [
+      "sans",
+      "serif"
+    ],
+    "defaultFontMode": "sans"
+  },
+  "metadata": {
+    "title": "Crome Yellow",
+    "creators": [
+      "Aldous Huxley"
+    ],
+    "languages": [
+      "en"
+    ]
+  },
+  "source": {
+    "inputType": "current-storage",
+    "bookId": "19686"
+  },
+  "chunking": {
+    "mode": "logical-deterministic",
+    "viewportIndependent": true
+  },
+  "runtimeContract": {
+    "glyphMode": "opaque-chunk-local",
+    "renderPayload": "opaque-glyph-ops",
+    "reconstructionMode": "sealed-window-scoped",
+    "reconstructionSurface": "embedded-substrate",
+    "unicodeLeakage": "forbidden-in-runtime-safe-render-path",
+    "visualPayload": "dual-family-static-v1",
+    "runtimeVisualSelection": "default-artifact-font-mode-only"
+  },
+  "debugArtifactAvailable": false,
+  "chunks": [
+    {
+      "chunkId": "chunk-000001",
+      "order": 0,
+      "chunkPath": "chunks/chunk-000001.json",
+      "glyphsPath": "glyphs/chunk-000001.glyphs.json",
+      "shapesPath": "shapes/chunk-000001.shapes.json",
+      "startOffset": 0,
+      "endOffset": 22280,
+      "textLength": 22280
+    }
+  ],
+  "tocPath": "toc.json",
+  "locationsPath": "locations.json",
+  "stylesPath": "styles.json"
+}

@@ -1613,7 +1613,11 @@
         window.reader.settings.styles = window.reader.settings.styles || {};
         window.reader.settings.styles.fontSize = value;
         window.reader.settings.fontSizePct = n;
-        try { window.reader.book.setStyle("fontSize", value); } catch (_e0) {}
+        try {
+          if (window.reader.book && typeof window.reader.book.setStyle === "function") {
+            window.reader.book.setStyle("fontSize", value);
+          }
+        } catch (_e0) {}
         try { window.reader.rendition && window.reader.rendition.themes && window.reader.rendition.themes.fontSize(value); } catch (_e1) {}
         try { window.reader.renditionPrev && window.reader.renditionPrev.themes && window.reader.renditionPrev.themes.fontSize(value); } catch (_e2) {}
         try { window.reader.renditionNext && window.reader.renditionNext.themes && window.reader.renditionNext.themes.fontSize(value); } catch (_e3) {}
@@ -1628,7 +1632,9 @@
         ? 'Georgia, "Times New Roman", serif'
         : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
       try {
-        if (window.reader && window.reader.book) window.reader.book.setStyle("font-family", family);
+        if (window.reader && window.reader.book && typeof window.reader.book.setStyle === "function") {
+          window.reader.book.setStyle("font-family", family);
+        }
       } catch (_e0) {}
       try {
         if (window.reader && window.reader.rendition && window.reader.rendition.themes && window.reader.rendition.themes.override) {

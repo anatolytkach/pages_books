@@ -1,0 +1,10 @@
+{
+  "name": "readerpub-protected-v4",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "protected:build": "node tools/protected-ingestion/build-protected-book.js",
+    "protected:validate": "node tools/protected-ingestion/validate-protected-book.js"
+  }
+}

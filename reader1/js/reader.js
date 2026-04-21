@@ -6525,7 +6525,11 @@ if (doc) {
 			reader.settings.styles.fontSize = value;
 			reader.settings.fontSizePct = n;
 			// Apply to book contents
-			try { reader.book.setStyle("fontSize", value); } catch (e1) {}
+			try {
+				if (reader.book && typeof reader.book.setStyle === "function") {
+					reader.book.setStyle("fontSize", value);
+				}
+			} catch (e1) {}
 			try { reader.rendition.themes.fontSize(value); } catch (e2) {}
 			// Keep UI scale (TOC etc.) in sync
 			try { _applyUiScale(value); } catch (e3) {}
@@ -7229,7 +7233,9 @@ if (doc) {
 	// (Settings store it, but it won't take effect until setStyle is called.)
 	this.displayed.then(function () {
 		if (reader.settings && reader.settings.styles && reader.settings.styles.fontSize) {
-			reader.book.setStyle("fontSize", reader.settings.styles.fontSize);
+			if (reader.book && typeof reader.book.setStyle === "function") {
+				reader.book.setStyle("fontSize", reader.settings.styles.fontSize);
+			}
 		}
 	});
 
@@ -7272,6 +7278,15 @@ if (doc) {
 	return this;
 };
 
+function applyReaderBookFontSize(readerInstance, value) {
+	try {
+		if (!readerInstance || !readerInstance.book || typeof readerInstance.book.setStyle !== "function") return false;
+		readerInstance.book.setStyle("fontSize", value);
+		return true;
+	} catch (_styleError) {}
+	return false;
+}
+
 EPUBJS.Reader.prototype.adjustFontSize = function(e) {
 	var fontSize;
 	var interval = 2;
@@ -7291,7 +7306,7 @@ EPUBJS.Reader.prototype.adjustFontSize = function(e) {
 	if(MOD && e.keyCode == PLUS) {
 		e.preventDefault();
 			var nextPlus = (fontSize + interval) + "%";
-			this.book.setStyle("fontSize", nextPlus);
+			applyReaderBookFontSize(this, nextPlus);
 			this.settings.styles.fontSize = nextPlus;
 			_applyUiScale(nextPlus);
 
@@ -7301,14 +7316,14 @@ EPUBJS.Reader.prototype.adjustFontSize = function(e) {
 
 		e.preventDefault();
 			var nextMinus = (fontSize - interval) + "%";
-			this.book.setStyle("fontSize", nextMinus);
+			applyReaderBookFontSize(this, nextMinus);
 			this.settings.styles.fontSize = nextMinus;
 			_applyUiScale(nextMinus);
 	}
 
 	if(MOD && e.keyCode == ZERO){
 		e.preventDefault();
-			this.book.setStyle("fontSize", "100%");
+			applyReaderBookFontSize(this, "100%");
 			this.settings.styles.fontSize = "100%";
 			_applyUiScale("100%");
 	}

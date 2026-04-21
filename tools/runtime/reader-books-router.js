@@ -184,6 +184,10 @@ export default {
       return redirect("/books/reader_new/", "slash-redirect");
     }
 
+    if (path === "/books/reader_new_v4") {
+      return redirect("/books/reader_new_v4/", "slash-redirect");
+    }
+
     if (path === "/books/reader1") {
       return redirect("/books/reader1/", "slash-redirect");
     }
@@ -262,6 +266,16 @@ export default {
       return serveProtectedArtifactObject(env, fallbackKey, "r2-protected-content");
     }
 
+    if (path.startsWith("/books/protected-content-v4/")) {
+      return readerBooksPagesWorker.fetch(
+        new Request(request.url, request),
+        {
+          ...env,
+          READER_BOOKS: env.BOOKS,
+        },
+      );
+    }
+
     if (path.startsWith("/books/reader/api/")) {
       const upstreamUrl = new URL(`${host}${path}`);
       upstreamUrl.search = url.search;
@@ -333,6 +347,16 @@ export default {
       const upstreamUrl = new URL(`${host}${rewrittenPath}`);
       upstreamUrl.search = url.search;
       return proxyRequest(request, upstreamUrl, "proxy-reader-new");
+    }
+
+    if (path === "/books/reader_new_v4/" || path.startsWith("/books/reader_new_v4/")) {
+      return readerBooksPagesWorker.fetch(
+        new Request(request.url, request),
+        {
+          ...env,
+          READER_BOOKS: env.BOOKS,
+        },
+      );
     }
 
     if (path === "/books/reader1/" || path.startsWith("/books/reader1/")) {

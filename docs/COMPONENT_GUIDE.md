@@ -83,6 +83,43 @@
 - Artifact-format changes can break existing protected artifacts and validation tooling.
 - Smoke-tooling changes can silently weaken protected-reader verification if the canonical scenarios drift from production behavior.
 
+## `reader_render_v4/` Local V4 Fidelity Runtime And Tooling
+
+### Responsibility
+- Local-only v4 protected-reader fidelity work.
+- Local v4 artifact build and validation tooling.
+- Reading-flow and pagination experiments for parity against the local `reader1` baseline.
+
+### Main Files
+- `reader_render_v4/dev/*`
+- `reader_render_v4/runtime/*`
+- `reader_render_v4/tools/protected-ingestion/*`
+- `reader_render_v4/package.json`
+
+### Cross-Component Risk
+- Runtime changes can silently drift from the accepted local `reader1` baseline if parity checks are skipped.
+- Artifact-consumer changes here must not assume changes to the protected artifact family unless the ingestion contract is updated deliberately.
+- This component does not own the production protected-reader route.
+
+## `reader_render_v5/` Local V5 Protected Reader Target Line
+
+### Responsibility
+- New local protected-reader target line for future work.
+- Full-copy `reader_render_v3/` reader line with the copied `reader_render_v3/reader_new` host UX and the copied `reader_render_v3` runtime contract.
+- Full host document contract for that copied shell/runtime, served through `reader/reader_new_v5.html`.
+- Local-only protected-reader integration surface for artifact book checks before any production rollout decisions.
+
+### Main Files
+- `reader/reader_new_v5.html`
+- `reader_render_v5/reader_new/*`
+- `reader_render_v5/dev/*`
+- `reader_render_v5/runtime/*`
+
+### Cross-Component Risk
+- `reader_render_v5/` must preserve the copied `reader_render_v3` host/runtime behavior while integrating the new `/books/protected-content-v4/*` artifact family through compatibility adapters.
+- Changes here must not mutate `reader_render_v3/` in place.
+- This component remains local-only and does not own the current production protected-reader route.
+
 ## `tools/catalog/`
 
 ### Responsibility

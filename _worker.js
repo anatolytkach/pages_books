@@ -1961,6 +1961,10 @@ export default {
       return proxyReaderBooksUpstream(request, path, "proxy-reader-books-protected-content");
     }
 
+    if (decodedPath.startsWith("/books/protected-content-v4/") && !env.READER_BOOKS) {
+      return proxyReaderBooksUpstream(request, path, "proxy-reader-books-protected-content-v4");
+    }
+
     if (path === "/books/ping") {
       const headers = new Headers({
         "content-type": "text/plain; charset=utf-8",
@@ -2004,7 +2008,13 @@ export default {
     }
 
     // Normalize reader/catalog roots to trailing-slash form to avoid 404 on some routes.
-    if (path === "/books/reader" || path === "/books/reader_new" || path === "/books/reader1" || path === "/books/catalog") {
+    if (
+      path === "/books/reader" ||
+      path === "/books/reader_new" ||
+      path === "/books/reader_new_v4" ||
+      path === "/books/reader1" ||
+      path === "/books/catalog"
+    ) {
       const headers = new Headers({ location: `${path}/` });
       headers.set("x-reader-worker", "1");
       headers.set("x-reader-route", "slash-redirect");
@@ -2029,6 +2039,10 @@ export default {
         path === "/books/reader_new/" || path === "/books/reader_new/index.html"
           ? "/reader/reader_new.html"
           : path.replace(/^\/books\/reader_new/, "/books/reader");
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+    } else if (path === "/books/reader_new_v4/" || path === "/books/reader_new_v4/index.html") {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname = "/reader/reader_new_v4.html";
       assetRequest = new Request(rewrittenUrl.toString(), request);
     } else if (path === "/reader_new/" || path === "/reader_new/index.html" || path.startsWith("/reader_new/css/") || path.startsWith("/reader_new/js/") || path.startsWith("/reader_new/icons/") || path.startsWith("/reader_new/fonts/") || path.startsWith("/reader_new/img/")) {
       const rewrittenUrl = new URL(request.url);
@@ -2058,6 +2072,8 @@ export default {
       path.startsWith("/books/reader_new/icons/") ||
       path.startsWith("/books/reader_new/fonts/") ||
       path.startsWith("/books/reader_new/img/") ||
+      path === "/books/reader_new_v4/" ||
+      path === "/books/reader_new_v4/index.html" ||
       path === "/books/reader1/" ||
       path === "/books/reader1/index.html" ||
       path.startsWith("/books/reader1/css/") ||

@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mode": "protected-v4-bootstrap",
+  "artifactContract": {
+    "kind": "protected-v4-bootstrap-v1",
+    "mediaVisibilityPhase1": {
+      "version": 1,
+      "scope": "manual/1-media-whitelist-v1",
+      "whitelistRoles": [
+        "shell-cover",
+        "content-cover",
+        "inline-avatar",
+        "content-image",
+        "separator-image"
+      ],
+      "manifestCoverField": "cover",
+      "mediaItemField": "logicalBlockList[].mediaItems[]",
+      "geometry": {
+        "intrinsic": {
+          "widthField": "intrinsicWidthPx",
+          "heightField": "intrinsicHeightPx"
+        },
+        "preferredRender": {
+          "widthField": "preferredRenderWidthPx",
+          "heightField": "preferredRenderHeightPx"
+        }
+      },
+      "placement": {
+        "field": "placement",
+        "supportedValues": [
+          "inline-avatar",
+          "inline",
+          "block"
+        ]
+      }
+    }
+  },
+  "cover": null,
+  "metadata": {
+    "title": "No Cover Bootstrap"
+  },
+  "source": {
+    "bookId": "999",
+    "publicRootPath": ""
+  },
+  "logicalBlockList": []
+}

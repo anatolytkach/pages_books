@@ -1,0 +1,126 @@
+{
+  "generatedAt": "2026-04-03T16:34:21.254Z",
+  "inputReport": "artifacts/protected-fonts/corpus-report.json",
+  "dependencies": {
+    "harfbuzzjs": {
+      "name": "harfbuzzjs",
+      "version": "0.4.15",
+      "resolvedFrom": "/Volumes/2T/se_ingest/pages_books/node_modules/harfbuzzjs/package.json"
+    },
+    "opentypeJs": {
+      "name": "opentype.js",
+      "version": "1.3.4",
+      "resolvedFrom": "/Volumes/2T/se_ingest/pages_books/node_modules/opentype.js/package.json"
+    }
+  },
+  "scriptsDetected": [
+    "Cyrillic",
+    "Latin",
+    "Unknown"
+  ],
+  "styleNeeds": {
+    "bold": true,
+    "italic": true,
+    "boldItalic": false,
+    "superscript": true
+  },
+  "fontAssignments": [
+    {
+      "script": "Cyrillic",
+      "usageCount": 473287,
+      "fontSource": "Noto Serif",
+      "alternates": [],
+      "styles": {
+        "regular": {
+          "status": "expected",
+          "note": "Available in the Noto Serif family."
+        },
+        "italic": {
+          "status": "expected",
+          "note": "Available in the Noto Serif family."
+        },
+        "bold": {
+          "status": "expected",
+          "note": "Available in the Noto Serif family."
+        },
+        "boldItalic": {
+          "status": "expected",
+          "note": "Available in the Noto Serif family."
+        }
+      },
+      "coverageNote": "Primary serif family for Latin, Greek, and Cyrillic books.",
+      "gaps": []
+    },
+    {
+      "script": "Latin",
+      "usageCount": 17952,
+      "fontSource": "Noto Serif",
+      "alternates": [],
+      "styles": {
+        "regular": {
+          "status": "expected",
+          "note": "Available in the Noto Serif family."
+        },
+        "italic": {
+          "status": "expected",
+          "note": "Available in the Noto Serif family."
+        },
+        "bold": {
+          "status": "expected",
+          "note": "Available in the Noto Serif family."
+        },
+        "boldItalic": {
+          "status": "expected",
+          "note": "Available in the Noto Serif family."
+        }
+      },
+      "coverageNote": "Primary serif family for Latin, Greek, and Cyrillic books.",
+      "gaps": []
+    },
+    {
+      "script": "Unknown",
+      "usageCount": 22583,
+      "fontSource": "Appropriate Noto family",
+      "alternates": [],
+      "styles": {
+        "regular": {
+          "status": "unknown",
+          "note": "Must be resolved after scan."
+        },
+        "italic": {
+          "status": "gap",
+          "note": "Do not assume italic availability."
+        },
+        "bold": {
+          "status": "unknown",
+          "note": "Must be resolved after scan."
+        },
+        "boldItalic": {
+          "status": "gap",
+          "note": "Do not assume bold-italic availability."
+        }
+      },
+      "coverageNote": "Fallback bucket for any script not yet mapped explicitly.",
+      "gaps": [
+        {
+          "style": "italic",
+          "note": "Do not assume italic availability."
+        },
+        {
+          "style": "boldItalic",
+          "note": "Do not assume bold-italic availability."
+        }
+      ]
+    }
+  ],
+  "gaps": {
+    "styleGaps": [
+      {
+        "script": "Unknown",
+        "style": "italic",
+        "note": "Do not assume italic availability."
+      }
+    ],
+    "unmappedScripts": []
+  }
+}

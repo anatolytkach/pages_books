@@ -1,0 +1,144 @@
+{
+  "version": 3,
+  "mode": "protected-runtime-safe",
+  "metadata": {
+    "title": "Anne of Green Gables",
+    "creators": [
+      "L. M. Montgomery"
+    ],
+    "languages": [
+      "en"
+    ]
+  },
+  "source": {
+    "inputType": "legacy-exploded",
+    "bookId": "45"
+  },
+  "chunking": {
+    "mode": "logical-deterministic",
+    "viewportIndependent": true
+  },
+  "runtimeContract": {
+    "glyphMode": "opaque-chunk-local",
+    "renderPayload": "opaque-glyph-ops",
+    "reconstructionMode": "sealed-window-scoped",
+    "reconstructionSurface": "embedded-substrate",
+    "unicodeLeakage": "forbidden-in-runtime-safe-render-path"
+  },
+  "debugArtifactAvailable": false,
+  "chunks": [
+    {
+      "chunkId": "chunk-000001",
+      "order": 0,
+      "chunkPath": "chunks/chunk-000001.json",
+      "glyphsPath": "glyphs/chunk-000001.glyphs.json",
+      "shapesPath": "shapes/chunk-000001.shapes.json",
+      "startOffset": 0,
+      "endOffset": 54200,
+      "textLength": 54200
+    },
+    {
+      "chunkId": "chunk-000002",
+      "order": 1,
+      "chunkPath": "chunks/chunk-000002.json",
+      "glyphsPath": "glyphs/chunk-000002.glyphs.json",
+      "shapesPath": "shapes/chunk-000002.shapes.json",
+      "startOffset": 54200,
+      "endOffset": 110319,
+      "textLength": 56119
+    },
+    {
+      "chunkId": "chunk-000003",
+      "order": 2,
+      "chunkPath": "chunks/chunk-000003.json",
+      "glyphsPath": "glyphs/chunk-000003.glyphs.json",
+      "shapesPath": "shapes/chunk-000003.shapes.json",
+      "startOffset": 110319,
+      "endOffset": 168221,
+      "textLength": 57902
+    },
+    {
+      "chunkId": "chunk-000004",
+      "order": 3,
+      "chunkPath": "chunks/chunk-000004.json",
+      "glyphsPath": "glyphs/chunk-000004.glyphs.json",
+      "shapesPath": "shapes/chunk-000004.shapes.json",
+      "startOffset": 168221,
+      "endOffset": 213482,
+      "textLength": 45261
+    },
+    {
+      "chunkId": "chunk-000005",
+      "order": 4,
+      "chunkPath": "chunks/chunk-000005.json",
+      "glyphsPath": "glyphs/chunk-000005.glyphs.json",
+      "shapesPath": "shapes/chunk-000005.shapes.json",
+      "startOffset": 213482,
+      "endOffset": 264490,
+      "textLength": 51008
+    },
+    {
+      "chunkId": "chunk-000006",
+      "order": 5,
+      "chunkPath": "chunks/chunk-000006.json",
+      "glyphsPath": "glyphs/chunk-000006.glyphs.json",
+      "shapesPath": "shapes/chunk-000006.shapes.json",
+      "startOffset": 264490,
+      "endOffset": 326784,
+      "textLength": 62294
+    },
+    {
+      "chunkId": "chunk-000007",
+      "order": 6,
+      "chunkPath": "chunks/chunk-000007.json",
+      "glyphsPath": "glyphs/chunk-000007.glyphs.json",
+      "shapesPath": "shapes/chunk-000007.shapes.json",
+      "startOffset": 326784,
+      "endOffset": 381421,
+      "textLength": 54637
+    },
+    {
+      "chunkId": "chunk-000008",
+      "order": 7,
+      "chunkPath": "chunks/chunk-000008.json",
+      "glyphsPath": "glyphs/chunk-000008.glyphs.json",
+      "shapesPath": "shapes/chunk-000008.shapes.json",
+      "startOffset": 381421,
+      "endOffset": 427765,
+      "textLength": 46344
+    },
+    {
+      "chunkId": "chunk-000009",
+      "order": 8,
+      "chunkPath": "chunks/chunk-000009.json",
+      "glyphsPath": "glyphs/chunk-000009.glyphs.json",
+      "shapesPath": "shapes/chunk-000009.shapes.json",
+      "startOffset": 427765,
+      "endOffset": 477671,
+      "textLength": 49906
+    },
+    {
+      "chunkId": "chunk-000010",
+      "order": 9,
+      "chunkPath": "chunks/chunk-000010.json",
+      "glyphsPath": "glyphs/chunk-000010.glyphs.json",
+      "shapesPath": "shapes/chunk-000010.shapes.json",
+      "startOffset": 477671,
+      "endOffset": 529580,
+      "textLength": 51909
+    },
+    {
+      "chunkId": "chunk-000011",
+      "order": 10,
+      "chunkPath": "chunks/chunk-000011.json",
+      "glyphsPath": "glyphs/chunk-000011.glyphs.json",
+      "shapesPath": "shapes/chunk-000011.shapes.json",
+      "startOffset": 529580,
+      "endOffset": 559376,
+      "textLength": 29796
+    }
+  ],
+  "tocPath": "toc.json",
+  "locationsPath": "locations.json",
+  "stylesPath": "styles.json"
+}

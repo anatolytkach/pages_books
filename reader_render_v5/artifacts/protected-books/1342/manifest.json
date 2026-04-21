@@ -1,0 +1,174 @@
+{
+  "version": 4,
+  "mode": "protected-runtime-safe",
+  "artifactContract": {
+    "kind": "dual-family-static-v1",
+    "supportedFontModes": [
+      "sans",
+      "serif"
+    ],
+    "defaultFontMode": "sans"
+  },
+  "metadata": {
+    "title": "Pride and Prejudice",
+    "creators": [
+      "Jane Austen"
+    ],
+    "languages": [
+      "en"
+    ]
+  },
+  "source": {
+    "inputType": "legacy-exploded",
+    "bookId": "1342"
+  },
+  "chunking": {
+    "mode": "logical-deterministic",
+    "viewportIndependent": true
+  },
+  "runtimeContract": {
+    "glyphMode": "opaque-chunk-local",
+    "renderPayload": "opaque-glyph-ops",
+    "reconstructionMode": "sealed-window-scoped",
+    "reconstructionSurface": "embedded-substrate",
+    "unicodeLeakage": "forbidden-in-runtime-safe-render-path",
+    "visualPayload": "dual-family-static-v1",
+    "runtimeVisualSelection": "default-artifact-font-mode-only"
+  },
+  "debugArtifactAvailable": false,
+  "chunks": [
+    {
+      "chunkId": "chunk-000001",
+      "order": 0,
+      "chunkPath": "chunks/chunk-000001.json",
+      "glyphsPath": "glyphs/chunk-000001.glyphs.json",
+      "shapesPath": "shapes/chunk-000001.shapes.json",
+      "startOffset": 0,
+      "endOffset": 55803,
+      "textLength": 55803
+    },
+    {
+      "chunkId": "chunk-000002",
+      "order": 1,
+      "chunkPath": "chunks/chunk-000002.json",
+      "glyphsPath": "glyphs/chunk-000002.glyphs.json",
+      "shapesPath": "shapes/chunk-000002.shapes.json",
+      "startOffset": 55803,
+      "endOffset": 113405,
+      "textLength": 57602
+    },
+    {
+      "chunkId": "chunk-000003",
+      "order": 2,
+      "chunkPath": "chunks/chunk-000003.json",
+      "glyphsPath": "glyphs/chunk-000003.glyphs.json",
+      "shapesPath": "shapes/chunk-000003.shapes.json",
+      "startOffset": 113405,
+      "endOffset": 170838,
+      "textLength": 57433
+    },
+    {
+      "chunkId": "chunk-000004",
+      "order": 3,
+      "chunkPath": "chunks/chunk-000004.json",
+      "glyphsPath": "glyphs/chunk-000004.glyphs.json",
+      "shapesPath": "shapes/chunk-000004.shapes.json",
+      "startOffset": 170838,
+      "endOffset": 227231,
+      "textLength": 56393
+    },
+    {
+      "chunkId": "chunk-000005",
+      "order": 4,
+      "chunkPath": "chunks/chunk-000005.json",
+      "glyphsPath": "glyphs/chunk-000005.glyphs.json",
+      "shapesPath": "shapes/chunk-000005.shapes.json",
+      "startOffset": 227231,
+      "endOffset": 290273,
+      "textLength": 63042
+    },
+    {
+      "chunkId": "chunk-000006",
+      "order": 5,
+      "chunkPath": "chunks/chunk-000006.json",
+      "glyphsPath": "glyphs/chunk-000006.glyphs.json",
+      "shapesPath": "shapes/chunk-000006.shapes.json",
+      "startOffset": 290273,
+      "endOffset": 354351,
+      "textLength": 64078
+    },
+    {
+      "chunkId": "chunk-000007",
+      "order": 6,
+      "chunkPath": "chunks/chunk-000007.json",
+      "glyphsPath": "glyphs/chunk-000007.glyphs.json",
+      "shapesPath": "shapes/chunk-000007.shapes.json",
+      "startOffset": 354351,
+      "endOffset": 417853,
+      "textLength": 63502
+    },
+    {
+      "chunkId": "chunk-000008",
+      "order": 7,
+      "chunkPath": "chunks/chunk-000008.json",
+      "glyphsPath": "glyphs/chunk-000008.glyphs.json",
+      "shapesPath": "shapes/chunk-000008.shapes.json",
+      "startOffset": 417853,
+      "endOffset": 478338,
+      "textLength": 60485
+    },
+    {
+      "chunkId": "chunk-000009",
+      "order": 8,
+      "chunkPath": "chunks/chunk-000009.json",
+      "glyphsPath": "glyphs/chunk-000009.glyphs.json",
+      "shapesPath": "shapes/chunk-000009.shapes.json",
+      "startOffset": 478338,
+      "endOffset": 541163,
+      "textLength": 62825
+    },
+    {
+      "chunkId": "chunk-000010",
+      "order": 9,
+      "chunkPath": "chunks/chunk-000010.json",
+      "glyphsPath": "glyphs/chunk-000010.glyphs.json",
+      "shapesPath": "shapes/chunk-000010.shapes.json",
+      "startOffset": 541163,
+      "endOffset": 589884,
+      "textLength": 48721
+    },
+    {
+      "chunkId": "chunk-000011",
+      "order": 10,
+      "chunkPath": "chunks/chunk-000011.json",
+      "glyphsPath": "glyphs/chunk-000011.glyphs.json",
+      "shapesPath": "shapes/chunk-000011.shapes.json",
+      "startOffset": 589884,
+      "endOffset": 644392,
+      "textLength": 54508
+    },
+    {
+      "chunkId": "chunk-000012",
+      "order": 11,
+      "chunkPath": "chunks/chunk-000012.json",
+      "glyphsPath": "glyphs/chunk-000012.glyphs.json",
+      "shapesPath": "shapes/chunk-000012.shapes.json",
+      "startOffset": 644392,
+      "endOffset": 704990,
+      "textLength": 60598
+    },
+    {
+      "chunkId": "chunk-000013",
+      "order": 12,
+      "chunkPath": "chunks/chunk-000013.json",
+      "glyphsPath": "glyphs/chunk-000013.glyphs.json",
+      "shapesPath": "shapes/chunk-000013.shapes.json",
+      "startOffset": 704990,
+      "endOffset": 714097,
+      "textLength": 9107
+    }
+  ],
+  "tocPath": "toc.json",
+  "locationsPath": "locations.json",
+  "stylesPath": "styles.json"
+}

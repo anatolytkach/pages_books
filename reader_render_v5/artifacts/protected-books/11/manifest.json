@@ -1,0 +1,74 @@
+{
+  "version": 4,
+  "mode": "protected-runtime-safe",
+  "artifactContract": {
+    "kind": "dual-family-static-v1",
+    "supportedFontModes": [
+      "sans",
+      "serif"
+    ],
+    "defaultFontMode": "sans"
+  },
+  "metadata": {
+    "title": "Alice's Adventures in Wonderland",
+    "creators": [
+      "Lewis Carroll"
+    ],
+    "languages": [
+      "en"
+    ]
+  },
+  "source": {
+    "inputType": "legacy-exploded",
+    "bookId": "11"
+  },
+  "chunking": {
+    "mode": "logical-deterministic",
+    "viewportIndependent": true
+  },
+  "runtimeContract": {
+    "glyphMode": "opaque-chunk-local",
+    "renderPayload": "opaque-glyph-ops",
+    "reconstructionMode": "sealed-window-scoped",
+    "reconstructionSurface": "embedded-substrate",
+    "unicodeLeakage": "forbidden-in-runtime-safe-render-path",
+    "visualPayload": "dual-family-static-v1",
+    "runtimeVisualSelection": "default-artifact-font-mode-only"
+  },
+  "debugArtifactAvailable": false,
+  "chunks": [
+    {
+      "chunkId": "chunk-000001",
+      "order": 0,
+      "chunkPath": "chunks/chunk-000001.json",
+      "glyphsPath": "glyphs/chunk-000001.glyphs.json",
+      "shapesPath": "shapes/chunk-000001.shapes.json",
+      "startOffset": 0,
+      "endOffset": 56728,
+      "textLength": 56728
+    },
+    {
+      "chunkId": "chunk-000002",
+      "order": 1,
+      "chunkPath": "chunks/chunk-000002.json",
+      "glyphsPath": "glyphs/chunk-000002.glyphs.json",
+      "shapesPath": "shapes/chunk-000002.shapes.json",
+      "startOffset": 56728,
+      "endOffset": 120521,
+      "textLength": 63793
+    },
+    {
+      "chunkId": "chunk-000003",
+      "order": 2,
+      "chunkPath": "chunks/chunk-000003.json",
+      "glyphsPath": "glyphs/chunk-000003.glyphs.json",
+      "shapesPath": "shapes/chunk-000003.shapes.json",
+      "startOffset": 120521,
+      "endOffset": 144301,
+      "textLength": 23780
+    }
+  ],
+  "tocPath": "toc.json",
+  "locationsPath": "locations.json",
+  "stylesPath": "styles.json"
+}
