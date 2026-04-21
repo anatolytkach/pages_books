@@ -61,11 +61,26 @@
 - `reader_render_v5/` starts from a full copy of the `reader_render_v3/` reader line; the original `reader_render_v3/` codebase remains the untouched baseline in place.
 - Current local v5 manual verification for protected artifact book `1` uses:
   - `http://127.0.0.1:8792/reader/reader_new_v5.html?artifactBookId=1`
+- Current local v5 now owns its bootstrap artifact route inside `reader_render_v5/`:
+  - `/reader_render_v5/artifacts/protected-bootstrap-books/<bookId>/`
+- Current local v5 bootstrap artifact build/validate entrypoints now live inside `reader_render_v5/`:
+  - `npm --prefix reader_render_v5 run protected:bootstrap:build`
+  - `npm --prefix reader_render_v5 run protected:bootstrap:validate`
 - Current local v5 product-facing shell now derives from `reader_render_v5/reader_new/*`, which is the copied `reader_render_v3/reader_new/*` line.
 - `reader/reader_new_v5.html` now carries the full host document and shared CSS contract needed by that copied `reader_render_v3/reader_new` shell line; it is not itself the source of product UX logic.
 - Current local v5 is now back on the copied `reader_render_v3/` runtime contract rather than the earlier hybrid HTML-paginated prototype path.
-- Current local v5 opens the new `/books/protected-content-v4/<bookId>` route through a compatibility adapter at `reader_render_v5/runtime/protected-book-model.js`.
+- Current local v5 opens its own `/reader_render_v5/artifacts/protected-bootstrap-books/<bookId>/` route through a compatibility adapter at `reader_render_v5/runtime/protected-book-model.js`.
 - That adapter currently keeps the copied `v3` runtime alive by feeding it the existing runtime-safe substrate while merging selected metadata and chunk-level presentation/media semantics from the new bootstrap manifest.
+- Current local v5 first-paints the initial reader page before repository hydration, persisted-reading-state restore, and background pagination-summary work finish; heavy follow-up work now continues after the first snapshot instead of blocking the first visible page.
+- Current `reader_render_v5/runtime/protected-book-model.js` now runs in strict artifact-first mode for structural/media-bearing `v4` candidates:
+  - chapter-opening clusters
+  - comment-thread sections
+  - ordered lists
+  - blockquotes
+  - figure sequences
+  - standalone media-only blocks
+- Current `reader_render_v5/runtime/protected-book-model.js` also no longer uses loose plain-paragraph fallback for ordinary text-bearing paragraph/heading blocks; text path matching now resolves against new-artifact block content instead of generic same-file substrate proximity.
+- For those block classes, `v5` no longer silently substitutes old substrate data; missing or incompatible mapping must fail explicitly.
 - Current chunk-level merge in `reader_render_v5/runtime/protected-book-model.js` now carries into the copied `v3` runtime:
   - synthetic TOC and updated book metadata from `/books/protected-content-v4/<bookId>`
   - figure-lead + image composition hints
@@ -75,11 +90,14 @@
   - initial `blockquote` block-role propagation where the old substrate shape can be matched safely
 - Current chunk adapter also tags chapter-opening clusters and suppresses internal page breaks inside those opening clusters, while comment-body paragraphs now inherit zero-indent thread composition from the new artifact.
 - Current chunk adapter now also carries separate `figure` image members from the new artifact into the copied `v3` runtime instead of collapsing multi-block figures entirely into lead-text candidates, so figure composition is starting to follow the new artifact at block-sequence level rather than only through substrate media leftovers.
+- Current strict artifact-first matching now also handles old `v3` runtime `blockquote` blocks directly; this removed a real hard-fail in `ch006.xhtml` where old `blockquote` substrate blocks had no dedicated strict matcher branch.
+- Current strict artifact-first mode no longer treats leftover unmatched candidates at raw chunk boundaries as automatic failures, because chunk windows between the copied `v3` substrate and the new artifact can drift by a few leading/trailing blocks; per-block strict mismatches still fail explicitly, but chunk-boundary drift itself is no longer misreported as a content-contract error.
 - Current protected v4 artifact build now writes strict source anchors for `inline-avatar` media:
   - `mediaItems[].sourceAnchor` points to the exact source `<img ...>` occurrence in the original text file
   - `mediaItems[].hostSourceAnchor` points to the exact host text node (`h*` / `p`) that owns that inline media in reading order
 - Current protected v4 validation now rejects `inline-avatar` media items that do not carry both anchors.
 - Current `reader_render_v5/runtime/protected-book-model.js` now allows `inline-avatar` remapping only when the new artifact `hostSourceAnchor` exactly matches the old `v3` substrate block source ref; loose same-file/same-level matching is no longer enough.
+- Current protected v4 build also extracts standalone paragraph-wrapped images (`<p><img .../></p>`) as explicit `content-image` blocks, so real source media like `file45.jpg` are no longer dropped from `/books/protected-content-v4/<bookId>`.
 
 ## Current Reader1 Tooling Reality
 

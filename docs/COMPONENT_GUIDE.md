@@ -107,6 +107,7 @@
 - New local protected-reader target line for future work.
 - Full-copy `reader_render_v3/` reader line with the copied `reader_render_v3/reader_new` host UX and the copied `reader_render_v3` runtime contract.
 - Full host document contract for that copied shell/runtime, served through `reader/reader_new_v5.html`.
+- Self-contained bootstrap-artifact and bootstrap-ingestion surface for `v5` under `reader_render_v5/artifacts/protected-bootstrap-books/*` and `reader_render_v5/tools/protected-bootstrap-ingestion/*`.
 - Local-only protected-reader integration surface for artifact book checks before any production rollout decisions.
 
 ### Main Files
@@ -116,7 +117,7 @@
 - `reader_render_v5/runtime/*`
 
 ### Cross-Component Risk
-- `reader_render_v5/` must preserve the copied `reader_render_v3` host/runtime behavior while integrating the new `/books/protected-content-v4/*` artifact family through compatibility adapters.
+- `reader_render_v5/` must preserve the copied `reader_render_v3` host/runtime behavior while integrating the new self-contained bootstrap artifact family through compatibility adapters.
 - Changes here must not mutate `reader_render_v3/` in place.
 - This component remains local-only and does not own the current production protected-reader route.
 

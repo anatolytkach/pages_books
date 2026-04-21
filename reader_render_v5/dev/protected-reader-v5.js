@@ -1,6 +1,6 @@
 import { loadProtectedBook } from "../runtime/v5-protected-book-model.js";
 
-const ARTIFACT_ROOT_PREFIX = "/books/protected-content-v4/";
+const ARTIFACT_ROOT_PREFIX = "/reader_render_v5/artifacts/protected-bootstrap-books/";
 let cleanupPaginatedReadingSurface = null;
 const SHELL_MENU_SVG = `
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">

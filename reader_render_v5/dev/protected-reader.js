@@ -1727,7 +1727,7 @@ async function loadArtifact(artifactRoot) {
   state.artifactFallbackDetected = "unknown";
   syncArtifactInput();
   syncLocationParams();
-  setStatus(`Loading runtime-safe artifact ${artifactRoot}...`);
+  setStatus(`Loading protected artifact ${artifactRoot}...`);
   const diagnosticsPromise = probeArtifactDiagnostics(artifactRoot);
   const protectedBookPromise = loadProtectedBook(artifactRoot);
   const snapshot = await state.workerClient.initBook({
@@ -1745,6 +1745,13 @@ async function loadArtifact(artifactRoot) {
   resetProtectedStateForArtifactLoad();
   if (snapshot.bookSummary) state.bookSummary = snapshot.bookSummary;
   if (snapshot.tocItems) state.tocItems = snapshot.tocItems;
+  state.artifactLoadStatus = "initial-page-ready";
+  state.readingStateSource = "default-start";
+  applySnapshot(snapshot);
+  setStatus(
+    `Opened ${snapshot.chunkSummary.chunkId} (${snapshot.chunkSummary.order}/${snapshot.chunkSummary.total}) in ${state.renderMode}/${state.metricsMode} mode. Finalizing reader state...`,
+    "info"
+  );
   const blockForRestore = !!(
     state.entryConfig &&
     state.entryConfig.explicitRestoreToken &&
@@ -1756,7 +1763,7 @@ async function loadArtifact(artifactRoot) {
   }
   const repositoryReadyPromise = initializeProtectedRepository(bookId, protectedBookPromise);
   const restoredPromise = repositoryReadyPromise.then(() => restoreReadingStateIfAvailable(bookId));
-  await finalizeArtifactLoad({
+  void finalizeArtifactLoad({
     artifactRoot,
     snapshot,
     bookId,
@@ -1765,7 +1772,13 @@ async function loadArtifact(artifactRoot) {
     repositoryReadyPromise,
     restoredPromise,
     diagnosticsPromise
+  }).catch((error) => {
+    console.error(error);
+    state.artifactLoadStatus = "failed";
+    renderRuntimeMeta();
+    setStatus(error.message || String(error), "error");
   });
+  return snapshot;
 }
 
 function getCanvasPoint(event) {

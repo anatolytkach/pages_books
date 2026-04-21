@@ -6599,7 +6599,7 @@ async function getProtectedBookMetadataLanguages() {
   if (!bookId) {
     return [];
   }
-  const manifestUrl = new URL(`/books/protected-content/${encodeURIComponent(bookId)}/manifest.json`, window.location.origin);
+  const manifestUrl = new URL(`/reader_render_v5/artifacts/protected-bootstrap-books/${encodeURIComponent(bookId)}/manifest.json`, window.location.origin);
   HOST_STATE.bookMetadataLanguagesBookId = bookId;
   HOST_STATE.bookMetadataLanguagesPromise = fetch(manifestUrl.toString(), { credentials: "same-origin" })
     .then((response) => {

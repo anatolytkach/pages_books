@@ -498,8 +498,11 @@ export class ProtectedReaderRuntimeCore {
     this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     this.book = await loadProtectedBook(artifactRoot);
     this.bookSummary = summarizeBook(this.book);
-    await this.rebuildBookPaginationSummary();
-    return this.goToChunk({ chunkIndex: 0, annotations, includeBook: true });
+    const initialSnapshot = await this.goToChunk({ chunkIndex: 0, annotations, includeBook: true });
+    Promise.resolve()
+      .then(() => this.rebuildBookPaginationSummary())
+      .catch(() => {});
+    return initialSnapshot;
   }
 
   async goToChunk({

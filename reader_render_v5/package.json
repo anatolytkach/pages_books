@@ -7,6 +7,8 @@
     "protected:audit": "node tools/protected-fonts/protected-audit.js",
     "protected:build": "node tools/protected-ingestion/build-protected-book.js",
     "protected:build:debug": "node tools/protected-ingestion/build-protected-book.js --debug-artifact",
+    "protected:bootstrap:build": "node tools/protected-bootstrap-ingestion/build-protected-book.js",
+    "protected:bootstrap:validate": "node tools/protected-bootstrap-ingestion/validate-protected-book.js",
     "protected:fonts:scan": "node tools/protected-fonts/scan-corpus.js",
     "protected:fonts:plan": "node tools/protected-fonts/build-font-plan.js",
     "protected:validate": "node tools/protected-ingestion/validate-protected-book.js",

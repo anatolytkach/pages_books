@@ -348,8 +348,26 @@ function normalizeComparableText(value) {
 }
 
 function getTextMatchStrength(oldText, candidateText) {
+  const rawLeft = String(oldText || "").trim();
+  const rawRight = String(candidateText || "").trim();
+  if (rawLeft && rawRight && rawLeft === rawRight) return 3;
   const left = normalizeComparableText(oldText);
   const right = normalizeComparableText(candidateText);
+  const collapsedLeft = left.replace(/\s+/g, "");
+  const collapsedRight = right.replace(/\s+/g, "");
+  if (collapsedLeft && collapsedRight && collapsedLeft === collapsedRight) return 3;
+  if (
+    collapsedLeft &&
+    collapsedRight &&
+    Math.min(collapsedLeft.length, collapsedRight.length) >= 32 &&
+    (
+      collapsedLeft.startsWith(collapsedRight) ||
+      collapsedRight.startsWith(collapsedLeft) ||
+      collapsedLeft.slice(0, 32) === collapsedRight.slice(0, 32)
+    )
+  ) {
+    return 2;
+  }
   if (!left || !right) return 0;
   if (left === right) return 3;
   if (left.length >= 16 && right.length >= 16 && (left.includes(right) || right.includes(left))) return 2;
@@ -447,6 +465,35 @@ function normalizeV4MediaItemForRuntime(item) {
   };
 }
 
+function normalizeV4SourceTag(value, fallback = "p") {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized || String(fallback || "p").trim().toLowerCase();
+}
+
+function buildCompatSourceRefFromCandidate(oldSourceRef, candidate) {
+  const previous = oldSourceRef && typeof oldSourceRef === "object" ? oldSourceRef : {};
+  if (!candidate || typeof candidate !== "object") return previous;
+  const sourceHref = String(candidate.sourceHref || previous.href || "").trim();
+  const sourceNodeIndex = Number.isInteger(candidate.sourceNodeIndex)
+    ? candidate.sourceNodeIndex
+    : (Number.isInteger(previous.nodeIndex) ? previous.nodeIndex : -1);
+  const sourceTag = normalizeV4SourceTag(candidate.sourceTag, previous.nodeTag || "p");
+  const normalizedHref = normalizeRuntimeSafeSourceHref(sourceHref);
+  const spineStem = normalizedHref
+    ? normalizedHref.replace(/^EPUB\//i, "").replace(/^text\//i, "").replace(/\.xhtml?$/i, "")
+    : String(previous.spineId || "").trim();
+  return {
+    spineId: spineStem || String(previous.spineId || "").trim(),
+    spineIndex: Number.isInteger(previous.spineIndex) ? previous.spineIndex : 0,
+    href: sourceHref || String(previous.href || "").trim(),
+    filePath: String(previous.filePath || "").trim(),
+    nodeTag: sourceTag,
+    nodeIndex: sourceNodeIndex,
+    nodeId: String(candidate.sourceNodeId || previous.nodeId || "").trim(),
+    nodeClass: String(candidate.sourceClassName || previous.nodeClass || "").trim()
+  };
+}
+
 function getCandidateInlineAvatarHostAnchor(candidate) {
   const mediaItems = Array.isArray(candidate && candidate.mediaItems) ? candidate.mediaItems : [];
   return mediaItems.find((item) => item && item.inlineAvatar && item.hostSourceAnchor && typeof item.hostSourceAnchor === "object")
@@ -468,6 +515,21 @@ function candidateInlineAvatarMatchesOldBlock(oldBlock, candidate) {
   if (textMatchStrength < 2) return false;
   if (!Number.isInteger(oldSourceRef.nodeIndex) || !Number.isInteger(Number(hostAnchor.nodeIndex))) return false;
   return Math.abs(Number(oldSourceRef.nodeIndex) - Number(hostAnchor.nodeIndex)) <= 4;
+}
+
+function getSourceNodeDistanceScore(oldBlock, candidate) {
+  const oldSourceRef = oldBlock && oldBlock.sourceRef && typeof oldBlock.sourceRef === "object" ? oldBlock.sourceRef : null;
+  const candidateNodeIndex = Number(candidate && candidate.sourceNodeIndex);
+  if (!oldSourceRef || !Number.isInteger(oldSourceRef.nodeIndex) || !Number.isInteger(candidateNodeIndex)) return 0;
+  const oldHref = normalizeRuntimeSafeSourceHref(oldSourceRef.href);
+  const candidateHref = normalizeRuntimeSafeSourceHref(candidate && candidate.sourceHref);
+  if (!oldHref || !candidateHref || oldHref !== candidateHref) return 0;
+  const distance = Math.abs(Number(oldSourceRef.nodeIndex) - candidateNodeIndex);
+  if (distance === 0) return 4;
+  if (distance <= 2) return 3;
+  if (distance <= 6) return 2;
+  if (distance <= 12) return 1;
+  return 0;
 }
 
 function buildV4CompatibleBlockQueues(manifest) {
@@ -613,6 +675,9 @@ function buildV4CompatibleBlockQueues(manifest) {
       headingLevel: Number.isInteger(block.headingLevel) ? block.headingLevel : null,
       blockRole: listItemMeta ? "list-item" : String(block.blockRole || "").trim(),
       textContent: String(block.textContent || "").trim(),
+      sourceTag: normalizeV4SourceTag(block.sourceTag, attachedMedia.some((item) => item && item.inlineAvatar) ? "h5" : "p"),
+      sourceNodeIndex: Number.isInteger(block.sourceNodeIndex) ? block.sourceNodeIndex : -1,
+      sourceClassName: String(block.sourceClassName || "").trim(),
       blockPresentation: {
         ...normalizeV4BlockPresentationForRuntime(block.blockPresentation),
         pageBreakBefore:
@@ -657,18 +722,19 @@ function getCompatibleRuntimeSafeBlockScore(oldBlock, candidate, context = {}) {
   const oldText = String(oldBlock.labelHint || "").trim();
   const candidateText = String(candidate.textContent || "").trim();
   const textMatchStrength = getTextMatchStrength(oldText, candidateText);
+  const sourceNodeDistanceScore = getSourceNodeDistanceScore(oldBlock, candidate);
   if (oldHeadingMatch) {
     const expectedLevel = Number(oldHeadingMatch[1]);
     if (Number(candidate.headingLevel) !== expectedLevel) return 0;
     if (oldHasMedia && !candidate.mediaItems.length) return 0;
     if (candidate.sequenceRole === "comment-heading") {
       if (!candidateInlineAvatarMatchesOldBlock(oldBlock, candidate)) return 0;
-      if (!oldHasMedia && textMatchStrength <= 0) return 0;
+      if (textMatchStrength <= 0) return 0;
     }
-    if (textMatchStrength >= 3) return candidate.sequenceRole === "comment-heading" ? 12 : 11;
-    if (textMatchStrength === 2) return candidate.sequenceRole === "comment-heading" ? 10 : 9;
-    if (textMatchStrength === 1) return candidate.sequenceRole === "comment-heading" ? 8 : 7;
-    return candidate.openingClusterId ? 6 : (candidate.sequenceRole === "comment-heading" ? 2 : 4);
+    if (textMatchStrength >= 3) return (candidate.sequenceRole === "comment-heading" ? 12 : 11) + sourceNodeDistanceScore;
+    if (textMatchStrength === 2) return (candidate.sequenceRole === "comment-heading" ? 10 : 9) + sourceNodeDistanceScore;
+    if (textMatchStrength === 1) return (candidate.sequenceRole === "comment-heading" ? 8 : 7) + sourceNodeDistanceScore;
+    return 0;
   }
   if (oldType === "figure") {
     const oldMediaHref =
@@ -685,21 +751,28 @@ function getCompatibleRuntimeSafeBlockScore(oldBlock, candidate, context = {}) {
     return 4;
   }
   if (oldType === "list-item") {
-    if (candidate.blockRole === "list-item") return 5;
+    if (candidate.blockRole === "list-item" && textMatchStrength >= 1) return 5 + sourceNodeDistanceScore;
+    return 0;
+  }
+  if (oldType === "blockquote") {
+    if (candidate.blockRole !== "blockquote") return 0;
+    if (textMatchStrength >= 3) return 11 + sourceNodeDistanceScore;
+    if (textMatchStrength === 2) return 9 + sourceNodeDistanceScore;
+    if (textMatchStrength === 1) return 7 + sourceNodeDistanceScore;
     return 0;
   }
   if (oldType === "paragraph") {
     if (oldHasMedia) {
       if (!candidate.mediaItems.length) {
-        if (oldTag === "td" && candidate.textContent && textMatchStrength >= 2) return 7;
+        if (oldTag === "td" && candidate.textContent && textMatchStrength >= 2) return 7 + sourceNodeDistanceScore;
         return 0;
       }
       if (candidate.sequenceRole === "comment-heading" && !candidateInlineAvatarMatchesOldBlock(oldBlock, candidate)) return 0;
       if (oldTag === "td" && candidate.figureMemberRole === "image") {
         return oldText ? 0 : 8;
       }
-      if (candidate.sequenceRole === "comment-heading") return 5;
-      return (!!candidate.textContent || !!candidate.blockRole) ? 3 : 0;
+      if (candidate.sequenceRole === "comment-heading") return textMatchStrength >= 1 ? 5 + sourceNodeDistanceScore : 0;
+      return (!!candidate.textContent || !!candidate.blockRole) && textMatchStrength >= 1 ? 3 + sourceNodeDistanceScore : 0;
     }
     if (
       nextOldBlock &&
@@ -711,10 +784,10 @@ function getCompatibleRuntimeSafeBlockScore(oldBlock, candidate, context = {}) {
     ) {
       return 7;
     }
-    if (textMatchStrength >= 3) return 9;
-    if (textMatchStrength === 2) return 7;
-    if (textMatchStrength === 1) return 5;
-    if (candidate.blockRole === "blockquote") return 5;
+    if (textMatchStrength >= 3) return 9 + sourceNodeDistanceScore;
+    if (textMatchStrength === 2) return 7 + sourceNodeDistanceScore;
+    if (textMatchStrength === 1) return 5 + sourceNodeDistanceScore;
+    if (candidate.blockRole === "blockquote" && textMatchStrength >= 1) return 5 + sourceNodeDistanceScore;
     if (
       previousOldBlock &&
       (
@@ -728,13 +801,73 @@ function getCompatibleRuntimeSafeBlockScore(oldBlock, candidate, context = {}) {
           previousOldBlock.v4Compatibility.sequenceRole === "comment-heading"
         )
       ) &&
-      candidate.sequenceRole === "comment-body"
+      candidate.sequenceRole === "comment-body" &&
+      textMatchStrength >= 1
     ) {
-      return 6;
+      return 6 + sourceNodeDistanceScore;
     }
-    return !candidate.headingLevel && !candidate.mediaItems.length && !candidate.blockRole ? 3 : 0;
+    return 0;
   }
   return 0;
+}
+
+function isStrictArtifactFirstCandidate(candidate) {
+  if (!candidate || typeof candidate !== "object") return false;
+  return !!(
+    String(candidate.textContent || "").trim() ||
+    Number.isInteger(candidate.headingLevel) ||
+    candidate.openingClusterId ||
+    candidate.sequenceRole ||
+    candidate.figureSequenceId ||
+    candidate.listContainerId ||
+    candidate.blockRole === "blockquote" ||
+    (
+      Array.isArray(candidate.mediaItems) &&
+      candidate.mediaItems.length &&
+      !String(candidate.textContent || "").trim()
+    )
+  );
+}
+
+function describeRuntimeSafeBlock(block) {
+  if (!block || typeof block !== "object") return "<missing-runtime-safe-block>";
+  const sourceHref = normalizeRuntimeSafeSourceHref(block && block.sourceRef && block.sourceRef.href);
+  const blockId = String(block.blockId || "").trim() || "<no-block-id>";
+  const blockType = String(block.blockType || "").trim() || "<no-block-type>";
+  const labelHint = String(block.labelHint || "").trim();
+  return `${blockId} (${blockType}) @ ${sourceHref || "<no-source>"}${labelHint ? ` :: ${labelHint.slice(0, 96)}` : ""}`;
+}
+
+function describeV4Candidate(candidate) {
+  if (!candidate || typeof candidate !== "object") return "<missing-v4-candidate>";
+  const rawBlockId = String(candidate.rawBlockId || "").trim() || "<no-raw-block-id>";
+  const sourceHref = normalizeRuntimeSafeSourceHref(candidate.sourceHref);
+  const textContent = String(candidate.textContent || "").trim();
+  return `${rawBlockId} @ ${sourceHref || "<no-source>"}${textContent ? ` :: ${textContent.slice(0, 96)}` : ""}`;
+}
+
+function buildChunkSourceRanges(chunkBlocks) {
+  const ranges = new Map();
+  for (const block of Array.isArray(chunkBlocks) ? chunkBlocks : []) {
+    const sourceHref = normalizeRuntimeSafeSourceHref(block && block.sourceRef && block.sourceRef.href);
+    const nodeIndex = Number(block && block.sourceRef && block.sourceRef.nodeIndex);
+    if (!sourceHref || !Number.isInteger(nodeIndex)) continue;
+    const current = ranges.get(sourceHref);
+    if (!current) {
+      ranges.set(sourceHref, { min: nodeIndex, max: nodeIndex });
+      continue;
+    }
+    current.min = Math.min(current.min, nodeIndex);
+    current.max = Math.max(current.max, nodeIndex);
+  }
+  return ranges;
+}
+
+function candidateFallsInsideChunkRange(candidate, sourceRange) {
+  if (!candidate || !sourceRange) return false;
+  const nodeIndex = Number(candidate.sourceNodeIndex);
+  if (!Number.isInteger(nodeIndex)) return false;
+  return nodeIndex >= sourceRange.min && nodeIndex <= sourceRange.max;
 }
 
 function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
@@ -742,19 +875,24 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
   const queues = buildV4CompatibleBlockQueues(book.v4Bootstrap.manifest);
   let previousOldBlock = null;
   const chunkBlocks = Array.isArray(chunk.logicalBlockList) ? chunk.logicalBlockList : [];
+  const chunkSourceRanges = buildChunkSourceRanges(chunkBlocks);
   const mergedLogicalBlockList = chunkBlocks.map((block, blockIndex) => {
     const sourceHref = normalizeRuntimeSafeSourceHref(block && block.sourceRef && block.sourceRef.href);
     const queue = sourceHref ? (queues.get(sourceHref) || []) : [];
+    const sourceRange = sourceHref ? (chunkSourceRanges.get(sourceHref) || null) : null;
     const oldType = String(block && block.blockType || "").trim().toLowerCase();
+    const oldHeadingMatch = oldType.match(/^heading-(\d+)$/);
     const oldHasMedia = Array.isArray(block && block.mediaItems) && block.mediaItems.length > 0;
     const oldTag = String(block && block.sourceRef && block.sourceRef.nodeTag || "").trim().toLowerCase();
     const maxSearch =
       oldType === "list-item"
         ? queue.length
-        : oldType === "heading-5"
+        : oldType === "blockquote"
+          ? queue.length
+        : oldHeadingMatch
           ? queue.length
         : oldType === "paragraph"
-          ? Math.min(queue.length, oldHasMedia && oldTag === "td" ? 96 : 24)
+          ? queue.length
           : Math.min(queue.length, 8);
     let candidateIndex = -1;
     let bestScore = 0;
@@ -769,6 +907,15 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
       }
     }
     if (candidateIndex < 0) {
+      const nextStrictCandidate = queue.find((item) =>
+        isStrictArtifactFirstCandidate(item) && candidateFallsInsideChunkRange(item, sourceRange)
+      );
+      if (nextStrictCandidate) {
+        throw new Error(
+          `Strict artifact-first mapping failed for ${describeRuntimeSafeBlock(block)}; ` +
+          `next v4 structural candidate is ${describeV4Candidate(nextStrictCandidate)}`
+        );
+      }
       previousOldBlock = block;
       return block;
     }
@@ -793,6 +940,20 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
         pairedFigureImageCandidate = queue.splice(pairedIndex, 1)[0];
       }
     }
+    if (
+      candidate &&
+      candidate.figureSequenceId &&
+      candidate.figureMemberRole === "lead-text" &&
+      oldType === "paragraph" &&
+      oldHasMedia &&
+      oldTag === "td" &&
+      !(pairedFigureImageCandidate && Array.isArray(pairedFigureImageCandidate.mediaItems) && pairedFigureImageCandidate.mediaItems.length)
+    ) {
+      throw new Error(
+        `Strict artifact-first figure mapping failed for ${describeRuntimeSafeBlock(block)}; ` +
+        `missing paired image candidate for ${describeV4Candidate(candidate)}`
+      );
+    }
     const isCommentHeading = candidate.sequenceRole === "comment-heading";
     const shouldDropLegacyCarriedMedia = (
       oldType === "paragraph" &&
@@ -804,6 +965,19 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
       block.mediaItems.length > 0 &&
       block.mediaItems.every((item) => item && !item.inlineAvatar)
     );
+    const strictArtifactOnly = isStrictArtifactFirstCandidate(candidate);
+    const resolvedMediaItems =
+      pairedFigureImageCandidate && pairedFigureImageCandidate.mediaItems && pairedFigureImageCandidate.mediaItems.length
+        ? pairedFigureImageCandidate.mediaItems
+        : candidate.mediaItems && candidate.mediaItems.length
+        ? candidate.mediaItems
+        : (shouldDropLegacyCarriedMedia ? [] : (block.mediaItems || []));
+    if (strictArtifactOnly && oldHasMedia && resolvedMediaItems === (block.mediaItems || [])) {
+      throw new Error(
+        `Strict artifact-first mapping refused legacy media carry-over for ${describeRuntimeSafeBlock(block)}; ` +
+        `candidate ${describeV4Candidate(candidate)} did not provide artifact-backed media`
+      );
+    }
     const nextBlock = {
       ...block,
       blockType:
@@ -822,12 +996,8 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
           ? `${candidate.listStart}. ${String(candidate.textContent || "").trim()}`
           : (candidate.textContent || block.labelHint || ""),
       blockPresentation: candidate.blockPresentation || block.blockPresentation || {},
-      mediaItems:
-        pairedFigureImageCandidate && pairedFigureImageCandidate.mediaItems && pairedFigureImageCandidate.mediaItems.length
-          ? pairedFigureImageCandidate.mediaItems
-          : candidate.mediaItems && candidate.mediaItems.length
-          ? candidate.mediaItems
-          : (shouldDropLegacyCarriedMedia ? [] : (block.mediaItems || [])),
+      mediaItems: resolvedMediaItems,
+      sourceRef: buildCompatSourceRefFromCandidate(block.sourceRef, candidate),
       blockRole: isCommentHeading ? "" : (candidate.blockRole || block.blockRole || ""),
       headingLevel: isCommentHeading
         ? null
@@ -841,6 +1011,8 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
         commentThreadId: candidate.commentThreadId || "",
         openingClusterId: candidate.openingClusterId || "",
         openingClusterIndex: Number.isInteger(candidate.openingClusterIndex) ? candidate.openingClusterIndex : -1,
+        sourceNodeIndex: Number.isInteger(candidate.sourceNodeIndex) ? candidate.sourceNodeIndex : -1,
+        sourceTag: String(candidate.sourceTag || "").trim(),
         figureSequenceId: candidate.figureSequenceId || "",
         figureMemberRole: pairedFigureImageCandidate
           ? "lead-with-image"
@@ -865,18 +1037,69 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
         ...chunk.renderLayer,
         glyphRuns: chunk.renderLayer.glyphRuns.map((run) => {
           const blockId = String(run && run.blockId || "").trim();
-          if (!blockId || !commentHeadingBlockIds.has(blockId)) return run;
+          const mergedBlock = mergedLogicalBlockList.find((block) => String(block && block.blockId || "").trim() === blockId) || null;
+          if (!blockId) return run;
           return {
             ...run,
-            styleToken: "paragraph"
+            sourceRef: mergedBlock && mergedBlock.sourceRef ? mergedBlock.sourceRef : (run.sourceRef || null),
+            styleToken: commentHeadingBlockIds.has(blockId) ? "paragraph" : run.styleToken
           };
         })
       }
     : chunk.renderLayer;
+  const mergedBlockSourceRefById = new Map(
+    mergedLogicalBlockList
+      .filter((block) => block && block.sourceRef)
+      .map((block) => [String(block.blockId || "").trim(), block.sourceRef])
+  );
+  const mergedSelectionLayer = chunk.selectionLayer && typeof chunk.selectionLayer === "object"
+    ? {
+        ...chunk.selectionLayer,
+        textSegments: Array.isArray(chunk.selectionLayer.textSegments)
+          ? chunk.selectionLayer.textSegments.map((segment) => {
+              const blockId = String(segment && segment.blockId || "").trim();
+              const mergedSourceRef = mergedBlockSourceRefById.get(blockId) || null;
+              if (!mergedSourceRef) return segment;
+              return {
+                ...segment,
+                sourceRef: mergedSourceRef,
+                sourceNodeId: String(mergedSourceRef.nodeId || "").trim()
+              };
+            })
+          : chunk.selectionLayer.textSegments,
+        blockAnchors: Array.isArray(chunk.selectionLayer.blockAnchors)
+          ? chunk.selectionLayer.blockAnchors.map((anchor) => {
+              const blockId = String(anchor && anchor.blockId || "").trim();
+              const mergedSourceRef = mergedBlockSourceRefById.get(blockId) || null;
+              if (!mergedSourceRef) return anchor;
+              return {
+                ...anchor,
+                sourceRef: mergedSourceRef
+              };
+            })
+          : chunk.selectionLayer.blockAnchors
+      }
+    : chunk.selectionLayer;
+  const mergedSourceRefs = Array.from(new Map(
+    mergedLogicalBlockList
+      .map((block) => block && block.sourceRef ? block.sourceRef : null)
+      .filter(Boolean)
+      .map((sourceRef) => {
+        const key = [
+          String(sourceRef.href || "").trim(),
+          String(sourceRef.nodeTag || "").trim(),
+          Number.isInteger(sourceRef.nodeIndex) ? sourceRef.nodeIndex : -1,
+          String(sourceRef.nodeId || "").trim()
+        ].join("::");
+        return [key, sourceRef];
+      })
+  ).values());
   return {
     ...chunk,
+    sourceRefs: mergedSourceRefs,
     logicalBlockList: mergedLogicalBlockList,
-    renderLayer: mergedRenderLayer
+    renderLayer: mergedRenderLayer,
+    selectionLayer: mergedSelectionLayer
   };
 }
 
@@ -927,9 +1150,11 @@ async function loadV4BootstrapCompatibleBook(artifactRoot) {
 }
 
 export async function loadProtectedBook(artifactRoot) {
+  const isExplicitV4Route = /\/protected-bootstrap-books(\/|$)/i.test(String(artifactRoot || ""));
   try {
     return await loadV4BootstrapCompatibleBook(artifactRoot);
   } catch (error) {
+    if (isExplicitV4Route) throw error;
     const message = String(error && error.message ? error.message : error || "");
     if (
       !/Unsupported v4 manifest version/i.test(message) &&

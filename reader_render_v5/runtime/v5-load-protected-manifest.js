@@ -1,7 +1,7 @@
 import {
   PROTECTED_V4_BOOTSTRAP_CONTRACT_KIND,
   PROTECTED_V4_BOOTSTRAP_MANIFEST_VERSION
-} from "/reader_render_v4/tools/protected-ingestion/lib/build-protected-manifest.js";
+} from "/reader_render_v5/tools/protected-bootstrap-ingestion/lib/build-protected-manifest.js";
 
 async function fetchJson(url) {
   const response = await fetch(url, { credentials: "same-origin" });
