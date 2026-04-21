@@ -337,6 +337,26 @@ function normalizeRuntimeSafeSourceHref(value) {
   return normalizeV4TocPathTail(value);
 }
 
+function normalizeComparableText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[«»“”"']/g, "")
+    .replace(/[–—-]/g, "-")
+    .replace(/[^a-z0-9а-яё\-]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getTextMatchStrength(oldText, candidateText) {
+  const left = normalizeComparableText(oldText);
+  const right = normalizeComparableText(candidateText);
+  if (!left || !right) return 0;
+  if (left === right) return 3;
+  if (left.length >= 16 && right.length >= 16 && (left.includes(right) || right.includes(left))) return 2;
+  if (left.length >= 12 && right.length >= 12 && left.slice(0, 24) === right.slice(0, 24)) return 1;
+  return 0;
+}
+
 function normalizeV4BlockPresentationForRuntime(blockPresentation) {
   const next = blockPresentation && typeof blockPresentation === "object" ? blockPresentation : {};
   return {
@@ -379,13 +399,22 @@ function applyV4CandidatePresentationHints(candidate) {
   if (candidate.listContainerId) {
     nextBlockPresentation.textAlign = "justify";
     nextBlockPresentation.textIndentEm = Math.max(Number(nextBlockPresentation.textIndentEm || 0), 1.25);
-    nextBlockPresentation.marginTopEm = 0;
+    nextBlockPresentation.marginTopEm = Number(candidate.listIndex) === 0
+      ? Math.max(Number(nextBlockPresentation.marginTopEm || 0), 0.35)
+      : 0;
     nextBlockPresentation.marginBottomEm = 0;
   }
   if (candidate.figureSequenceId) {
     nextBlockPresentation.pageBreakBefore = !!candidate.figureBreakBefore;
     if (candidate.figureMemberRole === "lead-text") {
       nextBlockPresentation.marginBottomEm = Math.max(Number(nextBlockPresentation.marginBottomEm || 0), 0.5);
+      nextBlockPresentation.textAlign = "justify";
+      nextBlockPresentation.textIndentEm = Math.max(Number(nextBlockPresentation.textIndentEm || 0), 1.25);
+    } else if (candidate.figureMemberRole === "image") {
+      nextBlockPresentation.textAlign = "center";
+      nextBlockPresentation.textIndentEm = 0;
+      nextBlockPresentation.marginTopEm = Math.max(Number(nextBlockPresentation.marginTopEm || 0), 0.5);
+      nextBlockPresentation.marginBottomEm = Math.max(Number(nextBlockPresentation.marginBottomEm || 0), 0.75);
     }
   }
   return {
@@ -412,8 +441,27 @@ function normalizeV4MediaItemForRuntime(item) {
     heightPx: preferredHeight || intrinsicHeight || 0,
     inlineAvatar: String(item.mediaRole || "").trim() === "inline-avatar" || String(item.placement || "").trim() === "inline-avatar",
     placement: String(item.placement || "block").trim() || "block",
-    mediaRole: String(item.mediaRole || "").trim()
+    mediaRole: String(item.mediaRole || "").trim(),
+    sourceAnchor: item.sourceAnchor && typeof item.sourceAnchor === "object" ? { ...item.sourceAnchor } : null,
+    hostSourceAnchor: item.hostSourceAnchor && typeof item.hostSourceAnchor === "object" ? { ...item.hostSourceAnchor } : null
   };
+}
+
+function getCandidateInlineAvatarHostAnchor(candidate) {
+  const mediaItems = Array.isArray(candidate && candidate.mediaItems) ? candidate.mediaItems : [];
+  return mediaItems.find((item) => item && item.inlineAvatar && item.hostSourceAnchor && typeof item.hostSourceAnchor === "object")
+    ?.hostSourceAnchor || null;
+}
+
+function candidateInlineAvatarMatchesOldBlock(oldBlock, candidate) {
+  const hostAnchor = getCandidateInlineAvatarHostAnchor(candidate);
+  if (!hostAnchor) return false;
+  const oldSourceRef = oldBlock && oldBlock.sourceRef && typeof oldBlock.sourceRef === "object" ? oldBlock.sourceRef : null;
+  if (!oldSourceRef) return false;
+  if (normalizeRuntimeSafeSourceHref(oldSourceRef.href) !== normalizeRuntimeSafeSourceHref(hostAnchor.sourceTextHref)) return false;
+  if (String(oldSourceRef.nodeTag || "").trim().toLowerCase() !== String(hostAnchor.nodeTag || "").trim().toLowerCase()) return false;
+  if (!Number.isInteger(oldSourceRef.nodeIndex) || Number(oldSourceRef.nodeIndex) !== Number(hostAnchor.nodeIndex)) return false;
+  return true;
 }
 
 function buildV4CompatibleBlockQueues(manifest) {
@@ -455,6 +503,7 @@ function buildV4CompatibleBlockQueues(manifest) {
         listContainerId: containerId,
         listType: String(container.listType || "").trim() || "ordered",
         listIndex: index,
+        listStart: Number(container.start || (index + 1)) || (index + 1),
         listBreakBefore: !!container.breakBefore
       });
     });
@@ -504,26 +553,9 @@ function buildV4CompatibleBlockQueues(manifest) {
       pendingInlineAvatars.delete(sourceHref);
     }
       if (mediaItems.length) attachedMedia.push(...mediaItems);
-    if (String(block.blockRole || "").trim() === "figure-lead") {
-      const nextBlock = logicalBlocks[index + 1];
-      const nextSourceHref = normalizeRuntimeSafeSourceHref(nextBlock && nextBlock.sourceHref);
-      const nextMedia = Array.isArray(nextBlock && nextBlock.mediaItems)
-        ? nextBlock.mediaItems.map(normalizeV4MediaItemForRuntime).filter(Boolean)
-        : [];
-      if (
-        nextBlock &&
-        nextSourceHref === sourceHref &&
-        !nextBlock.textContent &&
-        !Number.isInteger(nextBlock.headingLevel) &&
-        nextMedia.length &&
-        !nextMedia.every((item) => item.inlineAvatar)
-      ) {
-      attachedMedia.push(...nextMedia);
-        index += 1;
-      }
-    }
     const rawBlockId = String(block.blockId || "").trim();
     const figureLeadMeta = figureLeadMap.get(rawBlockId) || null;
+    const figureImageMeta = figureImageMap.get(rawBlockId) || null;
     const listItemMeta = listItemMap.get(rawBlockId) || null;
     const activeOpeningCluster = activeOpeningClusters.get(sourceHref) || null;
     const separatorMedia = attachedMedia.find((item) => item && String(item.mediaRole || "").trim() === "separator-image");
@@ -589,12 +621,20 @@ function buildV4CompatibleBlockQueues(manifest) {
       sequenceRole,
       openingClusterId,
       openingClusterIndex,
-      figureSequenceId: figureLeadMeta ? figureLeadMeta.figureSequenceId : "",
-      figureMemberRole: figureLeadMeta ? figureLeadMeta.figureMemberRole : "",
-      figureBreakBefore: !!(figureLeadMeta && figureLeadMeta.figureBreakBefore),
+      figureSequenceId: figureLeadMeta
+        ? figureLeadMeta.figureSequenceId
+        : (figureImageMeta ? figureImageMeta.figureSequenceId : ""),
+      figureMemberRole: figureLeadMeta
+        ? figureLeadMeta.figureMemberRole
+        : (figureImageMeta ? figureImageMeta.figureMemberRole : ""),
+      figureBreakBefore: !!(
+        (figureLeadMeta && figureLeadMeta.figureBreakBefore) ||
+        (figureImageMeta && figureImageMeta.figureBreakBefore)
+      ),
       listContainerId: listItemMeta ? listItemMeta.listContainerId : "",
       listType: listItemMeta ? listItemMeta.listType : "",
-      listIndex: listItemMeta ? listItemMeta.listIndex : -1
+      listIndex: listItemMeta ? listItemMeta.listIndex : -1,
+      listStart: listItemMeta ? listItemMeta.listStart : -1
     }));
   }
   return queues;
@@ -607,14 +647,27 @@ function getCompatibleRuntimeSafeBlockScore(oldBlock, candidate, context = {}) {
   const oldHasMedia = Array.isArray(oldBlock.mediaItems) && oldBlock.mediaItems.length > 0;
   const oldTag = String(oldBlock.sourceRef && oldBlock.sourceRef.nodeTag || "").trim().toLowerCase();
   const previousOldBlock = context.previousOldBlock || null;
+  const nextOldBlock = context.nextOldBlock || null;
+  const oldText = String(oldBlock.labelHint || "").trim();
+  const candidateText = String(candidate.textContent || "").trim();
+  const textMatchStrength = getTextMatchStrength(oldText, candidateText);
   if (oldHeadingMatch) {
     const expectedLevel = Number(oldHeadingMatch[1]);
     if (Number(candidate.headingLevel) !== expectedLevel) return 0;
     if (oldHasMedia && !candidate.mediaItems.length) return 0;
-    return candidate.openingClusterId ? 7 : (candidate.sequenceRole === "comment-heading" ? 5 : 4);
+    if (candidate.sequenceRole === "comment-heading") {
+      if (!candidateInlineAvatarMatchesOldBlock(oldBlock, candidate)) return 0;
+      if (!oldHasMedia && textMatchStrength <= 0) return 0;
+    }
+    if (textMatchStrength >= 3) return candidate.sequenceRole === "comment-heading" ? 12 : 11;
+    if (textMatchStrength === 2) return candidate.sequenceRole === "comment-heading" ? 10 : 9;
+    if (textMatchStrength === 1) return candidate.sequenceRole === "comment-heading" ? 8 : 7;
+    return candidate.openingClusterId ? 6 : (candidate.sequenceRole === "comment-heading" ? 2 : 4);
   }
   if (oldType === "figure") {
-    return !!candidate.mediaItems.length && !candidate.textContent ? 4 : 0;
+    if (!candidate.mediaItems.length || candidate.textContent) return 0;
+    if (candidate.figureMemberRole === "image") return 8;
+    return 4;
   }
   if (oldType === "list-item") {
     if (candidate.blockRole === "list-item") return 5;
@@ -623,16 +676,38 @@ function getCompatibleRuntimeSafeBlockScore(oldBlock, candidate, context = {}) {
   if (oldType === "paragraph") {
     if (oldHasMedia) {
       if (!candidate.mediaItems.length) return 0;
-      if (oldTag === "td" && candidate.blockRole === "figure-lead") return 6;
+      if (candidate.sequenceRole === "comment-heading" && !candidateInlineAvatarMatchesOldBlock(oldBlock, candidate)) return 0;
+      if (oldTag === "td" && candidate.figureMemberRole === "image") return 8;
       if (candidate.sequenceRole === "comment-heading") return 5;
       return (!!candidate.textContent || !!candidate.blockRole) ? 3 : 0;
     }
+    if (
+      nextOldBlock &&
+      String(nextOldBlock.blockType || "").trim().toLowerCase() === "paragraph" &&
+      Array.isArray(nextOldBlock.mediaItems) &&
+      nextOldBlock.mediaItems.length &&
+      String(nextOldBlock.sourceRef && nextOldBlock.sourceRef.nodeTag || "").trim().toLowerCase() === "td" &&
+      candidate.figureMemberRole === "lead-text"
+    ) {
+      return 7;
+    }
+    if (textMatchStrength >= 3) return 9;
+    if (textMatchStrength === 2) return 7;
+    if (textMatchStrength === 1) return 5;
     if (candidate.blockRole === "blockquote") return 5;
     if (
       previousOldBlock &&
-      String(previousOldBlock.blockType || "").trim().toLowerCase() === "heading-5" &&
-      Array.isArray(previousOldBlock.mediaItems) &&
-      previousOldBlock.mediaItems.some((item) => item && item.inlineAvatar) &&
+      (
+        (
+          String(previousOldBlock.blockType || "").trim().toLowerCase() === "heading-5" &&
+          Array.isArray(previousOldBlock.mediaItems) &&
+          previousOldBlock.mediaItems.some((item) => item && item.inlineAvatar)
+        ) ||
+        (
+          previousOldBlock.v4Compatibility &&
+          previousOldBlock.v4Compatibility.sequenceRole === "comment-heading"
+        )
+      ) &&
       candidate.sequenceRole === "comment-body"
     ) {
       return 6;
@@ -646,7 +721,8 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
   if (!chunk || !book || !book.v4Bootstrap || !book.v4Bootstrap.manifest) return chunk;
   const queues = buildV4CompatibleBlockQueues(book.v4Bootstrap.manifest);
   let previousOldBlock = null;
-  const mergedLogicalBlockList = (Array.isArray(chunk.logicalBlockList) ? chunk.logicalBlockList : []).map((block) => {
+  const chunkBlocks = Array.isArray(chunk.logicalBlockList) ? chunk.logicalBlockList : [];
+  const mergedLogicalBlockList = chunkBlocks.map((block, blockIndex) => {
     const sourceHref = normalizeRuntimeSafeSourceHref(block && block.sourceRef && block.sourceRef.href);
     const queue = sourceHref ? (queues.get(sourceHref) || []) : [];
     const oldType = String(block && block.blockType || "").trim().toLowerCase();
@@ -661,7 +737,10 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
     let candidateIndex = -1;
     let bestScore = 0;
     for (let index = 0; index < maxSearch; index += 1) {
-      const score = getCompatibleRuntimeSafeBlockScore(block, queue[index], { previousOldBlock });
+      const score = getCompatibleRuntimeSafeBlockScore(block, queue[index], {
+        previousOldBlock,
+        nextOldBlock: chunkBlocks[blockIndex + 1] || null
+      });
       if (score > bestScore) {
         bestScore = score;
         candidateIndex = index;
@@ -672,12 +751,30 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
       return block;
     }
     const candidate = queue.splice(candidateIndex, 1)[0];
+    const isCommentHeading = candidate.sequenceRole === "comment-heading";
     const nextBlock = {
       ...block,
+      blockType:
+        isCommentHeading
+          ? "paragraph"
+          : candidate.figureMemberRole === "image"
+          ? "figure"
+          : (candidate.blockRole === "list-item"
+            ? "list-item"
+            : block.blockType),
+      textLength: candidate.textContent
+        ? Math.max(1, Array.from(String(candidate.textContent || "")).length)
+        : block.textLength,
+      labelHint:
+        candidate.blockRole === "list-item" && Number.isInteger(candidate.listStart) && candidate.listStart > 0
+          ? `${candidate.listStart}. ${String(candidate.textContent || "").trim()}`
+          : (candidate.textContent || block.labelHint || ""),
       blockPresentation: candidate.blockPresentation || block.blockPresentation || {},
       mediaItems: candidate.mediaItems && candidate.mediaItems.length ? candidate.mediaItems : (block.mediaItems || []),
-      blockRole: candidate.blockRole || block.blockRole || "",
-      headingLevel: Number.isInteger(candidate.headingLevel)
+      blockRole: isCommentHeading ? "" : (candidate.blockRole || block.blockRole || ""),
+      headingLevel: isCommentHeading
+        ? null
+        : Number.isInteger(candidate.headingLevel)
         ? candidate.headingLevel
         : (Number.isInteger(block.headingLevel) ? block.headingLevel : null),
       v4Compatibility: {
@@ -686,15 +783,41 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
         sequenceRole: candidate.sequenceRole || "",
         commentThreadId: candidate.commentThreadId || "",
         openingClusterId: candidate.openingClusterId || "",
-        openingClusterIndex: Number.isInteger(candidate.openingClusterIndex) ? candidate.openingClusterIndex : -1
+        openingClusterIndex: Number.isInteger(candidate.openingClusterIndex) ? candidate.openingClusterIndex : -1,
+        figureSequenceId: candidate.figureSequenceId || "",
+        figureMemberRole: candidate.figureMemberRole || "",
+        listContainerId: candidate.listContainerId || "",
+        listType: candidate.listType || "",
+        listIndex: Number.isInteger(candidate.listIndex) ? candidate.listIndex : -1,
+        listStart: Number.isInteger(candidate.listStart) ? candidate.listStart : -1
       }
     };
     previousOldBlock = nextBlock;
     return nextBlock;
   });
+  const commentHeadingBlockIds = new Set(
+    mergedLogicalBlockList
+      .filter((block) => block && block.v4Compatibility && block.v4Compatibility.sequenceRole === "comment-heading")
+      .map((block) => String(block.blockId || "").trim())
+      .filter(Boolean)
+  );
+  const mergedRenderLayer = chunk.renderLayer && Array.isArray(chunk.renderLayer.glyphRuns)
+    ? {
+        ...chunk.renderLayer,
+        glyphRuns: chunk.renderLayer.glyphRuns.map((run) => {
+          const blockId = String(run && run.blockId || "").trim();
+          if (!blockId || !commentHeadingBlockIds.has(blockId)) return run;
+          return {
+            ...run,
+            styleToken: "paragraph"
+          };
+        })
+      }
+    : chunk.renderLayer;
   return {
     ...chunk,
-    logicalBlockList: mergedLogicalBlockList
+    logicalBlockList: mergedLogicalBlockList,
+    renderLayer: mergedRenderLayer
   };
 }
 

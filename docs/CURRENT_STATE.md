@@ -74,6 +74,12 @@
   - `list-item` block matching for ordered-list sections
   - initial `blockquote` block-role propagation where the old substrate shape can be matched safely
 - Current chunk adapter also tags chapter-opening clusters and suppresses internal page breaks inside those opening clusters, while comment-body paragraphs now inherit zero-indent thread composition from the new artifact.
+- Current chunk adapter now also carries separate `figure` image members from the new artifact into the copied `v3` runtime instead of collapsing multi-block figures entirely into lead-text candidates, so figure composition is starting to follow the new artifact at block-sequence level rather than only through substrate media leftovers.
+- Current protected v4 artifact build now writes strict source anchors for `inline-avatar` media:
+  - `mediaItems[].sourceAnchor` points to the exact source `<img ...>` occurrence in the original text file
+  - `mediaItems[].hostSourceAnchor` points to the exact host text node (`h*` / `p`) that owns that inline media in reading order
+- Current protected v4 validation now rejects `inline-avatar` media items that do not carry both anchors.
+- Current `reader_render_v5/runtime/protected-book-model.js` now allows `inline-avatar` remapping only when the new artifact `hostSourceAnchor` exactly matches the old `v3` substrate block source ref; loose same-file/same-level matching is no longer enough.
 
 ## Current Reader1 Tooling Reality
 

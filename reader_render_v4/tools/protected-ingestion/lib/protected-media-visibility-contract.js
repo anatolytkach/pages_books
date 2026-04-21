@@ -35,6 +35,20 @@ export function buildPhase1MediaVisibilityContract() {
     placement: {
       field: "placement",
       supportedValues: [...PROTECTED_V4_MEDIA_VISIBILITY_PLACEMENTS]
+    },
+    sourceAnchor: {
+      field: "sourceAnchor",
+      sourceTextHrefField: "sourceTextHref",
+      nodeTagField: "nodeTag",
+      htmlOffsetField: "htmlOffset",
+      classNameField: "className"
+    },
+    hostSourceAnchor: {
+      field: "hostSourceAnchor",
+      sourceTextHrefField: "sourceTextHref",
+      nodeTagField: "nodeTag",
+      nodeIndexField: "nodeIndex",
+      classNameField: "className"
     }
   };
 }
@@ -70,6 +84,42 @@ function validatePlacement(placement, label) {
   }
 }
 
+function validateSourceAnchor(anchor, label) {
+  if (!anchor || typeof anchor !== "object" || Array.isArray(anchor)) {
+    throw new Error(`${label} must be an object`);
+  }
+  if (typeof anchor.sourceTextHref !== "string" || !anchor.sourceTextHref.trim()) {
+    throw new Error(`${label}.sourceTextHref must be a non-empty string`);
+  }
+  if (typeof anchor.nodeTag !== "string" || !anchor.nodeTag.trim()) {
+    throw new Error(`${label}.nodeTag must be a non-empty string`);
+  }
+  if (!isFiniteNonNegativeNumber(anchor.htmlOffset)) {
+    throw new Error(`${label}.htmlOffset must be a non-negative number`);
+  }
+  if (anchor.className != null && typeof anchor.className !== "string") {
+    throw new Error(`${label}.className must be a string when present`);
+  }
+}
+
+function validateHostSourceAnchor(anchor, label) {
+  if (!anchor || typeof anchor !== "object" || Array.isArray(anchor)) {
+    throw new Error(`${label} must be an object`);
+  }
+  if (typeof anchor.sourceTextHref !== "string" || !anchor.sourceTextHref.trim()) {
+    throw new Error(`${label}.sourceTextHref must be a non-empty string`);
+  }
+  if (typeof anchor.nodeTag !== "string" || !anchor.nodeTag.trim()) {
+    throw new Error(`${label}.nodeTag must be a non-empty string`);
+  }
+  if (!Number.isInteger(anchor.nodeIndex) || anchor.nodeIndex < 0) {
+    throw new Error(`${label}.nodeIndex must be a non-negative integer`);
+  }
+  if (anchor.className != null && typeof anchor.className !== "string") {
+    throw new Error(`${label}.className must be a string when present`);
+  }
+}
+
 export function validateManifestCover(cover) {
   if (cover == null) return;
   if (!cover || typeof cover !== "object" || Array.isArray(cover)) {
@@ -96,6 +146,16 @@ export function validateMediaItemVisibilityShape(mediaItem, label) {
   validateOptionalGeometryPair(mediaItem, "intrinsicWidthPx", "intrinsicHeightPx", label);
   validateOptionalGeometryPair(mediaItem, "preferredRenderWidthPx", "preferredRenderHeightPx", label);
   validatePlacement(mediaItem.placement, label);
+  if (String(mediaItem.mediaRole || "") === "inline-avatar") {
+    validateSourceAnchor(mediaItem.sourceAnchor, `${label}.sourceAnchor`);
+    validateHostSourceAnchor(mediaItem.hostSourceAnchor, `${label}.hostSourceAnchor`);
+    if (String(mediaItem.sourceAnchor.nodeTag || "").trim().toLowerCase() !== "img") {
+      throw new Error(`${label}.sourceAnchor.nodeTag must be img for inline-avatar`);
+    }
+    if (String(mediaItem.hostSourceAnchor.nodeTag || "").trim().toLowerCase() === "img") {
+      throw new Error(`${label}.hostSourceAnchor.nodeTag must point to the host text node, not img`);
+    }
+  }
 }
 
 export function validatePhase1MediaVisibilityContract(contract) {
@@ -144,5 +204,27 @@ export function validatePhase1MediaVisibilityContract(contract) {
     supportedValues.some((value, index) => value !== PROTECTED_V4_MEDIA_VISIBILITY_PLACEMENTS[index])
   ) {
     throw new Error("artifactContract.mediaVisibilityPhase1.placement.supportedValues is invalid");
+  }
+  const sourceAnchor = contract.sourceAnchor && typeof contract.sourceAnchor === "object" ? contract.sourceAnchor : null;
+  if (
+    !sourceAnchor ||
+    sourceAnchor.field !== "sourceAnchor" ||
+    sourceAnchor.sourceTextHrefField !== "sourceTextHref" ||
+    sourceAnchor.nodeTagField !== "nodeTag" ||
+    sourceAnchor.htmlOffsetField !== "htmlOffset" ||
+    sourceAnchor.classNameField !== "className"
+  ) {
+    throw new Error("artifactContract.mediaVisibilityPhase1.sourceAnchor mapping is invalid");
+  }
+  const hostSourceAnchor = contract.hostSourceAnchor && typeof contract.hostSourceAnchor === "object" ? contract.hostSourceAnchor : null;
+  if (
+    !hostSourceAnchor ||
+    hostSourceAnchor.field !== "hostSourceAnchor" ||
+    hostSourceAnchor.sourceTextHrefField !== "sourceTextHref" ||
+    hostSourceAnchor.nodeTagField !== "nodeTag" ||
+    hostSourceAnchor.nodeIndexField !== "nodeIndex" ||
+    hostSourceAnchor.classNameField !== "className"
+  ) {
+    throw new Error("artifactContract.mediaVisibilityPhase1.hostSourceAnchor mapping is invalid");
   }
 }

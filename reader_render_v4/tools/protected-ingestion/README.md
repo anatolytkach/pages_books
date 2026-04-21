@@ -96,6 +96,8 @@ The first non-cover media ingestion pass stays narrow as well:
   - extracted only from `<img class="inline-avatar" ...>`
   - `mediaRole: "inline-avatar"`
   - `placement: "inline-avatar"`
+  - carries `sourceAnchor` for the exact source `<img>` occurrence
+  - carries `hostSourceAnchor` for the exact host reading node (`h*` / `p`) that owns that inline avatar
   - intrinsic geometry comes from the asset file
   - preferred render geometry is written only when explicit absolute width and height can be read reliably from the tag
 - `content-image`
@@ -307,6 +309,21 @@ What gets preserved in-order from existing extractors instead of duplicated:
 - `figure-lead`
 - `list-item`
 - `blockquote`
+
+For strict media truthfulness, `inline-avatar` is now allowed only when both
+of these exact anchors are present in the manifest:
+
+- `mediaItems[].sourceAnchor`
+  - exact source text file
+  - source `<img>` tag
+  - source HTML offset
+- `mediaItems[].hostSourceAnchor`
+  - exact source text file
+  - exact host reading node tag
+  - exact host reading node index
+
+`validate-protected-book.js` now rejects `inline-avatar` media items that do
+not carry both anchors.
 
 Reading-order fidelity now follows EPUB spine order from `EPUB/content.opf`
 instead of directory sorting.

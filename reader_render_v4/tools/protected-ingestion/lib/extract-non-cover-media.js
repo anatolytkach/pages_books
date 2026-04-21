@@ -105,7 +105,7 @@ function probeIntrinsicGeometry(assetPath) {
   };
 }
 
-function buildMediaItem({ mediaId, mediaRole, sourceHref, resolvedHref, assetPath, attrs, placement }) {
+function buildMediaItem({ mediaId, mediaRole, sourceHref, resolvedHref, assetPath, attrs, placement, sourceAnchor = null }) {
   const intrinsic = probeIntrinsicGeometry(assetPath);
   const preferred = extractPreferredGeometryFromTag({ attrs });
   const item = {
@@ -116,6 +116,7 @@ function buildMediaItem({ mediaId, mediaRole, sourceHref, resolvedHref, assetPat
     ...intrinsic
   };
   if (placement) item.placement = placement;
+  if (sourceAnchor && typeof sourceAnchor === "object") item.sourceAnchor = { ...sourceAnchor };
   if (preferred.preferredRenderWidthPx && preferred.preferredRenderHeightPx) {
     item.preferredRenderWidthPx = preferred.preferredRenderWidthPx;
     item.preferredRenderHeightPx = preferred.preferredRenderHeightPx;
@@ -145,7 +146,13 @@ function extractInlineAvatars({ xhtml, textHref, inputRoot, textFilePath }) {
             resolvedHref: toResolvedHref(textHref, sourceHref),
             assetPath,
             attrs,
-            placement: "inline-avatar"
+            placement: "inline-avatar",
+            sourceAnchor: {
+              sourceTextHref: textHref,
+              nodeTag: "img",
+              htmlOffset: Number(match.index) || 0,
+              className: String(attrs.class || "").trim()
+            }
           })
         ]
       });
@@ -177,7 +184,13 @@ function extractContentImages({ xhtml, textHref, textFilePath }) {
             resolvedHref: toResolvedHref(textHref, sourceHref),
             assetPath,
             attrs,
-            placement: "block"
+            placement: "block",
+            sourceAnchor: {
+              sourceTextHref: textHref,
+              nodeTag: "img",
+              htmlOffset: Number(match.index) || 0,
+              className: String(attrs.class || "").trim()
+            }
           })
         ]
       });
@@ -209,7 +222,13 @@ function extractSeparatorImages({ xhtml, textHref, textFilePath }) {
             resolvedHref: toResolvedHref(textHref, sourceHref),
             assetPath,
             attrs,
-            placement: "block"
+            placement: "block",
+            sourceAnchor: {
+              sourceTextHref: textHref,
+              nodeTag: "img",
+              htmlOffset: Number(match.index) || 0,
+              className: String(attrs.class || "").trim()
+            }
           })
         ]
       });

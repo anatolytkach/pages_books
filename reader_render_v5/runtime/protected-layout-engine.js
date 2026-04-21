@@ -473,6 +473,18 @@ export function layoutChunk({
         columnCursorY += blockMarginTop;
       }
     }
+    const primaryStyle = styles.get(runs[0] ? runs[0].styleToken : "paragraph") || {};
+    const primaryFont = fontSpecForStyle(primaryStyle, fontScale);
+    if (inlineAvatar) {
+      const avatar = mediaDimensionsForItem(inlineAvatar, columnWidth);
+      const reservedInlineIdentityHeight = Math.max(
+        Number(primaryFont.lineHeight || 0),
+        Number(avatar.height || 0) + 2
+      );
+      if (columnCursorY > 0 && (columnCursorY + reservedInlineIdentityHeight) > columnInnerHeight) {
+        advanceFlow(reservedInlineIdentityHeight);
+      }
+    }
     for (const mediaItem of blockLevelMediaItems) {
       const dimensions = mediaDimensionsForItem(mediaItem, columnWidth);
       if (columnCursorY > 0 && (columnCursorY + dimensions.height) > columnInnerHeight) {
@@ -837,7 +849,7 @@ export function layoutChunk({
       sourceRef: block.sourceRef
     });
     orderedBlockIds.push(block.blockId);
-    const style = styles.get(runs[0] ? runs[0].styleToken : "paragraph") || {};
+    const style = primaryStyle;
     const blockGap = blockMarginBottom || (style.blockRole === "heading" ? 18 : style.blockRole === "verse" ? 14 : 12);
     if (columnCursorY > 0 && (columnCursorY + blockGap) > columnInnerHeight) {
       advanceFlow(blockGap);

@@ -91,6 +91,22 @@ function consumeQueuedBlock(queues, sourceHref, type, consumedBlockIds) {
   return null;
 }
 
+function attachHostAnchorToMediaItems(mediaItems, { sourceHref, nodeTag, nodeIndex, className }) {
+  const normalizedSourceHref = String(sourceHref || "").trim();
+  const normalizedNodeTag = String(nodeTag || "").trim().toLowerCase();
+  const normalizedClassName = String(className || "").trim();
+  const normalizedNodeIndex = Number.isInteger(nodeIndex) ? nodeIndex : -1;
+  return (Array.isArray(mediaItems) ? mediaItems : []).map((item) => ({
+    ...item,
+    hostSourceAnchor: {
+      sourceTextHref: normalizedSourceHref,
+      nodeTag: normalizedNodeTag,
+      nodeIndex: normalizedNodeIndex,
+      className: normalizedClassName
+    }
+  }));
+}
+
 function buildOrderedBlocksFromFile({ inputRoot, textHref, textFilePath, queues, consumedBlockIds }) {
   const xhtml = fs.readFileSync(textFilePath, "utf8");
   const blocks = [];
@@ -99,13 +115,17 @@ function buildOrderedBlocksFromFile({ inputRoot, textHref, textFilePath, queues,
 
   let headingIndex = 0;
   let paragraphIndex = 0;
+  let sourceNodeIndex = -1;
   let match = tokenPattern.exec(xhtml);
 
   while (match) {
     const raw = match[0];
+    sourceNodeIndex += 1;
     if (/^<blockquote\b/i.test(raw)) {
       const block = consumeQueuedBlock(queues, textHref, "blockquote", consumedBlockIds);
       if (block) {
+        block.sourceNodeIndex = sourceNodeIndex;
+        block.sourceTag = "blockquote";
         blocks.push(block);
       }
       match = tokenPattern.exec(xhtml);
@@ -118,6 +138,8 @@ function buildOrderedBlocksFromFile({ inputRoot, textHref, textFilePath, queues,
       while (itemMatch) {
         const block = consumeQueuedBlock(queues, textHref, "list-item", consumedBlockIds);
         if (block) {
+          block.sourceNodeIndex = sourceNodeIndex;
+          block.sourceTag = "li";
           blocks.push(block);
         }
         itemMatch = itemPattern.exec(raw);
@@ -133,11 +155,23 @@ function buildOrderedBlocksFromFile({ inputRoot, textHref, textFilePath, queues,
       if (/\binline-avatar\b/.test(innerHtml || "")) {
         const avatarBlock = consumeQueuedBlock(queues, textHref, "inline-avatar", consumedBlockIds);
         if (avatarBlock) {
+          avatarBlock.mediaItems = attachHostAnchorToMediaItems(avatarBlock.mediaItems, {
+            sourceHref: textHref,
+            nodeTag: `h${level}`,
+            nodeIndex: sourceNodeIndex,
+            className: String(attrs.class || "").trim()
+          });
           blocks.push(avatarBlock);
         }
       } else if (/<img\b/i.test(innerHtml || "") && !stripHtmlToText(innerHtml || "")) {
         const separatorBlock = consumeQueuedBlock(queues, textHref, "separator-image", consumedBlockIds);
         if (separatorBlock) {
+          separatorBlock.mediaItems = attachHostAnchorToMediaItems(separatorBlock.mediaItems, {
+            sourceHref: textHref,
+            nodeTag: `h${level}`,
+            nodeIndex: sourceNodeIndex,
+            className: String(attrs.class || "").trim()
+          });
           blocks.push(separatorBlock);
         }
       }
@@ -154,6 +188,7 @@ function buildOrderedBlocksFromFile({ inputRoot, textHref, textFilePath, queues,
           headingLevel: level,
           textContent,
           sourceTag: `h${level}`,
+          sourceNodeIndex,
           sourceClassName: String(attrs.class || "").trim()
         };
         if (inlineText.inlineSemantics) {
@@ -172,6 +207,9 @@ function buildOrderedBlocksFromFile({ inputRoot, textHref, textFilePath, queues,
       if (/\bfigure-lead\b/.test(className)) {
         const figureLead = consumeQueuedBlock(queues, textHref, "figure-lead", consumedBlockIds);
         if (figureLead) {
+          figureLead.sourceNodeIndex = sourceNodeIndex;
+          figureLead.sourceTag = "p";
+          figureLead.sourceClassName = className;
           blocks.push(figureLead);
         }
         match = tokenPattern.exec(xhtml);
@@ -180,6 +218,15 @@ function buildOrderedBlocksFromFile({ inputRoot, textHref, textFilePath, queues,
       if (/\bimage-block\b/.test(className)) {
         const contentImage = consumeQueuedBlock(queues, textHref, "content-image", consumedBlockIds);
         if (contentImage) {
+          contentImage.mediaItems = attachHostAnchorToMediaItems(contentImage.mediaItems, {
+            sourceHref: textHref,
+            nodeTag: "p",
+            nodeIndex: sourceNodeIndex,
+            className
+          });
+          contentImage.sourceNodeIndex = sourceNodeIndex;
+          contentImage.sourceTag = "p";
+          contentImage.sourceClassName = className;
           blocks.push(contentImage);
         }
         match = tokenPattern.exec(xhtml);
@@ -197,6 +244,7 @@ function buildOrderedBlocksFromFile({ inputRoot, textHref, textFilePath, queues,
           sourceHref: textHref,
           textContent,
           sourceTag: "p",
+          sourceNodeIndex,
           sourceClassName: className
         };
         if (inlineText.inlineSemantics) {
