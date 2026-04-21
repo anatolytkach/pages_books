@@ -68,6 +68,7 @@ export function renderChunkToCanvas({
   const viewportHeight = pageWindow ? pageWindow.height : layout.height;
   // Layout coordinates already include internal page padding. When rendering
   // a paged window we only need to shift by the page's absolute top offset.
+  const translateX = pageWindow ? (0 - pageWindow.left) : 0;
   const translateY = pageWindow ? (0 - pageWindow.top) : 0;
   const currentTheme =
     typeof document !== "undefined" &&
@@ -118,7 +119,7 @@ export function renderChunkToCanvas({
       img.decoding = "async";
       img.loading = "eager";
       img.style.position = "absolute";
-      img.style.left = `${Number(item.x || 0)}px`;
+      img.style.left = `${Number(item.x || 0) - Number(pageWindow && pageWindow.left || 0)}px`;
       img.style.top = `${Number(item.y || 0) - Number(pageWindow && pageWindow.top || 0)}px`;
       img.style.width = `${Number(item.width || 0)}px`;
       img.style.height = `${Number(item.height || 0)}px`;
@@ -132,7 +133,7 @@ export function renderChunkToCanvas({
   const overlay = clearCanvas(overlayCanvas, layout.width, viewportHeight);
   overlay.clearRect(0, 0, layout.width, viewportHeight);
   overlay.save();
-  overlay.translate(0, translateY);
+  overlay.translate(translateX, translateY);
   if (debugGeometry) {
     overlay.strokeStyle = "rgba(68, 102, 140, 0.28)";
     overlay.lineWidth = 1;

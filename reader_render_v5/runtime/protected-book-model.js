@@ -460,8 +460,14 @@ function candidateInlineAvatarMatchesOldBlock(oldBlock, candidate) {
   if (!oldSourceRef) return false;
   if (normalizeRuntimeSafeSourceHref(oldSourceRef.href) !== normalizeRuntimeSafeSourceHref(hostAnchor.sourceTextHref)) return false;
   if (String(oldSourceRef.nodeTag || "").trim().toLowerCase() !== String(hostAnchor.nodeTag || "").trim().toLowerCase()) return false;
-  if (!Number.isInteger(oldSourceRef.nodeIndex) || Number(oldSourceRef.nodeIndex) !== Number(hostAnchor.nodeIndex)) return false;
-  return true;
+  if (Number.isInteger(oldSourceRef.nodeIndex) && Number(oldSourceRef.nodeIndex) === Number(hostAnchor.nodeIndex)) return true;
+  const textMatchStrength = getTextMatchStrength(
+    String(oldBlock && oldBlock.labelHint || ""),
+    String(candidate && candidate.textContent || "")
+  );
+  if (textMatchStrength < 2) return false;
+  if (!Number.isInteger(oldSourceRef.nodeIndex) || !Number.isInteger(Number(hostAnchor.nodeIndex))) return false;
+  return Math.abs(Number(oldSourceRef.nodeIndex) - Number(hostAnchor.nodeIndex)) <= 4;
 }
 
 function buildV4CompatibleBlockQueues(manifest) {
@@ -665,7 +671,16 @@ function getCompatibleRuntimeSafeBlockScore(oldBlock, candidate, context = {}) {
     return candidate.openingClusterId ? 6 : (candidate.sequenceRole === "comment-heading" ? 2 : 4);
   }
   if (oldType === "figure") {
+    const oldMediaHref =
+      Array.isArray(oldBlock.mediaItems) && oldBlock.mediaItems.length
+        ? String(oldBlock.mediaItems[0] && oldBlock.mediaItems[0].resolvedHref || "").trim()
+        : "";
+    const candidateMediaHref =
+      Array.isArray(candidate.mediaItems) && candidate.mediaItems.length
+        ? String(candidate.mediaItems[0] && candidate.mediaItems[0].resolvedHref || "").trim()
+        : "";
     if (!candidate.mediaItems.length || candidate.textContent) return 0;
+    if (oldMediaHref && candidateMediaHref && oldMediaHref !== candidateMediaHref) return 0;
     if (candidate.figureMemberRole === "image") return 8;
     return 4;
   }
@@ -675,9 +690,14 @@ function getCompatibleRuntimeSafeBlockScore(oldBlock, candidate, context = {}) {
   }
   if (oldType === "paragraph") {
     if (oldHasMedia) {
-      if (!candidate.mediaItems.length) return 0;
+      if (!candidate.mediaItems.length) {
+        if (oldTag === "td" && candidate.textContent && textMatchStrength >= 2) return 7;
+        return 0;
+      }
       if (candidate.sequenceRole === "comment-heading" && !candidateInlineAvatarMatchesOldBlock(oldBlock, candidate)) return 0;
-      if (oldTag === "td" && candidate.figureMemberRole === "image") return 8;
+      if (oldTag === "td" && candidate.figureMemberRole === "image") {
+        return oldText ? 0 : 8;
+      }
       if (candidate.sequenceRole === "comment-heading") return 5;
       return (!!candidate.textContent || !!candidate.blockRole) ? 3 : 0;
     }
@@ -726,13 +746,15 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
     const sourceHref = normalizeRuntimeSafeSourceHref(block && block.sourceRef && block.sourceRef.href);
     const queue = sourceHref ? (queues.get(sourceHref) || []) : [];
     const oldType = String(block && block.blockType || "").trim().toLowerCase();
+    const oldHasMedia = Array.isArray(block && block.mediaItems) && block.mediaItems.length > 0;
+    const oldTag = String(block && block.sourceRef && block.sourceRef.nodeTag || "").trim().toLowerCase();
     const maxSearch =
       oldType === "list-item"
         ? queue.length
         : oldType === "heading-5"
-          ? Math.min(queue.length, 48)
+          ? queue.length
         : oldType === "paragraph"
-          ? Math.min(queue.length, 16)
+          ? Math.min(queue.length, oldHasMedia && oldTag === "td" ? 96 : 24)
           : Math.min(queue.length, 8);
     let candidateIndex = -1;
     let bestScore = 0;
@@ -751,7 +773,37 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
       return block;
     }
     const candidate = queue.splice(candidateIndex, 1)[0];
+    let pairedFigureImageCandidate = null;
+    if (
+      oldType === "paragraph" &&
+      oldHasMedia &&
+      oldTag === "td" &&
+      candidate &&
+      candidate.figureSequenceId &&
+      candidate.figureMemberRole === "lead-text"
+    ) {
+      const pairedIndex = queue.findIndex((item) =>
+        item &&
+        item.figureSequenceId === candidate.figureSequenceId &&
+        item.figureMemberRole === "image" &&
+        Array.isArray(item.mediaItems) &&
+        item.mediaItems.length
+      );
+      if (pairedIndex >= 0) {
+        pairedFigureImageCandidate = queue.splice(pairedIndex, 1)[0];
+      }
+    }
     const isCommentHeading = candidate.sequenceRole === "comment-heading";
+    const shouldDropLegacyCarriedMedia = (
+      oldType === "paragraph" &&
+      oldHasMedia &&
+      !isCommentHeading &&
+      !!candidate.textContent &&
+      (!candidate.mediaItems || !candidate.mediaItems.length) &&
+      Array.isArray(block.mediaItems) &&
+      block.mediaItems.length > 0 &&
+      block.mediaItems.every((item) => item && !item.inlineAvatar)
+    );
     const nextBlock = {
       ...block,
       blockType:
@@ -770,7 +822,12 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
           ? `${candidate.listStart}. ${String(candidate.textContent || "").trim()}`
           : (candidate.textContent || block.labelHint || ""),
       blockPresentation: candidate.blockPresentation || block.blockPresentation || {},
-      mediaItems: candidate.mediaItems && candidate.mediaItems.length ? candidate.mediaItems : (block.mediaItems || []),
+      mediaItems:
+        pairedFigureImageCandidate && pairedFigureImageCandidate.mediaItems && pairedFigureImageCandidate.mediaItems.length
+          ? pairedFigureImageCandidate.mediaItems
+          : candidate.mediaItems && candidate.mediaItems.length
+          ? candidate.mediaItems
+          : (shouldDropLegacyCarriedMedia ? [] : (block.mediaItems || [])),
       blockRole: isCommentHeading ? "" : (candidate.blockRole || block.blockRole || ""),
       headingLevel: isCommentHeading
         ? null
@@ -785,7 +842,9 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
         openingClusterId: candidate.openingClusterId || "",
         openingClusterIndex: Number.isInteger(candidate.openingClusterIndex) ? candidate.openingClusterIndex : -1,
         figureSequenceId: candidate.figureSequenceId || "",
-        figureMemberRole: candidate.figureMemberRole || "",
+        figureMemberRole: pairedFigureImageCandidate
+          ? "lead-with-image"
+          : (candidate.figureMemberRole || ""),
         listContainerId: candidate.listContainerId || "",
         listType: candidate.listType || "",
         listIndex: Number.isInteger(candidate.listIndex) ? candidate.listIndex : -1,
