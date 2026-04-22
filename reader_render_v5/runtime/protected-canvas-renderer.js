@@ -21,6 +21,66 @@ function drawHighlightRect(ctx, rect) {
   ctx.fillRect(x, y, width, height);
 }
 
+function mediaLayerItemKey(item) {
+  if (!item || !item.assetUrl) return "";
+  const mediaId = String(item.mediaId || "").trim();
+  const placement = String(item.placement || "").trim();
+  const pageSlot = Number(item.pageSlot || 0);
+  const columnIndex = Number(item.columnIndex || 0);
+  return [mediaId, item.assetUrl, placement, pageSlot, columnIndex].join("|");
+}
+
+function applyMediaItemLayout(img, item, pageWindow) {
+  img.style.left = `${Number(item.x || 0) - Number(pageWindow && pageWindow.left || 0)}px`;
+  img.style.top = `${Number(item.y || 0) - Number(pageWindow && pageWindow.top || 0)}px`;
+  img.style.width = `${Number(item.width || 0)}px`;
+  img.style.height = `${Number(item.height || 0)}px`;
+}
+
+function updateMediaLayer(mediaLayer, mediaItems, layout, viewportHeight, pageWindow) {
+  mediaLayer.style.width = `${layout.width}px`;
+  mediaLayer.style.height = `${viewportHeight}px`;
+  const desiredItems = Array.isArray(mediaItems)
+    ? mediaItems.filter((item) => item && item.assetUrl)
+    : [];
+  const existingByKey = new Map();
+  for (const child of Array.from(mediaLayer.children || [])) {
+    const key = child && child.dataset ? String(child.dataset.mediaKey || "") : "";
+    if (key) existingByKey.set(key, child);
+  }
+  const desiredKeys = new Set();
+  for (const item of desiredItems) {
+    const key = mediaLayerItemKey(item);
+    if (!key) continue;
+    desiredKeys.add(key);
+    let img = existingByKey.get(key) || null;
+    if (!img) {
+      img = document.createElement("img");
+      img.src = item.assetUrl;
+      img.alt = "";
+      img.decoding = "async";
+      img.loading = "eager";
+      img.style.position = "absolute";
+      img.style.objectFit = "contain";
+      img.style.objectPosition = "center center";
+      img.style.pointerEvents = "none";
+      img.dataset.mediaKey = key;
+      img.dataset.mediaSrc = String(item.assetUrl || "");
+      mediaLayer.append(img);
+    }
+    if (String(img.dataset.mediaSrc || "") !== String(item.assetUrl || "")) {
+      img.src = item.assetUrl;
+      img.dataset.mediaSrc = String(item.assetUrl || "");
+    }
+    applyMediaItemLayout(img, item, pageWindow);
+  }
+  for (const [key, child] of existingByKey.entries()) {
+    if (!desiredKeys.has(key) && child && child.parentNode === mediaLayer) {
+      child.remove();
+    }
+  }
+}
+
 function offsetToFragmentX(fragment, offset) {
   const localOffset = Math.max(0, Math.min(fragment.endOffset - fragment.startOffset, offset - fragment.startOffset));
   const positions = fragment.charPositions || [0, fragment.width || 0];
@@ -108,26 +168,7 @@ export function renderChunkToCanvas({
   ctx.restore();
 
   if (mediaLayer) {
-    mediaLayer.replaceChildren();
-    mediaLayer.style.width = `${layout.width}px`;
-    mediaLayer.style.height = `${viewportHeight}px`;
-    for (const item of mediaItems || []) {
-      if (!item || !item.assetUrl) continue;
-      const img = document.createElement("img");
-      img.src = item.assetUrl;
-      img.alt = "";
-      img.decoding = "async";
-      img.loading = "eager";
-      img.style.position = "absolute";
-      img.style.left = `${Number(item.x || 0) - Number(pageWindow && pageWindow.left || 0)}px`;
-      img.style.top = `${Number(item.y || 0) - Number(pageWindow && pageWindow.top || 0)}px`;
-      img.style.width = `${Number(item.width || 0)}px`;
-      img.style.height = `${Number(item.height || 0)}px`;
-      img.style.objectFit = "contain";
-      img.style.objectPosition = "center center";
-      img.style.pointerEvents = "none";
-      mediaLayer.append(img);
-    }
+    updateMediaLayer(mediaLayer, mediaItems, layout, viewportHeight, pageWindow);
   }
 
   const overlay = clearCanvas(overlayCanvas, layout.width, viewportHeight);
