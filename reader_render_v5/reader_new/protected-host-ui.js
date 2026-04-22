@@ -157,6 +157,22 @@ function getScreenMinDimension() {
   }
 }
 
+function hasTouchLikeViewportHost() {
+  try {
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
+  } catch (_error) {}
+  try {
+    const ua = String((navigator && navigator.userAgent) || "");
+    if (/Mobi|Android|iPhone|iPad|iPod|Tablet|Silk|Kindle|PlayBook/i.test(ua)) return true;
+  } catch (_error) {}
+  try {
+    const maxTouchPoints = Number((navigator && navigator.maxTouchPoints) || 0);
+    const fineHover = !!(window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+    if (maxTouchPoints > 0 && !fineHover) return true;
+  } catch (_error) {}
+  return false;
+}
+
 function isTabletViewportHost() {
   try {
     const ua = navigator.userAgent || "";
@@ -187,15 +203,10 @@ function syncProtectedViewportEnvironment() {
     if (w) root.style.setProperty("--app-vw", `${w}px`);
   } catch (_error) {}
   try {
-    const isTablet = isTabletViewportHost();
-    const isPhone = !isTablet && getScreenMinDimension() > 0 && getScreenMinDimension() < 700;
-    const isDesktop = !isTablet && (() => {
-      try {
-        if (window.matchMedia && window.matchMedia("(min-width: 769px)").matches) return true;
-        if (window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches) return true;
-      } catch (_error) {}
-      return false;
-    })();
+    const touchLike = hasTouchLikeViewportHost();
+    const isTablet = !!(touchLike && isTabletViewportHost());
+    const isPhone = !!(touchLike && !isTablet);
+    const isDesktop = !isPhone && !isTablet;
     root.classList.toggle("is-ios", detectIosDevice());
     root.classList.toggle("is-tablet", !!isTablet);
     root.classList.toggle("is-phone", !!isPhone);
@@ -1270,11 +1281,17 @@ function installStyles() {
         top: 50%;
         transform: translate(-50%, -50%);
         margin: 0;
-        width: min(44vw, 620px);
-        max-width: calc(100vw - 420px);
+        width: auto;
+        max-width: calc(100vw - 240px);
         justify-content: center;
         pointer-events: none;
         text-align: center;
+      }
+      html.is-phone body.protected-shell #metainfo {
+        max-width: calc(100vw - 124px);
+      }
+      html.is-tablet body.protected-shell #metainfo {
+        max-width: calc(100vw - 260px);
       }
       html.is-phone body.protected-shell #metaText,
       html.is-tablet body.protected-shell #metaText {
@@ -2984,6 +3001,15 @@ function installStyles() {
     html.is-desktop body.protected-shell #next::after {
       opacity: 1;
     }
+    body.protected-shell #prev[data-nav-hidden="true"],
+    body.protected-shell #next[data-nav-hidden="true"],
+    body.protected-shell #prev[data-nav-hidden="true"]::after,
+    body.protected-shell #next[data-nav-hidden="true"]::after,
+    .protected-nav-edge[data-nav-hidden="true"] {
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
     @media (orientation: landscape) {
       html.is-phone body.protected-shell #prev,
       html.is-phone body.protected-shell #next,
@@ -4185,11 +4211,32 @@ function updatePageCounter(summary) {
   pageCount.textContent = summary && (summary.globalPageLabel || summary.pageLabel) ? (summary.globalPageLabel || summary.pageLabel) : "";
 }
 
+function canNavigateDirection(direction, summary = HOST_STATE.lastSummary) {
+  const normalizedDirection = direction === "prev" ? "prev" : "next";
+  if (!summary || typeof summary !== "object") return false;
+  return normalizedDirection === "prev" ? !!summary.canGoPrev : !!summary.canGoNext;
+}
+
 function updateNavButtons(summary) {
   const prev = document.getElementById("prev");
   const next = document.getElementById("next");
-  if (prev) prev.classList.toggle("disabled", !(summary && summary.canGoPrev));
-  if (next) next.classList.toggle("disabled", !(summary && summary.canGoNext));
+  const prevEdge = document.getElementById("protectedOldShellPrevEdge");
+  const nextEdge = document.getElementById("protectedOldShellNextEdge");
+  const canGoPrev = canNavigateDirection("prev", summary);
+  const canGoNext = canNavigateDirection("next", summary);
+  [
+    { node: prev, allowed: canGoPrev, hidden: !canGoPrev },
+    { node: next, allowed: canGoNext, hidden: !canGoNext },
+    { node: prevEdge, allowed: canGoPrev, hidden: !canGoPrev },
+    { node: nextEdge, allowed: canGoNext, hidden: !canGoNext }
+  ].forEach(({ node, allowed, hidden }) => {
+    if (!node) return;
+    node.classList.toggle("disabled", !allowed);
+    node.disabled = !allowed;
+    node.dataset.navHidden = hidden ? "true" : "false";
+    node.setAttribute("aria-hidden", hidden ? "true" : "false");
+    node.tabIndex = allowed ? 0 : -1;
+  });
 }
 
 function updateSearchControls(summary) {
@@ -7731,6 +7778,15 @@ function animatePageTurnTo(fromDx, toDx, durationMs = 280) {
 }
 
 async function performPageTurn(direction, options = {}) {
+  if (!canNavigateDirection(direction)) {
+    window.__protectedTurnDebug = {
+      ...(window.__protectedTurnDebug || {}),
+      blockedAt: Date.now(),
+      blockedDirection: direction,
+      stage: "blocked-boundary"
+    };
+    return;
+  }
   const reuseExistingPreview = !!options.reuseExistingPreview;
   const startingDx = Number(options.startDx || 0);
   if (HOST_STATE.turnInFlight) {
@@ -7916,6 +7972,7 @@ function installTouchSwipe(target) {
   }
 
   function scheduleTouchRevealActivation(direction) {
+    if (!canNavigateDirection(direction)) return;
     if (!gesture || Math.abs(gesture.dx || 0) <= 24) return;
     if (gesture.activationTimer) return;
     gesture.activationTimer = window.setTimeout(() => {
@@ -7952,6 +8009,9 @@ function installTouchSwipe(target) {
       if (relX < leftCut) tapZone = "left";
       else if (relX > rightCut) tapZone = "right";
     }
+    const edgeBlocked =
+      (tapZone === "left" && !canNavigateDirection("prev")) ||
+      (tapZone === "right" && !canNavigateDirection("next"));
     const prepared = syncNeighborPreviewLayers({ requireFresh: true });
     if (!prepared) syncNeighborPreviewLayers({ requireFresh: false });
     gesture = {
@@ -7972,6 +8032,7 @@ function installTouchSwipe(target) {
       swipeCaptured: false,
       selectionClaimed: false,
       selectionLocked: false,
+      edgeBlocked,
       footnoteAnchor: null,
       footnoteResolved: false
     };
@@ -7992,6 +8053,7 @@ function installTouchSwipe(target) {
       zoneWidth: Number(zoneBounds.width || 0),
       relX,
       tapZone,
+      edgeBlocked,
       prepared,
       nextNeighborCount: getNeighborLayerCanvasCount("next"),
       prevNeighborCount: getNeighborLayerCanvasCount("prev")
@@ -8002,6 +8064,7 @@ function installTouchSwipe(target) {
     if (!gesture) return;
     const touch = event.touches ? event.touches[0] : null;
     if (!touch) return;
+    if (gesture.edgeBlocked) return;
     const dx = touch.clientX - gesture.x;
     const dy = touch.clientY - gesture.y;
     window.__protectedTouchDebug.move = {
@@ -8066,13 +8129,30 @@ function installTouchSwipe(target) {
     }
     if (Math.abs(dx) > 24 && Math.abs(dx) > Math.abs(dy)) {
       if (touchSelection.pending || touchSelection.claimed || touchSelection.selectionStarted) return;
+      const direction = dx < 0 ? "next" : "prev";
+      if (!canNavigateDirection(direction)) {
+        if (gesture.activationTimer) {
+          window.clearTimeout(gesture.activationTimer);
+          gesture.activationTimer = null;
+        }
+        if (gesture.previewVisible) {
+          clearPageTurnPreview({ clearNeighbors: false });
+          gesture.previewVisible = false;
+        }
+        if (gesture.swipeCaptured) {
+          setFramePointerEventsDisabled(false);
+          gesture.swipeCaptured = false;
+        }
+        gesture.direction = null;
+        gesture.dx = 0;
+        return;
+      }
       event.preventDefault();
       if (!gesture.swipeCaptured) {
         setFramePointerEventsDisabled(true);
         gesture.swipeCaptured = true;
       }
       gesture.dx = dx;
-      const direction = dx < 0 ? "next" : "prev";
       gesture.direction = direction;
       if (!gesture.prepared) {
         syncNeighborPreviewLayers({ requireFresh: false, direction });
@@ -8152,6 +8232,18 @@ function installTouchSwipe(target) {
     const touch = event.changedTouches ? event.changedTouches[0] : null;
     if (!touch) {
       if (completedGesture && completedGesture.swipeCaptured) setFramePointerEventsDisabled(false);
+      gesture = null;
+      return;
+    }
+    if (completedGesture.edgeBlocked) {
+      if (completedGesture.activationTimer) {
+        window.clearTimeout(completedGesture.activationTimer);
+        completedGesture.activationTimer = null;
+      }
+      if (completedGesture.previewVisible) {
+        clearPageTurnPreview({ clearNeighbors: false });
+      }
+      if (completedGesture.swipeCaptured) setFramePointerEventsDisabled(false);
       gesture = null;
       return;
     }
@@ -8238,12 +8330,14 @@ function installTouchSwipe(target) {
           return;
         }
         if (tapZone === "left") {
+          if (!canNavigateDirection("prev")) return;
           event.preventDefault();
           await performPageTurn("prev");
           window.__protectedTouchDebug.tap.turn = "prev";
           return;
         }
         if (tapZone === "right") {
+          if (!canNavigateDirection("next")) return;
           event.preventDefault();
           await performPageTurn("next");
           window.__protectedTouchDebug.tap.turn = "next";
@@ -8261,9 +8355,11 @@ function installTouchSwipe(target) {
     }
     event.preventDefault();
     if (dx < 0) {
+      if (!canNavigateDirection("next")) return;
       await performPageTurn("next", { reuseExistingPreview: previewVisible, startDx: dx });
       return;
     }
+    if (!canNavigateDirection("prev")) return;
     await performPageTurn("prev", { reuseExistingPreview: previewVisible, startDx: dx });
   }
 
