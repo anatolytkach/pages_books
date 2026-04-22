@@ -105,8 +105,8 @@
       "glyphsPath": "glyphs/chunk-000007.glyphs.json",
       "shapesPath": "shapes/chunk-000007.shapes.json",
       "startOffset": 390660,
-      "endOffset": 455657,
-      "textLength": 64997
+      "endOffset": 455687,
+      "textLength": 65027
     },
     {
       "chunkId": "chunk-000008",
@@ -114,8 +114,8 @@
       "chunkPath": "chunks/chunk-000008.json",
       "glyphsPath": "glyphs/chunk-000008.glyphs.json",
       "shapesPath": "shapes/chunk-000008.shapes.json",
-      "startOffset": 455657,
-      "endOffset": 520809,
+      "startOffset": 455687,
+      "endOffset": 520839,
       "textLength": 65152
     },
     {
@@ -124,8 +124,8 @@
       "chunkPath": "chunks/chunk-000009.json",
       "glyphsPath": "glyphs/chunk-000009.glyphs.json",
       "shapesPath": "shapes/chunk-000009.shapes.json",
-      "startOffset": 520809,
-      "endOffset": 586290,
+      "startOffset": 520839,
+      "endOffset": 586320,
       "textLength": 65481
     },
     {
@@ -134,8 +134,8 @@
       "chunkPath": "chunks/chunk-000010.json",
       "glyphsPath": "glyphs/chunk-000010.glyphs.json",
       "shapesPath": "shapes/chunk-000010.shapes.json",
-      "startOffset": 586290,
-      "endOffset": 650579,
+      "startOffset": 586320,
+      "endOffset": 650609,
       "textLength": 64289
     },
     {
@@ -144,8 +144,8 @@
       "chunkPath": "chunks/chunk-000011.json",
       "glyphsPath": "glyphs/chunk-000011.glyphs.json",
       "shapesPath": "shapes/chunk-000011.shapes.json",
-      "startOffset": 650579,
-      "endOffset": 714944,
+      "startOffset": 650609,
+      "endOffset": 714974,
       "textLength": 64365
     },
     {
@@ -154,9 +154,9 @@
       "chunkPath": "chunks/chunk-000012.json",
       "glyphsPath": "glyphs/chunk-000012.glyphs.json",
       "shapesPath": "shapes/chunk-000012.shapes.json",
-      "startOffset": 714944,
-      "endOffset": 769206,
-      "textLength": 54262
+      "startOffset": 714974,
+      "endOffset": 769246,
+      "textLength": 54272
     },
     {
       "chunkId": "chunk-000013",
@@ -164,8 +164,8 @@
       "chunkPath": "chunks/chunk-000013.json",
       "glyphsPath": "glyphs/chunk-000013.glyphs.json",
       "shapesPath": "shapes/chunk-000013.shapes.json",
-      "startOffset": 769206,
-      "endOffset": 783345,
+      "startOffset": 769246,
+      "endOffset": 783385,
       "textLength": 14139
     }
   ],

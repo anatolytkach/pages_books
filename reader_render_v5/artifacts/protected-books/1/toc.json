@@ -3,10 +3,10 @@
   "items": [
     {
       "id": "toc-1",
-      "label": "ВОПРОС - Тони Вивер",
-      "href": "text/cover.xhtml#cover-image",
-      "spineHref": "text/cover.xhtml",
-      "fragment": "cover-image"
+      "label": "ВОПРОС",
+      "href": "text/title_page.xhtml",
+      "spineHref": "text/title_page.xhtml",
+      "fragment": ""
     },
     {
       "id": "toc-2",

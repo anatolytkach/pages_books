@@ -558,6 +558,98 @@ function blockTypeForTag(tag, attrs = {}) {
   return "paragraph";
 }
 
+function buildBlockRecord({
+  blockIndex,
+  tag,
+  attrs = {},
+  innerHtml = "",
+  spineItem,
+  styleContext,
+  blockTypeOverride = ""
+}) {
+  const plainText = normalizeWhitespace(stripTags(innerHtml));
+  const mediaItems = extractMediaItems(innerHtml, spineItem, attrs);
+  if (!plainText && !mediaItems.length) return null;
+  const inline = extractInlineRuns(innerHtml);
+  const blockType =
+    blockTypeOverride ||
+    (
+      !plainText && mediaItems.length
+        ? "figure"
+        : blockTypeForTag(tag, attrs)
+    );
+  return {
+    blockId: `${spineItem.spineId}-b-${String(blockIndex + 1).padStart(4, "0")}`,
+    blockType,
+    tagName: tag,
+    text: plainText,
+    sourceRef: {
+      spineId: spineItem.spineId,
+      spineIndex: spineItem.spineIndex,
+      href: spineItem.href,
+      filePath: spineItem.absolutePath,
+      nodeTag: tag,
+      nodeIndex: blockIndex,
+      nodeId: attrs.id || "",
+      nodeClass: attrs.class || ""
+    },
+    linkTargets: inline.linkTargets.map((item) => ({
+      ...item,
+      kind: looksLikeNoteHref(item.href) ? "note" : "link"
+    })),
+    inlineIds: inline.inlineIds,
+    mediaItems,
+    blockPresentation: blockPresentationFor(tag, attrs, styleContext),
+    runs: inline.runs,
+    styleSignals: {
+      hasBold: inline.runs.some((run) => run.styleState.bold),
+      hasItalic: inline.runs.some((run) => run.styleState.italic),
+      hasSuperscript: inline.runs.some((run) => run.styleState.superscript),
+      hasLinks: inline.linkTargets.length > 0,
+      hasDropCap: inline.runs.some((run) => run.styleState.dropCap),
+      hasCustomScale: inline.runs.some((run) => Number(run.styleState.fontScale || 1) !== 1),
+      hasMedia: mediaItems.length > 0
+    }
+  };
+}
+
+function extractNestedBlockquoteBlocks(innerHtml, spineItem, attrs, styleContext, parentIndex) {
+  const nestedMatches = Array.from(
+    String(innerHtml || "").matchAll(/<(p|li|div|pre)\b([^>]*)>([\s\S]*?)<\/\1>/gi)
+  );
+  if (!nestedMatches.length) return [];
+  const blocks = [];
+  for (let nestedIndex = 0; nestedIndex < nestedMatches.length; nestedIndex += 1) {
+    const match = nestedMatches[nestedIndex];
+    const nestedTag = String(match[1] || "p").toLowerCase();
+    const nestedAttrs = parseAttrs(match[2] || "");
+    const mergedAttrs = {
+      ...attrs,
+      ...nestedAttrs,
+      class: [attrs.class || "", nestedAttrs.class || ""].filter(Boolean).join(" ").trim(),
+      style: [attrs.style || "", nestedAttrs.style || ""].filter(Boolean).join("; ")
+    };
+    const block = buildBlockRecord({
+      blockIndex: (parentIndex * 1000) + nestedIndex,
+      tag: "blockquote",
+      attrs: mergedAttrs,
+      innerHtml: match[3] || "",
+      spineItem,
+      styleContext,
+      blockTypeOverride: "blockquote"
+    });
+    if (block) {
+      block.tagName = nestedTag;
+      block.sourceRef = {
+        ...block.sourceRef,
+        nodeTag: nestedTag
+      };
+      blocks.push(block);
+    }
+  }
+  return blocks;
+}
+
 function sourceRefMatchesToc(sourceRef, tocItem, inlineIds = []) {
   const { path, fragment } = splitHrefTarget(tocItem && tocItem.href);
   const tocHref = normalizePathTail(path || (tocItem && tocItem.spineHref));
@@ -644,47 +736,22 @@ function extractBlocksFromHtml(html, spineItem, styleContext) {
     const tag = String(match[1] || "div").toLowerCase();
     const attrs = parseAttrs(match[2] || "");
     const innerHtml = match[3] || "";
-    const plainText = normalizeWhitespace(stripTags(innerHtml));
-    const mediaItems = extractMediaItems(innerHtml, spineItem, attrs);
-    if (!plainText && !mediaItems.length) continue;
-    const inline = extractInlineRuns(innerHtml);
-    const blockType =
-      !plainText && mediaItems.length
-        ? "figure"
-        : blockTypeForTag(tag, attrs);
-    blocks.push({
-      blockId: `${spineItem.spineId}-b-${String(index + 1).padStart(4, "0")}`,
-      blockType,
-      tagName: tag,
-      text: plainText,
-      sourceRef: {
-        spineId: spineItem.spineId,
-        spineIndex: spineItem.spineIndex,
-        href: spineItem.href,
-        filePath: spineItem.absolutePath,
-        nodeTag: tag,
-        nodeIndex: index,
-        nodeId: attrs.id || "",
-        nodeClass: attrs.class || ""
-      },
-      linkTargets: inline.linkTargets.map((item) => ({
-        ...item,
-        kind: looksLikeNoteHref(item.href) ? "note" : "link"
-      })),
-      inlineIds: inline.inlineIds,
-      mediaItems,
-      blockPresentation: blockPresentationFor(tag, attrs, styleContext),
-      runs: inline.runs,
-      styleSignals: {
-        hasBold: inline.runs.some((run) => run.styleState.bold),
-        hasItalic: inline.runs.some((run) => run.styleState.italic),
-        hasSuperscript: inline.runs.some((run) => run.styleState.superscript),
-        hasLinks: inline.linkTargets.length > 0,
-        hasDropCap: inline.runs.some((run) => run.styleState.dropCap),
-        hasCustomScale: inline.runs.some((run) => Number(run.styleState.fontScale || 1) !== 1),
-        hasMedia: mediaItems.length > 0
+    if (tag === "blockquote") {
+      const nestedBlocks = extractNestedBlockquoteBlocks(innerHtml, spineItem, attrs, styleContext, index);
+      if (nestedBlocks.length) {
+        blocks.push(...nestedBlocks);
+        continue;
       }
+    }
+    const block = buildBlockRecord({
+      blockIndex: index,
+      tag,
+      attrs,
+      innerHtml,
+      spineItem,
+      styleContext
     });
+    if (block) blocks.push(block);
   }
   return blocks;
 }
