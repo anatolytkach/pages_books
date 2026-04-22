@@ -17,10 +17,19 @@ function emToPx(emValue, fontSizePx) {
   return Math.max(0, Math.round((Number(emValue || 0) || 0) * Math.max(0, Number(fontSizePx || 0))));
 }
 
+function resolveMetricPx(exactPx, emValue, fontSizePx, fallback = 0) {
+  const exact = Number(exactPx || 0);
+  if (Number.isFinite(exact) && exact > 0) return Math.round(exact);
+  const emResolved = emToPx(emValue, fontSizePx);
+  if (Number.isFinite(emResolved) && emResolved > 0) return emResolved;
+  return Math.max(0, Math.round(Number(fallback || 0) || 0));
+}
+
 export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
   const headingLevel = styleTokenRecord.headingLevel || 0;
   const baseSize = styleTokenRecord.blockRole === "quote" ? 17 : styleTokenRecord.blockRole === "verse" ? 15 : 16;
   const explicitScale = Number(styleTokenRecord.fontSizeScale || 0) || 0;
+  const explicitSizePx = Number(styleTokenRecord.fontSizePx || 0) || 0;
   const semanticScale =
     explicitScale > 0 ? explicitScale :
     headingLevel === 1 ? 3 :
@@ -30,19 +39,31 @@ export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
     headingLevel >= 5 ? 1.1 :
     styleTokenRecord.blockRole === "verse" ? 0.9 :
     1;
-  const size = Math.max(11, Math.round(baseSize * semanticScale * Math.max(0.75, Math.min(1.75, fontScale || 1))));
+  const scaledFontScale = Math.max(0.75, Math.min(1.75, fontScale || 1));
+  const size = Math.max(
+    11,
+    Math.round((explicitSizePx > 0 ? explicitSizePx : (baseSize * semanticScale)) * scaledFontScale)
+  );
   const weight = styleTokenRecord.fontWeight === "bold" ? "700" : "400";
   const italic = styleTokenRecord.fontStyle === "italic" ? "italic " : "";
   const family = styleTokenRecord.fontFamilyCandidate || "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
   const lineHeightFactor = Math.max(0.8, Math.min(2.4, Number(styleTokenRecord.lineHeightFactor || 1.55) || 1.55));
+  const explicitLineHeightPx = Number(styleTokenRecord.lineHeightPx || 0) || 0;
   return {
     size,
-    lineHeight: Math.round(size * lineHeightFactor),
+    lineHeight: explicitLineHeightPx > 0
+      ? Math.max(1, Math.round(explicitLineHeightPx * scaledFontScale))
+      : Math.round(size * lineHeightFactor),
     css: `${italic}${weight} ${size}px ${family}`,
     fontStyle: styleTokenRecord.fontStyle === "italic" ? "italic" : "normal",
-    letterSpacingPx: Math.round(size * (Number(styleTokenRecord.letterSpacingEm || 0) || 0) * 1000) / 1000,
+    whiteSpace: String(styleTokenRecord.whiteSpace || "normal").trim().toLowerCase() || "normal",
+    letterSpacingPx: Number(styleTokenRecord.letterSpacingPx || 0) || (
+      Math.round(size * (Number(styleTokenRecord.letterSpacingEm || 0) || 0) * 1000) / 1000
+    ),
     trailingSpacingPx: Math.round(size * (Number(styleTokenRecord.trailingSpacingEm || 0) || 0) * 1000) / 1000,
-    wordSpacingPx: Math.round(size * (Number(styleTokenRecord.wordSpacingEm || 0) || 0) * 1000) / 1000,
+    wordSpacingPx: Number(styleTokenRecord.wordSpacingPx || 0) || (
+      Math.round(size * (Number(styleTokenRecord.wordSpacingEm || 0) || 0) * 1000) / 1000
+    ),
     fillStyle: styleTokenRecord.textColor || ""
   };
 }
@@ -461,9 +482,15 @@ export function layoutChunk({
       : blockMediaItems;
     const primaryStyle = styles.get(runs[0] ? runs[0].styleToken : "paragraph") || {};
     const primaryFont = fontSpecForStyle(primaryStyle, fontScale);
-    const blockMarginTop = emToPx(blockPresentation.marginTopEm, primaryFont.size);
-    const blockMarginBottom = emToPx(blockPresentation.marginBottomEm, primaryFont.size);
-    let firstLineIndentPx = emToPx(blockPresentation.textIndentEm, primaryFont.size);
+    const blockMarginTop = resolveMetricPx(blockPresentation.marginTopPx, blockPresentation.marginTopEm, primaryFont.size);
+    const blockMarginBottom = resolveMetricPx(blockPresentation.marginBottomPx, blockPresentation.marginBottomEm, primaryFont.size);
+    const blockMarginLeft = resolveMetricPx(blockPresentation.marginLeftPx, blockPresentation.marginLeftEm, primaryFont.size);
+    const blockMarginRight = resolveMetricPx(blockPresentation.marginRightPx, blockPresentation.marginRightEm, primaryFont.size);
+    const blockPaddingTop = resolveMetricPx(blockPresentation.paddingTopPx, blockPresentation.paddingTopEm, primaryFont.size);
+    const blockPaddingRight = resolveMetricPx(blockPresentation.paddingRightPx, blockPresentation.paddingRightEm, primaryFont.size);
+    const blockPaddingBottom = resolveMetricPx(blockPresentation.paddingBottomPx, blockPresentation.paddingBottomEm, primaryFont.size);
+    const blockPaddingLeft = resolveMetricPx(blockPresentation.paddingLeftPx, blockPresentation.paddingLeftEm, primaryFont.size);
+    let firstLineIndentPx = resolveMetricPx(blockPresentation.textIndentPx, blockPresentation.textIndentEm, primaryFont.size);
     const blockTextAlign = String(blockPresentation.textAlign || "justify").toLowerCase();
     const paragraphShouldJustify =
       block.blockType === "paragraph" &&
@@ -486,6 +513,14 @@ export function layoutChunk({
         columnCursorY += collapsedBlockGap;
       }
     }
+    if (blockPaddingTop > 0) {
+      if (columnCursorY > 0 && (columnCursorY + blockPaddingTop) > columnInnerHeight) {
+        advanceFlow(blockPaddingTop);
+        pendingBlockMarginBottomPx = 0;
+      } else {
+        columnCursorY += blockPaddingTop;
+      }
+    }
     if (inlineAvatar) {
       const avatar = mediaDimensionsForItem(inlineAvatar, columnWidth);
       const reservedInlineIdentityHeight = Math.max(
@@ -502,11 +537,14 @@ export function layoutChunk({
         advanceFlow(dimensions.height);
       }
       const mediaX = resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + Math.max(0, Math.round((columnWidth - dimensions.width) / 2));
+      const contentLeftX = resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + blockMarginLeft + blockPaddingLeft;
+      const contentWidth = Math.max(120, columnWidth - blockMarginLeft - blockMarginRight - blockPaddingLeft - blockPaddingRight);
+      const mediaXAligned = contentLeftX + Math.max(0, Math.round((contentWidth - dimensions.width) / 2));
       const mediaY = (pageSlot * pageSlotHeight) + resolvedPaddingY + columnCursorY;
       mediaItems.push({
         mediaId: mediaItem.mediaId,
         blockId: block.blockId,
-        x: mediaX,
+        x: mediaXAligned,
         y: mediaY,
         width: dimensions.width,
         height: dimensions.height,
@@ -521,10 +559,11 @@ export function layoutChunk({
     if (inlineAvatar) {
       const avatar = mediaDimensionsForItem(inlineAvatar, columnWidth);
       firstLineIndentPx += avatar.width + 8;
+      const contentLeftX = resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + blockMarginLeft + blockPaddingLeft;
       mediaItems.push({
         mediaId: inlineAvatar.mediaId,
         blockId: block.blockId,
-        x: resolvedPaddingX + (columnIndex * (columnWidth + columnGap)),
+        x: contentLeftX,
         y: (pageSlot * pageSlotHeight) + resolvedPaddingY + columnCursorY + 2,
         width: avatar.width,
         height: avatar.height,
@@ -609,11 +648,11 @@ export function layoutChunk({
       const wrapInset = wrapActive ? Number(dropCapWrap.width || 0) : 0;
       currentLine = {
         blockId: block.blockId,
-        x: resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + (blockLineCount === 0 ? firstLineIndentPx : 0) + wrapInset,
+        x: resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + blockMarginLeft + blockPaddingLeft + (blockLineCount === 0 ? firstLineIndentPx : 0) + wrapInset,
         y: currentY,
         height: lineHeight,
         width: 0,
-        maxWidth: Math.max(120, columnWidth - (blockLineCount === 0 ? firstLineIndentPx : 0) - wrapInset),
+        maxWidth: Math.max(120, columnWidth - blockMarginLeft - blockMarginRight - blockPaddingLeft - blockPaddingRight - (blockLineCount === 0 ? firstLineIndentPx : 0) - wrapInset),
         pageSlot,
         columnIndex,
         fragments: []
@@ -672,7 +711,8 @@ export function layoutChunk({
         currentWidth > 0 &&
         adjustedWidthPx > 0 &&
         currentWidth + adjustedWidthPx > Number(line.maxWidth || columnWidth) &&
-        token.kind !== "punctuation"
+        token.kind !== "punctuation" &&
+        font.whiteSpace !== "nowrap"
       ) {
         commitLine();
         return placeToken({
@@ -850,16 +890,23 @@ export function layoutChunk({
       blockId: block.blockId,
       blockType: block.blockType,
       styleToken: runs[0] ? runs[0].styleToken : "paragraph",
-      x: resolvedPaddingX + (columnIndex * (columnWidth + columnGap)),
+      x: resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + blockMarginLeft,
       y: blockTop,
-      width: columnWidth,
-      height: Math.max(blockHeight, 24),
+      width: Math.max(0, columnWidth - blockMarginLeft - blockMarginRight),
+      height: Math.max(blockHeight + blockPaddingTop + blockPaddingBottom, 24),
       lineCount: blockLines.length,
       textLength: blockTextLength,
       lineIndexes: blockLines.map((line) => line.lineIndex),
       sourceRef: block.sourceRef
     });
     orderedBlockIds.push(block.blockId);
+    if (blockPaddingBottom > 0) {
+      if (columnCursorY > 0 && (columnCursorY + blockPaddingBottom) > columnInnerHeight) {
+        advanceFlow(blockPaddingBottom);
+      } else {
+        columnCursorY += blockPaddingBottom;
+      }
+    }
     pendingBlockMarginBottomPx = blockMarginBottom;
     hasLaidOutBlock = true;
   }

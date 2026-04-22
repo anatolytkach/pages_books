@@ -21,14 +21,21 @@ function resolveArtifactMediaUrl(manifest, resolvedHref) {
 function normalizeBlockPresentation(presentation) {
   if (!presentation || typeof presentation !== "object") return null;
   const normalized = {};
-  if (typeof presentation.textIndentEm === "number" && Number.isFinite(presentation.textIndentEm)) {
-    normalized.textIndentEm = presentation.textIndentEm;
-  }
-  if (typeof presentation.marginTopEm === "number" && Number.isFinite(presentation.marginTopEm)) {
-    normalized.marginTopEm = presentation.marginTopEm;
-  }
-  if (typeof presentation.marginBottomEm === "number" && Number.isFinite(presentation.marginBottomEm)) {
-    normalized.marginBottomEm = presentation.marginBottomEm;
+  const numericFields = [
+    "textIndentEm", "textIndentPx",
+    "marginTopEm", "marginTopPx",
+    "marginBottomEm", "marginBottomPx",
+    "marginLeftEm", "marginLeftPx",
+    "marginRightEm", "marginRightPx",
+    "paddingTopEm", "paddingTopPx",
+    "paddingRightEm", "paddingRightPx",
+    "paddingBottomEm", "paddingBottomPx",
+    "paddingLeftEm", "paddingLeftPx"
+  ];
+  for (const field of numericFields) {
+    if (typeof presentation[field] === "number" && Number.isFinite(presentation[field])) {
+      normalized[field] = presentation[field];
+    }
   }
   if (typeof presentation.lineHeight === "number" && Number.isFinite(presentation.lineHeight)) {
     normalized.lineHeight = presentation.lineHeight;
@@ -36,6 +43,10 @@ function normalizeBlockPresentation(presentation) {
   const textAlign = String(presentation.textAlign || "").trim();
   if (textAlign) {
     normalized.textAlign = textAlign;
+  }
+  const whiteSpace = String(presentation.whiteSpace || "").trim();
+  if (whiteSpace) {
+    normalized.whiteSpace = whiteSpace;
   }
   return Object.keys(normalized).length ? normalized : null;
 }

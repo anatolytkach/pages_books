@@ -1,7 +1,7 @@
 import { createProtectedAnnotationRepository } from "../runtime/protected-annotation-repository.js";
 import { serializeRangeDescriptor } from "../runtime/protected-range-serialization.js";
 import { renderChunkToCanvas } from "../runtime/protected-canvas-renderer.js?v=20260416-protected-render-padding-1";
-import { createProtectedWorkerClient } from "../runtime/protected-worker-client.js?v=20260422-v5-spacing-collapse-1";
+import { createProtectedWorkerClient } from "../runtime/protected-worker-client.js?v=20260422-v5-heading-style-payload-1";
 import { loadProtectedBook, loadProtectedChunkModel } from "../runtime/protected-book-model.js";
 import { parseRestoreToken } from "../runtime/protected-global-location.js";
 import { reconstructCrossChunkRangeText } from "../runtime/protected-cross-chunk-model.js";

@@ -120,19 +120,38 @@ function pickSourcePresentation(styleEntry) {
   const presentation = {};
   const numericFields = [
     "textIndentEm",
+    "textIndentPx",
     "marginTopEm",
+    "marginTopPx",
     "marginBottomEm",
+    "marginBottomPx",
+    "marginLeftEm",
+    "marginLeftPx",
+    "marginRightEm",
+    "marginRightPx",
+    "paddingTopEm",
+    "paddingTopPx",
+    "paddingRightEm",
+    "paddingRightPx",
+    "paddingBottomEm",
+    "paddingBottomPx",
+    "paddingLeftEm",
+    "paddingLeftPx",
     "lineHeightFactor",
+    "lineHeightPx",
+    "fontSizePx",
     "fontSizeScale",
     "letterSpacingEm",
-    "wordSpacingEm"
+    "letterSpacingPx",
+    "wordSpacingEm",
+    "wordSpacingPx"
   ];
   for (const field of numericFields) {
     if (Number.isFinite(styleEntry[field])) {
       presentation[field] = styleEntry[field];
     }
   }
-  const stringFields = ["textAlign", "fontStyle", "fontWeight", "fontFamily", "textColor"];
+  const stringFields = ["textAlign", "fontStyle", "fontWeight", "fontFamily", "textColor", "whiteSpace"];
   for (const field of stringFields) {
     if (styleEntry[field]) {
       presentation[field] = styleEntry[field];
@@ -148,17 +167,37 @@ function blockPresentationFor(tag, attrs = {}, styleContext = null) {
   let presentation = {
     textAlign: "justify",
     textIndentEm: 1,
+    textIndentPx: 16,
     marginTopEm: 0,
+    marginTopPx: 0,
     marginBottomEm: 0,
+    marginBottomPx: 0,
+    marginLeftEm: 0,
+    marginLeftPx: 0,
+    marginRightEm: 0,
+    marginRightPx: 0,
+    paddingTopEm: 0,
+    paddingTopPx: 0,
+    paddingRightEm: 0,
+    paddingRightPx: 0,
+    paddingBottomEm: 0,
+    paddingBottomPx: 0,
+    paddingLeftEm: 0,
+    paddingLeftPx: 0,
     lineHeightFactor: 1.5,
+    lineHeightPx: 24,
+    fontSizePx: 16,
     fontSizeScale: 1,
     letterSpacingEm: 0,
+    letterSpacingPx: 0,
     wordSpacingEm: 0,
+    wordSpacingPx: 0,
     pageBreakBefore: false,
     fontFamily: "",
     fontStyle: "normal",
     fontWeight: "regular",
-    textColor: ""
+    textColor: "",
+    whiteSpace: "normal"
   };
 
   if (headingMatch) {
@@ -222,13 +261,71 @@ function blockPresentationFor(tag, attrs = {}, styleContext = null) {
   }
 
   if (inlineStyle["text-align"]) presentation.textAlign = String(inlineStyle["text-align"]).toLowerCase();
-  if (inlineStyle["text-indent"]) presentation.textIndentEm = parseCssLengthEm(inlineStyle["text-indent"], presentation.textIndentEm);
-  if (inlineStyle["margin-top"]) presentation.marginTopEm = parseCssLengthEm(inlineStyle["margin-top"], presentation.marginTopEm);
-  if (inlineStyle["margin-bottom"]) presentation.marginBottomEm = parseCssLengthEm(inlineStyle["margin-bottom"], presentation.marginBottomEm);
-  if (inlineStyle["line-height"]) presentation.lineHeightFactor = parseCssLengthEm(inlineStyle["line-height"], presentation.lineHeightFactor);
-  if (inlineStyle["font-size"]) presentation.fontSizeScale = parseCssLengthEm(inlineStyle["font-size"], presentation.fontSizeScale);
-  if (inlineStyle["letter-spacing"]) presentation.letterSpacingEm = parseCssLengthEm(inlineStyle["letter-spacing"], presentation.letterSpacingEm);
-  if (inlineStyle["word-spacing"]) presentation.wordSpacingEm = parseCssLengthEm(inlineStyle["word-spacing"], presentation.wordSpacingEm);
+  if (inlineStyle["text-indent"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["text-indent"], presentation.textIndentEm);
+    presentation.textIndentEm = valueEm;
+    presentation.textIndentPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["margin-top"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["margin-top"], presentation.marginTopEm);
+    presentation.marginTopEm = valueEm;
+    presentation.marginTopPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["margin-bottom"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["margin-bottom"], presentation.marginBottomEm);
+    presentation.marginBottomEm = valueEm;
+    presentation.marginBottomPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["margin-left"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["margin-left"], presentation.marginLeftEm);
+    presentation.marginLeftEm = valueEm;
+    presentation.marginLeftPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["margin-right"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["margin-right"], presentation.marginRightEm);
+    presentation.marginRightEm = valueEm;
+    presentation.marginRightPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["padding-top"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["padding-top"], presentation.paddingTopEm);
+    presentation.paddingTopEm = valueEm;
+    presentation.paddingTopPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["padding-right"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["padding-right"], presentation.paddingRightEm);
+    presentation.paddingRightEm = valueEm;
+    presentation.paddingRightPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["padding-bottom"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["padding-bottom"], presentation.paddingBottomEm);
+    presentation.paddingBottomEm = valueEm;
+    presentation.paddingBottomPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["padding-left"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["padding-left"], presentation.paddingLeftEm);
+    presentation.paddingLeftEm = valueEm;
+    presentation.paddingLeftPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["line-height"]) {
+    const valueFactor = parseCssLengthEm(inlineStyle["line-height"], presentation.lineHeightFactor);
+    presentation.lineHeightFactor = valueFactor;
+    presentation.lineHeightPx = Math.round(valueFactor * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["font-size"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["font-size"], presentation.fontSizeScale);
+    presentation.fontSizeScale = valueEm;
+    presentation.fontSizePx = Math.round(valueEm * 16 * 1000) / 1000;
+  }
+  if (inlineStyle["letter-spacing"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["letter-spacing"], presentation.letterSpacingEm);
+    presentation.letterSpacingEm = valueEm;
+    presentation.letterSpacingPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
+  if (inlineStyle["word-spacing"]) {
+    const valueEm = parseCssLengthEm(inlineStyle["word-spacing"], presentation.wordSpacingEm);
+    presentation.wordSpacingEm = valueEm;
+    presentation.wordSpacingPx = Math.round(valueEm * Math.max(1, Number(presentation.fontSizePx || 16)) * 1000) / 1000;
+  }
   if (inlineStyle["font-family"]) presentation.fontFamily = String(inlineStyle["font-family"]).trim();
   if (inlineStyle["font-style"]) presentation.fontStyle = String(inlineStyle["font-style"]).trim().toLowerCase();
   if (inlineStyle["font-weight"]) {
@@ -236,6 +333,21 @@ function blockPresentationFor(tag, attrs = {}, styleContext = null) {
     presentation.fontWeight = rawWeight === "bold" ? "bold" : (/^\d+$/.test(rawWeight) ? (Number(rawWeight) >= 600 ? "bold" : "regular") : rawWeight);
   }
   if (inlineStyle.color) presentation.textColor = String(inlineStyle.color).trim();
+  if (inlineStyle["white-space"]) presentation.whiteSpace = String(inlineStyle["white-space"]).trim().toLowerCase();
+
+  const fontSizePx = Math.max(1, Number(presentation.fontSizePx || 16));
+  presentation.textIndentPx = Math.round((Number(presentation.textIndentEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.marginTopPx = Math.round((Number(presentation.marginTopEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.marginBottomPx = Math.round((Number(presentation.marginBottomEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.marginLeftPx = Math.round((Number(presentation.marginLeftEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.marginRightPx = Math.round((Number(presentation.marginRightEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.paddingTopPx = Math.round((Number(presentation.paddingTopEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.paddingRightPx = Math.round((Number(presentation.paddingRightEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.paddingBottomPx = Math.round((Number(presentation.paddingBottomEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.paddingLeftPx = Math.round((Number(presentation.paddingLeftEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.letterSpacingPx = Math.round((Number(presentation.letterSpacingEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.wordSpacingPx = Math.round((Number(presentation.wordSpacingEm || 0) || 0) * fontSizePx * 1000) / 1000;
+  presentation.lineHeightPx = Math.round((Number(presentation.lineHeightFactor || 1.5) || 1.5) * fontSizePx * 1000) / 1000;
 
   return presentation;
 }

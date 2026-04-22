@@ -377,13 +377,32 @@ function normalizeV4TypographyOverride(entry) {
   if (!entry || typeof entry !== "object") return null;
   const normalized = {};
   const numericFields = [
+    "fontSizePx",
     "fontSizeScale",
+    "lineHeightPx",
     "lineHeightFactor",
+    "letterSpacingPx",
     "letterSpacingEm",
+    "wordSpacingPx",
     "wordSpacingEm",
+    "textIndentPx",
     "textIndentEm",
+    "marginTopPx",
     "marginTopEm",
-    "marginBottomEm"
+    "marginBottomPx",
+    "marginBottomEm",
+    "marginLeftPx",
+    "marginLeftEm",
+    "marginRightPx",
+    "marginRightEm",
+    "paddingTopPx",
+    "paddingTopEm",
+    "paddingRightPx",
+    "paddingRightEm",
+    "paddingBottomPx",
+    "paddingBottomEm",
+    "paddingLeftPx",
+    "paddingLeftEm"
   ];
   for (const field of numericFields) {
     const value = Number(entry[field]);
@@ -394,6 +413,10 @@ function normalizeV4TypographyOverride(entry) {
   const textAlign = String(entry.textAlign || "").trim().toLowerCase();
   if (["left", "center", "right", "justify"].includes(textAlign)) {
     normalized.textAlign = textAlign;
+  }
+  const whiteSpace = String(entry.whiteSpace || "").trim().toLowerCase();
+  if (["normal", "nowrap", "pre", "pre-wrap", "pre-line"].includes(whiteSpace)) {
+    normalized.whiteSpace = whiteSpace;
   }
   const fontStyle = String(entry.fontStyle || "").trim().toLowerCase();
   if (fontStyle === "normal" || fontStyle === "italic") {
@@ -446,13 +469,32 @@ function mergeStyleTokenWithV4Typography(styleTokenRecord, override) {
   if (!styleTokenRecord || !override) return styleTokenRecord;
   const next = { ...styleTokenRecord };
   const numericFields = [
+    "fontSizePx",
     "fontSizeScale",
+    "lineHeightPx",
     "lineHeightFactor",
+    "letterSpacingPx",
     "letterSpacingEm",
+    "wordSpacingPx",
     "wordSpacingEm",
+    "textIndentPx",
     "textIndentEm",
+    "marginTopPx",
     "marginTopEm",
-    "marginBottomEm"
+    "marginBottomPx",
+    "marginBottomEm",
+    "marginLeftPx",
+    "marginLeftEm",
+    "marginRightPx",
+    "marginRightEm",
+    "paddingTopPx",
+    "paddingTopEm",
+    "paddingRightPx",
+    "paddingRightEm",
+    "paddingBottomPx",
+    "paddingBottomEm",
+    "paddingLeftPx",
+    "paddingLeftEm"
   ];
   for (const field of numericFields) {
     if (override[field] != null) {
@@ -461,6 +503,9 @@ function mergeStyleTokenWithV4Typography(styleTokenRecord, override) {
   }
   if (override.textAlign) {
     next.textAlign = override.textAlign;
+  }
+  if (override.whiteSpace) {
+    next.whiteSpace = override.whiteSpace;
   }
   if (override.fontFamilyCandidate) {
     next.fontFamilyCandidate = override.fontFamilyCandidate;

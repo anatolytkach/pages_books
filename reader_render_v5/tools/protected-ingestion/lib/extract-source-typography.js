@@ -88,6 +88,11 @@ function normalizeTextAlign(value) {
   return ["left", "center", "right", "justify"].includes(normalized) ? normalized : "";
 }
 
+function normalizeWhiteSpace(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["normal", "nowrap", "pre", "pre-wrap", "pre-line"].includes(normalized) ? normalized : "";
+}
+
 function normalizeFontStyle(value) {
   const normalized = String(value || "").trim().toLowerCase();
   return normalized === "italic" ? "italic" : normalized === "normal" ? "normal" : "";
@@ -145,38 +150,78 @@ function buildSelectorEntry(declarations, inherited, bodyFontSizePx) {
   );
   const entry = {
     fontSizeScale: pxToEm(fontSizePx, bodyFontSizePx),
+    fontSizePx: Math.round(fontSizePx * 1000) / 1000,
     lineHeightFactor,
     textAlign: normalizeTextAlign(declarations["text-align"]) || String(inherited && inherited.textAlign || "").trim(),
+    whiteSpace: normalizeWhiteSpace(declarations["white-space"]) || String(inherited && inherited.whiteSpace || "").trim(),
     fontSizePx
   };
 
   const textIndentPx = parseLengthToPx(declarations["text-indent"], fontSizePx);
   if (textIndentPx != null) {
     entry.textIndentEm = pxToEm(textIndentPx, fontSizePx);
+    entry.textIndentPx = Math.round(textIndentPx * 1000) / 1000;
   }
 
   const marginPair = parseMarginPair(declarations.margin, fontSizePx);
   if (marginPair) {
     entry.marginTopEm = pxToEm(marginPair.topPx, fontSizePx);
     entry.marginBottomEm = pxToEm(marginPair.bottomPx, fontSizePx);
+    entry.marginTopPx = Math.round(marginPair.topPx * 1000) / 1000;
+    entry.marginBottomPx = Math.round(marginPair.bottomPx * 1000) / 1000;
   }
 
   const marginTopPx = parseLengthToPx(declarations["margin-top"], fontSizePx);
   if (marginTopPx != null) {
     entry.marginTopEm = pxToEm(marginTopPx, fontSizePx);
+    entry.marginTopPx = Math.round(marginTopPx * 1000) / 1000;
   }
   const marginBottomPx = parseLengthToPx(declarations["margin-bottom"], fontSizePx);
   if (marginBottomPx != null) {
     entry.marginBottomEm = pxToEm(marginBottomPx, fontSizePx);
+    entry.marginBottomPx = Math.round(marginBottomPx * 1000) / 1000;
+  }
+  const marginLeftPx = parseLengthToPx(declarations["margin-left"], fontSizePx);
+  if (marginLeftPx != null) {
+    entry.marginLeftEm = pxToEm(marginLeftPx, fontSizePx);
+    entry.marginLeftPx = Math.round(marginLeftPx * 1000) / 1000;
+  }
+  const marginRightPx = parseLengthToPx(declarations["margin-right"], fontSizePx);
+  if (marginRightPx != null) {
+    entry.marginRightEm = pxToEm(marginRightPx, fontSizePx);
+    entry.marginRightPx = Math.round(marginRightPx * 1000) / 1000;
+  }
+
+  const paddingTopPx = parseLengthToPx(declarations["padding-top"], fontSizePx);
+  if (paddingTopPx != null) {
+    entry.paddingTopEm = pxToEm(paddingTopPx, fontSizePx);
+    entry.paddingTopPx = Math.round(paddingTopPx * 1000) / 1000;
+  }
+  const paddingRightPx = parseLengthToPx(declarations["padding-right"], fontSizePx);
+  if (paddingRightPx != null) {
+    entry.paddingRightEm = pxToEm(paddingRightPx, fontSizePx);
+    entry.paddingRightPx = Math.round(paddingRightPx * 1000) / 1000;
+  }
+  const paddingBottomPx = parseLengthToPx(declarations["padding-bottom"], fontSizePx);
+  if (paddingBottomPx != null) {
+    entry.paddingBottomEm = pxToEm(paddingBottomPx, fontSizePx);
+    entry.paddingBottomPx = Math.round(paddingBottomPx * 1000) / 1000;
+  }
+  const paddingLeftPx = parseLengthToPx(declarations["padding-left"], fontSizePx);
+  if (paddingLeftPx != null) {
+    entry.paddingLeftEm = pxToEm(paddingLeftPx, fontSizePx);
+    entry.paddingLeftPx = Math.round(paddingLeftPx * 1000) / 1000;
   }
 
   const letterSpacingPx = parseLengthToPx(declarations["letter-spacing"], fontSizePx);
   if (letterSpacingPx != null) {
     entry.letterSpacingEm = pxToEm(letterSpacingPx, fontSizePx);
+    entry.letterSpacingPx = Math.round(letterSpacingPx * 1000) / 1000;
   }
   const wordSpacingPx = parseLengthToPx(declarations["word-spacing"], fontSizePx);
   if (wordSpacingPx != null) {
     entry.wordSpacingEm = pxToEm(wordSpacingPx, fontSizePx);
+    entry.wordSpacingPx = Math.round(wordSpacingPx * 1000) / 1000;
   }
 
   const fontStyle = normalizeFontStyle(declarations["font-style"]);
@@ -187,6 +232,9 @@ function buildSelectorEntry(declarations, inherited, bodyFontSizePx) {
   if (fontFamily) entry.fontFamily = fontFamily;
   const textColor = String(declarations.color || "").trim();
   if (textColor) entry.textColor = textColor;
+  if (Number.isFinite(lineHeightFactor)) {
+    entry.lineHeightPx = Math.round((fontSizePx * lineHeightFactor) * 1000) / 1000;
+  }
 
   return entry;
 }
