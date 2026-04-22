@@ -9,14 +9,14 @@
   ],
   "summary": {
     "sans": {
-      "total": 369,
-      "extracted": 362,
+      "total": 372,
+      "extracted": 365,
       "synthetic": 7,
       "placeholder": 0
     },
     "serif": {
-      "total": 369,
-      "extracted": 362,
+      "total": 372,
+      "extracted": 365,
       "synthetic": 7,
       "placeholder": 0
     }
@@ -24,8 +24,8 @@
   "fontModes": {
     "sans": {
       "summary": {
-        "total": 369,
-        "extracted": 362,
+        "total": 372,
+        "extracted": 365,
         "synthetic": 7,
         "placeholder": 0
       },
@@ -8885,13 +8885,85 @@
             "height": 0.7158203125
           },
           "pathData": "M160 0L160-1466L1313-1466L1313 0L1118 0L1118-1293L354-1293L354 0L160 0Z"
+        },
+        {
+          "shapeRef": "shape-sans-g-eb41b8cb46d0",
+          "glyphId": "g-eb41b8cb46d0",
+          "glyphToken": "g-eb41b8cb46d0",
+          "styleToken": "heading-1",
+          "scriptBucket": "Cyrillic",
+          "fontMode": "sans",
+          "source": "extracted",
+          "extractionStatus": "ok",
+          "fontSourceType": "policy",
+          "fontSourceName": "Arial",
+          "fontSourceRef": "Arial.ttf",
+          "primitiveType": "path",
+          "advance": 0.4580078125,
+          "advanceEm": 0.4580078125,
+          "unitsPerEm": 2048,
+          "bbox": {
+            "x": 0.0185546875,
+            "y": 0,
+            "width": 0.42138671875,
+            "height": 0.5185546875
+          },
+          "pathData": "M38-913L38-1062L901-1062L901-913L559-913L559 0L380 0L380-913L38-913Z"
+        },
+        {
+          "shapeRef": "shape-sans-g-7308c393557d",
+          "glyphId": "g-7308c393557d",
+          "glyphToken": "g-7308c393557d",
+          "styleToken": "paragraph-link",
+          "scriptBucket": "Common",
+          "fontMode": "sans",
+          "source": "extracted",
+          "extractionStatus": "ok",
+          "fontSourceType": "policy",
+          "fontSourceName": "Arial",
+          "fontSourceRef": "Arial.ttf",
+          "primitiveType": "path",
+          "advance": 0.55615234375,
+          "advanceEm": 0.55615234375,
+          "unitsPerEm": 2048,
+          "bbox": {
+            "x": 0.0126953125,
+            "y": 0,
+            "width": 0.4951171875,
+            "height": 0.7158203125
+          },
+          "pathData": "M842 0L662 0L662-351L26-351L26-516L695-1466L842-1466L842-516L1040-516L1040-351L842-351L842 0ZM203-516L662-516L662-1177L203-516Z"
+        },
+        {
+          "shapeRef": "shape-sans-g-d1d56f1a775f",
+          "glyphId": "g-d1d56f1a775f",
+          "glyphToken": "g-d1d56f1a775f",
+          "styleToken": "paragraph-link",
+          "scriptBucket": "Common",
+          "fontMode": "sans",
+          "source": "extracted",
+          "extractionStatus": "ok",
+          "fontSourceType": "policy",
+          "fontSourceName": "Arial",
+          "fontSourceRef": "Arial.ttf",
+          "primitiveType": "path",
+          "advance": 0.55615234375,
+          "advanceEm": 0.55615234375,
+          "unitsPerEm": 2048,
+          "bbox": {
+            "x": 0.04150390625,
+            "y": -0.01220703125,
+            "width": 0.474609375,
+            "height": 0.71826171875
+          },
+          "pathData": "M85-384L85-384L274-400Q295-262 371.50-192.50Q448-123 556-123L556-123Q686-123 776-221Q866-319 866-481L866-481Q866-635 779.50-724Q693-813 553-813L553-813Q466-813 396-773.50Q326-734 286-671L286-671L117-693L259-1446L988-1446L988-1274L403-1274L324-880Q456-972 601-972L601-972Q793-972 925-839Q1057-706 1057-497L1057-497Q1057-298 941-153L941-153Q800 25 556 25L556 25Q356 25 229.50-87Q103-199 85-384Z"
         }
       ]
     },
     "serif": {
       "summary": {
-        "total": 369,
-        "extracted": 362,
+        "total": 372,
+        "extracted": 365,
         "synthetic": 7,
         "placeholder": 0
       },
@@ -17751,6 +17823,78 @@
             "height": 0.662109375
           },
           "pathData": "M1054-247L1054-1282L425-1282L425-247Q425-113 459.50-77Q494-41 621-37L621-37L621 0L37 0L37-37Q163-41 198-77Q233-113 233-247L233-247L233-1109Q233-1243 198-1279Q163-1315 37-1319L37-1319L37-1356L1442-1356L1442-1319Q1316-1315 1281-1279Q1246-1243 1246-1109L1246-1109L1246-247Q1246-113 1281-77Q1316-41 1442-37L1442-37L1442 0L859 0L859-37Q984-41 1019-76.50Q1054-112 1054-247L1054-247Z"
+        },
+        {
+          "shapeRef": "shape-serif-g-eb41b8cb46d0",
+          "glyphId": "g-eb41b8cb46d0",
+          "glyphToken": "g-eb41b8cb46d0",
+          "styleToken": "heading-1",
+          "scriptBucket": "Cyrillic",
+          "fontMode": "serif",
+          "source": "extracted",
+          "extractionStatus": "ok",
+          "fontSourceType": "policy",
+          "fontSourceName": "Times New Roman",
+          "fontSourceRef": "Times New Roman.ttf",
+          "primitiveType": "path",
+          "advance": 0.43701171875,
+          "advanceEm": 0.43701171875,
+          "unitsPerEm": 2048,
+          "bbox": {
+            "x": 0.005859375,
+            "y": 0,
+            "width": 0.4248046875,
+            "height": 0.447265625
+          },
+          "pathData": "M12-668L50-916L842-916L882-668L837-668Q825-743 797-784Q769-825 733-838Q697-851 610-851L610-851L530-851L530-215Q530-113 542.50-85.50Q555-58 583-49Q611-40 711-37L711-37L711 0L213 0L213-37Q309-39 336.50-68Q364-97 364-215L364-215L364-851L282-851Q196-851 165-840.50Q134-830 105.50-790.50Q77-751 57-668L57-668L12-668Z"
+        },
+        {
+          "shapeRef": "shape-serif-g-7308c393557d",
+          "glyphId": "g-7308c393557d",
+          "glyphToken": "g-7308c393557d",
+          "styleToken": "paragraph-link",
+          "scriptBucket": "Common",
+          "fontMode": "serif",
+          "source": "extracted",
+          "extractionStatus": "ok",
+          "fontSourceType": "policy",
+          "fontSourceName": "Times New Roman",
+          "fontSourceRef": "Times New Roman.ttf",
+          "primitiveType": "path",
+          "advance": 0.5,
+          "advanceEm": 0.5,
+          "unitsPerEm": 2048,
+          "bbox": {
+            "x": 0.015625,
+            "y": 0,
+            "width": 0.44970703125,
+            "height": 0.67578125
+          },
+          "pathData": "M771-500L953-500L953-358L771-358L771 0L606 0L606-358L32-358L32-486L661-1384L771-1384L771-500ZM130-500L606-500L606-1173L130-500Z"
+        },
+        {
+          "shapeRef": "shape-serif-g-d1d56f1a775f",
+          "glyphId": "g-d1d56f1a775f",
+          "glyphToken": "g-d1d56f1a775f",
+          "styleToken": "paragraph-link",
+          "scriptBucket": "Common",
+          "fontMode": "serif",
+          "source": "extracted",
+          "extractionStatus": "ok",
+          "fontSourceType": "policy",
+          "fontSourceName": "Times New Roman",
+          "fontSourceRef": "Times New Roman.ttf",
+          "primitiveType": "path",
+          "advance": 0.5,
+          "advanceEm": 0.5,
+          "unitsPerEm": 2048,
+          "bbox": {
+            "x": 0.0478515625,
+            "y": -0.01171875,
+            "width": 0.38623046875,
+            "height": 0.673828125
+          },
+          "pathData": "M403-1356L889-1356L811-1186L403-1186L314-1004Q579-965 734-807L734-807Q867-671 867-487L867-487Q867-380 823.50-289Q780-198 714-134Q648-70 567-31L567-31Q452 24 331 24L331 24Q209 24 153.50-17.50Q98-59 98-109L98-109Q98-137 121-158.50Q144-180 179-180L179-180Q205-180 224.50-172Q244-164 291-131L291-131Q366-79 443-79L443-79Q560-79 648.50-167.50Q737-256 737-383L737-383Q737-506 658-612.50Q579-719 440-777L440-777Q331-822 143-829L143-829L403-1356Z"
         }
       ]
     }

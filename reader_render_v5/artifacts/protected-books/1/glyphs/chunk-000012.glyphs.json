@@ -8119,6 +8119,72 @@
           "shapeStatus": "synthetic"
         }
       }
+    },
+    "g-eb41b8cb46d0": {
+      "glyphId": "g-eb41b8cb46d0",
+      "glyphToken": "g-eb41b8cb46d0",
+      "styleToken": "heading-1",
+      "scriptBucket": "Cyrillic",
+      "glyphClass": "cyrillic-heading-1",
+      "stableRenderClass": "cyrillic-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-eb41b8cb46d0",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-eb41b8cb46d0",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-7308c393557d": {
+      "glyphId": "g-7308c393557d",
+      "glyphToken": "g-7308c393557d",
+      "styleToken": "paragraph-link",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph-link",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-7308c393557d",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-7308c393557d",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-d1d56f1a775f": {
+      "glyphId": "g-d1d56f1a775f",
+      "glyphToken": "g-d1d56f1a775f",
+      "styleToken": "paragraph-link",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph-link",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-d1d56f1a775f",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-d1d56f1a775f",
+          "shapeStatus": "synthetic"
+        }
+      }
     }
   },
   "substrate": {
@@ -8855,6 +8921,10 @@
         "vector": 15292
       },
       {
+        "slot": "slot-invfir",
+        "vector": 1061841
+      },
+      {
         "slot": "slot-io0g4v",
         "vector": 24823
       },
@@ -8889,6 +8959,10 @@
       {
         "slot": "slot-j5pfba",
         "vector": 1078182
+      },
+      {
+        "slot": "slot-j6oco1",
+        "vector": 1087812
       },
       {
         "slot": "slot-j7bxsx",
@@ -9025,6 +9099,10 @@
       {
         "slot": "slot-m4owqi",
         "vector": 1092276
+      },
+      {
+        "slot": "slot-m640sx",
+        "vector": 1074079
       },
       {
         "slot": "slot-m6ew5w",
