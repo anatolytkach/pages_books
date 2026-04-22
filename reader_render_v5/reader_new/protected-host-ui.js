@@ -1,4 +1,4 @@
-import { parseProtectedIntegrationRoute } from "./protected-host-routing.js?v=20260416-protected-padding-2";
+import { parseProtectedIntegrationRoute } from "./protected-host-routing.js?v=20260422-v5-fast-start-1";
 import { resolveProtectedReaderRollout } from "./protected-host-rollout.js?v=20260416-protected-padding-2";
 import { assessProtectedReaderEligibility } from "./protected-host-eligibility.js?v=20260416-protected-padding-2";
 import { resolveProtectedReaderPilot } from "./protected-host-pilot.js?v=20260416-protected-padding-2";
@@ -6470,6 +6470,47 @@ function getProtectedRuntimeReadySummary(frame = HOST_STATE.frame) {
   return null;
 }
 
+function getProtectedRuntimeStatusNode(frame = HOST_STATE.frame) {
+  const root = frame && typeof frame.querySelector === "function" ? frame : document;
+  if (!root || typeof root.querySelector !== "function") return null;
+  return root.querySelector("#status");
+}
+
+function getDirectRuntimeBootState(frame = HOST_STATE.frame) {
+  const statusNode = getProtectedRuntimeStatusNode(frame);
+  const statusText = statusNode ? String(statusNode.textContent || "").trim() : "";
+  const statusState = statusNode && statusNode.dataset ? String(statusNode.dataset.state || "").trim().toLowerCase() : "";
+  const canvasCount = frame && typeof frame.querySelectorAll === "function"
+    ? frame.querySelectorAll("canvas").length
+    : 0;
+  const summary = getProtectedRuntimeReadySummary(frame);
+  return {
+    summary,
+    statusText,
+    statusState,
+    canvasCount,
+    ready: !!(summary && summary.ready),
+    progressKey: [
+      statusState,
+      statusText,
+      canvasCount,
+      summary && summary.pageLabel ? summary.pageLabel : "",
+      summary && summary.globalPageLabel ? summary.globalPageLabel : "",
+      summary && summary.chunkLabel ? summary.chunkLabel : "",
+      summary && summary.bookId ? summary.bookId : ""
+    ].join("|")
+  };
+}
+
+function describeDirectRuntimeBootState(state) {
+  if (!state || typeof state !== "object") return "";
+  if (state.statusText) return state.statusText;
+  if (state.summary && state.summary.pageLabel) return String(state.summary.pageLabel);
+  if (state.summary && state.summary.chunkLabel) return String(state.summary.chunkLabel);
+  if (state.canvasCount > 0) return `Canvas ready count: ${state.canvasCount}`;
+  return "";
+}
+
 function clearHostEventSubscriptions() {
   const unsubscribers = Array.isArray(HOST_STATE.hostEventUnsubscribe) ? HOST_STATE.hostEventUnsubscribe : [];
   while (unsubscribers.length) {
@@ -8401,18 +8442,33 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       }
       await import("../dev/protected-reader.js?v=20260416-protected-render-padding-1");
       const startedAt = Date.now();
-      while (Date.now() - startedAt < 45000) {
-        try {
-          const summary = getProtectedRuntimeReadySummary(root);
-          if (summary && summary.ready) return;
-        } catch (_error) {}
+      const softTimeoutMs = 45000;
+      const hardTimeoutMs = 180000;
+      const idleProgressTimeoutMs = 15000;
+      let lastProgressAt = startedAt;
+      let lastProgressKey = "";
+      while (Date.now() - startedAt < hardTimeoutMs) {
+        const bootState = getDirectRuntimeBootState(root);
+        if (bootState.ready) return;
+        if (bootState.statusState === "error") {
+          throw new Error(bootState.statusText || "Direct protected runtime reported an error during startup.");
+        }
+        if (bootState.progressKey && bootState.progressKey !== lastProgressKey) {
+          lastProgressKey = bootState.progressKey;
+          lastProgressAt = Date.now();
+        }
+        const elapsedMs = Date.now() - startedAt;
+        const idleMs = Date.now() - lastProgressAt;
+        if (elapsedMs >= softTimeoutMs && idleMs >= idleProgressTimeoutMs) {
+          const details = describeDirectRuntimeBootState(bootState);
+          throw new Error(
+            `Direct protected runtime did not become ready in time.${details ? ` Last status: ${details}` : ""}`
+          );
+        }
         await new Promise((resolve) => window.setTimeout(resolve, 40));
       }
-      const summary = getProtectedRuntimeReadySummary(root);
-      const statusText =
-        summary && summary.statusText ? String(summary.statusText) :
-        document.getElementById("status") ? String(document.getElementById("status").textContent || "").trim() :
-        "";
+      const bootState = getDirectRuntimeBootState(root);
+      const statusText = describeDirectRuntimeBootState(bootState);
       throw new Error(
         `Direct protected runtime did not become ready in time.${statusText ? ` Last status: ${statusText}` : ""}`
       );

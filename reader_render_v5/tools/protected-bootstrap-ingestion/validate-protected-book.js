@@ -20,6 +20,75 @@ import {
   validatePhase3FigureContainerContract
 } from "./lib/protected-figure-container-contract.js";
 
+function validateTypographyEntry(entry, label) {
+  if (!entry || typeof entry !== "object") {
+    throw new Error(`${label} must be an object`);
+  }
+  const optionalNumberFields = [
+    "fontSizeScale",
+    "lineHeightFactor",
+    "letterSpacingEm",
+    "wordSpacingEm",
+    "textIndentEm",
+    "marginTopEm",
+    "marginBottomEm"
+  ];
+  for (const field of optionalNumberFields) {
+    if (entry[field] != null && !Number.isFinite(Number(entry[field]))) {
+      throw new Error(`${label}.${field} must be a finite number`);
+    }
+  }
+  if (entry.textAlign != null) {
+    const textAlign = String(entry.textAlign || "").trim().toLowerCase();
+    if (textAlign && !["left", "center", "right", "justify"].includes(textAlign)) {
+      throw new Error(`${label}.textAlign is unsupported`);
+    }
+  }
+  if (entry.fontStyle != null) {
+    const fontStyle = String(entry.fontStyle || "").trim().toLowerCase();
+    if (fontStyle && !["normal", "italic"].includes(fontStyle)) {
+      throw new Error(`${label}.fontStyle is unsupported`);
+    }
+  }
+  if (entry.fontWeight != null) {
+    const fontWeight = String(entry.fontWeight || "").trim().toLowerCase();
+    if (fontWeight && !["regular", "bold"].includes(fontWeight)) {
+      throw new Error(`${label}.fontWeight is unsupported`);
+    }
+  }
+  const optionalStringFields = ["fontFamilyCandidate", "textColor"];
+  for (const field of optionalStringFields) {
+    if (entry[field] != null && typeof entry[field] !== "string") {
+      throw new Error(`${label}.${field} must be a string`);
+    }
+  }
+}
+
+function validateTypographyStyles(typographyStyles) {
+  if (typographyStyles == null) return;
+  if (!typographyStyles || typeof typographyStyles !== "object") {
+    throw new Error("v4 bootstrap manifest typographyStyles must be an object");
+  }
+  const directKeys = ["paragraph", "blockquote", "figureLead", "listItem"];
+  for (const key of directKeys) {
+    if (typographyStyles[key] != null) {
+      validateTypographyEntry(typographyStyles[key], `manifest.typographyStyles.${key}`);
+    }
+  }
+  if (typographyStyles.headings != null) {
+    if (!typographyStyles.headings || typeof typographyStyles.headings !== "object") {
+      throw new Error("manifest.typographyStyles.headings must be an object");
+    }
+    for (const [level, entry] of Object.entries(typographyStyles.headings)) {
+      const numericLevel = Number.parseInt(level, 10);
+      if (!Number.isInteger(numericLevel) || numericLevel < 1 || numericLevel > 6) {
+        throw new Error(`manifest.typographyStyles.headings.${level} is not a supported heading level`);
+      }
+      validateTypographyEntry(entry, `manifest.typographyStyles.headings.${level}`);
+    }
+  }
+}
+
 function getArg(flag) {
   const idx = process.argv.indexOf(flag);
   if (idx === -1) return "";
@@ -72,6 +141,7 @@ if (!manifest.source || typeof manifest.source.bookId !== "string" || !manifest.
 if (manifest.source.publicRootPath != null && typeof manifest.source.publicRootPath !== "string") {
   throw new Error("v4 bootstrap manifest has invalid source.publicRootPath");
 }
+validateTypographyStyles(manifest.typographyStyles);
 const logicalBlockList = Array.isArray(manifest.logicalBlockList) ? manifest.logicalBlockList : [];
 const listContainers = Array.isArray(manifest.listContainers) ? manifest.listContainers : [];
 const figureContainers = Array.isArray(manifest.figureContainers) ? manifest.figureContainers : [];

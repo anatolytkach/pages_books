@@ -7,6 +7,7 @@ import { extractOrderedListContainers } from "./lib/extract-list-containers.js";
 import { extractBlockquotes } from "./lib/extract-blockquotes.js";
 import { extractReadingTextBlocks } from "./lib/extract-reading-text-blocks.js";
 import { extractBlockPresentation } from "./lib/extract-block-presentation.js";
+import { extractTypographyStyles } from "./lib/extract-typography-styles.js";
 import { buildProtectedManifest } from "./lib/build-protected-manifest.js";
 import { writeProtectedBook } from "./lib/write-protected-book.js";
 
@@ -33,12 +34,14 @@ const listExtraction = extractOrderedListContainers(input, figureExtraction.logi
 const blockquoteLogicalBlockList = extractBlockquotes(input, listExtraction.logicalBlockList);
 const readingTextLogicalBlockList = extractReadingTextBlocks(input, blockquoteLogicalBlockList);
 const logicalBlockList = extractBlockPresentation(input, readingTextLogicalBlockList);
+const typographyStyles = extractTypographyStyles(input);
 const manifest = buildProtectedManifest({
   bookId,
   title,
   cover,
   publicRootPath,
   logicalBlockList,
+  typographyStyles,
   listContainers: listExtraction.listContainers,
   figureContainers: figureExtraction.figureContainers
 });

@@ -11,6 +11,7 @@ export function buildProtectedManifest({
   cover = null,
   publicRootPath = "",
   logicalBlockList = [],
+  typographyStyles = null,
   listContainers = [],
   figureContainers = []
 }) {
@@ -40,6 +41,7 @@ export function buildProtectedManifest({
     },
     cover,
     logicalBlockList: Array.isArray(logicalBlockList) ? logicalBlockList : [],
+    typographyStyles: typographyStyles && typeof typographyStyles === "object" ? typographyStyles : null,
     listContainers: Array.isArray(listContainers) ? listContainers : [],
     figureContainers: Array.isArray(figureContainers) ? figureContainers : []
   };

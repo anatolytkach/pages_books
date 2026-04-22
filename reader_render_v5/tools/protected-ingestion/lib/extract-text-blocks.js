@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { buildStyleContext } = require("./extract-source-typography");
 
 function readText(filePath) {
   return fs.readFileSync(filePath, "utf8");
@@ -84,40 +85,74 @@ function resolveContentHref(baseHref, target) {
   return path.posix.normalize(path.posix.join(baseDir === "." ? "" : baseDir, rawTarget));
 }
 
-function blockPresentationFor(tag, attrs = {}) {
+function mergePresentation(base, override = {}) {
+  return {
+    ...base,
+    ...Object.fromEntries(Object.entries(override).filter(([, value]) => value != null && value !== ""))
+  };
+}
+
+function pickSourcePresentation(styleEntry) {
+  if (!styleEntry || typeof styleEntry !== "object") return null;
+  const presentation = {};
+  const numericFields = [
+    "textIndentEm",
+    "marginTopEm",
+    "marginBottomEm",
+    "lineHeightFactor",
+    "fontSizeScale",
+    "letterSpacingEm",
+    "wordSpacingEm"
+  ];
+  for (const field of numericFields) {
+    if (Number.isFinite(styleEntry[field])) {
+      presentation[field] = styleEntry[field];
+    }
+  }
+  const stringFields = ["textAlign", "fontStyle", "fontWeight", "fontFamily", "textColor"];
+  for (const field of stringFields) {
+    if (styleEntry[field]) {
+      presentation[field] = styleEntry[field];
+    }
+  }
+  return Object.keys(presentation).length ? presentation : null;
+}
+
+function blockPresentationFor(tag, attrs = {}, styleContext = null) {
   const classes = classList(attrs);
   const inlineStyle = parseInlineStyle(attrs.style || "");
   const headingMatch = String(tag || "").match(/^h([1-6])$/i);
-  const presentation = {
+  let presentation = {
     textAlign: "justify",
     textIndentEm: 1,
-    marginTopEm: 0.25,
-    marginBottomEm: 0.25,
+    marginTopEm: 0,
+    marginBottomEm: 0,
     lineHeightFactor: 1.5,
     fontSizeScale: 1,
     letterSpacingEm: 0,
     wordSpacingEm: 0,
     pageBreakBefore: false,
-    fontFamily: ""
+    fontFamily: "",
+    fontStyle: "normal",
+    fontWeight: "regular",
+    textColor: ""
   };
 
   if (headingMatch) {
     const level = Number(headingMatch[1]);
-    presentation.textAlign = "center";
-    presentation.textIndentEm = 0;
-    presentation.lineHeightFactor = 1.5;
-    presentation.marginTopEm = level === 1 ? 0.6 : level === 2 ? 2 : 1;
-    presentation.marginBottomEm = level === 1 ? 0.6 : level === 2 ? 1 : 0.5;
-    presentation.fontSizeScale =
-      level === 1 ? 3 :
-      level === 2 ? 1.5 :
-      level === 3 ? 1.3 :
-      level === 4 ? 1.2 :
-      1.1;
-    presentation.pageBreakBefore = level === 2;
-    if (level === 1) {
-      presentation.letterSpacingEm = 0.12;
-      presentation.wordSpacingEm = 0.2;
+    presentation = mergePresentation(
+      presentation,
+      pickSourcePresentation(styleContext && styleContext.headings && styleContext.headings[level])
+    );
+  }
+
+  if (!headingMatch) {
+    if (tag === "blockquote") {
+      presentation = mergePresentation(presentation, pickSourcePresentation(styleContext && styleContext.blockquote));
+    } else if (tag === "li") {
+      presentation = mergePresentation(presentation, pickSourcePresentation(styleContext && styleContext.listItem));
+    } else if (tag === "p" || tag === "div" || tag === "td") {
+      presentation = mergePresentation(presentation, pickSourcePresentation(styleContext && styleContext.paragraph));
     }
   }
 
@@ -159,6 +194,9 @@ function blockPresentationFor(tag, attrs = {}) {
     presentation.marginTopEm = 1;
     presentation.marginBottomEm = 1;
   }
+  if (classes.includes("figure-lead")) {
+    presentation = mergePresentation(presentation, pickSourcePresentation(styleContext && styleContext.figureLead));
+  }
 
   if (inlineStyle["text-align"]) presentation.textAlign = String(inlineStyle["text-align"]).toLowerCase();
   if (inlineStyle["text-indent"]) presentation.textIndentEm = parseCssLengthEm(inlineStyle["text-indent"], presentation.textIndentEm);
@@ -169,6 +207,12 @@ function blockPresentationFor(tag, attrs = {}) {
   if (inlineStyle["letter-spacing"]) presentation.letterSpacingEm = parseCssLengthEm(inlineStyle["letter-spacing"], presentation.letterSpacingEm);
   if (inlineStyle["word-spacing"]) presentation.wordSpacingEm = parseCssLengthEm(inlineStyle["word-spacing"], presentation.wordSpacingEm);
   if (inlineStyle["font-family"]) presentation.fontFamily = String(inlineStyle["font-family"]).trim();
+  if (inlineStyle["font-style"]) presentation.fontStyle = String(inlineStyle["font-style"]).trim().toLowerCase();
+  if (inlineStyle["font-weight"]) {
+    const rawWeight = String(inlineStyle["font-weight"]).trim().toLowerCase();
+    presentation.fontWeight = rawWeight === "bold" ? "bold" : (/^\d+$/.test(rawWeight) ? (Number(rawWeight) >= 600 ? "bold" : "regular") : rawWeight);
+  }
+  if (inlineStyle.color) presentation.textColor = String(inlineStyle.color).trim();
 
   return presentation;
 }
@@ -358,7 +402,7 @@ function looksLikeNoteHref(href) {
   return /#(fn|note|footnote|endnote|noteref|ftn)/i.test(String(href || ""));
 }
 
-function extractBlocksFromHtml(html, spineItem) {
+function extractBlocksFromHtml(html, spineItem, styleContext) {
   const body = extractBody(html);
   const matches = Array.from(body.matchAll(/<(h[1-6]|p|li|blockquote|pre|div|td)\b([^>]*)>([\s\S]*?)<\/\1>/gi));
   const blocks = [];
@@ -397,7 +441,7 @@ function extractBlocksFromHtml(html, spineItem) {
       })),
       inlineIds: inline.inlineIds,
       mediaItems,
-      blockPresentation: blockPresentationFor(tag, attrs),
+      blockPresentation: blockPresentationFor(tag, attrs, styleContext),
       runs: inline.runs,
       styleSignals: {
         hasBold: inline.runs.some((run) => run.styleState.bold),
@@ -414,10 +458,11 @@ function extractBlocksFromHtml(html, spineItem) {
 }
 
 function extractTextBlocks({ book, spine }) {
+  const styleContext = buildStyleContext(book);
   const blocks = [];
   for (const spineItem of spine) {
     const html = readText(spineItem.absolutePath);
-    blocks.push(...extractBlocksFromHtml(html, spineItem));
+    blocks.push(...extractBlocksFromHtml(html, spineItem, styleContext));
   }
 
   const toc = (book.toc || []).map((item, index) => {

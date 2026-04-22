@@ -1729,7 +1729,6 @@ async function loadArtifact(artifactRoot) {
   syncLocationParams();
   setStatus(`Loading protected artifact ${artifactRoot}...`);
   const diagnosticsPromise = probeArtifactDiagnostics(artifactRoot);
-  const protectedBookPromise = loadProtectedBook(artifactRoot);
   const snapshot = await state.workerClient.initBook({
     artifactRoot,
     renderMode: "shape",
@@ -1761,6 +1760,7 @@ async function loadArtifact(artifactRoot) {
     state.artifactLoadStatus = "restoring";
     renderRuntimeMeta();
   }
+  const protectedBookPromise = Promise.resolve().then(() => loadProtectedBook(artifactRoot));
   const repositoryReadyPromise = initializeProtectedRepository(bookId, protectedBookPromise);
   const restoredPromise = repositoryReadyPromise.then(() => restoreReadingStateIfAvailable(bookId));
   void finalizeArtifactLoad({

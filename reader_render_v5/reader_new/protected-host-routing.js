@@ -87,8 +87,8 @@ function resolveProtectedArtifactRoot(url, artifactBookId) {
     return `${baseOrigin}/books/protected-content/${encodeURIComponent(artifactBookId)}`;
   }
   return artifactBookId
-    ? `/reader_render_v5/artifacts/protected-bootstrap-books/${encodeURIComponent(artifactBookId)}`
-    : "/reader_render_v5/artifacts/protected-bootstrap-books/19686";
+    ? `/reader_render_v5/artifacts/protected-books/${encodeURIComponent(artifactBookId)}`
+    : "/reader_render_v5/artifacts/protected-books/19686";
 }
 
 export function parseProtectedIntegrationRoute(input = window.location.href) {

@@ -168,9 +168,8 @@ async function loadRuntimeSafeProtectedBook(artifactRoot) {
   if (manifest.mode !== "protected-runtime-safe") {
     throw new Error(`Unsupported manifest mode: ${manifest.mode}`);
   }
-  const [toc, locations, styles] = await Promise.all([
+  const [toc, styles] = await Promise.all([
     fetchJson(resolveUrl(manifestUrl, manifest.tocPath)),
-    fetchJson(resolveUrl(manifestUrl, manifest.locationsPath)),
     fetchJson(resolveUrl(manifestUrl, manifest.stylesPath))
   ]);
   const book = {
@@ -180,13 +179,50 @@ async function loadRuntimeSafeProtectedBook(artifactRoot) {
     artifactContract: classifyArtifactContract(manifest),
     tocItems: toc.items || [],
     tocIndex: buildTocIndex(toc.items || []),
-    locations,
+    locations: { chunks: [] },
+    locationsUrl: resolveUrl(manifestUrl, manifest.locationsPath),
+    locationsLoaded: false,
+    locationsPromise: null,
     fontProfiles: styles.fontProfiles || null,
     styleMap: new Map((styles.styleTokens || []).map((item) => [item.styleToken, item])),
     chunkCache: new Map()
   };
   book.globalLocationModel = buildGlobalLocationModel(book);
   return book;
+}
+
+export async function ensureProtectedBookLocations(book) {
+  if (!book || typeof book !== "object") {
+    throw new Error("Cannot load locations for an empty protected book.");
+  }
+  if (book.locationsLoaded && book.locations && Array.isArray(book.locations.chunks)) {
+    return book.locations;
+  }
+  if (book.locationsPromise) {
+    return book.locationsPromise;
+  }
+  book.locationsPromise = fetchJson(book.locationsUrl)
+    .then((locations) => {
+      if (!locations || !Array.isArray(locations.chunks)) {
+        throw new Error("Protected locations payload is missing chunks.");
+      }
+      book.locations = locations;
+      book.locationsLoaded = true;
+      book.globalLocationModel = buildGlobalLocationModel(book);
+      for (const chunkModel of book.chunkCache.values()) {
+        const chunkId = chunkModel && chunkModel.chunk && chunkModel.chunk.chunkId;
+        if (!chunkId) continue;
+        const chunkLocation = locations.chunks.find((item) => item && item.chunkId === chunkId) || null;
+        chunkModel.chunkLocation = chunkLocation;
+        chunkModel.tocLabel = getChunkTocLabel(chunkLocation) || chunkModel.tocLabel || "";
+      }
+      return locations;
+    })
+    .catch((error) => {
+      book.locationsPromise = null;
+      throw error;
+    });
+  return book.locationsPromise;
 }
 
 function buildChunkCacheKey(book, chunkId, requestedFontMode = null) {
@@ -335,6 +371,137 @@ function mergeTocItemsFromV4(runtimeSafeItems = [], v4Items = []) {
 
 function normalizeRuntimeSafeSourceHref(value) {
   return normalizeV4TocPathTail(value);
+}
+
+function normalizeV4TypographyOverride(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const normalized = {};
+  const numericFields = [
+    "fontSizeScale",
+    "lineHeightFactor",
+    "letterSpacingEm",
+    "wordSpacingEm",
+    "textIndentEm",
+    "marginTopEm",
+    "marginBottomEm"
+  ];
+  for (const field of numericFields) {
+    const value = Number(entry[field]);
+    if (Number.isFinite(value)) {
+      normalized[field] = value;
+    }
+  }
+  const textAlign = String(entry.textAlign || "").trim().toLowerCase();
+  if (["left", "center", "right", "justify"].includes(textAlign)) {
+    normalized.textAlign = textAlign;
+  }
+  const fontStyle = String(entry.fontStyle || "").trim().toLowerCase();
+  if (fontStyle === "normal" || fontStyle === "italic") {
+    normalized.fontStyle = fontStyle;
+  }
+  const fontWeight = String(entry.fontWeight || "").trim().toLowerCase();
+  if (fontWeight === "regular" || fontWeight === "bold") {
+    normalized.fontWeight = fontWeight;
+  }
+  const fontFamilyCandidate = String(entry.fontFamilyCandidate || "").trim();
+  if (fontFamilyCandidate) {
+    normalized.fontFamilyCandidate = fontFamilyCandidate;
+  }
+  const textColor = String(entry.textColor || "").trim();
+  if (textColor) {
+    normalized.textColor = textColor;
+  }
+  return Object.keys(normalized).length ? normalized : null;
+}
+
+function normalizeV4TypographyStyles(typographyStyles) {
+  if (!typographyStyles || typeof typographyStyles !== "object") return null;
+  const headings = {};
+  const rawHeadings = typographyStyles.headings && typeof typographyStyles.headings === "object"
+    ? typographyStyles.headings
+    : {};
+  for (const [level, entry] of Object.entries(rawHeadings)) {
+    const numericLevel = Number.parseInt(level, 10);
+    const normalizedEntry = normalizeV4TypographyOverride(entry);
+    if (Number.isInteger(numericLevel) && normalizedEntry) {
+      headings[numericLevel] = normalizedEntry;
+    }
+  }
+  const normalized = {
+    paragraph: normalizeV4TypographyOverride(typographyStyles.paragraph),
+    blockquote: normalizeV4TypographyOverride(typographyStyles.blockquote),
+    figureLead: normalizeV4TypographyOverride(typographyStyles.figureLead),
+    listItem: normalizeV4TypographyOverride(typographyStyles.listItem),
+    headings
+  };
+  if (!normalized.paragraph) delete normalized.paragraph;
+  if (!normalized.blockquote) delete normalized.blockquote;
+  if (!normalized.figureLead) delete normalized.figureLead;
+  if (!normalized.listItem) delete normalized.listItem;
+  if (!Object.keys(normalized.headings).length) delete normalized.headings;
+  return Object.keys(normalized).length ? normalized : null;
+}
+
+function mergeStyleTokenWithV4Typography(styleTokenRecord, override) {
+  if (!styleTokenRecord || !override) return styleTokenRecord;
+  const next = { ...styleTokenRecord };
+  const numericFields = [
+    "fontSizeScale",
+    "lineHeightFactor",
+    "letterSpacingEm",
+    "wordSpacingEm",
+    "textIndentEm",
+    "marginTopEm",
+    "marginBottomEm"
+  ];
+  for (const field of numericFields) {
+    if (override[field] != null) {
+      next[field] = override[field];
+    }
+  }
+  if (override.textAlign) {
+    next.textAlign = override.textAlign;
+  }
+  if (override.fontFamilyCandidate) {
+    next.fontFamilyCandidate = override.fontFamilyCandidate;
+  }
+  if (override.textColor) {
+    next.textColor = override.textColor;
+  }
+  if (override.fontStyle) {
+    next.fontStyle = (
+      String(styleTokenRecord.fontStyle || "").trim().toLowerCase() === "italic" ||
+      override.fontStyle === "italic"
+    ) ? "italic" : "normal";
+  }
+  if (override.fontWeight) {
+    next.fontWeight = (
+      String(styleTokenRecord.fontWeight || "").trim().toLowerCase() === "bold" ||
+      override.fontWeight === "bold"
+    ) ? "bold" : "regular";
+  }
+  return next;
+}
+
+function applyV4TypographyToStyleMap(styleMap, typographyStyles) {
+  if (!(styleMap instanceof Map) || !typographyStyles) return styleMap;
+  const nextStyleMap = new Map();
+  for (const [styleToken, styleTokenRecord] of styleMap.entries()) {
+    const token = String(styleToken || "").trim().toLowerCase();
+    let override = null;
+    const headingMatch = token.match(/^heading-(\d+)/);
+    if (headingMatch) {
+      override = typographyStyles.headings && typographyStyles.headings[Number.parseInt(headingMatch[1], 10)];
+    } else if (token.startsWith("paragraph")) {
+      override = typographyStyles.paragraph || null;
+    } else if (token.startsWith("blockquote")) {
+      override = typographyStyles.blockquote || null;
+    } else if (token === "list-item") {
+      override = typographyStyles.listItem || typographyStyles.paragraph || null;
+    }
+    nextStyleMap.set(styleToken, mergeStyleTokenWithV4Typography(styleTokenRecord, override));
+  }
+  return nextStyleMap;
 }
 
 function normalizeComparableText(value) {
@@ -1106,6 +1273,7 @@ function mergeV4CompatibilityIntoRuntimeSafeChunk(chunk, book) {
 function mergeV4BootstrapMetadataIntoRuntimeSafeBook(runtimeSafeBook, v4Bootstrap) {
   if (!runtimeSafeBook || !v4Bootstrap || !v4Bootstrap.manifest) return runtimeSafeBook;
   const manifest = v4Bootstrap.manifest || {};
+  const typographyStyles = normalizeV4TypographyStyles(manifest.typographyStyles);
   const metadata = {
     ...(runtimeSafeBook.manifest && runtimeSafeBook.manifest.metadata ? runtimeSafeBook.manifest.metadata : {}),
     ...(manifest.metadata || {})
@@ -1124,6 +1292,7 @@ function mergeV4BootstrapMetadataIntoRuntimeSafeBook(runtimeSafeBook, v4Bootstra
   };
   runtimeSafeBook.tocItems = mergedTocItems;
   runtimeSafeBook.tocIndex = buildTocIndex(mergedTocItems);
+  runtimeSafeBook.styleMap = applyV4TypographyToStyleMap(runtimeSafeBook.styleMap, typographyStyles);
   runtimeSafeBook.v4Bootstrap = v4Bootstrap;
   runtimeSafeBook.v4Compatibility = {
     enabled: true,
@@ -1131,7 +1300,8 @@ function mergeV4BootstrapMetadataIntoRuntimeSafeBook(runtimeSafeBook, v4Bootstra
     requestedManifestUrl: v4Bootstrap.manifestUrl,
     runtimeSafeArtifactRoot: runtimeSafeBook.rootUrl,
     bookId: v4Bootstrap.bookId,
-    syntheticTocCount: syntheticTocItems.length
+    syntheticTocCount: syntheticTocItems.length,
+    typographyOverridesApplied: !!typographyStyles
   };
   return runtimeSafeBook;
 }

@@ -13,5 +13,6 @@ Working rules:
 - Keep the change scope narrow. Do not refactor adjacent code unless the task requires it.
 - Treat code, config, and the current repository state as the source of truth. If a state file is stale, update the file rather than following stale text.
 - Do not invent facts. Record only what is supported by code, config, docs, or the repository state.
+- User task completion standard: treat every user task as requiring exact fulfillment against the user's stated acceptance criteria. Do not report a task as completed based on a partial technical approximation, intermediate integration, or an unverified hypothesis when the user asked for an exact behavioral or visual match.
 - After significant changes, update the relevant context/state files in `docs/`. Do not update them for trivial edits.
 - Prefer file-based context over chat history. New Codex branches should be able to start from these files.

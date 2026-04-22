@@ -1,8 +1,13 @@
-import { loadProtectedBook, loadProtectedChunkModel } from "./protected-book-model.js";
+import {
+  ensureProtectedBookLocations,
+  loadProtectedBook,
+  loadProtectedChunkModel
+} from "./protected-book-model.js";
 import {
   findChunkIndexForToc,
   findGlobalOffsetForToc,
-  getActiveTocAnchorForPosition
+  getActiveTocAnchorForPosition,
+  getChunkTocLabel
 } from "./protected-navigation-model.js";
 import {
   buildPaginationModel,
@@ -500,6 +505,18 @@ export class ProtectedReaderRuntimeCore {
     this.bookSummary = summarizeBook(this.book);
     const initialSnapshot = await this.goToChunk({ chunkIndex: 0, annotations, includeBook: true });
     Promise.resolve()
+      .then(() => ensureProtectedBookLocations(this.book))
+      .then(() => {
+        if (!this.currentChunkModel || !this.book || !this.book.locations || !Array.isArray(this.book.locations.chunks)) {
+          return;
+        }
+        const chunkId = this.currentChunkModel.chunk && this.currentChunkModel.chunk.chunkId;
+        const chunkLocation = this.book.locations.chunks.find((item) => item && item.chunkId === chunkId) || null;
+        this.currentChunkModel.chunkLocation = chunkLocation;
+        this.currentChunkModel.tocLabel = getChunkTocLabel(chunkLocation) || this.currentChunkModel.tocLabel || "";
+      })
+      .catch(() => {});
+    Promise.resolve()
       .then(() => this.rebuildBookPaginationSummary())
       .catch(() => {});
     return initialSnapshot;
@@ -576,6 +593,7 @@ export class ProtectedReaderRuntimeCore {
   }
 
   async goToToc({ tocId, annotations = [] }) {
+    await ensureProtectedBookLocations(this.book);
     const tocItem = (this.book && this.book.tocItems || []).find((item) => item.id === tocId) || null;
     let chunkIndex = findChunkIndexForToc(this.book.manifest, this.book.locations, tocItem);
     let globalOffset = findGlobalOffsetForToc(this.book.manifest, this.book.locations, tocItem);

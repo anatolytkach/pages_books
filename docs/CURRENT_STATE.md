@@ -60,18 +60,23 @@
 - `reader_render_v5/` plus `reader/reader_new_v5.html` is the new local protected-reader target line for future work.
 - `reader_render_v5/` starts from a full copy of the `reader_render_v3/` reader line; the original `reader_render_v3/` codebase remains the untouched baseline in place.
 - Current local v5 manual verification for protected artifact book `1` uses:
-  - `http://127.0.0.1:8792/reader/reader_new_v5.html?artifactBookId=1`
+  - `http://127.0.0.1:8793/reader/reader_new_v5.html?artifactBookId=1`
 - Current local v5 now owns its bootstrap artifact route inside `reader_render_v5/`:
   - `/reader_render_v5/artifacts/protected-bootstrap-books/<bookId>/`
 - Current local v5 bootstrap artifact build/validate entrypoints now live inside `reader_render_v5/`:
   - `npm --prefix reader_render_v5 run protected:bootstrap:build`
   - `npm --prefix reader_render_v5 run protected:bootstrap:validate`
+- Current local v5 bootstrap artifact build now also carries source-derived typography overrides from the book EPUB stylesheet for body text and headings, and the v5 compatibility runtime overlays those source-derived heading/paragraph metrics onto the copied runtime-safe style tokens instead of keeping the old generic heading/body defaults.
+- Current local v5 runtime-safe protected build for local artifact book `1` now also derives heading and body typography from the book EPUB stylesheet in `reader_render_v5/tools/protected-ingestion/*` instead of the earlier hard-coded heading/body heuristics, so the rendered `styles.json` and shape-layout typography for protected v5 follow the same source-text heading/paragraph metrics as the unprotected baseline.
+- Current local v5 host bootstrap in `reader_render_v5/reader_new/protected-host-ui.js` now treats slow but progressing direct-runtime startup as in-flight instead of an immediate host-level failure, and only surfaces the timeout screen when startup stalls without progress or reports an explicit runtime error.
+- Current local v5 direct protected route now resolves local `artifactBookId` entries straight to `/reader_render_v5/artifacts/protected-books/<bookId>/` instead of bouncing through the large bootstrap manifest path on first paint.
 - Current local v5 product-facing shell now derives from `reader_render_v5/reader_new/*`, which is the copied `reader_render_v3/reader_new/*` line.
 - `reader/reader_new_v5.html` now carries the full host document and shared CSS contract needed by that copied `reader_render_v3/reader_new` shell line; it is not itself the source of product UX logic.
 - Current local v5 is now back on the copied `reader_render_v3/` runtime contract rather than the earlier hybrid HTML-paginated prototype path.
 - Current local v5 opens its own `/reader_render_v5/artifacts/protected-bootstrap-books/<bookId>/` route through a compatibility adapter at `reader_render_v5/runtime/protected-book-model.js`.
 - That adapter currently keeps the copied `v3` runtime alive by feeding it the existing runtime-safe substrate while merging selected metadata and chunk-level presentation/media semantics from the new bootstrap manifest.
 - Current local v5 first-paints the initial reader page before repository hydration, persisted-reading-state restore, and background pagination-summary work finish; heavy follow-up work now continues after the first snapshot instead of blocking the first visible page.
+- Current local v5 worker startup now defers `locations.json` hydration until after the first snapshot, and the host also defers its secondary repository-side `loadProtectedBook(...)` until the first page is already visible.
 - Current `reader_render_v5/runtime/protected-book-model.js` now runs in strict artifact-first mode for structural/media-bearing `v4` candidates:
   - chapter-opening clusters
   - comment-thread sections

@@ -114,28 +114,32 @@ function extractStyleSignals(blocks, options = {}) {
         "";
       const sansFamily = explicitRequestedFamily || defaultFontFamilyFor(scriptBucket, block.blockType, "sans");
       const serifFamily = explicitRequestedFamily || defaultFontFamilyFor(scriptBucket, block.blockType, "serif");
+      const blockFontStyle = String(block.blockPresentation && block.blockPresentation.fontStyle || "").trim().toLowerCase();
+      const blockFontWeight = String(block.blockPresentation && block.blockPresentation.fontWeight || "").trim().toLowerCase();
+      const isItalic = !!run.styleState.italic || blockFontStyle === "italic";
+      const isBold = !!run.styleState.bold || blockFontWeight === "bold";
       if (!styleRegistry[token]) {
         styleRegistry[token] = {
           styleToken: token,
           blockType: block.blockType,
           blockRole: blockRoleFor(block.blockType),
           headingLevel: headingLevelMatch ? parseInt(headingLevelMatch[1], 10) : 0,
-          bold: !!run.styleState.bold,
-          italic: !!run.styleState.italic,
+          bold: isBold,
+          italic: isItalic,
           superscript: !!run.styleState.superscript,
-          boldItalic: !!run.styleState.bold && !!run.styleState.italic,
+          boldItalic: isBold && isItalic,
           linkLike: !!run.linkTarget,
           scriptBucket,
           fontFamilyCandidate: sansFamily || (fontPolicy ? fontPolicy.fontSource : defaultFontFamilyFor(scriptBucket, block.blockType, "sans")),
           fontRole: isHeading ? "display-sans" : block.blockType === "pre" ? "monospace-fallback" : "body-sans",
-          fontStyle: run.styleState.italic ? "italic" : "normal",
-          fontWeight: run.styleState.bold ? "bold" : "regular",
+          fontStyle: isItalic ? "italic" : "normal",
+          fontWeight: isBold ? "bold" : "regular",
           fontSizeScale: Number(run.styleState.fontScale || (block.blockPresentation && block.blockPresentation.fontSizeScale) || 1) || 1,
           lineHeightFactor: Number(run.styleState.lineHeightFactor || (block.blockPresentation && block.blockPresentation.lineHeightFactor) || 1.5) || 1.5,
           letterSpacingEm: Number(run.styleState.letterSpacingEm || (block.blockPresentation && block.blockPresentation.letterSpacingEm) || 0) || 0,
           trailingSpacingEm: Number(run.styleState.trailingSpacingEm || 0) || 0,
           wordSpacingEm: Number((block.blockPresentation && block.blockPresentation.wordSpacingEm) || 0) || 0,
-          textColor: run.styleState.color || "",
+          textColor: run.styleState.color || (block.blockPresentation && block.blockPresentation.textColor) || "",
           dropCap: !!run.styleState.dropCap,
           textAlign: (block.blockPresentation && block.blockPresentation.textAlign) || "justify",
           textIndentEm: Number((block.blockPresentation && block.blockPresentation.textIndentEm) || 0) || 0,
