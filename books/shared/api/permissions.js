@@ -40,8 +40,12 @@ export async function createSelfPublisherInvite({ email, name, slug }) {
   return api.post('/onboarding/self-publisher/invite', { body: { email, name, slug } });
 }
 
+/** Signed-in self-serve onboarding for an individual publisher account. */
+export async function onboardSelfPublisher({ name, slug }) {
+  return api.post('/onboarding/self-publisher', { body: { name, slug } });
+}
+
 /** Superuser-only invite for another platform superuser. */
 export async function createSuperuserInvite({ email }) {
   return api.post('/platform/superusers/invite', { body: { email } });
 }
-

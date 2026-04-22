@@ -1,4 +1,10 @@
 import { can, PERMISSIONS } from "../permissions/policy.mjs";
+import {
+  createPermissionGrant,
+  deletePermissionGrant,
+  listPermissionGrants,
+  validateManagedGrantInput,
+} from "../permissions/admin.mjs";
 
 export async function handleIdentityApiRoute(context) {
   const {
@@ -8,6 +14,7 @@ export async function handleIdentityApiRoute(context) {
     attachProfilesToMemberships,
     buildInviteUrl,
     createPasswordUser,
+    getAuthUserById,
     getPlatformSuperuserStatus,
     hasTenantUserManagementAccess,
     getTenantAdminMemberships,
@@ -26,6 +33,74 @@ export async function handleIdentityApiRoute(context) {
     sendTenantInviteNotification,
     user,
   } = context;
+
+  const createTenantRecord = async ({ name, slug, tenantType }) => {
+    const { data: tenant, error: tenantErr } = await sbFetch("tenants", {
+      method: "POST",
+      body: {
+        name,
+        slug,
+        tenant_type: tenantType,
+      },
+      single: true,
+    });
+    if (tenantErr) return { error: tenantErr, status: 400, data: null };
+    return { error: null, status: 201, data: tenant };
+  };
+
+  const createTenantOwnerMembership = async ({ tenantId, userId }) => {
+    const { data: membership, error: membershipErr } = await sbFetch("tenant_memberships", {
+      method: "POST",
+      body: {
+        tenant_id: tenantId,
+        user_id: userId,
+        role: "owner",
+      },
+      single: true,
+    });
+    if (membershipErr) return { error: membershipErr, status: 400, data: null };
+    return { error: null, status: 201, data: membership };
+  };
+
+  const requireTenantGrantManagement = async (tenant) => {
+    const authErr = requireAuth();
+    if (authErr) return { errorResponse: authErr, tenant: null };
+    if (!tenant) return { errorResponse: jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders), tenant: null };
+
+    const decision = await can({ userId: user.sub, policyContext: context }, PERMISSIONS.tenantManageMembers, {
+      tenantId: tenant.id,
+      hasTenantUserManagementAccess,
+    });
+    if (!decision.allowed) {
+      return { errorResponse: jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders), tenant: null };
+    }
+    return { errorResponse: null, tenant };
+  };
+
+  const requirePlatformGrantManagement = async () => {
+    const superErr = await requireSuperuser();
+    if (superErr) return { errorResponse: superErr };
+    return { errorResponse: null };
+  };
+
+  const readTargetUser = async (userId) => {
+    const result = await getAuthUserById(userId);
+    if (result.error) {
+      return {
+        errorResponse: jsonResponse({ error: result.error }, result.status || 400, apiCorsHeaders),
+        user: null,
+      };
+    }
+    return {
+      errorResponse: null,
+      user: result.data,
+    };
+  };
+
+  const buildGrantSubject = (targetUser) => ({
+    user_id: String(targetUser?.id || "").trim(),
+    email: String(targetUser?.email || "").trim() || null,
+  });
 
   if (apiPath === "/auth/register" && request.method === "POST") {
     const body = await request.json().catch(() => null);
@@ -476,6 +551,183 @@ export async function handleIdentityApiRoute(context) {
     }, 201, apiCorsHeaders);
   }
 
+  const tenantGrantDeleteMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/permission-grants\/([a-f0-9-]+)$/i);
+  if (tenantGrantDeleteMatch && request.method === "DELETE") {
+    const slug = tenantGrantDeleteMatch[1];
+    const grantId = tenantGrantDeleteMatch[2];
+    const { data: tenant } = await sbFetch("tenants", {
+      params: `slug=eq.${slug}&select=id,slug,name,tenant_type`,
+      single: true,
+    });
+    const access = await requireTenantGrantManagement(tenant);
+    if (access.errorResponse) return access.errorResponse;
+
+    const deleted = await deletePermissionGrant({
+      sbFetch,
+      grantId,
+      scopeType: "organization",
+      scopeId: tenant.id,
+    });
+    if (deleted.error) return jsonResponse({ error: deleted.error }, deleted.status || 400, apiCorsHeaders);
+    return jsonResponse(deleted.data, deleted.status || 200, apiCorsHeaders);
+  }
+
+  const tenantGrantMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/permission-grants$/);
+  if (tenantGrantMatch && request.method === "GET") {
+    const slug = tenantGrantMatch[1];
+    const targetUserId = String(context.url.searchParams.get("user_id") || "").trim();
+    if (!targetUserId) {
+      return jsonResponse({ error: "user_id is required" }, 400, apiCorsHeaders);
+    }
+
+    const { data: tenant } = await sbFetch("tenants", {
+      params: `slug=eq.${slug}&select=id,slug,name,tenant_type`,
+      single: true,
+    });
+    const access = await requireTenantGrantManagement(tenant);
+    if (access.errorResponse) return access.errorResponse;
+
+    const targetUser = await readTargetUser(targetUserId);
+    if (targetUser.errorResponse) return targetUser.errorResponse;
+
+    return jsonResponse({
+      tenant,
+      subject: buildGrantSubject(targetUser.user),
+      grants: await listPermissionGrants({
+        sbFetch,
+        userId: targetUserId,
+        scopeType: "organization",
+        scopeId: tenant.id,
+      }),
+    }, 200, apiCorsHeaders);
+  }
+
+  if (tenantGrantMatch && request.method === "POST") {
+    const slug = tenantGrantMatch[1];
+    const body = await request.json().catch(() => null);
+    if (!body) return jsonResponse({ error: "Invalid JSON" }, 400, apiCorsHeaders);
+
+    const targetUserId = String(body.user_id || "").trim();
+    if (!targetUserId) {
+      return jsonResponse({ error: "user_id is required" }, 400, apiCorsHeaders);
+    }
+
+    const { data: tenant } = await sbFetch("tenants", {
+      params: `slug=eq.${slug}&select=id,slug,name,tenant_type`,
+      single: true,
+    });
+    const access = await requireTenantGrantManagement(tenant);
+    if (access.errorResponse) return access.errorResponse;
+
+    const targetUser = await readTargetUser(targetUserId);
+    if (targetUser.errorResponse) return targetUser.errorResponse;
+
+    const validation = validateManagedGrantInput({
+      permissionKey: body.permission_key,
+      scopeType: "organization",
+      scopeId: tenant.id,
+      expiresAt: body.expires_at,
+    });
+    if (!validation.ok) {
+      return jsonResponse({ error: validation.error }, 400, apiCorsHeaders);
+    }
+
+    const created = await createPermissionGrant({
+      sbFetch,
+      userId: targetUserId,
+      permissionKey: validation.permissionKey,
+      scopeType: validation.scopeType,
+      scopeId: validation.scopeId,
+      grantedBy: user.sub,
+      expiresAt: validation.expiresAt,
+    });
+    if (created.error) return jsonResponse({ error: created.error }, created.status || 400, apiCorsHeaders);
+
+    return jsonResponse({
+      subject: buildGrantSubject(targetUser.user),
+      grant: created.data,
+    }, created.status || 201, apiCorsHeaders);
+  }
+
+  const platformGrantDeleteMatch = apiPath.match(/^\/platform\/permission-grants\/([a-f0-9-]+)$/i);
+  if (platformGrantDeleteMatch && request.method === "DELETE") {
+    const access = await requirePlatformGrantManagement();
+    if (access.errorResponse) return access.errorResponse;
+
+    const deleted = await deletePermissionGrant({
+      sbFetch,
+      grantId: platformGrantDeleteMatch[1],
+      scopeType: "platform",
+      scopeId: null,
+    });
+    if (deleted.error) return jsonResponse({ error: deleted.error }, deleted.status || 400, apiCorsHeaders);
+    return jsonResponse(deleted.data, deleted.status || 200, apiCorsHeaders);
+  }
+
+  if (apiPath === "/platform/permission-grants" && request.method === "GET") {
+    const access = await requirePlatformGrantManagement();
+    if (access.errorResponse) return access.errorResponse;
+
+    const targetUserId = String(context.url.searchParams.get("user_id") || "").trim();
+    if (!targetUserId) {
+      return jsonResponse({ error: "user_id is required" }, 400, apiCorsHeaders);
+    }
+
+    const targetUser = await readTargetUser(targetUserId);
+    if (targetUser.errorResponse) return targetUser.errorResponse;
+
+    return jsonResponse({
+      subject: buildGrantSubject(targetUser.user),
+      grants: await listPermissionGrants({
+        sbFetch,
+        userId: targetUserId,
+        scopeType: "platform",
+        scopeId: null,
+      }),
+    }, 200, apiCorsHeaders);
+  }
+
+  if (apiPath === "/platform/permission-grants" && request.method === "POST") {
+    const access = await requirePlatformGrantManagement();
+    if (access.errorResponse) return access.errorResponse;
+
+    const body = await request.json().catch(() => null);
+    if (!body) return jsonResponse({ error: "Invalid JSON" }, 400, apiCorsHeaders);
+
+    const targetUserId = String(body.user_id || "").trim();
+    if (!targetUserId) {
+      return jsonResponse({ error: "user_id is required" }, 400, apiCorsHeaders);
+    }
+    const validation = validateManagedGrantInput({
+      permissionKey: body.permission_key,
+      scopeType: "platform",
+      scopeId: null,
+      expiresAt: body.expires_at,
+    });
+    if (!validation.ok) {
+      return jsonResponse({ error: validation.error }, 400, apiCorsHeaders);
+    }
+
+    const targetUser = await readTargetUser(targetUserId);
+    if (targetUser.errorResponse) return targetUser.errorResponse;
+
+    const created = await createPermissionGrant({
+      sbFetch,
+      userId: targetUserId,
+      permissionKey: validation.permissionKey,
+      scopeType: validation.scopeType,
+      scopeId: validation.scopeId,
+      grantedBy: user.sub,
+      expiresAt: validation.expiresAt,
+    });
+    if (created.error) return jsonResponse({ error: created.error }, created.status || 400, apiCorsHeaders);
+
+    return jsonResponse({
+      subject: buildGrantSubject(targetUser.user),
+      grant: created.data,
+    }, created.status || 201, apiCorsHeaders);
+  }
+
   const tenantAdminInviteMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/admin-invite$/);
   if (tenantAdminInviteMatch && request.method === "POST") {
     const superErr = await requireSuperuser();
@@ -534,17 +786,57 @@ export async function handleIdentityApiRoute(context) {
     if (!body || !body.name || !body.slug || !body.tenant_type) {
       return jsonResponse({ error: "name, slug, and tenant_type are required" }, 400, apiCorsHeaders);
     }
-    const { data: tenant, error: tenantErr } = await sbFetch("tenants", {
-      method: "POST",
-      body: { name: body.name, slug: body.slug, tenant_type: body.tenant_type },
-      single: true,
+    const createdTenant = await createTenantRecord({
+      name: body.name,
+      slug: body.slug,
+      tenantType: body.tenant_type,
     });
-    if (tenantErr) return jsonResponse({ error: tenantErr }, 400, apiCorsHeaders);
-    await sbFetch("tenant_memberships", {
-      method: "POST",
-      body: { tenant_id: tenant.id, user_id: user.sub, role: "owner" },
+    if (createdTenant.error) return jsonResponse({ error: createdTenant.error }, createdTenant.status || 400, apiCorsHeaders);
+
+    const ownerMembership = await createTenantOwnerMembership({
+      tenantId: createdTenant.data.id,
+      userId: user.sub,
     });
+    if (ownerMembership.error) {
+      return jsonResponse({ error: ownerMembership.error }, ownerMembership.status || 400, apiCorsHeaders);
+    }
+
+    const tenant = createdTenant.data;
     return jsonResponse(tenant, 201, apiCorsHeaders);
+  }
+
+  if (apiPath === "/onboarding/self-publisher" && request.method === "POST") {
+    const authErr = requireAuth();
+    if (authErr) return authErr;
+    const body = await request.json().catch(() => null);
+    if (!body || !body.name || !body.slug) {
+      return jsonResponse({ error: "name and slug are required" }, 400, apiCorsHeaders);
+    }
+
+    const tenantName = String(body.name || "").trim();
+    const tenantSlug = String(body.slug || "").trim().toLowerCase();
+    if (!tenantName) return jsonResponse({ error: "name is required" }, 400, apiCorsHeaders);
+    if (!tenantSlug) return jsonResponse({ error: "slug is required" }, 400, apiCorsHeaders);
+
+    const createdTenant = await createTenantRecord({
+      name: tenantName,
+      slug: tenantSlug,
+      tenantType: "individual_author",
+    });
+    if (createdTenant.error) return jsonResponse({ error: createdTenant.error }, createdTenant.status || 400, apiCorsHeaders);
+
+    const ownerMembership = await createTenantOwnerMembership({
+      tenantId: createdTenant.data.id,
+      userId: user.sub,
+    });
+    if (ownerMembership.error) {
+      return jsonResponse({ error: ownerMembership.error }, ownerMembership.status || 400, apiCorsHeaders);
+    }
+
+    return jsonResponse({
+      tenant: createdTenant.data,
+      membership: ownerMembership.data,
+    }, 201, apiCorsHeaders);
   }
 
   if (apiPath === "/onboarding/self-publisher/invite" && request.method === "POST") {
@@ -560,16 +852,13 @@ export async function handleIdentityApiRoute(context) {
     if (!tenantSlug) return jsonResponse({ error: "slug is required" }, 400, apiCorsHeaders);
     if (!email) return jsonResponse({ error: "email is required" }, 400, apiCorsHeaders);
 
-    const { data: tenant, error: tenantErr } = await sbFetch("tenants", {
-      method: "POST",
-      body: {
-        name: body.name,
-        slug: tenantSlug,
-        tenant_type: "individual_author",
-      },
-      single: true,
+    const createdTenant = await createTenantRecord({
+      name: body.name,
+      slug: tenantSlug,
+      tenantType: "individual_author",
     });
-    if (tenantErr) return jsonResponse({ error: tenantErr }, 400, apiCorsHeaders);
+    if (createdTenant.error) return jsonResponse({ error: createdTenant.error }, createdTenant.status || 400, apiCorsHeaders);
+    const tenant = createdTenant.data;
 
     const { data: invite, error: inviteErr } = await sbFetch("tenant_invitations", {
       method: "POST",

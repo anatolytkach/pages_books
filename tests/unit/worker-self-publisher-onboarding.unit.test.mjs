@@ -17,6 +17,64 @@ function makeJwt({ sub = "user-1", email = "user@example.com", exp = 4102444800 
   return `x.${payload}.y`;
 }
 
+test("Unit: signed-in user can self-onboard as an individual publisher", async (t) => {
+  const jwt = makeJwt({ sub: "author-1", email: "ada@example.com" });
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "author-1", email: "ada@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "tenant-1",
+        slug: "ada-lovelace",
+        name: "Ada Lovelace",
+        tenant_type: "individual_author",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "membership-1",
+        tenant_id: "tenant-1",
+        user_id: "author-1",
+        role: "owner",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: "https://reader.pub/books/api/v1/onboarding/self-publisher",
+    method: "POST",
+    headers: { authorization: `Bearer ${jwt}` },
+    body: {
+      name: "Ada Lovelace",
+      slug: "ada-lovelace",
+    },
+    env: {
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 201);
+  assert.equal(payload.tenant.tenant_type, "individual_author");
+  assert.equal(payload.membership.role, "owner");
+
+  const tenantCreateBody = JSON.parse(fetchMock.calls[1][1].body);
+  assert.equal(tenantCreateBody.tenant_type, "individual_author");
+  assert.equal(tenantCreateBody.slug, "ada-lovelace");
+
+  const membershipCreateBody = JSON.parse(fetchMock.calls[2][1].body);
+  assert.equal(membershipCreateBody.tenant_id, "tenant-1");
+  assert.equal(membershipCreateBody.user_id, "author-1");
+  assert.equal(membershipCreateBody.role, "owner");
+});
+
 test("Unit: superuser can create self-publisher onboarding invite", async (t) => {
   const jwt = makeJwt({ email: "yarane@gmail.com" });
   const fetchMock = createFetchMockSequence([

@@ -182,6 +182,26 @@ export async function createApiContext({ request, env, url }) {
     };
   };
 
+  const getAuthUserById = async (userId) => {
+    const normalizedUserId = String(userId || "").trim();
+    if (!normalizedUserId) return { data: null, error: "user_id is required", status: 400 };
+
+    const result = await sbAuthAdmin(`/users/${encodeURIComponent(normalizedUserId)}`);
+    if (result.error) {
+      const missing = /not found|user.*not.*exist|404/i.test(String(result.error || ""));
+      return {
+        data: null,
+        error: missing ? "User not found" : result.error,
+        status: missing ? 404 : 400,
+      };
+    }
+    return {
+      data: result.data || null,
+      error: null,
+      status: 200,
+    };
+  };
+
   const applyTenantInviteForUser = async (invite, { userId, email }) => {
     if (!invite) return { data: null, error: "Invitation not found" };
     if (invite.accepted_at) return { data: null, error: "Invitation already accepted" };
@@ -637,6 +657,7 @@ export async function createApiContext({ request, env, url }) {
     buildInviteUrl,
     canManageTenantUsers,
     createPasswordUser,
+    getAuthUserById,
     env,
     getActiveUserTenantIds,
     getPlatformSuperuserStatus,

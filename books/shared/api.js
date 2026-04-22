@@ -33,6 +33,7 @@ export {
   getPlatformTenants,
   getPlatformSuperusers,
   createTenant,
+  onboardSelfPublisher,
   inviteTenantReader,
   inviteTenantAdmin,
   createSelfPublisherInvite,
