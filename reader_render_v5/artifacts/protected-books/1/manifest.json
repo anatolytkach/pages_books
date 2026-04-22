@@ -1,0 +1,175 @@
+{
+  "version": 4,
+  "mode": "protected-runtime-safe",
+  "artifactContract": {
+    "kind": "dual-family-static-v1",
+    "supportedFontModes": [
+      "sans",
+      "serif"
+    ],
+    "defaultFontMode": "sans"
+  },
+  "metadata": {
+    "title": "ВОПРОС",
+    "creators": [
+      "Тони Вивер"
+    ],
+    "languages": [
+      "ru"
+    ]
+  },
+  "source": {
+    "inputType": "legacy-exploded",
+    "bookId": "1",
+    "publicRootPath": "/books/content/manual/1"
+  },
+  "chunking": {
+    "mode": "logical-deterministic",
+    "viewportIndependent": true
+  },
+  "runtimeContract": {
+    "glyphMode": "opaque-chunk-local",
+    "renderPayload": "opaque-glyph-ops",
+    "reconstructionMode": "sealed-window-scoped",
+    "reconstructionSurface": "embedded-substrate",
+    "unicodeLeakage": "forbidden-in-runtime-safe-render-path",
+    "visualPayload": "dual-family-static-v1",
+    "runtimeVisualSelection": "default-artifact-font-mode-only"
+  },
+  "debugArtifactAvailable": false,
+  "chunks": [
+    {
+      "chunkId": "chunk-000001",
+      "order": 0,
+      "chunkPath": "chunks/chunk-000001.json",
+      "glyphsPath": "glyphs/chunk-000001.glyphs.json",
+      "shapesPath": "shapes/chunk-000001.shapes.json",
+      "startOffset": 0,
+      "endOffset": 65306,
+      "textLength": 65306
+    },
+    {
+      "chunkId": "chunk-000002",
+      "order": 1,
+      "chunkPath": "chunks/chunk-000002.json",
+      "glyphsPath": "glyphs/chunk-000002.glyphs.json",
+      "shapesPath": "shapes/chunk-000002.shapes.json",
+      "startOffset": 65306,
+      "endOffset": 130650,
+      "textLength": 65344
+    },
+    {
+      "chunkId": "chunk-000003",
+      "order": 2,
+      "chunkPath": "chunks/chunk-000003.json",
+      "glyphsPath": "glyphs/chunk-000003.glyphs.json",
+      "shapesPath": "shapes/chunk-000003.shapes.json",
+      "startOffset": 130650,
+      "endOffset": 195388,
+      "textLength": 64738
+    },
+    {
+      "chunkId": "chunk-000004",
+      "order": 3,
+      "chunkPath": "chunks/chunk-000004.json",
+      "glyphsPath": "glyphs/chunk-000004.glyphs.json",
+      "shapesPath": "shapes/chunk-000004.shapes.json",
+      "startOffset": 195388,
+      "endOffset": 260608,
+      "textLength": 65220
+    },
+    {
+      "chunkId": "chunk-000005",
+      "order": 4,
+      "chunkPath": "chunks/chunk-000005.json",
+      "glyphsPath": "glyphs/chunk-000005.glyphs.json",
+      "shapesPath": "shapes/chunk-000005.shapes.json",
+      "startOffset": 260608,
+      "endOffset": 325690,
+      "textLength": 65082
+    },
+    {
+      "chunkId": "chunk-000006",
+      "order": 5,
+      "chunkPath": "chunks/chunk-000006.json",
+      "glyphsPath": "glyphs/chunk-000006.glyphs.json",
+      "shapesPath": "shapes/chunk-000006.shapes.json",
+      "startOffset": 325690,
+      "endOffset": 390660,
+      "textLength": 64970
+    },
+    {
+      "chunkId": "chunk-000007",
+      "order": 6,
+      "chunkPath": "chunks/chunk-000007.json",
+      "glyphsPath": "glyphs/chunk-000007.glyphs.json",
+      "shapesPath": "shapes/chunk-000007.shapes.json",
+      "startOffset": 390660,
+      "endOffset": 455687,
+      "textLength": 65027
+    },
+    {
+      "chunkId": "chunk-000008",
+      "order": 7,
+      "chunkPath": "chunks/chunk-000008.json",
+      "glyphsPath": "glyphs/chunk-000008.glyphs.json",
+      "shapesPath": "shapes/chunk-000008.shapes.json",
+      "startOffset": 455687,
+      "endOffset": 520839,
+      "textLength": 65152
+    },
+    {
+      "chunkId": "chunk-000009",
+      "order": 8,
+      "chunkPath": "chunks/chunk-000009.json",
+      "glyphsPath": "glyphs/chunk-000009.glyphs.json",
+      "shapesPath": "shapes/chunk-000009.shapes.json",
+      "startOffset": 520839,
+      "endOffset": 586320,
+      "textLength": 65481
+    },
+    {
+      "chunkId": "chunk-000010",
+      "order": 9,
+      "chunkPath": "chunks/chunk-000010.json",
+      "glyphsPath": "glyphs/chunk-000010.glyphs.json",
+      "shapesPath": "shapes/chunk-000010.shapes.json",
+      "startOffset": 586320,
+      "endOffset": 650609,
+      "textLength": 64289
+    },
+    {
+      "chunkId": "chunk-000011",
+      "order": 10,
+      "chunkPath": "chunks/chunk-000011.json",
+      "glyphsPath": "glyphs/chunk-000011.glyphs.json",
+      "shapesPath": "shapes/chunk-000011.shapes.json",
+      "startOffset": 650609,
+      "endOffset": 714974,
+      "textLength": 64365
+    },
+    {
+      "chunkId": "chunk-000012",
+      "order": 11,
+      "chunkPath": "chunks/chunk-000012.json",
+      "glyphsPath": "glyphs/chunk-000012.glyphs.json",
+      "shapesPath": "shapes/chunk-000012.shapes.json",
+      "startOffset": 714974,
+      "endOffset": 769246,
+      "textLength": 54272
+    },
+    {
+      "chunkId": "chunk-000013",
+      "order": 12,
+      "chunkPath": "chunks/chunk-000013.json",
+      "glyphsPath": "glyphs/chunk-000013.glyphs.json",
+      "shapesPath": "shapes/chunk-000013.shapes.json",
+      "startOffset": 769246,
+      "endOffset": 783385,
+      "textLength": 14139
+    }
+  ],
+  "tocPath": "toc.json",
+  "locationsPath": "locations.json",
+  "stylesPath": "styles.json"
+}
