@@ -90,6 +90,9 @@ const elements = {
 };
 
 const state = createProtectedReaderRuntimeState();
+state.footnoteHoverToken = 0;
+state.footnoteHoverPoint = null;
+state.footnoteHoverScheduled = false;
 const readerContractEvents = createProtectedReaderEventChannel({
   onEmit(eventName, payload) {
     try {
@@ -1922,18 +1925,59 @@ async function selectWordAt(point) {
   return snapshot;
 }
 
-async function getFootnoteAtClientPoint(clientX, clientY) {
+async function getFootnoteAtClientPoint(clientX, clientY, pointerType = "mouse") {
   if (!state.currentSnapshot) return { active: false, anchor: null };
   const point = getCanvasPointFromClient(clientX, clientY);
-  return getFootnoteAt(point);
+  return getFootnoteAt(point, pointerType);
 }
 
-async function getFootnoteAt(point) {
+async function getFootnoteAt(point, pointerType = "mouse") {
   if (!state.currentSnapshot) return { active: false, anchor: null };
   return state.workerClient.getFootnoteAtPoint({
     ...getViewportConfig(),
     x: point.x,
-    y: point.y
+    y: point.y,
+    pointerType
+  });
+}
+
+function setFootnoteHoverCursor(active) {
+  const nextCursor = active ? "pointer" : "";
+  [elements.canvas, elements.overlayCanvas, elements.readerFrame].forEach((node) => {
+    if (!node || !node.style) return;
+    if (node.style.cursor === nextCursor) return;
+    node.style.cursor = nextCursor;
+  });
+}
+
+function scheduleFootnoteHoverCheck(event) {
+  if (!event || String(event.pointerType || "mouse") !== "mouse" || !state.currentSnapshot) {
+    setFootnoteHoverCursor(false);
+    return;
+  }
+  state.footnoteHoverPoint = {
+    clientX: Number(event.clientX || 0),
+    clientY: Number(event.clientY || 0)
+  };
+  if (state.footnoteHoverScheduled) return;
+  state.footnoteHoverScheduled = true;
+  const token = ++state.footnoteHoverToken;
+  window.requestAnimationFrame(() => {
+    state.footnoteHoverScheduled = false;
+    const point = state.footnoteHoverPoint;
+    if (!point) {
+      setFootnoteHoverCursor(false);
+      return;
+    }
+    getFootnoteAtClientPoint(point.clientX, point.clientY, "mouse")
+      .then((payload) => {
+        if (token !== state.footnoteHoverToken) return;
+        setFootnoteHoverCursor(!!(payload && payload.active && payload.anchor));
+      })
+      .catch(() => {
+        if (token !== state.footnoteHoverToken) return;
+        setFootnoteHoverCursor(false);
+      });
   });
 }
 
@@ -2217,6 +2261,9 @@ function handlePointerDown(event) {
 }
 
 function handlePointerMove(event) {
+  if (String(event.pointerType || "") === "mouse") {
+    scheduleFootnoteHoverCheck(event);
+  }
   if (!state.currentSnapshot) return;
   const gesture = state.pointerGesture;
   if (!gesture.active) return;
@@ -2331,6 +2378,10 @@ function handleMouseGestureStart(event) {
 }
 
 function handleMouseGestureMove(event) {
+  scheduleFootnoteHoverCheck({
+    ...event,
+    pointerType: "mouse"
+  });
   const gesture = state.pointerGesture;
   if (!gesture.active || (gesture.pointerId !== "mouse" && gesture.pointerId !== null)) return;
   handlePointerMove({
@@ -3393,8 +3444,8 @@ async function bridgeSetFontMode(fontMode = "sans", generationMeta = null) {
   return buildBridgeSummary();
 }
 
-async function bridgeGetFootnoteAtClientPoint(clientX = 0, clientY = 0) {
-  return getFootnoteAtClientPoint(clientX, clientY);
+async function bridgeGetFootnoteAtClientPoint(clientX = 0, clientY = 0, pointerType = "mouse") {
+  return getFootnoteAtClientPoint(clientX, clientY, pointerType);
 }
 
 function buildEmbeddedHostHandlers() {
@@ -3877,6 +3928,7 @@ async function boot() {
   if (supportsPointerEvents()) {
     elements.canvas.addEventListener("pointerdown", handleCapturedPointerDown, { capture: true });
     elements.canvas.addEventListener("pointermove", handleCapturedPointerMove, { capture: true });
+    elements.canvas.addEventListener("pointerleave", () => setFootnoteHoverCursor(false), { capture: true });
     elements.canvas.addEventListener("touchstart", handleTouchStartFallback, { capture: true, passive: false });
     elements.canvas.addEventListener("touchmove", handleTouchMoveFallback, { capture: true, passive: false });
     elements.canvas.addEventListener("touchend", handleTouchEndFallback, { capture: true, passive: false });
@@ -3892,6 +3944,7 @@ async function boot() {
     if (elements.readerFrame && elements.readerFrame !== elements.canvas) {
       elements.readerFrame.addEventListener("pointerdown", handleCapturedPointerDown, { capture: true });
       elements.readerFrame.addEventListener("pointermove", handleCapturedPointerMove, { capture: true });
+      elements.readerFrame.addEventListener("pointerleave", () => setFootnoteHoverCursor(false), { capture: true });
       elements.readerFrame.addEventListener("touchstart", handleTouchStartFallback, { capture: true, passive: false });
       elements.readerFrame.addEventListener("touchmove", handleTouchMoveFallback, { capture: true, passive: false });
       elements.readerFrame.addEventListener("touchend", handleTouchEndFallback, { capture: true, passive: false });
@@ -3910,6 +3963,7 @@ async function boot() {
       handleMouseGestureStart(event);
     }, { capture: true });
     elements.canvas.addEventListener("mousemove", handleMouseGestureMove, { capture: true });
+    elements.canvas.addEventListener("mouseleave", () => setFootnoteHoverCursor(false), { capture: true });
     window.addEventListener("mouseup", (event) => {
       if (event.button !== 0) return;
       handleMouseGestureEnd(event);

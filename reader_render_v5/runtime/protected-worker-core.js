@@ -384,6 +384,25 @@ function findNoteAnchorAtOffset(chunkModel, localOffset) {
   )) || null;
 }
 
+function findNoteAnchorAtPoint(core, x, y, pointerType = "mouse") {
+  const anchors = Array.isArray(
+    core &&
+    core.currentChunkModel &&
+    core.currentChunkModel.chunk &&
+    core.currentChunkModel.chunk.selectionLayer &&
+    core.currentChunkModel.chunk.selectionLayer.noteAnchors
+  )
+    ? core.currentChunkModel.chunk.selectionLayer.noteAnchors
+    : [];
+  for (const anchor of anchors) {
+    const bounds = buildNoteAnchorBounds(core, anchor);
+    if (pointHitsNoteAnchorBounds(bounds, x, y, pointerType)) {
+      return { anchor, bounds };
+    }
+  }
+  return null;
+}
+
 function buildNoteAnchorBounds(core, noteAnchor) {
   if (!core || !core.currentLayout || !noteAnchor) return null;
   const matchingFragments = [];
@@ -410,6 +429,53 @@ function buildNoteAnchorBounds(core, noteAnchor) {
     width: Math.max(1, right - left),
     height: Math.max(1, bottom - top)
   };
+}
+
+function buildExpandedNoteAnchorHitBounds(bounds, pointerType = "mouse") {
+  if (!bounds) return null;
+  const left = Number(bounds.left || 0);
+  const right = Number(bounds.right || 0);
+  const top = Number(bounds.top || 0);
+  const bottom = Number(bounds.bottom || 0);
+  const width = Math.max(1, Number(bounds.width || (right - left) || 1));
+  const height = Math.max(1, Number(bounds.height || (bottom - top) || 1));
+  const normalizedPointer = String(pointerType || "mouse").trim().toLowerCase();
+  if (normalizedPointer === "touch" || normalizedPointer === "pen") {
+    const targetWidth = Math.max(width * 10, 96);
+    const targetHeight = Math.max(height * 6, 96);
+    const centerX = (left + right) / 2;
+    const centerY = ((top + bottom) / 2) - Math.max(6, height * 0.2);
+    return {
+      left: centerX - targetWidth / 2,
+      right: centerX + targetWidth / 2,
+      top: centerY - targetHeight / 2,
+      bottom: centerY + targetHeight / 2
+    };
+  }
+  const centerX = (left + right) / 2;
+  const centerY = ((top + bottom) / 2) - Math.max(6, height * 0.35);
+  const targetSize = Math.max(34, height * 2.2);
+  return {
+    left: centerX - targetSize / 2,
+    right: centerX + targetSize / 2,
+    top: centerY - targetSize / 2,
+    bottom: centerY + targetSize / 2
+  };
+}
+
+function pointHitsNoteAnchorBounds(bounds, x, y, pointerType = "mouse") {
+  if (!bounds) return false;
+  const px = Number(x);
+  const py = Number(y);
+  if (!Number.isFinite(px) || !Number.isFinite(py)) return false;
+  const expanded = buildExpandedNoteAnchorHitBounds(bounds, pointerType);
+  if (!expanded) return false;
+  return (
+    px >= Number(expanded.left || 0) &&
+    px <= Number(expanded.right || 0) &&
+    py >= Number(expanded.top || 0) &&
+    py <= Number(expanded.bottom || 0)
+  );
 }
 
 function buildLayoutProjectionMeta(core) {
@@ -1240,12 +1306,9 @@ export class ProtectedReaderRuntimeCore {
     return this.buildSnapshot({ annotations });
   }
 
-  getFootnoteAtPoint({ x, y } = {}) {
-    const position = hitTestPosition(this.currentLayout, x, y);
-    if (!position) {
-      return { active: false, anchor: null };
-    }
-    const noteAnchor = findNoteAnchorAtOffset(this.currentChunkModel, Number(position.offset || 0));
+  getFootnoteAtPoint({ x, y, pointerType = "mouse" } = {}) {
+    const noteAnchorHit = findNoteAnchorAtPoint(this, x, y, pointerType);
+    const noteAnchor = noteAnchorHit ? noteAnchorHit.anchor : null;
     if (!noteAnchor) {
       return { active: false, anchor: null };
     }
@@ -1265,6 +1328,7 @@ export class ProtectedReaderRuntimeCore {
       this.book.manifest.source.publicRootPath
         ? String(this.book.manifest.source.publicRootPath)
         : "";
+    const bounds = noteAnchorHit && noteAnchorHit.bounds ? noteAnchorHit.bounds : buildNoteAnchorBounds(this, noteAnchor);
     return {
       active: true,
       anchor: {
@@ -1273,7 +1337,7 @@ export class ProtectedReaderRuntimeCore {
         targetSourceHref,
         targetAnchorId: parsedHref.targetAnchorId,
         sourcePublicRootPath,
-        bounds: buildNoteAnchorBounds(this, noteAnchor)
+        bounds
       }
     };
   }

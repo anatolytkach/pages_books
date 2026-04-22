@@ -76,6 +76,11 @@ const HOST_STATE = {
   suppressFootnoteSurfaceTapUntil: 0,
   footnotePreviewRequestToken: 0,
   footnotePopupKey: "",
+  pendingShellToggleTimer: null,
+  pendingShellToggleSource: "",
+  lastShellToggleSource: "",
+  lastShellToggleAt: 0,
+  lastShellTogglePreHidden: false,
   touchUiGuardInstalled: false,
   viewportEnvironmentInstalled: false,
   tts: {
@@ -352,10 +357,15 @@ function hideShellUi(source = "programmatic") {
 }
 
 function toggleShellUi(source = "programmatic") {
+  cancelPendingShellToggle();
+  const wasHidden = !!(document.body && document.body.classList && document.body.classList.contains("ui-hidden"));
   if (Date.now() < Number(HOST_STATE.suppressShellToggleUntil || 0)) {
     return;
   }
-  if (document.body.classList.contains("ui-hidden")) {
+  HOST_STATE.lastShellToggleSource = String(source || "programmatic");
+  HOST_STATE.lastShellToggleAt = Date.now();
+  HOST_STATE.lastShellTogglePreHidden = wasHidden;
+  if (wasHidden) {
     showShellUi(source);
     if (source === "touch-center" && isTouchShellMode()) {
       HOST_STATE.suppressSyntheticClickUntil = Date.now() + 900;
@@ -366,10 +376,35 @@ function toggleShellUi(source = "programmatic") {
 }
 
 function suppressShellToggle(durationMs = 550) {
+  cancelPendingShellToggle();
   HOST_STATE.suppressShellToggleUntil = Math.max(
     Number(HOST_STATE.suppressShellToggleUntil || 0),
     Date.now() + Math.max(0, Number(durationMs || 0))
   );
+}
+
+function cancelPendingShellToggle() {
+  if (HOST_STATE.pendingShellToggleTimer) {
+    window.clearTimeout(HOST_STATE.pendingShellToggleTimer);
+    HOST_STATE.pendingShellToggleTimer = null;
+  }
+  HOST_STATE.pendingShellToggleSource = "";
+}
+
+function scheduleShellToggle(source = "programmatic", delayMs = 0) {
+  cancelPendingShellToggle();
+  const delay = Math.max(0, Number(delayMs || 0));
+  if (!delay) {
+    toggleShellUi(source);
+    return;
+  }
+  HOST_STATE.pendingShellToggleSource = String(source || "programmatic");
+  HOST_STATE.pendingShellToggleTimer = window.setTimeout(() => {
+    HOST_STATE.pendingShellToggleTimer = null;
+    const pendingSource = HOST_STATE.pendingShellToggleSource || source;
+    HOST_STATE.pendingShellToggleSource = "";
+    toggleShellUi(pendingSource);
+  }, delay);
 }
 
 function bindPrimaryAction(target, handler, options = {}) {
@@ -667,37 +702,99 @@ function installStyles() {
     #protectedFootnotePopup.popup {
       z-index: 2650;
       display: none;
-      max-width: min(360px, calc(100vw - 24px));
-      padding: 14px 16px 16px;
-      border-radius: 10px;
-      border: 1px solid rgba(90, 74, 48, 0.12);
-      background: #fffdfa;
-      box-shadow: 0 14px 32px rgba(23, 33, 50, 0.18);
-      color: #2a2118;
+      background: #eee;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      position: fixed;
+      max-width: 300px;
+      font-size: 12px;
+      font-family: var(--protected-footnote-font-family, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif);
+      margin-left: 2px;
+      margin-top: 30px;
+      color: #000;
     }
     #protectedFootnotePopup.show,
     #protectedFootnotePopup.on {
       display: block;
     }
+    #protectedFootnotePopup.above {
+      margin-top: -10px;
+    }
+    #protectedFootnotePopup.left {
+      margin-left: -20px;
+    }
+    #protectedFootnotePopup.right {
+      margin-left: 40px;
+    }
+    #protectedFootnotePopup::before {
+      position: absolute;
+      display: inline-block;
+      border-bottom: 10px solid #eee;
+      border-right: 10px solid transparent;
+      border-left: 10px solid transparent;
+      border-bottom-color: rgba(0, 0, 0, 0.2);
+      left: 50%;
+      top: -10px;
+      margin-left: -6px;
+      content: "";
+    }
+    #protectedFootnotePopup::after {
+      position: absolute;
+      display: inline-block;
+      border-bottom: 9px solid #eee;
+      border-right: 9px solid transparent;
+      border-left: 9px solid transparent;
+      left: 50%;
+      top: -9px;
+      margin-left: -5px;
+      content: "";
+    }
+    #protectedFootnotePopup.above::before {
+      border-bottom: none;
+      border-top: 10px solid #eee;
+      border-top-color: rgba(0, 0, 0, 0.2);
+      top: 100%;
+    }
+    #protectedFootnotePopup.above::after {
+      border-bottom: none;
+      border-top: 9px solid #eee;
+      top: 100%;
+    }
+    #protectedFootnotePopup.left::before,
+    #protectedFootnotePopup.left::after {
+      left: 20px;
+    }
+    #protectedFootnotePopup.right::before,
+    #protectedFootnotePopup.right::after {
+      left: auto;
+      right: 20px;
+    }
     #protectedFootnotePopup .popup-close {
-      color: #7b6c59;
-      top: 8px;
-      right: 10px;
-      width: 24px;
-      height: 24px;
-      border-radius: 999px;
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      padding: 0;
+      margin: 0;
+      border: 0;
+      background: none;
+      font-size: 16px;
+      line-height: 16px;
+      cursor: pointer;
+      color: inherit;
     }
     #protectedFootnotePopup .popup-close:hover,
     #protectedFootnotePopup .popup-close:focus-visible {
-      background: rgba(111, 74, 34, 0.08);
       outline: none;
     }
     #protectedFootnotePopup .protected-footnote-body {
-      padding-right: 18px;
-      max-height: min(260px, 46vh);
+      max-height: 225px;
       overflow-y: auto;
-      font: 400 16px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif;
-      color: #2a2118;
+      color: inherit;
+      font: inherit;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
     }
     #protectedFootnotePopup .protected-footnote-paragraph {
       margin: 0;
@@ -707,13 +804,79 @@ function installStyles() {
     }
     #protectedFootnotePopup .protected-footnote-empty {
       margin: 0;
-      color: #6f6556;
+      color: inherit;
       font-size: 14px;
+    }
+    body.protected-shell.protected-theme-dark #protectedFootnotePopup.popup,
+    body.protected-shell.protected-theme-dark #protectedFootnotePopup.popup.modal {
+      background: #000 !important;
+      color: #fff !important;
+      border: 1px solid #fff !important;
+    }
+    body.protected-shell.protected-theme-dark #protectedFootnotePopup::after {
+      border-bottom-color: #000;
+    }
+    body.protected-shell.protected-theme-dark #protectedFootnotePopup.above::after {
+      border-top-color: #000;
+    }
+    #protectedFootnoteModal.selection-translate.fn-main-modal {
+      z-index: 2147483647;
+    }
+    #protectedFootnoteModal.selection-translate.fn-main-modal .selection-translate-panel.fn-main-panel {
+      width: min(820px, 100%);
+      border: 0 !important;
+      box-shadow: none !important;
+      background: var(--fbbar-bg) !important;
+      color: var(--fbbar-fg) !important;
+      padding: 0 !important;
+      border-radius: 10px;
+    }
+    #protectedFootnoteModal.selection-translate.fn-main-modal .selection-translate-result.fn-main-body {
+      position: relative;
+      margin-top: 0;
+      min-height: 0;
+      max-height: none;
+      border-radius: 10px;
+      background: var(--fbbar-bg) !important;
+      border-color: var(--fbbar-border) !important;
+      color: var(--fbbar-fg) !important;
+      white-space: normal;
+      line-height: 1.45;
+      font-size: 1.25em;
+      overflow-wrap: anywhere;
+      padding: 54px 20px 18px 20px;
+      font-family: var(--protected-footnote-font-family, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif);
+    }
+    #protectedFootnoteModal.selection-translate.fn-main-modal .selection-translate-close.fn-main-close {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      width: auto;
+      height: auto;
+      padding: 0;
+      border: 0 !important;
+      outline: 0;
+      border-radius: 0;
+      background: transparent !important;
+      line-height: 1;
+      font-size: 18px;
+      font-weight: 200;
+      color: inherit;
+      cursor: pointer;
+    }
+    #protectedFootnoteModal.selection-translate.fn-main-modal .selection-translate-close.fn-main-close:hover,
+    #protectedFootnoteModal.selection-translate.fn-main-modal .selection-translate-close.fn-main-close:focus {
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    #protectedFootnoteModal.selection-translate.fn-main-modal .fn-main-content {
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
     html.is-phone body.protected-shell #protectedFootnotePopup.popup,
     html.is-tablet body.protected-shell #protectedFootnotePopup.popup {
-      max-width: min(92vw, 420px);
-      width: auto;
+      display: none !important;
     }
     body.protected-shell #title-controls {
       display: inline-flex;
@@ -5897,19 +6060,91 @@ function ensureFootnotePopup() {
   return popup;
 }
 
+function ensureFootnoteModal() {
+  let modal = document.getElementById("protectedFootnoteModal");
+  if (modal) return modal;
+  modal = document.createElement("div");
+  modal.id = "protectedFootnoteModal";
+  modal.className = "selection-translate fn-main-modal hidden";
+  modal.innerHTML = `
+    <div class="selection-translate-panel fn-main-panel" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="selection-translate-result fn-main-body">
+        <button type="button" class="selection-translate-close fn-main-close" aria-label="Close footnote preview">×</button>
+        <div class="fn-main-content">
+          <p class="protected-footnote-empty">Footnote preview is unavailable.</p>
+        </div>
+      </div>
+    </div>
+  `;
+  const maybeCloseFromBackdrop = (event) => {
+    const target = event && event.target ? event.target : null;
+    if (target === modal || !(target && target.closest && target.closest(".fn-main-panel"))) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+      hideFootnotePopup("modal-overlay");
+    }
+  };
+  modal.addEventListener("pointerdown", maybeCloseFromBackdrop, true);
+  modal.addEventListener("touchstart", maybeCloseFromBackdrop, { capture: true, passive: false });
+  modal.addEventListener("click", maybeCloseFromBackdrop, true);
+  const closeButton = modal.querySelector(".fn-main-close");
+  const closeFromButton = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+    hideFootnotePopup("modal-close");
+  };
+  closeButton && closeButton.addEventListener("pointerdown", closeFromButton, true);
+  closeButton && closeButton.addEventListener("touchstart", closeFromButton, { capture: true, passive: false });
+  closeButton && closeButton.addEventListener("click", closeFromButton, true);
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function getProtectedFootnoteFontFamily(fontMode = HOST_STATE.readerConfig.fontMode) {
+  return normalizeFontMode(fontMode) === "serif"
+    ? 'Georgia, "Iowan Old Style", "Times New Roman", serif'
+    : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+}
+
+function syncFootnoteFontFamily(fontMode = HOST_STATE.readerConfig.fontMode) {
+  const family = getProtectedFootnoteFontFamily(fontMode);
+  try {
+    document.documentElement.style.setProperty("--protected-footnote-font-family", family);
+  } catch (_error) {}
+}
+
 function hideFootnotePopup(reason = "dismiss") {
   const popup = document.getElementById("protectedFootnotePopup");
-  if (!popup) return;
-  popup.classList.remove("show", "on", "above", "left", "right", "modal");
-  popup.setAttribute("aria-hidden", "true");
-  popup.style.left = "";
-  popup.style.top = "";
+  if (popup) {
+    popup.classList.remove("show", "on", "above", "left", "right", "modal");
+    popup.setAttribute("aria-hidden", "true");
+    popup.style.left = "";
+    popup.style.top = "";
+    popup.style.visibility = "";
+  }
+  const modal = document.getElementById("protectedFootnoteModal");
+  if (modal) {
+    modal.classList.add("hidden");
+    const panel = modal.querySelector(".fn-main-panel");
+    panel && panel.setAttribute("aria-hidden", "true");
+  }
   HOST_STATE.footnotePopupKey = "";
   suppressShellToggle(reason === "open" ? 500 : 220);
   HOST_STATE.suppressFootnoteSurfaceTapUntil = Math.max(
     Number(HOST_STATE.suppressFootnoteSurfaceTapUntil || 0),
     Date.now() + (reason === "open" ? 500 : 180)
   );
+}
+
+function probeFootnoteAtClientPoint(clientX = 0, clientY = 0, pointerType = "mouse") {
+  return invokeBridgeRaw(
+    "getFootnoteAtClientPoint",
+    Number(clientX || 0),
+    Number(clientY || 0),
+    String(pointerType || "mouse")
+  ).catch(() => null);
 }
 
 function renderFootnoteParagraphRuns(runs = []) {
@@ -5979,25 +6214,41 @@ async function showFootnotePopupForAnchor(anchor, clientX, clientY) {
   if (!anchor || !anchor.targetSourceHref || !anchor.targetAnchorId || !anchor.sourcePublicRootPath) return false;
   const requestToken = ++HOST_STATE.footnotePreviewRequestToken;
   const popupKey = `${anchor.targetSourceHref}#${anchor.targetAnchorId}`;
+  syncFootnoteFontFamily(HOST_STATE.readerConfig.fontMode);
+  const useModal = true;
   const popup = ensureFootnotePopup();
   const body = popup.querySelector(".protected-footnote-body");
+  const modal = ensureFootnoteModal();
+  const modalPanel = modal.querySelector(".fn-main-panel");
+  const modalContent = modal.querySelector(".fn-main-content");
   popup.classList.remove("show", "on", "above", "left", "right", "modal");
-  popup.setAttribute("aria-hidden", "false");
+  popup.setAttribute("aria-hidden", useModal ? "true" : "false");
   body.innerHTML = `<p class="protected-footnote-empty">Loading footnote…</p>`;
-  positionFootnotePopup(popup, clientX, clientY, anchor.bounds || null);
+  modalContent.innerHTML = `<p class="protected-footnote-empty">Loading footnote…</p>`;
+  modal.classList.add("hidden");
+  modalPanel && modalPanel.setAttribute("aria-hidden", "true");
+  popup.classList.remove("show", "on", "above", "left", "right", "modal");
+  modal.classList.remove("hidden");
+  modalPanel && modalPanel.setAttribute("aria-hidden", "false");
   try {
-    const { loadProtectedFootnotePreview } = await import("./protected-footnote-preview.js?v=20260422-v5-footnotes-1");
+    const { loadProtectedFootnotePreview } = await import("./protected-footnote-preview.js?v=20260422-v5-footnotes-2");
     const preview = await loadProtectedFootnotePreview(anchor);
     if (requestToken !== HOST_STATE.footnotePreviewRequestToken) return true;
-    body.innerHTML = renderFootnotePreviewBody(preview);
-    positionFootnotePopup(popup, clientX, clientY, anchor.bounds || null);
+    const nextHtml = renderFootnotePreviewBody(preview);
+    body.innerHTML = nextHtml;
+    modalContent.innerHTML = nextHtml;
+    modal.classList.remove("hidden");
+    modalPanel && modalPanel.setAttribute("aria-hidden", "false");
     HOST_STATE.footnotePopupKey = popupKey;
     HOST_STATE.suppressFootnoteSurfaceTapUntil = Date.now() + 500;
     return true;
   } catch (error) {
     if (requestToken !== HOST_STATE.footnotePreviewRequestToken) return true;
-    body.innerHTML = `<p class="protected-footnote-empty">${escapeSearchHtml(error && error.message ? error.message : "Footnote preview is unavailable.")}</p>`;
-    positionFootnotePopup(popup, clientX, clientY, anchor.bounds || null);
+    const fallbackHtml = `<p class="protected-footnote-empty">${escapeSearchHtml(error && error.message ? error.message : "Footnote preview is unavailable.")}</p>`;
+    body.innerHTML = fallbackHtml;
+    modalContent.innerHTML = fallbackHtml;
+    modal.classList.remove("hidden");
+    modalPanel && modalPanel.setAttribute("aria-hidden", "false");
     HOST_STATE.footnotePopupKey = popupKey;
     HOST_STATE.suppressFootnoteSurfaceTapUntil = Date.now() + 500;
     return true;
@@ -6006,6 +6257,15 @@ async function showFootnotePopupForAnchor(anchor, clientX, clientY) {
 
 function handleProtectedFootnoteActivation(anchor, clientX = 0, clientY = 0, pointerType = "mouse") {
   if (!anchor) return;
+  cancelPendingShellToggle();
+  if (
+    !document.body.classList.contains("ui-hidden") &&
+    HOST_STATE.lastShellTogglePreHidden &&
+    ["desktop-click", "touch-center"].includes(String(HOST_STATE.lastShellToggleSource || "")) &&
+    Date.now() - Number(HOST_STATE.lastShellToggleAt || 0) <= 800
+  ) {
+    hideShellUi("footnote-activate");
+  }
   suppressShellToggle(pointerType === "touch" ? 900 : 650);
   if (pointerType === "touch") {
     HOST_STATE.suppressSyntheticClickUntil = Date.now() + 900;
@@ -6024,7 +6284,8 @@ async function maybeActivateFootnoteFromEvent(frame, event, pointerKind = "mouse
   const bridgeResult = await invokeBridgeRaw(
     "getFootnoteAtClientPoint",
     Number(event.clientX || 0),
-    Number(event.clientY || 0)
+    Number(event.clientY || 0),
+    String(pointerKind || "mouse")
   ).catch(() => null);
   if (!bridgeResult || !bridgeResult.active || !bridgeResult.anchor) {
     hideFootnotePopup("no-hit");
@@ -6156,9 +6417,12 @@ async function handleAction(action) {
   document.addEventListener("touchstart", dismissSelectionUi, { capture: true, passive: true });
   const dismissFootnoteUi = (event) => {
     const popup = document.getElementById("protectedFootnotePopup");
-    if (!popup || popup.getAttribute("aria-hidden") === "true") return;
+    const modal = document.getElementById("protectedFootnoteModal");
+    const popupVisible = !!(popup && popup.getAttribute("aria-hidden") !== "true");
+    const modalVisible = !!(modal && !modal.classList.contains("hidden"));
+    if (!popupVisible && !modalVisible) return;
     const target = event && event.target ? event.target : null;
-    if (target && target.closest && target.closest("#protectedFootnotePopup")) return;
+    if (target && target.closest && target.closest("#protectedFootnotePopup, #protectedFootnoteModal .fn-main-panel")) return;
     hideFootnotePopup("outside-click");
   };
   document.addEventListener("pointerdown", dismissFootnoteUi, true);
@@ -6263,7 +6527,9 @@ function attachProtectedSurfaceInteractions(frame) {
       armed: false,
       startX: 0,
       startY: 0,
-      selectionDismissed: false
+      selectionDismissed: false,
+      footnoteProbe: null,
+      footnoteAnchor: null
     };
     const blockContextMenu = (event) => {
       const target = event.target;
@@ -6313,6 +6579,14 @@ function attachProtectedSurfaceInteractions(frame) {
       desktopSurfaceClickState.startX = Number(event.clientX || 0);
       desktopSurfaceClickState.startY = Number(event.clientY || 0);
       desktopSurfaceClickState.selectionDismissed = false;
+      desktopSurfaceClickState.footnoteAnchor = null;
+      desktopSurfaceClickState.footnoteProbe = inProtectedSurface && primaryButton
+        ? probeFootnoteAtClientPoint(event.clientX, event.clientY, "mouse").then((result) => {
+            desktopSurfaceClickState.footnoteAnchor = result && result.active && result.anchor ? result.anchor : null;
+            if (desktopSurfaceClickState.footnoteAnchor) desktopSurfaceClickState.armed = false;
+            return desktopSurfaceClickState.footnoteAnchor;
+          })
+        : null;
     }, true);
     doc.addEventListener("pointermove", (event) => {
       if (!desktopSurfaceClickState.armed) return;
@@ -6369,21 +6643,39 @@ function attachProtectedSurfaceInteractions(frame) {
         })
         .catch(() => {});
     }, true);
-    doc.addEventListener("click", (event) => {
+    doc.addEventListener("click", async (event) => {
       if (isTouchShellMode()) return;
       const target = event.target;
       const inProtectedSurface = !!(target && target.closest && target.closest("#reader-canvas, #overlay-canvas, canvas, .reader-frame"));
       const primaryButton = event.button == null || event.button === 0;
       const summary = getBridgeSummaryFromFrame(frame);
       const hasSelection = !!(summary && (summary.selectionActive || summary.focusedAnnotationId));
+      if (inProtectedSurface && primaryButton && !hasSelection) {
+        const anchor = desktopSurfaceClickState.footnoteProbe
+          ? await desktopSurfaceClickState.footnoteProbe
+          : await probeFootnoteAtClientPoint(event.clientX, event.clientY).then((result) => result && result.active && result.anchor ? result.anchor : null);
+        if (anchor) {
+          desktopSurfaceClickState.armed = false;
+          desktopSurfaceClickState.selectionDismissed = false;
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+          handleProtectedFootnoteActivation(anchor, Number(event.clientX || 0), Number(event.clientY || 0), "mouse");
+          return;
+        }
+      }
       if (!desktopSurfaceClickState.armed || !inProtectedSurface || !primaryButton || hasSelection || desktopSurfaceClickState.selectionDismissed || Date.now() < Number(HOST_STATE.suppressShellToggleUntil || 0)) {
         desktopSurfaceClickState.armed = false;
         desktopSurfaceClickState.selectionDismissed = false;
+        desktopSurfaceClickState.footnoteProbe = null;
+        desktopSurfaceClickState.footnoteAnchor = null;
         return;
       }
       desktopSurfaceClickState.armed = false;
       desktopSurfaceClickState.selectionDismissed = false;
-      toggleShellUi("desktop-click");
+      desktopSurfaceClickState.footnoteProbe = null;
+      desktopSurfaceClickState.footnoteAnchor = null;
+      scheduleShellToggle("desktop-click", 140);
     }, true);
     doc.addEventListener("mouseup", (event) => {
       if (event.button !== 0) return;
@@ -6421,6 +6713,8 @@ function attachProtectedSurfaceInteractions(frame) {
     }, true);
     doc.addEventListener("pointercancel", () => {
       desktopSurfaceClickState.armed = false;
+      desktopSurfaceClickState.footnoteProbe = null;
+      desktopSurfaceClickState.footnoteAnchor = null;
     }, true);
   };
   if (!isDirectRenderHostMode() && frame && typeof frame.addEventListener === "function") {
@@ -6463,6 +6757,7 @@ function updateFromSummary(summary) {
   HOST_STATE.readerConfig.layoutGeneration = normalizeGeneration(summary.layoutGeneration, HOST_STATE.activeLayoutGeneration);
   HOST_STATE.readerConfig.fontMode = effectiveSummaryFontMode;
   persistShellFontMode(HOST_STATE.readerConfig.fontMode);
+  syncFootnoteFontFamily(HOST_STATE.readerConfig.fontMode);
   if (summary.ready) {
     HOST_STATE.loadingCount = 0;
     setShellLoading(false);
@@ -7676,7 +7971,9 @@ function installTouchSwipe(target) {
       preparing: null,
       swipeCaptured: false,
       selectionClaimed: false,
-      selectionLocked: false
+      selectionLocked: false,
+      footnoteAnchor: null,
+      footnoteResolved: false
     };
     if (!prepared) {
       gesture.preparingDirection = "both";
@@ -7718,6 +8015,22 @@ function installTouchSwipe(target) {
     };
     const touchSelection = getTouchSelectionState();
     const summary = getBridgeSummaryFromFrame(HOST_STATE.frame);
+    if (gesture.footnoteAnchor) {
+      if (gesture.activationTimer) {
+        window.clearTimeout(gesture.activationTimer);
+        gesture.activationTimer = null;
+      }
+      if (gesture.previewVisible) {
+        clearPageTurnPreview({ clearNeighbors: false });
+        gesture.previewVisible = false;
+      }
+      if (gesture.swipeCaptured) {
+        setFramePointerEventsDisabled(false);
+        gesture.swipeCaptured = false;
+      }
+      event.preventDefault();
+      return;
+    }
     if (gesture.selectionClaimed) {
       gesture.selectionLocked = true;
       HOST_STATE.touchSelectionInProgress = true;
@@ -7872,7 +8185,8 @@ function installTouchSwipe(target) {
       previewVisible,
       tapZone,
       overlaysVisible: overlaysVisible(),
-      selectionClaimed
+      selectionClaimed,
+      footnote: false
     };
     if (Math.abs(dx) < 58 || Math.abs(dx) < Math.abs(dy) * 1.35) {
       if (previewVisible) {
@@ -7895,13 +8209,31 @@ function installTouchSwipe(target) {
         !previewVisible &&
         !overlaysVisible();
       if (isTap) {
+        const footnoteAnchor = await probeFootnoteAtClientPoint(
+          touch ? touch.clientX : completedGesture.startX,
+          touch ? touch.clientY : completedGesture.startY,
+          "touch"
+        ).then((result) => (result && result.active && result.anchor ? result.anchor : null)).catch(() => null);
+        window.__protectedTouchDebug.end.footnote = !!footnoteAnchor;
+        if (footnoteAnchor) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+          handleProtectedFootnoteActivation(
+            footnoteAnchor,
+            touch ? touch.clientX : completedGesture.startX,
+            touch ? touch.clientY : completedGesture.startY,
+            "touch"
+          );
+          return;
+        }
         window.__protectedTouchDebug.tap = {
           tapZone,
           bodyHiddenBefore: !!(document.body && document.body.classList && document.body.classList.contains("ui-hidden"))
         };
         if (tapZone === "center") {
           event.preventDefault();
-          toggleShellUi("touch-center");
+          scheduleShellToggle("touch-center", 180);
           window.__protectedTouchDebug.tap.bodyHiddenAfter = !!(document.body && document.body.classList && document.body.classList.contains("ui-hidden"));
           return;
         }
@@ -8720,7 +9052,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260422-v5-footnotes-1");
+      await import("../dev/protected-reader.js?v=20260422-v5-footnotes-2");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;

@@ -933,7 +933,7 @@ export function layoutChunk({
             ...baseStyle,
             superscript: true,
             footnoteRef: true,
-            textColor: String(baseStyle.textColor || "").trim() || "#6f4a22"
+            textColor: "rgb(255,2,255)"
           }
         : baseStyle;
       const font = fontSpecForStyle(style, fontScale);
