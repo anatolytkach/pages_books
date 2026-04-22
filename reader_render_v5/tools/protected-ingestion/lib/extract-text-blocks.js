@@ -85,6 +85,29 @@ function resolveContentHref(baseHref, target) {
   return path.posix.normalize(path.posix.join(baseDir === "." ? "" : baseDir, rawTarget));
 }
 
+function splitHrefTarget(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { path: "", fragment: "" };
+  const hashIndex = raw.indexOf("#");
+  if (hashIndex < 0) return { path: raw, fragment: "" };
+  return {
+    path: raw.slice(0, hashIndex),
+    fragment: raw.slice(hashIndex + 1)
+  };
+}
+
+function normalizePathTail(value) {
+  const raw = String(value || "").trim().replace(/\\/g, "/");
+  if (!raw) return "";
+  const noOrigin = raw.replace(/^https?:\/\/[^/]+/i, "");
+  const noLeading = noOrigin.replace(/^\/+/, "");
+  const parts = noLeading.split("/").filter(Boolean);
+  if (!parts.length) return "";
+  const oebpsIndex = parts.lastIndexOf("OEBPS");
+  if (oebpsIndex >= 0) return parts.slice(oebpsIndex).join("/");
+  return parts.join("/");
+}
+
 function mergePresentation(base, override = {}) {
   return {
     ...base,
@@ -398,6 +421,78 @@ function blockTypeForTag(tag, attrs = {}) {
   return "paragraph";
 }
 
+function sourceRefMatchesToc(sourceRef, tocItem, inlineIds = []) {
+  const { path, fragment } = splitHrefTarget(tocItem && tocItem.href);
+  const tocHref = normalizePathTail(path || (tocItem && tocItem.spineHref));
+  const sourceHref = normalizePathTail(sourceRef && sourceRef.href);
+  if (!tocHref || !sourceHref) return false;
+  const hrefMatches =
+    sourceHref === tocHref ||
+    sourceHref.endsWith(`/${tocHref}`) ||
+    tocHref.endsWith(`/${sourceHref}`);
+  if (!hrefMatches) return false;
+  if (!fragment) return true;
+  const nodeId = String(sourceRef && sourceRef.nodeId || "").trim();
+  if (nodeId && nodeId === fragment) return true;
+  return Array.isArray(inlineIds) && inlineIds.some((value) => String(value || "").trim() === fragment);
+}
+
+function normalizeLabel(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[^\p{L}\p{N}\s.'’:-]/gu, "")
+    .trim();
+}
+
+function blocksShareSpineHref(block, tocItem) {
+  const sourceHref = normalizePathTail(block && block.sourceRef && block.sourceRef.href);
+  const tocHref = normalizePathTail(tocItem && (splitHrefTarget(tocItem.href).path || tocItem.spineHref));
+  if (!sourceHref || !tocHref) return false;
+  return (
+    sourceHref === tocHref ||
+    sourceHref.endsWith(`/${tocHref}`) ||
+    tocHref.endsWith(`/${sourceHref}`)
+  );
+}
+
+function findChapterStartBlock(blocks, tocItem) {
+  const directMatch = blocks.find((block) => sourceRefMatchesToc(block && block.sourceRef, tocItem, block && block.inlineIds)) || null;
+  if (directMatch) return directMatch;
+  const labelMatch = blocks.find((block) => (
+    blocksShareSpineHref(block, tocItem) &&
+    normalizeLabel(block && block.text) === normalizeLabel(tocItem && tocItem.label)
+  )) || null;
+  if (labelMatch) return labelMatch;
+  return blocks.find((block) => (
+    blocksShareSpineHref(block, tocItem) &&
+    /^heading-\d+$/.test(String(block && block.blockType || ""))
+  )) || null;
+}
+
+function applyChapterPageBreaks(blocks, tocItems) {
+  const normalizedBlocks = Array.isArray(blocks) ? blocks : [];
+  const normalizedToc = Array.isArray(tocItems) ? tocItems : [];
+  const chapterStartIds = new Set();
+
+  for (const tocItem of normalizedToc) {
+    const chapterStart = findChapterStartBlock(normalizedBlocks, tocItem);
+    if (!chapterStart || !chapterStart.blockId) continue;
+    chapterStartIds.add(String(chapterStart.blockId));
+  }
+
+  return normalizedBlocks.map((block, index) => {
+    if (!block || !block.blockId || !chapterStartIds.has(String(block.blockId))) return block;
+    return {
+      ...block,
+      blockPresentation: {
+        ...(block.blockPresentation || {}),
+        pageBreakBefore: index > 0
+      }
+    };
+  });
+}
+
 function looksLikeNoteHref(href) {
   return /#(fn|note|footnote|endnote|noteref|ftn)/i.test(String(href || ""));
 }
@@ -477,7 +572,10 @@ function extractTextBlocks({ book, spine }) {
     };
   });
 
-  return { blocks, toc };
+  return {
+    blocks: applyChapterPageBreaks(blocks, toc),
+    toc
+  };
 }
 
 module.exports = { extractTextBlocks };

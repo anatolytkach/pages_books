@@ -840,7 +840,7 @@
         "fontSizeScale": 1.5,
         "letterSpacingEm": 0,
         "wordSpacingEm": 0,
-        "pageBreakBefore": false,
+        "pageBreakBefore": true,
         "fontFamily": "",
         "fontStyle": "normal",
         "fontWeight": "regular",
