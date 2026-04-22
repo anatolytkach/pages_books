@@ -24,7 +24,7 @@ import {
   parseRestoreToken,
   serializeRestoreToken
 } from "./protected-global-location.js";
-import { layoutChunk } from "./protected-layout-engine.js?v=20260416-protected-padding-3";
+import { layoutChunk } from "./protected-layout-engine.js?v=20260422-v5-spacing-collapse-1";
 import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
 import { buildGlyphRenderOps } from "./protected-shape-layout.js";
 import { hitTestPosition } from "./protected-hit-testing.js";

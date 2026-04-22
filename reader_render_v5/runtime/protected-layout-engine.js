@@ -13,6 +13,10 @@ function createScratchContext() {
   throw new Error("No canvas context is available for protected layout.");
 }
 
+function emToPx(emValue, fontSizePx) {
+  return Math.max(0, Math.round((Number(emValue || 0) || 0) * Math.max(0, Number(fontSizePx || 0))));
+}
+
 export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
   const headingLevel = styleTokenRecord.headingLevel || 0;
   const baseSize = styleTokenRecord.blockRole === "quote" ? 17 : styleTokenRecord.blockRole === "verse" ? 15 : 16;
@@ -429,6 +433,8 @@ export function layoutChunk({
   let pageSlot = 0;
   let columnIndex = 0;
   let columnCursorY = 0;
+  let pendingBlockMarginBottomPx = 0;
+  let hasLaidOutBlock = false;
 
   function advanceFlow(requiredHeight = 0) {
     const nextColumn = columnIndex + 1;
@@ -453,9 +459,11 @@ export function layoutChunk({
     const blockLevelMediaItems = inlineAvatar
       ? blockMediaItems.filter((item) => item && item !== inlineAvatar)
       : blockMediaItems;
-    const blockMarginTop = Math.max(0, Math.round((Number(blockPresentation.marginTopEm || 0) || 0) * 18));
-    const blockMarginBottom = Math.max(0, Math.round((Number(blockPresentation.marginBottomEm || 0) || 0) * 18));
-    let firstLineIndentPx = Math.max(0, Math.round((Number(blockPresentation.textIndentEm || 0) || 0) * 17));
+    const primaryStyle = styles.get(runs[0] ? runs[0].styleToken : "paragraph") || {};
+    const primaryFont = fontSpecForStyle(primaryStyle, fontScale);
+    const blockMarginTop = emToPx(blockPresentation.marginTopEm, primaryFont.size);
+    const blockMarginBottom = emToPx(blockPresentation.marginBottomEm, primaryFont.size);
+    let firstLineIndentPx = emToPx(blockPresentation.textIndentEm, primaryFont.size);
     const blockTextAlign = String(blockPresentation.textAlign || "justify").toLowerCase();
     const paragraphShouldJustify =
       block.blockType === "paragraph" &&
@@ -465,16 +473,19 @@ export function layoutChunk({
       pageSlot += 1;
       columnIndex = 0;
       columnCursorY = 0;
+      pendingBlockMarginBottomPx = 0;
     }
-    if (columnCursorY > 0 && blockMarginTop > 0) {
-      if ((columnCursorY + blockMarginTop) > columnInnerHeight) {
-        advanceFlow(blockMarginTop);
+    const collapsedBlockGap = hasLaidOutBlock
+      ? Math.max(pendingBlockMarginBottomPx, blockMarginTop)
+      : blockMarginTop;
+    if (collapsedBlockGap > 0) {
+      if (columnCursorY > 0 && (columnCursorY + collapsedBlockGap) > columnInnerHeight) {
+        advanceFlow(collapsedBlockGap);
+        pendingBlockMarginBottomPx = 0;
       } else {
-        columnCursorY += blockMarginTop;
+        columnCursorY += collapsedBlockGap;
       }
     }
-    const primaryStyle = styles.get(runs[0] ? runs[0].styleToken : "paragraph") || {};
-    const primaryFont = fontSpecForStyle(primaryStyle, fontScale);
     if (inlineAvatar) {
       const avatar = mediaDimensionsForItem(inlineAvatar, columnWidth);
       const reservedInlineIdentityHeight = Math.max(
@@ -849,13 +860,8 @@ export function layoutChunk({
       sourceRef: block.sourceRef
     });
     orderedBlockIds.push(block.blockId);
-    const style = primaryStyle;
-    const blockGap = blockMarginBottom || (style.blockRole === "heading" ? 18 : style.blockRole === "verse" ? 14 : 12);
-    if (columnCursorY > 0 && (columnCursorY + blockGap) > columnInnerHeight) {
-      advanceFlow(blockGap);
-    } else {
-      columnCursorY += blockGap;
-    }
+    pendingBlockMarginBottomPx = blockMarginBottom;
+    hasLaidOutBlock = true;
   }
 
   const reconstructionDiagnostics = reconstructionScope

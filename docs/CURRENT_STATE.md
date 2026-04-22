@@ -78,6 +78,7 @@
 - That adapter currently keeps the copied `v3` runtime alive by feeding it the existing runtime-safe substrate while merging selected metadata and chunk-level presentation/media semantics from the new bootstrap manifest.
 - Current local v5 first-paints the initial reader page before repository hydration, persisted-reading-state restore, and background pagination-summary work finish; heavy follow-up work now continues after the first snapshot instead of blocking the first visible page.
 - Current local v5 worker startup now defers `locations.json` hydration until after the first snapshot, and the host also defers its secondary repository-side `loadProtectedBook(...)` until the first page is already visible.
+- Current local v5 runtime layout now uses block-font-size-based `em` spacing and CSS-like vertical margin collapsing between adjacent blocks instead of earlier fixed pixel multipliers and fallback gaps, so heading/date/inline-handle spacing can match `reader1` more closely.
 - Current `reader_render_v5/runtime/protected-book-model.js` now runs in strict artifact-first mode for structural/media-bearing `v4` candidates:
   - chapter-opening clusters
   - comment-thread sections
