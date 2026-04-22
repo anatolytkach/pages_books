@@ -1730,9 +1730,9 @@ function installStyles() {
       color: rgba(255,255,255,0.54);
     }
     body.protected-shell #searchInputDesktop.search-input {
-      width: 187px;
-      min-width: 187px;
-      max-width: 187px;
+      width: 150px;
+      min-width: 150px;
+      max-width: 150px;
     }
     body.protected-shell #searchActionDesktop.search-action img.search-field-mag-icon,
     body.protected-shell #searchbar .search-input-wrap.mobile .search-infield-icon img.search-field-mag-icon {
