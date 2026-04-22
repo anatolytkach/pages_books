@@ -24,7 +24,7 @@ import {
   parseRestoreToken,
   serializeRestoreToken
 } from "./protected-global-location.js";
-import { layoutChunk } from "./protected-layout-engine.js?v=20260422-v5-initial-reading-restore-1";
+import { layoutChunk } from "./protected-layout-engine.js?v=20260422-v5-hyphenation-1";
 import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
 import { buildGlyphRenderOps } from "./protected-shape-layout.js";
 import { hitTestPosition } from "./protected-hit-testing.js";
@@ -590,6 +590,11 @@ export class ProtectedReaderRuntimeCore {
     this.currentLayout = layoutChunk({
       chunkModel: this.currentChunkModel,
       styles: this.book.styleMap,
+      bookLanguage:
+        Array.isArray(this.book && this.book.manifest && this.book.manifest.metadata && this.book.manifest.metadata.languages) &&
+        this.book.manifest.metadata.languages.length
+          ? String(this.book.manifest.metadata.languages[0] || "")
+          : "",
       width: this.getLayoutWidth(),
       viewportHeight: this.viewportHeight,
       fontScale: this.fontScale,

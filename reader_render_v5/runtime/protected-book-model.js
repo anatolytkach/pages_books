@@ -418,6 +418,18 @@ function normalizeV4TypographyOverride(entry) {
   if (["normal", "nowrap", "pre", "pre-wrap", "pre-line"].includes(whiteSpace)) {
     normalized.whiteSpace = whiteSpace;
   }
+  const hyphens = String(entry.hyphens || "").trim().toLowerCase();
+  if (["none", "manual", "auto"].includes(hyphens)) {
+    normalized.hyphens = hyphens;
+  }
+  const wordBreak = String(entry.wordBreak || "").trim().toLowerCase();
+  if (["normal", "break-all", "break-word", "keep-all"].includes(wordBreak)) {
+    normalized.wordBreak = wordBreak;
+  }
+  const overflowWrap = String(entry.overflowWrap || "").trim().toLowerCase();
+  if (["normal", "break-word", "anywhere"].includes(overflowWrap)) {
+    normalized.overflowWrap = overflowWrap;
+  }
   const fontStyle = String(entry.fontStyle || "").trim().toLowerCase();
   if (fontStyle === "normal" || fontStyle === "italic") {
     normalized.fontStyle = fontStyle;
@@ -506,6 +518,15 @@ function mergeStyleTokenWithV4Typography(styleTokenRecord, override) {
   }
   if (override.whiteSpace) {
     next.whiteSpace = override.whiteSpace;
+  }
+  if (override.hyphens) {
+    next.hyphens = override.hyphens;
+  }
+  if (override.wordBreak) {
+    next.wordBreak = override.wordBreak;
+  }
+  if (override.overflowWrap) {
+    next.overflowWrap = override.overflowWrap;
   }
   if (override.fontFamilyCandidate) {
     next.fontFamilyCandidate = override.fontFamilyCandidate;

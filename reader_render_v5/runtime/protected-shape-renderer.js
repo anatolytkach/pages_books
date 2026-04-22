@@ -7,6 +7,12 @@ export function renderGlyphOps(ctx, glyphOps, shapeRegistry, options = {}) {
       : null;
     ctx.save();
     ctx.fillStyle = defaultFillStyle;
+    if (op.syntheticGlyphKind === "hyphen") {
+      ctx.font = op.fontCss || `${Math.max(11, Number(op.fontSize || 16))}px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif`;
+      ctx.fillText("-", op.x, op.baselineY);
+      ctx.restore();
+      continue;
+    }
     if (shapeRecord && shapeRecord.primitiveType === "space") {
       ctx.restore();
       continue;

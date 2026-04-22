@@ -151,7 +151,17 @@ function pickSourcePresentation(styleEntry) {
       presentation[field] = styleEntry[field];
     }
   }
-  const stringFields = ["textAlign", "fontStyle", "fontWeight", "fontFamily", "textColor", "whiteSpace"];
+  const stringFields = [
+    "textAlign",
+    "fontStyle",
+    "fontWeight",
+    "fontFamily",
+    "textColor",
+    "whiteSpace",
+    "hyphens",
+    "wordBreak",
+    "overflowWrap"
+  ];
   for (const field of stringFields) {
     if (styleEntry[field]) {
       presentation[field] = styleEntry[field];
@@ -197,7 +207,10 @@ function blockPresentationFor(tag, attrs = {}, styleContext = null) {
     fontStyle: "normal",
     fontWeight: "regular",
     textColor: "",
-    whiteSpace: "normal"
+    whiteSpace: "normal",
+    hyphens: "manual",
+    wordBreak: "normal",
+    overflowWrap: "normal"
   };
 
   if (headingMatch) {
@@ -334,6 +347,18 @@ function blockPresentationFor(tag, attrs = {}, styleContext = null) {
   }
   if (inlineStyle.color) presentation.textColor = String(inlineStyle.color).trim();
   if (inlineStyle["white-space"]) presentation.whiteSpace = String(inlineStyle["white-space"]).trim().toLowerCase();
+  if (inlineStyle.hyphens || inlineStyle["-epub-hyphens"] || inlineStyle["-webkit-hyphens"] || inlineStyle["-moz-hyphens"]) {
+    presentation.hyphens = String(
+      inlineStyle.hyphens ||
+      inlineStyle["-epub-hyphens"] ||
+      inlineStyle["-webkit-hyphens"] ||
+      inlineStyle["-moz-hyphens"]
+    ).trim().toLowerCase();
+  }
+  if (inlineStyle["word-break"]) presentation.wordBreak = String(inlineStyle["word-break"]).trim().toLowerCase();
+  if (inlineStyle["overflow-wrap"] || inlineStyle["word-wrap"]) {
+    presentation.overflowWrap = String(inlineStyle["overflow-wrap"] || inlineStyle["word-wrap"]).trim().toLowerCase();
+  }
 
   const fontSizePx = Math.max(1, Number(presentation.fontSizePx || 16));
   presentation.textIndentPx = Math.round((Number(presentation.textIndentEm || 0) || 0) * fontSizePx * 1000) / 1000;

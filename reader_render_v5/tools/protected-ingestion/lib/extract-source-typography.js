@@ -93,6 +93,21 @@ function normalizeWhiteSpace(value) {
   return ["normal", "nowrap", "pre", "pre-wrap", "pre-line"].includes(normalized) ? normalized : "";
 }
 
+function normalizeHyphens(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["none", "manual", "auto"].includes(normalized) ? normalized : "";
+}
+
+function normalizeWordBreak(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["normal", "break-all", "break-word", "keep-all"].includes(normalized) ? normalized : "";
+}
+
+function normalizeOverflowWrap(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["normal", "break-word", "anywhere"].includes(normalized) ? normalized : "";
+}
+
 function normalizeFontStyle(value) {
   const normalized = String(value || "").trim().toLowerCase();
   return normalized === "italic" ? "italic" : normalized === "normal" ? "normal" : "";
@@ -154,6 +169,18 @@ function buildSelectorEntry(declarations, inherited, bodyFontSizePx) {
     lineHeightFactor,
     textAlign: normalizeTextAlign(declarations["text-align"]) || String(inherited && inherited.textAlign || "").trim(),
     whiteSpace: normalizeWhiteSpace(declarations["white-space"]) || String(inherited && inherited.whiteSpace || "").trim(),
+    hyphens:
+      normalizeHyphens(
+        declarations.hyphens ||
+        declarations["-epub-hyphens"] ||
+        declarations["-webkit-hyphens"] ||
+        declarations["-moz-hyphens"]
+      ) ||
+      String(inherited && inherited.hyphens || "").trim(),
+    wordBreak: normalizeWordBreak(declarations["word-break"]) || String(inherited && inherited.wordBreak || "").trim(),
+    overflowWrap:
+      normalizeOverflowWrap(declarations["overflow-wrap"] || declarations["word-wrap"]) ||
+      String(inherited && inherited.overflowWrap || "").trim(),
     fontSizePx
   };
 

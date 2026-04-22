@@ -1,5 +1,6 @@
 import { createReconstructionScope, disposeReconstructionScope, reconstructRangeText } from "./protected-text-reconstruction.js";
 import { getShapeMetricsBackend, getTextMetricsBackend } from "./protected-shape-metrics.js";
+import { collectHyphenationPoints, normalizeHyphenationLanguage } from "./protected-hyphenation.js";
 
 function createScratchContext() {
   if (typeof OffscreenCanvas !== "undefined") {
@@ -51,12 +52,16 @@ export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
   const explicitLineHeightPx = Number(styleTokenRecord.lineHeightPx || 0) || 0;
   return {
     size,
+    family,
     lineHeight: explicitLineHeightPx > 0
       ? Math.max(1, Math.round(explicitLineHeightPx * scaledFontScale))
       : Math.round(size * lineHeightFactor),
     css: `${italic}${weight} ${size}px ${family}`,
     fontStyle: styleTokenRecord.fontStyle === "italic" ? "italic" : "normal",
     whiteSpace: String(styleTokenRecord.whiteSpace || "normal").trim().toLowerCase() || "normal",
+    hyphens: String(styleTokenRecord.hyphens || "manual").trim().toLowerCase() || "manual",
+    wordBreak: String(styleTokenRecord.wordBreak || "normal").trim().toLowerCase() || "normal",
+    overflowWrap: String(styleTokenRecord.overflowWrap || "normal").trim().toLowerCase() || "normal",
     letterSpacingPx: Number(styleTokenRecord.letterSpacingPx || 0) || (
       Math.round(size * (Number(styleTokenRecord.letterSpacingEm || 0) || 0) * 1000) / 1000
     ),
@@ -66,6 +71,72 @@ export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
     ),
     fillStyle: styleTokenRecord.textColor || ""
   };
+}
+
+function hyphenWidthPxForFont(ctx, font) {
+  ctx.font = font.css;
+  const baseWidth = ctx.measureText("-").width;
+  const spacingPx =
+    Number(font.letterSpacingPx || 0) +
+    Number(font.trailingSpacingPx || 0) +
+    (font.fontStyle === "italic" ? Math.max(0.75, Math.round(font.size * 0.03 * 1000) / 1000) : 0);
+  return baseWidth + Math.max(0, spacingPx);
+}
+
+function measureTokenLayout({ backend, ctx, tokenText, tokenKind, glyphs, font }) {
+  ctx.font = font.css;
+  const measure = backend.measureRun({
+    text: tokenText,
+    glyphs,
+    font,
+    ctx
+  });
+  let widthPx = measure.width;
+  if (tokenKind === "gap" && /\s/u.test(tokenText)) {
+    widthPx = Math.max(widthPx, ctx.measureText(tokenText).width);
+  }
+  const spacingPx =
+    tokenKind === "gap"
+      ? Number(font.wordSpacingPx || 0)
+      : Number(font.letterSpacingPx || 0) +
+        Number(font.trailingSpacingPx || 0) +
+        (font.fontStyle === "italic" ? Math.max(0.75, Math.round(font.size * 0.03 * 1000) / 1000) : 0);
+  const adjustedWidthPx = widthPx + (spacingPx > 0 ? spacingPx : 0);
+  const charPositions =
+    tokenKind === "gap" &&
+    /\s/u.test(tokenText) &&
+    (!Array.isArray(measure.charPositions) || measure.charPositions.length <= 1)
+      ? [0, adjustedWidthPx]
+      : measure.charPositions;
+  return {
+    measure,
+    widthPx,
+    spacingPx,
+    adjustedWidthPx,
+    charPositions
+  };
+}
+
+function buildSoftBreakCandidates(tokenText, font, bookLanguage) {
+  const chars = Array.from(String(tokenText || ""));
+  if (chars.length < 2) return [];
+  const hyphenationLanguage = normalizeHyphenationLanguage(bookLanguage);
+  const candidates = new Map();
+  if (font.hyphens === "auto") {
+    for (const index of collectHyphenationPoints(tokenText, hyphenationLanguage)) {
+      candidates.set(index, { splitIndex: index, insertHyphen: true });
+    }
+  }
+  if (font.wordBreak === "break-all" || font.wordBreak === "break-word" || font.overflowWrap === "anywhere" || font.overflowWrap === "break-word") {
+    const minIndex = font.hyphens === "auto" ? 2 : 1;
+    const maxIndex = font.hyphens === "auto" ? chars.length - 2 : chars.length - 1;
+    for (let index = minIndex; index <= maxIndex; index += 1) {
+      if (!candidates.has(index)) {
+        candidates.set(index, { splitIndex: index, insertHyphen: false });
+      }
+    }
+  }
+  return Array.from(candidates.values()).sort((a, b) => a.splitIndex - b.splitIndex);
 }
 
 function buildTokenSlices(segment, wordBoundaryModel) {
@@ -388,6 +459,7 @@ function segmentMapForChunk(chunk) {
 export function layoutChunk({
   chunkModel,
   styles,
+  bookLanguage = "",
   width,
   viewportHeight = 720,
   padding = null,
@@ -662,6 +734,56 @@ export function layoutChunk({
       return currentLine;
     }
 
+    function splitTokenToFit({ token, tokenText, font, glyphs, availableWidth }) {
+      if (token.kind !== "word" || !tokenText || font.whiteSpace === "nowrap" || availableWidth <= 8) return null;
+      const candidates = buildSoftBreakCandidates(tokenText, font, bookLanguage);
+      if (!candidates.length) return null;
+      const chars = Array.from(tokenText);
+      for (let index = candidates.length - 1; index >= 0; index -= 1) {
+        const candidate = candidates[index];
+        const prefixChars = chars.slice(0, candidate.splitIndex);
+        const suffixChars = chars.slice(candidate.splitIndex);
+        if (prefixChars.length < 1 || suffixChars.length < 1) continue;
+        const prefixText = prefixChars.join("");
+        const suffixText = suffixChars.join("");
+        const prefixGlyphs = Array.isArray(glyphs) ? glyphs.slice(0, prefixChars.length) : [];
+        const suffixGlyphs = Array.isArray(glyphs) ? glyphs.slice(prefixChars.length) : [];
+        const prefixLayout = measureTokenLayout({
+          backend,
+          ctx,
+          tokenText: prefixText,
+          tokenKind: token.kind,
+          glyphs: prefixGlyphs,
+          font
+        });
+        const syntheticHyphenWidthPx = candidate.insertHyphen ? hyphenWidthPxForFont(ctx, font) : 0;
+        const totalWidthPx = prefixLayout.adjustedWidthPx + syntheticHyphenWidthPx;
+        if (totalWidthPx > availableWidth) continue;
+        return {
+          prefixToken: {
+            ...token,
+            endOffset: Number(token.startOffset || 0) + prefixChars.length,
+            syntheticText: prefixText
+          },
+          suffixToken: {
+            ...token,
+            startOffset: Number(token.startOffset || 0) + prefixChars.length,
+            syntheticText: suffixText
+          },
+          prefixGlyphs,
+          suffixGlyphs,
+          prefixGlyphStartIndex: 0,
+          prefixGlyphEndIndex: prefixGlyphs.length,
+          suffixGlyphStartIndex: prefixGlyphs.length,
+          suffixGlyphEndIndex: prefixGlyphs.length + suffixGlyphs.length,
+          prefixLayout,
+          syntheticHyphenWidthPx,
+          syntheticTrailingHyphen: candidate.insertHyphen
+        };
+      }
+      return null;
+    }
+
     function placeToken({
       token,
       font,
@@ -671,63 +793,92 @@ export function layoutChunk({
       runKey,
       glyphs,
       glyphStartIndex,
-      glyphEndIndex
+      glyphEndIndex,
+      measurementOverride = null,
+      syntheticTrailingHyphen = false,
+      syntheticHyphenWidthPx = 0
     }) {
-      ctx.font = font.css;
       const tokenText = token && typeof token.syntheticText === "string"
         ? token.syntheticText
         : reconstructRangeText(chunkModel, token.startOffset, token.endOffset, reconstructionScope);
-      const measure = backend.measureRun({
-        text: tokenText,
+      const measured = measurementOverride || measureTokenLayout({
+        backend,
+        ctx,
+        tokenText,
+        tokenKind: token.kind,
         glyphs,
-        font,
-        ctx
+        font
       });
-      let widthPx = measure.width;
-      if (token.kind === "gap" && /\s/u.test(tokenText)) {
-        widthPx = Math.max(widthPx, ctx.measureText(tokenText).width);
-      }
+      const measure = measured.measure;
       const line = ensureLine(font.lineHeight);
       line.height = Math.max(line.height, measure.lineHeight || font.lineHeight);
       line.ascentPx = Math.max(line.ascentPx || 0, measure.ascentPx || 0);
       line.descentPx = Math.max(line.descentPx || 0, measure.descentPx || 0);
-      const spacingPx =
-        token.kind === "gap"
-          ? Number(font.wordSpacingPx || 0)
-          : Number(font.letterSpacingPx || 0) +
-            Number(font.trailingSpacingPx || 0) +
-            (font.fontStyle === "italic" ? Math.max(0.75, Math.round(font.size * 0.03 * 1000) / 1000) : 0);
-      const adjustedWidthPx = widthPx + (spacingPx > 0 ? spacingPx : 0);
-      const charPositions =
-        token.kind === "gap" &&
-        /\s/u.test(tokenText) &&
-        (!Array.isArray(measure.charPositions) || measure.charPositions.length <= 1)
-          ? [0, adjustedWidthPx]
-          : measure.charPositions;
+      let adjustedWidthPx = measured.adjustedWidthPx;
+      let charPositions = Array.isArray(measured.charPositions) ? measured.charPositions.slice() : [0, adjustedWidthPx];
+      if (syntheticTrailingHyphen && syntheticHyphenWidthPx > 0) {
+        adjustedWidthPx += syntheticHyphenWidthPx;
+        const baseTail = charPositions.length ? charPositions[charPositions.length - 1] : measured.adjustedWidthPx;
+        charPositions.push(baseTail + syntheticHyphenWidthPx);
+      }
       const currentWidth = line.fragments.reduce((sum, item) => sum + item.width, 0);
       metricsStats.glyphCount += measure.glyphCount || glyphs.length;
       metricsStats.extractedCount += measure.extractedCount || 0;
       metricsStats.fallbackCount += measure.fallbackCount || 0;
 
-      if (
-        currentWidth > 0 &&
-        adjustedWidthPx > 0 &&
-        currentWidth + adjustedWidthPx > Number(line.maxWidth || columnWidth) &&
-        token.kind !== "punctuation" &&
-        font.whiteSpace !== "nowrap"
-      ) {
-        commitLine();
-        return placeToken({
+      if (adjustedWidthPx > 0 && currentWidth + adjustedWidthPx > Number(line.maxWidth || columnWidth) && token.kind !== "punctuation" && font.whiteSpace !== "nowrap") {
+        const split = splitTokenToFit({
           token,
+          tokenText,
           font,
-          styleToken,
-          segmentId,
-          sourceRef,
-          runKey,
           glyphs,
-          glyphStartIndex,
-          glyphEndIndex
+          availableWidth: Number(line.maxWidth || columnWidth) - currentWidth
         });
+        if (split) {
+          placeToken({
+            token: split.prefixToken,
+            font,
+            styleToken,
+            segmentId,
+            sourceRef,
+            runKey,
+            glyphs: split.prefixGlyphs,
+            glyphStartIndex: glyphStartIndex + split.prefixGlyphStartIndex,
+            glyphEndIndex: glyphStartIndex + split.prefixGlyphEndIndex,
+            measurementOverride: split.prefixLayout,
+            syntheticTrailingHyphen: split.syntheticTrailingHyphen,
+            syntheticHyphenWidthPx: split.syntheticHyphenWidthPx
+          });
+          commitLine();
+          return placeToken({
+            token: split.suffixToken,
+            font,
+            styleToken,
+            segmentId,
+            sourceRef,
+            runKey,
+            glyphs: split.suffixGlyphs,
+            glyphStartIndex: glyphStartIndex + split.suffixGlyphStartIndex,
+            glyphEndIndex: glyphStartIndex + split.suffixGlyphEndIndex
+          });
+        }
+        if (currentWidth > 0) {
+          commitLine();
+          return placeToken({
+            token,
+            font,
+            styleToken,
+            segmentId,
+            sourceRef,
+            runKey,
+            glyphs,
+            glyphStartIndex,
+            glyphEndIndex,
+            measurementOverride,
+            syntheticTrailingHyphen,
+            syntheticHyphenWidthPx
+          });
+        }
       }
 
       if (!currentLine.fragments.length && token.kind === "gap" && /^\s*$/.test(tokenText)) {
@@ -757,7 +908,9 @@ export function layoutChunk({
         charPositions,
         glyphBoxes: measure.glyphBoxes || [],
         glyphCount: glyphs.length,
-        fillStyle: font.fillStyle || ""
+        fillStyle: font.fillStyle || "",
+        syntheticTrailingHyphen,
+        syntheticHyphenWidthPx
       };
       line.fragments.push(fragment);
       blockFragments.push(fragment);
