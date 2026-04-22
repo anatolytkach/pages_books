@@ -1,4 +1,4 @@
-import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js?v=20260422-v5-hyphenation-1";
+import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js?v=20260422-v5-fontscale-anchor-1";
 import {
   PROTECTED_WORKER_METHODS,
   createWorkerRequest,
@@ -7,7 +7,7 @@ import {
 
 class WorkerTransport {
   constructor() {
-    this.worker = new Worker(new URL("./protected-reader.worker.js?v=20260422-v5-hyphenation-1", import.meta.url), { type: "module" });
+    this.worker = new Worker(new URL("./protected-reader.worker.js?v=20260422-v5-fontscale-anchor-1", import.meta.url), { type: "module" });
     this.pending = new Map();
     this.requestId = 0;
     this.worker.addEventListener("message", (event) => {

@@ -24,7 +24,7 @@ import {
   parseRestoreToken,
   serializeRestoreToken
 } from "./protected-global-location.js";
-import { layoutChunk } from "./protected-layout-engine.js?v=20260422-v5-hyphenation-1";
+import { layoutChunk } from "./protected-layout-engine.js?v=20260422-v5-fontscale-anchor-1";
 import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
 import { buildGlyphRenderOps } from "./protected-shape-layout.js";
 import { hitTestPosition } from "./protected-hit-testing.js";
@@ -873,16 +873,36 @@ export class ProtectedReaderRuntimeCore {
     layoutGeneration = this.layoutGeneration,
     annotations = []
   } = {}) {
+    const currentPage = this.getCurrentPage();
+    const currentVisibleRange = currentPage
+      ? {
+          chunkIndex: this.currentChunkIndex,
+          globalOffset: Math.round(
+            Number(currentPage.globalStartOffset || 0) +
+            ((Math.max(0, Number(currentPage.globalEndOffset || 0) - Number(currentPage.globalStartOffset || 0))) / 2)
+          ),
+          preferredGlobalStartOffset: Number(currentPage.globalStartOffset || 0),
+          preferredGlobalEndOffset: Number(currentPage.globalEndOffset || 0)
+        }
+      : null;
     this.fontScale = Math.max(0.8, Math.min(1.6, Number(fontScale || 1)));
     this.fontMode = String(fontMode || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
     this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
     this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     await this.rebuildBookPaginationSummary();
-    return this.goToChunk({
-      chunkIndex: this.currentChunkIndex,
-      pageIndex: this.currentPageIndex,
-      annotations
-    });
+    return currentVisibleRange
+      ? this.goToChunk({
+          chunkIndex: currentVisibleRange.chunkIndex,
+          globalOffset: currentVisibleRange.globalOffset,
+          preferredGlobalStartOffset: currentVisibleRange.preferredGlobalStartOffset,
+          preferredGlobalEndOffset: currentVisibleRange.preferredGlobalEndOffset,
+          annotations
+        })
+      : this.goToChunk({
+          chunkIndex: this.currentChunkIndex,
+          pageIndex: this.currentPageIndex,
+          annotations
+        });
   }
 
   async updateRenderConfig({
@@ -896,6 +916,18 @@ export class ProtectedReaderRuntimeCore {
     layoutGeneration = this.layoutGeneration,
     annotations = []
   }) {
+    const currentPage = this.getCurrentPage();
+    const currentVisibleRange = currentPage
+      ? {
+          chunkIndex: this.currentChunkIndex,
+          globalOffset: Math.round(
+            Number(currentPage.globalStartOffset || 0) +
+            ((Math.max(0, Number(currentPage.globalEndOffset || 0) - Number(currentPage.globalStartOffset || 0))) / 2)
+          ),
+          preferredGlobalStartOffset: Number(currentPage.globalStartOffset || 0),
+          preferredGlobalEndOffset: Number(currentPage.globalEndOffset || 0)
+        }
+      : null;
     this.renderMode = "shape";
     this.metricsMode = metricsMode === "text" ? "text" : "shape";
     this.viewportWidth = viewportWidth;
@@ -905,11 +937,19 @@ export class ProtectedReaderRuntimeCore {
     this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
     this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     await this.rebuildBookPaginationSummary();
-    return this.goToChunk({
-      chunkIndex: this.currentChunkIndex,
-      pageIndex: this.currentPageIndex,
-      annotations
-    });
+    return currentVisibleRange
+      ? this.goToChunk({
+          chunkIndex: currentVisibleRange.chunkIndex,
+          globalOffset: currentVisibleRange.globalOffset,
+          preferredGlobalStartOffset: currentVisibleRange.preferredGlobalStartOffset,
+          preferredGlobalEndOffset: currentVisibleRange.preferredGlobalEndOffset,
+          annotations
+        })
+      : this.goToChunk({
+          chunkIndex: this.currentChunkIndex,
+          pageIndex: this.currentPageIndex,
+          annotations
+        });
   }
 
   async searchBook({ query = "", annotations = [] } = {}) {
