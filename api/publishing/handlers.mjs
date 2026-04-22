@@ -210,7 +210,7 @@ export async function handlePublishingApiRoute(context, deps) {
       single: true,
     });
     if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-    const decision = await can({ userId: user.sub }, PERMISSIONS.titleView, {
+    const decision = await can({ userId: user.sub, policyContext: context }, PERMISSIONS.titleView, {
       book,
       checkTitleAccess: checkOwnedTitleAccess,
     });
@@ -237,7 +237,7 @@ export async function handlePublishingApiRoute(context, deps) {
         single: true,
       });
       if (!existingBook) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-      const decision = await can({ userId: user.sub }, PERMISSIONS.titleEditMetadata, {
+      const decision = await can({ userId: user.sub, policyContext: context }, PERMISSIONS.titleEditMetadata, {
         book: existingBook,
         checkTitleAccess: checkOwnedTitleAccess,
       });
@@ -272,7 +272,7 @@ export async function handlePublishingApiRoute(context, deps) {
       single: true,
     });
     if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-    const decision = await can({ userId: user.sub }, PERMISSIONS.titleEditMetadata, {
+    const decision = await can({ userId: user.sub, policyContext: context }, PERMISSIONS.titleEditMetadata, {
       book,
       checkTitleAccess: checkOwnedTitleAccess,
     });
@@ -314,7 +314,7 @@ export async function handlePublishingApiRoute(context, deps) {
       single: true,
     });
     if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-    const publishDecision = await can({ userId: user.sub }, PERMISSIONS.titlePublish, {
+    const publishDecision = await can({ userId: user.sub, policyContext: context }, PERMISSIONS.titlePublish, {
       book,
       tenantContext,
       checkTitlePublishAccess: checkOwnedTitleAccess,

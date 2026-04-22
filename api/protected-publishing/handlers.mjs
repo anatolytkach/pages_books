@@ -180,8 +180,8 @@ async function checkPublishingJobAccess(sbFetch, { job, userId }) {
   return Boolean(membership?.id);
 }
 
-async function canUserAccessPublishingJob(sbFetch, job, userId) {
-  const decision = await can({ userId }, PERMISSIONS.artifactReprocess, {
+async function canUserAccessPublishingJob(sbFetch, job, userId, policyContext = null) {
+  const decision = await can({ userId, policyContext }, PERMISSIONS.artifactReprocess, {
     job,
     checkPublishingJobAccess: ({ job: currentJob, userId: currentUserId }) =>
       checkPublishingJobAccess(sbFetch, { job: currentJob, userId: currentUserId }),
@@ -266,7 +266,7 @@ export async function createProtectedPublishingJob(context) {
     if (!existingBook) {
       return { error: "Book not found", status: 404 };
     }
-    const decision = await can({ userId: user.sub }, PERMISSIONS.titleEditMetadata, {
+    const decision = await can({ userId: user.sub, policyContext: context }, PERMISSIONS.titleEditMetadata, {
       book: existingBook,
       tenantContext,
       checkTitleAccess: checkOwnedTitleAccess,
@@ -571,7 +571,7 @@ export async function getProtectedPublishingJob(context) {
   if (result.error) return { error: result.error, status: 500 };
   if (!result.data) return { error: "Job not found", status: 404 };
   if (!internal) {
-    const allowed = await canUserAccessPublishingJob(sbFetch, result.data, user.sub);
+    const allowed = await canUserAccessPublishingJob(sbFetch, result.data, user.sub, context);
     if (!allowed) return { error: "Job not found", status: 404 };
   }
   const normalizedEpub = buildNormalizedEpubResponse(result.data);
@@ -869,7 +869,7 @@ export async function downloadProtectedPublishingNormalizedEpub(context) {
   if (jobResult.error) return { error: jobResult.error, status: 500 };
   if (!jobResult.data) return { error: "Job not found", status: 404 };
 
-  const allowed = await canUserAccessPublishingJob(sbFetch, jobResult.data, user.sub);
+  const allowed = await canUserAccessPublishingJob(sbFetch, jobResult.data, user.sub, context);
   if (!allowed) return { error: "Job not found", status: 404 };
 
   const normalized = buildNormalizedEpubResponse(jobResult.data);

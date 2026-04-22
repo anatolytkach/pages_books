@@ -47,6 +47,7 @@ export async function handleCommerceApiRoute(context) {
       bookId: offersMatch[1],
       userId: user.sub,
       body,
+      policyContext: context,
     });
     if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
     return jsonResponse(result.data, result.status || 201, apiCorsHeaders);
@@ -63,6 +64,7 @@ export async function handleCommerceApiRoute(context) {
       offerId: offerPatchMatch[1],
       userId: user.sub,
       body,
+      policyContext: context,
     });
     if (result.error) return jsonResponse({ error: result.error }, result.status || 500, apiCorsHeaders);
     return jsonResponse(result.data, result.status || 200, apiCorsHeaders);

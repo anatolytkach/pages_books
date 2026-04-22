@@ -333,7 +333,7 @@ export async function handleIdentityApiRoute(context) {
     });
     if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
 
-    const decision = await can({ userId: user.sub }, PERMISSIONS.tenantManageMembers, {
+    const decision = await can({ userId: user.sub, policyContext: context }, PERMISSIONS.tenantManageMembers, {
       tenantId: tenant.id,
       hasTenantUserManagementAccess,
     });
@@ -357,7 +357,7 @@ export async function handleIdentityApiRoute(context) {
       single: true,
     });
     if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
-    const decision = await can({ userId: user.sub }, PERMISSIONS.tenantManageMembers, {
+    const decision = await can({ userId: user.sub, policyContext: context }, PERMISSIONS.tenantManageMembers, {
       tenantId: tenant.id,
       hasTenantUserManagementAccess,
     });
@@ -394,7 +394,7 @@ export async function handleIdentityApiRoute(context) {
       single: true,
     });
     if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
-    const decision = await can({ userId: user.sub }, PERMISSIONS.tenantManageMembers, {
+    const decision = await can({ userId: user.sub, policyContext: context }, PERMISSIONS.tenantManageMembers, {
       tenantId: tenant.id,
       hasTenantUserManagementAccess,
     });
@@ -439,7 +439,7 @@ export async function handleIdentityApiRoute(context) {
     });
     if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
 
-    const decision = await can({ userId: user.sub }, PERMISSIONS.tenantManageMembers, {
+    const decision = await can({ userId: user.sub, policyContext: context }, PERMISSIONS.tenantManageMembers, {
       tenantId: tenant.id,
       hasTenantUserManagementAccess,
     });

@@ -58,20 +58,32 @@ function buildOfferUpdatePayload(body) {
   return updates;
 }
 
-async function checkOwnedBookOfferManagementAccess({ sbFetch, bookId, userId }) {
+async function fetchBookPolicyFacts({ sbFetch, bookId }) {
+  if (!bookId) return null;
   const { data: book } = await sbFetch("books", {
-    params: `id=eq.${bookId}&published_by_user_id=eq.${userId}&select=id`,
+    params: `id=eq.${bookId}&select=id,published_by_user_id,published_by_tenant_id`,
     single: true,
   });
-  return !!book;
+  return book || null;
 }
 
-export async function createCommerceOffer({ sbFetch, bookId, userId, body }) {
+async function checkOwnedBookOfferManagementAccess({ sbFetch, bookId, userId }) {
+  const book = await fetchBookPolicyFacts({ sbFetch, bookId });
+  return !!book && String(book.published_by_user_id || "") === String(userId || "");
+}
+
+export async function createCommerceOffer({ sbFetch, bookId, userId, body, policyContext = null }) {
   const validationError = validateOfferCreateBody(body);
   if (validationError) return validationError;
 
-  const decision = await can({ userId }, PERMISSIONS.offerManage, {
+  const book = await fetchBookPolicyFacts({ sbFetch, bookId });
+  if (!book) {
+    return { error: "Book not found or not owned by you", status: 404 };
+  }
+
+  const decision = await can({ userId, policyContext }, PERMISSIONS.offerManage, {
     bookId,
+    book,
     checkOfferManagementAccess: ({ bookId: currentBookId, userId: currentUserId }) =>
       checkOwnedBookOfferManagementAccess({ sbFetch, bookId: currentBookId, userId: currentUserId }),
   });
@@ -88,15 +100,30 @@ export async function createCommerceOffer({ sbFetch, bookId, userId, body }) {
   return { data, status: 201 };
 }
 
-export async function updateCommerceOffer({ sbFetch, offerId, userId, body }) {
+export async function updateCommerceOffer({ sbFetch, offerId, userId, body, policyContext = null }) {
   const updates = buildOfferUpdatePayload(body || {});
   if (!Object.keys(updates).length) {
     return { error: "No fields to update", status: 400 };
   }
 
+  const { data: existingOffer } = await sbFetch("book_offers", {
+    params: `id=eq.${offerId}&select=id,book_id`,
+    single: true,
+  });
+  if (!existingOffer) return { error: "Offer not found", status: 404 };
+
+  const book = await fetchBookPolicyFacts({ sbFetch, bookId: existingOffer.book_id });
+  const decision = await can({ userId, policyContext }, PERMISSIONS.offerManage, {
+    bookId: existingOffer.book_id,
+    book,
+    checkOfferManagementAccess: ({ bookId: currentBookId, userId: currentUserId }) =>
+      checkOwnedBookOfferManagementAccess({ sbFetch, bookId: currentBookId, userId: currentUserId }),
+  });
+  if (!decision.allowed) return { error: "Offer not found", status: 404 };
+
   const { data, error } = await sbFetch("book_offers", {
     method: "PATCH",
-    params: `id=eq.${offerId}&created_by_user_id=eq.${userId}&select=*`,
+    params: `id=eq.${offerId}&select=*`,
     body: updates,
     single: true,
   });

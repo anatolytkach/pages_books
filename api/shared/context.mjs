@@ -12,6 +12,10 @@ import {
   verifySupabaseJwt,
 } from "./worker-helpers.mjs";
 import { can, PERMISSIONS } from "../permissions/policy.mjs";
+import {
+  resolveExplicitPermissionGrant,
+  resolveRolePermissionAccess as resolveRolePermissionAccessForContext,
+} from "../permissions/context-helpers.mjs";
 
 function escapeHtml(value) {
   return String(value || "")
@@ -398,10 +402,27 @@ export async function createApiContext({ request, env, url }) {
     return !error && !!data;
   };
 
+  const resolveExplicitPermissionAccess = async ({ actorContext, permissionKey, resourceContext }) => {
+    const userId = String(actorContext.userId || actorContext.user?.sub || "").trim();
+    if (!userId || !permissionKey) return { allowed: false };
+    return resolveExplicitPermissionGrant(sbFetch, { userId, permissionKey, resourceContext });
+  };
+
+  const resolveRolePermissionAccess = async ({ actorContext, permissionKey, resourceContext, rolePermissionMap }) => {
+    const userId = String(actorContext.userId || actorContext.user?.sub || "").trim();
+    if (!userId || !permissionKey) return { allowed: false };
+    return resolveRolePermissionAccessForContext(sbFetch, {
+      userId,
+      permissionKey,
+      resourceContext,
+      rolePermissionMap,
+    });
+  };
+
   const requireSuperuser = async () => {
     const authErr = requireAuth();
     if (authErr) return authErr;
-    const decision = await can({ user }, PERMISSIONS.platformManageSuperusers, {
+    const decision = await can({ user, userId: user?.sub, policyContext: contextRef }, PERMISSIONS.platformManageSuperusers, {
       hasPlatformSuperuserAccess,
     });
     if (decision.allowed) return null;
@@ -465,7 +486,7 @@ export async function createApiContext({ request, env, url }) {
   };
 
   const canManageTenantUsers = async (tenantId) => {
-    const decision = await can({ user }, PERMISSIONS.tenantManageMembers, {
+    const decision = await can({ user, userId: user?.sub, policyContext: contextRef }, PERMISSIONS.tenantManageMembers, {
       tenantId,
       hasTenantUserManagementAccess,
     });
@@ -587,7 +608,7 @@ export async function createApiContext({ request, env, url }) {
   };
 
   const resolvePublishingTenant = async ({ tenantId = "", tenantSlug = "" } = {}) => {
-    const decision = await can({ user }, PERMISSIONS.titlePublish, {
+    const decision = await can({ user, userId: user?.sub, policyContext: contextRef }, PERMISSIONS.titlePublish, {
       tenantId,
       tenantSlug,
       resolvePublishingTenantAccess,
@@ -610,7 +631,7 @@ export async function createApiContext({ request, env, url }) {
     return String(tenant?.slug || "").trim().toLowerCase();
   };
 
-  return {
+  const contextRef = {
     attachProfilesToMemberships,
     apiCorsHeaders,
     buildInviteUrl,
@@ -630,6 +651,8 @@ export async function createApiContext({ request, env, url }) {
     normalizeEmail,
     readJsonSafe,
     request,
+    resolveExplicitPermissionAccess,
+    resolveRolePermissionAccess,
     requireAuth,
     requireInternalTaskAuth,
     requireSuperuser,
@@ -646,4 +669,6 @@ export async function createApiContext({ request, env, url }) {
     userCanAccessTenantBook,
     url,
   };
+
+  return contextRef;
 }
