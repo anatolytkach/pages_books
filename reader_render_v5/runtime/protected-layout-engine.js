@@ -425,12 +425,17 @@ function alignLineWithinWidth(line, width, align = "left") {
   }
 }
 
-function mediaDimensionsForItem(item, columnWidth) {
-  const maxWidth = Math.max(120, Math.round(columnWidth));
+function mediaDimensionsForItem(item, availableWidth, availableHeight) {
+  const maxWidth = Math.max(120, Math.round(availableWidth));
+  const maxHeight = Math.max(180, Math.round(availableHeight));
   const rawWidth = Math.max(0, Number(item && item.widthPx || 0));
   const rawHeight = Math.max(0, Number(item && item.heightPx || 0));
   if (rawWidth > 0 && rawHeight > 0) {
-    const scale = Math.min(1, maxWidth / rawWidth);
+    const mediaAspect = rawWidth / rawHeight;
+    const slotAspect = maxWidth / maxHeight;
+    const scale = mediaAspect <= slotAspect
+      ? Math.min(1, maxHeight / rawHeight)
+      : Math.min(1, maxWidth / rawWidth);
     return {
       width: Math.max(16, Math.round(rawWidth * scale)),
       height: Math.max(16, Math.round(rawHeight * scale))
@@ -504,6 +509,16 @@ export function layoutChunk({
     : contentWidth;
   const pageSlotHeight = effectiveViewportHeight;
   const columnInnerHeight = Math.max(260, pageSlotHeight - resolvedPaddingY * 2);
+  const blockAnchorMap = new Map(
+    (
+      chunkModel &&
+      chunkModel.chunk &&
+      chunkModel.chunk.selectionLayer &&
+      Array.isArray(chunkModel.chunk.selectionLayer.blockAnchors)
+        ? chunkModel.chunk.selectionLayer.blockAnchors
+        : []
+    ).map((anchor) => [String(anchor.blockId || ""), anchor])
+  );
   const blocks = [];
   const lines = [];
   const mediaItems = [];
@@ -573,7 +588,7 @@ export function layoutChunk({
       block.blockType === "paragraph" &&
       blockTextAlign !== "center" &&
       blockTextAlign !== "right";
-    if (blockPresentation.pageBreakBefore && (pageSlot > 0 || columnIndex > 0 || columnCursorY > 0)) {
+    if (blockPresentation.pageBreakBefore && hasLaidOutBlock) {
       pageSlot += 1;
       columnIndex = 0;
       columnCursorY = 0;
@@ -598,8 +613,9 @@ export function layoutChunk({
         columnCursorY += blockPaddingTop;
       }
     }
+    const contentWidth = Math.max(120, columnWidth - blockMarginLeft - blockMarginRight - blockPaddingLeft - blockPaddingRight);
     if (inlineAvatar) {
-      const avatar = mediaDimensionsForItem(inlineAvatar, columnWidth);
+      const avatar = mediaDimensionsForItem(inlineAvatar, contentWidth, columnInnerHeight);
       const reservedInlineIdentityHeight = Math.max(
         Number(primaryFont.lineHeight || 0),
         Number(avatar.height || 0) + 2
@@ -608,17 +624,18 @@ export function layoutChunk({
         advanceFlow(reservedInlineIdentityHeight);
       }
     }
+    const blockMediaLayoutItems = [];
+    const blockStartPageSlot = pageSlot;
+    const blockStartColumnIndex = columnIndex;
     for (const mediaItem of blockLevelMediaItems) {
-      const dimensions = mediaDimensionsForItem(mediaItem, columnWidth);
+      const dimensions = mediaDimensionsForItem(mediaItem, contentWidth, columnInnerHeight);
       if (columnCursorY > 0 && (columnCursorY + dimensions.height) > columnInnerHeight) {
         advanceFlow(dimensions.height);
       }
-      const mediaX = resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + Math.max(0, Math.round((columnWidth - dimensions.width) / 2));
       const contentLeftX = resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + blockMarginLeft + blockPaddingLeft;
-      const contentWidth = Math.max(120, columnWidth - blockMarginLeft - blockMarginRight - blockPaddingLeft - blockPaddingRight);
       const mediaXAligned = contentLeftX + Math.max(0, Math.round((contentWidth - dimensions.width) / 2));
       const mediaY = (pageSlot * pageSlotHeight) + resolvedPaddingY + columnCursorY;
-      mediaItems.push({
+      const mediaLayoutItem = {
         mediaId: mediaItem.mediaId,
         blockId: block.blockId,
         x: mediaXAligned,
@@ -630,11 +647,13 @@ export function layoutChunk({
         resolvedHref: mediaItem.resolvedHref || "",
         placement: mediaItem.placement || "block",
         inlineAvatar: !!mediaItem.inlineAvatar
-      });
+      };
+      mediaItems.push(mediaLayoutItem);
+      blockMediaLayoutItems.push(mediaLayoutItem);
       columnCursorY += dimensions.height + 12;
     }
     if (inlineAvatar) {
-      const avatar = mediaDimensionsForItem(inlineAvatar, columnWidth);
+      const avatar = mediaDimensionsForItem(inlineAvatar, contentWidth, columnInnerHeight);
       firstLineIndentPx += avatar.width + 8;
       const contentLeftX = resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + blockMarginLeft + blockPaddingLeft;
       mediaItems.push({
@@ -1049,21 +1068,50 @@ export function layoutChunk({
         fragment.baselineY = line.y + fragment.font.size + shift;
       }
     }
-    const blockHeight = blockLines.length
-      ? (blockLines[blockLines.length - 1].y + blockLines[blockLines.length - 1].height) - blockTop
-      : 0;
+    const blockAnchor = blockAnchorMap.get(String(block.blockId || "")) || null;
+    const blockVisualTopCandidates = [
+      blockTop,
+      ...blockLines.map((line) => Number(line.y || 0)),
+      ...blockMediaLayoutItems.map((item) => Number(item.y || 0))
+    ];
+    const blockVisualBottomCandidates = [
+      blockTop + blockPaddingTop + blockPaddingBottom,
+      ...blockLines.map((line) => Number(line.y || 0) + Number(line.height || 0)),
+      ...blockMediaLayoutItems.map((item) => Number(item.y || 0) + Number(item.height || 0))
+    ];
+    const blockVisualTop = Math.min(...blockVisualTopCandidates);
+    const blockVisualBottom = Math.max(...blockVisualBottomCandidates);
+    const blockHeight = Math.max(24, blockVisualBottom - blockVisualTop);
+    const blockStartOffset = blockAnchor
+      ? Math.max(0, Number(blockAnchor.start || 0))
+      : blockLines.length
+        ? Math.max(0, Number(blockLines[0].startOffset || 0))
+        : 0;
+    const blockEndOffset = blockAnchor
+      ? Math.max(blockStartOffset, Number(blockAnchor.end || blockStartOffset))
+      : blockLines.length
+        ? Math.max(blockStartOffset, Number(blockLines[blockLines.length - 1].endOffset || blockStartOffset))
+        : blockStartOffset;
     const blockTextLength = block.textLength || 0;
     blocks.push({
       blockId: block.blockId,
+      orderIndex: orderedBlockIds.length,
       blockType: block.blockType,
       styleToken: runs[0] ? runs[0].styleToken : "paragraph",
-      x: resolvedPaddingX + (columnIndex * (columnWidth + columnGap)) + blockMarginLeft,
-      y: blockTop,
+      x: resolvedPaddingX + (blockStartColumnIndex * (columnWidth + columnGap)) + blockMarginLeft,
+      y: blockVisualTop,
       width: Math.max(0, columnWidth - blockMarginLeft - blockMarginRight),
-      height: Math.max(blockHeight + blockPaddingTop + blockPaddingBottom, 24),
+      height: blockHeight,
+      pageSlotStart: Math.min(blockStartPageSlot, pageSlot),
+      pageSlotEnd: Math.max(blockStartPageSlot, pageSlot),
+      columnIndexStart: Math.min(blockStartColumnIndex, columnIndex),
+      columnIndexEnd: Math.max(blockStartColumnIndex, columnIndex),
       lineCount: blockLines.length,
       textLength: blockTextLength,
       lineIndexes: blockLines.map((line) => line.lineIndex),
+      startOffset: blockStartOffset,
+      endOffset: blockEndOffset,
+      hasTextContent: blockEndOffset > blockStartOffset,
       sourceRef: block.sourceRef
     });
     orderedBlockIds.push(block.blockId);
