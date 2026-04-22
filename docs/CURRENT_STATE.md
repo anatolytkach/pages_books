@@ -85,6 +85,7 @@
 - Current local v5 runtime layout now applies language-aware intra-word soft breaking for protected books when the artifact style contract allows it (`hyphens: auto`, plus `wordBreak` / `overflowWrap` fallbacks), using the book metadata language as the language for all blocks and fragments.
 - Current local v5 paragraph justification now treats lines terminated by source `<br>` hard breaks as non-justifiable, so intra-paragraph forced line breaks no longer stretch across the full column width like ordinary middle paragraph lines.
 - Current local v5 canvas media layer now reuses keyed DOM `<img>` nodes for content images and inline avatars across snapshot refreshes instead of calling `replaceChildren()` on every overlay/state update, so showing or hiding bars, changing selection, and clearing selection no longer blink visible media.
+- Current local v5 selection normalization now clamps the focus edge to the block where the selection started, so drag selection, copy, highlights, and notes cannot span more than one paragraph/block at a time.
 - Current `reader_render_v5/runtime/protected-book-model.js` now runs in strict artifact-first mode for structural/media-bearing `v4` candidates:
   - chapter-opening clusters
   - comment-thread sections

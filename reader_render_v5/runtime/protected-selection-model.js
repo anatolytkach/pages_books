@@ -31,6 +31,34 @@ function positionMatchesProjection(position, projectionMeta) {
   );
 }
 
+function findBlockAnchorAtOffset(blockAnchors, offset) {
+  if (!Array.isArray(blockAnchors) || !blockAnchors.length || !Number.isFinite(Number(offset))) return null;
+  const normalizedOffset = Number(offset);
+  for (const anchor of blockAnchors) {
+    if (!anchor) continue;
+    const start = Number(anchor.start);
+    const end = Number(anchor.end);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) continue;
+    if (normalizedOffset >= start && normalizedOffset <= end) {
+      return anchor;
+    }
+  }
+  return null;
+}
+
+function clampPositionToBlock(position, blockAnchor) {
+  if (!position || !blockAnchor) return position;
+  const start = Number(blockAnchor.start);
+  const end = Number(blockAnchor.end);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return position;
+  const offset = Number(position.offset);
+  if (!Number.isFinite(offset)) return position;
+  return {
+    ...position,
+    offset: Math.max(start, Math.min(end, offset))
+  };
+}
+
 export function buildChunkSelectionIndex(chunk) {
   const layer = chunk.selectionLayer || {};
   return {
@@ -111,9 +139,15 @@ export function normalizeSelection(state, layout = null, chunkModel = null) {
       end: null
     };
   }
-  const [start, end] = comparePositions(state.anchor, state.focus) <= 0
-    ? [state.anchor, state.focus]
-    : [state.focus, state.anchor];
+  const blockAnchors = chunkModel && chunkModel.chunk && chunkModel.chunk.selectionLayer
+    ? chunkModel.chunk.selectionLayer.blockAnchors
+    : [];
+  const anchorBlock = findBlockAnchorAtOffset(blockAnchors, state.anchor.offset);
+  const anchor = anchorBlock ? clampPositionToBlock(state.anchor, anchorBlock) : state.anchor;
+  const focus = anchorBlock ? clampPositionToBlock(state.focus, anchorBlock) : state.focus;
+  const [start, end] = comparePositions(anchor, focus) <= 0
+    ? [anchor, focus]
+    : [focus, anchor];
   return {
     isCollapsed: start.offset === end.offset,
     selectionType: state.selectionType,
