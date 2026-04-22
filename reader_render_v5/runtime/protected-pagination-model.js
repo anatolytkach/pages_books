@@ -35,24 +35,70 @@ function ensurePage(lines, pageIndex, viewportHeight, chunkModel, globalModel) {
   };
 }
 
+function buildPageFromSlot({
+  slot,
+  pageIndex,
+  viewportHeight,
+  layout,
+  globalModel,
+  chunkModel
+}) {
+  const slotLines = Array.isArray(layout && layout.lines)
+    ? layout.lines.filter((line) => Number(line && line.pageSlot || 0) === slot)
+    : [];
+  const slotBlocks = Array.isArray(layout && layout.blocks)
+    ? layout.blocks
+        .filter((block) => Number(block && block.pageSlotStart || 0) <= slot && Number(block && block.pageSlotEnd || 0) >= slot)
+        .sort((left, right) => Number(left && left.orderIndex || 0) - Number(right && right.orderIndex || 0))
+    : [];
+  const firstTextBlock = slotBlocks.find((block) => block && Number(block.endOffset || 0) > Number(block.startOffset || 0)) || null;
+  const lastTextBlock = slotBlocks
+    .slice()
+    .reverse()
+    .find((block) => block && Number(block.endOffset || 0) > Number(block.startOffset || 0)) || null;
+  const startOffset = firstTextBlock
+    ? Math.max(0, Number(firstTextBlock.startOffset || 0))
+    : 0;
+  const endOffset = lastTextBlock
+    ? Math.max(startOffset, Number(lastTextBlock.endOffset || startOffset))
+    : startOffset;
+  const lineStartIndex = slotLines.length ? Number(slotLines[0].lineIndex || 0) : 0;
+  const lineEndIndex = slotLines.length ? Number(slotLines[slotLines.length - 1].lineIndex || 0) : -1;
+  return {
+    pageIndex,
+    pageCount: 1,
+    pageSlot: slot,
+    top: slot * viewportHeight,
+    left: 0,
+    width: Number(layout && layout.width || 0),
+    height: viewportHeight,
+    lineStartIndex,
+    lineEndIndex,
+    startOffset,
+    endOffset,
+    globalStartOffset: localOffsetToGlobal(globalModel, chunkModel.chunk.chunkId, startOffset),
+    globalEndOffset: localOffsetToGlobal(globalModel, chunkModel.chunk.chunkId, endOffset),
+    hasTextContent: !!firstTextBlock,
+    blockStartIndex: slotBlocks.length ? Number(slotBlocks[0].orderIndex || 0) : -1,
+    blockEndIndex: slotBlocks.length ? Number(slotBlocks[slotBlocks.length - 1].orderIndex || 0) : -1
+  };
+}
+
 export function buildPaginationModel({ chunkModel, layout, viewportHeight, globalModel }) {
   const lines = layout.lines || [];
   const pages = [];
   const effectiveHeight = Math.max(260, viewportHeight || 640);
-  if (layout && layout.pageSlotCount && lines.some((line) => Number.isInteger(line.pageSlot))) {
-    const grouped = new Map();
-    for (const line of lines) {
-      const slot = Number.isInteger(line.pageSlot) ? line.pageSlot : 0;
-      if (!grouped.has(slot)) grouped.set(slot, []);
-      grouped.get(slot).push(line);
+  if (layout && layout.pageSlotCount) {
+    for (let slot = 0; slot < Number(layout.pageSlotCount || 0); slot += 1) {
+      pages.push(buildPageFromSlot({
+        slot,
+        pageIndex: pages.length,
+        viewportHeight: effectiveHeight,
+        layout,
+        globalModel,
+        chunkModel
+      }));
     }
-    const orderedSlots = [...grouped.keys()].sort((a, b) => a - b);
-    orderedSlots.forEach((slot, index) => {
-      const page = ensurePage(grouped.get(slot) || [], index, effectiveHeight, chunkModel, globalModel);
-      page.top = slot * effectiveHeight;
-      page.pageSlot = slot;
-      pages.push(page);
-    });
     const pageCount = Math.max(1, pages.length);
     for (const page of pages) page.pageCount = pageCount;
     return {

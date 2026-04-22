@@ -99,6 +99,9 @@ function gatherShapeRecords(shapeBundle, glyphOps) {
 function filterMediaItemsForPage(mediaItems, pageWindow) {
   if (!Array.isArray(mediaItems) || !mediaItems.length) return [];
   if (!pageWindow) return mediaItems;
+  if (Number.isInteger(pageWindow.pageSlot)) {
+    return mediaItems.filter((item) => Number(item && item.pageSlot || 0) === Number(pageWindow.pageSlot));
+  }
   const top = Number(pageWindow.top || 0);
   const bottom = top + Number(pageWindow.height || 0);
   return mediaItems.filter((item) => {
@@ -1011,7 +1014,7 @@ export class ProtectedReaderRuntimeCore {
     annotations = []
   } = {}) {
     const currentPage = this.getCurrentPage();
-    const currentVisibleRange = currentPage
+    const currentVisibleRange = currentPage && currentPage.hasTextContent
       ? {
           chunkIndex: this.currentChunkIndex,
           globalOffset: Math.round(
@@ -1054,7 +1057,7 @@ export class ProtectedReaderRuntimeCore {
     annotations = []
   }) {
     const currentPage = this.getCurrentPage();
-    const currentVisibleRange = currentPage
+    const currentVisibleRange = currentPage && currentPage.hasTextContent
       ? {
           chunkIndex: this.currentChunkIndex,
           globalOffset: Math.round(
