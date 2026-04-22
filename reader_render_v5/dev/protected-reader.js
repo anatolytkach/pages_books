@@ -397,6 +397,13 @@ function buildBridgeSummary() {
     bookId: state.bookSummary ? state.bookSummary.bookId : "",
     bookTitle: state.bookSummary && state.bookSummary.metadata ? state.bookSummary.metadata.title || "" : "",
     bookAuthor: getCurrentBookAuthor(),
+    metadata: state.bookSummary && state.bookSummary.metadata
+      ? {
+          languages: Array.isArray(state.bookSummary.metadata.languages)
+            ? state.bookSummary.metadata.languages.filter(Boolean)
+            : []
+        }
+      : { languages: [] },
     coverUrl: getCurrentBookCoverUrl(),
     chapterLabel: chunkSummary ? chunkSummary.tocLabel || "" : "",
     chunkLabel: chunkSummary ? `${chunkSummary.chunkId} (${chunkSummary.order}/${chunkSummary.total})` : "",
@@ -1885,6 +1892,15 @@ function getCanvasPoint(event) {
   };
 }
 
+function getCanvasPointFromClient(clientX, clientY) {
+  const rect = elements.canvas.getBoundingClientRect();
+  const page = state.currentSnapshot ? state.currentSnapshot.renderPacket.pageWindow : null;
+  return {
+    x: Number(clientX || 0) - rect.left,
+    y: Number(clientY || 0) - rect.top + (page ? Number(page.top || 0) : 0)
+  };
+}
+
 async function requestAndApply(method, payload = {}) {
   const snapshot = await state.workerClient[method]({
     ...getViewportConfig(),
@@ -1904,6 +1920,21 @@ async function selectWordAt(point) {
   });
   applySnapshot(snapshot);
   return snapshot;
+}
+
+async function getFootnoteAtClientPoint(clientX, clientY) {
+  if (!state.currentSnapshot) return { active: false, anchor: null };
+  const point = getCanvasPointFromClient(clientX, clientY);
+  return getFootnoteAt(point);
+}
+
+async function getFootnoteAt(point) {
+  if (!state.currentSnapshot) return { active: false, anchor: null };
+  return state.workerClient.getFootnoteAtPoint({
+    ...getViewportConfig(),
+    x: point.x,
+    y: point.y
+  });
 }
 
 async function handleMouseDown(event) {
@@ -2020,6 +2051,35 @@ function notifySelectionReleasedWhenReady(clientX, clientY, pointerType, attempt
   window.setTimeout(() => {
     notifySelectionReleasedWhenReady(clientX, clientY, pointerType, attemptsLeft - 1);
   }, 60);
+}
+
+function notifyFootnoteActivated(clientX, clientY, payload, pointerType) {
+  if (!payload || !payload.active || !payload.anchor) return;
+  try {
+    const localPreview =
+      typeof window.__PROTECTED_SHELL_SHOW_FOOTNOTE__ === "function"
+        ? window.__PROTECTED_SHELL_SHOW_FOOTNOTE__
+        : null;
+    if (localPreview) {
+      localPreview(payload.anchor, Number(clientX || 0), Number(clientY || 0), String(pointerType || ""));
+    }
+    if (window.parent && window.parent !== window) {
+      const parentPreview =
+        typeof window.parent.__PROTECTED_SHELL_SHOW_FOOTNOTE__ === "function"
+          ? window.parent.__PROTECTED_SHELL_SHOW_FOOTNOTE__
+          : null;
+      if (parentPreview) {
+        parentPreview(payload.anchor, Number(clientX || 0), Number(clientY || 0), String(pointerType || ""));
+      }
+      window.parent.postMessage({
+        channel: "protected-footnote-activate",
+        clientX: Number(clientX || 0),
+        clientY: Number(clientY || 0),
+        pointerType: String(pointerType || ""),
+        anchor: payload.anchor
+      }, "*");
+    }
+  } catch (_error) {}
 }
 
 function enqueuePointerRequest(task) {
@@ -2224,6 +2284,15 @@ function handlePointerUp(event) {
   });
   resetPointerGesture();
   if (wasTouchWithoutSelection) {
+    enqueuePointerRequest(async () => {
+      const payload = await getFootnoteAt(point);
+      if (payload && payload.active && payload.anchor) {
+        notifyFootnoteActivated(event.clientX, event.clientY, payload, "touch");
+      }
+    }).catch((error) => {
+      console.error(error);
+      setStatus(error.message || String(error), "error");
+    });
     return;
   }
   enqueuePointerRequest(async () => {
@@ -2236,6 +2305,13 @@ function handlePointerUp(event) {
       y: point.y
     });
     notifySelectionReleased(event.clientX, event.clientY, snapshot, gesture.pointerType);
+    if (!(snapshot && snapshot.selectionActive && Number(snapshot.selectedChars || 0) > 0)) {
+      const payload = await getFootnoteAt(point);
+      if (payload && payload.active && payload.anchor) {
+        notifyFootnoteActivated(event.clientX, event.clientY, payload, gesture.pointerType);
+        return;
+      }
+    }
     if (!(snapshot && snapshot.selectionActive && Number(snapshot.selectedChars || 0) > 0)) {
       notifySelectionReleasedWhenReady(event.clientX, event.clientY, gesture.pointerType);
     }
@@ -3317,6 +3393,10 @@ async function bridgeSetFontMode(fontMode = "sans", generationMeta = null) {
   return buildBridgeSummary();
 }
 
+async function bridgeGetFootnoteAtClientPoint(clientX = 0, clientY = 0) {
+  return getFootnoteAtClientPoint(clientX, clientY);
+}
+
 function buildEmbeddedHostHandlers() {
   return {
     getSummary: buildBridgeSummary,
@@ -3333,6 +3413,7 @@ function buildEmbeddedHostHandlers() {
     goToAnnotation: bridgeGoToAnnotation,
     restoreFromToken: bridgeRestoreFromToken,
     goToGlobalOffset: bridgeGoToGlobalOffset,
+    getFootnoteAtClientPoint: bridgeGetFootnoteAtClientPoint,
     copySelection: bridgeCopySelection,
     exportSelectionForUserAction: bridgeExportSelectionForUserAction,
     captureSelectionForUserAction: bridgeCaptureSelectionForUserAction,

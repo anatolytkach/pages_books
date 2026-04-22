@@ -31,6 +31,7 @@ export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
   const baseSize = styleTokenRecord.blockRole === "quote" ? 17 : styleTokenRecord.blockRole === "verse" ? 15 : 16;
   const explicitScale = Number(styleTokenRecord.fontSizeScale || 0) || 0;
   const explicitSizePx = Number(styleTokenRecord.fontSizePx || 0) || 0;
+  const superscript = !!styleTokenRecord.superscript;
   const semanticScale =
     explicitScale > 0 ? explicitScale :
     headingLevel === 1 ? 3 :
@@ -43,21 +44,24 @@ export function fontSpecForStyle(styleTokenRecord = {}, fontScale = 1) {
   const scaledFontScale = Math.max(0.75, Math.min(1.75, fontScale || 1));
   const size = Math.max(
     11,
-    Math.round((explicitSizePx > 0 ? explicitSizePx : (baseSize * semanticScale)) * scaledFontScale)
+    Math.round((explicitSizePx > 0 ? explicitSizePx : (baseSize * semanticScale)) * (superscript ? 0.75 : 1) * scaledFontScale)
   );
   const weight = styleTokenRecord.fontWeight === "bold" ? "700" : "400";
   const italic = styleTokenRecord.fontStyle === "italic" ? "italic " : "";
   const family = styleTokenRecord.fontFamilyCandidate || "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
   const lineHeightFactor = Math.max(0.8, Math.min(2.4, Number(styleTokenRecord.lineHeightFactor || 1.55) || 1.55));
   const explicitLineHeightPx = Number(styleTokenRecord.lineHeightPx || 0) || 0;
+  const baselineShiftPx = superscript ? Math.max(3, Math.round(size * 0.35)) : 0;
   return {
     size,
     family,
     lineHeight: explicitLineHeightPx > 0
       ? Math.max(1, Math.round(explicitLineHeightPx * scaledFontScale))
-      : Math.round(size * lineHeightFactor),
+      : Math.round(size * (superscript ? Math.min(lineHeightFactor, 1.12) : lineHeightFactor)),
     css: `${italic}${weight} ${size}px ${family}`,
     fontStyle: styleTokenRecord.fontStyle === "italic" ? "italic" : "normal",
+    superscript,
+    baselineShiftPx,
     whiteSpace: String(styleTokenRecord.whiteSpace || "normal").trim().toLowerCase() || "normal",
     hyphens: String(styleTokenRecord.hyphens || "manual").trim().toLowerCase() || "manual",
     wordBreak: String(styleTokenRecord.wordBreak || "normal").trim().toLowerCase() || "normal",
@@ -901,7 +905,7 @@ export function layoutChunk({
         y: line.y,
         width: adjustedWidthPx,
         height: font.lineHeight,
-        baselineY: line.y + font.size,
+        baselineY: line.y + font.size - Number(font.baselineShiftPx || 0),
         ascentPx: Number(measure.ascentPx || Math.round(font.size * 0.8)),
         startOffset: token.startOffset,
         endOffset: token.endOffset,
@@ -923,7 +927,15 @@ export function layoutChunk({
         previousRunContext = null;
         return;
       }
-      const style = styles.get(run.styleToken) || {};
+      const baseStyle = styles.get(run.styleToken) || {};
+      const style = run.linkTarget && /#(fn|note|footnote|endnote|noteref|ftn)/i.test(String(run.linkTarget || ""))
+        ? {
+            ...baseStyle,
+            superscript: true,
+            footnoteRef: true,
+            textColor: String(baseStyle.textColor || "").trim() || "#6f4a22"
+          }
+        : baseStyle;
       const font = fontSpecForStyle(style, fontScale);
       const segment = segmentMap.get(`${block.blockId}:${runIndex}`) || null;
       const effectiveSegment = segment || {

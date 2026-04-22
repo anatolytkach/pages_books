@@ -15,6 +15,7 @@ export const PROTECTED_WORKER_METHODS = {
   SEARCH_PREV_RESULT: "searchPrevResult",
   CLEAR_SEARCH: "clearSearch",
   UPDATE_RENDER_CONFIG: "updateRenderConfig",
+  GET_FOOTNOTE_AT_POINT: "getFootnoteAtPoint",
   POINTER_DOWN: "pointerDown",
   SELECT_WORD_AT_POINT: "selectWordAtPoint",
   POINTER_MOVE: "pointerMove",
@@ -201,6 +202,57 @@ function sanitizePageNumbersPayload(payload = {}) {
   return { labels };
 }
 
+function sanitizeFootnoteAtPointPayload(payload = {}) {
+  assertAllowedObjectKeys(
+    payload,
+    new Set(["active", "anchor"]),
+    "payload"
+  );
+  const active = !!payload.active;
+  if (!active) {
+    return { active: false, anchor: null };
+  }
+  const anchor = payload && payload.anchor && typeof payload.anchor === "object" ? payload.anchor : null;
+  assertAllowedObjectKeys(
+    anchor || {},
+    new Set([
+      "anchorId",
+      "href",
+      "targetSourceHref",
+      "targetAnchorId",
+      "sourcePublicRootPath",
+      "bounds"
+    ]),
+    "payload.anchor"
+  );
+  const bounds = anchor && anchor.bounds && typeof anchor.bounds === "object" ? anchor.bounds : null;
+  assertAllowedObjectKeys(
+    bounds || {},
+    new Set(["left", "top", "right", "bottom", "width", "height"]),
+    "payload.anchor.bounds"
+  );
+  return {
+    active: true,
+    anchor: {
+      anchorId: String(anchor.anchorId || ""),
+      href: String(anchor.href || ""),
+      targetSourceHref: String(anchor.targetSourceHref || ""),
+      targetAnchorId: String(anchor.targetAnchorId || ""),
+      sourcePublicRootPath: String(anchor.sourcePublicRootPath || ""),
+      bounds: bounds
+        ? {
+            left: Number(bounds.left || 0),
+            top: Number(bounds.top || 0),
+            right: Number(bounds.right || 0),
+            bottom: Number(bounds.bottom || 0),
+            width: Number(bounds.width || 0),
+            height: Number(bounds.height || 0)
+          }
+        : null
+    }
+  };
+}
+
 export function sanitizeProtectedWorkerPayload(method, payload = {}) {
   if (FORBIDDEN_GENERIC_TEXT_METHODS.has(method)) {
     throw new Error(`Forbidden protected worker method: ${method}`);
@@ -210,6 +262,9 @@ export function sanitizeProtectedWorkerPayload(method, payload = {}) {
   }
   if (method === PROTECTED_WORKER_METHODS.GET_PAGE_NUMBERS_FOR_GLOBAL_OFFSETS) {
     return sanitizePageNumbersPayload(payload);
+  }
+  if (method === PROTECTED_WORKER_METHODS.GET_FOOTNOTE_AT_POINT) {
+    return sanitizeFootnoteAtPointPayload(payload);
   }
   if (method === PROTECTED_WORKER_METHODS.COPY_CURRENT_SELECTION) {
     return sanitizeCopyCurrentSelectionPayload(payload);

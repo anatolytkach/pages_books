@@ -73,6 +73,9 @@ const HOST_STATE = {
   lastTurnPreviewKey: "",
   turnInFlight: false,
   suppressSyntheticClickUntil: 0,
+  suppressFootnoteSurfaceTapUntil: 0,
+  footnotePreviewRequestToken: 0,
+  footnotePopupKey: "",
   touchUiGuardInstalled: false,
   viewportEnvironmentInstalled: false,
   tts: {
@@ -660,6 +663,57 @@ function installStyles() {
     }
     body.protected-shell.protected-dev-panel #protectedShellActionBar {
       display: flex;
+    }
+    #protectedFootnotePopup.popup {
+      z-index: 2650;
+      display: none;
+      max-width: min(360px, calc(100vw - 24px));
+      padding: 14px 16px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(90, 74, 48, 0.12);
+      background: #fffdfa;
+      box-shadow: 0 14px 32px rgba(23, 33, 50, 0.18);
+      color: #2a2118;
+    }
+    #protectedFootnotePopup.show,
+    #protectedFootnotePopup.on {
+      display: block;
+    }
+    #protectedFootnotePopup .popup-close {
+      color: #7b6c59;
+      top: 8px;
+      right: 10px;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+    }
+    #protectedFootnotePopup .popup-close:hover,
+    #protectedFootnotePopup .popup-close:focus-visible {
+      background: rgba(111, 74, 34, 0.08);
+      outline: none;
+    }
+    #protectedFootnotePopup .protected-footnote-body {
+      padding-right: 18px;
+      max-height: min(260px, 46vh);
+      overflow-y: auto;
+      font: 400 16px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif;
+      color: #2a2118;
+    }
+    #protectedFootnotePopup .protected-footnote-paragraph {
+      margin: 0;
+    }
+    #protectedFootnotePopup .protected-footnote-paragraph + .protected-footnote-paragraph {
+      margin-top: 0.72em;
+    }
+    #protectedFootnotePopup .protected-footnote-empty {
+      margin: 0;
+      color: #6f6556;
+      font-size: 14px;
+    }
+    html.is-phone body.protected-shell #protectedFootnotePopup.popup,
+    html.is-tablet body.protected-shell #protectedFootnotePopup.popup {
+      max-width: min(92vw, 420px);
+      width: auto;
     }
     body.protected-shell #title-controls {
       display: inline-flex;
@@ -5818,6 +5872,175 @@ function openExternalUrl(url) {
   }
 }
 
+function ensureFootnotePopup() {
+  let popup = document.getElementById("protectedFootnotePopup");
+  if (popup) return popup;
+  popup = document.createElement("aside");
+  popup.id = "protectedFootnotePopup";
+  popup.className = "popup";
+  popup.setAttribute("role", "dialog");
+  popup.setAttribute("aria-modal", "false");
+  popup.setAttribute("aria-hidden", "true");
+  popup.innerHTML = `
+    <button type="button" class="popup-close" aria-label="Close footnote preview">×</button>
+    <div class="protected-footnote-body">
+      <p class="protected-footnote-empty">Footnote preview is unavailable.</p>
+    </div>
+  `;
+  document.body.appendChild(popup);
+  const closeButton = popup.querySelector(".popup-close");
+  closeButton && closeButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    hideFootnotePopup("close-button");
+  }, true);
+  return popup;
+}
+
+function hideFootnotePopup(reason = "dismiss") {
+  const popup = document.getElementById("protectedFootnotePopup");
+  if (!popup) return;
+  popup.classList.remove("show", "on", "above", "left", "right", "modal");
+  popup.setAttribute("aria-hidden", "true");
+  popup.style.left = "";
+  popup.style.top = "";
+  HOST_STATE.footnotePopupKey = "";
+  suppressShellToggle(reason === "open" ? 500 : 220);
+  HOST_STATE.suppressFootnoteSurfaceTapUntil = Math.max(
+    Number(HOST_STATE.suppressFootnoteSurfaceTapUntil || 0),
+    Date.now() + (reason === "open" ? 500 : 180)
+  );
+}
+
+function renderFootnoteParagraphRuns(runs = []) {
+  return runs.map((run) => {
+    const marks = Array.isArray(run && run.marks) ? run.marks : [];
+    let html = escapeSearchHtml(String(run && run.content || ""));
+    for (const mark of marks) {
+      if (mark === "em") html = `<em>${html}</em>`;
+      else if (mark === "strong") html = `<strong>${html}</strong>`;
+      else if (mark === "sup") html = `<sup>${html}</sup>`;
+    }
+    return html;
+  }).join("");
+}
+
+function renderFootnotePreviewBody(preview) {
+  const paragraphs = Array.isArray(preview && preview.paragraphs) ? preview.paragraphs : [];
+  if (!paragraphs.length) {
+    return `<p class="protected-footnote-empty">Footnote preview is unavailable.</p>`;
+  }
+  return paragraphs
+    .map((paragraph) => `<p class="protected-footnote-paragraph">${renderFootnoteParagraphRuns(paragraph && paragraph.runs)}</p>`)
+    .join("");
+}
+
+function positionFootnotePopup(popup, clientX, clientY, bounds = null) {
+  const useModal = isTouchShellMode();
+  popup.classList.remove("above", "left", "right", "modal");
+  popup.classList.add("show");
+  if (useModal) {
+    popup.classList.add("modal");
+    popup.style.left = "50%";
+    popup.style.top = "50%";
+    return;
+  }
+  popup.style.visibility = "hidden";
+  popup.style.left = "0px";
+  popup.style.top = "0px";
+  const width = popup.offsetWidth || 320;
+  const height = popup.offsetHeight || 160;
+  const margin = 12;
+  const anchorLeft = bounds ? Number(bounds.left || clientX) : Number(clientX || 0);
+  const anchorRight = bounds ? Number(bounds.right || clientX) : Number(clientX || 0);
+  const anchorTop = bounds ? Number(bounds.top || clientY) : Number(clientY || 0);
+  const anchorBottom = bounds ? Number(bounds.bottom || clientY) : Number(clientY || 0);
+  const centerX = bounds ? (anchorLeft + anchorRight) / 2 : Number(clientX || 0);
+  let left = Math.round(centerX - width / 2);
+  let top = Math.round(anchorBottom + 14);
+  if (top + height > window.innerHeight - margin) {
+    top = Math.round(anchorTop - height - 14);
+    popup.classList.add("above");
+  }
+  if (left < margin) {
+    left = margin;
+    popup.classList.add("left");
+  } else if (left + width > window.innerWidth - margin) {
+    left = Math.max(margin, window.innerWidth - width - margin);
+    popup.classList.add("right");
+  }
+  top = Math.max(margin, Math.min(Math.max(margin, window.innerHeight - height - margin), top));
+  popup.style.left = `${left}px`;
+  popup.style.top = `${top}px`;
+  popup.style.visibility = "visible";
+}
+
+async function showFootnotePopupForAnchor(anchor, clientX, clientY) {
+  if (!anchor || !anchor.targetSourceHref || !anchor.targetAnchorId || !anchor.sourcePublicRootPath) return false;
+  const requestToken = ++HOST_STATE.footnotePreviewRequestToken;
+  const popupKey = `${anchor.targetSourceHref}#${anchor.targetAnchorId}`;
+  const popup = ensureFootnotePopup();
+  const body = popup.querySelector(".protected-footnote-body");
+  popup.classList.remove("show", "on", "above", "left", "right", "modal");
+  popup.setAttribute("aria-hidden", "false");
+  body.innerHTML = `<p class="protected-footnote-empty">Loading footnote…</p>`;
+  positionFootnotePopup(popup, clientX, clientY, anchor.bounds || null);
+  try {
+    const { loadProtectedFootnotePreview } = await import("./protected-footnote-preview.js?v=20260422-v5-footnotes-1");
+    const preview = await loadProtectedFootnotePreview(anchor);
+    if (requestToken !== HOST_STATE.footnotePreviewRequestToken) return true;
+    body.innerHTML = renderFootnotePreviewBody(preview);
+    positionFootnotePopup(popup, clientX, clientY, anchor.bounds || null);
+    HOST_STATE.footnotePopupKey = popupKey;
+    HOST_STATE.suppressFootnoteSurfaceTapUntil = Date.now() + 500;
+    return true;
+  } catch (error) {
+    if (requestToken !== HOST_STATE.footnotePreviewRequestToken) return true;
+    body.innerHTML = `<p class="protected-footnote-empty">${escapeSearchHtml(error && error.message ? error.message : "Footnote preview is unavailable.")}</p>`;
+    positionFootnotePopup(popup, clientX, clientY, anchor.bounds || null);
+    HOST_STATE.footnotePopupKey = popupKey;
+    HOST_STATE.suppressFootnoteSurfaceTapUntil = Date.now() + 500;
+    return true;
+  }
+}
+
+function handleProtectedFootnoteActivation(anchor, clientX = 0, clientY = 0, pointerType = "mouse") {
+  if (!anchor) return;
+  suppressShellToggle(pointerType === "touch" ? 900 : 650);
+  if (pointerType === "touch") {
+    HOST_STATE.suppressSyntheticClickUntil = Date.now() + 900;
+  }
+  hideSelectionToolbar();
+  void showFootnotePopupForAnchor(anchor, clientX, clientY);
+}
+
+async function maybeActivateFootnoteFromEvent(frame, event, pointerKind = "mouse") {
+  if (!frame || !event) return false;
+  if (Date.now() < Number(HOST_STATE.suppressFootnoteSurfaceTapUntil || 0)) return false;
+  const summary = getBridgeSummaryFromFrame(frame);
+  if (summary && (summary.selectionActive || summary.focusedAnnotationId)) return false;
+  const primaryButton = event.button == null || event.button === 0;
+  if (!primaryButton) return false;
+  const bridgeResult = await invokeBridgeRaw(
+    "getFootnoteAtClientPoint",
+    Number(event.clientX || 0),
+    Number(event.clientY || 0)
+  ).catch(() => null);
+  if (!bridgeResult || !bridgeResult.active || !bridgeResult.anchor) {
+    hideFootnotePopup("no-hit");
+    return false;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation && event.stopImmediatePropagation();
+  suppressShellToggle(pointerKind === "touch" ? 800 : 550);
+  if (pointerKind === "touch") {
+    HOST_STATE.suppressSyntheticClickUntil = Date.now() + 900;
+  }
+  await showFootnotePopupForAnchor(bridgeResult.anchor, Number(event.clientX || 0), Number(event.clientY || 0));
+  return true;
+}
+
 function bindSelectionToolbar() {
   const toolbar = document.getElementById("selectionToolbar");
   if (!toolbar || toolbar.__protectedBound) return;
@@ -5931,6 +6154,15 @@ async function handleAction(action) {
   };
   document.addEventListener("pointerdown", dismissSelectionUi, true);
   document.addEventListener("touchstart", dismissSelectionUi, { capture: true, passive: true });
+  const dismissFootnoteUi = (event) => {
+    const popup = document.getElementById("protectedFootnotePopup");
+    if (!popup || popup.getAttribute("aria-hidden") === "true") return;
+    const target = event && event.target ? event.target : null;
+    if (target && target.closest && target.closest("#protectedFootnotePopup")) return;
+    hideFootnotePopup("outside-click");
+  };
+  document.addEventListener("pointerdown", dismissFootnoteUi, true);
+  document.addEventListener("touchstart", dismissFootnoteUi, { capture: true, passive: true });
   window.__PROTECTED_SHELL_SHOW_SELECTION_TOOLBAR__ = (summary, clientX = 160, clientY = 160, pointerType = "") => {
     window.__protectedToolbarDebug = {
       ...(window.__protectedToolbarDebug || {}),
@@ -5983,6 +6215,22 @@ async function handleAction(action) {
         return;
       }
       showSelectionToolbarAfterRelease(HOST_STATE.frame, x, y);
+    });
+  }
+  window.__PROTECTED_SHELL_SHOW_FOOTNOTE__ = (anchor, clientX = 160, clientY = 160, pointerType = "") => {
+    handleProtectedFootnoteActivation(anchor, Number(clientX || 160), Number(clientY || 160), String(pointerType || ""));
+  };
+  if (!window.__protectedFootnoteActivationBound) {
+    window.__protectedFootnoteActivationBound = true;
+    window.addEventListener("message", (event) => {
+      const data = event && event.data ? event.data : null;
+      if (!data || data.channel !== "protected-footnote-activate" || !data.anchor) return;
+      handleProtectedFootnoteActivation(
+        data.anchor,
+        Number(data.clientX || 160),
+        Number(data.clientY || 160),
+        String(data.pointerType || "")
+      );
     });
   }
 }
@@ -6183,6 +6431,11 @@ function attachProtectedSurfaceInteractions(frame) {
 
 function updateFromSummary(summary) {
   if (!summary) return;
+  const previousPageLabel = HOST_STATE.lastSummary ? String(HOST_STATE.lastSummary.pageLabel || HOST_STATE.lastSummary.globalPageLabel || "") : "";
+  const nextPageLabel = String(summary.pageLabel || summary.globalPageLabel || "");
+  if (previousPageLabel && nextPageLabel && previousPageLabel !== nextPageLabel) {
+    hideFootnotePopup("page-change");
+  }
   syncPageTurnLayerGeometry();
   ensureHostGenerations();
   if (isStaleSummary(summary)) return;
@@ -6622,6 +6875,17 @@ function saveStoredHostTtsVoiceLang(value) {
 }
 
 async function getProtectedBookMetadataLanguages() {
+  const summaryMetadataLanguages =
+    HOST_STATE.lastSummary &&
+    HOST_STATE.lastSummary.metadata &&
+    Array.isArray(HOST_STATE.lastSummary.metadata.languages)
+      ? HOST_STATE.lastSummary.metadata.languages.map((lang) => normalizeTtsLang(lang)).filter(Boolean)
+      : [];
+  if (summaryMetadataLanguages.length) {
+    HOST_STATE.bookMetadataLanguages = Array.from(new Set(summaryMetadataLanguages));
+    HOST_STATE.bookMetadataLanguagesBookId = String(getCurrentBookId() || "").trim();
+    return HOST_STATE.bookMetadataLanguages;
+  }
   const bookId = String(getCurrentBookId() || "").trim();
   if (
     bookId &&
@@ -6686,7 +6950,23 @@ function buildHostTtsLangLabel(tag) {
 
 function resolveHostTtsMetadataLang(metadataLanguages, availableLanguages) {
   const candidates = Array.isArray(metadataLanguages) ? metadataLanguages.map((lang) => normalizeTtsLang(lang)).filter(Boolean) : [];
-  return candidates[0] || "";
+  const available = Array.isArray(availableLanguages)
+    ? availableLanguages.map((lang) => normalizeTtsLang(lang)).filter(Boolean)
+    : [];
+  for (const candidate of candidates) {
+    if (available.includes(candidate)) return candidate;
+    if (!candidate.includes("-")) {
+      const prefixed = available.find((lang) => lang.startsWith(`${candidate}-`));
+      if (prefixed) return prefixed;
+      continue;
+    }
+    const base = candidate.split("-")[0];
+    const baseMatch = available.find((lang) => lang === base);
+    if (baseMatch) return baseMatch;
+    const sibling = available.find((lang) => lang.startsWith(`${base}-`));
+    if (sibling) return sibling;
+  }
+  return "";
 }
 
 function closeHostTtsDropdowns() {
@@ -8440,7 +8720,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260416-protected-render-padding-1");
+      await import("../dev/protected-reader.js?v=20260422-v5-footnotes-1");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;

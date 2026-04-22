@@ -6,7 +6,7 @@ export function renderGlyphOps(ctx, glyphOps, shapeRegistry, options = {}) {
       ? shapeRegistry.getPath2D(shapeRecord)
       : null;
     ctx.save();
-    ctx.fillStyle = defaultFillStyle;
+    ctx.fillStyle = op.fillStyle || defaultFillStyle;
     if (op.syntheticGlyphKind === "hyphen") {
       ctx.font = op.fontCss || `${Math.max(11, Number(op.fontSize || 16))}px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif`;
       ctx.fillText("-", op.x, op.baselineY);

@@ -86,6 +86,8 @@
 - Current local v5 paragraph justification now treats lines terminated by source `<br>` hard breaks as non-justifiable, so intra-paragraph forced line breaks no longer stretch across the full column width like ordinary middle paragraph lines.
 - Current local v5 canvas media layer now reuses keyed DOM `<img>` nodes for content images and inline avatars across snapshot refreshes instead of calling `replaceChildren()` on every overlay/state update, so showing or hiding bars, changing selection, and clearing selection no longer blink visible media.
 - Current local v5 selection normalization now clamps the focus edge to the block where the selection started, so drag selection, copy, highlights, and notes cannot span more than one paragraph/block at a time.
+- Current local v5 host TTS voice-language picker now defaults from the protected book metadata languages carried by the live reader summary, falls back to manifest metadata only when needed, maps that metadata language to the nearest available system voice language, and keeps all remaining languages alphabetized in the settings sidebar.
+- Current local v5 protected reader now resolves EPUB footnote refs from runtime-safe `selectionLayer.noteAnchors`, renders note refs as reader-level superscripts with dedicated footnote ink, and opens a host-side preview popup/sheet with parsed `notes-*.xhtml` content on desktop and touch devices.
 - Current `reader_render_v5/runtime/protected-book-model.js` now runs in strict artifact-first mode for structural/media-bearing `v4` candidates:
   - chapter-opening clusters
   - comment-thread sections

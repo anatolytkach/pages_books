@@ -19,7 +19,7 @@ export function buildGlyphRenderOps({ layout, chunkModel, shapeRegistry, renderM
         ops.push({
           glyphId: glyph.glyphId,
           glyphToken,
-          styleToken: glyph.styleToken,
+          styleToken: fragment.styleToken || glyph.styleToken,
           fontFamilyCandidate: glyph.fontFamilyCandidate,
           scriptBucket: glyph.scriptBucket,
           x: cursorX,

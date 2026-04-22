@@ -24,7 +24,7 @@ import {
   parseRestoreToken,
   serializeRestoreToken
 } from "./protected-global-location.js";
-import { layoutChunk } from "./protected-layout-engine.js?v=20260422-v5-fontscale-anchor-1";
+import { layoutChunk } from "./protected-layout-engine.js?v=20260422-v5-footnotes-1";
 import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
 import { buildGlyphRenderOps } from "./protected-shape-layout.js";
 import { hitTestPosition } from "./protected-hit-testing.js";
@@ -338,6 +338,77 @@ function buildApproximateFocusedOffsetRect(core, startGlobal, endGlobal, page, c
     projectionMeta: core && core.currentLayout && core.currentLayout.projectionMeta
       ? { ...core.currentLayout.projectionMeta }
       : null
+  };
+}
+
+function parseNoteHrefParts(href) {
+  const raw = String(href || "").trim();
+  if (!raw) return { targetSourceHref: "", targetAnchorId: "" };
+  const hashIndex = raw.indexOf("#");
+  if (hashIndex < 0) {
+    return { targetSourceHref: raw, targetAnchorId: "" };
+  }
+  return {
+    targetSourceHref: raw.slice(0, hashIndex),
+    targetAnchorId: raw.slice(hashIndex + 1)
+  };
+}
+
+function resolveRelativeSourceHref(targetSourceHref, baseSourceHref) {
+  const rawTarget = String(targetSourceHref || "").trim().replace(/\\/g, "/");
+  if (!rawTarget) return "";
+  if (/^(?:[a-z]+:)?\//i.test(rawTarget) || /^EPUB\//i.test(rawTarget) || /^OEBPS\//i.test(rawTarget)) {
+    return rawTarget.replace(/^\/+/, "");
+  }
+  const normalizedBase = String(baseSourceHref || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
+  const baseParts = normalizedBase.split("/").filter(Boolean);
+  if (baseParts.length) baseParts.pop();
+  for (const part of rawTarget.split("/")) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      if (baseParts.length) baseParts.pop();
+      continue;
+    }
+    baseParts.push(part);
+  }
+  return baseParts.join("/");
+}
+
+function findNoteAnchorAtOffset(chunkModel, localOffset) {
+  const anchors = Array.isArray(chunkModel && chunkModel.chunk && chunkModel.chunk.selectionLayer && chunkModel.chunk.selectionLayer.noteAnchors)
+    ? chunkModel.chunk.selectionLayer.noteAnchors
+    : [];
+  return anchors.find((anchor) => (
+    Number(localOffset) >= Number(anchor && anchor.start || 0) &&
+    Number(localOffset) < Number(anchor && anchor.end || 0)
+  )) || null;
+}
+
+function buildNoteAnchorBounds(core, noteAnchor) {
+  if (!core || !core.currentLayout || !noteAnchor) return null;
+  const matchingFragments = [];
+  for (const line of Array.isArray(core.currentLayout.lines) ? core.currentLayout.lines : []) {
+    for (const fragment of Array.isArray(line && line.fragments) ? line.fragments : []) {
+      if (
+        Number(fragment && fragment.endOffset || 0) > Number(noteAnchor.start || 0) &&
+        Number(fragment && fragment.startOffset || 0) < Number(noteAnchor.end || 0)
+      ) {
+        matchingFragments.push(fragment);
+      }
+    }
+  }
+  if (!matchingFragments.length) return null;
+  const left = Math.min(...matchingFragments.map((fragment) => Number(fragment.x || 0)));
+  const top = Math.min(...matchingFragments.map((fragment) => Number(fragment.y || 0)));
+  const right = Math.max(...matchingFragments.map((fragment) => Number(fragment.x || 0) + Number(fragment.width || 0)));
+  const bottom = Math.max(...matchingFragments.map((fragment) => Number(fragment.y || 0) + Number(fragment.height || 0)));
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top)
   };
 }
 
@@ -1167,6 +1238,44 @@ export class ProtectedReaderRuntimeCore {
   clearSearch({ annotations = [] } = {}) {
     this.clearSearchState();
     return this.buildSnapshot({ annotations });
+  }
+
+  getFootnoteAtPoint({ x, y } = {}) {
+    const position = hitTestPosition(this.currentLayout, x, y);
+    if (!position) {
+      return { active: false, anchor: null };
+    }
+    const noteAnchor = findNoteAnchorAtOffset(this.currentChunkModel, Number(position.offset || 0));
+    if (!noteAnchor) {
+      return { active: false, anchor: null };
+    }
+    const blockSourceRef =
+      Array.isArray(this.currentChunkModel && this.currentChunkModel.chunk && this.currentChunkModel.chunk.logicalBlockList)
+        ? this.currentChunkModel.chunk.logicalBlockList.find((block) => String(block && block.blockId || "") === String(noteAnchor.blockId || ""))
+        : null;
+    const parsedHref = parseNoteHrefParts(noteAnchor.href);
+    const targetSourceHref = resolveRelativeSourceHref(
+      parsedHref.targetSourceHref,
+      blockSourceRef && blockSourceRef.sourceRef ? blockSourceRef.sourceRef.href : ""
+    );
+    const sourcePublicRootPath =
+      this.book &&
+      this.book.manifest &&
+      this.book.manifest.source &&
+      this.book.manifest.source.publicRootPath
+        ? String(this.book.manifest.source.publicRootPath)
+        : "";
+    return {
+      active: true,
+      anchor: {
+        anchorId: String(noteAnchor.anchorId || ""),
+        href: String(noteAnchor.href || ""),
+        targetSourceHref,
+        targetAnchorId: parsedHref.targetAnchorId,
+        sourcePublicRootPath,
+        bounds: buildNoteAnchorBounds(this, noteAnchor)
+      }
+    };
   }
 
   pointerDown({ x, y, shiftKey = false, annotations = [] }) {
