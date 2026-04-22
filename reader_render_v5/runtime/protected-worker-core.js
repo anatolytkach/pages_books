@@ -24,7 +24,7 @@ import {
   parseRestoreToken,
   serializeRestoreToken
 } from "./protected-global-location.js";
-import { layoutChunk } from "./protected-layout-engine.js?v=20260422-v5-heading-style-payload-1";
+import { layoutChunk } from "./protected-layout-engine.js?v=20260422-v5-initial-reading-restore-1";
 import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
 import { buildGlyphRenderOps } from "./protected-shape-layout.js";
 import { hitTestPosition } from "./protected-hit-testing.js";
@@ -491,6 +491,11 @@ export class ProtectedReaderRuntimeCore {
     fontMode = "sans",
     configGeneration = this.configGeneration,
     layoutGeneration = this.layoutGeneration,
+    initialRestoreToken = "",
+    initialGlobalOffset = null,
+    initialChunkIndex = null,
+    initialPreferredGlobalStartOffset = null,
+    initialPreferredGlobalEndOffset = null,
     annotations = []
   }) {
     this.renderMode = "shape";
@@ -503,7 +508,49 @@ export class ProtectedReaderRuntimeCore {
     this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     this.book = await loadProtectedBook(artifactRoot);
     this.bookSummary = summarizeBook(this.book);
-    const initialSnapshot = await this.goToChunk({ chunkIndex: 0, annotations, includeBook: true });
+    let initialSnapshot = null;
+    if (initialRestoreToken) {
+      const descriptor = parseRestoreToken(initialRestoreToken);
+      if (descriptor.bookId !== this.book.globalLocationModel.bookId) {
+        throw new Error(`Restore token belongs to book ${descriptor.bookId}, expected ${this.book.globalLocationModel.bookId}.`);
+      }
+      const resolved = globalOffsetToLocal(this.book.globalLocationModel, descriptor.position.globalOffset);
+      const chunkIndex = this.book.manifest.chunks.findIndex((item) => item.chunkId === resolved.chunkId);
+      if (chunkIndex < 0) {
+        throw new Error("Unable to resolve chunk for initial restore token.");
+      }
+      initialSnapshot = await this.goToChunk({
+        chunkIndex,
+        globalOffset: descriptor.position.globalOffset,
+        preferredGlobalStartOffset:
+          descriptor.visibleRange && Number.isFinite(Number(descriptor.visibleRange.globalStartOffset))
+            ? Number(descriptor.visibleRange.globalStartOffset)
+            : null,
+        preferredGlobalEndOffset:
+          descriptor.visibleRange && Number.isFinite(Number(descriptor.visibleRange.globalEndOffset))
+            ? Number(descriptor.visibleRange.globalEndOffset)
+            : null,
+        annotations,
+        includeBook: true
+      });
+    } else if (initialGlobalOffset != null) {
+      initialSnapshot = await this.goToChunk({
+        chunkIndex: Number.isFinite(Number(initialChunkIndex)) ? Math.max(0, Math.floor(Number(initialChunkIndex))) : 0,
+        globalOffset: Number(initialGlobalOffset),
+        preferredGlobalStartOffset:
+          Number.isFinite(Number(initialPreferredGlobalStartOffset))
+            ? Number(initialPreferredGlobalStartOffset)
+            : null,
+        preferredGlobalEndOffset:
+          Number.isFinite(Number(initialPreferredGlobalEndOffset))
+            ? Number(initialPreferredGlobalEndOffset)
+            : null,
+        annotations,
+        includeBook: true
+      });
+    } else {
+      initialSnapshot = await this.goToChunk({ chunkIndex: 0, annotations, includeBook: true });
+    }
     Promise.resolve()
       .then(() => ensureProtectedBookLocations(this.book))
       .then(() => {

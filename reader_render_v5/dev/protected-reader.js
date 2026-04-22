@@ -31,6 +31,7 @@ import {
   PROTECTED_READER_CANONICAL_EVENT_NAMES
 } from "./protected-reader-events.js";
 import { createInitialProtectedDriveState, mergeProtectedDriveState } from "../runtime/protected-drive-state.js";
+import { extractReadingStateFromBundle } from "../runtime/protected-reading-state-store.js";
 
 // Harness/dev shell DOM wiring stays here. Runtime state is owned by protected-reader-runtime-core.js.
 const elements = {
@@ -1195,6 +1196,84 @@ async function restoreReadingStateIfAvailable(bookId) {
   return null;
 }
 
+function loadHostedPersistedReadingState(bookId) {
+  if (!bookId || !state.entryConfig || !state.entryConfig.repositoryPersistence) return null;
+  const persistence = state.entryConfig.repositoryPersistence;
+  if (String(persistence.type || "") !== "localStorage") return null;
+  const namespace = String(persistence.namespace || "").trim();
+  if (!namespace) return null;
+  try {
+    const storage = persistence.storage || window.localStorage;
+    if (!storage || typeof storage.getItem !== "function") return null;
+    const raw = storage.getItem(`${namespace}:${bookId}:default:bundle`);
+    if (!raw) return null;
+    const parsedBundle = JSON.parse(raw);
+    return extractReadingStateFromBundle(parsedBundle);
+  } catch (_error) {
+    return null;
+  }
+}
+
+function resolveInitialReadingRestore(bookId) {
+  const explicitRestoreToken = state.entryConfig && state.entryConfig.explicitRestoreToken
+    ? String(state.entryConfig.explicitRestoreToken).trim()
+    : "";
+  if (explicitRestoreToken) {
+    return {
+      applied: true,
+      source: "token",
+      readingState: null,
+      workerPayload: {
+        initialRestoreToken: explicitRestoreToken
+      }
+    };
+  }
+  const readingState = loadHostedPersistedReadingState(bookId);
+  if (!readingState || !readingState.restoreToken) {
+    return {
+      applied: false,
+      source: "default-start",
+      readingState: null,
+      workerPayload: {}
+    };
+  }
+  const parsed = parseRestoreToken(readingState.restoreToken);
+  const targetGlobalOffset = Number.isFinite(Number(readingState.resumeAnchorGlobalOffset))
+    ? Number(readingState.resumeAnchorGlobalOffset)
+    : Number(parsed && parsed.position && parsed.position.globalOffset);
+  const targetChunkOrder = Number.isFinite(Number(readingState && readingState.globalPosition && readingState.globalPosition.chunkOrder))
+    ? Number(readingState.globalPosition.chunkOrder)
+    : Number.isFinite(Number(parsed && parsed.position && parsed.position.chunkOrder))
+      ? Number(parsed.position.chunkOrder)
+      : null;
+  const useVisibleRangeHint = String(readingState.resumeAnchorSource || "") === "page-midpoint";
+  return {
+    applied: Number.isFinite(targetGlobalOffset),
+    source: "protected-persisted",
+    readingState,
+    workerPayload: Number.isFinite(targetGlobalOffset)
+      ? {
+          initialChunkIndex: Number.isFinite(targetChunkOrder) ? Math.max(0, Math.floor(targetChunkOrder)) : 0,
+          initialGlobalOffset: targetGlobalOffset,
+          initialPreferredGlobalStartOffset:
+            useVisibleRangeHint &&
+            readingState.visibleRange &&
+            Number.isFinite(Number(readingState.visibleRange.globalStartOffset))
+              ? Number(readingState.visibleRange.globalStartOffset)
+              : null,
+          initialPreferredGlobalEndOffset:
+            useVisibleRangeHint &&
+            readingState.visibleRange &&
+            Number.isFinite(Number(readingState.visibleRange.globalEndOffset))
+              ? Number(readingState.visibleRange.globalEndOffset)
+              : null
+        }
+      : {
+          initialRestoreToken: readingState.restoreToken
+        }
+  };
+}
+
 function renderBookMeta() {
   if (!state.bookSummary) return setDlRows(elements.bookMeta, []);
   const metadata = state.bookSummary.metadata || {};
@@ -1659,7 +1738,8 @@ async function finalizeArtifactLoad({
   blockForRestore = false,
   repositoryReadyPromise = null,
   restoredPromise = null,
-  diagnosticsPromise = null
+  diagnosticsPromise = null,
+  initialRestoreApplied = false
 }) {
   if (repositoryReadyPromise) {
     await repositoryReadyPromise;
@@ -1674,7 +1754,7 @@ async function finalizeArtifactLoad({
     bookSummary: restored.snapshot.bookSummary || snapshot.bookSummary,
     tocItems: restored.snapshot.tocItems || snapshot.tocItems
   } : snapshot;
-  if (!restored) {
+  if (!restored && !initialRestoreApplied) {
     state.readingStateSource = "default-start";
   }
   applySnapshot(finalSnapshot);
@@ -1729,12 +1809,16 @@ async function loadArtifact(artifactRoot) {
   syncLocationParams();
   setStatus(`Loading protected artifact ${artifactRoot}...`);
   const diagnosticsPromise = probeArtifactDiagnostics(artifactRoot);
+  const initialRestore = resolveInitialReadingRestore(
+    (state.entryConfig && state.entryConfig.bookId) || ""
+  );
   const snapshot = await state.workerClient.initBook({
     artifactRoot,
     renderMode: "shape",
     metricsMode: state.metricsMode,
     fontScale: state.fontScale,
     fontMode: state.fontMode,
+    ...initialRestore.workerPayload,
     ...getGenerationPayload(),
     ...getViewportConfig(),
     annotations: []
@@ -1745,16 +1829,24 @@ async function loadArtifact(artifactRoot) {
   if (snapshot.bookSummary) state.bookSummary = snapshot.bookSummary;
   if (snapshot.tocItems) state.tocItems = snapshot.tocItems;
   state.artifactLoadStatus = "initial-page-ready";
-  state.readingStateSource = "default-start";
+  state.readingStateSource = initialRestore.source || "default-start";
+  state.readingStateRestoreApplied = !!initialRestore.applied;
+  state.persistedReadingState = initialRestore.readingState || null;
+  state.lastReadingStateSaveAt = initialRestore.readingState && initialRestore.readingState.updatedAt
+    ? initialRestore.readingState.updatedAt
+    : null;
   applySnapshot(snapshot);
   setStatus(
     `Opened ${snapshot.chunkSummary.chunkId} (${snapshot.chunkSummary.order}/${snapshot.chunkSummary.total}) in ${state.renderMode}/${state.metricsMode} mode. Finalizing reader state...`,
     "info"
   );
   const blockForRestore = !!(
-    state.entryConfig &&
-    state.entryConfig.explicitRestoreToken &&
-    String(state.entryConfig.explicitRestoreToken).trim()
+    initialRestore.applied ||
+    (
+      state.entryConfig &&
+      state.entryConfig.explicitRestoreToken &&
+      String(state.entryConfig.explicitRestoreToken).trim()
+    )
   );
   if (!blockForRestore) {
     state.artifactLoadStatus = "restoring";
@@ -1762,7 +1854,9 @@ async function loadArtifact(artifactRoot) {
   }
   const protectedBookPromise = Promise.resolve().then(() => loadProtectedBook(artifactRoot));
   const repositoryReadyPromise = initializeProtectedRepository(bookId, protectedBookPromise);
-  const restoredPromise = repositoryReadyPromise.then(() => restoreReadingStateIfAvailable(bookId));
+  const restoredPromise = initialRestore.applied
+    ? Promise.resolve(null)
+    : repositoryReadyPromise.then(() => restoreReadingStateIfAvailable(bookId));
   void finalizeArtifactLoad({
     artifactRoot,
     snapshot,
@@ -1771,7 +1865,8 @@ async function loadArtifact(artifactRoot) {
     blockForRestore,
     repositoryReadyPromise,
     restoredPromise,
-    diagnosticsPromise
+    diagnosticsPromise,
+    initialRestoreApplied: !!initialRestore.applied
   }).catch((error) => {
     console.error(error);
     state.artifactLoadStatus = "failed";

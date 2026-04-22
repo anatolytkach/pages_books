@@ -77,9 +77,10 @@
 - Current local v5 is now back on the copied `reader_render_v3/` runtime contract rather than the earlier hybrid HTML-paginated prototype path.
 - Current local v5 opens its own `/reader_render_v5/artifacts/protected-bootstrap-books/<bookId>/` route through a compatibility adapter at `reader_render_v5/runtime/protected-book-model.js`.
 - That adapter currently keeps the copied `v3` runtime alive by feeding it the existing runtime-safe substrate while merging selected metadata and chunk-level presentation/media semantics from the new bootstrap manifest.
-- Current local v5 first-paints the initial reader page before repository hydration, persisted-reading-state restore, and background pagination-summary work finish; heavy follow-up work now continues after the first snapshot instead of blocking the first visible page.
+- Current local v5 now preloads persisted protected reading state from the same local persistence bundle the repository later hydrates, and passes that restore target into worker `initBook()` so a browser refresh first-paints the saved reading page instead of briefly showing page one before restore.
 - Current local v5 worker startup now defers `locations.json` hydration until after the first snapshot, and the host also defers its secondary repository-side `loadProtectedBook(...)` until the first page is already visible.
 - Current local v5 runtime layout now uses block-font-size-based `em` spacing and CSS-like vertical margin collapsing between adjacent blocks instead of earlier fixed pixel multipliers and fallback gaps, so heading/date/inline-handle spacing can match `reader1` more closely.
+- Current local v5 paragraph justification now treats lines terminated by source `<br>` hard breaks as non-justifiable, so intra-paragraph forced line breaks no longer stretch across the full column width like ordinary middle paragraph lines.
 - Current `reader_render_v5/runtime/protected-book-model.js` now runs in strict artifact-first mode for structural/media-bearing `v4` candidates:
   - chapter-opening clusters
   - comment-thread sections

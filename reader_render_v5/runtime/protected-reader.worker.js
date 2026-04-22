@@ -1,4 +1,4 @@
-import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js?v=20260422-v5-heading-style-payload-1";
+import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js?v=20260422-v5-initial-reading-restore-1";
 import { createWorkerResponse, sanitizeProtectedWorkerPayload } from "./protected-worker-protocol.js";
 
 const core = new ProtectedReaderRuntimeCore();

@@ -330,6 +330,7 @@ function shouldJustifyParagraphLine(line, blockLines, index) {
   if (wordLikeFragments.length <= 1 || gapLikeFragments.length === 0) return false;
   const isLastLine = index === blockLines.length - 1;
   if (isLastLine) return false;
+  if (line.terminatedByHardBreak) return false;
   return true;
 }
 
@@ -580,7 +581,7 @@ export function layoutChunk({
     let blockLineCount = 0;
     let dropCapWrap = null;
 
-    function commitLine() {
+    function commitLine({ terminatedByHardBreak = false } = {}) {
       if (!currentLine || !currentLine.fragments.length) return;
       while (
         currentLine.fragments.length &&
@@ -627,6 +628,7 @@ export function layoutChunk({
       currentLine.endOffset = Math.max(...currentLine.fragments.map((item) => item.endOffset));
       currentLine.lineIndex = lines.length;
       currentLine.maxWidth = Number(currentLine.maxWidth || columnWidth);
+      currentLine.terminatedByHardBreak = terminatedByHardBreak;
       lines.push(currentLine);
       columnCursorY += currentLine.height;
       blockLineCount += 1;
@@ -764,7 +766,7 @@ export function layoutChunk({
     let previousRunContext = null;
     runs.forEach((run, runIndex) => {
       if (run.hardBreak) {
-        commitLine();
+        commitLine({ terminatedByHardBreak: true });
         previousRunContext = null;
         return;
       }
