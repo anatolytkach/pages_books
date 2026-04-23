@@ -976,6 +976,18 @@ function installStyles() {
       user-select: none;
       -webkit-user-drag: none;
     }
+    html.is-desktop body.protected-shell #protectedImageViewer .protected-image-viewer-image.fit-height {
+      width: auto;
+      height: 100vh;
+      max-width: 100vw;
+      max-height: none;
+    }
+    html.is-desktop body.protected-shell #protectedImageViewer .protected-image-viewer-image.fit-width {
+      width: 100vw;
+      height: auto;
+      max-width: none;
+      max-height: 100vh;
+    }
     html.is-phone body.protected-shell #protectedImageViewer,
     html.is-tablet body.protected-shell #protectedImageViewer {
       background: rgba(0, 0, 0, 0.98);
@@ -6312,6 +6324,22 @@ function applyImageViewerTransform() {
   image.style.transform = `translate(${Number(HOST_STATE.imageViewerTransform.x || 0)}px, ${Number(HOST_STATE.imageViewerTransform.y || 0)}px) scale(${Number(HOST_STATE.imageViewerTransform.scale || 1)})`;
 }
 
+function applyDesktopImageViewerFit() {
+  const viewer = document.getElementById("protectedImageViewer");
+  const image = viewer ? viewer.querySelector(".protected-image-viewer-image") : null;
+  if (!viewer || !image) return;
+  image.classList.remove("fit-height", "fit-width");
+  if (viewer.classList.contains("touch")) return;
+  const naturalWidth = Number(image.naturalWidth || image.width || 0);
+  const naturalHeight = Number(image.naturalHeight || image.height || 0);
+  if (!(naturalWidth > 0 && naturalHeight > 0)) return;
+  const viewportWidth = Math.max(1, window.innerWidth || document.documentElement.clientWidth || naturalWidth);
+  const viewportHeight = Math.max(1, window.innerHeight || document.documentElement.clientHeight || naturalHeight);
+  const imageAspect = naturalWidth / naturalHeight;
+  const viewportAspect = viewportWidth / viewportHeight;
+  image.classList.add(imageAspect <= viewportAspect ? "fit-height" : "fit-width");
+}
+
 function closeProtectedImageViewer(reason = "dismiss") {
   const viewer = document.getElementById("protectedImageViewer");
   if (!viewer) return;
@@ -6476,6 +6504,7 @@ function ensureProtectedImageViewer() {
     event.preventDefault();
   };
   image && image.addEventListener("load", () => {
+    applyDesktopImageViewerFit();
     HOST_STATE.imageViewerTransform = { scale: 1, x: 0, y: 0 };
     applyImageViewerTransform();
   });
@@ -6486,6 +6515,7 @@ function ensureProtectedImageViewer() {
   stage && stage.addEventListener("wheel", onWheel, { passive: false });
   window.addEventListener("resize", () => {
     if (!viewer.classList.contains("show")) return;
+    applyDesktopImageViewerFit();
     applyImageViewerTransform();
   }, { passive: true });
   document.body.appendChild(viewer);
@@ -6505,6 +6535,7 @@ function showProtectedImageViewer(media, pointerType = "mouse") {
   viewer.classList.add("show");
   viewer.classList.toggle("touch", !!touchMode);
   viewer.setAttribute("aria-hidden", "false");
+  image.classList.remove("fit-height", "fit-width");
   image.src = String(media.assetUrl || "");
   image.alt = "";
   image.style.transform = "";
@@ -6556,6 +6587,15 @@ function probeFootnoteAtClientPoint(clientX = 0, clientY = 0, pointerType = "mou
   ).catch(() => null);
 }
 
+function probeLinkAtClientPoint(clientX = 0, clientY = 0, pointerType = "mouse") {
+  return invokeBridgeRaw(
+    "getLinkAtClientPoint",
+    Number(clientX || 0),
+    Number(clientY || 0),
+    String(pointerType || "mouse")
+  ).catch(() => null);
+}
+
 function probeMediaAtClientPoint(clientX = 0, clientY = 0, pointerType = "mouse") {
   return invokeBridgeRaw(
     "getMediaAtClientPoint",
@@ -6563,6 +6603,27 @@ function probeMediaAtClientPoint(clientX = 0, clientY = 0, pointerType = "mouse"
     Number(clientY || 0),
     String(pointerType || "mouse")
   ).catch(() => null);
+}
+
+async function handleProtectedLinkActivation(anchor, pointerType = "mouse") {
+  if (!anchor) return false;
+  hideFootnotePopup("link-activate");
+  hideSelectionToolbar();
+  suppressShellToggle(pointerType === "touch" ? 900 : 650);
+  if (pointerType === "touch") {
+    HOST_STATE.suppressSyntheticClickUntil = Date.now() + 900;
+  }
+  if (anchor.kind === "external" && anchor.externalUrl) {
+    openExternalUrl(anchor.externalUrl);
+    return true;
+  }
+  if (anchor.kind === "internal" && Number.isFinite(Number(anchor.globalOffset))) {
+    const chunkOrder = Number.isFinite(Number(anchor.chunkOrder)) ? Number(anchor.chunkOrder) : null;
+    const summary = await invokeBridgeRaw("goToGlobalOffset", Number(anchor.globalOffset), chunkOrder);
+    if (summary) updateFromSummary(summary);
+    return true;
+  }
+  return false;
 }
 
 function renderFootnoteParagraphRuns(runs = []) {
@@ -6949,7 +7010,9 @@ function attachProtectedSurfaceInteractions(frame) {
       mediaProbe: null,
       mediaItem: null,
       footnoteProbe: null,
-      footnoteAnchor: null
+      footnoteAnchor: null,
+      linkProbe: null,
+      linkAnchor: null
     };
     const blockContextMenu = (event) => {
       const target = event.target;
@@ -7013,6 +7076,16 @@ function attachProtectedSurfaceInteractions(frame) {
             desktopSurfaceClickState.footnoteAnchor = result && result.active && result.anchor ? result.anchor : null;
             if (desktopSurfaceClickState.footnoteAnchor && !desktopSurfaceClickState.mediaItem) desktopSurfaceClickState.armed = false;
             return desktopSurfaceClickState.footnoteAnchor;
+          })
+        : null;
+      desktopSurfaceClickState.linkAnchor = null;
+      desktopSurfaceClickState.linkProbe = inProtectedSurface && primaryButton
+        ? probeLinkAtClientPoint(event.clientX, event.clientY, "mouse").then((result) => {
+            desktopSurfaceClickState.linkAnchor = result && result.active && result.anchor ? result.anchor : null;
+            if (desktopSurfaceClickState.linkAnchor && !desktopSurfaceClickState.mediaItem && !desktopSurfaceClickState.footnoteAnchor) {
+              desktopSurfaceClickState.armed = false;
+            }
+            return desktopSurfaceClickState.linkAnchor;
           })
         : null;
     }, true);
@@ -7103,6 +7176,18 @@ function attachProtectedSurfaceInteractions(frame) {
           handleProtectedFootnoteActivation(anchor, Number(event.clientX || 0), Number(event.clientY || 0), "mouse");
           return;
         }
+        const linkAnchor = desktopSurfaceClickState.linkProbe
+          ? await desktopSurfaceClickState.linkProbe
+          : await probeLinkAtClientPoint(event.clientX, event.clientY, "mouse").then((result) => result && result.active && result.anchor ? result.anchor : null);
+        if (linkAnchor) {
+          desktopSurfaceClickState.armed = false;
+          desktopSurfaceClickState.selectionDismissed = false;
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+          await handleProtectedLinkActivation(linkAnchor, "mouse");
+          return;
+        }
       }
       if (!desktopSurfaceClickState.armed || !inProtectedSurface || !primaryButton || hasSelection || desktopSurfaceClickState.selectionDismissed || Date.now() < Number(HOST_STATE.suppressShellToggleUntil || 0)) {
         desktopSurfaceClickState.armed = false;
@@ -7111,6 +7196,8 @@ function attachProtectedSurfaceInteractions(frame) {
         desktopSurfaceClickState.mediaItem = null;
         desktopSurfaceClickState.footnoteProbe = null;
         desktopSurfaceClickState.footnoteAnchor = null;
+        desktopSurfaceClickState.linkProbe = null;
+        desktopSurfaceClickState.linkAnchor = null;
         return;
       }
       desktopSurfaceClickState.armed = false;
@@ -8766,6 +8853,18 @@ function installTouchSwipe(target) {
             touch ? touch.clientY : completedGesture.startY,
             "touch"
           );
+          return;
+        }
+        const linkAnchor = await probeLinkAtClientPoint(
+          touch ? touch.clientX : completedGesture.startX,
+          touch ? touch.clientY : completedGesture.startY,
+          "touch"
+        ).then((result) => (result && result.active && result.anchor ? result.anchor : null)).catch(() => null);
+        if (linkAnchor) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+          await handleProtectedLinkActivation(linkAnchor, "touch");
           return;
         }
         window.__protectedTouchDebug.tap = {

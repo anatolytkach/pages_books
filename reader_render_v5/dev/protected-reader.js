@@ -648,8 +648,11 @@ function buildDebugLayoutState() {
             y: Number(fragment.y || 0),
             width: Number(fragment.width || 0),
             height: Number(fragment.height || 0),
+            startOffset: Number(fragment.startOffset || 0),
+            endOffset: Number(fragment.endOffset || 0),
             tokenKind: String(fragment.tokenKind || ""),
-            glyphCount: Number(fragment.glyphCount || 0)
+            glyphCount: Number(fragment.glyphCount || 0),
+            text: String(fragment.syntheticText || fragment.text || "")
           }))
         : [],
       preview: Array.isArray(line.fragments)
@@ -1931,6 +1934,12 @@ async function getFootnoteAtClientPoint(clientX, clientY, pointerType = "mouse")
   return getFootnoteAt(point, pointerType);
 }
 
+async function getLinkAtClientPoint(clientX, clientY, pointerType = "mouse") {
+  if (!state.currentSnapshot) return { active: false, anchor: null };
+  const point = getCanvasPointFromClient(clientX, clientY);
+  return getLinkAt(point, pointerType);
+}
+
 function buildExpandedMediaHitBounds(item, pointerType = "mouse") {
   if (!item) return null;
   const left = Number(item.x || 0);
@@ -2003,6 +2012,16 @@ async function getMediaAtClientPoint(clientX, clientY, pointerType = "mouse") {
 async function getFootnoteAt(point, pointerType = "mouse") {
   if (!state.currentSnapshot) return { active: false, anchor: null };
   return state.workerClient.getFootnoteAtPoint({
+    ...getViewportConfig(),
+    x: point.x,
+    y: point.y,
+    pointerType
+  });
+}
+
+async function getLinkAt(point, pointerType = "mouse") {
+  if (!state.currentSnapshot) return { active: false, anchor: null };
+  return state.workerClient.getLinkAtPoint({
     ...getViewportConfig(),
     x: point.x,
     y: point.y,
@@ -3517,6 +3536,10 @@ async function bridgeGetFootnoteAtClientPoint(clientX = 0, clientY = 0, pointerT
   return getFootnoteAtClientPoint(clientX, clientY, pointerType);
 }
 
+async function bridgeGetLinkAtClientPoint(clientX = 0, clientY = 0, pointerType = "mouse") {
+  return getLinkAtClientPoint(clientX, clientY, pointerType);
+}
+
 async function bridgeGetMediaAtClientPoint(clientX = 0, clientY = 0, pointerType = "mouse") {
   return getMediaAtClientPoint(clientX, clientY, pointerType);
 }
@@ -3538,6 +3561,7 @@ function buildEmbeddedHostHandlers() {
     restoreFromToken: bridgeRestoreFromToken,
     goToGlobalOffset: bridgeGoToGlobalOffset,
     getFootnoteAtClientPoint: bridgeGetFootnoteAtClientPoint,
+    getLinkAtClientPoint: bridgeGetLinkAtClientPoint,
     getMediaAtClientPoint: bridgeGetMediaAtClientPoint,
     copySelection: bridgeCopySelection,
     exportSelectionForUserAction: bridgeExportSelectionForUserAction,

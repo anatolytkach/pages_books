@@ -2,163 +2,9 @@
   "chunkId": "chunk-000004",
   "seed": "eef74d44658a13cf",
   "glyphs": {
-    "g-ea8c39178954": {
-      "glyphId": "g-ea8c39178954",
-      "glyphToken": "g-ea8c39178954",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-ea8c39178954",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-ea8c39178954",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-b7c57f584474": {
-      "glyphId": "g-b7c57f584474",
-      "glyphToken": "g-b7c57f584474",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-b7c57f584474",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-b7c57f584474",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-48b0b1b6cee8": {
-      "glyphId": "g-48b0b1b6cee8",
-      "glyphToken": "g-48b0b1b6cee8",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-48b0b1b6cee8",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-48b0b1b6cee8",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-b4668a78d955": {
-      "glyphId": "g-b4668a78d955",
-      "glyphToken": "g-b4668a78d955",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-b4668a78d955",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-b4668a78d955",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-0cff8e4cd7f7": {
-      "glyphId": "g-0cff8e4cd7f7",
-      "glyphToken": "g-0cff8e4cd7f7",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-0cff8e4cd7f7",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-0cff8e4cd7f7",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-1494238fa6d0": {
-      "glyphId": "g-1494238fa6d0",
-      "glyphToken": "g-1494238fa6d0",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-1494238fa6d0",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-1494238fa6d0",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-e468f5ca5b9e": {
-      "glyphId": "g-e468f5ca5b9e",
-      "glyphToken": "g-e468f5ca5b9e",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-e468f5ca5b9e",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-e468f5ca5b9e",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-dd0a566c9dd1": {
-      "glyphId": "g-dd0a566c9dd1",
-      "glyphToken": "g-dd0a566c9dd1",
+    "g-50a6771904eb": {
+      "glyphId": "g-50a6771904eb",
+      "glyphToken": "g-50a6771904eb",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "glyphClass": "common-paragraph",
@@ -167,20 +13,20 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-dd0a566c9dd1",
+          "shapeRef": "shape-sans-g-50a6771904eb",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-dd0a566c9dd1",
+          "shapeRef": "shape-serif-g-50a6771904eb",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-463bd3795029": {
-      "glyphId": "g-463bd3795029",
-      "glyphToken": "g-463bd3795029",
+    "g-5c5b200d5a5a": {
+      "glyphId": "g-5c5b200d5a5a",
+      "glyphToken": "g-5c5b200d5a5a",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph",
@@ -189,123 +35,13 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-463bd3795029",
+          "shapeRef": "shape-sans-g-5c5b200d5a5a",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-463bd3795029",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-b88332abca1a": {
-      "glyphId": "g-b88332abca1a",
-      "glyphToken": "g-b88332abca1a",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-b88332abca1a",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-b88332abca1a",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-f1c87482579d": {
-      "glyphId": "g-f1c87482579d",
-      "glyphToken": "g-f1c87482579d",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-f1c87482579d",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-f1c87482579d",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-2d8790a6c4ad": {
-      "glyphId": "g-2d8790a6c4ad",
-      "glyphToken": "g-2d8790a6c4ad",
-      "styleToken": "paragraph",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph",
-      "stableRenderClass": "common-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-2d8790a6c4ad",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-2d8790a6c4ad",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-79ad8e20206f": {
-      "glyphId": "g-79ad8e20206f",
-      "glyphToken": "g-79ad8e20206f",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-79ad8e20206f",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-79ad8e20206f",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-2eb663f0dee6": {
-      "glyphId": "g-2eb663f0dee6",
-      "glyphToken": "g-2eb663f0dee6",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-2eb663f0dee6",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-2eb663f0dee6",
+          "shapeRef": "shape-serif-g-5c5b200d5a5a",
           "shapeStatus": "synthetic"
         }
       }
@@ -332,204 +68,6 @@
         }
       }
     },
-    "g-a614d76d7a4d": {
-      "glyphId": "g-a614d76d7a4d",
-      "glyphToken": "g-a614d76d7a4d",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-a614d76d7a4d",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-a614d76d7a4d",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-519fd8115804": {
-      "glyphId": "g-519fd8115804",
-      "glyphToken": "g-519fd8115804",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-519fd8115804",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-519fd8115804",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-093575cdfb80": {
-      "glyphId": "g-093575cdfb80",
-      "glyphToken": "g-093575cdfb80",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-093575cdfb80",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-093575cdfb80",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-ab169e3891c5": {
-      "glyphId": "g-ab169e3891c5",
-      "glyphToken": "g-ab169e3891c5",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-ab169e3891c5",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-ab169e3891c5",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-ec0bbe7357ba": {
-      "glyphId": "g-ec0bbe7357ba",
-      "glyphToken": "g-ec0bbe7357ba",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-ec0bbe7357ba",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-ec0bbe7357ba",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-cba07156882f": {
-      "glyphId": "g-cba07156882f",
-      "glyphToken": "g-cba07156882f",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-cba07156882f",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-cba07156882f",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-721223fa70e1": {
-      "glyphId": "g-721223fa70e1",
-      "glyphToken": "g-721223fa70e1",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-721223fa70e1",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-721223fa70e1",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-6ed810b0e4e7": {
-      "glyphId": "g-6ed810b0e4e7",
-      "glyphToken": "g-6ed810b0e4e7",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-6ed810b0e4e7",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-6ed810b0e4e7",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-3f5ddd81036f": {
-      "glyphId": "g-3f5ddd81036f",
-      "glyphToken": "g-3f5ddd81036f",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-3f5ddd81036f",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-3f5ddd81036f",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
     "g-06a7651c7ae2": {
       "glyphId": "g-06a7651c7ae2",
       "glyphToken": "g-06a7651c7ae2",
@@ -548,116 +86,6 @@
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
           "shapeRef": "shape-serif-g-06a7651c7ae2",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-b46aa6a0be67": {
-      "glyphId": "g-b46aa6a0be67",
-      "glyphToken": "g-b46aa6a0be67",
-      "styleToken": "paragraph",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph",
-      "stableRenderClass": "common-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-b46aa6a0be67",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-b46aa6a0be67",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-230b8322dde7": {
-      "glyphId": "g-230b8322dde7",
-      "glyphToken": "g-230b8322dde7",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-230b8322dde7",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-230b8322dde7",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-5fd078662085": {
-      "glyphId": "g-5fd078662085",
-      "glyphToken": "g-5fd078662085",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-5fd078662085",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-5fd078662085",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-1bf4bf5122ee": {
-      "glyphId": "g-1bf4bf5122ee",
-      "glyphToken": "g-1bf4bf5122ee",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-1bf4bf5122ee",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-1bf4bf5122ee",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-09ee2d4d2b43": {
-      "glyphId": "g-09ee2d4d2b43",
-      "glyphToken": "g-09ee2d4d2b43",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-09ee2d4d2b43",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-09ee2d4d2b43",
           "shapeStatus": "synthetic"
         }
       }
@@ -684,9 +112,9 @@
         }
       }
     },
-    "g-8787d90833c1": {
-      "glyphId": "g-8787d90833c1",
-      "glyphToken": "g-8787d90833c1",
+    "g-dd0a566c9dd1": {
+      "glyphId": "g-dd0a566c9dd1",
+      "glyphToken": "g-dd0a566c9dd1",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "glyphClass": "common-paragraph",
@@ -695,20 +123,20 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-8787d90833c1",
+          "shapeRef": "shape-sans-g-dd0a566c9dd1",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-8787d90833c1",
+          "shapeRef": "shape-serif-g-dd0a566c9dd1",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-799062130bf0": {
-      "glyphId": "g-799062130bf0",
-      "glyphToken": "g-799062130bf0",
+    "g-519fd8115804": {
+      "glyphId": "g-519fd8115804",
+      "glyphToken": "g-519fd8115804",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph",
@@ -717,20 +145,20 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-799062130bf0",
+          "shapeRef": "shape-sans-g-519fd8115804",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-799062130bf0",
+          "shapeRef": "shape-serif-g-519fd8115804",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-425590414af3": {
-      "glyphId": "g-425590414af3",
-      "glyphToken": "g-425590414af3",
+    "g-2eb663f0dee6": {
+      "glyphId": "g-2eb663f0dee6",
+      "glyphToken": "g-2eb663f0dee6",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph",
@@ -739,20 +167,20 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-425590414af3",
+          "shapeRef": "shape-sans-g-2eb663f0dee6",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-425590414af3",
+          "shapeRef": "shape-serif-g-2eb663f0dee6",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-9bb51994c1c1": {
-      "glyphId": "g-9bb51994c1c1",
-      "glyphToken": "g-9bb51994c1c1",
+    "g-230b8322dde7": {
+      "glyphId": "g-230b8322dde7",
+      "glyphToken": "g-230b8322dde7",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph",
@@ -761,35 +189,35 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-9bb51994c1c1",
+          "shapeRef": "shape-sans-g-230b8322dde7",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-9bb51994c1c1",
+          "shapeRef": "shape-serif-g-230b8322dde7",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-7e1a3d9c1292": {
-      "glyphId": "g-7e1a3d9c1292",
-      "glyphToken": "g-7e1a3d9c1292",
+    "g-093575cdfb80": {
+      "glyphId": "g-093575cdfb80",
+      "glyphToken": "g-093575cdfb80",
       "styleToken": "paragraph",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph",
-      "stableRenderClass": "common-chunk-glyph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-7e1a3d9c1292",
+          "shapeRef": "shape-sans-g-093575cdfb80",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-7e1a3d9c1292",
+          "shapeRef": "shape-serif-g-093575cdfb80",
           "shapeStatus": "synthetic"
         }
       }
@@ -838,9 +266,9 @@
         }
       }
     },
-    "g-e4609bbc8c51": {
-      "glyphId": "g-e4609bbc8c51",
-      "glyphToken": "g-e4609bbc8c51",
+    "g-ec0bbe7357ba": {
+      "glyphId": "g-ec0bbe7357ba",
+      "glyphToken": "g-ec0bbe7357ba",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph",
@@ -849,20 +277,20 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-e4609bbc8c51",
+          "shapeRef": "shape-sans-g-ec0bbe7357ba",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-e4609bbc8c51",
+          "shapeRef": "shape-serif-g-ec0bbe7357ba",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-6675d48670b4": {
-      "glyphId": "g-6675d48670b4",
-      "glyphToken": "g-6675d48670b4",
+    "g-1f65acd73b76": {
+      "glyphId": "g-1f65acd73b76",
+      "glyphToken": "g-1f65acd73b76",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph",
@@ -871,20 +299,20 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-6675d48670b4",
+          "shapeRef": "shape-sans-g-1f65acd73b76",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-6675d48670b4",
+          "shapeRef": "shape-serif-g-1f65acd73b76",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-f8ad5a662f32": {
-      "glyphId": "g-f8ad5a662f32",
-      "glyphToken": "g-f8ad5a662f32",
+    "g-1bf4bf5122ee": {
+      "glyphId": "g-1bf4bf5122ee",
+      "glyphToken": "g-1bf4bf5122ee",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph",
@@ -893,196 +321,20 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-f8ad5a662f32",
+          "shapeRef": "shape-sans-g-1bf4bf5122ee",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-f8ad5a662f32",
+          "shapeRef": "shape-serif-g-1bf4bf5122ee",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-669288621ce3": {
-      "glyphId": "g-669288621ce3",
-      "glyphToken": "g-669288621ce3",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-669288621ce3",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-669288621ce3",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-81af88dd06c8": {
-      "glyphId": "g-81af88dd06c8",
-      "glyphToken": "g-81af88dd06c8",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-81af88dd06c8",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-81af88dd06c8",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-71c8c21b0a09": {
-      "glyphId": "g-71c8c21b0a09",
-      "glyphToken": "g-71c8c21b0a09",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-71c8c21b0a09",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-71c8c21b0a09",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-703601567dfd": {
-      "glyphId": "g-703601567dfd",
-      "glyphToken": "g-703601567dfd",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-703601567dfd",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-703601567dfd",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-2c1dd61d79e8": {
-      "glyphId": "g-2c1dd61d79e8",
-      "glyphToken": "g-2c1dd61d79e8",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-2c1dd61d79e8",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-2c1dd61d79e8",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-f8d7430c470c": {
-      "glyphId": "g-f8d7430c470c",
-      "glyphToken": "g-f8d7430c470c",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-f8d7430c470c",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-f8d7430c470c",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-876f6dc3ddc3": {
-      "glyphId": "g-876f6dc3ddc3",
-      "glyphToken": "g-876f6dc3ddc3",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-876f6dc3ddc3",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-876f6dc3ddc3",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-33d6699f5d9d": {
-      "glyphId": "g-33d6699f5d9d",
-      "glyphToken": "g-33d6699f5d9d",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-33d6699f5d9d",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-33d6699f5d9d",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-b7e251e76c80": {
-      "glyphId": "g-b7e251e76c80",
-      "glyphToken": "g-b7e251e76c80",
+    "g-2d8790a6c4ad": {
+      "glyphId": "g-2d8790a6c4ad",
+      "glyphToken": "g-2d8790a6c4ad",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "glyphClass": "common-paragraph",
@@ -1091,145 +343,13 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-b7e251e76c80",
+          "shapeRef": "shape-sans-g-2d8790a6c4ad",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-b7e251e76c80",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-14366402931f": {
-      "glyphId": "g-14366402931f",
-      "glyphToken": "g-14366402931f",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-14366402931f",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-14366402931f",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-5c5b200d5a5a": {
-      "glyphId": "g-5c5b200d5a5a",
-      "glyphToken": "g-5c5b200d5a5a",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-5c5b200d5a5a",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-5c5b200d5a5a",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-a34d6b3b89ea": {
-      "glyphId": "g-a34d6b3b89ea",
-      "glyphToken": "g-a34d6b3b89ea",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-a34d6b3b89ea",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-a34d6b3b89ea",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-faef4aad9f1c": {
-      "glyphId": "g-faef4aad9f1c",
-      "glyphToken": "g-faef4aad9f1c",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-faef4aad9f1c",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-faef4aad9f1c",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-8db60270dec4": {
-      "glyphId": "g-8db60270dec4",
-      "glyphToken": "g-8db60270dec4",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-8db60270dec4",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-8db60270dec4",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-50a6771904eb": {
-      "glyphId": "g-50a6771904eb",
-      "glyphToken": "g-50a6771904eb",
-      "styleToken": "paragraph",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph",
-      "stableRenderClass": "common-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-50a6771904eb",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-50a6771904eb",
+          "shapeRef": "shape-serif-g-2d8790a6c4ad",
           "shapeStatus": "synthetic"
         }
       }
@@ -1256,9 +376,31 @@
         }
       }
     },
-    "g-095c9c6f102c": {
-      "glyphId": "g-095c9c6f102c",
-      "glyphToken": "g-095c9c6f102c",
+    "g-3f5ddd81036f": {
+      "glyphId": "g-3f5ddd81036f",
+      "glyphToken": "g-3f5ddd81036f",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-3f5ddd81036f",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-3f5ddd81036f",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-8787d90833c1": {
+      "glyphId": "g-8787d90833c1",
+      "glyphToken": "g-8787d90833c1",
       "styleToken": "paragraph",
       "scriptBucket": "Common",
       "glyphClass": "common-paragraph",
@@ -1267,123 +409,277 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-095c9c6f102c",
+          "shapeRef": "shape-sans-g-8787d90833c1",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-095c9c6f102c",
+          "shapeRef": "shape-serif-g-8787d90833c1",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-92a18fc33a75": {
-      "glyphId": "g-92a18fc33a75",
-      "glyphToken": "g-92a18fc33a75",
-      "styleToken": "paragraph-italic",
+    "g-9bb51994c1c1": {
+      "glyphId": "g-9bb51994c1c1",
+      "glyphToken": "g-9bb51994c1c1",
+      "styleToken": "paragraph",
       "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
+      "glyphClass": "latin-paragraph",
       "stableRenderClass": "latin-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-92a18fc33a75",
+          "shapeRef": "shape-sans-g-9bb51994c1c1",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-92a18fc33a75",
+          "shapeRef": "shape-serif-g-9bb51994c1c1",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-85ddc7c68f58": {
-      "glyphId": "g-85ddc7c68f58",
-      "glyphToken": "g-85ddc7c68f58",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph-italic",
-      "stableRenderClass": "common-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-85ddc7c68f58",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-85ddc7c68f58",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-58e7d0b0206d": {
-      "glyphId": "g-58e7d0b0206d",
-      "glyphToken": "g-58e7d0b0206d",
-      "styleToken": "paragraph-italic",
+    "g-6ed810b0e4e7": {
+      "glyphId": "g-6ed810b0e4e7",
+      "glyphToken": "g-6ed810b0e4e7",
+      "styleToken": "paragraph",
       "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
+      "glyphClass": "latin-paragraph",
       "stableRenderClass": "latin-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-58e7d0b0206d",
+          "shapeRef": "shape-sans-g-6ed810b0e4e7",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-58e7d0b0206d",
+          "shapeRef": "shape-serif-g-6ed810b0e4e7",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-25b1406cd6a2": {
-      "glyphId": "g-25b1406cd6a2",
-      "glyphToken": "g-25b1406cd6a2",
-      "styleToken": "paragraph-italic",
+    "g-cba07156882f": {
+      "glyphId": "g-cba07156882f",
+      "glyphToken": "g-cba07156882f",
+      "styleToken": "paragraph",
       "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
+      "glyphClass": "latin-paragraph",
       "stableRenderClass": "latin-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-25b1406cd6a2",
+          "shapeRef": "shape-sans-g-cba07156882f",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-25b1406cd6a2",
+          "shapeRef": "shape-serif-g-cba07156882f",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-a4e63bdb3e32": {
-      "glyphId": "g-a4e63bdb3e32",
-      "glyphToken": "g-a4e63bdb3e32",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph-italic",
-      "stableRenderClass": "common-chunk-glyph",
+    "g-721223fa70e1": {
+      "glyphId": "g-721223fa70e1",
+      "glyphToken": "g-721223fa70e1",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-a4e63bdb3e32",
+          "shapeRef": "shape-sans-g-721223fa70e1",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-a4e63bdb3e32",
+          "shapeRef": "shape-serif-g-721223fa70e1",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-1494238fa6d0": {
+      "glyphId": "g-1494238fa6d0",
+      "glyphToken": "g-1494238fa6d0",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-1494238fa6d0",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-1494238fa6d0",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-14366402931f": {
+      "glyphId": "g-14366402931f",
+      "glyphToken": "g-14366402931f",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-14366402931f",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-14366402931f",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-799062130bf0": {
+      "glyphId": "g-799062130bf0",
+      "glyphToken": "g-799062130bf0",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-799062130bf0",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-799062130bf0",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-ab169e3891c5": {
+      "glyphId": "g-ab169e3891c5",
+      "glyphToken": "g-ab169e3891c5",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-ab169e3891c5",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-ab169e3891c5",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-5fd078662085": {
+      "glyphId": "g-5fd078662085",
+      "glyphToken": "g-5fd078662085",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-5fd078662085",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-5fd078662085",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-f1c87482579d": {
+      "glyphId": "g-f1c87482579d",
+      "glyphToken": "g-f1c87482579d",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-f1c87482579d",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-f1c87482579d",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-79ad8e20206f": {
+      "glyphId": "g-79ad8e20206f",
+      "glyphToken": "g-79ad8e20206f",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-79ad8e20206f",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-79ad8e20206f",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-48b0b1b6cee8": {
+      "glyphId": "g-48b0b1b6cee8",
+      "glyphToken": "g-48b0b1b6cee8",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-48b0b1b6cee8",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-48b0b1b6cee8",
           "shapeStatus": "synthetic"
         }
       }
@@ -1410,68 +706,178 @@
         }
       }
     },
-    "g-f21279c2442d": {
-      "glyphId": "g-f21279c2442d",
-      "glyphToken": "g-f21279c2442d",
+    "g-a614d76d7a4d": {
+      "glyphId": "g-a614d76d7a4d",
+      "glyphToken": "g-a614d76d7a4d",
       "styleToken": "paragraph",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph",
-      "stableRenderClass": "common-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-f21279c2442d",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-f21279c2442d",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-35ec694f3b14": {
-      "glyphId": "g-35ec694f3b14",
-      "glyphToken": "g-35ec694f3b14",
-      "styleToken": "paragraph",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph",
-      "stableRenderClass": "common-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-35ec694f3b14",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-35ec694f3b14",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-7758d2c65684": {
-      "glyphId": "g-7758d2c65684",
-      "glyphToken": "g-7758d2c65684",
-      "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
+      "glyphClass": "latin-paragraph",
       "stableRenderClass": "latin-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-7758d2c65684",
+          "shapeRef": "shape-sans-g-a614d76d7a4d",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-7758d2c65684",
+          "shapeRef": "shape-serif-g-a614d76d7a4d",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-a34d6b3b89ea": {
+      "glyphId": "g-a34d6b3b89ea",
+      "glyphToken": "g-a34d6b3b89ea",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-a34d6b3b89ea",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-a34d6b3b89ea",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-b46aa6a0be67": {
+      "glyphId": "g-b46aa6a0be67",
+      "glyphToken": "g-b46aa6a0be67",
+      "styleToken": "paragraph",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-b46aa6a0be67",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-b46aa6a0be67",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-425590414af3": {
+      "glyphId": "g-425590414af3",
+      "glyphToken": "g-425590414af3",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-425590414af3",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-425590414af3",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-e4609bbc8c51": {
+      "glyphId": "g-e4609bbc8c51",
+      "glyphToken": "g-e4609bbc8c51",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-e4609bbc8c51",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-e4609bbc8c51",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-0cff8e4cd7f7": {
+      "glyphId": "g-0cff8e4cd7f7",
+      "glyphToken": "g-0cff8e4cd7f7",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-0cff8e4cd7f7",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-0cff8e4cd7f7",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-7e1a3d9c1292": {
+      "glyphId": "g-7e1a3d9c1292",
+      "glyphToken": "g-7e1a3d9c1292",
+      "styleToken": "paragraph",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-7e1a3d9c1292",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-7e1a3d9c1292",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-f8ad5a662f32": {
+      "glyphId": "g-f8ad5a662f32",
+      "glyphToken": "g-f8ad5a662f32",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-f8ad5a662f32",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-f8ad5a662f32",
           "shapeStatus": "synthetic"
         }
       }
@@ -1498,6 +904,182 @@
         }
       }
     },
+    "g-09ee2d4d2b43": {
+      "glyphId": "g-09ee2d4d2b43",
+      "glyphToken": "g-09ee2d4d2b43",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-09ee2d4d2b43",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-09ee2d4d2b43",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-669288621ce3": {
+      "glyphId": "g-669288621ce3",
+      "glyphToken": "g-669288621ce3",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-669288621ce3",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-669288621ce3",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-b4668a78d955": {
+      "glyphId": "g-b4668a78d955",
+      "glyphToken": "g-b4668a78d955",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-b4668a78d955",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-b4668a78d955",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-6675d48670b4": {
+      "glyphId": "g-6675d48670b4",
+      "glyphToken": "g-6675d48670b4",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-6675d48670b4",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-6675d48670b4",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-8dcafb569df5": {
+      "glyphId": "g-8dcafb569df5",
+      "glyphToken": "g-8dcafb569df5",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-8dcafb569df5",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-8dcafb569df5",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-dd420d90eeae": {
+      "glyphId": "g-dd420d90eeae",
+      "glyphToken": "g-dd420d90eeae",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-dd420d90eeae",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-dd420d90eeae",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-095c9c6f102c": {
+      "glyphId": "g-095c9c6f102c",
+      "glyphToken": "g-095c9c6f102c",
+      "styleToken": "paragraph",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-095c9c6f102c",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-095c9c6f102c",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-b7e251e76c80": {
+      "glyphId": "g-b7e251e76c80",
+      "glyphToken": "g-b7e251e76c80",
+      "styleToken": "paragraph",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-b7e251e76c80",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-b7e251e76c80",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
     "g-1acd0e8fccc4": {
       "glyphId": "g-1acd0e8fccc4",
       "glyphToken": "g-1acd0e8fccc4",
@@ -1516,6 +1098,402 @@
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
           "shapeRef": "shape-serif-g-1acd0e8fccc4",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-f21279c2442d": {
+      "glyphId": "g-f21279c2442d",
+      "glyphToken": "g-f21279c2442d",
+      "styleToken": "paragraph",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-f21279c2442d",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-f21279c2442d",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-faef4aad9f1c": {
+      "glyphId": "g-faef4aad9f1c",
+      "glyphToken": "g-faef4aad9f1c",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-faef4aad9f1c",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-faef4aad9f1c",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-ea8c39178954": {
+      "glyphId": "g-ea8c39178954",
+      "glyphToken": "g-ea8c39178954",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-ea8c39178954",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-ea8c39178954",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-b7c57f584474": {
+      "glyphId": "g-b7c57f584474",
+      "glyphToken": "g-b7c57f584474",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-b7c57f584474",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-b7c57f584474",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-e468f5ca5b9e": {
+      "glyphId": "g-e468f5ca5b9e",
+      "glyphToken": "g-e468f5ca5b9e",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-e468f5ca5b9e",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-e468f5ca5b9e",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-463bd3795029": {
+      "glyphId": "g-463bd3795029",
+      "glyphToken": "g-463bd3795029",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-463bd3795029",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-463bd3795029",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-876f6dc3ddc3": {
+      "glyphId": "g-876f6dc3ddc3",
+      "glyphToken": "g-876f6dc3ddc3",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-876f6dc3ddc3",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-876f6dc3ddc3",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-767d4a984ba7": {
+      "glyphId": "g-767d4a984ba7",
+      "glyphToken": "g-767d4a984ba7",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-767d4a984ba7",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-767d4a984ba7",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-25b1406cd6a2": {
+      "glyphId": "g-25b1406cd6a2",
+      "glyphToken": "g-25b1406cd6a2",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-25b1406cd6a2",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-25b1406cd6a2",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-0fe3a74fa9a3": {
+      "glyphId": "g-0fe3a74fa9a3",
+      "glyphToken": "g-0fe3a74fa9a3",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-0fe3a74fa9a3",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-0fe3a74fa9a3",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-f8d7430c470c": {
+      "glyphId": "g-f8d7430c470c",
+      "glyphToken": "g-f8d7430c470c",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-f8d7430c470c",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-f8d7430c470c",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-58e7d0b0206d": {
+      "glyphId": "g-58e7d0b0206d",
+      "glyphToken": "g-58e7d0b0206d",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-58e7d0b0206d",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-58e7d0b0206d",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-ed3ceb8bf48a": {
+      "glyphId": "g-ed3ceb8bf48a",
+      "glyphToken": "g-ed3ceb8bf48a",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-ed3ceb8bf48a",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-ed3ceb8bf48a",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-2c1dd61d79e8": {
+      "glyphId": "g-2c1dd61d79e8",
+      "glyphToken": "g-2c1dd61d79e8",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-2c1dd61d79e8",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-2c1dd61d79e8",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-bfe9375452ef": {
+      "glyphId": "g-bfe9375452ef",
+      "glyphToken": "g-bfe9375452ef",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-bfe9375452ef",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-bfe9375452ef",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-2347d10a80c0": {
+      "glyphId": "g-2347d10a80c0",
+      "glyphToken": "g-2347d10a80c0",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-2347d10a80c0",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-2347d10a80c0",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-35ec694f3b14": {
+      "glyphId": "g-35ec694f3b14",
+      "glyphToken": "g-35ec694f3b14",
+      "styleToken": "paragraph",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-35ec694f3b14",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-35ec694f3b14",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-8db60270dec4": {
+      "glyphId": "g-8db60270dec4",
+      "glyphToken": "g-8db60270dec4",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-8db60270dec4",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-8db60270dec4",
           "shapeStatus": "synthetic"
         }
       }
@@ -1564,9 +1542,9 @@
         }
       }
     },
-    "g-6bda8de269b6": {
-      "glyphId": "g-6bda8de269b6",
-      "glyphToken": "g-6bda8de269b6",
+    "g-7758d2c65684": {
+      "glyphId": "g-7758d2c65684",
+      "glyphToken": "g-7758d2c65684",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph-italic",
@@ -1575,20 +1553,20 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-6bda8de269b6",
+          "shapeRef": "shape-sans-g-7758d2c65684",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-6bda8de269b6",
+          "shapeRef": "shape-serif-g-7758d2c65684",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-bfe9375452ef": {
-      "glyphId": "g-bfe9375452ef",
-      "glyphToken": "g-bfe9375452ef",
+    "g-71c8c21b0a09": {
+      "glyphId": "g-71c8c21b0a09",
+      "glyphToken": "g-71c8c21b0a09",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph-italic",
@@ -1597,42 +1575,42 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-bfe9375452ef",
+          "shapeRef": "shape-sans-g-71c8c21b0a09",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-bfe9375452ef",
+          "shapeRef": "shape-serif-g-71c8c21b0a09",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-cd95c58942ab": {
-      "glyphId": "g-cd95c58942ab",
-      "glyphToken": "g-cd95c58942ab",
+    "g-703601567dfd": {
+      "glyphId": "g-703601567dfd",
+      "glyphToken": "g-703601567dfd",
       "styleToken": "paragraph-italic",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph-italic",
-      "stableRenderClass": "common-chunk-glyph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-cd95c58942ab",
+          "shapeRef": "shape-sans-g-703601567dfd",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-cd95c58942ab",
+          "shapeRef": "shape-serif-g-703601567dfd",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-1f65acd73b76": {
-      "glyphId": "g-1f65acd73b76",
-      "glyphToken": "g-1f65acd73b76",
+    "g-81af88dd06c8": {
+      "glyphId": "g-81af88dd06c8",
+      "glyphToken": "g-81af88dd06c8",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph",
@@ -1641,167 +1619,13 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-1f65acd73b76",
+          "shapeRef": "shape-sans-g-81af88dd06c8",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-1f65acd73b76",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-ed3ceb8bf48a": {
-      "glyphId": "g-ed3ceb8bf48a",
-      "glyphToken": "g-ed3ceb8bf48a",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-ed3ceb8bf48a",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-ed3ceb8bf48a",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-2347d10a80c0": {
-      "glyphId": "g-2347d10a80c0",
-      "glyphToken": "g-2347d10a80c0",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-2347d10a80c0",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-2347d10a80c0",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-0fe3a74fa9a3": {
-      "glyphId": "g-0fe3a74fa9a3",
-      "glyphToken": "g-0fe3a74fa9a3",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-0fe3a74fa9a3",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-0fe3a74fa9a3",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-2bd101662dd5": {
-      "glyphId": "g-2bd101662dd5",
-      "glyphToken": "g-2bd101662dd5",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-2bd101662dd5",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-2bd101662dd5",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-b8aecf6e0eca": {
-      "glyphId": "g-b8aecf6e0eca",
-      "glyphToken": "g-b8aecf6e0eca",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-b8aecf6e0eca",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-b8aecf6e0eca",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-8dcafb569df5": {
-      "glyphId": "g-8dcafb569df5",
-      "glyphToken": "g-8dcafb569df5",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-8dcafb569df5",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-8dcafb569df5",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-718b4ae2b6eb": {
-      "glyphId": "g-718b4ae2b6eb",
-      "glyphToken": "g-718b4ae2b6eb",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-718b4ae2b6eb",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-718b4ae2b6eb",
+          "shapeRef": "shape-serif-g-81af88dd06c8",
           "shapeStatus": "synthetic"
         }
       }
@@ -1828,6 +1652,50 @@
         }
       }
     },
+    "g-cd95c58942ab": {
+      "glyphId": "g-cd95c58942ab",
+      "glyphToken": "g-cd95c58942ab",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph-italic",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-cd95c58942ab",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-cd95c58942ab",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-a4e63bdb3e32": {
+      "glyphId": "g-a4e63bdb3e32",
+      "glyphToken": "g-a4e63bdb3e32",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph-italic",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-a4e63bdb3e32",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-a4e63bdb3e32",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
     "g-77fb63b04d15": {
       "glyphId": "g-77fb63b04d15",
       "glyphToken": "g-77fb63b04d15",
@@ -1846,226 +1714,6 @@
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
           "shapeRef": "shape-serif-g-77fb63b04d15",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-767d4a984ba7": {
-      "glyphId": "g-767d4a984ba7",
-      "glyphToken": "g-767d4a984ba7",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-767d4a984ba7",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-767d4a984ba7",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-a47506f42c33": {
-      "glyphId": "g-a47506f42c33",
-      "glyphToken": "g-a47506f42c33",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-a47506f42c33",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-a47506f42c33",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-2e6c134c2afe": {
-      "glyphId": "g-2e6c134c2afe",
-      "glyphToken": "g-2e6c134c2afe",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-2e6c134c2afe",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-2e6c134c2afe",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-85416761b7c5": {
-      "glyphId": "g-85416761b7c5",
-      "glyphToken": "g-85416761b7c5",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-85416761b7c5",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-85416761b7c5",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-b2f506890daa": {
-      "glyphId": "g-b2f506890daa",
-      "glyphToken": "g-b2f506890daa",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph-italic",
-      "stableRenderClass": "common-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-b2f506890daa",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-b2f506890daa",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-25541e257bf8": {
-      "glyphId": "g-25541e257bf8",
-      "glyphToken": "g-25541e257bf8",
-      "styleToken": "paragraph",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph",
-      "stableRenderClass": "common-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-25541e257bf8",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-25541e257bf8",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-b5adbbad57bb": {
-      "glyphId": "g-b5adbbad57bb",
-      "glyphToken": "g-b5adbbad57bb",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-b5adbbad57bb",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-b5adbbad57bb",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-8824b8d18612": {
-      "glyphId": "g-8824b8d18612",
-      "glyphToken": "g-8824b8d18612",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-8824b8d18612",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-8824b8d18612",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-0ea5f6524eff": {
-      "glyphId": "g-0ea5f6524eff",
-      "glyphToken": "g-0ea5f6524eff",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-0ea5f6524eff",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-0ea5f6524eff",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-696050ccdbb6": {
-      "glyphId": "g-696050ccdbb6",
-      "glyphToken": "g-696050ccdbb6",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-696050ccdbb6",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-696050ccdbb6",
           "shapeStatus": "synthetic"
         }
       }
@@ -2092,31 +1740,9 @@
         }
       }
     },
-    "g-603f87e79ae5": {
-      "glyphId": "g-603f87e79ae5",
-      "glyphToken": "g-603f87e79ae5",
-      "styleToken": "paragraph",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph",
-      "stableRenderClass": "latin-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-603f87e79ae5",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-603f87e79ae5",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-7bcef6847397": {
-      "glyphId": "g-7bcef6847397",
-      "glyphToken": "g-7bcef6847397",
+    "g-6bda8de269b6": {
+      "glyphId": "g-6bda8de269b6",
+      "glyphToken": "g-6bda8de269b6",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph-italic",
@@ -2125,57 +1751,145 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-7bcef6847397",
+          "shapeRef": "shape-sans-g-6bda8de269b6",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-7bcef6847397",
+          "shapeRef": "shape-serif-g-6bda8de269b6",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-42bfdf6b8fa3": {
-      "glyphId": "g-42bfdf6b8fa3",
-      "glyphToken": "g-42bfdf6b8fa3",
-      "styleToken": "paragraph",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph",
-      "stableRenderClass": "common-chunk-glyph",
+    "g-a47506f42c33": {
+      "glyphId": "g-a47506f42c33",
+      "glyphToken": "g-a47506f42c33",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-42bfdf6b8fa3",
+          "shapeRef": "shape-sans-g-a47506f42c33",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-42bfdf6b8fa3",
+          "shapeRef": "shape-serif-g-a47506f42c33",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-074e1106c6c9": {
-      "glyphId": "g-074e1106c6c9",
-      "glyphToken": "g-074e1106c6c9",
-      "styleToken": "paragraph",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph",
-      "stableRenderClass": "common-chunk-glyph",
+    "g-85416761b7c5": {
+      "glyphId": "g-85416761b7c5",
+      "glyphToken": "g-85416761b7c5",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-074e1106c6c9",
+          "shapeRef": "shape-sans-g-85416761b7c5",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-074e1106c6c9",
+          "shapeRef": "shape-serif-g-85416761b7c5",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-33d6699f5d9d": {
+      "glyphId": "g-33d6699f5d9d",
+      "glyphToken": "g-33d6699f5d9d",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-33d6699f5d9d",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-33d6699f5d9d",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-2bd101662dd5": {
+      "glyphId": "g-2bd101662dd5",
+      "glyphToken": "g-2bd101662dd5",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-2bd101662dd5",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-2bd101662dd5",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-718b4ae2b6eb": {
+      "glyphId": "g-718b4ae2b6eb",
+      "glyphToken": "g-718b4ae2b6eb",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-718b4ae2b6eb",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-718b4ae2b6eb",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-b5adbbad57bb": {
+      "glyphId": "g-b5adbbad57bb",
+      "glyphToken": "g-b5adbbad57bb",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-b5adbbad57bb",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-b5adbbad57bb",
           "shapeStatus": "synthetic"
         }
       }
@@ -2202,31 +1916,9 @@
         }
       }
     },
-    "g-13735e64bca3": {
-      "glyphId": "g-13735e64bca3",
-      "glyphToken": "g-13735e64bca3",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Common",
-      "glyphClass": "common-paragraph-italic",
-      "stableRenderClass": "common-chunk-glyph",
-      "visualRefs": {
-        "sans": {
-          "fontMode": "sans",
-          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-13735e64bca3",
-          "shapeStatus": "synthetic"
-        },
-        "serif": {
-          "fontMode": "serif",
-          "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-13735e64bca3",
-          "shapeStatus": "synthetic"
-        }
-      }
-    },
-    "g-dd420d90eeae": {
-      "glyphId": "g-dd420d90eeae",
-      "glyphToken": "g-dd420d90eeae",
+    "g-603f87e79ae5": {
+      "glyphId": "g-603f87e79ae5",
+      "glyphToken": "g-603f87e79ae5",
       "styleToken": "paragraph",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph",
@@ -2235,35 +1927,35 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-dd420d90eeae",
+          "shapeRef": "shape-sans-g-603f87e79ae5",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-dd420d90eeae",
+          "shapeRef": "shape-serif-g-603f87e79ae5",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-90c0a7885322": {
-      "glyphId": "g-90c0a7885322",
-      "glyphToken": "g-90c0a7885322",
+    "g-85ddc7c68f58": {
+      "glyphId": "g-85ddc7c68f58",
+      "glyphToken": "g-85ddc7c68f58",
       "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph-italic",
+      "stableRenderClass": "common-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-90c0a7885322",
+          "shapeRef": "shape-sans-g-85ddc7c68f58",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-90c0a7885322",
+          "shapeRef": "shape-serif-g-85ddc7c68f58",
           "shapeStatus": "synthetic"
         }
       }
@@ -2290,53 +1982,53 @@
         }
       }
     },
-    "g-4eb79e8dc270": {
-      "glyphId": "g-4eb79e8dc270",
-      "glyphToken": "g-4eb79e8dc270",
-      "styleToken": "paragraph-italic",
-      "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
-      "stableRenderClass": "latin-chunk-glyph",
+    "g-25541e257bf8": {
+      "glyphId": "g-25541e257bf8",
+      "glyphToken": "g-25541e257bf8",
+      "styleToken": "paragraph",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph",
+      "stableRenderClass": "common-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-4eb79e8dc270",
+          "shapeRef": "shape-sans-g-25541e257bf8",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-4eb79e8dc270",
+          "shapeRef": "shape-serif-g-25541e257bf8",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-8df6375e3fb0": {
-      "glyphId": "g-8df6375e3fb0",
-      "glyphToken": "g-8df6375e3fb0",
-      "styleToken": "paragraph-italic",
+    "g-b88332abca1a": {
+      "glyphId": "g-b88332abca1a",
+      "glyphToken": "g-b88332abca1a",
+      "styleToken": "paragraph",
       "scriptBucket": "Latin",
-      "glyphClass": "latin-paragraph-italic",
+      "glyphClass": "latin-paragraph",
       "stableRenderClass": "latin-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-8df6375e3fb0",
+          "shapeRef": "shape-sans-g-b88332abca1a",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-8df6375e3fb0",
+          "shapeRef": "shape-serif-g-b88332abca1a",
           "shapeStatus": "synthetic"
         }
       }
     },
-    "g-ae955d545c87": {
-      "glyphId": "g-ae955d545c87",
-      "glyphToken": "g-ae955d545c87",
+    "g-7e1282f9d417": {
+      "glyphId": "g-7e1282f9d417",
+      "glyphToken": "g-7e1282f9d417",
       "styleToken": "paragraph-italic",
       "scriptBucket": "Latin",
       "glyphClass": "latin-paragraph-italic",
@@ -2345,13 +2037,101 @@
         "sans": {
           "fontMode": "sans",
           "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-          "shapeRef": "shape-sans-g-ae955d545c87",
+          "shapeRef": "shape-sans-g-7e1282f9d417",
           "shapeStatus": "synthetic"
         },
         "serif": {
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
-          "shapeRef": "shape-serif-g-ae955d545c87",
+          "shapeRef": "shape-serif-g-7e1282f9d417",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-90c0a7885322": {
+      "glyphId": "g-90c0a7885322",
+      "glyphToken": "g-90c0a7885322",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-90c0a7885322",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-90c0a7885322",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-92a18fc33a75": {
+      "glyphId": "g-92a18fc33a75",
+      "glyphToken": "g-92a18fc33a75",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-92a18fc33a75",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-92a18fc33a75",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-2e6c134c2afe": {
+      "glyphId": "g-2e6c134c2afe",
+      "glyphToken": "g-2e6c134c2afe",
+      "styleToken": "paragraph",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-2e6c134c2afe",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-2e6c134c2afe",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-8824b8d18612": {
+      "glyphId": "g-8824b8d18612",
+      "glyphToken": "g-8824b8d18612",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-8824b8d18612",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-8824b8d18612",
           "shapeStatus": "synthetic"
         }
       }
@@ -2374,6 +2154,116 @@
           "fontMode": "serif",
           "fontFamilyCandidate": "Noto Serif",
           "shapeRef": "shape-serif-g-ff9a714107f8",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-81a0c80a4d7b": {
+      "glyphId": "g-81a0c80a4d7b",
+      "glyphToken": "g-81a0c80a4d7b",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph-italic",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-81a0c80a4d7b",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-81a0c80a4d7b",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-c9d590dbdd4d": {
+      "glyphId": "g-c9d590dbdd4d",
+      "glyphToken": "g-c9d590dbdd4d",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-c9d590dbdd4d",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-c9d590dbdd4d",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-5f61230097e8": {
+      "glyphId": "g-5f61230097e8",
+      "glyphToken": "g-5f61230097e8",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-5f61230097e8",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-5f61230097e8",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-b8aecf6e0eca": {
+      "glyphId": "g-b8aecf6e0eca",
+      "glyphToken": "g-b8aecf6e0eca",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Latin",
+      "glyphClass": "latin-paragraph-italic",
+      "stableRenderClass": "latin-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-b8aecf6e0eca",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-b8aecf6e0eca",
+          "shapeStatus": "synthetic"
+        }
+      }
+    },
+    "g-13735e64bca3": {
+      "glyphId": "g-13735e64bca3",
+      "glyphToken": "g-13735e64bca3",
+      "styleToken": "paragraph-italic",
+      "scriptBucket": "Common",
+      "glyphClass": "common-paragraph-italic",
+      "stableRenderClass": "common-chunk-glyph",
+      "visualRefs": {
+        "sans": {
+          "fontMode": "sans",
+          "fontFamilyCandidate": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          "shapeRef": "shape-sans-g-13735e64bca3",
+          "shapeStatus": "synthetic"
+        },
+        "serif": {
+          "fontMode": "serif",
+          "fontFamilyCandidate": "Noto Serif",
+          "shapeRef": "shape-serif-g-13735e64bca3",
           "shapeStatus": "synthetic"
         }
       }
@@ -2437,10 +2327,6 @@
         "vector": 63616
       },
       {
-        "slot": "slot-5vg43u",
-        "vector": 929
-      },
-      {
         "slot": "slot-6a8cab",
         "vector": 62551
       },
@@ -2469,12 +2355,12 @@
         "vector": 11297
       },
       {
-        "slot": "slot-7xc27i",
-        "vector": 1056068
-      },
-      {
         "slot": "slot-87bryz",
         "vector": 1090623
+      },
+      {
+        "slot": "slot-8bhzex",
+        "vector": 1082184
       },
       {
         "slot": "slot-8e7j0r",
@@ -2495,10 +2381,6 @@
       {
         "slot": "slot-92ij2m",
         "vector": 1111880
-      },
-      {
-        "slot": "slot-9ijmen",
-        "vector": 1074195
       },
       {
         "slot": "slot-9n3nwo",
@@ -2533,6 +2415,10 @@
         "vector": 24034
       },
       {
+        "slot": "slot-bnfiow",
+        "vector": 27491
+      },
+      {
         "slot": "slot-cbfuck",
         "vector": 1082266
       },
@@ -2549,12 +2435,12 @@
         "vector": 48594
       },
       {
-        "slot": "slot-d4rkv2",
-        "vector": 605
-      },
-      {
         "slot": "slot-djrkxc",
         "vector": 39781
+      },
+      {
+        "slot": "slot-duwh8r",
+        "vector": 34715
       },
       {
         "slot": "slot-dwc2qz",
@@ -2601,10 +2487,6 @@
         "vector": 1077266
       },
       {
-        "slot": "slot-iabdcx",
-        "vector": 30856
-      },
-      {
         "slot": "slot-ibopna",
         "vector": 62765
       },
@@ -2635,10 +2517,6 @@
       {
         "slot": "slot-ki852t",
         "vector": 1111872
-      },
-      {
-        "slot": "slot-kk7ns7",
-        "vector": 1051965
       },
       {
         "slot": "slot-ku282f",
@@ -2675,10 +2553,6 @@
       {
         "slot": "slot-nfztyj",
         "vector": 1072046
-      },
-      {
-        "slot": "slot-oh1jab",
-        "vector": 1104185
       },
       {
         "slot": "slot-oy7hz",
@@ -2729,6 +2603,10 @@
         "vector": 1057019
       },
       {
+        "slot": "slot-qx092b",
+        "vector": 1051819
+      },
+      {
         "slot": "slot-rev5ot",
         "vector": 1141
       },
@@ -2769,10 +2647,6 @@
         "vector": 1087965
       },
       {
-        "slot": "slot-wpfkgu",
-        "vector": 11830
-      },
-      {
         "slot": "slot-wumgf",
         "vector": 47762
       },
@@ -2787,10 +2661,6 @@
       {
         "slot": "slot-xqhyze",
         "vector": 1095805
-      },
-      {
-        "slot": "slot-y2d15k",
-        "vector": 14300
       },
       {
         "slot": "slot-y57dxt",

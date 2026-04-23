@@ -1,4 +1,4 @@
-import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js?v=20260422-v5-footnotes-1";
+import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js?v=20260423-v5-links-2";
 import {
   PROTECTED_WORKER_METHODS,
   createWorkerRequest,
@@ -7,7 +7,7 @@ import {
 
 class WorkerTransport {
   constructor() {
-    this.worker = new Worker(new URL("./protected-reader.worker.js?v=20260422-v5-footnotes-1", import.meta.url), { type: "module" });
+    this.worker = new Worker(new URL("./protected-reader.worker.js?v=20260423-v5-links-2", import.meta.url), { type: "module" });
     this.pending = new Map();
     this.requestId = 0;
     this.worker.addEventListener("message", (event) => {
@@ -146,6 +146,13 @@ export function createProtectedWorkerClient(options = {}) {
       return decorateResult(
         PROTECTED_WORKER_METHODS.GET_FOOTNOTE_AT_POINT,
         await transport.call(PROTECTED_WORKER_METHODS.GET_FOOTNOTE_AT_POINT, payload)
+      );
+    },
+    async getLinkAtPoint(payload) {
+      ensureSecureWorker();
+      return decorateResult(
+        PROTECTED_WORKER_METHODS.GET_LINK_AT_POINT,
+        await transport.call(PROTECTED_WORKER_METHODS.GET_LINK_AT_POINT, payload)
       );
     },
     async pointerDown(payload) {

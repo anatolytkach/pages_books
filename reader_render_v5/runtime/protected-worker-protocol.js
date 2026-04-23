@@ -16,6 +16,7 @@ export const PROTECTED_WORKER_METHODS = {
   CLEAR_SEARCH: "clearSearch",
   UPDATE_RENDER_CONFIG: "updateRenderConfig",
   GET_FOOTNOTE_AT_POINT: "getFootnoteAtPoint",
+  GET_LINK_AT_POINT: "getLinkAtPoint",
   POINTER_DOWN: "pointerDown",
   SELECT_WORD_AT_POINT: "selectWordAtPoint",
   POINTER_MOVE: "pointerMove",
@@ -253,6 +254,73 @@ function sanitizeFootnoteAtPointPayload(payload = {}) {
   };
 }
 
+function sanitizeLinkAtPointPayload(payload = {}) {
+  assertAllowedObjectKeys(
+    payload,
+    new Set(["active", "anchor"]),
+    "payload"
+  );
+  const active = !!payload.active;
+  if (!active) {
+    return { active: false, anchor: null };
+  }
+  const anchor = payload && payload.anchor && typeof payload.anchor === "object" ? payload.anchor : null;
+  assertAllowedObjectKeys(
+    anchor || {},
+    new Set([
+      "anchorId",
+      "href",
+      "resolvedHref",
+      "kind",
+      "externalUrl",
+      "globalOffset",
+      "chunkId",
+      "chunkOrder",
+      "bounds"
+    ]),
+    "payload.anchor"
+  );
+  const bounds = anchor && anchor.bounds && typeof anchor.bounds === "object" ? anchor.bounds : null;
+  assertAllowedObjectKeys(
+    bounds || {},
+    new Set(["left", "top", "right", "bottom", "width", "height"]),
+    "payload.anchor.bounds"
+  );
+  return {
+    active: true,
+    anchor: {
+      anchorId: String(anchor.anchorId || ""),
+      href: String(anchor.href || ""),
+      resolvedHref: String(anchor.resolvedHref || ""),
+      kind: String(anchor.kind || ""),
+      externalUrl: String(anchor.externalUrl || ""),
+      globalOffset:
+        anchor.globalOffset == null
+          ? null
+          : Number.isFinite(Number(anchor.globalOffset))
+            ? Number(anchor.globalOffset)
+            : null,
+      chunkId: String(anchor.chunkId || ""),
+      chunkOrder:
+        anchor.chunkOrder == null
+          ? null
+          : Number.isFinite(Number(anchor.chunkOrder))
+            ? Number(anchor.chunkOrder)
+            : null,
+      bounds: bounds
+        ? {
+            left: Number(bounds.left || 0),
+            top: Number(bounds.top || 0),
+            right: Number(bounds.right || 0),
+            bottom: Number(bounds.bottom || 0),
+            width: Number(bounds.width || 0),
+            height: Number(bounds.height || 0)
+          }
+        : null
+    }
+  };
+}
+
 export function sanitizeProtectedWorkerPayload(method, payload = {}) {
   if (FORBIDDEN_GENERIC_TEXT_METHODS.has(method)) {
     throw new Error(`Forbidden protected worker method: ${method}`);
@@ -265,6 +333,9 @@ export function sanitizeProtectedWorkerPayload(method, payload = {}) {
   }
   if (method === PROTECTED_WORKER_METHODS.GET_FOOTNOTE_AT_POINT) {
     return sanitizeFootnoteAtPointPayload(payload);
+  }
+  if (method === PROTECTED_WORKER_METHODS.GET_LINK_AT_POINT) {
+    return sanitizeLinkAtPointPayload(payload);
   }
   if (method === PROTECTED_WORKER_METHODS.COPY_CURRENT_SELECTION) {
     return sanitizeCopyCurrentSelectionPayload(payload);
