@@ -286,6 +286,7 @@ function buildProtectedManifest({ book, toc, runtimeChunks, runtimeGlyphChunks, 
 
   return {
     manifest,
+    sourceRootDir: book && book.rootDir ? String(book.rootDir) : "",
     toc: {
       version: 1,
       items: toc

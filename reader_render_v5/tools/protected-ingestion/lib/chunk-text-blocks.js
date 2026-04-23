@@ -28,6 +28,40 @@ function chunkTextBlocks(blocks, config) {
   }
   flushUnit();
 
+  function splitOversizedUnit(unit) {
+    const normalized = unit && Array.isArray(unit.blocks) ? unit.blocks : [];
+    if (!normalized.length) return [];
+    if ((unit.totalCharacters || 0) <= maxCharacters && normalized.length <= maxBlocks) {
+      return [unit];
+    }
+    const slices = [];
+    let sliceBlocks = [];
+    let sliceChars = 0;
+    for (const block of normalized) {
+      const nextChars = sliceChars + Number(block && block.text ? block.text.length : 0);
+      const nextBlocks = sliceBlocks.length + 1;
+      if (sliceBlocks.length && (nextChars > maxCharacters || nextBlocks > maxBlocks)) {
+        slices.push({
+          blocks: sliceBlocks,
+          totalCharacters: sliceChars
+        });
+        sliceBlocks = [];
+        sliceChars = 0;
+      }
+      sliceBlocks.push(block);
+      sliceChars += Number(block && block.text ? block.text.length : 0);
+    }
+    if (sliceBlocks.length) {
+      slices.push({
+        blocks: sliceBlocks,
+        totalCharacters: sliceChars
+      });
+    }
+    return slices;
+  }
+
+  const normalizedUnits = chapterUnits.flatMap(splitOversizedUnit);
+
   let pending = [];
   let pendingChars = 0;
   let pendingBlocks = 0;
@@ -50,7 +84,7 @@ function chunkTextBlocks(blocks, config) {
     chunkIndex += 1;
   }
 
-  for (const unit of chapterUnits) {
+  for (const unit of normalizedUnits) {
     const nextChars = pendingChars + unit.totalCharacters;
     const nextBlocks = pendingBlocks + unit.blocks.length;
     const nextUnits = pendingUnits + 1;

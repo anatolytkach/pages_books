@@ -171,3 +171,5 @@
 - In the current `reader_render_v5` line, non-inline protected media can now be opened from the reading surface:
   - desktop opens a centered image viewer modal on click and suppresses shell-bar toggles for that click;
   - phones/tablets open the full-screen image viewer only on long-press, while ordinary taps on the same image still follow the old shell behavior by zone (center toggles bars, edge zones page-turn).
+- Current `reader_render_v5` protected-ingestion now preserves only real footnote-style anchors as `linkTarget`/`noteAnchors` in the runtime-safe artifact; ordinary EPUB hyperlinks are flattened into plain text in the artifact so clicking normal linked text no longer routes through the protected footnote popup path.
+- Current `reader_render_v5` protected-ingestion now gives explicit absolute CSS image sizes priority over intrinsic image dimensions when extracting media metadata; intrinsic dimensions are used only as fallback when no concrete CSS width/height is present. This keeps legacy inline-avatar sizing in manual book `1` stable while still allowing intrinsic-size fallback for EPUB images such as `book 76`.

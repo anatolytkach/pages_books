@@ -916,25 +916,44 @@ function installStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: min(92vw, 1280px);
-      max-width: calc(100vw - 40px);
-      max-height: calc(100vh - 40px);
-      padding: 20px;
+      width: auto;
+      max-width: 100vw;
+      height: 100vh;
+      max-height: 100vh;
+      padding: 0;
       box-sizing: border-box;
-      border-radius: 18px;
-      background: rgba(12, 15, 22, 0.96);
-      box-shadow: 0 18px 64px rgba(0, 0, 0, 0.42);
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    #protectedImageViewer .protected-image-viewer-stage {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #protectedImageViewer .protected-image-viewer-frame {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 100vw;
+      max-height: 100vh;
     }
     #protectedImageViewer .protected-image-viewer-close {
       position: absolute;
-      top: 12px;
+      top: 14px;
       right: 14px;
       z-index: 3;
       width: 32px;
       height: 32px;
       border: 0;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.14);
+      background: rgba(8, 10, 16, 0.72);
       color: #fff;
       font-size: 24px;
       line-height: 1;
@@ -943,22 +962,12 @@ function installStyles() {
     #protectedImageViewer .protected-image-viewer-close:hover,
     #protectedImageViewer .protected-image-viewer-close:focus-visible {
       outline: none;
-      background: rgba(255, 255, 255, 0.22);
-    }
-    #protectedImageViewer .protected-image-viewer-stage {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      touch-action: none;
+      background: rgba(8, 10, 16, 0.84);
     }
     #protectedImageViewer .protected-image-viewer-image {
       display: block;
       max-width: 100%;
-      max-height: 80vh;
+      max-height: 100vh;
       width: auto;
       height: auto;
       object-fit: contain;
@@ -990,6 +999,13 @@ function installStyles() {
       width: 40px;
       height: 40px;
       background: rgba(255, 255, 255, 0.18);
+    }
+    html.is-phone body.protected-shell #protectedImageViewer .protected-image-viewer-frame,
+    html.is-tablet body.protected-shell #protectedImageViewer .protected-image-viewer-frame {
+      width: 100vw;
+      height: 100vh;
+      max-width: 100vw;
+      max-height: 100vh;
     }
     html.is-phone body.protected-shell #protectedImageViewer .protected-image-viewer-stage,
     html.is-tablet body.protected-shell #protectedImageViewer .protected-image-viewer-stage {
@@ -6322,15 +6338,18 @@ function ensureProtectedImageViewer() {
   viewer.innerHTML = `
     <div class="protected-image-viewer-backdrop"></div>
     <div class="protected-image-viewer-panel" role="dialog" aria-modal="true" aria-label="Image viewer">
-      <button type="button" class="protected-image-viewer-close" aria-label="Close image viewer">×</button>
       <div class="protected-image-viewer-stage">
-        <img class="protected-image-viewer-image" alt="" draggable="false" />
+        <div class="protected-image-viewer-frame">
+          <button type="button" class="protected-image-viewer-close" aria-label="Close image viewer">×</button>
+          <img class="protected-image-viewer-image" alt="" draggable="false" />
+        </div>
       </div>
     </div>
   `;
   const closeButton = viewer.querySelector(".protected-image-viewer-close");
   const backdrop = viewer.querySelector(".protected-image-viewer-backdrop");
   const stage = viewer.querySelector(".protected-image-viewer-stage");
+  const frame = viewer.querySelector(".protected-image-viewer-frame");
   const image = viewer.querySelector(".protected-image-viewer-image");
   const close = (event) => {
     if (event) {
@@ -6346,7 +6365,12 @@ function ensureProtectedImageViewer() {
   backdrop && backdrop.addEventListener("pointerdown", close, true);
   backdrop && backdrop.addEventListener("touchstart", close, { capture: true, passive: false });
   const onPointerDown = (event) => {
-    if (!viewer.classList.contains("touch")) return;
+    if (!viewer.classList.contains("touch")) {
+      if (!frame || !frame.contains(event.target)) {
+        close(event);
+      }
+      return;
+    }
     if (event.pointerType === "mouse" && event.button !== 0) return;
     stage.setPointerCapture && event.pointerId != null && stage.setPointerCapture(event.pointerId);
     HOST_STATE.imageViewerPointers.set(event.pointerId, {
