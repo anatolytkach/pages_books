@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const { buildStyleContext } = require("./extract-source-typography");
+const { probeImageDimensions } = require("./probe-image-dimensions");
 
 function readText(filePath) {
   return fs.readFileSync(filePath, "utf8");
@@ -31,7 +32,9 @@ function stripTags(html) {
 
 function extractBody(html) {
   const match = String(html || "").match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  return match ? match[1] : String(html || "");
+  const rawBody = match ? match[1] : String(html || "");
+  return String(rawBody)
+    .replace(/<(div|p|section|article|aside|blockquote|pre|td)\b([^>]*)\/>/gi, "");
 }
 
 function parseAttrs(attrText) {
@@ -67,6 +70,34 @@ function parseCssLengthEm(value, fallback = 0) {
   const unitlessMatch = raw.match(/^(-?\d+(?:\.\d+)?)$/);
   if (unitlessMatch) return Number(unitlessMatch[1]);
   return fallback;
+}
+
+function parseAbsoluteCssPixelLength(value, fallback = 0) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return fallback;
+  const pxMatch = raw.match(/^(-?\d+(?:\.\d+)?)px$/);
+  if (pxMatch) return Number(pxMatch[1]);
+  const inMatch = raw.match(/^(-?\d+(?:\.\d+)?)in$/);
+  if (inMatch) return Number(inMatch[1]) * 96;
+  const cmMatch = raw.match(/^(-?\d+(?:\.\d+)?)cm$/);
+  if (cmMatch) return Number(cmMatch[1]) * (96 / 2.54);
+  const mmMatch = raw.match(/^(-?\d+(?:\.\d+)?)mm$/);
+  if (mmMatch) return Number(mmMatch[1]) * (96 / 25.4);
+  const qMatch = raw.match(/^(-?\d+(?:\.\d+)?)q$/);
+  if (qMatch) return Number(qMatch[1]) * (96 / 101.6);
+  const ptMatch = raw.match(/^(-?\d+(?:\.\d+)?)pt$/);
+  if (ptMatch) return Number(ptMatch[1]) * (96 / 72);
+  const pcMatch = raw.match(/^(-?\d+(?:\.\d+)?)pc$/);
+  if (pcMatch) return Number(pcMatch[1]) * 16;
+  const integerMatch = raw.match(/^(-?\d+(?:\.\d+)?)$/);
+  if (integerMatch) return Number(integerMatch[1]);
+  return fallback;
+}
+
+function resolveAssetAbsolutePath(spineItem, sourceHref) {
+  if (!spineItem || !spineItem.absolutePath || !sourceHref) return "";
+  const baseDir = path.dirname(spineItem.absolutePath);
+  return path.resolve(baseDir, sourceHref);
 }
 
 function classList(attrs = {}) {
@@ -109,9 +140,10 @@ function normalizePathTail(value) {
 }
 
 function mergePresentation(base, override = {}) {
+  const normalizedOverride = override && typeof override === "object" ? override : {};
   return {
     ...base,
-    ...Object.fromEntries(Object.entries(override).filter(([, value]) => value != null && value !== ""))
+    ...Object.fromEntries(Object.entries(normalizedOverride).filter(([, value]) => value != null && value !== ""))
   };
 }
 
@@ -388,12 +420,21 @@ function extractMediaItems(innerHtml, spineItem, attrs = {}) {
     const inlineStyle = parseInlineStyle(tokenAttrs.style || "");
     const sourceHref = tokenAttrs.src || tokenAttrs["xlink:href"] || "";
     if (!sourceHref) continue;
-    const widthPx = tokenAttrs.width
-      ? Math.round(parseCssLengthEm(tokenAttrs.width, 0) * 16)
-      : Math.round(parseCssLengthEm(inlineStyle.width || "", 0) * 16);
-    const heightPx = tokenAttrs.height
-      ? Math.round(parseCssLengthEm(tokenAttrs.height, 0) * 16)
-      : Math.round(parseCssLengthEm(inlineStyle.height || "", 0) * 16);
+    const assetAbsolutePath = resolveAssetAbsolutePath(spineItem, sourceHref);
+    const intrinsicDimensions = probeImageDimensions(assetAbsolutePath);
+    const widthHintPx = tokenAttrs.width
+      ? Math.round(parseAbsoluteCssPixelLength(tokenAttrs.width, 0))
+      : Math.round(parseAbsoluteCssPixelLength(inlineStyle.width || "", 0));
+    const heightHintPx = tokenAttrs.height
+      ? Math.round(parseAbsoluteCssPixelLength(tokenAttrs.height, 0))
+      : Math.round(parseAbsoluteCssPixelLength(inlineStyle.height || "", 0));
+    let widthPx = widthHintPx > 0 ? widthHintPx : Number(intrinsicDimensions && intrinsicDimensions.width || 0);
+    let heightPx = heightHintPx > 0 ? heightHintPx : Number(intrinsicDimensions && intrinsicDimensions.height || 0);
+    if (widthPx > 0 && !(heightPx > 0) && intrinsicDimensions && intrinsicDimensions.width > 0 && intrinsicDimensions.height > 0) {
+      heightPx = Math.round((widthPx / intrinsicDimensions.width) * intrinsicDimensions.height);
+    } else if (heightPx > 0 && !(widthPx > 0) && intrinsicDimensions && intrinsicDimensions.width > 0 && intrinsicDimensions.height > 0) {
+      widthPx = Math.round((heightPx / intrinsicDimensions.height) * intrinsicDimensions.width);
+    }
     const isInlineAvatar = classes.includes("inline-avatar");
     const containerClasses = classList(attrs);
     items.push({
@@ -446,11 +487,13 @@ function extractInlineRuns(innerHtml) {
     const prev = currentState();
     const classes = classList(attrs);
     const inlineStyle = parseInlineStyle(attrs.style || "");
+    const resolvedHref = tagName === "a" && attrs.href ? String(attrs.href).trim() : "";
+    const noteHref = looksLikeNoteHref(resolvedHref) ? resolvedHref : "";
     const next = {
       bold: prev.bold || tagName === "strong" || tagName === "b",
       italic: prev.italic || tagName === "em" || tagName === "i",
       superscript: prev.superscript || tagName === "sup",
-      href: tagName === "a" && attrs.href ? attrs.href : prev.href,
+      href: noteHref || prev.href,
       nodeId: attrs.id || prev.nodeId || "",
       className: classes.join(" "),
       color: inlineStyle.color || prev.color || "",
@@ -466,10 +509,10 @@ function extractInlineRuns(innerHtml) {
       if (next.trailingSpacingEm == null) next.trailingSpacingEm = 0.1;
     }
     if (attrs.id) inlineIds.push(attrs.id);
-    if (tagName === "a" && attrs.href) {
+    if (noteHref) {
       linkTargets.push({
-        href: attrs.href,
-        fragment: attrs.href.includes("#") ? attrs.href.split("#")[1] : "",
+        href: noteHref,
+        fragment: noteHref.includes("#") ? noteHref.split("#")[1] : "",
         textHint: ""
       });
     }
