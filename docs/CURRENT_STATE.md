@@ -165,3 +165,9 @@
   - `reader_render_v3/tools/protected-ingestion/README.md`
   - `reader_render_v3/tools/protected-fonts/README.md`
 - Historical and exploratory docs outside that set are no longer part of the intended handoff package.
+
+## Local V5 Branch Notes
+
+- In the current `reader_render_v5` line, non-inline protected media can now be opened from the reading surface:
+  - desktop opens a centered image viewer modal on click and suppresses shell-bar toggles for that click;
+  - phones/tablets open the full-screen image viewer only on long-press, while ordinary taps on the same image still follow the old shell behavior by zone (center toggles bars, edge zones page-turn).

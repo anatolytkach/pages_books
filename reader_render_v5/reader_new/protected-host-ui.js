@@ -81,6 +81,14 @@ const HOST_STATE = {
   lastShellToggleSource: "",
   lastShellToggleAt: 0,
   lastShellTogglePreHidden: false,
+  imageViewerKey: "",
+  imageViewerTransform: {
+    scale: 1,
+    x: 0,
+    y: 0
+  },
+  imageViewerPointers: new Map(),
+  imageViewerGesture: null,
   touchUiGuardInstalled: false,
   viewportEnvironmentInstalled: false,
   tts: {
@@ -884,6 +892,114 @@ function installStyles() {
     #protectedFootnoteModal.selection-translate.fn-main-modal .fn-main-content {
       white-space: normal;
       overflow-wrap: anywhere;
+    }
+    #protectedImageViewer {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 12, 18, 0.82);
+      backdrop-filter: blur(4px);
+    }
+    #protectedImageViewer.show {
+      display: flex;
+    }
+    #protectedImageViewer .protected-image-viewer-backdrop {
+      position: absolute;
+      inset: 0;
+    }
+    #protectedImageViewer .protected-image-viewer-panel {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: min(92vw, 1280px);
+      max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 40px);
+      padding: 20px;
+      box-sizing: border-box;
+      border-radius: 18px;
+      background: rgba(12, 15, 22, 0.96);
+      box-shadow: 0 18px 64px rgba(0, 0, 0, 0.42);
+    }
+    #protectedImageViewer .protected-image-viewer-close {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      z-index: 3;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    #protectedImageViewer .protected-image-viewer-close:hover,
+    #protectedImageViewer .protected-image-viewer-close:focus-visible {
+      outline: none;
+      background: rgba(255, 255, 255, 0.22);
+    }
+    #protectedImageViewer .protected-image-viewer-stage {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #protectedImageViewer .protected-image-viewer-image {
+      display: block;
+      max-width: 100%;
+      max-height: 80vh;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      transform-origin: center center;
+      will-change: transform;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    html.is-phone body.protected-shell #protectedImageViewer,
+    html.is-tablet body.protected-shell #protectedImageViewer {
+      background: rgba(0, 0, 0, 0.98);
+      backdrop-filter: none;
+    }
+    html.is-phone body.protected-shell #protectedImageViewer .protected-image-viewer-panel,
+    html.is-tablet body.protected-shell #protectedImageViewer .protected-image-viewer-panel {
+      width: 100vw;
+      max-width: 100vw;
+      height: 100vh;
+      max-height: 100vh;
+      padding: 0;
+      border-radius: 0;
+      background: #000;
+      box-shadow: none;
+    }
+    html.is-phone body.protected-shell #protectedImageViewer .protected-image-viewer-close,
+    html.is-tablet body.protected-shell #protectedImageViewer .protected-image-viewer-close {
+      top: calc(env(safe-area-inset-top, 0px) + 14px);
+      right: calc(env(safe-area-inset-right, 0px) + 14px);
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.18);
+    }
+    html.is-phone body.protected-shell #protectedImageViewer .protected-image-viewer-stage,
+    html.is-tablet body.protected-shell #protectedImageViewer .protected-image-viewer-stage {
+      width: 100vw;
+      height: 100vh;
+    }
+    html.is-phone body.protected-shell #protectedImageViewer .protected-image-viewer-image,
+    html.is-tablet body.protected-shell #protectedImageViewer .protected-image-viewer-image {
+      max-width: 100vw;
+      max-height: 100vh;
     }
     html.is-phone body.protected-shell #protectedFootnotePopup.popup,
     html.is-tablet body.protected-shell #protectedFootnotePopup.popup {
@@ -6149,6 +6265,228 @@ function ensureFootnoteModal() {
   return modal;
 }
 
+function clampImageViewerTransform() {
+  const viewer = document.getElementById("protectedImageViewer");
+  const stage = viewer ? viewer.querySelector(".protected-image-viewer-stage") : null;
+  const image = viewer ? viewer.querySelector(".protected-image-viewer-image") : null;
+  if (!stage || !image) return;
+  const naturalWidth = Number(image.naturalWidth || image.width || 0);
+  const naturalHeight = Number(image.naturalHeight || image.height || 0);
+  const stageWidth = Math.max(1, Number(stage.clientWidth || 0));
+  const stageHeight = Math.max(1, Number(stage.clientHeight || 0));
+  if (!naturalWidth || !naturalHeight || !stageWidth || !stageHeight) {
+    HOST_STATE.imageViewerTransform.x = 0;
+    HOST_STATE.imageViewerTransform.y = 0;
+    return;
+  }
+  const fitScale = Math.min(stageWidth / naturalWidth, stageHeight / naturalHeight, 1);
+  const renderedWidth = naturalWidth * fitScale * Number(HOST_STATE.imageViewerTransform.scale || 1);
+  const renderedHeight = naturalHeight * fitScale * Number(HOST_STATE.imageViewerTransform.scale || 1);
+  const maxX = Math.max(0, (renderedWidth - stageWidth) / 2);
+  const maxY = Math.max(0, (renderedHeight - stageHeight) / 2);
+  HOST_STATE.imageViewerTransform.x = Math.max(-maxX, Math.min(maxX, Number(HOST_STATE.imageViewerTransform.x || 0)));
+  HOST_STATE.imageViewerTransform.y = Math.max(-maxY, Math.min(maxY, Number(HOST_STATE.imageViewerTransform.y || 0)));
+}
+
+function applyImageViewerTransform() {
+  const viewer = document.getElementById("protectedImageViewer");
+  const image = viewer ? viewer.querySelector(".protected-image-viewer-image") : null;
+  if (!image) return;
+  clampImageViewerTransform();
+  image.style.transform = `translate(${Number(HOST_STATE.imageViewerTransform.x || 0)}px, ${Number(HOST_STATE.imageViewerTransform.y || 0)}px) scale(${Number(HOST_STATE.imageViewerTransform.scale || 1)})`;
+}
+
+function closeProtectedImageViewer(reason = "dismiss") {
+  const viewer = document.getElementById("protectedImageViewer");
+  if (!viewer) return;
+  viewer.classList.remove("show", "touch");
+  viewer.setAttribute("aria-hidden", "true");
+  const image = viewer.querySelector(".protected-image-viewer-image");
+  if (image) {
+    image.removeAttribute("src");
+    image.style.transform = "";
+  }
+  HOST_STATE.imageViewerKey = "";
+  HOST_STATE.imageViewerTransform = { scale: 1, x: 0, y: 0 };
+  HOST_STATE.imageViewerPointers = new Map();
+  HOST_STATE.imageViewerGesture = null;
+  suppressShellToggle(reason === "open" ? 500 : 240);
+}
+
+function ensureProtectedImageViewer() {
+  let viewer = document.getElementById("protectedImageViewer");
+  if (viewer) return viewer;
+  viewer = document.createElement("div");
+  viewer.id = "protectedImageViewer";
+  viewer.setAttribute("aria-hidden", "true");
+  viewer.innerHTML = `
+    <div class="protected-image-viewer-backdrop"></div>
+    <div class="protected-image-viewer-panel" role="dialog" aria-modal="true" aria-label="Image viewer">
+      <button type="button" class="protected-image-viewer-close" aria-label="Close image viewer">×</button>
+      <div class="protected-image-viewer-stage">
+        <img class="protected-image-viewer-image" alt="" draggable="false" />
+      </div>
+    </div>
+  `;
+  const closeButton = viewer.querySelector(".protected-image-viewer-close");
+  const backdrop = viewer.querySelector(".protected-image-viewer-backdrop");
+  const stage = viewer.querySelector(".protected-image-viewer-stage");
+  const image = viewer.querySelector(".protected-image-viewer-image");
+  const close = (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+    }
+    closeProtectedImageViewer("dismiss");
+  };
+  closeButton && closeButton.addEventListener("pointerdown", close, true);
+  closeButton && closeButton.addEventListener("touchstart", close, { capture: true, passive: false });
+  closeButton && closeButton.addEventListener("click", close, true);
+  backdrop && backdrop.addEventListener("pointerdown", close, true);
+  backdrop && backdrop.addEventListener("touchstart", close, { capture: true, passive: false });
+  const onPointerDown = (event) => {
+    if (!viewer.classList.contains("touch")) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    stage.setPointerCapture && event.pointerId != null && stage.setPointerCapture(event.pointerId);
+    HOST_STATE.imageViewerPointers.set(event.pointerId, {
+      x: Number(event.clientX || 0),
+      y: Number(event.clientY || 0)
+    });
+    const pointers = Array.from(HOST_STATE.imageViewerPointers.values());
+    if (pointers.length >= 2) {
+      const [a, b] = pointers;
+      HOST_STATE.imageViewerGesture = {
+        mode: "pinch",
+        startScale: Number(HOST_STATE.imageViewerTransform.scale || 1),
+        startX: Number(HOST_STATE.imageViewerTransform.x || 0),
+        startY: Number(HOST_STATE.imageViewerTransform.y || 0),
+        startDistance: Math.hypot(b.x - a.x, b.y - a.y) || 1,
+        startMidX: (a.x + b.x) / 2,
+        startMidY: (a.y + b.y) / 2
+      };
+    } else if (pointers.length === 1) {
+      HOST_STATE.imageViewerGesture = {
+        mode: "pan",
+        pointerId: event.pointerId,
+        startClientX: Number(event.clientX || 0),
+        startClientY: Number(event.clientY || 0),
+        startX: Number(HOST_STATE.imageViewerTransform.x || 0),
+        startY: Number(HOST_STATE.imageViewerTransform.y || 0)
+      };
+    }
+    event.preventDefault();
+  };
+  const onPointerMove = (event) => {
+    if (!viewer.classList.contains("touch")) return;
+    if (!HOST_STATE.imageViewerPointers.has(event.pointerId)) return;
+    HOST_STATE.imageViewerPointers.set(event.pointerId, {
+      x: Number(event.clientX || 0),
+      y: Number(event.clientY || 0)
+    });
+    const pointers = Array.from(HOST_STATE.imageViewerPointers.values());
+    if (pointers.length >= 2) {
+      const [a, b] = pointers;
+      const gesture = HOST_STATE.imageViewerGesture || {
+        mode: "pinch",
+        startScale: Number(HOST_STATE.imageViewerTransform.scale || 1),
+        startX: Number(HOST_STATE.imageViewerTransform.x || 0),
+        startY: Number(HOST_STATE.imageViewerTransform.y || 0),
+        startDistance: Math.hypot(b.x - a.x, b.y - a.y) || 1,
+        startMidX: (a.x + b.x) / 2,
+        startMidY: (a.y + b.y) / 2
+      };
+      const nextDistance = Math.hypot(b.x - a.x, b.y - a.y) || gesture.startDistance || 1;
+      const nextMidX = (a.x + b.x) / 2;
+      const nextMidY = (a.y + b.y) / 2;
+      HOST_STATE.imageViewerTransform.scale = Math.max(1, Math.min(4, gesture.startScale * (nextDistance / Math.max(1, gesture.startDistance))));
+      HOST_STATE.imageViewerTransform.x = Number(gesture.startX || 0) + (nextMidX - Number(gesture.startMidX || 0));
+      HOST_STATE.imageViewerTransform.y = Number(gesture.startY || 0) + (nextMidY - Number(gesture.startMidY || 0));
+      HOST_STATE.imageViewerGesture = gesture;
+      applyImageViewerTransform();
+      event.preventDefault();
+      return;
+    }
+    const gesture = HOST_STATE.imageViewerGesture;
+    if (!gesture || gesture.mode !== "pan" || Number(HOST_STATE.imageViewerTransform.scale || 1) <= 1) return;
+    HOST_STATE.imageViewerTransform.x = Number(gesture.startX || 0) + (Number(event.clientX || 0) - Number(gesture.startClientX || 0));
+    HOST_STATE.imageViewerTransform.y = Number(gesture.startY || 0) + (Number(event.clientY || 0) - Number(gesture.startClientY || 0));
+    applyImageViewerTransform();
+    event.preventDefault();
+  };
+  const onPointerUp = (event) => {
+    if (!viewer.classList.contains("touch")) return;
+    HOST_STATE.imageViewerPointers.delete(event.pointerId);
+    stage.releasePointerCapture && event.pointerId != null && stage.releasePointerCapture(event.pointerId);
+    const pointers = Array.from(HOST_STATE.imageViewerPointers.values());
+    if (pointers.length >= 2) {
+      const [a, b] = pointers;
+      HOST_STATE.imageViewerGesture = {
+        mode: "pinch",
+        startScale: Number(HOST_STATE.imageViewerTransform.scale || 1),
+        startX: Number(HOST_STATE.imageViewerTransform.x || 0),
+        startY: Number(HOST_STATE.imageViewerTransform.y || 0),
+        startDistance: Math.hypot(b.x - a.x, b.y - a.y) || 1,
+        startMidX: (a.x + b.x) / 2,
+        startMidY: (a.y + b.y) / 2
+      };
+    } else if (pointers.length === 1) {
+      const [a] = pointers;
+      HOST_STATE.imageViewerGesture = {
+        mode: "pan",
+        startClientX: a.x,
+        startClientY: a.y,
+        startX: Number(HOST_STATE.imageViewerTransform.x || 0),
+        startY: Number(HOST_STATE.imageViewerTransform.y || 0)
+      };
+    } else {
+      HOST_STATE.imageViewerGesture = null;
+    }
+  };
+  const onWheel = (event) => {
+    if (viewer.classList.contains("touch")) return;
+    const nextScale = Math.max(1, Math.min(4, Number(HOST_STATE.imageViewerTransform.scale || 1) + (event.deltaY < 0 ? 0.12 : -0.12)));
+    if (nextScale === Number(HOST_STATE.imageViewerTransform.scale || 1)) return;
+    HOST_STATE.imageViewerTransform.scale = nextScale;
+    applyImageViewerTransform();
+    event.preventDefault();
+  };
+  image && image.addEventListener("load", () => {
+    HOST_STATE.imageViewerTransform = { scale: 1, x: 0, y: 0 };
+    applyImageViewerTransform();
+  });
+  stage && stage.addEventListener("pointerdown", onPointerDown, { capture: true });
+  stage && stage.addEventListener("pointermove", onPointerMove, { capture: true });
+  stage && stage.addEventListener("pointerup", onPointerUp, { capture: true });
+  stage && stage.addEventListener("pointercancel", onPointerUp, { capture: true });
+  stage && stage.addEventListener("wheel", onWheel, { passive: false });
+  window.addEventListener("resize", () => {
+    if (!viewer.classList.contains("show")) return;
+    applyImageViewerTransform();
+  }, { passive: true });
+  document.body.appendChild(viewer);
+  return viewer;
+}
+
+function showProtectedImageViewer(media, pointerType = "mouse") {
+  if (!media || !media.assetUrl) return;
+  const viewer = ensureProtectedImageViewer();
+  const image = viewer.querySelector(".protected-image-viewer-image");
+  if (!image) return;
+  const touchMode = isTouchShellMode() || String(pointerType || "").toLowerCase() === "touch";
+  HOST_STATE.imageViewerKey = [String(media.mediaId || ""), String(media.assetUrl || ""), touchMode ? "touch" : "desktop"].join("|");
+  HOST_STATE.imageViewerTransform = { scale: 1, x: 0, y: 0 };
+  HOST_STATE.imageViewerPointers = new Map();
+  HOST_STATE.imageViewerGesture = null;
+  viewer.classList.add("show");
+  viewer.classList.toggle("touch", !!touchMode);
+  viewer.setAttribute("aria-hidden", "false");
+  image.src = String(media.assetUrl || "");
+  image.alt = "";
+  image.style.transform = "";
+  suppressShellToggle("image-open");
+}
+
 function getProtectedFootnoteFontFamily(fontMode = HOST_STATE.readerConfig.fontMode) {
   return normalizeFontMode(fontMode) === "serif"
     ? 'Georgia, "Iowan Old Style", "Times New Roman", serif'
@@ -6188,6 +6526,15 @@ function hideFootnotePopup(reason = "dismiss") {
 function probeFootnoteAtClientPoint(clientX = 0, clientY = 0, pointerType = "mouse") {
   return invokeBridgeRaw(
     "getFootnoteAtClientPoint",
+    Number(clientX || 0),
+    Number(clientY || 0),
+    String(pointerType || "mouse")
+  ).catch(() => null);
+}
+
+function probeMediaAtClientPoint(clientX = 0, clientY = 0, pointerType = "mouse") {
+  return invokeBridgeRaw(
+    "getMediaAtClientPoint",
     Number(clientX || 0),
     Number(clientY || 0),
     String(pointerType || "mouse")
@@ -6575,6 +6922,8 @@ function attachProtectedSurfaceInteractions(frame) {
       startX: 0,
       startY: 0,
       selectionDismissed: false,
+      mediaProbe: null,
+      mediaItem: null,
       footnoteProbe: null,
       footnoteAnchor: null
     };
@@ -6626,11 +6975,19 @@ function attachProtectedSurfaceInteractions(frame) {
       desktopSurfaceClickState.startX = Number(event.clientX || 0);
       desktopSurfaceClickState.startY = Number(event.clientY || 0);
       desktopSurfaceClickState.selectionDismissed = false;
+      desktopSurfaceClickState.mediaItem = null;
+      desktopSurfaceClickState.mediaProbe = inProtectedSurface && primaryButton
+        ? probeMediaAtClientPoint(event.clientX, event.clientY, "mouse").then((result) => {
+            desktopSurfaceClickState.mediaItem = result && result.active && result.media ? result.media : null;
+            if (desktopSurfaceClickState.mediaItem) desktopSurfaceClickState.armed = false;
+            return desktopSurfaceClickState.mediaItem;
+          })
+        : null;
       desktopSurfaceClickState.footnoteAnchor = null;
       desktopSurfaceClickState.footnoteProbe = inProtectedSurface && primaryButton
         ? probeFootnoteAtClientPoint(event.clientX, event.clientY, "mouse").then((result) => {
             desktopSurfaceClickState.footnoteAnchor = result && result.active && result.anchor ? result.anchor : null;
-            if (desktopSurfaceClickState.footnoteAnchor) desktopSurfaceClickState.armed = false;
+            if (desktopSurfaceClickState.footnoteAnchor && !desktopSurfaceClickState.mediaItem) desktopSurfaceClickState.armed = false;
             return desktopSurfaceClickState.footnoteAnchor;
           })
         : null;
@@ -6698,6 +7055,18 @@ function attachProtectedSurfaceInteractions(frame) {
       const summary = getBridgeSummaryFromFrame(frame);
       const hasSelection = !!(summary && (summary.selectionActive || summary.focusedAnnotationId));
       if (inProtectedSurface && primaryButton && !hasSelection) {
+        const mediaItem = desktopSurfaceClickState.mediaProbe
+          ? await desktopSurfaceClickState.mediaProbe
+          : await probeMediaAtClientPoint(event.clientX, event.clientY, "mouse").then((result) => result && result.active && result.media ? result.media : null);
+        if (mediaItem) {
+          desktopSurfaceClickState.armed = false;
+          desktopSurfaceClickState.selectionDismissed = false;
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+          showProtectedImageViewer(mediaItem, "mouse");
+          return;
+        }
         const anchor = desktopSurfaceClickState.footnoteProbe
           ? await desktopSurfaceClickState.footnoteProbe
           : await probeFootnoteAtClientPoint(event.clientX, event.clientY).then((result) => result && result.active && result.anchor ? result.anchor : null);
@@ -6714,12 +7083,16 @@ function attachProtectedSurfaceInteractions(frame) {
       if (!desktopSurfaceClickState.armed || !inProtectedSurface || !primaryButton || hasSelection || desktopSurfaceClickState.selectionDismissed || Date.now() < Number(HOST_STATE.suppressShellToggleUntil || 0)) {
         desktopSurfaceClickState.armed = false;
         desktopSurfaceClickState.selectionDismissed = false;
+        desktopSurfaceClickState.mediaProbe = null;
+        desktopSurfaceClickState.mediaItem = null;
         desktopSurfaceClickState.footnoteProbe = null;
         desktopSurfaceClickState.footnoteAnchor = null;
         return;
       }
       desktopSurfaceClickState.armed = false;
       desktopSurfaceClickState.selectionDismissed = false;
+      desktopSurfaceClickState.mediaProbe = null;
+      desktopSurfaceClickState.mediaItem = null;
       desktopSurfaceClickState.footnoteProbe = null;
       desktopSurfaceClickState.footnoteAnchor = null;
       scheduleShellToggle("desktop-click", 140);
@@ -6760,6 +7133,8 @@ function attachProtectedSurfaceInteractions(frame) {
     }, true);
     doc.addEventListener("pointercancel", () => {
       desktopSurfaceClickState.armed = false;
+      desktopSurfaceClickState.mediaProbe = null;
+      desktopSurfaceClickState.mediaItem = null;
       desktopSurfaceClickState.footnoteProbe = null;
       desktopSurfaceClickState.footnoteAnchor = null;
     }, true);
@@ -6776,6 +7151,7 @@ function updateFromSummary(summary) {
   const nextPageLabel = String(summary.pageLabel || summary.globalPageLabel || "");
   if (previousPageLabel && nextPageLabel && previousPageLabel !== nextPageLabel) {
     hideFootnotePopup("page-change");
+    closeProtectedImageViewer("page-change");
   }
   syncPageTurnLayerGeometry();
   ensureHostGenerations();
@@ -8027,15 +8403,43 @@ function installTouchSwipe(target) {
       previewVisible: false,
       frozenCanvases: cloneProtectedCanvases(),
       activationTimer: null,
+      imageLongPressTimer: null,
       preparingDirection: null,
       preparing: null,
       swipeCaptured: false,
       selectionClaimed: false,
       selectionLocked: false,
       edgeBlocked,
+      mediaProbe: null,
+      mediaItem: null,
+      mediaResolved: false,
+      imageActivated: false,
       footnoteAnchor: null,
       footnoteResolved: false
     };
+    const activeGesture = gesture;
+    gesture.mediaProbe = probeMediaAtClientPoint(touch.clientX, touch.clientY, "touch").then((result) => {
+      if (!activeGesture || activeGesture !== gesture) return null;
+      const mediaItem = result && result.active && result.media ? result.media : null;
+      activeGesture.mediaResolved = true;
+      activeGesture.mediaItem = mediaItem;
+      return mediaItem;
+    }).catch(() => {
+      if (activeGesture && activeGesture === gesture) activeGesture.mediaResolved = true;
+      return null;
+    });
+    gesture.imageLongPressTimer = window.setTimeout(async () => {
+      if (!activeGesture || activeGesture !== gesture) return;
+      if (activeGesture.selectionClaimed || activeGesture.selectionLocked) return;
+      if (activeGesture.previewVisible || activeGesture.swipeCaptured) return;
+      const mediaItem = activeGesture.mediaProbe
+        ? await activeGesture.mediaProbe
+        : null;
+      if (!activeGesture || activeGesture !== gesture || !mediaItem) return;
+      activeGesture.imageActivated = true;
+      suppressShellToggle("image-longpress");
+      showProtectedImageViewer(mediaItem, "touch");
+    }, 420);
     if (!prepared) {
       gesture.preparingDirection = "both";
       gesture.preparing = prepareAndSyncNeighborPreviews().then((ready) => {
@@ -8067,6 +8471,8 @@ function installTouchSwipe(target) {
     if (gesture.edgeBlocked) return;
     const dx = touch.clientX - gesture.x;
     const dy = touch.clientY - gesture.y;
+    const totalDx = touch.clientX - gesture.startX;
+    const totalDy = touch.clientY - gesture.startY;
     window.__protectedTouchDebug.move = {
       dx,
       dy,
@@ -8076,8 +8482,18 @@ function installTouchSwipe(target) {
       previewVisible: !!gesture.previewVisible,
       prepared: !!gesture.prepared
     };
+    if (Math.abs(totalDx) > 14 || Math.abs(totalDy) > 14) {
+      if (gesture.imageLongPressTimer) {
+        window.clearTimeout(gesture.imageLongPressTimer);
+        gesture.imageLongPressTimer = null;
+      }
+    }
     const touchSelection = getTouchSelectionState();
     const summary = getBridgeSummaryFromFrame(HOST_STATE.frame);
+    if (gesture.imageActivated) {
+      event.preventDefault();
+      return;
+    }
     if (gesture.footnoteAnchor) {
       if (gesture.activationTimer) {
         window.clearTimeout(gesture.activationTimer);
@@ -8265,6 +8681,10 @@ function installTouchSwipe(target) {
       window.clearTimeout(completedGesture.activationTimer);
       completedGesture.activationTimer = null;
     }
+    if (completedGesture.imageLongPressTimer) {
+      window.clearTimeout(completedGesture.imageLongPressTimer);
+      completedGesture.imageLongPressTimer = null;
+    }
     if (completedGesture.swipeCaptured) setFramePointerEventsDisabled(false);
     HOST_STATE.touchSelectionInProgress = false;
     gesture = null;
@@ -8278,8 +8698,13 @@ function installTouchSwipe(target) {
       tapZone,
       overlaysVisible: overlaysVisible(),
       selectionClaimed,
-      footnote: false
+      footnote: false,
+      image: !!completedGesture.imageActivated
     };
+    if (completedGesture.imageActivated) {
+      event.preventDefault();
+      return;
+    }
     if (Math.abs(dx) < 58 || Math.abs(dx) < Math.abs(dy) * 1.35) {
       if (previewVisible) {
         animatePageTurnTo(0, 150);
@@ -8368,6 +8793,10 @@ function installTouchSwipe(target) {
   target.addEventListener("touchend", onEnd, { passive: false, capture: true });
   target.addEventListener("touchcancel", () => {
     clearPageTurnPreview({ clearNeighbors: false });
+    if (gesture && gesture.imageLongPressTimer) {
+      window.clearTimeout(gesture.imageLongPressTimer);
+      gesture.imageLongPressTimer = null;
+    }
     if (gesture && gesture.swipeCaptured) setFramePointerEventsDisabled(false);
     gesture = null;
   }, { passive: true, capture: true });
@@ -9148,7 +9577,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260422-v5-footnotes-2");
+      await import("../dev/protected-reader.js?v=20260422-v5-image-viewer-2");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;

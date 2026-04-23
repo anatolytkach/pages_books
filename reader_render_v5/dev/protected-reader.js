@@ -25,7 +25,7 @@ import {
 } from "./protected-reader-runtime-core.js";
 import {
   createProtectedReaderHostBridge
-} from "./protected-reader-host-bridge.js";
+} from "./protected-reader-host-bridge.js?v=20260422-v5-image-viewer-2";
 import {
   createProtectedReaderEventChannel,
   PROTECTED_READER_CANONICAL_EVENT_NAMES
@@ -1931,6 +1931,75 @@ async function getFootnoteAtClientPoint(clientX, clientY, pointerType = "mouse")
   return getFootnoteAt(point, pointerType);
 }
 
+function buildExpandedMediaHitBounds(item, pointerType = "mouse") {
+  if (!item) return null;
+  const left = Number(item.x || 0);
+  const top = Number(item.y || 0);
+  const width = Math.max(1, Number(item.width || 0));
+  const height = Math.max(1, Number(item.height || 0));
+  const right = left + width;
+  const bottom = top + height;
+  const normalizedPointer = String(pointerType || "mouse").trim().toLowerCase();
+  if (normalizedPointer === "touch" || normalizedPointer === "pen") {
+    const targetWidth = Math.max(width, 96);
+    const targetHeight = Math.max(height, 96);
+    const centerX = (left + right) / 2;
+    const centerY = (top + bottom) / 2;
+    return {
+      left: centerX - targetWidth / 2,
+      right: centerX + targetWidth / 2,
+      top: centerY - targetHeight / 2,
+      bottom: centerY + targetHeight / 2
+    };
+  }
+  return { left, right, top, bottom };
+}
+
+function pointHitsMediaItem(item, x, y, pointerType = "mouse") {
+  const bounds = buildExpandedMediaHitBounds(item, pointerType);
+  if (!bounds) return false;
+  const px = Number(x);
+  const py = Number(y);
+  if (!Number.isFinite(px) || !Number.isFinite(py)) return false;
+  return (
+    px >= Number(bounds.left || 0) &&
+    px <= Number(bounds.right || 0) &&
+    py >= Number(bounds.top || 0) &&
+    py <= Number(bounds.bottom || 0)
+  );
+}
+
+async function getMediaAtClientPoint(clientX, clientY, pointerType = "mouse") {
+  if (!state.currentSnapshot || !state.currentSnapshot.renderPacket) {
+    return { active: false, media: null };
+  }
+  const point = getCanvasPointFromClient(clientX, clientY);
+  const mediaItems = Array.isArray(state.currentSnapshot.renderPacket.mediaItems)
+    ? state.currentSnapshot.renderPacket.mediaItems
+    : [];
+  for (let index = mediaItems.length - 1; index >= 0; index -= 1) {
+    const item = mediaItems[index];
+    if (!item || !item.assetUrl) continue;
+    if (item.inlineAvatar || String(item.placement || "").trim() === "inline-avatar") continue;
+    if (!pointHitsMediaItem(item, point.x, point.y, pointerType)) continue;
+    return {
+      active: true,
+      media: {
+        mediaId: String(item.mediaId || ""),
+        blockId: String(item.blockId || ""),
+        assetUrl: String(item.assetUrl || ""),
+        resolvedHref: String(item.resolvedHref || ""),
+        placement: String(item.placement || "block"),
+        width: Number(item.width || 0),
+        height: Number(item.height || 0),
+        x: Number(item.x || 0),
+        y: Number(item.y || 0)
+      }
+    };
+  }
+  return { active: false, media: null };
+}
+
 async function getFootnoteAt(point, pointerType = "mouse") {
   if (!state.currentSnapshot) return { active: false, anchor: null };
   return state.workerClient.getFootnoteAtPoint({
@@ -3448,6 +3517,10 @@ async function bridgeGetFootnoteAtClientPoint(clientX = 0, clientY = 0, pointerT
   return getFootnoteAtClientPoint(clientX, clientY, pointerType);
 }
 
+async function bridgeGetMediaAtClientPoint(clientX = 0, clientY = 0, pointerType = "mouse") {
+  return getMediaAtClientPoint(clientX, clientY, pointerType);
+}
+
 function buildEmbeddedHostHandlers() {
   return {
     getSummary: buildBridgeSummary,
@@ -3465,6 +3538,7 @@ function buildEmbeddedHostHandlers() {
     restoreFromToken: bridgeRestoreFromToken,
     goToGlobalOffset: bridgeGoToGlobalOffset,
     getFootnoteAtClientPoint: bridgeGetFootnoteAtClientPoint,
+    getMediaAtClientPoint: bridgeGetMediaAtClientPoint,
     copySelection: bridgeCopySelection,
     exportSelectionForUserAction: bridgeExportSelectionForUserAction,
     captureSelectionForUserAction: bridgeCaptureSelectionForUserAction,
