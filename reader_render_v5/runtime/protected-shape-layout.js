@@ -6,6 +6,7 @@ export function buildGlyphRenderOps({ layout, chunkModel, shapeRegistry, renderM
       const run = chunkModel.runBySegmentKey.get(fragment.runKey);
       if (!run) continue;
       let cursorX = fragment.x;
+      let previousAdvance = 0;
       const glyphTokens = (run.glyphTokens || []).slice(fragment.glyphStartIndex, fragment.glyphEndIndex);
       for (let index = 0; index < glyphTokens.length; index += 1) {
         const glyphToken = glyphTokens[index];
@@ -16,13 +17,17 @@ export function buildGlyphRenderOps({ layout, chunkModel, shapeRegistry, renderM
         const styleTokenRecord = styleMap && typeof styleMap.get === "function"
           ? (styleMap.get(glyph.styleToken) || null)
           : null;
+        const renderX =
+          glyph.scriptBucket === "Combining" || glyph.glyphClass?.includes("combining")
+            ? Math.max(fragment.x, cursorX - Math.max(0, previousAdvance))
+            : cursorX;
         ops.push({
           glyphId: glyph.glyphId,
           glyphToken,
           styleToken: fragment.styleToken || glyph.styleToken,
           fontFamilyCandidate: glyph.fontFamilyCandidate,
           scriptBucket: glyph.scriptBucket,
-          x: cursorX,
+          x: renderX,
           y: line.y,
           baselineY: Number(fragment.baselineY || (line.y + fragment.font.size)),
           fontSize: fragment.font.size,
@@ -40,6 +45,7 @@ export function buildGlyphRenderOps({ layout, chunkModel, shapeRegistry, renderM
           fillStyle: fragment.fillStyle || (styleTokenRecord && styleTokenRecord.textColor) || "",
           renderMode
         });
+        previousAdvance = advance;
         cursorX += advance;
       }
       if (fragment.syntheticTrailingHyphen && Number(fragment.syntheticHyphenWidthPx || 0) > 0) {

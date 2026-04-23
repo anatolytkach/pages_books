@@ -8322,9 +8322,9 @@
       "glyphId": "g-10d159954007",
       "glyphToken": "g-10d159954007",
       "styleToken": "list-item",
-      "scriptBucket": "Unknown",
-      "glyphClass": "unknown-list-item",
-      "stableRenderClass": "unknown-chunk-glyph",
+      "scriptBucket": "Combining",
+      "glyphClass": "combining-list-item",
+      "stableRenderClass": "combining-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",
@@ -8344,9 +8344,9 @@
       "glyphId": "g-dc24d89866ae",
       "glyphToken": "g-dc24d89866ae",
       "styleToken": "paragraph",
-      "scriptBucket": "Unknown",
-      "glyphClass": "unknown-paragraph",
-      "stableRenderClass": "unknown-chunk-glyph",
+      "scriptBucket": "Combining",
+      "glyphClass": "combining-paragraph",
+      "stableRenderClass": "combining-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",

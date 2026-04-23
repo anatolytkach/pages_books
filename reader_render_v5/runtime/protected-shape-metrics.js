@@ -1,6 +1,7 @@
 import { buildGlyphBoxes } from "./protected-shape-offset-map.js";
 
 function fallbackAdvanceEm(glyph) {
+  if (glyph.scriptBucket === "Combining" || glyph.glyphClass?.includes("combining")) return 0;
   if (glyph.shapeStatus === "space" || glyph.glyphClass?.includes("common")) return 0.33;
   if (glyph.scriptBucket === "CJK") return 1.0;
   if (glyph.glyphClass?.includes("latin") && glyph.styleToken?.includes("heading")) return 0.64;
@@ -22,6 +23,9 @@ function fallbackLineMetrics(font, glyphCount) {
 }
 
 export function getShapeAdvancePx({ glyph, shapeRecord, font }) {
+  if (glyph.scriptBucket === "Combining" || glyph.glyphClass?.includes("combining")) {
+    return 0;
+  }
   const advanceEm = shapeRecord && typeof shapeRecord.advance === "number"
     ? shapeRecord.advance
     : shapeRecord && typeof shapeRecord.advanceEm === "number"

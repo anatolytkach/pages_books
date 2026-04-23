@@ -35,7 +35,7 @@ function buildSelectionLayer(chunk, options = {}) {
   function pushWordBoundaries(text, baseOffset) {
     const chars = Array.from(String(text || ""));
     function isCoreWordChar(char) {
-      return /[\p{L}\p{N}]/u.test(char);
+      return /[\p{L}\p{N}\p{M}]/u.test(char);
     }
     function isWordLike(char, index) {
       if (!char) return false;

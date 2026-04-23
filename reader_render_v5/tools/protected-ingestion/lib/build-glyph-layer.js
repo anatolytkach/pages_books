@@ -19,6 +19,10 @@ function fontCandidateForCodePoint(codePoint, fontMode = "sans") {
   return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
 }
 
+function isCombiningMarkChar(char) {
+  return /\p{M}/u.test(String(char || ""));
+}
+
 function scriptBucketForCodePoint(codePoint) {
   if (codePoint >= 0x0041 && codePoint <= 0x024f) return "Latin";
   if (codePoint >= 0x0370 && codePoint <= 0x03ff) return "Greek";
@@ -44,7 +48,7 @@ function buildGlyphLayer({ bookId, chunkId, blocks, styleRegistry }) {
     const key = `${char}::${styleToken}`;
     if (!glyphByKey.has(key)) {
       const glyphId = `g-${hash(`${seed}:${key}`, 12)}`;
-      const scriptBucket = scriptBucketForCodePoint(scalar);
+      const scriptBucket = isCombiningMarkChar(char) ? "Combining" : scriptBucketForCodePoint(scalar);
       const reconRef = `r-${hash(`${seed}:recon:${key}`, 12)}`;
       const runtimeGlyph = {
         glyphId,

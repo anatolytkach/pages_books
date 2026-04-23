@@ -2976,9 +2976,9 @@
       "glyphId": "g-a8410783c398",
       "glyphToken": "g-a8410783c398",
       "styleToken": "paragraph",
-      "scriptBucket": "Unknown",
-      "glyphClass": "unknown-paragraph",
-      "stableRenderClass": "unknown-chunk-glyph",
+      "scriptBucket": "Combining",
+      "glyphClass": "combining-paragraph",
+      "stableRenderClass": "combining-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",

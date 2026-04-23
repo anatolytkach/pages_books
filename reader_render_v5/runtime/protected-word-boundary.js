@@ -1,5 +1,5 @@
 function isCoreWordChar(char) {
-  return /[\p{L}\p{N}]/u.test(char);
+  return /[\p{L}\p{N}\p{M}]/u.test(char);
 }
 
 function isAdjacent(prev, next) {
