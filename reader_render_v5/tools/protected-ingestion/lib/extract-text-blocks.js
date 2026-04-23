@@ -488,12 +488,11 @@ function extractInlineRuns(innerHtml) {
     const classes = classList(attrs);
     const inlineStyle = parseInlineStyle(attrs.style || "");
     const resolvedHref = tagName === "a" && attrs.href ? String(attrs.href).trim() : "";
-    const noteHref = looksLikeNoteHref(resolvedHref) ? resolvedHref : "";
     const next = {
       bold: prev.bold || tagName === "strong" || tagName === "b",
       italic: prev.italic || tagName === "em" || tagName === "i",
       superscript: prev.superscript || tagName === "sup",
-      href: noteHref || prev.href,
+      href: resolvedHref || prev.href,
       nodeId: attrs.id || prev.nodeId || "",
       className: classes.join(" "),
       color: inlineStyle.color || prev.color || "",
@@ -509,10 +508,10 @@ function extractInlineRuns(innerHtml) {
       if (next.trailingSpacingEm == null) next.trailingSpacingEm = 0.1;
     }
     if (attrs.id) inlineIds.push(attrs.id);
-    if (noteHref) {
+    if (resolvedHref) {
       linkTargets.push({
-        href: noteHref,
-        fragment: noteHref.includes("#") ? noteHref.split("#")[1] : "",
+        href: resolvedHref,
+        fragment: resolvedHref.includes("#") ? resolvedHref.split("#")[1] : "",
         textHint: ""
       });
     }

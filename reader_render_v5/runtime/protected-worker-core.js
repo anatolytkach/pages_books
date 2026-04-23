@@ -24,7 +24,8 @@ import {
   parseRestoreToken,
   serializeRestoreToken
 } from "./protected-global-location.js";
-import { layoutChunk } from "./protected-layout-engine.js?v=20260422-v5-footnotes-1";
+import { buildProtectedCfiResolver } from "./protected-cfi-resolver.js";
+import { layoutChunk } from "./protected-layout-engine.js?v=20260423-v5-links-1";
 import { createGlyphShapeRegistry } from "./protected-glyph-shape-registry.js";
 import { buildGlyphRenderOps } from "./protected-shape-layout.js";
 import { hitTestPosition } from "./protected-hit-testing.js";
@@ -406,8 +407,126 @@ function findNoteAnchorAtPoint(core, x, y, pointerType = "mouse") {
   return null;
 }
 
+function findLinkAnchorAtPoint(core, x, y, pointerType = "mouse") {
+  const anchors = Array.isArray(
+    core &&
+    core.currentChunkModel &&
+    core.currentChunkModel.chunk &&
+    core.currentChunkModel.chunk.selectionLayer &&
+    core.currentChunkModel.chunk.selectionLayer.linkAnchors
+  )
+    ? core.currentChunkModel.chunk.selectionLayer.linkAnchors
+    : [];
+  for (const anchor of anchors) {
+    const bounds = buildNoteAnchorBounds(core, anchor);
+    if (pointHitsNoteAnchorBounds(bounds, x, y, pointerType)) {
+      return { anchor, bounds };
+    }
+  }
+  return null;
+}
+
+function isExternalHref(href) {
+  return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(String(href || "").trim());
+}
+
+function normalizeSourceHref(value) {
+  return String(value || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+function resolveNavigationHref(rawHref, baseSourceHref) {
+  const raw = String(rawHref || "").trim();
+  if (!raw) return "";
+  if (isExternalHref(raw)) return raw;
+  const parsed = parseNoteHrefParts(raw);
+  const normalizedBase = normalizeSourceHref(baseSourceHref);
+  const resolvedSourceHref = parsed.targetSourceHref
+    ? resolveRelativeSourceHref(parsed.targetSourceHref, normalizedBase)
+    : normalizedBase;
+  if (parsed.targetAnchorId) {
+    return `${resolvedSourceHref}#${parsed.targetAnchorId}`;
+  }
+  return resolvedSourceHref;
+}
+
+function normalizeResolverHref(value) {
+  return String(value || "").trim().replace(/\\/g, "/").replace(/^\.?\//, "").replace(/^\/+/, "");
+}
+
+function buildResolverHrefVariants(value) {
+  const raw = normalizeResolverHref(value);
+  if (!raw) return [];
+  const hashIndex = raw.indexOf("#");
+  const href = hashIndex >= 0 ? raw.slice(0, hashIndex) : raw;
+  const fragment = hashIndex >= 0 ? raw.slice(hashIndex) : "";
+  const bareHref = href.replace(/^OEBPS\//i, "").replace(/^EPUB\//i, "");
+  const variants = [
+    `${href}${fragment}`,
+    `${bareHref}${fragment}`,
+    `OEBPS/${bareHref}${fragment}`,
+    `EPUB/${bareHref}${fragment}`
+  ];
+  return Array.from(new Set(variants.filter(Boolean)));
+}
+
+function resolveNavigationTarget(core, resolvedHref) {
+  if (!core || !resolvedHref || isExternalHref(resolvedHref)) return null;
+  const tryResolver = (href) => (
+    core.cfiResolver && typeof core.cfiResolver.resolveFromHref === "function"
+      ? core.cfiResolver.resolveFromHref(href)
+      : null
+  );
+  for (const candidateHref of buildResolverHrefVariants(resolvedHref)) {
+    const result = tryResolver(candidateHref);
+    if (result && result.rangeDescriptor && result.rangeDescriptor.start) {
+      return result;
+    }
+  }
+  const raw = normalizeResolverHref(resolvedHref);
+  const hashIndex = raw.indexOf("#");
+  const hrefOnly = normalizeResolverHref(hashIndex >= 0 ? raw.slice(0, hashIndex) : raw);
+  const hrefBare = hrefOnly.replace(/^OEBPS\//i, "").replace(/^EPUB\//i, "");
+  const globalModel = core && core.book && core.book.globalLocationModel ? core.book.globalLocationModel : null;
+  const chunkEntries = Array.isArray(globalModel && globalModel.chunks) ? globalModel.chunks : [];
+  for (let chunkIndex = 0; chunkIndex < chunkEntries.length; chunkIndex += 1) {
+    const chunkEntry = chunkEntries[chunkIndex] || {};
+    const blocks = Array.isArray(chunkEntry && chunkEntry.blockBoundaries) ? chunkEntry.blockBoundaries : [];
+    for (const block of blocks) {
+      const sourceHref = normalizeResolverHref(block && block.sourceRef && block.sourceRef.href);
+      const sourceBare = sourceHref.replace(/^OEBPS\//i, "").replace(/^EPUB\//i, "");
+      if (!sourceHref) continue;
+      if (sourceHref !== hrefOnly && sourceBare !== hrefBare) continue;
+      const startOffset = Number(block && block.startOffset);
+      const endOffset = Number(block && block.endOffset);
+      const safeStart = Number.isFinite(startOffset) ? startOffset : 0;
+      const safeEnd = Number.isFinite(endOffset) && endOffset > safeStart ? endOffset : safeStart + 1;
+      return {
+        status: "approximate",
+        reason: "worker-manual-source-href-match",
+        chunkId: String(chunkEntry.chunkId || ""),
+        rangeDescriptor: {
+          start: {
+            globalOffset: Number(chunkEntry.startOffset || 0) + safeStart,
+            chunkOrder: Number.isFinite(Number(chunkEntry.chunkOrder)) ? Number(chunkEntry.chunkOrder) : chunkIndex
+          },
+          end: {
+            globalOffset: Number(chunkEntry.startOffset || 0) + safeEnd
+          }
+        }
+      };
+    }
+  }
+  return null;
+}
+
 function buildNoteAnchorBounds(core, noteAnchor) {
   if (!core || !core.currentLayout || !noteAnchor) return null;
+  const pageWindow =
+    core.currentPageWindow && typeof core.currentPageWindow === "object"
+      ? core.currentPageWindow
+      : null;
+  const viewportLeft = Number(pageWindow && pageWindow.left || 0);
+  const viewportTop = Number(pageWindow && pageWindow.top || 0);
   const matchingFragments = [];
   for (const line of Array.isArray(core.currentLayout.lines) ? core.currentLayout.lines : []) {
     for (const fragment of Array.isArray(line && line.fragments) ? line.fragments : []) {
@@ -420,10 +539,10 @@ function buildNoteAnchorBounds(core, noteAnchor) {
     }
   }
   if (!matchingFragments.length) return null;
-  const left = Math.min(...matchingFragments.map((fragment) => Number(fragment.x || 0)));
-  const top = Math.min(...matchingFragments.map((fragment) => Number(fragment.y || 0)));
-  const right = Math.max(...matchingFragments.map((fragment) => Number(fragment.x || 0) + Number(fragment.width || 0)));
-  const bottom = Math.max(...matchingFragments.map((fragment) => Number(fragment.y || 0) + Number(fragment.height || 0)));
+  const left = Math.min(...matchingFragments.map((fragment) => Number(fragment.x || 0) - viewportLeft));
+  const top = Math.min(...matchingFragments.map((fragment) => Number(fragment.y || 0) - viewportTop));
+  const right = Math.max(...matchingFragments.map((fragment) => Number(fragment.x || 0) - viewportLeft + Number(fragment.width || 0)));
+  const bottom = Math.max(...matchingFragments.map((fragment) => Number(fragment.y || 0) - viewportTop + Number(fragment.height || 0)));
   return {
     left,
     top,
@@ -525,6 +644,7 @@ export class ProtectedReaderRuntimeCore {
     this.metricsMode = "shape";
     this.viewportWidth = 760;
     this.viewportHeight = 720;
+    this.cfiResolver = null;
   }
 
   getLayoutWidth() {
@@ -647,6 +767,7 @@ export class ProtectedReaderRuntimeCore {
     this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
     this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     this.book = await loadProtectedBook(artifactRoot);
+    this.cfiResolver = buildProtectedCfiResolver(this.book);
     this.bookSummary = summarizeBook(this.book);
     let initialSnapshot = null;
     if (initialRestoreToken) {
@@ -1340,6 +1461,61 @@ export class ProtectedReaderRuntimeCore {
         targetSourceHref,
         targetAnchorId: parsedHref.targetAnchorId,
         sourcePublicRootPath,
+        bounds
+      }
+    };
+  }
+
+  getLinkAtPoint({ x, y, pointerType = "mouse" } = {}) {
+    const linkAnchorHit = findLinkAnchorAtPoint(this, x, y, pointerType);
+    const linkAnchor = linkAnchorHit ? linkAnchorHit.anchor : null;
+    if (!linkAnchor) {
+      return { active: false, anchor: null };
+    }
+    const blockSourceRef =
+      Array.isArray(this.currentChunkModel && this.currentChunkModel.chunk && this.currentChunkModel.chunk.logicalBlockList)
+        ? this.currentChunkModel.chunk.logicalBlockList.find((block) => String(block && block.blockId || "") === String(linkAnchor.blockId || ""))
+        : null;
+    const baseSourceHref = blockSourceRef && blockSourceRef.sourceRef ? blockSourceRef.sourceRef.href : "";
+    const resolvedHref = resolveNavigationHref(linkAnchor.href, baseSourceHref);
+    const bounds = linkAnchorHit && linkAnchorHit.bounds ? linkAnchorHit.bounds : buildNoteAnchorBounds(this, linkAnchor);
+    if (isExternalHref(resolvedHref)) {
+      return {
+        active: true,
+        anchor: {
+          anchorId: String(linkAnchor.anchorId || ""),
+          href: String(linkAnchor.href || ""),
+          resolvedHref,
+          kind: "external",
+          externalUrl: resolvedHref,
+          globalOffset: null,
+          chunkId: "",
+          chunkOrder: null,
+          bounds
+        }
+      };
+    }
+    const resolved = resolveNavigationTarget(this, resolvedHref);
+    const globalOffset = resolved && resolved.rangeDescriptor && resolved.rangeDescriptor.start
+      ? Number(resolved.rangeDescriptor.start.globalOffset)
+      : null;
+    return {
+      active: true,
+      anchor: {
+        anchorId: String(linkAnchor.anchorId || ""),
+        href: String(linkAnchor.href || ""),
+        resolvedHref,
+        kind: globalOffset != null ? "internal" : "unresolved",
+        externalUrl: "",
+        globalOffset,
+        chunkId: resolved && resolved.chunkId ? String(resolved.chunkId) : "",
+        chunkOrder:
+          resolved &&
+          resolved.rangeDescriptor &&
+          resolved.rangeDescriptor.start &&
+          Number.isFinite(Number(resolved.rangeDescriptor.start.chunkOrder))
+            ? Number(resolved.rangeDescriptor.start.chunkOrder)
+            : null,
         bounds
       }
     };

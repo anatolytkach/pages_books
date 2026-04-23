@@ -9,6 +9,7 @@ function buildSelectionLayer(chunk, options = {}) {
   const debugRanges = [];
   const blockAnchors = [];
   const noteAnchors = [];
+  const linkAnchors = [];
   const copyRanges = [];
   const wordBoundaries = [];
   const parts = [];
@@ -59,6 +60,10 @@ function buildSelectionLayer(chunk, options = {}) {
         end: baseOffset + index
       });
     }
+  }
+
+  function looksLikeNoteHref(href) {
+    return /#(fn|note|footnote|endnote|noteref|ftn)/i.test(String(href || ""));
   }
 
   chunk.blocks.forEach((block, blockIndex) => {
@@ -122,8 +127,10 @@ function buildSelectionLayer(chunk, options = {}) {
         blockId: block.blockId
       });
       if (run.linkTarget) {
-        noteAnchors.push({
-          anchorId: `${chunk.chunkId}-note-${noteAnchors.length + 1}`,
+        const targetList = looksLikeNoteHref(run.linkTarget) ? noteAnchors : linkAnchors;
+        const keyPrefix = looksLikeNoteHref(run.linkTarget) ? "note" : "link";
+        targetList.push({
+          anchorId: `${chunk.chunkId}-${keyPrefix}-${targetList.length + 1}`,
           blockId: block.blockId,
           start,
           end,
@@ -163,6 +170,7 @@ function buildSelectionLayer(chunk, options = {}) {
 
   const normalizedBlockAnchors = normalizeRanges(blockAnchors, "block");
   const normalizedNoteAnchors = normalizeRanges(noteAnchors, "note");
+  const normalizedLinkAnchors = normalizeRanges(linkAnchors, "link");
 
   const runtime = {
     textLength: cursor,
@@ -170,6 +178,7 @@ function buildSelectionLayer(chunk, options = {}) {
     ranges: runtimeRanges,
     blockAnchors: normalizedBlockAnchors,
     noteAnchors: normalizedNoteAnchors,
+    linkAnchors: normalizedLinkAnchors,
     copyRanges,
     wordBoundaries: normalizedWordBoundaries,
     chunkRange: {
@@ -184,6 +193,7 @@ function buildSelectionLayer(chunk, options = {}) {
     ranges: debugRanges,
     blockAnchors: normalizedBlockAnchors,
     noteAnchors: normalizedNoteAnchors,
+    linkAnchors: normalizedLinkAnchors,
     copyRanges,
     wordBoundaries: normalizedWordBoundaries,
     chunkRange: runtime.chunkRange

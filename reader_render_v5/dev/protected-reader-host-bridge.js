@@ -9,6 +9,7 @@ const HOST_BRIDGE_METHOD_NAMES = [
   "restoreFromToken",
   "goToGlobalOffset",
   "getFootnoteAtClientPoint",
+  "getLinkAtClientPoint",
   "getMediaAtClientPoint",
   "copySelection",
   "exportSelectionForUserAction",
