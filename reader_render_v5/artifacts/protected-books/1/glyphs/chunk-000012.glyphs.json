@@ -6980,9 +6980,9 @@
       "glyphId": "g-87e6e99a1486",
       "glyphToken": "g-87e6e99a1486",
       "styleToken": "paragraph",
-      "scriptBucket": "Unknown",
-      "glyphClass": "unknown-paragraph",
-      "stableRenderClass": "unknown-chunk-glyph",
+      "scriptBucket": "Combining",
+      "glyphClass": "combining-paragraph",
+      "stableRenderClass": "combining-chunk-glyph",
       "visualRefs": {
         "sans": {
           "fontMode": "sans",

@@ -153,7 +153,7 @@ const TRAILING_NO_BREAK_PUNCTUATION = new Set([
 ]);
 
 function isCoreWordChar(char) {
-  return /[\p{L}\p{N}]/u.test(String(char || ""));
+  return /[\p{L}\p{N}\p{M}]/u.test(String(char || ""));
 }
 
 function isWordConnector(char, chars, index) {
