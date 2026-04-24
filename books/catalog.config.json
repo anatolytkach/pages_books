@@ -1,6 +1,6 @@
 {
-  "baseUrl": "/books/api",
-  "assetBaseUrl": "",
+  "baseUrl": "https://reader.pub/books/api",
+  "assetBaseUrl": "https://reader.pub",
   "lettersIndexPath": "/letters.json",
   "letterPrefixesPath": "/p/{letter}.json",
   "prefixNodePath": "/p/{prefix}.json",
@@ -12,5 +12,170 @@
   "discoverCategoryPath": "/discover/category/{slug}.json",
   "discoverPopularPath": "/discover/popular.json",
   "discoverNewestPath": "/discover/newest.json",
-  "bookLocationsPath": "/book-locations.json"
+  "bookLocationsPath": "/book-locations.json",
+  "sampleProtectedBooks": {
+    "title": "Sample Protected Books",
+    "books": [
+      {
+        "id": "90000074",
+        "title": "The Adventures of Tom Sawyer, Complete",
+        "author": "Mark Twain",
+        "cover": "/books/protected-content/90000074/assets/OEBPS/1055025884842794877_cover.jpg"
+      },
+      {
+        "id": "90000120",
+        "title": "Treasure Island",
+        "author": "Robert Louis Stevenson",
+        "cover": "/books/protected-content/90000120/assets/OEBPS/9148187011918732592_cover.jpg"
+      },
+      {
+        "id": "90008800",
+        "title": "The Divine Comedy",
+        "author": "Dante Alighieri; illustrated by Gustave Dore",
+        "cover": "/books/protected-content/90008800/assets/OEBPS/975265859820879404_cover.jpg"
+      },
+      {
+        "id": "90014838",
+        "title": "The Tale of Peter Rabbit",
+        "author": "Beatrix Potter",
+        "cover": "/books/protected-content/90014838/assets/OEBPS/5231809340272607769_peter02.gif.png"
+      },
+      {
+        "id": "90055040",
+        "title": "The Nursery \"Alice\"",
+        "author": "Lewis Carroll",
+        "cover": "/books/protected-content/90055040/assets/OEBPS/8035424117275221048_cover.jpg"
+      },
+      {
+        "id": "90016865",
+        "title": "Pinocchio: The Tale of a Puppet",
+        "author": "Carlo Collodi",
+        "cover": "/books/protected-content/90016865/assets/OEBPS/5958518236637178825_illus-022.png"
+      },
+      {
+        "id": "90078504",
+        "title": "The Fairy Caravan",
+        "author": "Beatrix Potter",
+        "cover": "/books/protected-content/90078504/assets/OEBPS/5784209194575853353_cover.jpg"
+      },
+      {
+        "id": "90025433",
+        "title": "The Baby's Own Aesop",
+        "author": "Aesop; illustrated by Walter Crane",
+        "cover": "/books/protected-content/90025433/assets/OEBPS/2611731572878816242_front_cover.png"
+      },
+      {
+        "id": "90035997",
+        "title": "The Jungle Book",
+        "author": "Rudyard Kipling",
+        "cover": "/books/protected-content/90035997/assets/OEBPS/5834958138474680943_cover.jpg"
+      },
+      {
+        "id": "90052521",
+        "title": "Grimm's Fairy Tales",
+        "author": "Jacob Grimm and Wilhelm Grimm",
+        "cover": "/books/protected-content/90052521/assets/OEBPS/3371397222058935216_cover.jpg"
+      },
+      {
+        "id": "90071879",
+        "title": "The Tarzan Twins",
+        "author": "Edgar Rice Burroughs",
+        "cover": "/books/protected-content/90071879/assets/OEBPS/7834129313317133214_cover.jpg"
+      },
+      {
+        "id": "90025344",
+        "title": "The Scarlet Letter",
+        "author": "Nathaniel Hawthorne",
+        "cover": "/books/protected-content/90025344/assets/OEBPS/2874891055637417969_cover.jpg"
+      }
+    ]
+  },
+  "readerRouting": {
+    "legacyBasePath": "/books/reader/",
+    "legacyPagesDevBasePath": "/books/reader/",
+    "newBasePath": "/books/reader_new/",
+    "newPagesDevBasePath": "/reader_new/",
+    "protectedBasePath": "/books/protected/",
+    "protectedPagesDevBasePath": "/books/protected/",
+    "protectedBooks": [
+      {
+        "id": "19686",
+        "source": "gutenberg",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "19686",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "protected-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      },
+      {
+        "id": "45",
+        "source": "gutenberg",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "45",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "protected-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      },
+      {
+        "id": "11",
+        "source": "gutenberg",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "11",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "protected-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      },
+      {
+        "id": "84",
+        "source": "gutenberg",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "84",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "protected-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      },
+      {
+        "id": "1342",
+        "source": "gutenberg",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "1342",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "protected-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      },
+      {
+        "id": "1",
+        "source": "manual",
+        "query": {
+          "reader": "protected",
+          "protectedArtifactBookId": "1",
+          "protectedArtifactSource": "r2",
+          "readerRemoteMode": "strict",
+          "protectedUx": "protected-shell",
+          "renderMode": "shape",
+          "metricsMode": "shape"
+        }
+      }
+    ]
+  }
 }

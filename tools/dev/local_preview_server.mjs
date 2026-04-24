@@ -451,11 +451,11 @@ const server = http.createServer(async (req, res) => {
       "x-reader-artifact-fallback": "proxy-miss-local"
     });
   }
-  if (pathname.startsWith("/books/api/") && !existsSync(routed.file)) {
+    if (pathname.startsWith("/books/api/")) {
     return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-api", {
       "x-reader-artifact-source": "remote",
       "x-reader-artifact-origin": PROD_ORIGIN,
-      "x-reader-artifact-fallback": "proxy-miss-local"
+      "x-reader-artifact-fallback": "proxy-force-remote"
     });
   }
   if (pathname.startsWith("/books/protected-content/") && existsSync(routed.file)) {
@@ -488,3 +488,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   process.stdout.write(`ReaderPub local preview: http://${HOST}:${PORT}/books/\n`);
 });
+
+
