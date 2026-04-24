@@ -52,6 +52,11 @@ The deployed public site serves `https://reader.pub/books/`.
 - Protected-reader smoke checks and supporting verification scripts.
 - Protected-reader tool docs under `reader_render_v3/tools/*/README.md`.
 
+### `reader_render_v5/`
+- V5 protected reader runtime used by the sample protected production route.
+- Served through `reader/reader_new_v5.html`.
+- Production sample protected artifacts are stored in R2 under `protected-content/<protectedId>/`, not in the Pages bundle.
+
 ### `tools/catalog/`
 - Catalog index generation.
 - Book-location index generation.
@@ -141,6 +146,7 @@ The deployed public site serves `https://reader.pub/books/`.
 - Alternate local preview helper:
   - `node tools/dev/local_preview_server.mjs`
 - R2 uploads in this repository are performed through the existing shell/python helpers and `wrangler r2 object put`-based scripts where applicable.
+- Book content/artifact uploads to R2 should use `rclone` for bulk transfer.
 - Current operational upload helpers include:
   - `books/content/epub_publish.sh` for selective catalog/content publication;
   - `tools/seo/upload_seo_indexes.sh` for SEO manifests.

@@ -18,6 +18,17 @@
 - Catalog routing distinguishes the two readers:
   - unprotected books open `reader1`;
   - protected books open `reader_new`.
+- Local protected sample work now has a short v5 entry route:
+  - `/books/protected/?id=<protectedId>` rewrites to `reader/reader_new_v5.html`;
+  - local v5 artifacts are read from `reader_render_v5/artifacts/protected-books/<protectedId>/` unless a remote artifact source is explicitly selected;
+  - on non-local public protected routes, v5 defaults to R2 artifacts under `/books/protected-content/<protectedId>/`.
+- Production `reader.pub` now routes `/books/protected/?id=<protectedId>` through `reader-books-router` to the v5 reader while preserving the short browser URL.
+- Production `reader.pub/reader_render_v5*` is routed through `reader-books-router` so the v5 protected reader module/runtime files load from the Pages deployment.
+- Production has a compatibility alias for stale v5 artifact URLs:
+  - `/reader_render_v5/artifacts/protected-books/<protectedId>/...` is served from R2 `protected-content/<protectedId>/...`;
+  - this keeps old cover references from producing 404s without putting protected artifacts into the Pages bundle.
+- The sample protected Gutenberg set is uploaded to R2 under `reader-books/protected-content/<protectedId>/` for:
+  - `90000074`, `90000120`, `90008800`, `90014838`, `90055040`, `90016865`, `90078504`, `90025433`, `90035997`, `90052521`, `90071879`, `90025344`.
 - Local `wrangler pages dev` fallback proxies `/books/api/*`, `/books/content/*`, and `/books/protected-content/*` to `https://reader.pub` when local R2 bindings are absent, so local catalog and protected-reader checks can use Cloudflare-backed data.
 
 ## Current Protected Tooling Reality

@@ -334,6 +334,28 @@ async function readBucketObject(env, key) {
   return await env.READER_BOOKS.get(key);
 }
 
+function contentTypeFromR2Key(key) {
+  const normalized = String(key || "").toLowerCase().split("?")[0];
+  if (normalized.endsWith(".json")) return "application/json; charset=utf-8";
+  if (normalized.endsWith(".html") || normalized.endsWith(".htm")) return "text/html; charset=utf-8";
+  if (normalized.endsWith(".xhtml")) return "application/xhtml+xml; charset=utf-8";
+  if (normalized.endsWith(".xml") || normalized.endsWith(".opf")) return "application/xml; charset=utf-8";
+  if (normalized.endsWith(".ncx")) return "application/x-dtbncx+xml";
+  if (normalized.endsWith(".css")) return "text/css; charset=utf-8";
+  if (normalized.endsWith(".js")) return "application/javascript; charset=utf-8";
+  if (normalized.endsWith(".svg")) return "image/svg+xml";
+  if (normalized.endsWith(".png")) return "image/png";
+  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
+  if (normalized.endsWith(".gif")) return "image/gif";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  if (normalized.endsWith(".avif")) return "image/avif";
+  if (normalized.endsWith(".woff2")) return "font/woff2";
+  if (normalized.endsWith(".woff")) return "font/woff";
+  if (normalized.endsWith(".ttf")) return "font/ttf";
+  if (normalized.endsWith(".otf")) return "font/otf";
+  return "application/octet-stream";
+}
+
 async function readBucketText(env, key) {
   const object = await readBucketObject(env, key);
   if (!object) return null;
@@ -1957,8 +1979,40 @@ export default {
       return new Response(object.body, { headers });
     }
 
-    if (decodedPath.startsWith("/books/protected-content/") && !env.READER_BOOKS) {
-      return proxyReaderBooksUpstream(request, path, "proxy-reader-books-protected-content");
+    if (decodedPath.startsWith("/books/protected-content/")) {
+      if (!env.READER_BOOKS) {
+        return proxyReaderBooksUpstream(request, path, "proxy-reader-books-protected-content");
+      }
+      const decodedKey = `protected-content/${decodedPath.slice("/books/protected-content/".length)}`;
+      const rawKey = `protected-content/${path.slice("/books/protected-content/".length)}`;
+      let object = await env.READER_BOOKS.get(decodedKey);
+      if (!object && rawKey !== decodedKey) {
+        object = await env.READER_BOOKS.get(rawKey);
+      }
+      if (!object) {
+        const headers = new Headers({
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*",
+        });
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "r2-protected-content-miss");
+        return new Response("Not found", { status: 404, headers });
+      }
+      const headers = new Headers({
+        "content-type": contentTypeFromR2Key(decodedKey),
+        "cache-control": "public, max-age=3600",
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, HEAD, OPTIONS",
+        "access-control-allow-headers": "content-type",
+      });
+      try {
+        object.writeHttpMetadata(headers);
+      } catch (error) {}
+      headers.set("etag", object.httpEtag);
+      headers.set("x-reader-worker", "1");
+      headers.set("x-reader-route", "r2-protected-content");
+      return new Response(object.body, { headers });
     }
 
     if (decodedPath.startsWith("/books/protected-content-v4/") && !env.READER_BOOKS) {
@@ -2011,11 +2065,13 @@ export default {
     if (
       path === "/books/reader" ||
       path === "/books/reader_new" ||
+      path === "/books/reader_new_v5" ||
+      path === "/books/protected" ||
       path === "/books/reader_new_v4" ||
       path === "/books/reader1" ||
       path === "/books/catalog"
     ) {
-      const headers = new Headers({ location: `${path}/` });
+      const headers = new Headers({ location: `${path}/${url.search || ""}` });
       headers.set("x-reader-worker", "1");
       headers.set("x-reader-route", "slash-redirect");
       return new Response(null, { status: 302, headers });
@@ -2043,6 +2099,14 @@ export default {
     } else if (path === "/books/reader_new_v4/" || path === "/books/reader_new_v4/index.html") {
       const rewrittenUrl = new URL(request.url);
       rewrittenUrl.pathname = "/reader/reader_new_v4.html";
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+    } else if (path === "/books/reader_new_v5/" || path === "/books/reader_new_v5/index.html" || path === "/books/protected/" || path === "/books/protected/index.html") {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname = "/reader/reader_new_v5.html";
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+    } else if (path.startsWith("/books/protected/css/") || path.startsWith("/books/protected/js/") || path.startsWith("/books/protected/icons/") || path.startsWith("/books/protected/font/") || path.startsWith("/books/protected/fonts/") || path.startsWith("/books/protected/img/")) {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname = path.replace(/^\/books\/protected/, "/reader");
       assetRequest = new Request(rewrittenUrl.toString(), request);
     } else if (path === "/reader_new/" || path === "/reader_new/index.html" || path.startsWith("/reader_new/css/") || path.startsWith("/reader_new/js/") || path.startsWith("/reader_new/icons/") || path.startsWith("/reader_new/fonts/") || path.startsWith("/reader_new/img/")) {
       const rewrittenUrl = new URL(request.url);
@@ -2074,6 +2138,16 @@ export default {
       path.startsWith("/books/reader_new/img/") ||
       path === "/books/reader_new_v4/" ||
       path === "/books/reader_new_v4/index.html" ||
+      path === "/books/reader_new_v5/" ||
+      path === "/books/reader_new_v5/index.html" ||
+      path === "/books/protected/" ||
+      path === "/books/protected/index.html" ||
+      path.startsWith("/books/protected/css/") ||
+      path.startsWith("/books/protected/js/") ||
+      path.startsWith("/books/protected/icons/") ||
+      path.startsWith("/books/protected/font/") ||
+      path.startsWith("/books/protected/fonts/") ||
+      path.startsWith("/books/protected/img/") ||
       path === "/books/reader1/" ||
       path === "/books/reader1/index.html" ||
       path.startsWith("/books/reader1/css/") ||

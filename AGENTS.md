@@ -16,3 +16,4 @@ Working rules:
 - User task completion standard: treat every user task as requiring exact fulfillment against the user's stated acceptance criteria. Do not report a task as completed based on a partial technical approximation, intermediate integration, or an unverified hypothesis when the user asked for an exact behavioral or visual match.
 - After significant changes, update the relevant context/state files in `docs/`. Do not update them for trivial edits.
 - Prefer file-based context over chat history. New Codex branches should be able to start from these files.
+- Always use `rclone` for uploading book content/artifacts to R2. Do not use per-file `wrangler r2 object put` for book uploads unless `rclone` is unavailable and the user approves the fallback.

@@ -101,14 +101,14 @@
 - Artifact-consumer changes here must not assume changes to the protected artifact family unless the ingestion contract is updated deliberately.
 - This component does not own the production protected-reader route.
 
-## `reader_render_v5/` Local V5 Protected Reader Target Line
+## `reader_render_v5/` V5 Protected Reader Target Line
 
 ### Responsibility
-- New local protected-reader target line for future work.
+- V5 protected-reader target line for the sample protected production route.
 - Full-copy `reader_render_v3/` reader line with the copied `reader_render_v3/reader_new` host UX and the copied `reader_render_v3` runtime contract.
 - Full host document contract for that copied shell/runtime, served through `reader/reader_new_v5.html`.
 - Self-contained bootstrap-artifact and bootstrap-ingestion surface for `v5` under `reader_render_v5/artifacts/protected-bootstrap-books/*` and `reader_render_v5/tools/protected-bootstrap-ingestion/*`.
-- Local-only protected-reader integration surface for artifact book checks before any production rollout decisions.
+- Protected-reader integration surface for artifact book checks and the production `/books/protected/?id=<protectedId>` sample route.
 
 ### Main Files
 - `reader/reader_new_v5.html`
@@ -119,7 +119,7 @@
 ### Cross-Component Risk
 - `reader_render_v5/` must preserve the copied `reader_render_v3` host/runtime behavior while integrating the new self-contained bootstrap artifact family through compatibility adapters.
 - Changes here must not mutate `reader_render_v3/` in place.
-- This component remains local-only and does not own the current production protected-reader route.
+- Production routing for this component is owned by `_worker.js` plus `tools/runtime/reader-books-router.js`; artifacts stay in R2, not in the Pages bundle.
 
 ## `tools/catalog/`
 

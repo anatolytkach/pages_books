@@ -222,6 +222,24 @@ function routeLocalPath(urlPath) {
   if (urlPath.startsWith("/books/reader_new/")) {
     return { file: safeJoin(READER_DIR, urlPath.slice("/books/reader_new".length)), route: "reader-new" };
   }
+  if (
+    urlPath === "/books/reader_new_v5/" ||
+    urlPath === "/books/reader_new_v5/index.html" ||
+    urlPath === "/books/protected/" ||
+    urlPath === "/books/protected/index.html"
+  ) {
+    return { file: path.join(READER_DIR, "reader_new_v5.html"), route: "reader-new-v5" };
+  }
+  if (
+    urlPath.startsWith("/books/protected/css/") ||
+    urlPath.startsWith("/books/protected/js/") ||
+    urlPath.startsWith("/books/protected/icons/") ||
+    urlPath.startsWith("/books/protected/font/") ||
+    urlPath.startsWith("/books/protected/fonts/") ||
+    urlPath.startsWith("/books/protected/img/")
+  ) {
+    return { file: safeJoin(READER_DIR, urlPath.slice("/books/protected".length)), route: "reader-new-v5-assets" };
+  }
   if (urlPath === "/books/reader1/" || urlPath === "/books/reader1/index.html") {
     return { file: path.join(READER1_DIR, "index.html"), route: "reader1" };
   }
@@ -287,6 +305,8 @@ const server = http.createServer(async (req, res) => {
   if (pathname === "/books") return redirect(res, "/books/", "slash-redirect");
   if (pathname === "/books/reader") return redirect(res, "/books/reader/", "slash-redirect");
   if (pathname === "/books/reader_new") return redirect(res, "/books/reader_new/", "slash-redirect");
+  if (pathname === "/books/reader_new_v5") return redirect(res, "/books/reader_new_v5/", "slash-redirect");
+  if (pathname === "/books/protected") return redirect(res, `/books/protected/${url.search || ""}`, "slash-redirect");
   if (pathname === "/books/reader1") return redirect(res, "/books/reader1/", "slash-redirect");
   if (pathname === "/books/reader_render_v3") return redirect(res, "/books/reader_render_v3/", "slash-redirect");
   if (pathname === "/books/ping") {

@@ -105,10 +105,10 @@ const FONT_MODE_STORAGE_PREFIX = "readerpub:protected-shell:font-mode:";
 const HOST_TTS_VOICE_URI_STORAGE_KEY = "readerpub:protected-shell:tts:voice-uri";
 const HOST_TTS_VOICE_LANG_STORAGE_KEY = "readerpub:protected-shell:tts:voice-lang";
 const PROTECTED_SEARCH_ICON_SRC = "icons/search.svg?v=20260303-icons-tight-x-3";
-const PROTECTED_TOC_ICON_SRC = "/reader_render_v3/assets/toc.svg";
-const PROTECTED_SETTINGS_ICON_SRC = "/reader_render_v3/assets/settings.svg";
-const PROTECTED_THEME_ICON_SRC = "/reader_render_v3/assets/theme.svg";
-const PROTECTED_SEARCH_BACK_ICON_SRC = "/reader_render_v3/assets/back.svg";
+const PROTECTED_TOC_ICON_SRC = "/reader_render_v5/assets/toc.svg";
+const PROTECTED_SETTINGS_ICON_SRC = "/reader_render_v5/assets/settings.svg";
+const PROTECTED_THEME_ICON_SRC = "/reader_render_v5/assets/theme.svg";
+const PROTECTED_SEARCH_BACK_ICON_SRC = "/reader_render_v5/assets/back.svg";
 const PROTECTED_SEARCH_FIELD_ICON_SRC = PROTECTED_SEARCH_ICON_SRC;
 const SEARCH_CHEVRON_LEFT_SVG = `
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">

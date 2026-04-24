@@ -224,6 +224,13 @@ function getBookLocationsShardPath(bookId) {
 function normalizeCoverAssetUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
+  const protectedArtifactMatch = raw.match(/^(?:https?:\/\/[^/]+)?\/reader_render_v5\/artifacts\/protected-books\/(\d+)\//);
+  if (protectedArtifactMatch) {
+    return raw.replace(
+      /^(?:https?:\/\/[^/]+)?\/reader_render_v5\/artifacts\/protected-books\/(\d+)\//,
+      "/books/protected-content/$1/"
+    );
+  }
   try {
     return new URL(raw, window.location.origin).href;
   } catch (_error) {
@@ -762,7 +769,12 @@ function getDebugGeometryFromLocation() {
   return params.get("debugGeometry") === "1";
 }
 
+function isPublicProtectedRoute() {
+  return !!(entryConfig && entryConfig.readerNewRoute && entryConfig.readerNewRoute.publicProtectedRoute);
+}
+
 function syncLocationParams() {
+  if (isPublicProtectedRoute()) return;
   const url = new URL(window.location.href);
   if (state.hostedMode && state.entryConfig && state.entryConfig.bookId) {
     url.searchParams.set("id", state.entryConfig.bookId);
@@ -2942,6 +2954,7 @@ async function refreshDriveStatus({ interactive = false } = {}) {
       lastWarning: error && error.message ? error.message : "Drive status check failed."
     });
     renderRuntimeMeta();
+    if (!interactive) return state.driveState;
     throw error;
   }
 }

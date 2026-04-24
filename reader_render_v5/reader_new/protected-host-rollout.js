@@ -25,8 +25,9 @@ export function resolveProtectedReaderRollout(route, config = PROTECTED_READER_R
   const allowBookIds = queryAllowList.length ? queryAllowList : resolved.allowBookIds;
   const denyBookIds = queryDenyList.length ? queryDenyList : resolved.denyBookIds;
   const bookId = route && route.bookId ? String(route.bookId) : "";
+  const publicProtectedRoute = !!(route && route.publicProtectedRoute);
   const denylisted = denyBookIds.includes(bookId);
-  const allowlisted = allowAllBooks || allowBookIds.includes(bookId);
+  const allowlisted = publicProtectedRoute || allowAllBooks || allowBookIds.includes(bookId);
   const bookAllowed = !denylisted && allowlisted;
 
   return {
