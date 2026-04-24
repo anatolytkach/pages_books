@@ -228,6 +228,10 @@ body:not(.dark-ui) .list_item.currentChapter a {
   opacity: 0.85;
   color: inherit;
 }
+.reader1-unified-shell .page-count,
+.reader1-unified-shell #page-count {
+  display: none !important;
+}
 .page-count .pc-text {
   display: inline-block;
   white-space: nowrap;

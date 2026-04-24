@@ -4835,11 +4835,12 @@ function ensureDesktopTopLinks() {
   if (!titlebar) return null;
   let wrap = document.getElementById("protectedTopLeftLinks");
   if (wrap) return wrap;
+  const catalogHref = new URL("/books/", window.location.origin).toString();
   wrap = document.createElement("span");
   wrap.id = "protectedTopLeftLinks";
   wrap.className = "protected-top-left-links";
   wrap.innerHTML = `
-    <a id="protectedCatalogLink" class="protected-top-link protected-top-link-catalog" href="https://reader.pub/books/" aria-label="Catalog">
+    <a id="protectedCatalogLink" class="protected-top-link protected-top-link-catalog" href="${catalogHref}" aria-label="Catalog">
       <span class="protected-top-link-icon">${PROTECTED_CATALOG_ICON_SVG}</span>
       <span class="protected-top-link-label">ReaderPub Books</span>
     </a>
@@ -4853,9 +4854,10 @@ function ensureBottomCatalogLink() {
   if (!bottomBar) return null;
   let link = document.getElementById("protectedBottomCatalogLink");
   if (link) return link;
+  const catalogHref = new URL("/books/", window.location.origin).toString();
   link = document.createElement("a");
   link.id = "protectedBottomCatalogLink";
-  link.href = "https://reader.pub/books/";
+  link.href = catalogHref;
   link.setAttribute("aria-label", "ReaderPub Books");
   link.innerHTML = `
     <span class="protected-top-link-icon">${PROTECTED_CATALOG_ICON_SVG}</span>
