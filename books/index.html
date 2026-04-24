@@ -4189,7 +4189,12 @@
 
         function setSearchAuthorFocusMode(enabled) {
           const hide = !!enabled;
-          ["newestTitlesSection", "popularTitlesSection", "catalogCategoriesSection"].forEach((id) => {
+          [
+            "sampleProtectedBooksSection",
+            "newestTitlesSection",
+            "popularTitlesSection",
+            "catalogCategoriesSection",
+          ].forEach((id) => {
             const node = document.getElementById(id);
             if (node) node.style.display = hide ? "none" : "";
           });
