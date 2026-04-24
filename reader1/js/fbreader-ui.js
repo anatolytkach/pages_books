@@ -663,9 +663,9 @@
 
     function overlaysOpen() {
       try {
-        var ot = document.getElementById("overlay-toc");
-        var ob = document.getElementById("overlay-bookmarks");
-        return (ot && !ot.classList.contains("hidden")) || (ob && !ob.classList.contains("hidden"));
+        var library = document.getElementById("overlay-library");
+        var settings = document.getElementById("overlay-settings");
+        return (library && !library.classList.contains("hidden")) || (settings && !settings.classList.contains("hidden"));
       } catch (e) {
         return false;
       }
@@ -1099,25 +1099,14 @@
 
   // -------- overlays --------
   function setupOverlays() {
-    var isMobile = isMobileViewport();
     function syncMobileClass() {
       try { document.body.classList.toggle('is-mobile', !!isMobileViewport()); } catch (e) {}
     }
     syncMobileClass();
     window.addEventListener('resize', syncMobileClass, { passive: true });
     window.addEventListener('orientationchange', syncMobileClass, { passive: true });
+
     var backdrop = document.getElementById("overlay-backdrop");
-    var overlayToc = document.getElementById("overlay-toc");
-    var overlayBookmarks = document.getElementById("overlay-bookmarks");
-    var overlayNotes = document.getElementById("overlay-notes");
-    var overlayMyBooks = document.getElementById("overlay-mybooks");
-    var overlayVoice = document.getElementById("overlay-voice");
-    var overlayMenu = document.getElementById("overlay-menu");
-    var menuView = document.getElementById("menuView");
-    var copyBookLinkBtn = document.getElementById("copyBookLinkBtn");
-    var btnToc = document.getElementById("slider");
-    var btnNotes = document.getElementById("openNotes");
-    var btnBookmarks = document.getElementById("openBookmarks");
     var closeBtns = Array.prototype.slice.call(document.querySelectorAll(".overlay-close"));
 
     function getCurrentBookId() {
@@ -1172,158 +1161,71 @@
       return fallbackCopy();
     }
 
-    if (copyBookLinkBtn && !copyBookLinkBtn.__fbBound) {
-      copyBookLinkBtn.__fbBound = true;
-
-      var clearCopyState = function (btn) {
-        btn.classList.remove("is-pressed");
-        btn.classList.remove("is-copied");
-        btn.classList.remove("is-failed");
-      };
-
-      var updateBookShareLabel = function () {
-        try {
-          copyBookLinkBtn.textContent = isTouchShareDevice() ? "Share book" : "Copy book link";
-        } catch (e) {}
-      };
-
-      copyBookLinkBtn.addEventListener("mousedown", function () { copyBookLinkBtn.classList.add("is-pressed"); });
-      copyBookLinkBtn.addEventListener("mouseup", function () { copyBookLinkBtn.classList.remove("is-pressed"); });
-      copyBookLinkBtn.addEventListener("mouseleave", function () { copyBookLinkBtn.classList.remove("is-pressed"); });
-
-      copyBookLinkBtn.addEventListener("click", function (event) {
-        if (event) event.preventDefault();
-        var btn = copyBookLinkBtn;
-        clearCopyState(btn);
-        updateBookShareLabel();
-        var oldText = btn.textContent || "Copy book link";
-        var cleanUrl = getCleanBookUrl();
-        if (!cleanUrl) {
-          btn.classList.add("is-failed");
-          btn.textContent = "Action failed";
-          setTimeout(function () {
-            updateBookShareLabel();
-            clearCopyState(btn);
-          }, 1200);
-          return;
-        }
-        if (isTouchShareDevice()) {
-          try {
-            if (navigator.share) {
-              navigator.share({ url: cleanUrl }).catch(function () {});
-              return;
-            }
-          } catch (e0) {}
-          btn.classList.add("is-failed");
-          btn.textContent = "Share unavailable";
-          setTimeout(function () {
-            updateBookShareLabel();
-            clearCopyState(btn);
-          }, 1200);
-          return;
-        }
-        copyText(cleanUrl).then(function () {
-          btn.classList.add("is-copied");
-          btn.textContent = "Copied";
-          setTimeout(function () {
-            btn.textContent = oldText;
-            clearCopyState(btn);
-          }, 1200);
-        }).catch(function () {
-          btn.classList.add("is-failed");
-          btn.textContent = "Copy failed";
-          setTimeout(function () {
-            btn.textContent = oldText;
-            clearCopyState(btn);
-          }, 1200);
-        });
-      });
-
-      updateBookShareLabel();
-      window.addEventListener("resize", updateBookShareLabel, { passive: true });
-      window.addEventListener("orientationchange", updateBookShareLabel, { passive: true });
+    function resetShareButton(btn, text) {
+      if (!btn) return;
+      btn.classList.remove("is-pressed");
+      btn.classList.remove("is-copied");
+      btn.classList.remove("is-failed");
+      btn.textContent = text || (isTouchShareDevice() ? "Share book" : "Copy book link");
     }
 
+    window.__fbShareCurrentBookLink = function (button) {
+      var btn = button || null;
+      var oldText = btn && btn.textContent ? btn.textContent : (isTouchShareDevice() ? "Share book" : "Copy book link");
+      if (btn) resetShareButton(btn, oldText);
+      var cleanUrl = getCleanBookUrl();
+      if (!cleanUrl) {
+        if (btn) {
+          btn.classList.add("is-failed");
+          btn.textContent = "Action failed";
+          setTimeout(function () { resetShareButton(btn, oldText); }, 1200);
+        }
+        return;
+      }
+      if (isTouchShareDevice()) {
+        try {
+          if (navigator.share) {
+            navigator.share({ url: cleanUrl }).catch(function () {});
+            return;
+          }
+        } catch (e0) {}
+        if (btn) {
+          btn.classList.add("is-failed");
+          btn.textContent = "Share unavailable";
+          setTimeout(function () { resetShareButton(btn, oldText); }, 1200);
+        }
+        return;
+      }
+      copyText(cleanUrl).then(function () {
+        if (!btn) return;
+        btn.classList.add("is-copied");
+        btn.textContent = "Copied";
+        setTimeout(function () { resetShareButton(btn, oldText); }, 1200);
+      }).catch(function () {
+        if (!btn) return;
+        btn.classList.add("is-failed");
+        btn.textContent = "Copy failed";
+        setTimeout(function () { resetShareButton(btn, oldText); }, 1200);
+      });
+    };
+
     function closeAll() {
-      if (overlayToc) overlayToc.classList.add("hidden");
-      if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-      if (overlayNotes) overlayNotes.classList.add("hidden");
-      if (overlayMenu) overlayMenu.classList.add("hidden");
-      if (overlayMyBooks) overlayMyBooks.classList.add("hidden");
-      if (overlayVoice) overlayVoice.classList.add("hidden");
       if (backdrop) backdrop.classList.add("hidden");
       try { document.body.classList.remove("overlay-open"); } catch (e) {}
     }
 
-    function bumpOverlayZ() {
-      var z = 30000;
-      if (overlayToc) overlayToc.style.zIndex = z;
-      if (overlayBookmarks) overlayBookmarks.style.zIndex = z;
-      if (overlayNotes) overlayNotes.style.zIndex = z;
-      if (overlayMenu) overlayMenu.style.zIndex = z;
-      if (overlayMyBooks) overlayMyBooks.style.zIndex = z;
-      if (overlayVoice) overlayVoice.style.zIndex = z;
-      if (backdrop) backdrop.style.zIndex = (z - 1);
-    }
-
     function open(which) {
-      isMobile = isMobileViewport(); // recalc on rotate
-      bumpOverlayZ();
-      var isMobileLike = isMobile || isTabletPortrait();
-      if (!isMobileLike && backdrop) backdrop.classList.remove("hidden");
-      if (isMobileLike && backdrop) backdrop.classList.add("hidden");
-
-      try { document.body.classList.add("overlay-open"); } catch (e) {}
-
-      if (which === "toc") {
-        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.add("hidden");
-        if (overlayToc) overlayToc.classList.remove("hidden");
-      } else if (which === "bookmarks") {
-        if (overlayToc) overlayToc.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.add("hidden");
-        if (overlayBookmarks) overlayBookmarks.classList.remove("hidden");
-      } else if (which === "notes") {
-        if (overlayToc) overlayToc.classList.add("hidden");
-        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.remove("hidden");
-      } else if (which === "menu") {
-        if (overlayToc) overlayToc.classList.add("hidden");
-        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.add("hidden");
-        if (overlayMyBooks) overlayMyBooks.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.remove("hidden");
-      } else if (which === "mybooks") {
-        if (overlayToc) overlayToc.classList.add("hidden");
-        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.add("hidden");
-        if (overlayMyBooks) overlayMyBooks.classList.remove("hidden");
-        try {
-          if (window.__fbMyBooks && typeof window.__fbMyBooks.ensureCurrentBook === "function") window.__fbMyBooks.ensureCurrentBook();
-          if (window.__fbMyBooks && typeof window.__fbMyBooks.syncFromDom === "function") window.__fbMyBooks.syncFromDom();
-          if (window.__fbMyBooks && typeof window.__fbMyBooks.render === "function") window.__fbMyBooks.render();
-        } catch (e) {}
-      } else if (which === "voice") {
-        if (overlayToc) overlayToc.classList.add("hidden");
-        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.add("hidden");
-        if (overlayMyBooks) overlayMyBooks.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.remove("hidden");
-        try { document.dispatchEvent(new CustomEvent("fb:voice-opened")); } catch (eVoiceEv) {}
+      var target = String(which || "toc").trim().toLowerCase();
+      if (target === "menu") target = "toc";
+      if (target === "voice") {
+        try { window.__fbOpenSettingsOverlay && window.__fbOpenSettingsOverlay(); } catch (eVoice) {}
+        return;
       }
+      try {
+        if (typeof window.__fbOpenLibraryOverlayTab === "function") window.__fbOpenLibraryOverlayTab(target || "toc");
+      } catch (eOpen) {}
     }
 
-    // Expose for deep-linking (e.g., ?mybooks=1)
     window.__fbOpenOverlay = open;
     try {
       var p = new URLSearchParams(window.location.search || "");
@@ -1335,75 +1237,19 @@
       }
     } catch (e) {}
 
-    if (btnToc) {
-      btnToc.addEventListener("click", function (e) {
-        e.preventDefault();
-        open("menu");
-      });
-    }
-    if (btnNotes) {
-      btnNotes.addEventListener("click", function (e) {
-        e.preventDefault();
-        open("notes");
-      });
-    }
-    if (btnBookmarks) {
-      btnBookmarks.addEventListener("click", function (e) {
-        e.preventDefault();
-        open("bookmarks");
-      });
-    }
-
-    if (menuView && !menuView.__fbMenuBound) {
-      menuView.__fbMenuBound = true;
-      menuView.addEventListener("click", function (ev) {
-        try {
-          var t = ev && ev.target;
-          if (!t) return;
-          var btn = t.closest ? t.closest("[data-menu]") : null;
-          if (!btn) return;
-          var which = btn.getAttribute("data-menu");
-          if (!which) return;
-          ev.preventDefault();
-          open(which);
-        } catch (e) {}
-      });
-    }
-
-    // Desktop: close only by backdrop click (as requested earlier)
     if (backdrop) {
       backdrop.addEventListener("click", function () {
         if (!isMobileViewport() && !isTabletPortrait()) closeAll();
       });
     }
 
-    // Mobile: close by X only
     closeBtns.forEach(function (b) {
       b.addEventListener("click", function (e) {
         e.preventDefault();
-        var panelId = "";
-        try {
-          var panel = b.closest ? b.closest(".overlay-panel") : null;
-          panelId = panel && panel.id ? String(panel.id) : "";
-        } catch (e0) {}
-
-        // For list overlays, return to sidebar menu instead of closing everything.
-        if (
-          panelId === "overlay-toc" ||
-          panelId === "overlay-bookmarks" ||
-          panelId === "overlay-notes" ||
-          panelId === "overlay-mybooks" ||
-          panelId === "overlay-voice"
-        ) {
-          open("menu");
-          return;
-        }
-
         closeAll();
       });
     });
 
-    // Close when user selects a link (both overlays)
     ["tocView", "bookmarksView", "notesView", "mybooksView"].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el || el.__fbCloseOnClick) return;
@@ -1417,7 +1263,6 @@
       });
     });
 
-    // ESC closes on desktop
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && !isMobileViewport()) closeAll();
     });
@@ -1437,7 +1282,7 @@
     if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) return true;
     var el = document.documentElement;
     try {
-      var p = (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen).call(el);
+      (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen).call(el);
       return true;
     } catch (e) {
       return false;
@@ -1472,7 +1317,6 @@
     var settingsBookCardMount = document.getElementById("protectedSettingsBookCardMount");
     var settingsVoiceMount = document.getElementById("protectedSettingsVoiceMount");
     var settingsShareBtn = document.getElementById("protectedSettingsShareBtn");
-    var copyBookLinkBtn = document.getElementById("copyBookLinkBtn");
     var notesShareBtn = document.getElementById("protectedNotesShareBtn");
     var copyNotesLinkBtn = document.getElementById("copyNotesLinkBtn");
     var tocView = document.getElementById("tocView");
@@ -1480,7 +1324,7 @@
     var bookmarksView = document.getElementById("bookmarksView");
     var myBooksView = document.getElementById("mybooksView");
     var voiceView = document.getElementById("voiceView");
-    var menuBookCard = document.getElementById("menuBookCard");
+    var settingsBookCard = document.getElementById("reader1SettingsBookCard");
     var range = document.getElementById("protectedTypographyScale");
     var fontSans = document.getElementById("protectedTypographySans");
     var fontSerif = document.getElementById("protectedTypographySerif");
@@ -1500,7 +1344,7 @@
       mountNode(notesView, notesMount);
       mountNode(bookmarksView, bookmarksMount);
       mountNode(myBooksView, myBooksMount);
-      mountNode(menuBookCard, settingsBookCardMount);
+      mountNode(settingsBookCard, settingsBookCardMount);
       mountNode(voiceView, settingsVoiceMount);
       mirrorNotesShareState();
     }
@@ -1674,17 +1518,6 @@
       } catch (_shareLabelError) {}
     }
 
-    function mirrorSettingsShareState() {
-      if (!settingsShareBtn || !copyBookLinkBtn) return;
-      settingsShareBtn.textContent = copyBookLinkBtn.textContent || (isTouchShareDevice() ? "Share book" : "Copy book link");
-      settingsShareBtn.disabled = !!copyBookLinkBtn.disabled;
-      settingsShareBtn.classList.toggle("is-disabled", copyBookLinkBtn.classList.contains("is-disabled"));
-      settingsShareBtn.classList.toggle("is-pressed", copyBookLinkBtn.classList.contains("is-pressed"));
-      settingsShareBtn.classList.toggle("is-copied", copyBookLinkBtn.classList.contains("is-copied"));
-      settingsShareBtn.classList.toggle("is-failed", copyBookLinkBtn.classList.contains("is-failed"));
-      settingsShareBtn.setAttribute("aria-disabled", settingsShareBtn.disabled ? "true" : "false");
-    }
-
     function mirrorNotesShareState() {
       if (!notesShareBtn || !copyNotesLinkBtn) return;
       if (notesShareMirrorBusy) return;
@@ -1718,6 +1551,7 @@
       activeOverlay = "settings";
       try { document.body.classList.add("overlay-open"); } catch (_error) {}
     }
+    try { window.__fbOpenSettingsOverlay = openSettingsOverlay; } catch (_exposeSettingsError) {}
 
     try {
       if (bottomControls && bookmark && bookmark.parentNode !== bottomControls) bottomControls.appendChild(bookmark);
@@ -1849,40 +1683,25 @@
       settingsShareBtn.addEventListener("click", function (e) {
         try {
           if (e) e.preventDefault();
-          if (copyBookLinkBtn && typeof copyBookLinkBtn.click === "function") {
-            copyBookLinkBtn.click();
-            setTimeout(mirrorSettingsShareState, 0);
-            setTimeout(mirrorSettingsShareState, 140);
-            setTimeout(mirrorSettingsShareState, 420);
-            setTimeout(mirrorSettingsShareState, 1240);
+          if (typeof window.__fbShareCurrentBookLink === "function") {
+            window.__fbShareCurrentBookLink(settingsShareBtn);
           }
         } catch (_shareClickError) {}
       });
-      if (copyBookLinkBtn && window.MutationObserver) {
-        try {
-          var shareObserver = new MutationObserver(mirrorSettingsShareState);
-          shareObserver.observe(copyBookLinkBtn, {
-            attributes: true,
-            attributeFilter: ["class", "disabled", "aria-disabled"],
-            childList: true,
-            subtree: true,
-            characterData: true
-          });
-        } catch (_shareObserverError) {}
-      }
       window.addEventListener("resize", function () {
         try {
           settingsShareBtn.textContent = isTouchShareDevice() ? "Share book" : "Copy book link";
-          mirrorSettingsShareState();
+          settingsShareBtn.disabled = false;
+          settingsShareBtn.setAttribute("aria-disabled", "false");
         } catch (_shareResizeError) {}
       }, { passive: true });
       window.addEventListener("orientationchange", function () {
         try {
           settingsShareBtn.textContent = isTouchShareDevice() ? "Share book" : "Copy book link";
-          mirrorSettingsShareState();
+          settingsShareBtn.disabled = false;
+          settingsShareBtn.setAttribute("aria-disabled", "false");
         } catch (_shareOrientationError) {}
       }, { passive: true });
-      setTimeout(mirrorSettingsShareState, 0);
     }
 
     if (notesShareBtn && !notesShareBtn.__fbShellBound) {

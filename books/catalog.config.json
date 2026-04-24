@@ -95,6 +95,8 @@
     "legacyPagesDevBasePath": "/books/reader/",
     "newBasePath": "/books/reader_new/",
     "newPagesDevBasePath": "/reader_new/",
+    "protectedBasePath": "/books/protected/",
+    "protectedPagesDevBasePath": "/books/protected/",
     "protectedBooks": [
       {
         "id": "19686",

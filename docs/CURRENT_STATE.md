@@ -3,6 +3,7 @@
 ## Current Reader Roles
 
 - `reader1/` is the current reader for unprotected books.
+- `reader1/` now uses the unified top/bottom shell overlays for Book Navigation and Settings; the old left sidebar/hamburger overlay menu nodes are no longer part of the live reader1 HTML/JS/CSS surface.
 - `reader/reader_new.html` plus `reader_render_v3/` is the current reader stack for protected books only.
 - The protected reader is fail-closed: invalid protected opens do not fall back into another reader path.
 
@@ -17,13 +18,17 @@
 
 - Catalog routing distinguishes the two readers:
   - unprotected books keep the public URL shape `/books/reader/?id=<bookId>` but are served by the `reader1/` code path;
-  - protected books open `reader_new`.
+  - protected books open the short `/books/protected/?id=<bookId>` route backed by the v5 protected reader.
 - Local protected sample work now has a short v5 entry route:
   - `/books/protected/?id=<protectedId>` rewrites to `reader/reader_new_v5.html`;
   - local v5 artifacts are read from `reader_render_v5/artifacts/protected-books/<protectedId>/` unless a remote artifact source is explicitly selected;
   - on non-local public protected routes, v5 defaults to R2 artifacts under `/books/protected-content/<protectedId>/`.
 - Production `reader.pub` now routes `/books/protected/?id=<protectedId>` through `reader-books-router` to the v5 reader while preserving the short browser URL.
 - Production `reader.pub/reader_render_v5*` is routed through `reader-books-router` so the v5 protected reader module/runtime files load from the Pages deployment.
+- The Pages deploy tree includes `reader_render_v5/` for v5 runtime assets, but explicitly excludes protected EPUB sources, generated protected-book artifacts, bootstrap artifacts, and `reader_render_v5/node_modules`; protected book content belongs in R2 and should be uploaded with `rclone`.
+- The v5 protected reader records opened protected books in the same local My Books store namespace as `reader1` (`readerpub:mybooks:<host>`), renders that store under the v5 `My Library` label, and schedules Google Drive `appDataFolder` sync through the shared `ReaderPubDriveSync` module.
+- V5 protected My Library entries are source/protected-qualified in the shared Google Drive snapshot, so protected/manual IDs do not collide with unprotected Gutenberg entries that use the same numeric ID.
+- The v5 protected reader no longer exposes the copied legacy hamburger/sidebar menu overlays; TOC, Notes, Bookmarks, My Library, voice controls, and the book card are mounted through the v5 `Book Navigation` and Settings surfaces.
 - Production has a compatibility alias for stale v5 artifact URLs:
   - `/reader_render_v5/artifacts/protected-books/<protectedId>/...` is served from R2 `protected-content/<protectedId>/...`;
   - this keeps old cover references from producing 404s without putting protected artifacts into the Pages bundle.

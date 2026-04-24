@@ -7686,7 +7686,6 @@ EPUBJS.reader.ControlsController = function(book) {
 			$fullscreen = $("#fullscreen"),
 			$fullscreenicon = $("#fullscreenicon"),
 			$cancelfullscreenicon = $("#cancelfullscreenicon"),
-			$slider = $("#slider"),
 			$main = $("#main"),
 			$sidebar = $("#sidebar"),
 			$settings = $("#setting"),
@@ -8074,8 +8073,8 @@ EPUBJS.reader.MetaController = function(meta) {
 		} catch (e) {}
 
 		try {
-			if (window.__fbUpdateMenuBookMeta) {
-				window.__fbUpdateMenuBookMeta({
+			if (window.__fbUpdateReader1SettingsBookMeta) {
+				window.__fbUpdateReader1SettingsBookMeta({
 					title: title || "",
 					author: author || ""
 				});
@@ -8088,8 +8087,8 @@ EPUBJS.reader.MetaController = function(meta) {
 			if (activeBook && typeof activeBook.coverUrl === "function") {
 				activeBook.coverUrl().then(function (coverUrl) {
 					try {
-						if (window.__fbUpdateMenuBookMeta && coverUrl) {
-							window.__fbUpdateMenuBookMeta({
+						if (window.__fbUpdateReader1SettingsBookMeta && coverUrl) {
+							window.__fbUpdateReader1SettingsBookMeta({
 								title: title || "",
 								author: author || "",
 								cover: coverUrl
@@ -8870,12 +8869,12 @@ return {
 		return "";
 	}
 
-	function setMenuBookMeta(data) {
+	function setReader1SettingsBookMeta(data) {
 		try {
-			var titleEl = document.getElementById("menuBookTitle");
-			var authorEl = document.getElementById("menuBookAuthor");
-			var coverEl = document.getElementById("menuBookCover");
-			var placeholderEl = document.getElementById("menuBookCoverPlaceholder");
+			var titleEl = document.getElementById("reader1SettingsBookTitle");
+			var authorEl = document.getElementById("reader1SettingsBookAuthor");
+			var coverEl = document.getElementById("reader1SettingsBookCover");
+			var placeholderEl = document.getElementById("reader1SettingsBookCoverPlaceholder");
 			var title = String((data && data.title) || "").trim();
 			var author = String((data && data.author) || "").trim();
 			var cover = String((data && data.cover) || "").trim();
@@ -8896,11 +8895,11 @@ return {
 		} catch (e) {}
 	}
 
-	function syncMenuBookMetaFromDom() {
+	function syncReader1SettingsBookMetaFromDom() {
 		try {
 			var titleEl = document.getElementById("book-title");
 			var authorEl = document.getElementById("chapter-title");
-			setMenuBookMeta({
+			setReader1SettingsBookMeta({
 				title: titleEl ? titleEl.textContent : "",
 				author: authorEl ? authorEl.textContent : "",
 				cover: getBookCoverHint()
@@ -9171,9 +9170,9 @@ return {
 		ensureCurrentBook: ensureCurrentBook
 	};
 
-	window.__fbUpdateMenuBookMeta = function (payload) {
+	window.__fbUpdateReader1SettingsBookMeta = function (payload) {
 		var next = payload && typeof payload === "object" ? payload : {};
-		setMenuBookMeta({
+		setReader1SettingsBookMeta({
 			title: next.title || "",
 			author: next.author || "",
 			cover: next.cover || getBookCoverHint()
@@ -9186,7 +9185,7 @@ return {
 			render();
 			hydrateFromDriveSilent();
 			ensureCurrentBook();
-			syncMenuBookMetaFromDom();
+			syncReader1SettingsBookMetaFromDom();
 			setTimeout(syncFromDom, 600);
 		});
 	} else {
@@ -9194,7 +9193,7 @@ return {
 		render();
 		hydrateFromDriveSilent();
 		ensureCurrentBook();
-		syncMenuBookMetaFromDom();
+		syncReader1SettingsBookMetaFromDom();
 		setTimeout(syncFromDom, 600);
 	}
 })();

@@ -2009,7 +2009,9 @@ export default {
       }
       const headers = new Headers({
         "content-type": contentTypeFromR2Key(decodedKey),
-        "cache-control": "public, max-age=3600",
+        "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+        "cdn-cache-control": "no-store",
+        "cloudflare-cdn-cache-control": "no-store",
         "access-control-allow-origin": "*",
         "access-control-allow-methods": "GET, HEAD, OPTIONS",
         "access-control-allow-headers": "content-type",

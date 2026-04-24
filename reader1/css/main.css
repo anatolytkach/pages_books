@@ -250,8 +250,6 @@ body.light #themeToggle {
   color: #A7A7A7 !important;
   font-weight: 300;
 }
-
-body.light #slider,
 body.light #fullscreen {
   color: #A7A7A7 !important;
 }
@@ -266,8 +264,6 @@ body.dark #themeToggle {
   color: #888888 !important;
   font-weight: 400;
 }
-
-body.dark #slider,
 body.dark #fullscreen {
   color: #888888 !important;
 }
@@ -335,12 +331,6 @@ body.dark #fullscreen {
   opacity: 1;
   padding: 4px;
   border-radius: 4px;
-}
-
-/* Desktop: use hamburger menu only (same as mobile/tablet) */
-html.is-desktop #openNotes,
-html.is-desktop #openBookmarks {
-  display: none !important;
 }
 
 /* Make icon buttons behave the same on <button> as on <a> */
@@ -412,9 +402,7 @@ html.is-desktop #openBookmarks {
 
 /* Top-bar control buttons must keep fixed geometry on hover/active (no layout shift). */
 #titlebar #title-controls a:hover,
-#titlebar #title-controls a:active,
-#titlebar #slider:hover,
-#titlebar #slider:active {
+#titlebar #title-controls a:active{
   border: 0 !important;
   padding: 0 !important;
   box-shadow: none !important;
@@ -427,8 +415,7 @@ html.is-desktop #openBookmarks {
 }
 
 /* Bookmark icon must keep a fixed slot width on hover/active to avoid shifting neighboring controls. */
-#titlebar #bookmark,
-#titlebar #openBookmarks {
+#titlebar #bookmark{
   flex: 0 0 var(--title-icon-size);
   width: var(--title-icon-size);
   min-width: var(--title-icon-size);
@@ -441,8 +428,7 @@ html.is-desktop #openBookmarks {
   font-size: 0 !important;
   line-height: 0 !important;
 }
-#titlebar #bookmark::before,
-#titlebar #openBookmarks::before {
+#titlebar #bookmark::before{
   display: block;
   width: 100%;
   text-align: center;
@@ -451,9 +437,7 @@ html.is-desktop #openBookmarks {
   line-height: 1 !important;
 }
 #titlebar #bookmark:hover,
-#titlebar #bookmark:active,
-#titlebar #openBookmarks:hover,
-#titlebar #openBookmarks:active {
+#titlebar #bookmark:active{
   width: var(--title-icon-size) !important;
   min-width: var(--title-icon-size) !important;
   max-width: var(--title-icon-size) !important;
@@ -471,25 +455,6 @@ html.is-desktop #openBookmarks {
   max-width: 12px;
   margin: 0 !important;
   padding: 0 !important;
-}
-
-/* Hamburger must use only SVG (no icon-font / hover box artifacts). */
-#slider::before {
-  content: none !important;
-  display: none !important;
-}
-#slider.icon-menu::before,
-#slider.icon-right::before {
-  content: none !important;
-  display: none !important;
-}
-#slider,
-#slider:hover,
-#slider:active {
-  border: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
 }
 
 #book-title {
@@ -882,7 +847,6 @@ body.dark-ui #bottombar {
 }
 
 
-
 #sidebar {
   /* FBReader-like: overlay drawer (does NOT push the book) */
   background: var(--fbbar-bg);
@@ -932,22 +896,6 @@ body.dark-ui #bottombar {
   -webkit-box-shadow: 0px 1px 3px rgba(0,0,0,.6);
   -ms-box-shadow: 0px 1px 3px rgba(0,0,0,.6);
   box-shadow: 0px 1px 3px rgba(0,0,0,.6);
-}
-
-#opener {
-  /* padding: 10px 10px; */
-  float: left;
-}
-
-/* #opener #slider {
-  width: 25px;
-} */
-
-#opener{
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  float: none;
 }
 
 .shell-top-links {
@@ -1208,29 +1156,6 @@ body.dark-ui #bottombar {
   filter: brightness(0) saturate(100%) invert(86%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(101%) contrast(90%);
 }
 
-#slider .menu-hamburger-icon {
-  display: none !important;
-}
-#slider .menu-hamburger-icon-img {
-  width: var(--title-icon-glyph-size, 20px);
-  height: var(--title-icon-glyph-size, 20px);
-  min-width: var(--title-icon-glyph-size, 20px);
-  min-height: var(--title-icon-glyph-size, 20px);
-  display: none;
-  object-fit: fill;
-  filter: brightness(0) saturate(100%) invert(86%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(101%) contrast(90%);
-}
-#titlebar #slider,
-#titlebar #slider:hover,
-#titlebar #slider:active {
-  background-image: url("../icons/hamburger.svg?v=20260303-hamburger-bg-all-1") !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-  background-size: var(--title-icon-glyph-size) var(--title-icon-glyph-size) !important;
-  border-radius: 0 !important;
-  overflow: visible !important;
-}
-
 #addressBarToggle::before,
 #searchOpen::before,
 #mobileMoreToggle::before {
@@ -1344,8 +1269,6 @@ body.reader1-unified-shell #titlebar {
   background: #4c4c4c;
   color: #eef4fb;
 }
-
-body.reader1-unified-shell #opener,
 body.reader1-unified-shell .shell-top-links,
 body.reader1-unified-shell #metainfo,
 body.reader1-unified-shell #title-controls {
@@ -1419,10 +1342,7 @@ body.reader1-unified-shell #title-controls {
 }
 
 html.is-desktop body.reader1-unified-shell #fontDec,
-html.is-desktop body.reader1-unified-shell #fontInc,
-html.is-desktop body.reader1-unified-shell #opener,
-html.is-desktop body.reader1-unified-shell #openNotes,
-html.is-desktop body.reader1-unified-shell #openBookmarks {
+html.is-desktop body.reader1-unified-shell #fontInc{
   display: none !important;
 }
 
@@ -2022,33 +1942,33 @@ body.reader1-unified-shell .overlay.md-overlay {
   pointer-events: none !important;
 }
 
-body.reader1-unified-shell #overlay-settings #menuBookCard {
+body.reader1-unified-shell #overlay-settings #reader1SettingsBookCard {
   display: flex;
   gap: 14px;
   align-items: center;
   padding: 6px 0 18px;
 }
 
-body.reader1-unified-shell #overlay-settings .menu-book-cover-wrap {
+body.reader1-unified-shell #overlay-settings .reader1-book-cover-wrap {
   width: 104px;
   height: 148px;
   flex: 0 0 104px;
 }
 
-body.reader1-unified-shell #overlay-settings #menuBookCover,
-body.reader1-unified-shell #overlay-settings .menu-book-cover {
+body.reader1-unified-shell #overlay-settings #reader1SettingsBookCover,
+body.reader1-unified-shell #overlay-settings .reader1-book-cover {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
-body.reader1-unified-shell #overlay-settings #menuBookTitle {
+body.reader1-unified-shell #overlay-settings #reader1SettingsBookTitle {
   font-size: 18px;
   font-weight: 600;
   line-height: 1.35;
 }
 
-body.reader1-unified-shell #overlay-settings #menuBookAuthor {
+body.reader1-unified-shell #overlay-settings #reader1SettingsBookAuthor {
   font-size: 14px;
   line-height: 1.35;
   opacity: 0.9;
@@ -2528,7 +2448,6 @@ input:-ms-placeholder {
   -moz-transition: visibility 0 ease .5s;
   -ms-transition: visibility 0 ease .5s;
 }
-
 
 
 #sidebar.open #tocView,
@@ -3750,8 +3669,7 @@ body.sidebar-open #sidebar-backdrop{
 /* icons / controls color */
 /* icons / controls color */
 #titlebar a, #titlebar button,
-#bottombar a, #bottombar button,
-#titlebar #opener a{
+#bottombar a, #bottombar button{
   color: currentColor !important;
   fill: currentColor !important;
 }
@@ -3931,7 +3849,7 @@ body.gesture-active{
 body.light #titlebar { color: var(--fbbar-fg) !important; }
 body.dark #titlebar { color: var(--fbbar-fg) !important; }
 
-#titlebar #title-controls a, #titlebar #title-controls button, #titlebar #slider { color: inherit !important; }
+#titlebar #title-controls a, #titlebar #title-controls button{ color: inherit !important; }
 #titlebar svg { stroke: currentColor; fill: currentColor; }
 
 /* ===== HARD OVERRIDES (mobile/desktop): sidebar MUST NOT push the book ===== */
@@ -3964,13 +3882,6 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #sidebar #bookmarksView a,
 #sidebar #notesView a{
   color: var(--fbbar-fg) !important;
-}
-
-/* Menu icon in sidebar header */
-#sidebar #slider,
-#sidebar #opener a,
-#sidebar #opener button{
-  color: var(--fbbar-fg-strong) !important;
 }
 
 
@@ -4118,18 +4029,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   scrollbar-width: none;
 }
 
-#overlay-notes .overlay-scroll{
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 10px 16px calc(22px + env(safe-area-inset-bottom)) 16px;
-  display: flex;
-  flex-direction: column;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
 .overlay-scroll::-webkit-scrollbar,
-#overlay-notes .overlay-scroll::-webkit-scrollbar,
 #protectedLibraryNotesMount::-webkit-scrollbar {
   width: 0;
   height: 0;
@@ -4159,12 +4059,11 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 }
 
 /* Content styling (no icons, compact) */
-#overlay-toc #tocView,
-#overlay-bookmarks #bookmarksView,
-#overlay-notes #notesView,
-#overlay-mybooks #mybooksView,
-#overlay-voice #voiceView,
-#overlay-menu #menuView {
+#tocView,
+#bookmarksView,
+#notesView,
+#mybooksView,
+#voiceView{
   font-family: var(--ui-font-family);
   font-size: calc(var(--bottom-font-size, 14px) * 1.2);
   /* In the legacy reader CSS, #tocView/#bookmarksView are hidden unless #sidebar.open.
@@ -4177,7 +4076,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   overflow: visible;
 }
 
-#overlay-notes #notesView{
+#notesView{
   height: 100%;
   min-height: 100%;
   padding-top: 0 !important;
@@ -4187,7 +4086,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   overflow: visible;
 }
 
-#overlay-notes #notes{
+#notesView #notes{
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
@@ -4197,7 +4096,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   overscroll-behavior: contain;
 }
 
-#overlay-notes #notesView .notes-copy-link-wrap{
+#notesView .notes-copy-link-wrap{
   position: sticky;
   bottom: 0;
   z-index: 3;
@@ -4209,7 +4108,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   background: var(--fbbar-bg);
 }
 
-#overlay-notes #notesView .notes-copy-link-btn{
+#notesView .notes-copy-link-btn{
   width: 100%;
   height: auto;
   border: 0;
@@ -4223,186 +4122,52 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
 }
 
-#overlay-notes #notesView .notes-copy-link-btn:disabled,
-#overlay-notes #notesView .notes-copy-link-btn.is-disabled{
+#notesView .notes-copy-link-btn:disabled,
+#notesView .notes-copy-link-btn.is-disabled{
   color: rgba(255,255,255,0.34);
   cursor: default;
   opacity: 0.55;
   pointer-events: none;
 }
 
-#overlay-notes #notesView .notes-copy-link-btn.is-copied{
+#notesView .notes-copy-link-btn.is-copied{
   color: var(--fbbar-fg-strong);
 }
 
-#overlay-notes #notesView .notes-copy-link-btn.is-failed{
-  color: #ffb1b1;
-}
-
-#overlay-menu #menuView{
-  height: 100%;
-  min-height: 100%;
-  padding-top: 0 !important;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
-}
-
-#overlay-menu #menuView .menu-book-card{
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 6px 0 18px;
-  border-bottom: 1px solid var(--fbbar-border);
-  margin-bottom: 2px;
-}
-
-#overlay-menu #menuView .menu-book-cover-wrap{
-  width: 104px;
-  height: 148px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex: 0 0 104px;
-}
-
-#overlay-menu #menuView .menu-book-cover,
-#overlay-menu #menuView .menu-book-cover-placeholder{
-  width: 100%;
-  height: 100%;
-}
-
-#overlay-menu #menuView .menu-book-cover{
-  display: block;
-  object-fit: contain;
-  object-position: left center;
-}
-
-#overlay-menu #menuView .menu-book-cover.hidden{
-  display: none;
-}
-
-#overlay-menu #menuView .menu-book-cover-placeholder{
-  background: transparent;
-  border: 0;
-}
-
-#overlay-menu #menuView .menu-book-cover-placeholder.hidden{
-  display: none;
-}
-
-#overlay-menu #menuView .menu-book-title,
-#overlay-menu #menuView .menu-book-author{
-  width: auto;
-  text-align: left;
-  line-height: 1.35;
-  color: var(--fbbar-fg);
-}
-
-#overlay-menu #menuView .menu-book-title{
-  font-size: 18px;
-  font-weight: 600;
-}
-
-#overlay-menu #menuView .menu-book-author{
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-#overlay-menu #menuView .menu-book-meta{
-  min-width: 0;
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-}
-
-#overlay-menu #menuList{
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 0;
-  padding: 0 !important;
-  overflow-y: visible;
-  overflow-x: visible;
-  overscroll-behavior: contain;
-}
-
-#overlay-menu #menuView .menu-share-link-wrap{
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
-  margin-top: auto;
-  margin-left: -16px;
-  margin-right: -16px;
-  padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--fbbar-border);
-  background: var(--fbbar-bg);
-}
-
-#overlay-menu #menuView .menu-share-link-btn{
-  width: 100%;
-  height: auto;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--fbbar-fg);
-  font: inherit;
-  padding: 0;
-  text-align: center;
-  cursor: pointer;
-  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
-}
-
-#overlay-menu #menuView .menu-share-link-btn.is-copied{
-  color: var(--fbbar-fg-strong);
-}
-
-#overlay-menu #menuView .menu-share-link-btn.is-failed{
+#notesView .notes-copy-link-btn.is-failed{
   color: #ffb1b1;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  #overlay-notes #notesView .notes-copy-link-btn:hover{
+  #notesView .notes-copy-link-btn:hover{
     background: rgba(255,255,255,0.08);
   }
-  #overlay-notes #notesView .notes-copy-link-btn:disabled:hover,
-  #overlay-notes #notesView .notes-copy-link-btn.is-disabled:hover{
+  #notesView .notes-copy-link-btn:disabled:hover,
+  #notesView .notes-copy-link-btn.is-disabled:hover{
     background: transparent;
   }
-  #overlay-notes #notesView .notes-copy-link-btn:active,
-  #overlay-notes #notesView .notes-copy-link-btn.is-pressed{
-    background: rgba(255,255,255,0.16);
-    color: var(--fbbar-fg-strong);
-  }
-  #overlay-menu #menuView .menu-share-link-btn:hover{
-    background: rgba(255,255,255,0.08);
-  }
-  #overlay-menu #menuView .menu-share-link-btn:active,
-  #overlay-menu #menuView .menu-share-link-btn.is-pressed{
+  #notesView .notes-copy-link-btn:active,
+  #notesView .notes-copy-link-btn.is-pressed{
     background: rgba(255,255,255,0.16);
     color: var(--fbbar-fg-strong);
   }
 }
 
-#overlay-toc #tocView ul,
-#overlay-bookmarks #bookmarksView ul,
-#overlay-notes #notesView ul,
-#overlay-mybooks #mybooksView ul,
-#overlay-voice #voiceView ul,
-#overlay-menu #menuView ul {
+#tocView ul,
+#bookmarksView ul,
+#notesView ul,
+#mybooksView ul,
+#voiceView ul{
   list-style: none;
   margin: 0;
   padding: 0;
   width: 100%;
 }
-#overlay-toc #tocView li,
-#overlay-bookmarks #bookmarksView li,
-#overlay-notes #notesView li,
-#overlay-mybooks #mybooksView li,
-#overlay-voice #voiceView li,
-#overlay-menu #menuView li {
+#tocView li,
+#bookmarksView li,
+#notesView li,
+#mybooksView li,
+#voiceView li{
   margin: 0;
   padding: 0;
   display: flex;
@@ -4410,10 +4175,10 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   gap: 10px;
   width: 100%;
 }
-#overlay-mybooks #mybooksView li{
+#mybooksView li{
   border-bottom: 1px solid var(--fbbar-border);
 }
-#overlay-notes #notesView li{
+#notesView li{
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -4423,18 +4188,17 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   padding: 0;
   border-bottom: 1px solid var(--fbbar-border);
 }
-#overlay-notes #notesView li:first-child{
+#notesView li:first-child{
   border-top: 0;
 }
-#overlay-notes #notesView li:last-child{
+#notesView li:last-child{
   border-bottom: 0;
 }
-#overlay-toc #tocView a,
-#overlay-bookmarks #bookmarksView a,
-#overlay-notes #notesView a,
-#overlay-mybooks #mybooksView a,
-#overlay-voice #voiceView a,
-#overlay-menu #menuView a {
+#tocView a,
+#bookmarksView a,
+#notesView a,
+#mybooksView a,
+#voiceView a{
   display: block;
   padding: 10px 6px;
   color: var(--fbbar-fg) !important;
@@ -4444,62 +4208,14 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   width: 100%;
   box-sizing: border-box;
 }
-#overlay-mybooks #mybooksView a{
+#mybooksView a{
   border-bottom: 0;
 }
-#overlay-notes #notesView a{
+#notesView a{
   border-bottom: 0;
-}
-#overlay-menu #menuView .menu-item{
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 6px;
-  background: transparent;
-  border: 0;
-  color: var(--fbbar-fg) !important;
-  text-align: left;
-  border-bottom: 1px solid var(--fbbar-border);
-  cursor: pointer;
-  font: inherit;
-}
-#overlay-menu #menuView{
-  --menu-icon-size: 24px;
-}
-#overlay-menu #menuView .menu-icon{
-  width: var(--menu-icon-size);
-  height: var(--menu-icon-size);
-  flex: 0 0 var(--menu-icon-size);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-#overlay-menu #menuView .menu-icon:before{
-  margin-right: 0;
-  font-size: var(--menu-icon-size);
-  line-height: 1;
-  display: inline-block;
-}
-#overlay-menu #menuView .menu-icon svg{
-  width: var(--menu-icon-size);
-  height: var(--menu-icon-size);
-  display: block;
-  stroke: currentColor;
-  fill: none !important;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-#overlay-menu #menuView .menu-icon-catalog svg{
-  fill: currentColor !important;
-  stroke: none !important;
-}
-#overlay-menu #menuView .menu-label{
-  flex: 1 1 auto;
 }
 
-#overlay-voice #voiceView {
+#voiceView {
   padding: 10px 6px;
 }
 .voice-picker-wrap {
@@ -4605,23 +4321,23 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   font-size: 13px;
   cursor: pointer;
 }
-#overlay-bookmarks #bookmarksView .bookmark-text,
-#overlay-mybooks #mybooksView .bookmark-text,
-#overlay-notes #notesView .bookmark-text{
+#bookmarksView .bookmark-text,
+#mybooksView .bookmark-text,
+#notesView .bookmark-text{
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-width: 0;
   width: 100%;
 }
-#overlay-mybooks #mybooksView .bookmark-text .bookmark_link{
+#mybooksView .bookmark-text .bookmark_link{
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#overlay-bookmarks #bookmarksView .bookmark-comment,
-#overlay-mybooks #mybooksView .bookmark-comment,
-#overlay-notes #notesView .bookmark-comment{
+#bookmarksView .bookmark-comment,
+#mybooksView .bookmark-comment,
+#notesView .bookmark-comment{
   margin: 4px 6px 8px;
   padding: 0;
   border: 0;
@@ -4637,24 +4353,24 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   width: 100%;
   box-sizing: border-box;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-item{
+#mybooksView .mybooks-auth-item{
   border-bottom: 0;
   padding: 4px 0 0;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-wrap{
+#mybooksView .mybooks-auth-wrap{
   border: 1px solid var(--fbbar-border);
   border-radius: 10px;
   padding: 10px 10px 12px;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-title{
+#mybooksView .mybooks-auth-title{
   font-size: 14px;
   font-weight: 600;
   margin: 0 6px 4px;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-copy{
+#mybooksView .mybooks-auth-copy{
   margin-bottom: 10px;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-btn{
+#mybooksView .mybooks-auth-btn{
   margin: 0 6px;
   border: 1px solid var(--fbbar-border);
   background: transparent;
@@ -4664,13 +4380,13 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   font: inherit;
   cursor: pointer;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-btn[disabled]{
+#mybooksView .mybooks-auth-btn[disabled]{
   opacity: 0.65;
   cursor: default;
 }
-#overlay-bookmarks #bookmarksView .bookmark-delete,
-#overlay-mybooks #mybooksView .bookmark-delete,
-#overlay-notes #notesView .bookmark-delete{
+#bookmarksView .bookmark-delete,
+#mybooksView .bookmark-delete,
+#notesView .bookmark-delete{
   flex: 0 0 32px;
   width: 32px;
   height: 32px;
@@ -4688,9 +4404,9 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   padding: 0;
   margin: 0;
 }
-#overlay-bookmarks #bookmarksView .bookmark-delete svg,
-#overlay-mybooks #mybooksView .bookmark-delete svg,
-#overlay-notes #notesView .bookmark-delete svg{
+#bookmarksView .bookmark-delete svg,
+#mybooksView .bookmark-delete svg,
+#notesView .bookmark-delete svg{
   width: 18px;
   height: 18px;
   stroke: currentColor;
@@ -4798,17 +4514,17 @@ html.is-ios .comment-sheet{
   max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
   overflow: auto;
 }
-#overlay-toc #tocView a:before,
-#overlay-bookmarks #bookmarksView a:before,
-#overlay-toc #tocView .icon,
-#overlay-bookmarks #bookmarksView .icon {
+#tocView a:before,
+#bookmarksView a:before,
+#tocView .icon,
+#bookmarksView .icon {
   display: none !important;
 }
-#overlay-toc #tocView a:hover,
-#overlay-bookmarks #bookmarksView a:hover {
+#tocView a:hover,
+#bookmarksView a:hover {
   background: var(--fbbar-hover) !important;
 }
-#overlay-toc #tocView .currentChapter a {
+#tocView .currentChapter a {
   color: var(--fbbar-fg-strong);
   text-decoration: underline;
   background: transparent;
@@ -5040,7 +4756,6 @@ html.is-ios .comment-sheet{
 
 /* Search/topbar mode switching */
 body.search-open #titlebar #metainfo,
-body.search-open #titlebar #opener,
 body.search-open #titlebar #title-controls > :not(#searchDesktop) {
   display: none !important;
 }
@@ -5097,38 +4812,6 @@ html.is-phone body.ui-hidden #bottombar *,
 html.is-tablet body.ui-hidden #titlebar *,
 html.is-tablet body.ui-hidden #bottombar * {
   pointer-events: auto;
-}
-html.is-phone #opener #openNotes,
-html.is-phone #opener #openBookmarks,
-html.is-tablet #opener #openNotes,
-html.is-tablet #opener #openBookmarks {
-  display: none !important;
-}
-/* iOS safety: even if is-phone/is-tablet class detection fails, keep only hamburger in opener */
-html.is-ios #opener #openNotes,
-html.is-ios #opener #openBookmarks {
-  display: none !important;
-}
-html.is-phone #opener #slider,
-html.is-tablet #opener #slider {
-  width: var(--title-icon-size, 22px);
-  height: var(--title-icon-size, 22px);
-  min-width: var(--title-icon-size, 22px);
-  min-height: var(--title-icon-size, 22px);
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-html.is-ios #opener #slider {
-  width: var(--title-icon-size, 22px) !important;
-  height: var(--title-icon-size, 22px) !important;
-  min-width: var(--title-icon-size, 22px) !important;
-  min-height: var(--title-icon-size, 22px) !important;
-  line-height: 1 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
 }
 html.is-phone #titlebar,
 html.is-tablet #titlebar {
@@ -5279,13 +4962,11 @@ html.is-phone #ttsToggleMobile .tts-icon,
 html.is-phone #searchOpen .search-open-icon,
 html.is-phone #themeToggle .theme-icon,
 html.is-phone #addressBarToggle .ab-icon,
-html.is-phone #slider .menu-hamburger-icon,
 html.is-phone #mobileMoreToggle .mobile-more-icon,
 html.is-tablet #ttsToggleMobile .tts-icon,
 html.is-tablet #searchOpen .search-open-icon,
 html.is-tablet #themeToggle .theme-icon,
 html.is-tablet #addressBarToggle .ab-icon,
-html.is-tablet #slider .menu-hamburger-icon,
 html.is-tablet #mobileMoreToggle .mobile-more-icon {
   width: var(--title-icon-glyph-size) !important;
   height: var(--title-icon-glyph-size) !important;
@@ -5316,19 +4997,6 @@ html.is-tablet body.reader1-unified-shell #fontInc {
   display: none !important;
 }
 
-html.is-phone body.reader1-unified-shell #opener #slider,
-html.is-tablet body.reader1-unified-shell #opener #slider {
-  display: none !important;
-  visibility: hidden !important;
-  width: 0 !important;
-  min-width: 0 !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-}
-
 html.is-phone body.reader1-unified-shell #title-controls > #ttsToggleDesktop,
 html.is-phone body.reader1-unified-shell #title-controls > #themeToggle,
 html.is-phone body.reader1-unified-shell #title-controls > #shellLibraryToggle,
@@ -5349,12 +5017,8 @@ html.is-tablet body.reader1-unified-shell #title-controls {
 }
 
 @media (orientation: portrait) {
-  html.is-phone body.reader1-unified-shell #opener,
   html.is-phone body.reader1-unified-shell #shellTopLinks,
-  html.is-tablet body.reader1-unified-shell #opener,
-  html.is-tablet body.reader1-unified-shell #shellTopLinks,
-  html.is-phone body.reader1-unified-shell #slider,
-  html.is-tablet body.reader1-unified-shell #slider {
+  html.is-tablet body.reader1-unified-shell #shellTopLinks{
     display: none !important;
   }
 
@@ -5524,10 +5188,6 @@ html.is-tablet body.reader1-unified-shell #searchOpen .search-open-icon {
     gap: 10px;
     font: 500 15px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: var(--fbbar-fg-strong);
-  }
-
-  #opener {
-    display: none !important;
   }
 
   #metainfo {
@@ -5732,21 +5392,6 @@ html.is-tablet body.reader1-unified-shell #bottombar {
   border-radius: 999px;
   cursor: pointer;
 }
-
-html.is-ios #slider .menu-hamburger-icon,
-html.is-phone #slider .menu-hamburger-icon,
-html.is-tablet #slider .menu-hamburger-icon {
-  display: none !important;
-}
-html.is-ios #slider,
-html.is-phone #slider,
-html.is-tablet #slider {
-  background-image: url("../icons/hamburger.svg?v=20260303-mobile-hamburger-bg-1") !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-  background-size: var(--title-icon-glyph-size) var(--title-icon-glyph-size) !important;
-  border-radius: 0 !important;
-}
 html.is-phone #ttsToggleMobile .tts-icon-on,
 html.is-tablet #ttsToggleMobile .tts-icon-on {
   display: block !important;
@@ -5777,21 +5422,6 @@ html.is-tablet #addressBarToggle.ab-state-small .ab-icon-small {
 }
 html.is-ios #addressBarToggle {
   display: none !important;
-}
-html.is-phone #overlay-menu #menuView .menu-icon,
-html.is-tablet #overlay-menu #menuView .menu-icon {
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-}
-html.is-phone #overlay-menu #menuView .menu-icon:before,
-html.is-tablet #overlay-menu #menuView .menu-icon:before {
-  font-size: 20px;
-}
-html.is-phone #overlay-menu #menuView .menu-icon svg,
-html.is-tablet #overlay-menu #menuView .menu-icon svg {
-  width: 22px;
-  height: 22px;
 }
 
 /* Highlight style inside rendition documents */
@@ -6102,11 +5732,10 @@ html.is-tablet body.reader1-unified-shell.search-active #searchFloatControls:not
   /* Sidebar/overlay lists must keep vertical scrolling on touch devices. */
   .overlay-panel,
   .overlay-panel .overlay-scroll,
-  #overlay-toc #tocView,
-  #overlay-bookmarks #bookmarksView,
-  #overlay-notes #notesView,
-  #overlay-mybooks #mybooksView,
-  #overlay-menu #menuView {
+  #tocView,
+  #bookmarksView,
+  #notesView,
+  #mybooksView {
     touch-action: pan-y !important;
     overscroll-behavior: contain;
     overscroll-behavior-y: contain;
@@ -6126,17 +5755,17 @@ html.is-tablet #mobileMoreToggle::before {
 }
 
 /* Notes rows: force same geometry as My Books delete controls (without !important). */
-#overlay-notes #notesView #notes > li.list_item {
+#notesView #notes > li.list_item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
 }
-#overlay-notes #notesView #notes > li.list_item > div {
+#notesView #notes > li.list_item > div {
   flex: 1 1 auto;
   min-width: 0;
 }
-#overlay-notes #notesView #notes > li.list_item > button,
-#overlay-notes #notesView #notes > li.list_item > button.bookmark-delete {
+#notesView #notes > li.list_item > button,
+#notesView #notes > li.list_item > button.bookmark-delete {
   position: static;
   inset: auto;
   flex: 0 0 32px;

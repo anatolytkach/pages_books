@@ -4,7 +4,7 @@ import { buildGlobalLocationModel } from "./protected-global-location.js";
 import { loadProtectedManifest as loadV4BootstrapManifest } from "./v5-load-protected-manifest.js";
 
 async function fetchJson(url) {
-  const response = await fetch(url, { credentials: "same-origin" });
+  const response = await fetch(url, { credentials: "same-origin", cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Request failed (${response.status}) for ${url}`);
   }
