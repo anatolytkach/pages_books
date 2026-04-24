@@ -1,0 +1,245 @@
+body.protected-shell #viewer .v4-paginated-shell {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  height: 100%;
+}
+
+body.protected-shell #viewer .v4-paginated-stage {
+  height: 100%;
+  display: block;
+}
+
+body.protected-shell #viewer .v4-paginated-page-frame {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body.protected-shell #viewer .v4-paginated-page-frame-secondary.hidden {
+  display: none;
+}
+
+body.protected-shell #viewer .v4-paginated-page {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  justify-items: center;
+  align-items: stretch;
+}
+
+body.protected-shell #viewer .v4-page-content {
+  width: min(100%, 980px);
+  min-height: 100%;
+  max-height: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  padding: 26px 42px 28px;
+  border-radius: 0;
+  border: 0;
+  background: #fffdf9;
+  box-shadow: none;
+}
+
+body.protected-shell #viewer .v4-paginated-measure .v4-page-content {
+  width: min(100%, 980px);
+}
+
+body.protected-shell #viewer .v4-page-entry + .v4-page-entry {
+  margin-top: 0.62em;
+}
+
+body.protected-shell #viewer .v4-page-cover-title {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-weight: 500;
+}
+
+body.protected-shell #viewer .v4-page-cover-author {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-paragraph,
+body.protected-shell #viewer .v4-page-content .v4-reading-list-text,
+body.protected-shell #viewer .v4-page-content .v4-reading-figure-text,
+body.protected-shell #viewer .v4-page-content .v4-reading-blockquote-text {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 17.6px;
+  line-height: 1.5;
+  color: rgb(0, 0, 0);
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-heading {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-weight: 500;
+  color: rgb(0, 0, 0);
+  letter-spacing: 0;
+  text-wrap: pretty;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-level-1 {
+  font-size: 26px;
+  line-height: 1.15;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-level-2 {
+  font-size: 22px;
+  line-height: 1.18;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-level-3,
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-level-4 {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-level-5,
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-level-6 {
+  font-size: 17.6px;
+  line-height: 1.35;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-block-level-1 {
+  margin-top: 0.3em;
+  margin-bottom: 0.22em;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-block-level-2,
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-block-level-3,
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-block-level-4,
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-block-level-5,
+body.protected-shell #viewer .v4-page-content .v4-reading-heading-block-level-6 {
+  margin-top: 0.22em;
+  margin-bottom: 0.14em;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-list-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-list-marker {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 17.6px;
+  line-height: 1.5;
+  color: rgb(0, 0, 0);
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-blockquote {
+  margin: 1em 1.1em;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-comment-group {
+  display: grid;
+  gap: 0.14em;
+  margin: 0.16em 0 0.42em;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-comment-group-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-comment-avatar {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-comment-name {
+  margin: 0;
+  display: inline;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 17.6px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: rgb(0, 0, 0);
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-comment-body {
+  display: grid;
+  gap: 0.35em;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-inline-fragment,
+body.protected-shell #viewer .v4-page-content .v4-reading-inline-chip {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: baseline;
+}
+
+body.protected-shell #viewer .v4-page-content .v4-reading-avatar {
+  width: 18px;
+  height: 18px;
+  max-width: 18px;
+  max-height: 18px;
+}
+
+body.protected-shell #viewer .v4-footnote-preview-shell {
+  position: fixed;
+  left: 50%;
+  bottom: 44px;
+  transform: translateX(-50%);
+  width: min(720px, calc(100vw - 32px));
+  z-index: 30;
+  border: 1px solid rgba(90, 74, 48, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 252, 245, 0.98);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+body.protected-shell #viewer .v4-footnote-preview-body {
+  padding: 14px 16px;
+}
+
+@media (max-width: 900px) {
+  body.protected-shell #viewer .v4-page-content {
+    padding: 22px 26px 24px;
+  }
+}
+
+@media (min-width: 1200px) {
+  html.is-desktop body.protected-shell #viewer .v4-paginated-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 28px;
+    align-items: stretch;
+  }
+
+  html.is-desktop body.protected-shell #viewer .v4-paginated-page-frame {
+    width: 100%;
+  }
+
+  html.is-desktop body.protected-shell #viewer .v4-page-content,
+  body.protected-shell #viewer .v4-paginated-measure .v4-page-content {
+    width: 100%;
+    max-width: none;
+    padding: 24px 30px 26px;
+  }
+}
+
+@media (max-width: 640px) {
+  body.protected-shell #viewer .v4-page-content {
+    padding: 18px 16px 20px;
+  }
+
+  body.protected-shell #viewer .v4-page-content .v4-reading-paragraph,
+  body.protected-shell #viewer .v4-page-content .v4-reading-list-text,
+  body.protected-shell #viewer .v4-page-content .v4-reading-figure-text,
+  body.protected-shell #viewer .v4-page-content .v4-reading-blockquote-text,
+  body.protected-shell #viewer .v4-page-content .v4-reading-comment-name {
+    font-size: 16.8px;
+  }
+
+  body.protected-shell #viewer .v4-footnote-preview-shell {
+    width: calc(100vw - 20px);
+    bottom: 38px;
+  }
+}

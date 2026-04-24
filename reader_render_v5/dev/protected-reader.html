@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Protected Reader Dev</title>
+    <link rel="stylesheet" href="./protected-reader.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <section class="card">
+          <h1>Protected Reader Dev</h1>
+          <p class="muted">
+            Dev-only runtime for runtime-safe protected artifacts. It renders one chunk
+            at a time to canvas and never inserts book text into the DOM.
+          </p>
+          <form id="artifact-form" class="artifact-form">
+            <label for="artifact-input">Artifact Root</label>
+            <input id="artifact-input" name="artifact" type="text" />
+            <div class="button-row">
+              <button type="submit">Load</button>
+              <button type="button" id="load-19686">Load 19686</button>
+            </div>
+          </form>
+          <dl id="book-meta" class="meta-list"></dl>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <h2>Contents</h2>
+            <span id="toc-count" class="muted">0 items</span>
+          </div>
+          <div id="toc-list" class="toc-list"></div>
+        </section>
+      </aside>
+
+      <main class="main">
+        <section class="card controls-card">
+          <div class="controls-sticky-shell">
+            <div class="toolbar">
+              <div class="toolbar-group">
+                <button type="button" id="prev-page">Prev page</button>
+                <button type="button" id="next-page">Next page</button>
+                <button type="button" id="prev-chunk">Prev chunk</button>
+                <button type="button" id="next-chunk">Next chunk</button>
+                <label class="mode-picker" for="render-mode">
+                  <span>Render mode</span>
+                  <select id="render-mode" name="render-mode">
+                    <option value="text">Text mode</option>
+                    <option value="shape">Shape mode</option>
+                  </select>
+                </label>
+                <label class="mode-picker" for="metrics-mode">
+                  <span>Metrics</span>
+                  <select id="metrics-mode" name="metrics-mode">
+                    <option value="text">Text metrics</option>
+                    <option value="shape">Shape metrics</option>
+                  </select>
+                </label>
+                <label class="mode-picker" for="debug-geometry">
+                  <span>Geometry</span>
+                  <input id="debug-geometry" name="debug-geometry" type="checkbox" />
+                </label>
+              </div>
+              <div class="toolbar-group">
+                <button type="button" id="copy-restore-token">Copy restore token</button>
+                <button type="button" id="copy-selection-range">Copy selection range</button>
+                <button type="button" id="create-highlight">Create highlight</button>
+                <button type="button" id="add-note-selection">Add note</button>
+                <button type="button" id="delete-annotation">Delete annotation</button>
+                <button type="button" id="clear-selection">Clear selection</button>
+                <button type="button" id="copy-selection">Copy selected text</button>
+              </div>
+            </div>
+            <div class="toolbar restore-toolbar">
+              <div class="toolbar-group token-group">
+                <label for="restore-token-input">Restore token</label>
+                <input id="restore-token-input" name="restore-token" type="text" />
+                <button type="button" id="restore-token">Restore</button>
+              </div>
+            </div>
+            <div class="toolbar note-toolbar">
+              <div class="toolbar-group note-group">
+                <label for="note-input">Note text</label>
+                <textarea id="note-input" name="note-input" rows="2"></textarea>
+              </div>
+            </div>
+          </div>
+          <dl id="runtime-meta" class="meta-grid"></dl>
+          <p id="status" class="status" aria-live="polite">Awaiting runtime-safe artifact.</p>
+        </section>
+
+        <section class="card reader-card">
+          <div class="reader-frame">
+            <canvas id="reader-canvas"></canvas>
+            <canvas id="overlay-canvas"></canvas>
+          </div>
+          <div class="runtime-note">
+            Temporary dev-only canvas renderer for runtime-safe contract testing. No hidden DOM text.
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <h2>Selection</h2>
+            <span id="selection-kind" class="muted">none</span>
+          </div>
+          <dl id="selection-meta" class="meta-grid"></dl>
+        </section>
+
+        <section class="card annotations-card">
+          <div class="section-head">
+            <h2>Annotations</h2>
+            <span id="annotation-count" class="muted">0 items</span>
+          </div>
+          <div class="annotation-toolbar">
+            <button type="button" id="add-note-highlight">Add note to highlight</button>
+            <button type="button" id="export-annotations">Export annotations</button>
+            <button type="button" id="import-annotations">Import annotations</button>
+            <button type="button" id="import-production-payload">Import production payload</button>
+            <button type="button" id="export-production-notes">Export production notes</button>
+            <button type="button" id="export-share-payload">Export share payload</button>
+            <button type="button" id="export-snapshot-patch">Export snapshot patch</button>
+          </div>
+          <label class="annotation-field" for="annotation-import">
+            <span>Annotation JSON</span>
+            <textarea id="annotation-import" name="annotation-import" rows="6"></textarea>
+          </label>
+          <label class="annotation-field" for="import-report-json">
+            <span>Share/import JSON / report</span>
+            <textarea id="import-report-json" name="import-report-json" rows="8"></textarea>
+          </label>
+          <div id="annotation-list" class="annotation-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./protected-reader.js"></script>
+  </body>
+</html>

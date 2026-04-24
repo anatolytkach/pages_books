@@ -71,6 +71,45 @@ function redirect(res, location, route = "redirect") {
   send(res, 302, "", { location, "x-reader-route": route });
 }
 
+function buildProtectedReaderRedirect(url) {
+  const params = new URLSearchParams(url.search || "");
+  const id = String(
+    params.get("id") || params.get("protectedArtifactBookId") || params.get("artifactBookId") || ""
+  ).trim();
+  if (params.get("reader") !== "protected") {
+    params.set("reader", "protected");
+  }
+  if (id && params.get("artifactBookId") !== id) {
+    params.set("artifactBookId", id);
+  }
+  if (id && params.get("protectedArtifactBookId") !== id) {
+    params.set("protectedArtifactBookId", id);
+  }
+  if (!params.get("protectedUx")) {
+    params.set("protectedUx", "protected-shell");
+  }
+  if (!params.get("renderMode")) {
+    params.set("renderMode", "shape");
+  }
+  if (!params.get("metricsMode")) {
+    params.set("metricsMode", "shape");
+  }
+  const hasRemoteHint =
+    params.get("protectedArtifactSource") === "r2" ||
+    params.get("readerContentSource") === "r2" ||
+    params.get("readerRemoteMode") === "strict";
+  if (!params.get("protectedArtifactSource") && (hasRemoteHint || id)) {
+    params.set("protectedArtifactSource", "r2");
+  }
+  if (!params.get("readerRemoteMode")) {
+    params.set("readerRemoteMode", "strict");
+  }
+  if (!params.get("protectedAllowAll")) {
+    params.set("protectedAllowAll", "1");
+  }
+  return `/reader/reader_new_v5.html?${params.toString()}`;
+}
+
 function mimeType(filePath) {
   return MIME.get(path.extname(filePath).toLowerCase()) || "application/octet-stream";
 }
@@ -307,12 +346,17 @@ const server = http.createServer(async (req, res) => {
   const frontendSource = requestedFrontendSource || cookieFrontendSource || DEFAULT_FRONTEND_SOURCE;
 
   if (pathname === "/books") return redirect(res, "/books/", "slash-redirect");
+  if (pathname === "/books/protected") return redirect(res, `/books/protected/${url.search}`, "slash-redirect");
   if (pathname === "/books/reader") return redirect(res, "/books/reader/", "slash-redirect");
   if (pathname === "/books/reader_new") return redirect(res, "/books/reader_new/", "slash-redirect");
   if (pathname === "/books/reader1") return redirect(res, "/books/reader1/", "slash-redirect");
   if (pathname === "/books/reader_render_v3") return redirect(res, "/books/reader_render_v3/", "slash-redirect");
   if (pathname === "/books/ping") {
     return send(res, 200, "pong\n", { "content-type": "text/plain; charset=utf-8", "x-reader-route": "ping" });
+  }
+
+  if (pathname === "/books/protected/" || pathname.startsWith("/books/protected/")) {
+    return redirect(res, buildProtectedReaderRedirect(url), "protected-reader-redirect");
   }
 
   const idMatch = pathname.match(/^\/books\/(\d+)(\/)?$/);
@@ -394,6 +438,17 @@ const server = http.createServer(async (req, res) => {
     return send(res, 404, "Not found", {
       "content-type": "text/plain; charset=utf-8",
       "x-reader-route": "not-found-v4-artifact"
+    });
+  }
+  if (
+    (pathname.startsWith("/reader_render_v5/artifacts/protected-bootstrap-books/") ||
+      pathname.startsWith("/reader_render_v5/artifacts/protected-books/")) &&
+    !existsSync(routed.file)
+  ) {
+    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-v5-artifact", {
+      "x-reader-artifact-source": "remote",
+      "x-reader-artifact-origin": PROD_ORIGIN,
+      "x-reader-artifact-fallback": "proxy-miss-local"
     });
   }
   if (pathname.startsWith("/books/api/") && !existsSync(routed.file)) {
