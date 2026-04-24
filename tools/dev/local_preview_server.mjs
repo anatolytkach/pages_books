@@ -233,6 +233,24 @@ function routeLocalPath(urlPath) {
   if (urlPath === "/books/" || urlPath === "/books/index.html") {
     return { file: path.join(BOOKS_DIR, "index.html"), route: "catalog" };
   }
+  if (urlPath === "/books/auth/" || urlPath === "/books/auth/index.html") {
+    return { file: path.join(BOOKS_DIR, "auth", "index.html"), route: "books-auth" };
+  }
+  if (urlPath.startsWith("/books/auth/")) {
+    return { file: safeJoin(path.join(BOOKS_DIR, "auth"), urlPath.slice("/books/auth".length)), route: "books-auth" };
+  }
+  if (urlPath === "/books/account/" || urlPath === "/books/account/index.html") {
+    return { file: path.join(BOOKS_DIR, "account", "index.html"), route: "books-account" };
+  }
+  if (urlPath.startsWith("/books/account/")) {
+    return { file: safeJoin(path.join(BOOKS_DIR, "account"), urlPath.slice("/books/account".length)), route: "books-account" };
+  }
+  if (urlPath === "/books/publish/" || urlPath === "/books/publish/index.html") {
+    return { file: path.join(BOOKS_DIR, "publish", "index.html"), route: "books-publish" };
+  }
+  if (urlPath.startsWith("/books/publish/")) {
+    return { file: safeJoin(path.join(BOOKS_DIR, "publish"), urlPath.slice("/books/publish".length)), route: "books-publish" };
+  }
   if (urlPath === "/books/catalog.config.json") {
     return { dynamic: "catalog-config" };
   }
@@ -346,6 +364,9 @@ const server = http.createServer(async (req, res) => {
   const frontendSource = requestedFrontendSource || cookieFrontendSource || DEFAULT_FRONTEND_SOURCE;
 
   if (pathname === "/books") return redirect(res, "/books/", "slash-redirect");
+  if (pathname === "/books/auth") return redirect(res, "/books/auth/", "slash-redirect");
+  if (pathname === "/books/account") return redirect(res, "/books/account/", "slash-redirect");
+  if (pathname === "/books/publish") return redirect(res, "/books/publish/", "slash-redirect");
   if (pathname === "/books/protected") return redirect(res, `/books/protected/${url.search}`, "slash-redirect");
   if (pathname === "/books/reader") return redirect(res, "/books/reader/", "slash-redirect");
   if (pathname === "/books/reader_new") return redirect(res, "/books/reader_new/", "slash-redirect");
