@@ -193,7 +193,16 @@ function routeLocalPath(urlPath) {
     return { file: safeJoin(path.join(BOOKS_DIR, "shared"), urlPath.slice("/books/shared".length)), route: "shared" };
   }
   if (urlPath.startsWith("/books/api/")) {
-    return { file: safeJoin(INDEX_DIR, urlPath.slice("/books/api".length)), route: "r2-api" };
+    const relPath = urlPath.slice("/books/api".length);
+    const localFile = safeJoin(INDEX_DIR, relPath);
+    if (localFile && existsSync(localFile)) {
+      return { file: localFile, route: "r2-api" };
+    }
+    const lowerFile = safeJoin(INDEX_DIR, relPath.toLocaleLowerCase());
+    if (lowerFile && lowerFile !== localFile && existsSync(lowerFile)) {
+      return { file: lowerFile, route: "r2-api-lowercase-fallback" };
+    }
+    return { file: localFile, route: "r2-api" };
   }
   if (urlPath.startsWith("/books/content/")) {
     return { file: safeJoin(CONTENT_DIR, urlPath.slice("/books/content".length)), route: "r2-content" };
@@ -211,10 +220,10 @@ function routeLocalPath(urlPath) {
     };
   }
   if (urlPath === "/books/reader/" || urlPath === "/books/reader/index.html") {
-    return { file: path.join(READER_DIR, "index.html"), route: "reader" };
+    return { file: path.join(READER1_DIR, "index.html"), route: "reader1-legacy-alias" };
   }
   if (urlPath.startsWith("/books/reader/")) {
-    return { file: safeJoin(READER_DIR, urlPath.slice("/books/reader".length)), route: "reader" };
+    return { file: safeJoin(READER1_DIR, urlPath.slice("/books/reader".length)), route: "reader1-legacy-alias" };
   }
   if (urlPath === "/books/reader_new/" || urlPath === "/books/reader_new/index.html") {
     return { file: path.join(READER_DIR, "reader_new.html"), route: "reader-new" };

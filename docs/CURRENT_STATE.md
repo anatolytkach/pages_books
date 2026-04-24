@@ -16,7 +16,7 @@
 ## Current Catalog / Routing Reality
 
 - Catalog routing distinguishes the two readers:
-  - unprotected books open `reader1`;
+  - unprotected books keep the public URL shape `/books/reader/?id=<bookId>` but are served by the `reader1/` code path;
   - protected books open `reader_new`.
 - Local protected sample work now has a short v5 entry route:
   - `/books/protected/?id=<protectedId>` rewrites to `reader/reader_new_v5.html`;

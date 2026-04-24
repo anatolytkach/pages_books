@@ -1933,6 +1933,14 @@ export default {
       if (!object && rawKey !== decodedKey) {
         object = await env.READER_BOOKS.get(rawKey);
       }
+      const lowerDecodedKey = decodedKey.toLocaleLowerCase();
+      const lowerRawKey = rawKey.toLocaleLowerCase();
+      if (!object && lowerDecodedKey !== decodedKey && lowerDecodedKey !== rawKey) {
+        object = await env.READER_BOOKS.get(lowerDecodedKey);
+      }
+      if (!object && lowerRawKey !== rawKey && lowerRawKey !== decodedKey && lowerRawKey !== lowerDecodedKey) {
+        object = await env.READER_BOOKS.get(lowerRawKey);
+      }
       if (!object) {
         const headers = new Headers({
           "content-type": "text/plain; charset=utf-8",
@@ -2089,7 +2097,14 @@ export default {
     }
 
     let assetRequest = request;
-    if (path === "/books/reader_new/" || path === "/books/reader_new/index.html" || path.startsWith("/books/reader_new/css/") || path.startsWith("/books/reader_new/js/") || path.startsWith("/books/reader_new/icons/") || path.startsWith("/books/reader_new/fonts/") || path.startsWith("/books/reader_new/img/")) {
+    if (path === "/books/reader/" || path === "/books/reader/index.html" || path.startsWith("/books/reader/css/") || path.startsWith("/books/reader/js/") || path.startsWith("/books/reader/icons/") || path.startsWith("/books/reader/fonts/") || path.startsWith("/books/reader/img/")) {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname =
+        path === "/books/reader/" || path === "/books/reader/index.html"
+          ? "/reader1/index.html"
+          : path.replace(/^\/books\/reader/, "/reader1");
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+    } else if (path === "/books/reader_new/" || path === "/books/reader_new/index.html" || path.startsWith("/books/reader_new/css/") || path.startsWith("/books/reader_new/js/") || path.startsWith("/books/reader_new/icons/") || path.startsWith("/books/reader_new/fonts/") || path.startsWith("/books/reader_new/img/")) {
       const rewrittenUrl = new URL(request.url);
       rewrittenUrl.pathname =
         path === "/books/reader_new/" || path === "/books/reader_new/index.html"
