@@ -289,6 +289,13 @@
 
   function syncBarHeights(withResize) {
     try {
+      if (window.__readerpubReaderNewCompat) {
+        var compatRoot = document.documentElement;
+        compatRoot.style.setProperty("--titlebar-h", "0px");
+        compatRoot.style.setProperty("--bottombar-h", "0px");
+        applyViewerInsets(0, 0, false);
+        return;
+      }
       var root = document.documentElement;
       var top = document.getElementById("titlebar");
       var search = document.getElementById("searchbar");
@@ -324,6 +331,7 @@
     try {
       if (window.__fbUiHiddenObserverInstalled) return;
       window.__fbUiHiddenObserverInstalled = true;
+      if (window.__readerpubReaderNewCompat) return;
       if (!window.MutationObserver) return;
       var mo = new MutationObserver(function (muts) {
         try {
@@ -346,14 +354,26 @@
     } catch (e) {}
   }
   function showUi() {
+    try {
+      if (window.__readerpubReaderNewCompat && typeof window.__readerpubCompatShowUi === "function") {
+        window.__readerpubCompatShowUi();
+        return;
+      }
+    } catch (eCompatShow) {}
     try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs0) {}
-    document.body.classList.remove("ui-hidden");
-    syncBarHeights(false);
+    try { document.body.classList.remove("ui-hidden"); } catch (eBody0) {}
+    try { syncBarHeights(false); } catch (eSync0) {}
   }
   function hideUi() {
+    try {
+      if (window.__readerpubReaderNewCompat && typeof window.__readerpubCompatHideUi === "function") {
+        window.__readerpubCompatHideUi();
+        return;
+      }
+    } catch (eCompatHide) {}
     try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs1) {}
-    document.body.classList.add("ui-hidden");
-    syncBarHeights(false);
+    try { document.body.classList.add("ui-hidden"); } catch (eBody1) {}
+    try { syncBarHeights(false); } catch (eSync1) {}
   }
   try {
     window.__fbShowUi = showUi;
@@ -362,10 +382,21 @@
   function toggleUi() {
     if (window.__fbSelectionActive) return;
     try {
+      if (window.__readerpubReaderNewCompat && typeof window.__readerpubCompatToggleUi === "function") {
+        window.__readerpubCompatToggleUi();
+        return;
+      }
+    } catch (eCompatToggle) {}
+    try {
       if ((window.__fbSuppressUiTapUntil || 0) > Date.now()) return;
     } catch (eSup) {}
     try {
-      if (document.body && document.body.classList && document.body.classList.contains("search-open")) return;
+      if (
+        document.body &&
+        document.body.classList &&
+        document.body.classList.contains("search-open") &&
+        !document.body.classList.contains("search-minimized")
+      ) return;
     } catch (eSearchOpen) {}
     try {
       if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
@@ -560,9 +591,9 @@
     try {
       var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
       var touch = (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-      if (__fb_isDesktop && !coarse && !touch) return;
+      if (__fb_isDesktop && !window.__readerpubReaderNewCompat && !coarse && !touch) return;
     } catch (e0) {
-      if (__fb_isDesktop) return;
+      if (__fb_isDesktop && !window.__readerpubReaderNewCompat) return;
     }
     var existing = document.getElementById("fb-tap-layer");
     var host = document.getElementById("container") || null;
@@ -632,9 +663,9 @@
 
     function overlaysOpen() {
       try {
-        var ot = document.getElementById("overlay-toc");
-        var ob = document.getElementById("overlay-bookmarks");
-        return (ot && !ot.classList.contains("hidden")) || (ob && !ob.classList.contains("hidden"));
+        var library = document.getElementById("overlay-library");
+        var settings = document.getElementById("overlay-settings");
+        return (library && !library.classList.contains("hidden")) || (settings && !settings.classList.contains("hidden"));
       } catch (e) {
         return false;
       }
@@ -946,6 +977,16 @@
       if (Math.abs(t.clientX - sx) > 22 || Math.abs(t.clientY - sy) > 22) moved = true;
     }
 
+    function primeClickTap(e) {
+      moved = false;
+      st = Date.now();
+      var t = (e && (e.touches && e.touches[0])) || (e && (e.changedTouches && e.changedTouches[0])) || e;
+      if (t) {
+        sx = t.clientX;
+        sy = t.clientY;
+      }
+    }
+
     // Use POINTER events only to avoid double-firing (touchend + pointerup).
     // Fallback to touch events only if PointerEvent is unavailable.
     if (window.PointerEvent) {
@@ -1024,6 +1065,21 @@
       right.addEventListener("touchend", function (e) { tryEdgeTurn(e, true); }, { passive: false });
     }
 
+    if (__fb_isDesktop || window.__readerpubReaderNewCompat) {
+      center.addEventListener("click", function (e) {
+        primeClickTap(e);
+        tryToggle(e);
+      }, true);
+      left.addEventListener("click", function (e) {
+        primeClickTap(e);
+        tryEdgeTurn(e, false);
+      }, true);
+      right.addEventListener("click", function (e) {
+        primeClickTap(e);
+        tryEdgeTurn(e, true);
+      }, true);
+    }
+
     updateCenterTapBounds();
     try {
       if (window.visualViewport) {
@@ -1043,25 +1099,14 @@
 
   // -------- overlays --------
   function setupOverlays() {
-    var isMobile = isMobileViewport();
     function syncMobileClass() {
       try { document.body.classList.toggle('is-mobile', !!isMobileViewport()); } catch (e) {}
     }
     syncMobileClass();
     window.addEventListener('resize', syncMobileClass, { passive: true });
     window.addEventListener('orientationchange', syncMobileClass, { passive: true });
+
     var backdrop = document.getElementById("overlay-backdrop");
-    var overlayToc = document.getElementById("overlay-toc");
-    var overlayBookmarks = document.getElementById("overlay-bookmarks");
-    var overlayNotes = document.getElementById("overlay-notes");
-    var overlayMyBooks = document.getElementById("overlay-mybooks");
-    var overlayVoice = document.getElementById("overlay-voice");
-    var overlayMenu = document.getElementById("overlay-menu");
-    var menuView = document.getElementById("menuView");
-    var copyBookLinkBtn = document.getElementById("copyBookLinkBtn");
-    var btnToc = document.getElementById("slider");
-    var btnNotes = document.getElementById("openNotes");
-    var btnBookmarks = document.getElementById("openBookmarks");
     var closeBtns = Array.prototype.slice.call(document.querySelectorAll(".overlay-close"));
 
     function getCurrentBookId() {
@@ -1116,158 +1161,71 @@
       return fallbackCopy();
     }
 
-    if (copyBookLinkBtn && !copyBookLinkBtn.__fbBound) {
-      copyBookLinkBtn.__fbBound = true;
-
-      var clearCopyState = function (btn) {
-        btn.classList.remove("is-pressed");
-        btn.classList.remove("is-copied");
-        btn.classList.remove("is-failed");
-      };
-
-      var updateBookShareLabel = function () {
-        try {
-          copyBookLinkBtn.textContent = isTouchShareDevice() ? "Share book" : "Copy book link";
-        } catch (e) {}
-      };
-
-      copyBookLinkBtn.addEventListener("mousedown", function () { copyBookLinkBtn.classList.add("is-pressed"); });
-      copyBookLinkBtn.addEventListener("mouseup", function () { copyBookLinkBtn.classList.remove("is-pressed"); });
-      copyBookLinkBtn.addEventListener("mouseleave", function () { copyBookLinkBtn.classList.remove("is-pressed"); });
-
-      copyBookLinkBtn.addEventListener("click", function (event) {
-        if (event) event.preventDefault();
-        var btn = copyBookLinkBtn;
-        clearCopyState(btn);
-        updateBookShareLabel();
-        var oldText = btn.textContent || "Copy book link";
-        var cleanUrl = getCleanBookUrl();
-        if (!cleanUrl) {
-          btn.classList.add("is-failed");
-          btn.textContent = "Action failed";
-          setTimeout(function () {
-            updateBookShareLabel();
-            clearCopyState(btn);
-          }, 1200);
-          return;
-        }
-        if (isTouchShareDevice()) {
-          try {
-            if (navigator.share) {
-              navigator.share({ url: cleanUrl }).catch(function () {});
-              return;
-            }
-          } catch (e0) {}
-          btn.classList.add("is-failed");
-          btn.textContent = "Share unavailable";
-          setTimeout(function () {
-            updateBookShareLabel();
-            clearCopyState(btn);
-          }, 1200);
-          return;
-        }
-        copyText(cleanUrl).then(function () {
-          btn.classList.add("is-copied");
-          btn.textContent = "Copied";
-          setTimeout(function () {
-            btn.textContent = oldText;
-            clearCopyState(btn);
-          }, 1200);
-        }).catch(function () {
-          btn.classList.add("is-failed");
-          btn.textContent = "Copy failed";
-          setTimeout(function () {
-            btn.textContent = oldText;
-            clearCopyState(btn);
-          }, 1200);
-        });
-      });
-
-      updateBookShareLabel();
-      window.addEventListener("resize", updateBookShareLabel, { passive: true });
-      window.addEventListener("orientationchange", updateBookShareLabel, { passive: true });
+    function resetShareButton(btn, text) {
+      if (!btn) return;
+      btn.classList.remove("is-pressed");
+      btn.classList.remove("is-copied");
+      btn.classList.remove("is-failed");
+      btn.textContent = text || (isTouchShareDevice() ? "Share book" : "Copy book link");
     }
 
+    window.__fbShareCurrentBookLink = function (button) {
+      var btn = button || null;
+      var oldText = btn && btn.textContent ? btn.textContent : (isTouchShareDevice() ? "Share book" : "Copy book link");
+      if (btn) resetShareButton(btn, oldText);
+      var cleanUrl = getCleanBookUrl();
+      if (!cleanUrl) {
+        if (btn) {
+          btn.classList.add("is-failed");
+          btn.textContent = "Action failed";
+          setTimeout(function () { resetShareButton(btn, oldText); }, 1200);
+        }
+        return;
+      }
+      if (isTouchShareDevice()) {
+        try {
+          if (navigator.share) {
+            navigator.share({ url: cleanUrl }).catch(function () {});
+            return;
+          }
+        } catch (e0) {}
+        if (btn) {
+          btn.classList.add("is-failed");
+          btn.textContent = "Share unavailable";
+          setTimeout(function () { resetShareButton(btn, oldText); }, 1200);
+        }
+        return;
+      }
+      copyText(cleanUrl).then(function () {
+        if (!btn) return;
+        btn.classList.add("is-copied");
+        btn.textContent = "Copied";
+        setTimeout(function () { resetShareButton(btn, oldText); }, 1200);
+      }).catch(function () {
+        if (!btn) return;
+        btn.classList.add("is-failed");
+        btn.textContent = "Copy failed";
+        setTimeout(function () { resetShareButton(btn, oldText); }, 1200);
+      });
+    };
+
     function closeAll() {
-      if (overlayToc) overlayToc.classList.add("hidden");
-      if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-      if (overlayNotes) overlayNotes.classList.add("hidden");
-      if (overlayMenu) overlayMenu.classList.add("hidden");
-      if (overlayMyBooks) overlayMyBooks.classList.add("hidden");
-      if (overlayVoice) overlayVoice.classList.add("hidden");
       if (backdrop) backdrop.classList.add("hidden");
       try { document.body.classList.remove("overlay-open"); } catch (e) {}
     }
 
-    function bumpOverlayZ() {
-      var z = 30000;
-      if (overlayToc) overlayToc.style.zIndex = z;
-      if (overlayBookmarks) overlayBookmarks.style.zIndex = z;
-      if (overlayNotes) overlayNotes.style.zIndex = z;
-      if (overlayMenu) overlayMenu.style.zIndex = z;
-      if (overlayMyBooks) overlayMyBooks.style.zIndex = z;
-      if (overlayVoice) overlayVoice.style.zIndex = z;
-      if (backdrop) backdrop.style.zIndex = (z - 1);
-    }
-
     function open(which) {
-      isMobile = isMobileViewport(); // recalc on rotate
-      bumpOverlayZ();
-      var isMobileLike = isMobile || isTabletPortrait();
-      if (!isMobileLike && backdrop) backdrop.classList.remove("hidden");
-      if (isMobileLike && backdrop) backdrop.classList.add("hidden");
-
-      try { document.body.classList.add("overlay-open"); } catch (e) {}
-
-      if (which === "toc") {
-        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.add("hidden");
-        if (overlayToc) overlayToc.classList.remove("hidden");
-      } else if (which === "bookmarks") {
-        if (overlayToc) overlayToc.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.add("hidden");
-        if (overlayBookmarks) overlayBookmarks.classList.remove("hidden");
-      } else if (which === "notes") {
-        if (overlayToc) overlayToc.classList.add("hidden");
-        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.remove("hidden");
-      } else if (which === "menu") {
-        if (overlayToc) overlayToc.classList.add("hidden");
-        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.add("hidden");
-        if (overlayMyBooks) overlayMyBooks.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.remove("hidden");
-      } else if (which === "mybooks") {
-        if (overlayToc) overlayToc.classList.add("hidden");
-        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.add("hidden");
-        if (overlayMyBooks) overlayMyBooks.classList.remove("hidden");
-        try {
-          if (window.__fbMyBooks && typeof window.__fbMyBooks.ensureCurrentBook === "function") window.__fbMyBooks.ensureCurrentBook();
-          if (window.__fbMyBooks && typeof window.__fbMyBooks.syncFromDom === "function") window.__fbMyBooks.syncFromDom();
-          if (window.__fbMyBooks && typeof window.__fbMyBooks.render === "function") window.__fbMyBooks.render();
-        } catch (e) {}
-      } else if (which === "voice") {
-        if (overlayToc) overlayToc.classList.add("hidden");
-        if (overlayBookmarks) overlayBookmarks.classList.add("hidden");
-        if (overlayNotes) overlayNotes.classList.add("hidden");
-        if (overlayMyBooks) overlayMyBooks.classList.add("hidden");
-        if (overlayMenu) overlayMenu.classList.add("hidden");
-        if (overlayVoice) overlayVoice.classList.remove("hidden");
-        try { document.dispatchEvent(new CustomEvent("fb:voice-opened")); } catch (eVoiceEv) {}
+      var target = String(which || "toc").trim().toLowerCase();
+      if (target === "menu") target = "toc";
+      if (target === "voice") {
+        try { window.__fbOpenSettingsOverlay && window.__fbOpenSettingsOverlay(); } catch (eVoice) {}
+        return;
       }
+      try {
+        if (typeof window.__fbOpenLibraryOverlayTab === "function") window.__fbOpenLibraryOverlayTab(target || "toc");
+      } catch (eOpen) {}
     }
 
-    // Expose for deep-linking (e.g., ?mybooks=1)
     window.__fbOpenOverlay = open;
     try {
       var p = new URLSearchParams(window.location.search || "");
@@ -1279,75 +1237,19 @@
       }
     } catch (e) {}
 
-    if (btnToc) {
-      btnToc.addEventListener("click", function (e) {
-        e.preventDefault();
-        open("menu");
-      });
-    }
-    if (btnNotes) {
-      btnNotes.addEventListener("click", function (e) {
-        e.preventDefault();
-        open("notes");
-      });
-    }
-    if (btnBookmarks) {
-      btnBookmarks.addEventListener("click", function (e) {
-        e.preventDefault();
-        open("bookmarks");
-      });
-    }
-
-    if (menuView && !menuView.__fbMenuBound) {
-      menuView.__fbMenuBound = true;
-      menuView.addEventListener("click", function (ev) {
-        try {
-          var t = ev && ev.target;
-          if (!t) return;
-          var btn = t.closest ? t.closest("[data-menu]") : null;
-          if (!btn) return;
-          var which = btn.getAttribute("data-menu");
-          if (!which) return;
-          ev.preventDefault();
-          open(which);
-        } catch (e) {}
-      });
-    }
-
-    // Desktop: close only by backdrop click (as requested earlier)
     if (backdrop) {
       backdrop.addEventListener("click", function () {
         if (!isMobileViewport() && !isTabletPortrait()) closeAll();
       });
     }
 
-    // Mobile: close by X only
     closeBtns.forEach(function (b) {
       b.addEventListener("click", function (e) {
         e.preventDefault();
-        var panelId = "";
-        try {
-          var panel = b.closest ? b.closest(".overlay-panel") : null;
-          panelId = panel && panel.id ? String(panel.id) : "";
-        } catch (e0) {}
-
-        // For list overlays, return to sidebar menu instead of closing everything.
-        if (
-          panelId === "overlay-toc" ||
-          panelId === "overlay-bookmarks" ||
-          panelId === "overlay-notes" ||
-          panelId === "overlay-mybooks" ||
-          panelId === "overlay-voice"
-        ) {
-          open("menu");
-          return;
-        }
-
         closeAll();
       });
     });
 
-    // Close when user selects a link (both overlays)
     ["tocView", "bookmarksView", "notesView", "mybooksView"].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el || el.__fbCloseOnClick) return;
@@ -1361,7 +1263,6 @@
       });
     });
 
-    // ESC closes on desktop
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && !isMobileViewport()) closeAll();
     });
@@ -1381,11 +1282,497 @@
     if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) return true;
     var el = document.documentElement;
     try {
-      var p = (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen).call(el);
+      (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen).call(el);
       return true;
     } catch (e) {
       return false;
     }
+  }
+
+  function setupUnifiedShellChrome() {
+    try {
+      if (document.body && document.body.classList) document.body.classList.add("reader1-unified-shell");
+    } catch (eBodyClass) {}
+
+    var legacyCloseOverlays = null;
+    try { legacyCloseOverlays = typeof window.__fbCloseOverlays === "function" ? window.__fbCloseOverlays : null; } catch (_legacyCloseLookupError) {}
+
+    var bottomControls = document.getElementById("bottom-controls");
+    var bookmark = document.getElementById("bookmark");
+    var shellLibraryToggle = document.getElementById("shellLibraryToggle");
+    var settingsToggle = document.getElementById("setting");
+    var overlayBackdrop = document.getElementById("overlay-backdrop");
+    var overlayLibrary = document.getElementById("overlay-library");
+    var overlaySettings = document.getElementById("overlay-settings");
+    var settingsThemeToggle = document.getElementById("settingsThemeToggle");
+    var settingsFontDec = document.getElementById("settingsFontDec");
+    var settingsFontInc = document.getElementById("settingsFontInc");
+    var themeToggle = document.getElementById("themeToggle");
+    var fontDec = document.getElementById("fontDec");
+    var fontInc = document.getElementById("fontInc");
+    var tocMount = document.getElementById("protectedLibraryTocMount");
+    var notesMount = document.getElementById("protectedLibraryNotesMount");
+    var bookmarksMount = document.getElementById("protectedLibraryBookmarksMount");
+    var myBooksMount = document.getElementById("protectedLibraryMyBooksMount");
+    var settingsBookCardMount = document.getElementById("protectedSettingsBookCardMount");
+    var settingsVoiceMount = document.getElementById("protectedSettingsVoiceMount");
+    var settingsShareBtn = document.getElementById("protectedSettingsShareBtn");
+    var notesShareBtn = document.getElementById("protectedNotesShareBtn");
+    var copyNotesLinkBtn = document.getElementById("copyNotesLinkBtn");
+    var tocView = document.getElementById("tocView");
+    var notesView = document.getElementById("notesView");
+    var bookmarksView = document.getElementById("bookmarksView");
+    var myBooksView = document.getElementById("mybooksView");
+    var voiceView = document.getElementById("voiceView");
+    var settingsBookCard = document.getElementById("reader1SettingsBookCard");
+    var range = document.getElementById("protectedTypographyScale");
+    var fontSans = document.getElementById("protectedTypographySans");
+    var fontSerif = document.getElementById("protectedTypographySerif");
+    var libraryTabs = ["toc", "notes", "bookmarks", "mybooks"];
+    var activeOverlay = "";
+    var fontModeKey = "reader1:shell:fontMode";
+    var notesShareMirrorBusy = false;
+
+    function mountNode(node, mount) {
+      try {
+        if (node && mount && node.parentNode !== mount) mount.appendChild(node);
+      } catch (_error) {}
+    }
+
+    function syncShellMounts() {
+      mountNode(tocView, tocMount);
+      mountNode(notesView, notesMount);
+      mountNode(bookmarksView, bookmarksMount);
+      mountNode(myBooksView, myBooksMount);
+      mountNode(settingsBookCard, settingsBookCardMount);
+      mountNode(voiceView, settingsVoiceMount);
+      mirrorNotesShareState();
+    }
+
+    function setBackdrop(open) {
+      if (!overlayBackdrop) return;
+      overlayBackdrop.classList.toggle("hidden", !open);
+      overlayBackdrop.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+
+    function closeShellOverlays() {
+      if (overlayLibrary) {
+        overlayLibrary.classList.add("hidden");
+        overlayLibrary.setAttribute("aria-hidden", "true");
+      }
+      if (overlaySettings) {
+        overlaySettings.classList.add("hidden");
+        overlaySettings.setAttribute("aria-hidden", "true");
+      }
+      setBackdrop(false);
+      activeOverlay = "";
+      try { document.body.classList.remove("overlay-open"); } catch (_error) {}
+    }
+
+    function closeAllOverlays() {
+      try {
+        if (typeof legacyCloseOverlays === "function") legacyCloseOverlays();
+      } catch (_legacyCloseError) {}
+      closeShellOverlays();
+    }
+
+    function closeAfterNavigation() {
+      closeAllOverlays();
+      try {
+        if (isTouchUi() && typeof window.__fbHideUi === "function") window.__fbHideUi();
+      } catch (_hideUiAfterNavError) {}
+      try {
+        if (window.__fb_isDesktop && typeof window.__fbShowUi === "function") window.__fbShowUi();
+      } catch (_showUiAfterNavDesktopError) {}
+    }
+
+    function switchLibraryTab(nextTab) {
+      var activeTab = String(nextTab || "toc").trim().toLowerCase();
+      libraryTabs.forEach(function (tab) {
+        var button = document.getElementById("protectedLibraryTab-" + tab);
+        var pane = document.getElementById("protectedLibraryPane-" + tab);
+        var isActive = tab === activeTab;
+        if (button) {
+          button.classList.toggle("is-active", isActive);
+          button.setAttribute("aria-selected", isActive ? "true" : "false");
+          button.tabIndex = isActive ? 0 : -1;
+        }
+        if (pane) pane.classList.toggle("hidden", !isActive);
+      });
+    }
+
+    function openLibraryOverlay(tab) {
+      syncShellMounts();
+      closeAllOverlays();
+      if (overlayLibrary) {
+        overlayLibrary.classList.remove("hidden");
+        overlayLibrary.setAttribute("aria-hidden", "false");
+      }
+      setBackdrop(true);
+      activeOverlay = "library";
+      try { document.body.classList.add("overlay-open"); } catch (_error) {}
+      switchLibraryTab(tab || "toc");
+    }
+
+    function getCurrentFontPct() {
+      try {
+        var raw = window.reader && window.reader.settings && window.reader.settings.styles
+          ? window.reader.settings.styles.fontSize
+          : "";
+        var parsed = parseInt(String(raw || "100").replace(/[^0-9]/g, ""), 10);
+        return (!parsed || isNaN(parsed)) ? 100 : parsed;
+      } catch (_error) {}
+      return 100;
+    }
+
+    function updateTypographyRangeFill() {
+      if (!range) return;
+      try {
+        var min = Number(range.min || 0);
+        var max = Number(range.max || 100);
+        var value = Number(range.value || min);
+        var pct = 0;
+        if (max > min) pct = ((value - min) / (max - min)) * 100;
+        pct = Math.max(0, Math.min(100, pct));
+        range.style.setProperty("--reader1-range-progress", pct + "%");
+        var thumb = 28;
+        var width = Math.max(0, Number(range.clientWidth || range.offsetWidth || 0));
+        if (width > 0) {
+          var halfThumb = thumb / 2;
+          var centerCompensation = 2;
+          var fillPx = halfThumb + ((width - thumb) * (pct / 100)) + centerCompensation;
+          range.style.setProperty("--reader1-range-fill", Math.max(14, Math.min(width - 14, fillPx)) + "px");
+        } else {
+          range.style.setProperty("--reader1-range-fill", pct + "%");
+        }
+      } catch (_rangeFillError) {}
+    }
+
+    function applyFontPct(pct) {
+      try {
+        var n = parseInt(pct, 10);
+        if (!n || isNaN(n) || !window.reader) return;
+        var value = n + "%";
+        window.reader.settings = window.reader.settings || {};
+        window.reader.settings.styles = window.reader.settings.styles || {};
+        window.reader.settings.styles.fontSize = value;
+        window.reader.settings.fontSizePct = n;
+        try {
+          if (window.reader.book && typeof window.reader.book.setStyle === "function") {
+            window.reader.book.setStyle("fontSize", value);
+          }
+        } catch (_e0) {}
+        try { window.reader.rendition && window.reader.rendition.themes && window.reader.rendition.themes.fontSize(value); } catch (_e1) {}
+        try { window.reader.renditionPrev && window.reader.renditionPrev.themes && window.reader.renditionPrev.themes.fontSize(value); } catch (_e2) {}
+        try { window.reader.renditionNext && window.reader.renditionNext.themes && window.reader.renditionNext.themes.fontSize(value); } catch (_e3) {}
+        if (range) range.value = String(n);
+        updateTypographyRangeFill();
+      } catch (_error) {}
+    }
+
+    function applyFontMode(mode) {
+      var next = String(mode || "sans").trim().toLowerCase() === "serif" ? "serif" : "sans";
+      var family = next === "serif"
+        ? 'Georgia, "Times New Roman", serif'
+        : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+      try {
+        if (window.reader && window.reader.book && typeof window.reader.book.setStyle === "function") {
+          window.reader.book.setStyle("font-family", family);
+        }
+      } catch (_e0) {}
+      try {
+        if (window.reader && window.reader.rendition && window.reader.rendition.themes && window.reader.rendition.themes.override) {
+          window.reader.rendition.themes.override("font-family", family);
+        }
+      } catch (_e1) {}
+      try {
+        if (window.reader && window.reader.renditionPrev && window.reader.renditionPrev.themes && window.reader.renditionPrev.themes.override) {
+          window.reader.renditionPrev.themes.override("font-family", family);
+        }
+      } catch (_e2) {}
+      try {
+        if (window.reader && window.reader.renditionNext && window.reader.renditionNext.themes && window.reader.renditionNext.themes.override) {
+          window.reader.renditionNext.themes.override("font-family", family);
+        }
+      } catch (_e3) {}
+      try { localStorage.setItem(fontModeKey, next); } catch (_e4) {}
+      if (fontSans) {
+        fontSans.classList.toggle("is-active", next === "sans");
+        fontSans.setAttribute("aria-pressed", next === "sans" ? "true" : "false");
+      }
+      if (fontSerif) {
+        fontSerif.classList.toggle("is-active", next === "serif");
+        fontSerif.setAttribute("aria-pressed", next === "serif" ? "true" : "false");
+      }
+    }
+
+    function syncSettingsControls() {
+      syncShellMounts();
+      if (range) range.value = String(getCurrentFontPct());
+      updateTypographyRangeFill();
+      var storedMode = "sans";
+      try { storedMode = localStorage.getItem(fontModeKey) || "sans"; } catch (_error) {}
+      applyFontMode(storedMode);
+      try {
+        if (settingsShareBtn) settingsShareBtn.textContent = isTouchShareDevice() ? "Share book" : "Copy book link";
+      } catch (_shareLabelError) {}
+    }
+
+    function mirrorNotesShareState() {
+      if (!notesShareBtn || !copyNotesLinkBtn) return;
+      if (notesShareMirrorBusy) return;
+      notesShareMirrorBusy = true;
+      notesShareBtn.textContent = copyNotesLinkBtn.textContent || (isTouchShareDevice() ? "Share book with Notes" : "Copy book link with Notes");
+      notesShareBtn.disabled = !!copyNotesLinkBtn.disabled;
+      notesShareBtn.classList.toggle("is-disabled", copyNotesLinkBtn.classList.contains("is-disabled"));
+      notesShareBtn.classList.toggle("is-pressed", copyNotesLinkBtn.classList.contains("is-pressed"));
+      notesShareBtn.classList.toggle("is-copied", copyNotesLinkBtn.classList.contains("is-copied"));
+      notesShareBtn.classList.toggle("is-failed", copyNotesLinkBtn.classList.contains("is-failed"));
+      notesShareBtn.setAttribute("aria-disabled", notesShareBtn.disabled ? "true" : "false");
+      notesShareMirrorBusy = false;
+    }
+
+    function openSettingsOverlay() {
+      syncSettingsControls();
+      closeAllOverlays();
+      try {
+        var legacyModal = document.getElementById("settings-modal");
+        if (legacyModal) {
+          legacyModal.classList.remove("md-show");
+          legacyModal.classList.add("md-hide");
+          legacyModal.setAttribute("aria-hidden", "true");
+        }
+      } catch (_legacyModalError) {}
+      if (overlaySettings) {
+        overlaySettings.classList.remove("hidden");
+        overlaySettings.setAttribute("aria-hidden", "false");
+      }
+      setBackdrop(true);
+      activeOverlay = "settings";
+      try { document.body.classList.add("overlay-open"); } catch (_error) {}
+    }
+    try { window.__fbOpenSettingsOverlay = openSettingsOverlay; } catch (_exposeSettingsError) {}
+
+    try {
+      if (bottomControls && bookmark && bookmark.parentNode !== bottomControls) bottomControls.appendChild(bookmark);
+    } catch (eMoveBookmark) {}
+    syncShellMounts();
+
+    if (shellLibraryToggle && !shellLibraryToggle.__fbShellBound) {
+      shellLibraryToggle.__fbShellBound = true;
+      shellLibraryToggle.addEventListener("click", function (e) {
+        try {
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          openLibraryOverlay("toc");
+        } catch (eClick) {}
+      });
+    }
+
+    if (settingsToggle && !settingsToggle.__fbShellBound) {
+      settingsToggle.__fbShellBound = true;
+      settingsToggle.addEventListener("click", function (e) {
+        try {
+          if (e) {
+            e.preventDefault();
+            if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+            e.stopPropagation();
+          }
+          openSettingsOverlay();
+        } catch (eShowSettings) {}
+      }, true);
+    }
+
+    if (overlayBackdrop && !overlayBackdrop.__fbShellBound) {
+      overlayBackdrop.__fbShellBound = true;
+      overlayBackdrop.addEventListener("click", function () {
+        closeAllOverlays();
+      });
+    }
+
+    [overlayLibrary, overlaySettings].forEach(function (panel) {
+      if (!panel || panel.__fbShellCloseBound) return;
+      panel.__fbShellCloseBound = true;
+      var close = panel.querySelector(".overlay-close");
+      if (close) {
+        close.addEventListener("click", function (e) {
+          if (e) e.preventDefault();
+          closeAllOverlays();
+        });
+      }
+    });
+
+    libraryTabs.forEach(function (tab) {
+      var button = document.getElementById("protectedLibraryTab-" + tab);
+      if (!button || button.__fbShellBound) return;
+      button.__fbShellBound = true;
+      button.addEventListener("click", function (e) {
+        if (e) e.preventDefault();
+        switchLibraryTab(tab);
+      });
+    });
+
+    if (settingsThemeToggle && themeToggle && !settingsThemeToggle.__fbShellBound) {
+      settingsThemeToggle.__fbShellBound = true;
+      settingsThemeToggle.addEventListener("click", function (e) {
+        try {
+          if (e) e.preventDefault();
+          themeToggle.click();
+        } catch (eTheme) {}
+      });
+    }
+
+    if (settingsFontDec && fontDec && !settingsFontDec.__fbShellBound) {
+      settingsFontDec.__fbShellBound = true;
+      settingsFontDec.addEventListener("click", function (e) {
+        try {
+          if (e) e.preventDefault();
+          fontDec.click();
+        } catch (eFontDec) {}
+      });
+    }
+
+    if (settingsFontInc && fontInc && !settingsFontInc.__fbShellBound) {
+      settingsFontInc.__fbShellBound = true;
+      settingsFontInc.addEventListener("click", function (e) {
+        try {
+          if (e) e.preventDefault();
+          fontInc.click();
+        } catch (eFontInc) {}
+      });
+    }
+
+    if (range && !range.__fbShellBound) {
+      range.__fbShellBound = true;
+      range.addEventListener("input", function () {
+        updateTypographyRangeFill();
+        applyFontPct(range.value);
+      });
+      range.addEventListener("change", function () {
+        updateTypographyRangeFill();
+        applyFontPct(range.value);
+      });
+    }
+
+    try {
+      window.addEventListener("resize", updateTypographyRangeFill, { passive: true });
+      window.addEventListener("orientationchange", updateTypographyRangeFill, { passive: true });
+      setTimeout(updateTypographyRangeFill, 0);
+    } catch (_rangeResizeBindError) {}
+
+    if (fontSans && !fontSans.__fbShellBound) {
+      fontSans.__fbShellBound = true;
+      fontSans.addEventListener("click", function (e) {
+        if (e) e.preventDefault();
+        applyFontMode("sans");
+      });
+    }
+
+    if (fontSerif && !fontSerif.__fbShellBound) {
+      fontSerif.__fbShellBound = true;
+      fontSerif.addEventListener("click", function (e) {
+        if (e) e.preventDefault();
+        applyFontMode("serif");
+      });
+    }
+
+    if (settingsShareBtn && !settingsShareBtn.__fbShellBound) {
+      settingsShareBtn.__fbShellBound = true;
+      settingsShareBtn.addEventListener("click", function (e) {
+        try {
+          if (e) e.preventDefault();
+          if (typeof window.__fbShareCurrentBookLink === "function") {
+            window.__fbShareCurrentBookLink(settingsShareBtn);
+          }
+        } catch (_shareClickError) {}
+      });
+      window.addEventListener("resize", function () {
+        try {
+          settingsShareBtn.textContent = isTouchShareDevice() ? "Share book" : "Copy book link";
+          settingsShareBtn.disabled = false;
+          settingsShareBtn.setAttribute("aria-disabled", "false");
+        } catch (_shareResizeError) {}
+      }, { passive: true });
+      window.addEventListener("orientationchange", function () {
+        try {
+          settingsShareBtn.textContent = isTouchShareDevice() ? "Share book" : "Copy book link";
+          settingsShareBtn.disabled = false;
+          settingsShareBtn.setAttribute("aria-disabled", "false");
+        } catch (_shareOrientationError) {}
+      }, { passive: true });
+    }
+
+    if (notesShareBtn && !notesShareBtn.__fbShellBound) {
+      notesShareBtn.__fbShellBound = true;
+      try {
+        if (copyNotesLinkBtn && typeof copyNotesLinkBtn.__fbUpdateState === "function") copyNotesLinkBtn.__fbUpdateState();
+      } catch (_notesStateInitError) {}
+      notesShareBtn.addEventListener("click", function (e) {
+        try {
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+          }
+          if (copyNotesLinkBtn && !copyNotesLinkBtn.disabled && typeof copyNotesLinkBtn.click === "function") {
+            copyNotesLinkBtn.click();
+            setTimeout(mirrorNotesShareState, 0);
+            setTimeout(mirrorNotesShareState, 140);
+            setTimeout(mirrorNotesShareState, 420);
+            setTimeout(mirrorNotesShareState, 1240);
+          }
+        } catch (_notesShareClickError) {}
+      }, true);
+      if (copyNotesLinkBtn && window.MutationObserver) {
+        try {
+          var notesShareObserver = new MutationObserver(mirrorNotesShareState);
+          notesShareObserver.observe(copyNotesLinkBtn, {
+            attributes: true,
+            attributeFilter: ["class", "disabled", "aria-disabled"],
+            childList: true,
+            subtree: true,
+            characterData: true
+          });
+        } catch (_notesShareObserverError) {}
+      }
+      window.addEventListener("resize", function () {
+        try { mirrorNotesShareState(); } catch (_notesShareResizeError) {}
+      }, { passive: true });
+      window.addEventListener("orientationchange", function () {
+        try { mirrorNotesShareState(); } catch (_notesShareOrientationError) {}
+      }, { passive: true });
+      setTimeout(mirrorNotesShareState, 0);
+    }
+
+    try {
+      document.addEventListener("keydown", function (event) {
+        if (!event || event.key !== "Escape" || !activeOverlay) return;
+        closeAllOverlays();
+      });
+    } catch (_error) {}
+
+    try {
+      document.addEventListener("pointerdown", function (event) {
+        if (!activeOverlay || isTouchUi()) return;
+        var target = event && event.target ? event.target : null;
+        if (!target) return;
+        if (
+          (overlayLibrary && overlayLibrary.contains(target)) ||
+          (overlaySettings && overlaySettings.contains(target)) ||
+          (shellLibraryToggle && shellLibraryToggle.contains(target)) ||
+          (settingsToggle && settingsToggle.contains(target))
+        ) {
+          return;
+        }
+        closeAllOverlays();
+      }, true);
+    } catch (_outsideCloseError) {}
+
+    try { window.__fbOpenLibraryOverlayTab = openLibraryOverlay; } catch (_exposeLibraryError) {}
+    try { window.__fbCloseOverlays = closeAllOverlays; } catch (_exposeCloseError) {}
+    try { window.__fbCloseAndHideAfterNavigation = closeAfterNavigation; } catch (_exposeNavCloseError) {}
   }
 
   // Called from iframe via postMessage (must be synchronous to user gesture).
@@ -1522,10 +1909,16 @@
       }
 
       function onEnd(e) {
-        // Center tap toggles bars on mobile only, and only if it was a real tap (no swipe).
-        if (__fb_isDesktop) return;
+        // In reader_new compat host, center tap/click must toggle the outer shell
+        // on all platforms. In standalone reader1, keep the old mobile-only behavior.
+        if (__fb_isDesktop && !window.__readerpubReaderNewCompat) return;
         try {
-          if (document.body && document.body.classList && document.body.classList.contains("search-open")) return;
+          if (
+            document.body &&
+            document.body.classList &&
+            document.body.classList.contains("search-open") &&
+            !document.body.classList.contains("search-minimized")
+          ) return;
         } catch (eSearch) {}
         if (moved) return;
         try {
@@ -1589,6 +1982,38 @@
         } catch (e2) {}
       }
 
+      function onCompatDesktopClick(e) {
+        if (!window.__readerpubReaderNewCompat || !__fb_isDesktop) return;
+        try {
+          if (
+            document.body &&
+            document.body.classList &&
+            document.body.classList.contains("search-open") &&
+            !document.body.classList.contains("search-minimized")
+          ) return;
+        } catch (eSearch) {}
+        try {
+          if (window.__fbSelectionActive) return;
+          var sel = null;
+          if (doc.getSelection) sel = doc.getSelection();
+          else if (doc.defaultView && doc.defaultView.getSelection) sel = doc.defaultView.getSelection();
+          if (sel && !sel.isCollapsed) return;
+        } catch (eSel) {}
+        try {
+          var tgt = e && e.target;
+          if (closestInteractive(tgt)) return;
+          var pt = e;
+          if (!pt || typeof pt.clientX !== "number" || typeof pt.clientY !== "number") return;
+          var x = pt.clientX, y = pt.clientY;
+          var w = doc.defaultView.innerWidth || doc.documentElement.clientWidth;
+          var centerW = w * 0.60;
+          var mx1 = (w - centerW) / 2;
+          var mx2 = mx1 + centerW;
+          if (x < mx1 || x > mx2) return;
+          toggleUi();
+        } catch (eCompatClick) {}
+      }
+
       function blockContextMenu(e) {
         try {
           if (e && e.preventDefault) e.preventDefault();
@@ -1605,12 +2030,14 @@
         doc.addEventListener("pointerdown", onStart, { passive: true, capture: true });
         doc.addEventListener("pointermove", onMove, { passive: true, capture: true });
         doc.addEventListener("pointerup", onEnd, { passive: true, capture: true });
+        doc.addEventListener("click", onCompatDesktopClick, true);
         doc.addEventListener("contextmenu", blockContextMenu, true);
         doc.addEventListener("longpress", blockContextMenu, true);
         if (win) {
           win.addEventListener("pointerdown", onStart, { passive: true, capture: true });
           win.addEventListener("pointermove", onMove, { passive: true, capture: true });
           win.addEventListener("pointerup", onEnd, { passive: true, capture: true });
+          win.addEventListener("click", onCompatDesktopClick, true);
           win.addEventListener("contextmenu", blockContextMenu, true);
         }
       } catch (e) {
@@ -1755,6 +2182,7 @@
       deskInput: document.getElementById("searchInputDesktop"),
       deskAction: document.getElementById("searchActionDesktop"),
       deskNav: document.querySelector("#searchDesktop .search-nav.desktop"),
+      deskReturn: document.getElementById("searchReturnDesktop"),
       deskPrev: document.getElementById("searchPrevDesktop"),
       deskNext: document.getElementById("searchNextDesktop"),
       deskCount: document.getElementById("searchCountDesktop"),
@@ -1786,6 +2214,8 @@
       lastSearchQuery: "",
       searchStartCfi: null,
       searchStartHref: null,
+      searchOriginCfi: null,
+      searchOriginHref: null,
       excludeFootnotes: false,
       lastHighlight: null,
       debounceTimer: null,
@@ -1814,7 +2244,10 @@
 
     function isTouchSearchUi() {
       try {
-        return isTabletViewport() || isMobileViewport();
+        var coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+        var noHover = !!(window.matchMedia && window.matchMedia("(hover: none)").matches);
+        var touchPoints = !!(navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+        return !!(isTouchUi() || coarse || (noHover && touchPoints) || ("ontouchstart" in window));
       } catch (e) {}
       return false;
     }
@@ -1854,7 +2287,9 @@
 
     function setMobileNavVisible(v) {
       // On touch devices navigation lives in a floating panel (FBReader-like).
-      if (els.floatPanel) els.floatPanel.classList.toggle("hidden", !v);
+      if (!els.floatPanel) return;
+      els.floatPanel.classList.toggle("hidden", !v);
+      els.floatPanel.style.display = v ? "inline-flex" : "";
     }
 
     function refreshSearchUiVisibility() {
@@ -1864,6 +2299,8 @@
       setDesktopNavVisible(!!(state.searchActive && has && ready));
       // Mobile: same rule.
       setMobileNavVisible(!!(has && ready));
+      try { document.body.classList.toggle("search-active", !!(state.searchActive && has)); } catch (e0) {}
+      if (!els.deskReturn) els.deskReturn = document.getElementById("searchReturnDesktop");
     }
 
     function showClearButtons() {
@@ -1877,15 +2314,15 @@
       els.deskAction.classList.toggle("is-clear", mode === "clear");
       els.deskAction.classList.toggle("is-enabled", !!enabled);
       els.deskAction.classList.toggle("is-disabled", !enabled);
-      els.deskAction.setAttribute("aria-label", mode === "mag" ? "Search" : "Return");
+      els.deskAction.setAttribute("aria-label", mode === "mag" ? "Search" : "Clear search");
     }
 
     function syncDesktopAction() {
       var has = !!(state.query && state.query.length);
-      if (state.searchActive) {
+      if (has) {
         setDesktopActionState("clear", true);
       } else {
-        setDesktopActionState("mag", has);
+        setDesktopActionState("mag", false);
       }
     }
 
@@ -1927,7 +2364,22 @@
     }
 
     function openSearch() {
-      if (state.open) return;
+      if (state.open) {
+        if (isTouchSearchUi()) {
+          try { showUi(); } catch (eReopen) {}
+          document.body.classList.add("search-open");
+          document.body.classList.remove("search-minimized");
+          if (els.mobileBar) {
+            els.mobileBar.classList.remove("hidden");
+            els.mobileBar.style.display = "flex";
+          }
+          try { syncBarHeights(); } catch (eSyncReopen) {}
+        } else {
+          try { if (els.deskInput) els.deskInput.focus(); } catch (eFocusAgain) {}
+        }
+        refreshSearchUiVisibility();
+        return;
+      }
       state.open = true;
       state.preUiHidden = !!document.body.classList.contains("ui-hidden");
       document.body.classList.remove("search-minimized");
@@ -1935,10 +2387,18 @@
       state.preHref = getCurrentHref();
       state.legacyTextHlCleared = false;
       if (isTouchSearchUi()) {
-        // Mobile/tablet: hide bars; keep only search UI and floating search controls.
-        try { hideUi(); } catch (eHide) {}
+        // In reader_new compat host the outer shell owns chrome visibility.
+        // Search should replace the top bar but keep the bottom bar visible.
+        if (!window.__readerpubReaderNewCompat) {
+          try { showUi(); } catch (eHide) {}
+        } else {
+          try { document.body.classList.remove("ui-hidden"); } catch (eCompatShow) {}
+        }
         document.body.classList.add("search-open");
-        if (els.mobileBar) els.mobileBar.classList.remove("hidden");
+        if (els.mobileBar) {
+          els.mobileBar.classList.remove("hidden");
+          els.mobileBar.style.display = "flex";
+        }
         try { syncBarHeights(); } catch (e) {}
         syncBookmarkIcon();
         // Mobile: do NOT auto-focus. Keyboard must appear only after user taps the input.
@@ -1955,7 +2415,10 @@
       state.open = false;
       document.body.classList.remove("search-open");
       document.body.classList.remove("search-minimized");
-      if (els.mobileBar) els.mobileBar.classList.add("hidden");
+      if (els.mobileBar) {
+        els.mobileBar.classList.add("hidden");
+        els.mobileBar.style.display = "";
+      }
       if (els.floatPanel) els.floatPanel.classList.add("hidden");
       try { syncBarHeights(); } catch (e) {}
       setDesktopNavVisible(false);
@@ -1975,6 +2438,8 @@
       state.matchList = [];
       state.matchIndex = -1;
       state.legacyTextHlCleared = false;
+      state.searchOriginCfi = null;
+      state.searchOriginHref = null;
       state.ensureVisibleToken++;
       cancelFirstMatchConfirm();
       if (state.ensureVisibleTimer) {
@@ -2000,15 +2465,23 @@
       forceSafariSearchVisualReset();
       if (isTouchSearchUi()) {
         try {
-          // Closing floating search on touch must keep bars hidden.
-          hideUi();
+          showUi();
         } catch (eUiRestore) {}
       }
+      try { document.body.classList.remove("ui-hidden"); } catch (_closeSearchUi) {}
     }
 
     function clearInput() {
       state.query = "";
+      document.body.classList.remove("search-open");
       document.body.classList.remove("search-minimized");
+      if (isTouchSearchUi()) {
+        try { showUi(); } catch (eTouchSearchRestore) {}
+        if (els.mobileBar) {
+          els.mobileBar.classList.remove("hidden");
+          els.mobileBar.style.display = "flex";
+        }
+      }
       state.searchActive = false;
       state.lastSearchQuery = "";
       state.excludeFootnotes = false;
@@ -2876,14 +3349,16 @@
     }
 
     function goBackToLastSearchStart() {
-      var targetCfi = state.searchStartCfi;
-      var targetHref = state.searchStartHref;
+      var targetCfi = state.searchOriginCfi || state.searchStartCfi;
+      var targetHref = state.searchOriginHref || state.searchStartHref;
 
       clearInput();
       state.searchActive = false;
       state.lastSearchQuery = "";
       state.searchStartCfi = null;
       state.searchStartHref = null;
+      state.searchOriginCfi = null;
+      state.searchOriginHref = null;
       setDesktopNavVisible(false);
       syncDesktopAction();
 
@@ -3074,6 +3549,23 @@
       state.query = q;
       if (isTouchSearchUi()) {
         document.body.classList.toggle("search-minimized", !!q);
+        if (q) {
+          try { hideUi(); } catch (eHideTouchSearch) {}
+          try {
+            if (els.mobileBar) {
+              els.mobileBar.classList.add("hidden");
+              els.mobileBar.style.display = "none";
+            }
+          } catch (eHideSearchBar) {}
+        } else {
+          try { showUi(); } catch (eShowTouchSearch) {}
+          try {
+            if (els.mobileBar) {
+              els.mobileBar.classList.remove("hidden");
+              els.mobileBar.style.display = "flex";
+            }
+          } catch (eShowSearchBar) {}
+        }
       }
       showClearButtons();
       refreshSearchUiVisibility();
@@ -3181,8 +3673,14 @@
 
     // Wire UI
     if (els.open) {
+      try {
+        els.open.addEventListener("pointerdown", function (e) {
+          if (e) e.stopPropagation();
+        }, true);
+      } catch (ePointerBind) {}
       els.open.addEventListener("click", function (e) {
         e.preventDefault();
+        e.stopPropagation();
         openSearch();
       });
     }
@@ -3195,6 +3693,8 @@
           clearInput();
           state.searchStartCfi = null;
           state.searchStartHref = null;
+          state.searchOriginCfi = null;
+          state.searchOriginHref = null;
           forceSafariSearchVisualReset();
           syncDesktopAction();
           refreshSearchUiVisibility();
@@ -3207,6 +3707,10 @@
         state.lastSearchQuery = q;
         state.searchStartCfi = getCurrentCfi();
         state.searchStartHref = getCurrentHref();
+        if (!state.searchOriginCfi && !state.searchOriginHref) {
+          state.searchOriginCfi = state.searchStartCfi;
+          state.searchOriginHref = state.searchStartHref;
+        }
         state.excludeFootnotes = true;
         state.query = q;
         syncDesktopAction();
@@ -3221,7 +3725,7 @@
     if (els.floatNext) els.floatNext.addEventListener("click", goNext);
     if (els.floatReturn) els.floatReturn.addEventListener("click", function (e) {
       if (e) e.preventDefault();
-      goFirstMatch();
+      goBackToLastSearchStart();
     });
     if (els.floatClose) els.floatClose.addEventListener("click", function (e) {
       if (e) e.preventDefault();
@@ -3229,6 +3733,10 @@
     });
     if (els.deskPrev) els.deskPrev.addEventListener("click", goPrev);
     if (els.deskNext) els.deskNext.addEventListener("click", goNext);
+    if (els.deskReturn) els.deskReturn.addEventListener("click", function (e) {
+      if (e) e.preventDefault();
+      goBackToLastSearchStart();
+    });
     const onReturn = (e) => {
       if (e) e.preventDefault();
       clearInput();
@@ -3286,8 +3794,14 @@
           try { els.mobileInput.blur(); } catch (err) {}
           if (!q) {
             clearInput();
+            state.searchOriginCfi = null;
+            state.searchOriginHref = null;
             unlockIphoneViewportReflow(0);
             return;
+          }
+          if (!state.searchOriginCfi && !state.searchOriginHref) {
+            state.searchOriginCfi = getCurrentCfi();
+            state.searchOriginHref = getCurrentHref();
           }
           if (__fb_isIPhone) {
             lockIphoneViewportReflow();
@@ -3354,6 +3868,10 @@
           state.lastSearchQuery = q;
           state.searchStartCfi = getCurrentCfi();
           state.searchStartHref = getCurrentHref();
+          if (!state.searchOriginCfi && !state.searchOriginHref) {
+            state.searchOriginCfi = state.searchStartCfi;
+            state.searchOriginHref = state.searchStartHref;
+          }
           state.excludeFootnotes = true;
           state.query = q;
           syncDesktopAction();
@@ -3397,10 +3915,12 @@
       dismiss.id = "selectionDismiss";
       document.body.appendChild(dismiss);
     }
-    // Allow native long-press selection: disable the center tap capture layer.
+    // Allow native long-press selection in standalone legacy reader. In
+    // reader_new compat mode the center tap layer is still needed to toggle
+    // the outer shell chrome.
     try {
       var tapCenter = document.getElementById("fb-tap-center");
-      if (tapCenter) tapCenter.style.pointerEvents = "none";
+      if (tapCenter) tapCenter.style.pointerEvents = window.__readerpubReaderNewCompat ? "auto" : "none";
     } catch (e) {}
 
     var state = {
@@ -3469,6 +3989,65 @@
         if (doc.defaultView && doc.defaultView.getSelection) return doc.defaultView.getSelection();
       } catch (e) {}
       return null;
+    }
+
+    function isWordChar(ch) {
+      try {
+        if (!ch || /\s/.test(ch)) return false;
+        try {
+          return /[\p{L}\p{N}\p{M}'’_-]/u.test(ch);
+        } catch (_unicodeWordError) {
+          return /[A-Za-z0-9\u00C0-\u024F\u0400-\u04FF'’_-]/.test(ch);
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    function normalizeRangeToWordBoundaries(range) {
+      if (!range) return range;
+      try {
+        var next = range.cloneRange();
+
+        var startNode = next.startContainer;
+        var startOffset = next.startOffset;
+        if (startNode && startNode.nodeType === 3) {
+          var startText = String(startNode.nodeValue || "");
+          var startIndex = Math.max(0, Math.min(startOffset, startText.length));
+          if (startIndex < startText.length && isWordChar(startText.charAt(startIndex))) {
+            while (startIndex > 0 && isWordChar(startText.charAt(startIndex - 1))) startIndex--;
+            next.setStart(startNode, startIndex);
+          } else if (startIndex > 0 && isWordChar(startText.charAt(startIndex - 1))) {
+            while (startIndex > 0 && isWordChar(startText.charAt(startIndex - 1))) startIndex--;
+            next.setStart(startNode, startIndex);
+          }
+        }
+
+        var endNode = next.endContainer;
+        var endOffset = next.endOffset;
+        if (endNode && endNode.nodeType === 3) {
+          var endText = String(endNode.nodeValue || "");
+          var endIndex = Math.max(0, Math.min(endOffset, endText.length));
+          if (endIndex > 0 && isWordChar(endText.charAt(endIndex - 1))) {
+            while (endIndex < endText.length && isWordChar(endText.charAt(endIndex))) endIndex++;
+            next.setEnd(endNode, endIndex);
+          } else if (endIndex < endText.length && isWordChar(endText.charAt(endIndex))) {
+            while (endIndex < endText.length && isWordChar(endText.charAt(endIndex))) endIndex++;
+            next.setEnd(endNode, endIndex);
+          }
+        }
+
+        return next;
+      } catch (e) {}
+      return range;
+    }
+
+    function syncNativeSelectionToRange(doc, range) {
+      try {
+        var sel = getSelection(doc);
+        if (!sel || !range) return;
+        if (sel.removeAllRanges) sel.removeAllRanges();
+        if (sel.addRange) sel.addRange(range);
+      } catch (e) {}
     }
 
     function getContentsForDoc(doc) {
@@ -3579,6 +4158,10 @@
       setDismissActive(false);
     }
 
+    function normalizeInlineText(val) {
+      return String(val || "").replace(/\s+/g, " ").trim();
+    }
+
     function showToolbarAt(doc, range) {
       if (!doc || !range) return;
       var rect = null;
@@ -3617,32 +4200,64 @@
       var tbH = toolbar.offsetHeight || 0;
       var margin = 8;
       var gap = 8;
+      var viewportLeft = 0;
+      var viewportTop = 0;
+      var viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+      var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
       var topBar = 0;
       var bottomBar = 0;
       try {
         topBar = (document.getElementById("titlebar") || document.getElementById("searchbar") || {}).offsetHeight || 0;
         bottomBar = (document.getElementById("bottombar") || {}).offsetHeight || 0;
       } catch (e0) {}
+      try {
+        var body = document.body;
+        var uiHidden = !!(body && body.classList && body.classList.contains("ui-hidden"));
+        var searchOpen = !!(body && body.classList && body.classList.contains("search-open") && !body.classList.contains("search-minimized"));
+        if (uiHidden) {
+          topBar = 0;
+          bottomBar = 0;
+        } else if (searchOpen) {
+          topBar = (document.getElementById("searchbar") || {}).offsetHeight || topBar || 0;
+        }
+      } catch (eUiState) {}
+      var isTouchLike = false;
+      try {
+        isTouchLike = !!(
+          (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) ||
+          (navigator && navigator.maxTouchPoints > 0)
+        );
+      } catch (eTouchLike) {}
+      try {
+        var vv = window.visualViewport;
+        if (isTouchLike && vv && vv.width && vv.height) {
+          viewportLeft = Math.max(0, vv.offsetLeft || 0);
+          viewportTop = Math.max(0, vv.offsetTop || 0);
+          viewportWidth = vv.width;
+          viewportHeight = vv.height;
+        }
+      } catch (eViewport) {}
       var boundsPrimary = {
-        left: margin,
-        right: Math.max(margin, window.innerWidth - margin),
-        top: Math.max(margin, topBar + margin),
-        bottom: Math.max(margin, window.innerHeight - bottomBar - margin)
+        left: viewportLeft + margin,
+        right: Math.max(viewportLeft + margin, viewportLeft + viewportWidth - margin),
+        top: Math.max(viewportTop + margin, viewportTop + topBar + margin),
+        bottom: Math.max(viewportTop + margin, viewportTop + viewportHeight - bottomBar - margin)
       };
       var boundsFallback = {
-        left: margin,
-        right: Math.max(margin, window.innerWidth - margin),
-        top: margin,
-        bottom: Math.max(margin, window.innerHeight - margin)
+        left: viewportLeft + margin,
+        right: Math.max(viewportLeft + margin, viewportLeft + viewportWidth - margin),
+        top: viewportTop + margin,
+        bottom: Math.max(viewportTop + margin, viewportTop + viewportHeight - margin)
       };
+
+      function clamp(val, min, max) {
+        if (val < min) return min;
+        if (val > max) return max;
+        return val;
+      }
 
       function pickPosition(bounds) {
         var candidates = [];
-        function clamp(val, min, max) {
-          if (val < min) return min;
-          if (val > max) return max;
-          return val;
-        }
         function addCandidate(x, y) {
           if (!tbW || !tbH) return;
           var maxX = bounds.right - tbW;
@@ -3660,17 +4275,43 @@
           candidates.push({ x: x, y: y, d: dx + dy });
         }
 
-        addCandidate(selRight + gap, selCenterY - tbH / 2);
-        addCandidate(selLeft - tbW - gap, selCenterY - tbH / 2);
-        addCandidate(selCenterX - tbW / 2, selTop - tbH - gap);
-        addCandidate(selCenterX - tbW / 2, selBottom + gap);
+        if (isTouchLike) {
+          addCandidate(selCenterX - tbW / 2, selTop - tbH - gap);
+          addCandidate(selCenterX - tbW / 2, selBottom + gap);
+        } else {
+          addCandidate(selRight + gap, selCenterY - tbH / 2);
+          addCandidate(selLeft - tbW - gap, selCenterY - tbH / 2);
+          addCandidate(selCenterX - tbW / 2, selTop - tbH - gap);
+          addCandidate(selCenterX - tbW / 2, selBottom + gap);
+        }
 
         if (!candidates.length) return null;
         candidates.sort(function (a, b) { return a.d - b.d; });
         return candidates[0];
       }
 
-      var pos = pickPosition(boundsPrimary) || pickPosition(boundsFallback);
+      function pickTouchPosition(bounds) {
+        var touchGap = 14;
+        var minX = bounds.left;
+        var maxX = bounds.right - tbW;
+        var minY = bounds.top;
+        var maxY = bounds.bottom - tbH;
+        if (maxX < minX) maxX = minX;
+        if (maxY < minY) maxY = minY;
+        var x = clamp(Math.round(selCenterX - tbW / 2), minX, maxX);
+        var belowY = Math.round(selBottom + touchGap);
+        var aboveY = Math.round(selTop - tbH - touchGap);
+        if (belowY <= maxY) return { x: x, y: belowY };
+        if (aboveY >= minY) return { x: x, y: aboveY };
+        if (Math.abs(maxY - belowY) <= Math.abs(minY - aboveY)) {
+          return { x: x, y: maxY };
+        }
+        return { x: x, y: minY };
+      }
+
+      var pos = isTouchLike
+        ? (pickTouchPosition(boundsPrimary) || pickTouchPosition(boundsFallback))
+        : (pickPosition(boundsPrimary) || pickPosition(boundsFallback));
       if (!pos) {
         var yTop = Math.round(selTop - tbH - gap);
         var yBottom = Math.round(selBottom + gap);
@@ -3736,8 +4377,7 @@
 
       var text = "";
       try {
-        text = sel.toString();
-        text = text.replace(/^\\s+/, "").replace(/\\s+$/, "");
+        text = normalizeInlineText(sel.toString());
       } catch (e) {}
       if (!text) {
         hideToolbar();
@@ -3750,6 +4390,16 @@
         hideToolbar();
         return;
       }
+      try {
+        range = normalizeRangeToWordBoundaries(range);
+        syncNativeSelectionToRange(doc, range);
+        sel = getSelection(doc);
+        if (sel && !sel.isCollapsed && sel.rangeCount) {
+          text = normalizeInlineText(sel.toString() || "");
+        } else {
+          text = normalizeInlineText(range.toString() || "");
+        }
+      } catch (eNorm) {}
 
       var cfi = null;
       var href = null;
@@ -3775,10 +4425,12 @@
         var sel = getSelection(doc);
         if (!sel || sel.isCollapsed || !sel.rangeCount) return;
         var range = sel.getRangeAt(0).cloneRange();
+        range = normalizeRangeToWordBoundaries(range);
+        syncNativeSelectionToRange(doc, range);
+        sel = getSelection(doc) || sel;
         var text = "";
         try {
-          text = sel.toString();
-          text = text.replace(/^\s+/, "").replace(/\s+$/, "");
+          text = normalizeInlineText(sel && !sel.isCollapsed ? sel.toString() : range.toString());
         } catch (e) {}
         if (!text) return;
 
@@ -3886,6 +4538,16 @@
       var lpAnchorRange = null;
       var lpAnchorRect = null;
       var lpDir = 0;
+      var lpHasMeaningfulDrag = false;
+
+      function eventTouchPoint(e) {
+        try {
+          if (e && e.touches && e.touches[0]) return e.touches[0];
+          if (e && e.changedTouches && e.changedTouches[0]) return e.changedTouches[0];
+          if (e && typeof e.clientX === "number" && typeof e.clientY === "number") return e;
+        } catch (e0) {}
+        return null;
+      }
 
       function getTextNodeAt(node, offset) {
         try {
@@ -4092,9 +4754,12 @@
 
     function applyCustomSelection(range, showToolbar) {
       if (!range) return;
+      try {
+        range = normalizeRangeToWordBoundaries(range);
+      } catch (eNormRange) {}
       state.doc = doc;
       state.range = range;
-      state.text = (range.toString() || "").replace(/^\s+/, "").replace(/\s+$/, "");
+      state.text = normalizeInlineText(range.toString() || "");
       if (!state.text) return;
       try {
         var contents = getContentsForDoc(doc);
@@ -4137,15 +4802,17 @@
         lpAnchorRange = null;
         lpAnchorRect = null;
         lpDir = 0;
+        lpHasMeaningfulDrag = false;
       }
 
       function onTouchStart(e) {
-        if (!e || !e.touches || !e.touches[0]) return;
+        var pt = eventTouchPoint(e);
+        if (!pt) return;
         try { if (e.cancelable && e.preventDefault) e.preventDefault(); } catch (e0) {}
         try { if (e.stopImmediatePropagation) e.stopImmediatePropagation(); } catch (e1) {}
         try { if (e.stopPropagation) e.stopPropagation(); } catch (e2) {}
-        lpStartX = e.touches[0].clientX;
-        lpStartY = e.touches[0].clientY;
+        lpStartX = pt.clientX;
+        lpStartY = pt.clientY;
         lpLastX = lpStartX;
         lpLastY = lpStartY;
         clearLongPress();
@@ -4163,14 +4830,16 @@
           lpAnchorRange = word;
           lpAnchorRect = rectFromRange(word);
           lpDir = 0;
+          lpHasMeaningfulDrag = false;
           if (word) applyCustomSelection(word, false);
         }, 500);
       }
 
       function onTouchMove(e) {
-        if (!e || !e.touches || !e.touches[0]) return;
-        var x = e.touches[0].clientX;
-        var y = e.touches[0].clientY;
+        var pt = eventTouchPoint(e);
+        if (!pt) return;
+        var x = pt.clientX;
+        var y = pt.clientY;
         if (!lpActive) {
           if (Math.abs(x - lpStartX) > 16 || Math.abs(y - lpStartY) > 16) clearLongPress();
           return;
@@ -4178,6 +4847,10 @@
         try { e.preventDefault(); } catch (e0) {}
         try { if (e.stopImmediatePropagation) e.stopImmediatePropagation(); } catch (e1) {}
         try { if (e.stopPropagation) e.stopPropagation(); } catch (e2) {}
+        if (Math.abs(x - lpStartX) < 18 && Math.abs(y - lpStartY) < 18) {
+          return;
+        }
+        lpHasMeaningfulDrag = true;
         var curr = expandToWord(rangeFromPoint(x, y), x, y);
         if (!curr || !lpAnchorRange) return;
         try {
@@ -4212,6 +4885,9 @@
             doc.__fbSelDragActive = false;
           } catch (e1) {}
           if (state.locked) {
+            if (!lpHasMeaningfulDrag && lpAnchorRange) {
+              applyCustomSelection(lpAnchorRange, false);
+            }
             showToolbarForCurrentSelection();
             setDismissActive(true);
           }
@@ -4221,6 +4897,18 @@
       try { doc.addEventListener("touchstart", onTouchStart, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("touchmove", onTouchMove, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("touchend", onTouchEnd, { passive: false, capture: true }); } catch (e) {}
+      try { doc.addEventListener("pointerdown", function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        onTouchStart(e);
+      }, { passive: false, capture: true }); } catch (e) {}
+      try { doc.addEventListener("pointermove", function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        onTouchMove(e);
+      }, { passive: false, capture: true }); } catch (e) {}
+      try { doc.addEventListener("pointerup", function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        onTouchEnd(e);
+      }, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("pointermove", function(e){
         if (!lpActive) return;
         try { e.preventDefault(); } catch (e0) {}
@@ -4245,6 +4933,21 @@
         window.__fbSelDragActive = false;
         if (state.doc) state.doc.__fbSelDragActive = false;
       } catch (e) {}
+      window.__fbSelectionActive = false;
+    }
+
+    function hideToolbarKeepSelection() {
+      try {
+        if (state.cfi && highlightNoteCfi(state.cfi)) {
+          // Highlight re-created from stable CFI inside the active rendition.
+        } else if (state.doc && state.range) {
+          applyMark(state.doc, state.range);
+          try { clearSelection(state.doc); } catch (e0) {}
+          state.noteHighlightActive = true;
+        }
+      } catch (e1) {}
+      hideToolbar();
+      state.locked = true;
       window.__fbSelectionActive = false;
     }
 
@@ -4874,24 +5577,96 @@
       try { window.open(url, "_blank", "noopener"); } catch (e) { window.location.href = url; }
     }
 
+    function isReaderNewCompatHost() {
+      try {
+        if (window.__readerpubReaderNewCompat) return true;
+      } catch (e00) {}
+      try {
+        if (window.top && window.top !== window) {
+          var topPath = String((window.top.location && window.top.location.pathname) || "").trim();
+          if (
+            topPath === "/books/reader_new/" ||
+            topPath === "/books/reader_new" ||
+            topPath === "/reader_new/" ||
+            topPath === "/reader_new" ||
+            topPath === "/books/reader_new/index.html" ||
+            topPath === "/reader_new/index.html" ||
+            topPath === "/reader/reader_new" ||
+            topPath === "/reader/reader_new/" ||
+            topPath === "/reader/reader_new.html"
+          ) {
+            return true;
+          }
+        }
+      } catch (e0) {}
+      return false;
+    }
+
+    function openExternalTranslateUrl(text) {
+      var target = "en";
+      try { target = getTranslateTargetLang() || "en"; } catch (e0) {}
+      try {
+        if (typeof window.__readerpubOpenExternalTranslate === "function") {
+          window.__readerpubOpenExternalTranslate(text);
+          return;
+        }
+      } catch (eCompat) {}
+      var translateUrl =
+        "https://translate.google.com/?sl=auto&tl=" +
+        encodeURIComponent(String(target || "en")) +
+        "&text=" +
+        encodeURIComponent(String(text || "")) +
+        "&op=translate";
+      openUrl(translateUrl);
+    }
+
     function handleAction(action) {
       var text = state.text || "";
       if (!text) { hideAndClear(); return; }
 
       if (action === "note") {
         var cfi = state.cfi || getCurrentCfi();
+        var anchorRect = null;
+        try { anchorRect = getMarkRect(state.doc) || null; } catch (eRect0) {}
+        if (!anchorRect) {
+          try {
+            if (state.range && state.range.getBoundingClientRect) {
+              anchorRect = state.range.getBoundingClientRect();
+            }
+          } catch (eRect1) {}
+        }
+        try {
+          if (anchorRect && state.doc && state.doc.defaultView && state.doc.defaultView.frameElement) {
+            var frameEl = state.doc.defaultView.frameElement;
+            if (frameEl && frameEl.getBoundingClientRect) {
+              var frameRect = frameEl.getBoundingClientRect();
+              anchorRect = {
+                left: frameRect.left + anchorRect.left,
+                right: frameRect.left + anchorRect.right,
+                top: frameRect.top + anchorRect.top,
+                bottom: frameRect.top + anchorRect.bottom
+              };
+            }
+          }
+        } catch (eRectFrame) {}
         var payload = {
           cfi: cfi,
-          quote: text,
-          href: state.href || getCurrentHref()
+          quote: normalizeInlineText(text),
+          href: state.href || getCurrentHref(),
+          anchorRect: anchorRect
         };
-        hideAndClear();
+        notePendingCfi = cfi || null;
+        hideToolbarKeepSelection();
         if (window.__fbOpenNoteComment) {
-          window.__fbOpenNoteComment(payload);
+          setTimeout(function () {
+            try { window.__fbOpenNoteComment(payload); } catch (_noteOpenError) {}
+          }, 0);
           return;
         }
       } else if (action === "translate") {
-        openTranslateDialog(text);
+        hideAndClear();
+        openExternalTranslateUrl(text);
+        return;
       } else if (action === "search") {
         var qUrl = "https://www.google.com/search?q=" + encodeURIComponent(text);
         openUrl(qUrl);
@@ -5001,6 +5776,14 @@
           }
           if (iframe && iframe.contentDocument) attachToDoc(iframe.contentDocument);
         } catch (e) {}
+        try {
+          var pendingCfi = notePendingCfi || (state.noteHighlightActive ? state.cfi : null);
+          if (pendingCfi) {
+            setTimeout(function () {
+              try { highlightNoteCfi(pendingCfi); } catch (eHighlightRender) {}
+            }, 0);
+          }
+        } catch (eRenderedHighlight) {}
       });
     } catch (e) {}
 
@@ -5037,12 +5820,14 @@
   function setupNoteComment(reader) {
     var sheet = document.getElementById("commentSheet");
     var backdrop = document.getElementById("commentBackdrop");
+    var quoteEl = document.getElementById("commentQuote");
     var input = document.getElementById("commentInput");
     var saveBtn = document.getElementById("commentSave");
     var cancelBtn = document.getElementById("commentCancel");
-    if (!sheet || !backdrop || !input || !saveBtn || !cancelBtn) return;
+    if (!sheet || !backdrop || !input || !saveBtn || !cancelBtn || !quoteEl) return;
 
     var pending = null;
+    var openedAt = 0;
 
     function sanitize(val) {
       var s = String(val || "").replace(/\n/g, " ");
@@ -5053,27 +5838,90 @@
       return words.join(" ");
     }
 
+    function normalizeQuoteText(val) {
+      return String(val || "").replace(/\s+/g, " ").trim();
+    }
+
     function close() {
       sheet.classList.add("hidden");
       backdrop.classList.add("hidden");
+      sheet.style.left = "";
+      sheet.style.right = "";
+      sheet.style.top = "";
+      sheet.style.bottom = "";
+      sheet.style.transform = "";
       input.value = "";
+      quoteEl.textContent = "";
       pending = null;
     }
 
+    function positionSheet(payload) {
+      if (!sheet) return;
+      var margin = 12;
+      var rect = payload && payload.anchorRect ? payload.anchorRect : null;
+      sheet.style.left = "50%";
+      sheet.style.top = "20%";
+      sheet.style.transform = "translateX(-50%)";
+      if (!rect) return;
+
+      try {
+        sheet.style.visibility = "hidden";
+        sheet.classList.remove("hidden");
+        var sw = sheet.offsetWidth || 320;
+        var sh = sheet.offsetHeight || 150;
+        var vw = window.innerWidth || document.documentElement.clientWidth || 0;
+        var vh = window.innerHeight || document.documentElement.clientHeight || 0;
+        if (
+          !isFinite(rect.left) || !isFinite(rect.right) || !isFinite(rect.top) || !isFinite(rect.bottom) ||
+          rect.right < 0 || rect.left > vw || rect.bottom < 0 || rect.top > vh
+        ) {
+          return;
+        }
+        var left = Math.max(margin, Math.min((rect.left + rect.right) / 2 - (sw / 2), vw - sw - margin));
+        var aboveTop = rect.top - sh - 12;
+        var belowTop = rect.bottom + 12;
+        var top = aboveTop >= margin ? aboveTop : belowTop;
+        if (top + sh > vh - margin) top = Math.max(margin, vh - sh - margin);
+        sheet.style.left = Math.round(left) + "px";
+        sheet.style.top = Math.round(top) + "px";
+        sheet.style.transform = "none";
+      } catch (ePos) {
+      } finally {
+        sheet.style.visibility = "";
+      }
+    }
+
     function open(payload) {
+      var isTouchLike = false;
       pending = payload || null;
+      openedAt = Date.now();
       input.value = "";
+      quoteEl.textContent = normalizeQuoteText((pending && pending.quote) || "");
       sheet.classList.remove("hidden");
       backdrop.classList.remove("hidden");
-      var isCoarsePointer = false;
-      var isAndroid = false;
       try {
-        isCoarsePointer = !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
-      } catch (e0) {}
+        if (pending && pending.cfi && window.__fbShowNoteHighlight) {
+          setTimeout(function () {
+            try { window.__fbShowNoteHighlight(pending.cfi, false); } catch (eOpenHighlight) {}
+          }, 0);
+        }
+      } catch (eOpenPending) {}
       try {
-        isAndroid = /Android/i.test((navigator && navigator.userAgent) ? navigator.userAgent : "");
-      } catch (e1) {}
-      if (!isCoarsePointer && !isAndroid) {
+        isTouchLike = !!(
+          (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) ||
+          (navigator && navigator.maxTouchPoints > 0)
+        );
+      } catch (eTouchMode) {}
+      if (!isTouchLike) {
+        positionSheet(pending);
+      } else {
+        sheet.style.left = "";
+        sheet.style.right = "";
+        sheet.style.top = "";
+        sheet.style.bottom = "";
+        sheet.style.transform = "";
+      }
+      if (!isTouchLike) {
         setTimeout(function () { try { input.focus(); } catch (e2) {} }, 0);
       }
     }
@@ -5102,7 +5950,10 @@
     });
     saveBtn.addEventListener("click", function (e) { if (e) e.preventDefault(); save(); });
     cancelBtn.addEventListener("click", function (e) { if (e) e.preventDefault(); close(); });
-    backdrop.addEventListener("click", function () { close(); });
+    backdrop.addEventListener("click", function () {
+      if (openedAt && (Date.now() - openedAt) < 250) return;
+      close();
+    });
 
     window.__fbOpenNoteComment = function (payload) {
       open(payload || {});
@@ -5445,7 +6296,10 @@
           }, 0);
         }
       } catch (e3) {}
-      try { if (window.__fbCloseOverlays) window.__fbCloseOverlays(); } catch (e3) {}
+      try {
+        if (window.__fbCloseAndHideAfterNavigation) window.__fbCloseAndHideAfterNavigation();
+        else if (window.__fbCloseOverlays) window.__fbCloseOverlays();
+      } catch (e3) {}
     }
 
     window.__fbOpenNoteAtCfi = openNoteCfi;
@@ -5744,6 +6598,7 @@
       fallbackOverlay: null,
       selectedVoiceURI: null,
       restartTimer: null,
+      launchWatchdogTimer: null,
       speakPending: false,
       lastSpokenText: "",
       fallbackMsPerWord: 240,
@@ -5752,7 +6607,11 @@
       lastWordCfi: "",
       resumeFromStopCfi: "",
       resumeLocKey: "",
-      selectedVoiceLang: "en-US"
+      selectedVoiceLang: "en-US",
+      cachedVoices: [],
+      voiceDiscoveryTimer: null,
+      voiceDiscoveryDeadline: 0,
+      voiceDiscoveryFingerprint: ""
     };
     var driveLangSyncTimer = null;
 
@@ -6400,6 +7259,24 @@
       return voices[0] || null;
     }
 
+    function resolveUtteranceLang(voice, payload) {
+      try {
+        var explicit = voice && voice.lang ? String(voice.lang || "").trim() : "";
+        if (explicit) return explicit;
+      } catch (e0) {}
+      try {
+        var docLang = payload && payload.doc && payload.doc.documentElement
+          ? String(payload.doc.documentElement.lang || "").trim()
+          : "";
+        if (docLang) return docLang;
+      } catch (e1) {}
+      try {
+        var bookLang = getCurrentBookLang();
+        if (bookLang) return bookLang;
+      } catch (e2) {}
+      return "";
+    }
+
     function normalizeLangTag(lang) {
       var s = String(lang || "").trim();
       if (!s) return "";
@@ -6414,6 +7291,21 @@
         return normalizeLangTag(raw);
       } catch (e) {}
       return "";
+    }
+
+    function getSystemVoiceLangs() {
+      var out = [];
+      try {
+        var langs = [];
+        if (navigator && Array.isArray(navigator.languages) && navigator.languages.length) langs = navigator.languages.slice();
+        else if (navigator && navigator.language) langs = [navigator.language];
+        for (var i = 0; i < langs.length; i++) {
+          var key = normalizeLangTag(langs[i] || "");
+          if (!key) continue;
+          if (out.indexOf(key) === -1) out.push(key);
+        }
+      } catch (e) {}
+      return out;
     }
 
     function matchLangKey(preferredKey, langs) {
@@ -6527,6 +7419,27 @@
       } catch (e) {}
       if (langCode && regionCode) return titleCasePart(langCode) + " (" + regionCode + ")";
       return raw;
+    }
+
+    function buildVoiceOptionLabel(v) {
+      if (!v) return "";
+      var name = String(v.name || "").trim();
+      var lang = String(v.lang || "").trim();
+      var uri = String(v.voiceURI || "").trim();
+      var normName = normalizeLangTag(name);
+      var normLang = normalizeLangTag(lang);
+      var langLabel = buildLangLabel(lang);
+      var base = name || uri || langLabel || "Voice";
+      if (
+        !name ||
+        normName === normLang ||
+        name === lang ||
+        name === langLabel
+      ) {
+        base = uri || name || langLabel || "Voice";
+      }
+      if (lang && base !== lang && base !== langLabel) return base + " (" + lang + ")";
+      return base;
     }
 
     function uniqueLangsFromVoices(voices) {
@@ -6705,15 +7618,131 @@
       return out;
     }
 
+    function buildSimpleReadPayload(resumeCfi) {
+      var payload = pagePayload(resumeCfi || "");
+      if (payload && payload.text) return payload;
+      try {
+        var content = activeContent();
+        var doc = content && content.document ? content.document : null;
+        if (!doc || !doc.body) return null;
+        var text = String(doc.body.innerText || doc.body.textContent || "").replace(/\s+/g, " ").trim();
+        if (!text) return null;
+        return { doc: doc, content: content || null, text: text, map: [], locKey: getLocationKey() };
+      } catch (e) {}
+      return null;
+    }
+
+    function startSimpleReadAloud(resumeCfi) {
+      if (!state.enabled || !synth || !SpeechUtterance) return;
+      var payload = buildSimpleReadPayload(resumeCfi || "");
+      if (!payload || !payload.text) {
+        stopSpeaking(false);
+        return;
+      }
+      state.lastSpokenText = payload.text;
+      state.doc = payload.doc || null;
+      state.content = payload.content || null;
+      var voices = getSynthVoices();
+      var voice = pickVoice(voices, payload);
+      var speechLang = resolveUtteranceLang(voice, payload);
+      var segments = buildSegments(payload.text);
+      var localToken = ++state.token;
+      var idx = 0;
+
+      function speakNext() {
+        if (!state.enabled || localToken !== state.token) return;
+        if (idx >= segments.length) {
+          requestAutoNextPage().then(function (moved) {
+            if (!state.enabled || localToken !== state.token) return;
+            if (!moved) {
+              stopSpeaking(false);
+              return;
+            }
+            setTimeout(function () {
+              if (!state.enabled) return;
+              startSimpleReadAloud("");
+            }, 120);
+          }).catch(function () {
+            stopSpeaking(false);
+          });
+          return;
+        }
+        var utterance = new SpeechUtterance(segments[idx].text);
+        if (voice) utterance.voice = voice;
+        if (speechLang) utterance.lang = speechLang;
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        utterance.onstart = function () {
+          if (!state.enabled || localToken !== state.token) return;
+          state.speakPending = false;
+          setButtonState(true);
+        };
+        utterance.onend = function () {
+          if (!state.enabled || localToken !== state.token) return;
+          idx += 1;
+          speakNext();
+        };
+        utterance.onerror = function () {
+          if (!state.enabled || localToken !== state.token) return;
+          try { synth.cancel(); } catch (eCancel) {}
+          var fallback = new SpeechUtterance(segments[idx].text);
+          fallback.rate = 1;
+          fallback.pitch = 1;
+          fallback.volume = 1;
+          if (speechLang) fallback.lang = speechLang;
+          fallback.onstart = utterance.onstart;
+          fallback.onend = utterance.onend;
+          fallback.onerror = function () {
+            if (!state.enabled || localToken !== state.token) return;
+            stopSpeaking(false);
+          };
+          try {
+            synth.speak(fallback);
+          } catch (eFallback) {
+            stopSpeaking(false);
+          }
+        };
+        try {
+          synth.cancel();
+        } catch (e0) {}
+        try {
+          synth.speak(utterance);
+        } catch (e1) {
+          stopSpeaking(false);
+        }
+      }
+
+      setButtonState(true);
+      state.speakPending = true;
+      speakNext();
+    }
+
     function startCurrentPage(expectedLocKey, retriesLeft) {
       if (!state.enabled) return;
       if (!synth || !SpeechUtterance) return;
       var retries = (typeof retriesLeft === "number") ? retriesLeft : 0;
       var resumeCfi = arguments.length > 2 ? String(arguments[2] || "") : "";
+      var silentPageSkipsLeft = (typeof arguments[3] === "number") ? arguments[3] : 3;
       var payload = pagePayload(resumeCfi);
       if (!payload) {
         if (retries > 0) {
           state.restartTimer = setTimeout(function () { startCurrentPage(expectedLocKey, retries - 1); }, 120);
+          return;
+        }
+        if (!resumeCfi && silentPageSkipsLeft > 0) {
+          requestAutoNextPage().then(function (moved) {
+            if (!state.enabled) return;
+            if (!moved) {
+              stopSpeaking(true);
+              return;
+            }
+            state.restartTimer = setTimeout(function () {
+              startCurrentPage("", 20, "", silentPageSkipsLeft - 1);
+            }, 100);
+          }).catch(function () {
+            stopSpeaking(true);
+          });
           return;
         }
         stopSpeaking(true);
@@ -6739,7 +7768,7 @@
 
       var myToken = ++state.token;
       var segments = buildSegments(payload.text);
-      var voices = synth.getVoices ? (synth.getVoices() || []) : [];
+      var voices = getSynthVoices();
       var voice = pickVoice(voices, payload);
       var segmentSweepTimer = null;
       var segmentSweepStartTimer = null;
@@ -6756,11 +7785,30 @@
         if (idx >= segments.length) {
           stopSegmentSweep();
           clearHighlight();
-          state.speakPending = false;
-          state.enabled = false;
-          state.resumeFromStopCfi = "";
-          state.resumeLocKey = "";
-          setButtonState(false);
+          state.speakPending = true;
+          setButtonState(true);
+          requestAutoNextPage().then(function (moved) {
+            if (!state.enabled || myToken !== state.token) return;
+            if (!moved) {
+              state.speakPending = false;
+              state.enabled = false;
+              state.resumeFromStopCfi = "";
+              state.resumeLocKey = "";
+              setButtonState(false);
+              return;
+            }
+            state.restartTimer = setTimeout(function () {
+              if (!state.enabled || myToken !== state.token) return;
+              startCurrentPage("", 20, "", 3);
+            }, 120);
+          }).catch(function () {
+            if (!state.enabled || myToken !== state.token) return;
+            state.speakPending = false;
+            state.enabled = false;
+            state.resumeFromStopCfi = "";
+            state.resumeLocKey = "";
+            setButtonState(false);
+          });
           return;
         }
         var seg = segments[idx];
@@ -6905,12 +7953,33 @@
       var resumeCfi = state.resumeFromStopCfi ? String(state.resumeFromStopCfi || "") : "";
       state.resumeFromStopCfi = "";
       state.resumeLocKey = "";
-      startCurrentPage(currentLocKey, 20, resumeCfi);
+      startCurrentPage(currentLocKey, 20, resumeCfi || "");
     }
 
     function setVoiceMessage(txt) {
       if (!voiceStatus) return;
       voiceStatus.textContent = txt || "";
+    }
+
+    function setRangeProgressValue(inputEl) {
+      if (!inputEl) return;
+      var min = Number(inputEl.min || 0);
+      var max = Number(inputEl.max || 100);
+      var value = Number(inputEl.value || min);
+      var pct = 0;
+      if (max > min) pct = ((value - min) / (max - min)) * 100;
+      pct = Math.max(0, Math.min(100, pct));
+      try {
+        inputEl.style.setProperty("--reader1-range-progress", pct + "%");
+        var thumb = 28;
+        var width = Math.max(0, Number(inputEl.clientWidth || inputEl.offsetWidth || 0));
+        if (width > 0) {
+          var fillPx = 14 + ((width - thumb) * (pct / 100));
+          inputEl.style.setProperty("--reader1-range-fill", Math.max(14, Math.min(width - 14, fillPx)) + "px");
+        } else {
+          inputEl.style.setProperty("--reader1-range-fill", pct + "%");
+        }
+      } catch (e) {}
     }
 
     function loadSavedVoice() {
@@ -6935,6 +8004,55 @@
         if (state.selectedVoiceLang) localStorage.setItem(VOICE_LANG_KEY, state.selectedVoiceLang);
         else localStorage.removeItem(VOICE_LANG_KEY);
       } catch (e) {}
+    }
+
+    function buildVoiceFingerprint(voices) {
+      var out = [];
+      for (var i = 0; i < voices.length; i++) {
+        var v = voices[i];
+        if (!v) continue;
+        out.push([
+          String(v.voiceURI || ""),
+          String(v.name || ""),
+          String(v.lang || ""),
+          v.default ? "1" : "0"
+        ].join("|"));
+      }
+      return out.join("||");
+    }
+
+    function getSynthVoices() {
+      var voices = [];
+      try { voices = synth && synth.getVoices ? (synth.getVoices() || []) : []; } catch (e0) { voices = []; }
+      if (voices && voices.length) {
+        state.cachedVoices = voices.slice();
+        state.voiceDiscoveryFingerprint = buildVoiceFingerprint(state.cachedVoices);
+        return voices;
+      }
+      return state.cachedVoices && state.cachedVoices.length ? state.cachedVoices.slice() : [];
+    }
+
+    function scheduleVoiceDiscovery(reason) {
+      if (!synth) return;
+      var durationMs = isMobileLikeDevice() ? 5000 : 1800;
+      var now = Date.now();
+      state.voiceDiscoveryDeadline = Math.max(state.voiceDiscoveryDeadline || 0, now + durationMs);
+      if (state.voiceDiscoveryTimer) return;
+      state.voiceDiscoveryTimer = setInterval(function () {
+        var voices = [];
+        try { voices = synth.getVoices ? (synth.getVoices() || []) : []; } catch (e0) { voices = []; }
+        var fp = buildVoiceFingerprint(voices);
+        if (voices.length && fp && fp !== state.voiceDiscoveryFingerprint) {
+          state.cachedVoices = voices.slice();
+          state.voiceDiscoveryFingerprint = fp;
+          refreshVoiceList({ keepSelection: true, discoveryReason: reason || "" });
+        }
+        if (Date.now() >= (state.voiceDiscoveryDeadline || 0)) {
+          try { clearInterval(state.voiceDiscoveryTimer); } catch (e1) {}
+          state.voiceDiscoveryTimer = null;
+          state.voiceDiscoveryDeadline = 0;
+        }
+      }, 250);
     }
 
     function getCurrentBookId() {
@@ -6981,7 +8099,7 @@
     function refreshVoiceList(opts) {
       if (!voiceSelect) return;
       var options = opts || {};
-      var voices = synth && synth.getVoices ? (synth.getVoices() || []) : [];
+      var voices = getSynthVoices();
       var langs = uniqueLangsFromVoices(voices);
       var savedLang = normalizeLangTag(state.selectedVoiceLang || "");
       var bookLang = getCurrentBookLang();
@@ -7002,27 +8120,6 @@
         wantLang = fallbackUs;
       } else {
         wantLang = langs[0] ? langs[0].key : "";
-      }
-
-      var topKey = "";
-      if (matchedBookLang) {
-        topKey = matchedBookLang;
-      } else if (matchedSavedLang) {
-        topKey = matchedSavedLang;
-      } else if (fallbackUs) {
-        topKey = fallbackUs;
-      } else {
-        topKey = langs[0] ? langs[0].key : "";
-      }
-      if (topKey && langs.length > 1) {
-        var topIdx = -1;
-        for (var ti = 0; ti < langs.length; ti++) {
-          if (langs[ti] && langs[ti].key === topKey) { topIdx = ti; break; }
-        }
-        if (topIdx > 0) {
-          var topItem = langs.splice(topIdx, 1)[0];
-          langs.unshift(topItem);
-        }
       }
 
       if (voiceLangSelect) {
@@ -7070,7 +8167,7 @@
         if (!v) return;
         var opt = document.createElement("option");
         opt.value = v.voiceURI || "";
-        opt.textContent = (v.name || "Voice") + (v.lang ? (" (" + v.lang + ")") : "");
+        opt.textContent = buildVoiceOptionLabel(v);
         if (state.selectedVoiceURI && opt.value === state.selectedVoiceURI) opt.selected = true;
         voiceSelect.appendChild(opt);
       });
@@ -7102,14 +8199,24 @@
       saveVoiceLang(normalizeLangTag(voiceLangSelect.value || ""));
       state.selectedVoiceURI = null;
       refreshVoiceList({ keepSelection: true });
+      scheduleVoiceDiscovery("language-change");
     });
     if (voiceSelect) voiceSelect.addEventListener("change", function () {
       saveVoice(voiceSelect.value || "");
       syncCustomDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
     });
-    if (synth && "onvoiceschanged" in synth) synth.onvoiceschanged = refreshVoiceList;
+    if (synth && "onvoiceschanged" in synth) synth.onvoiceschanged = function () {
+      var voices = [];
+      try { voices = synth.getVoices ? (synth.getVoices() || []) : []; } catch (e0) { voices = []; }
+      if (voices.length) {
+        state.cachedVoices = voices.slice();
+        state.voiceDiscoveryFingerprint = buildVoiceFingerprint(state.cachedVoices);
+      }
+      refreshVoiceList({ keepSelection: true });
+    };
     document.addEventListener("fb:voice-opened", function () {
       refreshVoiceList();
+      scheduleVoiceDiscovery("voice-opened");
     });
     try {
       if (reader && reader.book && reader.book.ready && typeof reader.book.ready.then === "function") {
@@ -7121,6 +8228,18 @@
 
     bindCustomDropdown(voiceLangDropdown, voiceLangToggle, voiceLangList);
     bindCustomDropdown(voiceDropdown, voiceToggle, voiceList);
+    if (voiceLangToggle && !voiceLangToggle.__fbVoiceProbeBound) {
+      voiceLangToggle.__fbVoiceProbeBound = true;
+      voiceLangToggle.addEventListener("click", function () {
+        scheduleVoiceDiscovery("lang-toggle");
+      }, true);
+    }
+    if (voiceToggle && !voiceToggle.__fbVoiceProbeBound) {
+      voiceToggle.__fbVoiceProbeBound = true;
+      voiceToggle.addEventListener("click", function () {
+        scheduleVoiceDiscovery("voice-toggle");
+      }, true);
+    }
     document.addEventListener("click", function (ev) {
       var t = ev && ev.target ? ev.target : null;
       if (t && t.closest && (t.closest("#voiceLangDropdown") || t.closest("#voiceDropdown"))) return;
@@ -7128,7 +8247,34 @@
     }, true);
 
     loadSavedVoice();
+    var typographyRangeEl = document.getElementById("protectedTypographyScale");
+    if (typographyRangeEl) {
+      setRangeProgressValue(typographyRangeEl);
+      if (!typographyRangeEl.__fbShellRangeBoundSpeech) {
+        typographyRangeEl.__fbShellRangeBoundSpeech = true;
+        typographyRangeEl.addEventListener("input", function () { setRangeProgressValue(typographyRangeEl); });
+        typographyRangeEl.addEventListener("change", function () { setRangeProgressValue(typographyRangeEl); });
+      }
+    }
     refreshVoiceList();
+    scheduleVoiceDiscovery("initial");
+    window.addEventListener("pageshow", function () {
+      refreshVoiceList({ keepSelection: true });
+      scheduleVoiceDiscovery("pageshow");
+      var slider = document.getElementById("protectedTypographyScale");
+      if (slider) setRangeProgressValue(slider);
+    }, { passive: true });
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState !== "visible") return;
+      refreshVoiceList({ keepSelection: true });
+      scheduleVoiceDiscovery("visible");
+      var slider = document.getElementById("protectedTypographyScale");
+      if (slider) setRangeProgressValue(slider);
+    });
+    window.addEventListener("resize", function () {
+      var slider = document.getElementById("protectedTypographyScale");
+      if (slider) setRangeProgressValue(slider);
+    }, { passive: true });
     hydrateVoiceLangFromDrive();
     setButtonState(false);
   }
@@ -7146,8 +8292,11 @@
   }
 
   waitForReader().then(function (reader) {
-    // Desktop: bars must always be visible. Mobile: start hidden (FBReader-like).
-    if (window.__fb_isDesktop || window.__readerpubAutostart) {
+    // In reader_new compat host, the outer shell owns bar visibility.
+    // Always start hidden and let the outer shell reveal the bars on center tap.
+    if (window.__readerpubReaderNewCompat) {
+      hideUi();
+    } else if (window.__fb_isDesktop || window.__readerpubAutostart) {
       showUi();
     } else {
       hideUi();
@@ -7163,10 +8312,12 @@
       }
     } catch (e) {}
 	    setupOverlays();
+      try { setupUnifiedShellChrome(); } catch (eShellChrome) {}
       try { setupMobileMoreMenu(); } catch (eMoreMenu) {}
-	    // Mobile tap/swipe is handled by reader.js attachSwipeToDoc().
-	    // Keep this legacy bridge desktop-only to avoid competing mobile gesture handlers.
-	    if (window.__fb_isDesktop) enableIframeGestures(reader);
+	    // In reader_new compat host, use the direct rendition-doc gesture bridge on all
+	    // platforms so center tap/click can toggle the outer shell reliably.
+	    // In standalone reader1, keep the old desktop-only behavior.
+	    if (window.__readerpubReaderNewCompat || window.__fb_isDesktop) enableIframeGestures(reader);
 
     // Mobile: ultra-robust center tap toggle (works even when the page is inside an iframe).
     // This is the same approach that worked earlier (fix5): a dedicated center hit layer.

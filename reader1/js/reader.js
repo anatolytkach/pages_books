@@ -3301,7 +3301,6 @@ function applyThemeToIframes(themeName) {
 		contained : undefined,
 		bookKey : undefined,
 		styles : undefined,
-		sidebarReflow: false,
 		generatePagination: false,
 		history: true
 	});
@@ -3346,7 +3345,6 @@ function applyThemeToIframes(themeName) {
 	this.book = book = new ePub(this.settings.bookPath, this.settings);
 
 	this.offline = false;
-	this.sidebarOpen = false;
 	if(!this.settings.bookmarks) {
 		this.settings.bookmarks = [];
 	}
@@ -3365,6 +3363,7 @@ function applyThemeToIframes(themeName) {
 	// Desktop: allow spreads (two-page view) when width permits.
 	// Mobile: force single-page to avoid asymmetrical gutters.
 	var isMobileView = (window.matchMedia && window.matchMedia("(max-width: 768px)").matches) || window.innerWidth <= 768;
+	var readerNewCompatMetrics = applyReaderNewCompatGapMetrics();
 
 	// MAIN rendition (current page) renders into #viewer (kept for backwards compatibility)
 	this.rendition = book.renderTo("viewer", {
@@ -3372,7 +3371,8 @@ function applyThemeToIframes(themeName) {
 		width: "100%",
 		height: "100%",
 		spread: isMobileView ? "none" : "auto",
-		flow: "paginated"
+		flow: "paginated",
+		gap: readerNewCompatMetrics.enabled ? readerNewCompatMetrics.gap : undefined
 	});
 
 	// Neighbor renditions for swipe preview (prev/next pages underneath current)
@@ -3383,14 +3383,16 @@ function applyThemeToIframes(themeName) {
 		width: "100%",
 		height: "100%",
 		spread: isMobileView ? "none" : "auto",
-		flow: "paginated"
+		flow: "paginated",
+		gap: readerNewCompatMetrics.enabled ? readerNewCompatMetrics.gap : undefined
 	});
 	this.renditionNext = book.renderTo("viewer-next", {
 		ignoreClass: "annotator-hl",
 		width: "100%",
 		height: "100%",
 		spread: isMobileView ? "none" : "auto",
-		flow: "paginated"
+		flow: "paginated",
+		gap: readerNewCompatMetrics.enabled ? readerNewCompatMetrics.gap : undefined
 	});
 
 	// Ensure swipe/tap handlers are attached for ALL renditions (current + neighbor views),
@@ -3548,11 +3550,29 @@ function applyThemeToIframes(themeName) {
 		this.renditionPrev.on("rendered", function(section, view){
 			try {
 				try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
+				try {
+					var baseKey = self._neighborBaseKeyExpected || "";
+					var token = self._neighborPrevExpected || 0;
+					var loc = self.renditionPrev && self.renditionPrev.currentLocation ? self.renditionPrev.currentLocation() : null;
+					var locKey = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
+					if (baseKey && token && locKey && locKey !== baseKey) {
+						self.__markNeighborReady("prev", token, baseKey);
+					}
+				} catch (ePrevRenderedReady) {}
 			} catch(e){}
 		});
 		this.renditionNext.on("rendered", function(section, view){
 			try {
 				try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
+				try {
+					var baseKey = self._neighborBaseKeyExpected || "";
+					var token = self._neighborNextExpected || 0;
+					var loc = self.renditionNext && self.renditionNext.currentLocation ? self.renditionNext.currentLocation() : null;
+					var locKey = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
+					if (baseKey && token && locKey && locKey !== baseKey) {
+						self.__markNeighborReady("next", token, baseKey);
+					}
+				} catch (eNextRenderedReady) {}
 			} catch(e){}
 		});
 		this.renditionPrev.on("relocated", function(location){
@@ -4296,15 +4316,54 @@ if (!doc) return;
 				try {
 					if (!doc || doc.__uiTapAttached) return;
 					doc.__uiTapAttached = true;
+					try {
+						var compatDesktop = false;
+						var compatMetrics = null;
+						var compatInsetPx = "0px";
+						try { compatDesktop = isReaderNewCompatGapMode() && getCurrentSpreadMode() !== "none"; } catch (eCompatMode) {}
+						try {
+							compatMetrics = computeReaderNewCompatGapMetrics();
+							if (compatMetrics && compatMetrics.enabled && typeof compatMetrics.sideInset === "number") {
+								compatInsetPx = Math.max(0, Math.round(compatMetrics.sideInset)) + "px";
+							}
+						} catch (eCompatMetrics) {}
+						if (compatDesktop && doc && doc.head && !doc.getElementById("readerNewCompatDesktopInset")) {
+							var compatStyle = doc.createElement("style");
+							compatStyle.id = "readerNewCompatDesktopInset";
+							compatStyle.textContent =
+								"html,body{box-sizing:border-box!important;}" +
+								"body{padding-left:0!important;padding-right:0!important;}" +
+								"img,svg,video,figure,picture{max-width:100%!important;}";
+							doc.head.appendChild(compatStyle);
+						}
+						if (compatDesktop && doc && doc.body && doc.body.style) {
+							try { doc.body.style.setProperty("padding-left", "0px", "important"); } catch (eCompatInsetBodyL) {}
+							try { doc.body.style.setProperty("padding-right", "0px", "important"); } catch (eCompatInsetBodyR) {}
+						}
+					} catch (eCompatInset) {}
 
 					var win = doc.defaultView || window;
 					var st = { x: 0, y: 0, ts: 0, moved: false };
 
 					function isMobileUi(topWin) {
 						try {
+							if (topWin.document && topWin.document.documentElement) {
+								var root = topWin.document.documentElement;
+								if (root.classList.contains("is-phone") || root.classList.contains("is-tablet")) return true;
+							}
 							if (topWin.matchMedia && topWin.matchMedia('(pointer: coarse)').matches) return true;
 							if (topWin.matchMedia && topWin.matchMedia('(max-width: 768px)').matches) return true;
 							if (topWin.navigator && topWin.navigator.maxTouchPoints && topWin.navigator.maxTouchPoints > 0) return true;
+							if ("ontouchstart" in topWin) return true;
+						} catch (e) {}
+						return false;
+					}
+
+					function isBlockingSearchUi(topWin) {
+						try {
+							var body = topWin && topWin.document ? topWin.document.body : null;
+							if (!body || !body.classList) return false;
+							return body.classList.contains("search-open") && !body.classList.contains("search-minimized");
 						} catch (e) {}
 						return false;
 					}
@@ -4395,7 +4454,7 @@ if (!doc) return;
 						if (!ev || st._interactive) return;
 						try {
 							var __topWinSearch = (win && win.parent) ? win.parent : window;
-							if (__topWinSearch && __topWinSearch.document && __topWinSearch.document.body && __topWinSearch.document.body.classList.contains("search-open")) return;
+							if (isBlockingSearchUi(__topWinSearch)) return;
 								if (__topWinSearch && __topWinSearch.document && __topWinSearch.document.body && __topWinSearch.document.body.classList.contains("mobile-more-open")) {
 									try { if (typeof __topWinSearch.__fb_closeMobileMore === "function") __topWinSearch.__fb_closeMobileMore(); } catch (eCloseMore0) {}
 									try { __topWinSearch.__fbSuppressUiTapUntil = Date.now() + 600; } catch (eSupMore0) {}
@@ -4451,17 +4510,29 @@ if (!doc) return;
 						try {
 							doc.addEventListener("pointerdown", function(ev){
 								if (!ev) return;
+								try {
+									var __topWinPtrDown = (win && win.parent) ? win.parent : window;
+									if (ev.pointerType === "mouse" && isMobileUi(__topWinPtrDown)) return;
+								} catch (ePtrDownMode) {}
 								st.x = ev.clientX; st.y = ev.clientY; st.ts = Date.now(); st.moved = false; st._interactive = isInteractiveTarget(ev.target);
 							}, { passive: true, capture: true });
 							doc.addEventListener("pointermove", function(ev){
 								if (!ev) return;
+								try {
+									var __topWinPtrMove = (win && win.parent) ? win.parent : window;
+									if (ev.pointerType === "mouse" && isMobileUi(__topWinPtrMove)) return;
+								} catch (ePtrMoveMode) {}
 								if (Math.abs(ev.clientX - st.x) > 20 || Math.abs(ev.clientY - st.y) > 20) st.moved = true;
 							}, { passive: true, capture: true });
 							doc.addEventListener("pointerup", function(ev){
 								if (!ev || st._interactive || st.moved) return;
 								try {
+									var __topWinPtrUp = (win && win.parent) ? win.parent : window;
+									if (ev.pointerType === "mouse" && isMobileUi(__topWinPtrUp)) return;
+								} catch (ePtrUpMode) {}
+								try {
 									var __topWinSearchP = (win && win.parent) ? win.parent : window;
-									if (__topWinSearchP && __topWinSearchP.document && __topWinSearchP.document.body && __topWinSearchP.document.body.classList.contains("search-open")) return;
+									if (isBlockingSearchUi(__topWinSearchP)) return;
 										if (__topWinSearchP && __topWinSearchP.document && __topWinSearchP.document.body && __topWinSearchP.document.body.classList.contains("mobile-more-open")) {
 											try { if (typeof __topWinSearchP.__fb_closeMobileMore === "function") __topWinSearchP.__fb_closeMobileMore(); } catch (eCloseMore1) {}
 											try { __topWinSearchP.__fbSuppressUiTapUntil = Date.now() + 600; } catch (eSupMore1) {}
@@ -4657,6 +4728,7 @@ function attachSwipeToDoc(doc) {
 					raf: 0,
 					lock: false
 				};
+
 
 				function clearSelectionTimer() {
 					try {
@@ -5004,10 +5076,17 @@ function attachSwipeToDoc(doc) {
 						if (!iframe) return false;
 						var doc2 = iframe.contentDocument || null;
 						if (!doc2) return false;
+						try {
+							if (String(doc2.readyState || "").toLowerCase() !== "complete") return false;
+						} catch (eReadyState) {}
 						var body = doc2.body || null;
 						if (!body) return false;
-						if (body.children && body.children.length > 0) return true;
-						if ((body.textContent || "").trim()) return true;
+						var text = "";
+						try { text = String(body.innerText || body.textContent || "").trim(); } catch (eText) {}
+						if (text.length > 24) return true;
+						try {
+							if (body.querySelector && body.querySelector("img,svg,canvas,video,picture,figure")) return true;
+						} catch (eMedia) {}
 					} catch (e0) {}
 					return false;
 				}
@@ -5160,8 +5239,8 @@ function attachSwipeToDoc(doc) {
 									((reader && reader.__ensureNeighborRenderedForTurn)
 										? reader.__ensureNeighborRenderedForTurn(locForTurn, !!isNext, 420)
 										: Promise.resolve())
-										.catch(function(){})
-										.finally(function(){ runCommit(); });
+									.catch(function(){})
+									.finally(function(){ runCommit(); });
 								} else if (isIosLike && win && typeof win.requestAnimationFrame === "function") {
 									try { ensureNeighborsReady().catch(function(){}); } catch (eWarm) {}
 									win.requestAnimationFrame(function(){ runCommit(); });
@@ -5871,25 +5950,7 @@ if (doc) {
 
 	function buildFittedPageCounterLabel(pageLabel, tocTitle) {
 		var pageOnly = String(pageLabel || "");
-		var title = String(tocTitle || "").trim();
-		if (!title) return pageOnly;
-		var full = pageOnly + " - " + title;
-		var maxW = getPageCountMaxLabelWidth();
-		if (!maxW) return full;
-		if (measurePageCountLabelWidth(full) <= maxW) return full;
-
-		var prefix = pageOnly + " - ";
-		var ellipsis = "…";
-		var lo = 0;
-		var hi = title.length;
-		while (lo < hi) {
-			var mid = Math.ceil((lo + hi) / 2);
-			var probe = prefix + title.slice(0, mid) + ellipsis;
-			if (measurePageCountLabelWidth(probe) <= maxW) lo = mid;
-			else hi = mid - 1;
-		}
-		if (lo <= 0) return pageOnly;
-		return prefix + title.slice(0, lo) + ellipsis;
+		return pageOnly;
 	}
 	try {
 		if (pageCountEl && !String(pageCountEl.textContent || "").trim()) {
@@ -6113,6 +6174,98 @@ if (doc) {
 		return isMobile ? "none" : "auto";
 	}
 
+	function isReaderNewCompatGapMode() {
+		try {
+			var params = new URLSearchParams(window.location.search || "");
+			return params.get("readerNewCompatGap") === "1";
+		} catch (e) {}
+		return false;
+	}
+
+	function computeReaderNewCompatGapMetrics() {
+		var disabled = { enabled: false, gap: null, extraInset: 0, sideInset: null, pageInset: 0 };
+		if (!isReaderNewCompatGapMode()) return disabled;
+		if (getCurrentSpreadMode() === "none") return disabled;
+		try {
+			var currentExtraInset = 0;
+			try {
+				var extraInsetRaw = window.getComputedStyle(document.documentElement).getPropertyValue("--readernew-compat-extra-inset");
+				currentExtraInset = parseFloat(extraInsetRaw) || 0;
+			} catch (eInset) {}
+			var viewportWidth = Math.max(
+				1,
+				Math.round(
+					(window.visualViewport && window.visualViewport.width) ||
+					window.innerWidth ||
+					document.documentElement.clientWidth ||
+					1
+				)
+			);
+			var viewerStack = document.getElementById("viewerStack");
+			var computedViewerSide = 0;
+			if (viewerStack && window.getComputedStyle) {
+				var stackStyle = window.getComputedStyle(viewerStack);
+				computedViewerSide = Math.max(0, (parseFloat(stackStyle.left) || 0) - currentExtraInset);
+			}
+			var baseWidth = Math.max(1, Math.round(viewportWidth - computedViewerSide * 2));
+			var section = Math.floor(baseWidth / 12);
+			var autoGap = section % 2 === 0 ? section : Math.max(0, section - 1);
+			var currentCompatGap = Math.max(24, autoGap - 50);
+			var targetGap = currentCompatGap;
+			var extraInset = 0;
+			return {
+				enabled: true,
+				gap: targetGap,
+				extraInset: extraInset,
+				sideInset: targetGap,
+				pageInset: Math.round(targetGap / 2)
+			};
+		} catch (e) {}
+		return disabled;
+	}
+
+	function applyReaderNewCompatGapMetrics() {
+		var metrics = computeReaderNewCompatGapMetrics();
+		try {
+			document.documentElement.style.setProperty(
+				"--readernew-compat-extra-inset",
+				metrics.enabled ? (metrics.extraInset + "px") : "0px"
+			);
+			document.documentElement.style.setProperty(
+				"--readernew-compat-page-inset",
+				(metrics.enabled && typeof metrics.pageInset === "number") ? (metrics.pageInset + "px") : "0px"
+			);
+		} catch (e0) {}
+		try {
+			if (reader) {
+				reader._readerNewCompatGapMetrics = metrics;
+				if (metrics.enabled && typeof metrics.gap === "number") {
+					reader.settings = reader.settings || {};
+					reader.settings.gap = metrics.gap;
+				} else if (reader.settings && Object.prototype.hasOwnProperty.call(reader.settings, "gap")) {
+					delete reader.settings.gap;
+				}
+			}
+		} catch (e1) {}
+		var renditions = [
+			reader && reader.rendition,
+			reader && reader.renditionPrev,
+			reader && reader.renditionNext,
+			reader && reader._pageCalcRendition
+		];
+		for (var i = 0; i < renditions.length; i++) {
+			try {
+				if (!renditions[i]) continue;
+				if (metrics.enabled && typeof metrics.gap === "number") {
+					renditions[i].settings.gap = metrics.gap;
+				} else if (renditions[i].settings && Object.prototype.hasOwnProperty.call(renditions[i].settings, "gap")) {
+					delete renditions[i].settings.gap;
+				}
+			} catch (e2) {}
+		}
+		return metrics;
+	}
+
 	function getViewerSize() {
 		var stack = document.getElementById("viewerStack");
 		if (stack && stack.getBoundingClientRect) {
@@ -6181,6 +6334,7 @@ if (doc) {
 	}
 
 	function ensurePageCalcRendition(reset) {
+		var compatMetrics = applyReaderNewCompatGapMetrics();
 		var size = getViewerSize();
 		if (!reader._pageCalcHost) {
 			var host = document.createElement("div");
@@ -6212,7 +6366,8 @@ if (doc) {
 				width: "100%",
 				height: "100%",
 				spread: getCurrentSpreadMode(),
-				flow: "paginated"
+				flow: "paginated",
+				gap: compatMetrics.enabled ? compatMetrics.gap : undefined
 			});
 			try { reader._pageCalcRendition.themes.register("light", lightThemeCss); } catch (e0) {}
 			try { reader._pageCalcRendition.themes.register("dark", darkThemeCss); } catch (e01) {}
@@ -6331,6 +6486,22 @@ if (doc) {
 		}
 	}
 
+	window.__fbGetGlobalPageLabelForCfi = function(cfi) {
+		try {
+			var cfiText = String(cfi || "").trim();
+			if (!cfiText) return "";
+			var loc = { start: { cfi: cfiText } };
+			var resolved = getGlobalPageFromLocation(loc);
+			if (!resolved || !resolved.page) {
+				resolved = getGlobalPageFromLocationsFallback(loc);
+			}
+			if (!resolved || !resolved.page) return "";
+			return String(resolved.page);
+		} catch (_error) {
+			return "";
+		}
+	};
+
 	function getUiFontPct() {
 		try {
 			// settings.styles.fontSize like "124%"
@@ -6354,7 +6525,11 @@ if (doc) {
 			reader.settings.styles.fontSize = value;
 			reader.settings.fontSizePct = n;
 			// Apply to book contents
-			try { reader.book.setStyle("fontSize", value); } catch (e1) {}
+			try {
+				if (reader.book && typeof reader.book.setStyle === "function") {
+					reader.book.setStyle("fontSize", value);
+				}
+			} catch (e1) {}
 			try { reader.rendition.themes.fontSize(value); } catch (e2) {}
 			// Keep UI scale (TOC etc.) in sync
 			try { _applyUiScale(value); } catch (e3) {}
@@ -6849,7 +7024,12 @@ if (doc) {
 			}
 			if (suppress) return true;
 			var body = document.body || null;
-			if (body && body.classList && body.classList.contains("search-open")) return true;
+			if (
+				body &&
+				body.classList &&
+				body.classList.contains("search-open") &&
+				!body.classList.contains("search-minimized")
+			) return true;
 		} catch (e) {}
 		return false;
 	}
@@ -6878,6 +7058,7 @@ if (doc) {
 		} catch (e0) {}
 		reader._layoutReflowTimer = setTimeout(function () {
 			reader._layoutReflowTimer = null;
+			try { applyReaderNewCompatGapMetrics(); } catch (eCompat) {}
 			try { if (reader.rendition && reader.rendition.resize) reader.rendition.resize(); } catch (e1) {}
 			try { if (reader.renditionPrev && reader.renditionPrev.resize) reader.renditionPrev.resize(); } catch (e2) {}
 			try { if (reader.renditionNext && reader.renditionNext.resize) reader.renditionNext.resize(); } catch (e3) {}
@@ -7052,7 +7233,9 @@ if (doc) {
 	// (Settings store it, but it won't take effect until setStyle is called.)
 	this.displayed.then(function () {
 		if (reader.settings && reader.settings.styles && reader.settings.styles.fontSize) {
-			reader.book.setStyle("fontSize", reader.settings.styles.fontSize);
+			if (reader.book && typeof reader.book.setStyle === "function") {
+				reader.book.setStyle("fontSize", reader.settings.styles.fontSize);
+			}
 		}
 	});
 
@@ -7060,7 +7243,6 @@ if (doc) {
 		reader.ReaderController = EPUBJS.reader.ReaderController.call(reader, book);
 		reader.SettingsController = EPUBJS.reader.SettingsController.call(reader, book);
 		reader.ControlsController = EPUBJS.reader.ControlsController.call(reader, book);
-		reader.SidebarController = EPUBJS.reader.SidebarController.call(reader, book);
 		reader.BookmarksController = EPUBJS.reader.BookmarksController.call(reader, book);
 		reader.NotesController = EPUBJS.reader.NotesController.call(reader, book);
 
@@ -7096,6 +7278,15 @@ if (doc) {
 	return this;
 };
 
+function applyReaderBookFontSize(readerInstance, value) {
+	try {
+		if (!readerInstance || !readerInstance.book || typeof readerInstance.book.setStyle !== "function") return false;
+		readerInstance.book.setStyle("fontSize", value);
+		return true;
+	} catch (_styleError) {}
+	return false;
+}
+
 EPUBJS.Reader.prototype.adjustFontSize = function(e) {
 	var fontSize;
 	var interval = 2;
@@ -7115,7 +7306,7 @@ EPUBJS.Reader.prototype.adjustFontSize = function(e) {
 	if(MOD && e.keyCode == PLUS) {
 		e.preventDefault();
 			var nextPlus = (fontSize + interval) + "%";
-			this.book.setStyle("fontSize", nextPlus);
+			applyReaderBookFontSize(this, nextPlus);
 			this.settings.styles.fontSize = nextPlus;
 			_applyUiScale(nextPlus);
 
@@ -7125,14 +7316,14 @@ EPUBJS.Reader.prototype.adjustFontSize = function(e) {
 
 		e.preventDefault();
 			var nextMinus = (fontSize - interval) + "%";
-			this.book.setStyle("fontSize", nextMinus);
+			applyReaderBookFontSize(this, nextMinus);
 			this.settings.styles.fontSize = nextMinus;
 			_applyUiScale(nextMinus);
 	}
 
 	if(MOD && e.keyCode == ZERO){
 		e.preventDefault();
-			this.book.setStyle("fontSize", "100%");
+			applyReaderBookFontSize(this, "100%");
 			this.settings.styles.fontSize = "100%";
 			_applyUiScale("100%");
 	}
@@ -7364,7 +7555,6 @@ EPUBJS.reader.BookmarksController = function() {
 	}
 	var createBookmarkItem = function(bm) {
 		var listitem = document.createElement("li"),
-				link = document.createElement("a"),
 				btn = document.createElement("button"),
 				wrap = document.createElement("div");
 
@@ -7372,50 +7562,52 @@ EPUBJS.reader.BookmarksController = function() {
 		listitem.setAttribute("data-cfi", bm.cfi);
 		listitem.id = "bookmark-" + (counter++);
 
-		function getProgressLabelFromCfi(cfi) {
+		function getBookmarkPageNumber(cfi) {
 			try {
-				if (!reader || !reader.book || !reader.book.locations) return null;
-				var pctF = (typeof reader.book.locations.percentageFromCfi === "function")
-					? reader.book.locations.percentageFromCfi(cfi)
-					: null;
-				if (typeof pctF !== 'number' || isNaN(pctF)) return null;
-				var pct = Math.round(Math.max(0, Math.min(1, pctF)) * 100);
-				// Append current TOC title for this CFI (same format as footer)
-				var tocTitle = "";
-				try {
-					var item = reader.book.spine.get(cfi);
-					var href = item && item.href ? _bmNormalizeHref(item.href) : "";
-					if (href && reader._tocMap && reader._tocMap[href]) tocTitle = reader._tocMap[href];
-				} catch (e2) {}
-				return tocTitle ? (String(pct) + "% - " + tocTitle) : (String(pct) + "%");
-			} catch (e) {
-				return null;
-			}
+				if (window.__fbGetGlobalPageLabelForCfi) {
+					var pageNo = String(window.__fbGetGlobalPageLabelForCfi(cfi) || "").trim();
+					if (pageNo) return pageNo;
+				}
+			} catch (e0) {}
+			return "";
 		}
 
-		var label = "";
-		if (bm && bm.quote) {
-			label = bm.quote;
-		} else {
-			label = getProgressLabelFromCfi(bm.cfi);
-			if (!label) label = "…";
+		function getBookmarkChapterTitle(cfi) {
+			try {
+				var item = reader.book.spine.get(cfi);
+				var href = item && item.href ? _bmNormalizeHref(item.href) : "";
+				if (href && reader._tocMap && reader._tocMap[href]) return String(reader._tocMap[href] || "").trim();
+			} catch (e1) {}
+			return "";
 		}
 
-		link.textContent = label;
-		link.href = bm.cfi;
-		link.classList.add('bookmark_link');
-		link.setAttribute('data-cfi', bm.cfi);
+		var pageLabel = getBookmarkPageNumber(bm.cfi) || "…";
+		var chapterTitle = getBookmarkChapterTitle(bm.cfi);
 
-		link.addEventListener("click", function(event){
-			var cfi = this.getAttribute('href');
-			rendition.display(cfi);
-			// Close overlays after choosing a bookmark
-			try { if (window.__fbCloseOverlays) window.__fbCloseOverlays(); } catch(e) {}
-			event.preventDefault();
-		}, false);
+		var pageMeta = document.createElement("div");
+		pageMeta.className = "bookmark-page-label";
+		pageMeta.textContent = pageLabel;
+		wrap.appendChild(pageMeta);
+		if (chapterTitle) {
+			var chapterMeta = document.createElement("div");
+			chapterMeta.className = "bookmark-comment";
+			chapterMeta.textContent = chapterTitle;
+			wrap.appendChild(chapterMeta);
+		}
 
 		wrap.className = "bookmark-text";
-		wrap.appendChild(link);
+		wrap.classList.add('bookmark_link');
+		wrap.setAttribute('data-cfi', bm.cfi);
+		wrap.addEventListener("click", function(event){
+			var cfi = this.getAttribute('data-cfi');
+			if (!cfi) return;
+			rendition.display(cfi);
+			try {
+				if (window.__fbCloseAndHideAfterNavigation) window.__fbCloseAndHideAfterNavigation();
+				else if (window.__fbCloseOverlays) window.__fbCloseOverlays();
+			} catch(e) {}
+			event.preventDefault();
+		}, false);
 		if (bm && bm.comment) {
 			var comment = document.createElement("div");
 			comment.className = "bookmark-comment";
@@ -7494,7 +7686,6 @@ EPUBJS.reader.ControlsController = function(book) {
 			$fullscreen = $("#fullscreen"),
 			$fullscreenicon = $("#fullscreenicon"),
 			$cancelfullscreenicon = $("#cancelfullscreenicon"),
-			$slider = $("#slider"),
 			$main = $("#main"),
 			$sidebar = $("#sidebar"),
 			$settings = $("#setting"),
@@ -7882,8 +8073,8 @@ EPUBJS.reader.MetaController = function(meta) {
 		} catch (e) {}
 
 		try {
-			if (window.__fbUpdateMenuBookMeta) {
-				window.__fbUpdateMenuBookMeta({
+			if (window.__fbUpdateReader1SettingsBookMeta) {
+				window.__fbUpdateReader1SettingsBookMeta({
 					title: title || "",
 					author: author || ""
 				});
@@ -7896,8 +8087,8 @@ EPUBJS.reader.MetaController = function(meta) {
 			if (activeBook && typeof activeBook.coverUrl === "function") {
 				activeBook.coverUrl().then(function (coverUrl) {
 					try {
-						if (window.__fbUpdateMenuBookMeta && coverUrl) {
-							window.__fbUpdateMenuBookMeta({
+						if (window.__fbUpdateReader1SettingsBookMeta && coverUrl) {
+							window.__fbUpdateReader1SettingsBookMeta({
 								title: title || "",
 								author: author || "",
 								cover: coverUrl
@@ -8159,7 +8350,12 @@ EPUBJS.reader.NotesController = function() {
 		}
 
 		var openSidebar = function(){
-			reader.ReaderController.slideOut();
+			try {
+				if (window.__fbOpenLibraryOverlayTab) {
+					window.__fbOpenLibraryOverlayTab("notes");
+					return;
+				}
+			} catch (eOpenOverlay) {}
 			show();
 		};
 
@@ -8214,15 +8410,7 @@ EPUBJS.reader.ReaderController = function(book) {
 	var book = this.book;
 	var rendition = this.rendition;
 	var slideIn = function() {
-		var currentPosition = rendition.currentLocation().start.cfi;
-		if (reader.settings.sidebarReflow){
-			$main.removeClass('single');
-			$main.one("transitionend", function(){
-				rendition.resize();
-			});
-		} else {
-			$main.removeClass("closed");
-		}
+		$main.removeClass("closed");
 	};
 
 	var slideOut = function() {
@@ -8230,15 +8418,7 @@ EPUBJS.reader.ReaderController = function(book) {
 		if (!location) {
 			return;
 		}
-		var currentPosition = location.start.cfi;
-		if (reader.settings.sidebarReflow){
-			$main.addClass('single');
-			$main.one("transitionend", function(){
-				rendition.resize();
-			});
-		} else {
-			$main.addClass("closed");
-		}
+		$main.addClass("closed");
 	};
 
 	var showLoader = function() {
@@ -8297,6 +8477,12 @@ EPUBJS.reader.ReaderController = function(book) {
 	}
 
 	function runQuickSwipeByUi(isNext) {
+		try {
+			if (typeof window.__fbQuickSwipeTurn === "function") {
+				window.__fbQuickSwipeTurn(!!isNext);
+				return;
+			}
+		} catch (eGlobalQuickTurn) {}
 		var activeDoc = getActiveSwipeDoc();
 		if (activeDoc && typeof activeDoc.__fbQuickSwipeTurn === "function") {
 			try {
@@ -8416,12 +8602,6 @@ EPUBJS.reader.SettingsController = function() {
 		$settings.removeClass("md-show");
 	};
 
-	var $sidebarReflowSetting = $('#sidebarReflow');
-
-	$sidebarReflowSetting.on('click', function() {
-		reader.settings.sidebarReflow = !reader.settings.sidebarReflow;
-	});
-
 	$settings.find(".closer").on("click", function() {
 		hide();
 	});
@@ -8433,61 +8613,6 @@ EPUBJS.reader.SettingsController = function() {
 	return {
 		"show" : show,
 		"hide" : hide
-	};
-};
-EPUBJS.reader.SidebarController = function(book) {
-	var reader = this;
-	// Sidebar removed in this UI
-	if (!document.getElementById('sidebar')) {
-		return { show: function(){}, hide: function(){}, getActivePanel: function(){ return null; }, changePanelTo: function(){} };
-	}
-
-	var $sidebar = $("#sidebar"),
-			$panels = $("#panels"),
-			$slider = $("#slider");
-
-	var activePanel = "Toc";
-
-	var changePanelTo = function(viewName) {
-		var controllerName = viewName + "Controller";
-		
-		if(activePanel == viewName || typeof reader[controllerName] === 'undefined' ) return;
-		reader[activePanel+ "Controller"].hide();
-		reader[controllerName].show();
-		activePanel = viewName;
-
-		$panels.find('.active').removeClass("active");
-		$panels.find("#show-" + viewName ).addClass("active");
-	};
-	
-	var getActivePanel = function() {
-		return activePanel;
-	};
-	
-	var show = function() {
-		reader.sidebarOpen = true;
-		reader.ReaderController.slideOut();
-		$sidebar.addClass("open");
-	};
-
-	var hide = function() {
-		reader.sidebarOpen = false;
-		reader.ReaderController.slideIn();
-		$sidebar.removeClass("open");
-	};
-
-	$panels.find(".show_view").on("click", function(event) {
-		var view = $(this).data("view");
-
-		changePanelTo(view);
-		event.preventDefault();
-	});
-
-	return {
-		'show' : show,
-		'hide' : hide,
-		'getActivePanel' : getActivePanel,
-		'changePanelTo' : changePanelTo
 	};
 };
 EPUBJS.reader.TocController = function(toc) {
@@ -8681,7 +8806,10 @@ EPUBJS.reader.TocController = function(toc) {
 			$(this).parent('li').addClass("currentChapter");
 
 			// Close overlays after choosing a chapter
-			try { if (window.__fbCloseOverlays) window.__fbCloseOverlays(); } catch(e) {}
+			try {
+				if (window.__fbCloseAndHideAfterNavigation) window.__fbCloseAndHideAfterNavigation();
+				else if (window.__fbCloseOverlays) window.__fbCloseOverlays();
+			} catch(e) {}
 
 	});
 
@@ -8741,26 +8869,12 @@ return {
 		return "";
 	}
 
-	function resolveReaderPubBooksHref() {
+	function setReader1SettingsBookMeta(data) {
 		try {
-			return new URL("/books/", window.location.origin).toString();
-		} catch (e) {}
-		return "/books/";
-	}
-
-	function syncCatalogMenuHref() {
-		try {
-			var catalogLink = document.getElementById("menuCatalogLink");
-			if (catalogLink) catalogLink.setAttribute("href", resolveReaderPubBooksHref());
-		} catch (e) {}
-	}
-
-	function setMenuBookMeta(data) {
-		try {
-			var titleEl = document.getElementById("menuBookTitle");
-			var authorEl = document.getElementById("menuBookAuthor");
-			var coverEl = document.getElementById("menuBookCover");
-			var placeholderEl = document.getElementById("menuBookCoverPlaceholder");
+			var titleEl = document.getElementById("reader1SettingsBookTitle");
+			var authorEl = document.getElementById("reader1SettingsBookAuthor");
+			var coverEl = document.getElementById("reader1SettingsBookCover");
+			var placeholderEl = document.getElementById("reader1SettingsBookCoverPlaceholder");
 			var title = String((data && data.title) || "").trim();
 			var author = String((data && data.author) || "").trim();
 			var cover = String((data && data.cover) || "").trim();
@@ -8781,11 +8895,11 @@ return {
 		} catch (e) {}
 	}
 
-	function syncMenuBookMetaFromDom() {
+	function syncReader1SettingsBookMetaFromDom() {
 		try {
 			var titleEl = document.getElementById("book-title");
 			var authorEl = document.getElementById("chapter-title");
-			setMenuBookMeta({
+			setReader1SettingsBookMeta({
 				title: titleEl ? titleEl.textContent : "",
 				author: authorEl ? authorEl.textContent : "",
 				cover: getBookCoverHint()
@@ -9056,9 +9170,9 @@ return {
 		ensureCurrentBook: ensureCurrentBook
 	};
 
-	window.__fbUpdateMenuBookMeta = function (payload) {
+	window.__fbUpdateReader1SettingsBookMeta = function (payload) {
 		var next = payload && typeof payload === "object" ? payload : {};
-		setMenuBookMeta({
+		setReader1SettingsBookMeta({
 			title: next.title || "",
 			author: next.author || "",
 			cover: next.cover || getBookCoverHint()
@@ -9067,21 +9181,19 @@ return {
 
 	if (document.readyState === "loading") {
 		document.addEventListener("DOMContentLoaded", function () {
-			syncCatalogMenuHref();
 			purgeDemoBookFromLocalMyBooks();
 			render();
 			hydrateFromDriveSilent();
 			ensureCurrentBook();
-			syncMenuBookMetaFromDom();
+			syncReader1SettingsBookMetaFromDom();
 			setTimeout(syncFromDom, 600);
 		});
 	} else {
-		syncCatalogMenuHref();
 		purgeDemoBookFromLocalMyBooks();
 		render();
 		hydrateFromDriveSilent();
 		ensureCurrentBook();
-		syncMenuBookMetaFromDom();
+		syncReader1SettingsBookMetaFromDom();
 		setTimeout(syncFromDom, 600);
 	}
 })();

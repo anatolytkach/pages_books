@@ -1055,15 +1055,6 @@ function installStyles() {
       z-index: 2;
       gap: 14px;
     }
-    html:not(.is-phone):not(.is-tablet) body.protected-shell #opener {
-      display: none !important;
-    }
-    html:not(.is-phone):not(.is-tablet) body.protected-shell #slider,
-    html:not(.is-phone):not(.is-tablet) body.protected-shell #openNotes,
-    html:not(.is-phone):not(.is-tablet) body.protected-shell #openBookmarks,
-    html:not(.is-phone):not(.is-tablet) body.protected-shell #overlay-menu {
-      display: none !important;
-    }
     html:not(.is-phone):not(.is-tablet) body.protected-shell #metainfo {
       position: absolute;
       left: 50%;
@@ -1192,17 +1183,6 @@ function installStyles() {
     body.protected-shell #mobileMoreBackdrop {
       display: none !important;
     }
-    html.is-phone body.protected-shell #opener,
-    html.is-tablet body.protected-shell #opener {
-      min-width: 24px;
-      margin-right: 4px;
-    }
-    html.is-phone body.protected-shell #opener #openNotes,
-    html.is-phone body.protected-shell #opener #openBookmarks,
-    html.is-tablet body.protected-shell #opener #openNotes,
-    html.is-tablet body.protected-shell #opener #openBookmarks {
-      display: none !important;
-    }
     html.is-phone body.protected-shell .protected-top-left-links,
     html.is-tablet body.protected-shell .protected-top-left-links {
       display: none !important;
@@ -1283,15 +1263,6 @@ function installStyles() {
         padding-bottom: 3px !important;
         position: relative;
         align-items: center;
-      }
-      body.protected-shell #opener {
-        display: none !important;
-      }
-      body.protected-shell #slider,
-      body.protected-shell #openNotes,
-      body.protected-shell #openBookmarks,
-      body.protected-shell #overlay-menu {
-        display: none !important;
       }
       body.protected-shell #metainfo {
         position: absolute;
@@ -1403,20 +1374,6 @@ function installStyles() {
         height: 43px !important;
         padding-top: 3px !important;
         padding-bottom: 3px !important;
-      }
-      html.is-phone body.protected-shell #opener,
-      html.is-tablet body.protected-shell #opener {
-        display: none !important;
-      }
-      html.is-phone body.protected-shell #slider,
-      html.is-phone body.protected-shell #openNotes,
-      html.is-phone body.protected-shell #openBookmarks,
-      html.is-phone body.protected-shell #overlay-menu,
-      html.is-tablet body.protected-shell #slider,
-      html.is-tablet body.protected-shell #openNotes,
-      html.is-tablet body.protected-shell #openBookmarks,
-      html.is-tablet body.protected-shell #overlay-menu {
-        display: none !important;
       }
       html.is-phone body.protected-shell #metainfo,
       html.is-tablet body.protected-shell #metainfo {
@@ -1606,18 +1563,6 @@ function installStyles() {
       right: calc(14px + env(safe-area-inset-right, 0px));
     }
     @media (orientation: portrait) {
-      html.is-phone body.protected-shell #opener,
-      html.is-tablet body.protected-shell #opener,
-      html.is-phone body.protected-shell #slider,
-      html.is-phone body.protected-shell #openNotes,
-      html.is-phone body.protected-shell #openBookmarks,
-      html.is-phone body.protected-shell #overlay-menu,
-      html.is-tablet body.protected-shell #slider,
-      html.is-tablet body.protected-shell #openNotes,
-      html.is-tablet body.protected-shell #openBookmarks,
-      html.is-tablet body.protected-shell #overlay-menu {
-        display: none !important;
-      }
       html.is-phone body.protected-shell #bottombar #page-count,
       html.is-tablet body.protected-shell #bottombar #page-count {
         position: absolute;
@@ -2477,7 +2422,7 @@ function installStyles() {
       padding: 0 0 18px;
       border-bottom: 1px solid rgba(255,255,255,0.14);
     }
-    body.protected-shell #protectedSettingsBookCardMount #menuBookCard {
+    body.protected-shell #protectedSettingsBookCardMount #protectedSettingsBookCard {
       display: flex;
       gap: 14px;
       align-items: center;
@@ -2489,10 +2434,10 @@ function installStyles() {
       box-shadow: none;
       overflow: hidden;
     }
-    body.protected-shell #protectedSettingsBookCardMount #menuBookCard > * {
+    body.protected-shell #protectedSettingsBookCardMount #protectedSettingsBookCard > * {
       min-width: 0;
     }
-    body.protected-shell #protectedSettingsBookCardMount .menu-book-cover-wrap {
+    body.protected-shell #protectedSettingsBookCardMount .protected-book-cover-wrap {
       width: 104px;
       height: 148px;
       display: flex;
@@ -2503,41 +2448,41 @@ function installStyles() {
       max-width: 104px;
       overflow: hidden;
     }
-    body.protected-shell #protectedSettingsBookCardMount #menuBookCover,
-    body.protected-shell #protectedSettingsBookCardMount .menu-book-cover,
-    body.protected-shell #protectedSettingsBookCardMount .menu-book-cover-placeholder {
+    body.protected-shell #protectedSettingsBookCardMount #protectedSettingsBookCover,
+    body.protected-shell #protectedSettingsBookCardMount .protected-book-cover,
+    body.protected-shell #protectedSettingsBookCardMount .protected-book-cover-placeholder {
       width: 100%;
       height: 100%;
     }
-    body.protected-shell #protectedSettingsBookCardMount #menuBookCover,
-    body.protected-shell #protectedSettingsBookCardMount .menu-book-cover {
+    body.protected-shell #protectedSettingsBookCardMount #protectedSettingsBookCover,
+    body.protected-shell #protectedSettingsBookCardMount .protected-book-cover {
       display: block;
       object-fit: contain;
       object-position: left center;
     }
-    body.protected-shell #protectedSettingsBookCardMount .menu-book-cover-placeholder {
+    body.protected-shell #protectedSettingsBookCardMount .protected-book-cover-placeholder {
       background: transparent;
       border: 0;
     }
-    body.protected-shell #protectedSettingsBookCardMount .menu-book-meta {
+    body.protected-shell #protectedSettingsBookCardMount .protected-book-meta {
       min-width: 0;
       flex: 1 1 auto;
       display: flex;
       flex-direction: column;
       justify-content: center;
     }
-    body.protected-shell #protectedSettingsBookCardMount #menuBookTitle,
-    body.protected-shell #protectedSettingsBookCardMount #menuBookAuthor {
+    body.protected-shell #protectedSettingsBookCardMount #protectedSettingsBookTitle,
+    body.protected-shell #protectedSettingsBookCardMount #protectedSettingsBookAuthor {
       width: auto;
       text-align: left;
       line-height: 1.35;
     }
-    body.protected-shell #protectedSettingsBookCardMount #menuBookTitle {
+    body.protected-shell #protectedSettingsBookCardMount #protectedSettingsBookTitle {
       font-size: 18px;
       font-weight: 600;
       margin: 0;
     }
-    body.protected-shell #protectedSettingsBookCardMount #menuBookAuthor {
+    body.protected-shell #protectedSettingsBookCardMount #protectedSettingsBookAuthor {
       font-size: 14px;
       opacity: 0.9;
       margin: 8px 0 0;
@@ -2927,9 +2872,6 @@ function installStyles() {
     #protectedSettingsVoiceMount .voice-picker-status {
       display: none !important;
     }
-    #overlay-menu [data-menu="voice"] {
-      display: none !important;
-    }
     body.protected-shell .protected-control-disabled,
     body.protected-shell .protected-control-disabled:hover {
       opacity: 0.42;
@@ -2965,63 +2907,10 @@ function installStyles() {
     body.protected-shell.protected-theme-dark #protectedTypographyTrigger[aria-expanded="true"] {
       color: #ffffff;
     }
-    body.protected-shell #menuBookCoverPlaceholder {
+    body.protected-shell #protectedSettingsBookCoverPlaceholder {
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-    }
-    body.protected-shell #overlay-toc #tocView ul,
-    body.protected-shell #overlay-bookmarks #bookmarksView ul {
-      padding-left: 20px;
-    }
-    body.protected-shell #overlay-toc #tocView li,
-    body.protected-shell #overlay-bookmarks #bookmarksView li {
-      width: auto;
-      background: transparent;
-      border: 0;
-      box-shadow: none;
-    }
-    body.protected-shell #overlay-toc #tocView a,
-    body.protected-shell #overlay-toc #tocView .toc_link,
-    body.protected-shell #overlay-bookmarks #bookmarksView a {
-      display: inline;
-      background: transparent;
-      border: 0;
-      box-shadow: none;
-      color: inherit;
-    }
-    body.protected-shell #overlay-toc #tocView button {
-      appearance: none;
-      -webkit-appearance: none;
-      background: transparent;
-      border: 0;
-      padding: 0;
-      margin: 0;
-      color: inherit;
-      font: inherit;
-      text-align: left;
-      box-shadow: none;
-    }
-    body.protected-shell #overlay-toc #tocView .toc_toggle:before {
-      color: currentColor;
-      opacity: 0.7;
-    }
-    body.protected-shell #overlay-toc #tocView li.currentChapter > a.toc_link,
-    body.protected-shell #overlay-toc #tocView li.currentChapter > .toc_link {
-      background: transparent !important;
-      text-decoration: underline;
-    }
-    body.protected-shell.protected-theme-dark #overlay-toc #tocView a,
-    body.protected-shell.protected-theme-dark #overlay-toc #tocView .toc_link,
-    body.protected-shell.protected-theme-dark #overlay-bookmarks #bookmarksView a,
-    body.protected-shell.protected-theme-dark #overlay-bookmarks #bookmarksView .bookmark-comment {
-      color: #d7dee8;
-      background: transparent !important;
-    }
-    body.protected-shell.protected-theme-dark #overlay-toc #tocView li.currentChapter > a.toc_link,
-    body.protected-shell.protected-theme-dark #overlay-toc #tocView li.currentChapter > .toc_link {
-      color: #eef4fb;
-      background: transparent !important;
     }
     #protectedShellActionBar input {
       min-width: 180px;
@@ -3194,7 +3083,7 @@ function installStyles() {
   document.head.append(style);
 }
 
-function openNotesOverlay() {
+function openProtectedNotesPanel() {
   openLibraryOverlay("notes");
 }
 
@@ -3543,26 +3432,6 @@ function persistShellFontScale(fontScale) {
   return normalizedScale;
 }
 
-function openOverlayById(id) {
-  setReaderNewUiSmokeState({ overlay: String(id || "") });
-  if (id === "overlay-toc") {
-    openLibraryOverlay("toc");
-    return;
-  }
-  if (id === "overlay-notes") {
-    openLibraryOverlay("notes");
-    return;
-  }
-  if (id === "overlay-bookmarks") {
-    openLibraryOverlay("bookmarks");
-    return;
-  }
-  const panel = document.getElementById(id);
-  if (!panel) return;
-  panel.classList.remove("hidden");
-  panel.setAttribute("aria-hidden", "false");
-}
-
 function closeOverlayById(id) {
   const panel = document.getElementById(id);
   if (!panel) return;
@@ -3579,15 +3448,10 @@ function closeAllShellOverlays() {
   closeLibraryOverlay();
   closeTypographyPanel();
   [
-    "overlay-toc",
-    "overlay-bookmarks",
-    "overlay-notes",
-    "overlay-menu",
     "overlay-search",
     "overlay-settings",
     "overlay-library",
-    "overlay-mybooks",
-    "overlay-voice"
+    "commentSheet"
   ].forEach((id) => closeOverlayById(id));
   const backdrop = document.getElementById("overlay-backdrop");
   if (backdrop) {
@@ -3844,10 +3708,10 @@ function setMenuBookMeta(summary) {
       cover = rawCover;
     }
   }
-  const titleNode = document.getElementById("menuBookTitle");
-  const authorNode = document.getElementById("menuBookAuthor");
-  const coverNode = document.getElementById("menuBookCover");
-  const placeholderNode = document.getElementById("menuBookCoverPlaceholder");
+  const titleNode = document.getElementById("protectedSettingsBookTitle");
+  const authorNode = document.getElementById("protectedSettingsBookAuthor");
+  const coverNode = document.getElementById("protectedSettingsBookCover");
+  const placeholderNode = document.getElementById("protectedSettingsBookCoverPlaceholder");
   const coverWrapNode = coverNode && coverNode.parentElement ? coverNode.parentElement : null;
   if (titleNode) titleNode.textContent = title;
   if (authorNode) authorNode.textContent = author;
@@ -4206,8 +4070,7 @@ function resolveBookmarkEntryFromNode(node) {
   if (!item) return null;
   const withinBookmarkList = !!(
     item.closest("#protectedLibraryBookmarksList") ||
-    item.closest("#overlay-library #bookmarksView") ||
-    item.closest("#overlay-bookmarks #bookmarksView")
+    item.closest("#overlay-library #bookmarksView")
   );
   if (!withinBookmarkList) return null;
   let restoreToken = String(item.dataset.restoreToken || "").trim();
@@ -4558,6 +4421,314 @@ function updateBookmarkControl(summary) {
   bookmark.setAttribute("aria-pressed", active ? "true" : "false");
   bookmark.setAttribute("title", active ? "Remove bookmark" : "Add bookmark");
 }
+
+function normalizeMyBooksCoverUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    return new URL(raw, window.location.origin).href;
+  } catch (_error) {
+    return raw;
+  }
+}
+
+function isProtectedMyBooksPlaceholderItem(item) {
+  const title = String(item && item.title || "").trim();
+  const author = String(item && item.author || "").trim();
+  if (!title && !author) return true;
+  if (title === "Protected Reader") return true;
+  return !title && author === "Protected mode";
+}
+
+function getProtectedReaderOpenUrlForMyBooks(summary) {
+  const route = HOST_STATE.route && typeof HOST_STATE.route === "object" ? HOST_STATE.route : {};
+  const query = route.query && typeof route.query === "object" ? route.query : {};
+  const bookId = String(
+    summary && summary.bookId ||
+    route.bookId ||
+    query.id ||
+    query.protectedArtifactBookId ||
+    ""
+  ).trim();
+  if (!bookId) return "";
+  const source = String(route.source || query.source || "").trim();
+  const params = new URLSearchParams();
+  params.set("id", bookId);
+  if (source && source !== "gutenberg") params.set("source", source);
+  params.set("entry", "mybooks");
+  params.set("reader", "protected");
+  params.set("protectedArtifactBookId", String(route.artifactBookId || query.protectedArtifactBookId || bookId));
+  params.set("protectedArtifactSource", String(route.artifactSource || query.protectedArtifactSource || "r2") || "r2");
+  params.set("readerRemoteMode", String(route.remoteMode || query.readerRemoteMode || "strict") || "strict");
+  params.set("protectedUx", String(query.protectedUx || "protected-shell") || "protected-shell");
+  params.set("renderMode", String(route.renderMode || query.renderMode || "shape") || "shape");
+  params.set("metricsMode", String(route.metricsMode || query.metricsMode || "shape") || "shape");
+  return `/books/protected/?${params.toString()}`;
+}
+
+function getMyBooksDriveSync() {
+  try {
+    return window.ReaderPubDriveSync || null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getMyBooksDriveSyncSignature(item) {
+  return [
+    String(item && item.id || ""),
+    String(item && item.source || ""),
+    String(item && item.title || ""),
+    String(item && item.author || ""),
+    String(item && item.cover || ""),
+    String(item && item.openUrl || ""),
+    String(item && item.protectedArtifactBookId || ""),
+    String(item && item.protectedArtifactSource || ""),
+    String(item && item.readerRemoteMode || ""),
+    String(item && item.protectedUx || ""),
+    String(item && item.renderMode || ""),
+    String(item && item.metricsMode || "")
+  ].join("\u001f");
+}
+
+function scheduleProtectedMyBooksDriveSync(item) {
+  const sync = getMyBooksDriveSync();
+  if (!sync || typeof sync.scheduleCurrentReaderStateSync !== "function") return;
+  const signature = getMyBooksDriveSyncSignature(item);
+  if (signature && HOST_STATE.lastMyBooksDriveSyncSignature === signature) return;
+  HOST_STATE.lastMyBooksDriveSyncSignature = signature;
+  try {
+    sync.scheduleCurrentReaderStateSync(null, item || null, 300);
+  } catch (_error) {}
+}
+
+function deleteProtectedMyBooksDriveEntry(item) {
+  const sync = getMyBooksDriveSync();
+  if (!sync || !item || !item.id) return;
+  try {
+    if (typeof sync.deleteBookEntry === "function") {
+      sync.deleteBookEntry(item, { interactive: false }).then((snapshot) => {
+        try {
+          if (typeof sync.applySnapshotToLocalReader === "function") sync.applySnapshotToLocalReader(snapshot);
+          renderProtectedMyBooksForCurrentMount();
+        } catch (_error) {}
+      }).catch(() => {});
+      return;
+    }
+    if (!item.protected && typeof sync.deleteBooksCascade === "function") {
+      sync.deleteBooksCascade([String(item.id)], { interactive: false }).then((snapshot) => {
+        try {
+          if (typeof sync.applySnapshotToLocalReader === "function") sync.applySnapshotToLocalReader(snapshot);
+          renderProtectedMyBooksForCurrentMount();
+        } catch (_error) {}
+      }).catch(() => {});
+    }
+  } catch (_error) {}
+}
+
+function registerProtectedOpenInLocalMyBooks(summary) {
+  if (!summary || !summary.ready) return;
+  const route = HOST_STATE.route && typeof HOST_STATE.route === "object" ? HOST_STATE.route : {};
+  const query = route.query && typeof route.query === "object" ? route.query : {};
+  const bookId = String(
+    summary.bookId ||
+    route.bookId ||
+    query.id ||
+    route.artifactBookId ||
+    query.protectedArtifactBookId ||
+    ""
+  ).trim();
+  if (!/^\d+$/.test(bookId)) return;
+  if (isProtectedMyBooksPlaceholderItem({
+    title: summary.bookTitle,
+    author: summary.bookAuthor
+  })) return;
+  try {
+    const storage = window.localStorage || null;
+    if (!storage) return;
+    const key = `readerpub:mybooks:${window.location.host}`;
+    const raw = storage.getItem(key) || "[]";
+    const parsed = JSON.parse(raw);
+    const items = Array.isArray(parsed) ? parsed : [];
+    const source = String(route.source || query.source || "").trim();
+    const nextItem = {
+      id: bookId,
+      source,
+      title: String(summary.bookTitle || "").trim() || bookId,
+      author: String(summary.bookAuthor || "").trim(),
+      cover: normalizeMyBooksCoverUrl(summary.coverUrl),
+      openUrl: getProtectedReaderOpenUrlForMyBooks(summary),
+      protected: true,
+      reader: "protected",
+      protectedArtifactBookId: String(route.artifactBookId || query.protectedArtifactBookId || bookId),
+      openedAt: Date.now()
+    };
+    const filtered = items.filter((item) => {
+      if (!item || typeof item !== "object") return false;
+      const itemId = String(item.id || "").trim();
+      const itemSource = String(item.source || "").trim();
+      return !(itemId === nextItem.id && itemSource === nextItem.source);
+    });
+    filtered.unshift(nextItem);
+    storage.setItem(key, JSON.stringify(filtered.slice(0, 200)));
+    renderProtectedMyBooksForCurrentMount();
+    scheduleProtectedMyBooksDriveSync(nextItem);
+  } catch (_error) {}
+}
+
+function mountProtectedMyBooksView(target = "library") {
+  const myBooksView = document.getElementById("mybooksView");
+  if (!myBooksView) return;
+  const libraryMount = document.getElementById("protectedLibraryMyBooksMount");
+  if (libraryMount && myBooksView.parentElement !== libraryMount) {
+    libraryMount.appendChild(myBooksView);
+  }
+}
+
+function renderProtectedMyBooksForCurrentMount() {
+  mountProtectedMyBooksView("library");
+  renderProtectedMyBooks();
+}
+
+function loadProtectedMyBooksLocalItems() {
+  try {
+    const storage = window.localStorage || null;
+    if (!storage) return [];
+    const key = `readerpub:mybooks:${window.location.host}`;
+    const raw = storage.getItem(key) || "[]";
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const items = parsed.filter((item) => item && item.id && !isProtectedMyBooksPlaceholderItem(item));
+    if (items.length !== parsed.length) storage.setItem(key, JSON.stringify(items));
+    return items;
+  } catch (_error) {
+    return [];
+  }
+}
+
+function getMyBooksItemHref(item) {
+  const id = String(item && item.id || "").trim();
+  if (!id) return "#";
+  const openUrl = String(item && item.openUrl || "").trim();
+  if (openUrl) return openUrl;
+  if (item && (item.protected || String(item.reader || "").toLowerCase() === "protected")) {
+    const params = new URLSearchParams();
+    params.set("id", id);
+    const source = String(item.source || "").trim();
+    if (source && source !== "gutenberg") params.set("source", source);
+    params.set("entry", "mybooks");
+    params.set("reader", "protected");
+    params.set("protectedArtifactBookId", String(item.protectedArtifactBookId || id));
+    params.set("protectedArtifactSource", "r2");
+    params.set("readerRemoteMode", "strict");
+    params.set("protectedUx", "protected-shell");
+    params.set("renderMode", "shape");
+    params.set("metricsMode", "shape");
+    return `/books/protected/?${params.toString()}`;
+  }
+  const params = new URLSearchParams();
+  params.set("id", id);
+  const source = String(item && item.source || "").trim();
+  if (source && source !== "gutenberg") params.set("source", source);
+  params.set("entry", "mybooks");
+  return `/books/reader/?${params.toString()}`;
+}
+
+function removeProtectedMyBooksItem(id, source) {
+  const targetId = String(id || "").trim();
+  const targetSource = String(source || "").trim();
+  if (!targetId) return;
+  try {
+    const storage = window.localStorage || null;
+    if (!storage) return;
+    const key = `readerpub:mybooks:${window.location.host}`;
+    const items = loadProtectedMyBooksLocalItems();
+    let removedItem = null;
+    const next = items.filter((item) => {
+      const itemId = String(item && item.id || "").trim();
+      const itemSource = String(item && item.source || "").trim();
+      const shouldRemove = itemId === targetId && itemSource === targetSource;
+      if (shouldRemove && !removedItem) removedItem = item;
+      return !shouldRemove;
+    });
+    storage.setItem(key, JSON.stringify(next));
+    renderProtectedMyBooksForCurrentMount();
+    if (removedItem) deleteProtectedMyBooksDriveEntry(removedItem);
+  } catch (_error) {}
+}
+
+function renderProtectedMyBooks() {
+  const ul = document.getElementById("mybooks");
+  if (!ul) return;
+  const items = loadProtectedMyBooksLocalItems();
+  ul.replaceChildren();
+  if (!items.length) {
+    const li = document.createElement("li");
+    li.className = "list_item";
+    const body = document.createElement("div");
+    body.className = "bookmark-text";
+    const empty = document.createElement("div");
+    empty.className = "bookmark-comment";
+    empty.textContent = "My Library is empty.";
+    body.appendChild(empty);
+    li.appendChild(body);
+    ul.appendChild(li);
+    return;
+  }
+  items.forEach((item) => {
+    const id = String(item.id || "").trim();
+    if (!id) return;
+    const source = String(item.source || "").trim();
+    const li = document.createElement("li");
+    li.className = "list_item";
+    li.setAttribute("data-book-id", id);
+    const wrap = document.createElement("div");
+    wrap.className = "bookmark-text";
+    const link = document.createElement("a");
+    link.className = "bookmark_link";
+    link.href = getMyBooksItemHref(item);
+    link.textContent = String(item.title || "").trim() || `Book ${id}`;
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      window.location.href = link.href;
+    });
+    wrap.appendChild(link);
+    const author = String(item.author || "").trim();
+    if (author) {
+      const meta = document.createElement("div");
+      meta.className = "bookmark-comment";
+      meta.textContent = author;
+      wrap.appendChild(meta);
+    }
+    li.appendChild(wrap);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "bookmark-delete";
+    button.setAttribute("aria-label", "Delete book");
+    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><rect x="6" y="7" width="12" height="13" rx="2" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>';
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      removeProtectedMyBooksItem(id, source);
+    });
+    li.appendChild(button);
+    ul.appendChild(li);
+  });
+}
+
+window.__fbMyBooks = {
+  render: renderProtectedMyBooksForCurrentMount,
+  ensureCurrentBook: function () {
+    registerProtectedOpenInLocalMyBooks(HOST_STATE.lastSummary);
+  },
+  syncFromDom: function () {
+    registerProtectedOpenInLocalMyBooks(HOST_STATE.lastSummary);
+  },
+  addFromMeta: function () {
+    registerProtectedOpenInLocalMyBooks(HOST_STATE.lastSummary);
+  },
+  remove: removeProtectedMyBooksItem
+};
 
 function readCurrentFontScale(summary = HOST_STATE.lastSummary) {
   const raw = summary ? Number(summary.fontScale || 1) : Number(HOST_STATE.readerConfig.fontScale || 1);
@@ -4920,6 +5091,10 @@ function syncProtectedShellIcons() {
 
 function switchLibraryTab(nextTab = "toc") {
   const activeTab = String(nextTab || "toc").trim().toLowerCase();
+  if (activeTab === "mybooks") {
+    mountProtectedMyBooksView("library");
+    renderProtectedMyBooks();
+  }
   const tabs = ["toc", "notes", "bookmarks", "mybooks"];
   tabs.forEach((tab) => {
     const button = document.getElementById(`protectedLibraryTab-${tab}`);
@@ -5166,7 +5341,7 @@ function ensureLibraryOverlay() {
           <button type="button" class="protected-library-tab is-active" id="protectedLibraryTab-toc" role="tab" aria-selected="true">TOC</button>
           <button type="button" class="protected-library-tab" id="protectedLibraryTab-notes" role="tab" aria-selected="false" tabindex="-1">Notes</button>
           <button type="button" class="protected-library-tab" id="protectedLibraryTab-bookmarks" role="tab" aria-selected="false" tabindex="-1">Bookmarks</button>
-          <button type="button" class="protected-library-tab" id="protectedLibraryTab-mybooks" role="tab" aria-selected="false" tabindex="-1">My Books</button>
+          <button type="button" class="protected-library-tab" id="protectedLibraryTab-mybooks" role="tab" aria-selected="false" tabindex="-1">My Library</button>
         </div>
         <section id="protectedLibraryPane-toc" class="protected-library-pane" role="tabpanel">
           <div id="protectedLibraryTocMount"></div>
@@ -5235,7 +5410,9 @@ function ensureLibraryOverlay() {
   const myBooksView = document.getElementById("mybooksView");
   if (tocMount && tocView && tocView.parentElement !== tocMount) tocMount.appendChild(tocView);
   if (notesMount && notesView && notesView.parentElement !== notesMount) notesMount.appendChild(notesView);
-  if (myBooksMount && myBooksView && myBooksView.parentElement !== myBooksMount) myBooksMount.appendChild(myBooksView);
+  if (myBooksMount && myBooksView && HOST_STATE.libraryActiveTab === "mybooks" && myBooksView.parentElement !== myBooksMount) {
+    myBooksMount.appendChild(myBooksView);
+  }
   updateProtectedNotesShareButtonState(HOST_STATE.lastSummary);
   return overlay;
 }
@@ -5305,9 +5482,9 @@ function ensureSettingsOverlay() {
     });
   }
   const bookCardMount = document.getElementById("protectedSettingsBookCardMount");
-  const menuBookCard = document.getElementById("menuBookCard");
-  if (bookCardMount && menuBookCard && menuBookCard.parentElement !== bookCardMount) {
-    bookCardMount.appendChild(menuBookCard);
+  const protectedSettingsBookCard = document.getElementById("protectedSettingsBookCard");
+  if (bookCardMount && protectedSettingsBookCard && protectedSettingsBookCard.parentElement !== bookCardMount) {
+    bookCardMount.appendChild(protectedSettingsBookCard);
   }
   const voiceMount = document.getElementById("protectedSettingsVoiceMount");
   const voiceView = document.getElementById("voiceView");
@@ -5365,7 +5542,6 @@ function updateTypographyControl(summary = HOST_STATE.lastSummary) {
 
 function syncTopControls() {
   setControlEnabled("bookmark", true);
-  setControlEnabled("openBookmarks", true);
   ensureLibraryControl();
   ensureSearchControl();
   ensureLibraryOverlay();
@@ -6874,7 +7050,7 @@ async function handleAction(action) {
     const withinProtectedOverlay = !!(
       target &&
       target.closest &&
-      target.closest("#overlay-library, #overlay-settings, #overlay-menu, #overlay-toc, #overlay-bookmarks, #overlay-notes .list_item, #overlay-notes .bookmark-delete, #overlay-notes .bookmark_link, #commentSheet")
+      target.closest("#overlay-library, #overlay-settings, #commentSheet")
     );
     const summary = HOST_STATE.lastSummary;
     const primaryButton = event.button == null || event.button === 0;
@@ -7293,6 +7469,7 @@ function updateFromSummary(summary) {
   persistShellFontMode(HOST_STATE.readerConfig.fontMode);
   syncFootnoteFontFamily(HOST_STATE.readerConfig.fontMode);
   if (summary.ready) {
+    registerProtectedOpenInLocalMyBooks(summary);
     HOST_STATE.loadingCount = 0;
     setShellLoading(false);
     const preferredFontScale = getShellPreferredFontScale();
@@ -8164,7 +8341,7 @@ function ensureActionBar() {
     const input = document.getElementById("protectedShellNoteInput");
     return invokeBridge("addNoteToSelection", input ? input.value : "");
   });
-  document.getElementById("protectedShellOpenNotes").addEventListener("click", openNotesOverlay);
+  document.getElementById("protectedShellOpenNotes").addEventListener("click", openProtectedNotesPanel);
   return bar;
 }
 
@@ -8383,7 +8560,7 @@ function overlaysVisible() {
   if (library && library.classList.contains("is-open")) return true;
   const search = document.getElementById("protectedSearchControl");
   if (search && search.classList.contains("is-open")) return true;
-  return ["overlay-menu", "overlay-search", "overlay-settings", "overlay-library", "overlay-toc", "overlay-notes", "overlay-bookmarks", "commentSheet"]
+  return ["overlay-search", "overlay-settings", "overlay-library", "commentSheet"]
     .some((id) => {
       const node = document.getElementById(id);
       return !!(node && !node.classList.contains("hidden"));
@@ -8404,9 +8581,6 @@ function isTouchPortraitShellMode() {
 
 function enforcePortraitLegacySidebarDisabled() {
   if (!isTouchPortraitShellMode()) return;
-  closeOverlayById("overlay-menu");
-  const opener = document.getElementById("opener");
-  if (opener) opener.setAttribute("aria-hidden", "true");
   const backdrop = document.getElementById("overlay-backdrop");
   if (backdrop && !overlaysVisible()) {
     backdrop.classList.add("hidden");
@@ -9007,13 +9181,6 @@ function bindShellControls() {
   }
   if (isTouchShellMode() && legacySearchOpen) {
     try { legacySearchOpen.remove(); } catch (_error) {}
-  }
-  if (catalogLink || bottomCatalogLink) {
-    const legacyCatalogLink = document.querySelector('#menuView a.menu-item[aria-label="Catalog"]');
-    if (legacyCatalogLink && legacyCatalogLink.getAttribute("href")) {
-      if (catalogLink) catalogLink.setAttribute("href", legacyCatalogLink.getAttribute("href"));
-      if (bottomCatalogLink) bottomCatalogLink.setAttribute("href", legacyCatalogLink.getAttribute("href"));
-    }
   }
   tts && bindPrimaryAction(tts, async () => {
     await toggleHostTts();

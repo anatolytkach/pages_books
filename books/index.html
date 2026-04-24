@@ -698,6 +698,20 @@
         white-space: nowrap;
       }
 
+      .catalogHeroTextLine.hasProtectionIcon {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .catalogHeroProtectionIcon {
+        width: 22.5px;
+        height: 22.5px;
+        flex: 0 0 auto;
+        color: var(--accent);
+        display: inline-block;
+      }
+
       .catalogHeroActions {
         display: flex;
         flex-wrap: wrap;
@@ -1579,6 +1593,19 @@
         margin-top: auto;
         font-size: 13px;
         color: var(--muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .bookCardProtectionIcon {
+        width: 22.5px;
+        height: 22.5px;
+        flex: 0 0 auto;
+        color: var(--accent);
+        display: inline-block;
+        vertical-align: -2px;
       }
 
       .bookCardCheck {
@@ -2114,7 +2141,13 @@
               </h1>
               <p class="catalogHeroText">
                 <span class="catalogHeroTextLine">Smooth pages, instant open, no installs.</span>
-                <span class="catalogHeroTextLine">Feels like an app. Works on the web. Fully protected.</span>
+                <span class="catalogHeroTextLine hasProtectionIcon">
+                  <span>Feels like an app. Works on the web. Fully protected.</span>
+                  <svg class="catalogHeroProtectionIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M12 3.2 5.6 5.7v5.6c0 4.1 2.6 7.8 6.4 9.5 3.8-1.7 6.4-5.4 6.4-9.5V5.7L12 3.2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
+                    <path d="m8.8 12.1 2.1 2.1 4.5-4.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </span>
               </p>
               <div class="catalogHeroActions">
                 <details class="heroBookPicker">
@@ -3547,8 +3580,14 @@
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
           const routing = getReaderRoutingConfig();
           const base = isPagesDev
-            ? getRequiredReaderRouteBase(routing.newPagesDevBasePath, "newPagesDevBasePath")
-            : getRequiredReaderRouteBase(routing.newBasePath, "newBasePath");
+            ? getRequiredReaderRouteBase(
+                routing.protectedPagesDevBasePath || routing.newPagesDevBasePath,
+                routing.protectedPagesDevBasePath ? "protectedPagesDevBasePath" : "newPagesDevBasePath"
+              )
+            : getRequiredReaderRouteBase(
+                routing.protectedBasePath || routing.newBasePath,
+                routing.protectedBasePath ? "protectedBasePath" : "newBasePath"
+              );
           const params = new URLSearchParams();
           params.set("id", target.id);
           if (target.source && target.source !== "gutenberg") params.set("source", target.source);
@@ -4484,10 +4523,39 @@
           body.appendChild(el("div", "bookCardTitle", (book && book.title) || ""));
           body.appendChild(el("div", "bookCardAuthor", (opts.authorText || (book && book.author) || "").trim() || "Unknown author"));
           const dateLabel = opts.metaText !== undefined ? opts.metaText : formatBookDateLabel(book);
-          if (dateLabel) body.appendChild(el("div", "bookCardMeta", dateLabel));
+          if (dateLabel) {
+            const meta = el("div", "bookCardMeta", dateLabel);
+            if (opts.protectionIcon) {
+              meta.appendChild(createProtectionIcon());
+            }
+            body.appendChild(meta);
+          }
           card.appendChild(body);
 
           return card;
+        }
+
+        function createProtectionIcon() {
+          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          svg.setAttribute("class", "bookCardProtectionIcon");
+          svg.setAttribute("viewBox", "0 0 24 24");
+          svg.setAttribute("aria-hidden", "true");
+          svg.setAttribute("focusable", "false");
+          const shield = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          shield.setAttribute("d", "M12 3.2 5.6 5.7v5.6c0 4.1 2.6 7.8 6.4 9.5 3.8-1.7 6.4-5.4 6.4-9.5V5.7L12 3.2Z");
+          shield.setAttribute("fill", "none");
+          shield.setAttribute("stroke", "currentColor");
+          shield.setAttribute("stroke-width", "2");
+          shield.setAttribute("stroke-linejoin", "round");
+          const check = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          check.setAttribute("d", "m8.8 12.1 2.1 2.1 4.5-4.7");
+          check.setAttribute("fill", "none");
+          check.setAttribute("stroke", "currentColor");
+          check.setAttribute("stroke-width", "2");
+          check.setAttribute("stroke-linecap", "round");
+          check.setAttribute("stroke-linejoin", "round");
+          svg.append(shield, check);
+          return svg;
         }
 
         function renderBookGrid(books, options) {
@@ -4527,6 +4595,7 @@
               href,
               dataBookOpenUrl: href,
               metaText: "Protected by WeRead",
+              protectionIcon: true,
             });
             card.setAttribute("data-sample-protected-book-id", String(book.id || ""));
             grid.appendChild(card);

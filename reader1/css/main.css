@@ -25,12 +25,14 @@ body {
 */
 :root {
   --viewer-side: clamp(8px, 2.2vw, 28px);
+  --readernew-compat-extra-inset: 0px;
   --arrow-gap: clamp(4px, 1.2vw, 14px);
   --swipe-overlay-max: 0.10;
   --swipe-overlay-alpha: 0;
   /* Must match actual desktop #titlebar height (see #titlebar rule below) */
   --titlebar-h: 32px;
   --bottombar-h: 32px;
+  --reader-book-vertical-gap: calc(var(--titlebar-h) * 1.05);
   --app-vh: 100vh;
   --app-vw: 100vw;
   /* Tap zones for page turns (overlays content on mobile) */
@@ -130,31 +132,39 @@ body.dark-ui .arrow:hover {
 /* Light theme: show arrow on hover (desktop) */
 html.is-desktop #prev,
 html.is-desktop #next {
-  width: calc(var(--arrow-hit) + var(--arrow-gap));
+  top: 50%;
+  bottom: auto;
+  width: 34px;
+  height: 96px;
+  transform: translateY(-50%);
+  opacity: 1;
 }
 
 html.is-desktop #prev {
-  left: 0;
+  left: 8px;
 }
 
 html.is-desktop #next {
-  right: 0;
+  right: 8px;
 }
 
 html.is-desktop body:not(.dark-ui) .arrow {
-  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+  color: rgba(141,141,141,0.92) !important;
+  transition: color 160ms ease, opacity 160ms ease;
+  border-radius: 10px;
+  box-shadow: none !important;
 }
 
 html.is-desktop body:not(.dark-ui) .arrow:hover {
-  color: #8d8d8d !important;
-  background: rgba(236, 236, 236, 0.98);
+  color: rgba(120,120,120,0.96) !important;
+  background: transparent !important;
   opacity: 1;
 }
 
 html.is-desktop body:not(.dark-ui) .arrow:active,
 html.is-desktop body:not(.dark-ui) .arrow.active {
-  color: #8d8d8d !important;
-  background: rgba(230, 230, 230, 0.99);
+  color: rgba(120,120,120,0.96) !important;
+  background: rgba(136,136,136,0.28) !important;
   opacity: 1;
 }
 
@@ -206,7 +216,6 @@ body:not(.dark-ui) .list_item.currentChapter a {
 }
 
 /* ---------- UI: keep only Dark/Light + Fullscreen in the top-right ---------- */
-#setting,
 #store {
   display: none !important;
 }
@@ -241,8 +250,6 @@ body.light #themeToggle {
   color: #A7A7A7 !important;
   font-weight: 300;
 }
-
-body.light #slider,
 body.light #fullscreen {
   color: #A7A7A7 !important;
 }
@@ -257,8 +264,6 @@ body.dark #themeToggle {
   color: #888888 !important;
   font-weight: 400;
 }
-
-body.dark #slider,
 body.dark #fullscreen {
   color: #888888 !important;
 }
@@ -326,12 +331,6 @@ body.dark #fullscreen {
   opacity: 1;
   padding: 4px;
   border-radius: 4px;
-}
-
-/* Desktop: use hamburger menu only (same as mobile/tablet) */
-html.is-desktop #openNotes,
-html.is-desktop #openBookmarks {
-  display: none !important;
 }
 
 /* Make icon buttons behave the same on <button> as on <a> */
@@ -403,9 +402,7 @@ html.is-desktop #openBookmarks {
 
 /* Top-bar control buttons must keep fixed geometry on hover/active (no layout shift). */
 #titlebar #title-controls a:hover,
-#titlebar #title-controls a:active,
-#titlebar #slider:hover,
-#titlebar #slider:active {
+#titlebar #title-controls a:active{
   border: 0 !important;
   padding: 0 !important;
   box-shadow: none !important;
@@ -418,8 +415,7 @@ html.is-desktop #openBookmarks {
 }
 
 /* Bookmark icon must keep a fixed slot width on hover/active to avoid shifting neighboring controls. */
-#titlebar #bookmark,
-#titlebar #openBookmarks {
+#titlebar #bookmark{
   flex: 0 0 var(--title-icon-size);
   width: var(--title-icon-size);
   min-width: var(--title-icon-size);
@@ -432,8 +428,7 @@ html.is-desktop #openBookmarks {
   font-size: 0 !important;
   line-height: 0 !important;
 }
-#titlebar #bookmark::before,
-#titlebar #openBookmarks::before {
+#titlebar #bookmark::before{
   display: block;
   width: 100%;
   text-align: center;
@@ -442,9 +437,7 @@ html.is-desktop #openBookmarks {
   line-height: 1 !important;
 }
 #titlebar #bookmark:hover,
-#titlebar #bookmark:active,
-#titlebar #openBookmarks:hover,
-#titlebar #openBookmarks:active {
+#titlebar #bookmark:active{
   width: var(--title-icon-size) !important;
   min-width: var(--title-icon-size) !important;
   max-width: var(--title-icon-size) !important;
@@ -462,25 +455,6 @@ html.is-desktop #openBookmarks {
   max-width: 12px;
   margin: 0 !important;
   padding: 0 !important;
-}
-
-/* Hamburger must use only SVG (no icon-font / hover box artifacts). */
-#slider::before {
-  content: none !important;
-  display: none !important;
-}
-#slider.icon-menu::before,
-#slider.icon-right::before {
-  content: none !important;
-  display: none !important;
-}
-#slider,
-#slider:hover,
-#slider:active {
-  border: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
 }
 
 #book-title {
@@ -502,13 +476,13 @@ html.is-desktop #openBookmarks {
 #viewerStack {
   z-index: 2;
   position: absolute;
-  left: var(--viewer-side);
-  right: var(--viewer-side);
+  left: calc(var(--viewer-side) + var(--readernew-compat-extra-inset));
+  right: calc(var(--viewer-side) + var(--readernew-compat-extra-inset));
   margin: 0;
   width: auto;
   max-width: none;
-  top: var(--titlebar-h);
-  bottom: var(--bottombar-h);
+  top: 0;
+  bottom: 0;
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: auto;
@@ -688,6 +662,26 @@ html.fb-swipe-underlay-right #main::after {
   box-shadow: 6px 0 10px rgba(0,0,0,0.28);
 }
 
+@media (hover: hover) and (pointer: fine) {
+  #viewerStack.swiping #viewer::before,
+  #viewerStack.swiping #viewer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(136,136,136,0.28);
+    pointer-events: none;
+    z-index: 7;
+  }
+  #viewerStack.swiping #viewer::before {
+    left: -1px;
+  }
+  #viewerStack.swiping #viewer::after {
+    right: -1px;
+  }
+}
+
 /* Iframes */
 #viewerStack iframe,
 #viewer iframe,
@@ -765,6 +759,49 @@ body.dark-ui #bottombar {
   opacity: 1;
 }
 
+#bottom-controls {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#bottomCatalogLink {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: min(48vw, 220px);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fbbar-fg-strong);
+}
+
+#bottomCatalogLink .shell-top-link-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+#bottombar #bookmark {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#bottombar #bookmark::before {
+  font-size: 18px;
+}
+
 .arrow {
   /*
     Navigation hit areas:
@@ -808,6 +845,7 @@ body.dark-ui #bottombar {
   background: transparent;
   opacity: 0;
 }
+
 
 #sidebar {
   /* FBReader-like: overlay drawer (does NOT push the book) */
@@ -860,20 +898,54 @@ body.dark-ui #bottombar {
   box-shadow: 0px 1px 3px rgba(0,0,0,.6);
 }
 
-#opener {
-  /* padding: 10px 10px; */
-  float: left;
+.shell-top-links {
+  display: none;
+  align-items: center;
+  min-width: 0;
 }
 
-/* #opener #slider {
-  width: 25px;
-} */
-
-#opener{
-  flex: 0 0 auto;
-  display: flex;
+.shell-top-link,
+.bottom-catalog-link {
+  display: inline-flex;
   align-items: center;
-  float: none;
+  gap: 10px;
+  min-width: 0;
+  color: var(--fbbar-fg-strong);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+#titlebar .shell-top-link,
+#titlebar .shell-top-link:hover,
+#titlebar .shell-top-link:active {
+  width: auto;
+  height: auto;
+  min-width: 0;
+  padding: 0 !important;
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 0;
+}
+
+.shell-top-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.shell-top-link-icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: currentColor;
+}
+
+.shell-top-link-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #metainfo {
@@ -906,6 +978,50 @@ body.dark-ui #bottombar {
   align-items: center;
   gap: var(--title-icon-gap);
   white-space: nowrap;
+}
+
+.shell-control-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--title-icon-size);
+  min-width: var(--title-icon-size);
+  height: var(--title-icon-size);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fbbar-fg);
+  cursor: pointer;
+}
+
+.shell-control-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--title-icon-glyph-size);
+  height: var(--title-icon-glyph-size);
+}
+
+.shell-control-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.shell-control-img {
+  width: var(--title-icon-glyph-size);
+  height: var(--title-icon-glyph-size);
+  min-width: var(--title-icon-glyph-size);
+  min-height: var(--title-icon-glyph-size);
+  display: block;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(86%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(101%) contrast(90%);
 }
 
 /* Search cluster must never collapse on desktop */
@@ -975,7 +1091,7 @@ body.dark-ui #bottombar {
 #title-controls .tts-toggle {
   cursor: pointer;
   overflow: visible;
-  margin-left: 12px;
+  margin-left: 0;
 }
 #title-controls .tts-toggle .tts-icon {
   width: var(--title-icon-glyph-size);
@@ -1038,29 +1154,6 @@ body.dark-ui #bottombar {
   object-fit: fill;
   vertical-align: middle;
   filter: brightness(0) saturate(100%) invert(86%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(101%) contrast(90%);
-}
-
-#slider .menu-hamburger-icon {
-  display: none !important;
-}
-#slider .menu-hamburger-icon-img {
-  width: var(--title-icon-glyph-size, 20px);
-  height: var(--title-icon-glyph-size, 20px);
-  min-width: var(--title-icon-glyph-size, 20px);
-  min-height: var(--title-icon-glyph-size, 20px);
-  display: none;
-  object-fit: fill;
-  filter: brightness(0) saturate(100%) invert(86%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(101%) contrast(90%);
-}
-#titlebar #slider,
-#titlebar #slider:hover,
-#titlebar #slider:active {
-  background-image: url("../icons/hamburger.svg?v=20260303-hamburger-bg-all-1") !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-  background-size: var(--title-icon-glyph-size) var(--title-icon-glyph-size) !important;
-  border-radius: 0 !important;
-  overflow: visible !important;
 }
 
 #addressBarToggle::before,
@@ -1165,12 +1258,1063 @@ body.dark-ui #bottombar {
   }
 }
 
+body.reader1-unified-shell .shell-control-btn {
+  display: inline-flex;
+}
+
+body.reader1-unified-shell #titlebar {
+  height: 40px;
+  min-height: 40px;
+  padding: 8px 16px;
+  background: #4c4c4c;
+  color: #eef4fb;
+}
+body.reader1-unified-shell .shell-top-links,
+body.reader1-unified-shell #metainfo,
+body.reader1-unified-shell #title-controls {
+  min-height: 24px;
+}
+
+body.reader1-unified-shell .shell-top-links {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-right: 16px;
+}
+
+body.reader1-unified-shell .shell-top-link,
+body.reader1-unified-shell .bottom-catalog-link {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px;
+  color: #eef4fb;
+  font-size: 13px;
+  font-weight: 600;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+  padding: 0 !important;
+}
+
+body.reader1-unified-shell .shell-top-link-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+body.reader1-unified-shell #metainfo {
+  justify-content: center;
+  text-align: center;
+  margin-left: 0;
+}
+
+body.reader1-unified-shell #metaText {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+body.reader1-unified-shell #book-title,
+body.reader1-unified-shell #chapter-title {
+  max-width: min(40vw, 560px);
+  color: #eef4fb;
+}
+
+body.reader1-unified-shell #book-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+body.reader1-unified-shell #chapter-title {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.1;
+  opacity: 0.78;
+}
+
+body.reader1-unified-shell #title-controls {
+  --title-icon-size: 20px;
+  --title-icon-glyph-size: 20px;
+  gap: 14px;
+  overflow: visible !important;
+  max-width: none !important;
+}
+
+html.is-desktop body.reader1-unified-shell #fontDec,
+html.is-desktop body.reader1-unified-shell #fontInc{
+  display: none !important;
+}
+
+body.reader1-unified-shell #title-controls > #themeToggle {
+  order: 60;
+}
+
+body.reader1-unified-shell #title-controls > #setting {
+  order: 64;
+}
+
+body.reader1-unified-shell #title-controls > #shellLibraryToggle {
+  order: 62;
+}
+
+body.reader1-unified-shell .shell-control-icon,
+body.reader1-unified-shell .shell-control-img,
+body.reader1-unified-shell #themeToggle .theme-icon,
+body.reader1-unified-shell #ttsToggleDesktop .tts-icon,
+body.reader1-unified-shell #searchOpen .search-open-icon,
+body.reader1-unified-shell #addressBarToggle .ab-icon {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  display: block;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(93%) sepia(11%) saturate(411%) hue-rotate(181deg) brightness(102%) contrast(98%);
+}
+
+body.reader1-unified-shell #title-controls > #ttsToggleDesktop,
+body.reader1-unified-shell #title-controls > #themeToggle,
+body.reader1-unified-shell #title-controls > #shellLibraryToggle,
+body.reader1-unified-shell #title-controls > #setting {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 !important;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  box-sizing: border-box;
+}
+
+body.reader1-unified-shell #searchDesktop {
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 4px;
+  overflow: visible !important;
+}
+
+body.reader1-unified-shell #searchDesktop .search-nav.desktop {
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+body.reader1-unified-shell #searchDesktop .search-nav.desktop .search-btn,
+body.reader1-unified-shell #searchbar .search-nav .search-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.reader1-unified-shell #searchDesktop .search-nav.desktop .search-btn svg,
+body.reader1-unified-shell #searchbar .search-nav .search-btn svg,
+body.reader1-unified-shell #searchFloatControls .search-float-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.reader1-unified-shell #searchDesktop .search-input-wrap {
+  flex: 0 0 auto;
+  width: 187px;
+  min-width: 187px;
+  max-width: 187px;
+  overflow: visible;
+}
+
+body.reader1-unified-shell #searchInputDesktop.search-input {
+  width: 187px;
+  min-width: 187px;
+  max-width: 187px;
+}
+
+body.reader1-unified-shell #searchReturnDesktop {
+  display: none;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  align-items: center;
+  justify-content: center;
+}
+
+body.reader1-unified-shell.search-active #searchReturnDesktop {
+  display: inline-flex;
+}
+
+body.reader1-unified-shell #searchReturnDesktop img {
+  width: 14px;
+  height: 14px;
+  display: block;
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+body.reader1-unified-shell #searchActionDesktop .search-mag-svg,
+body.reader1-unified-shell #searchbar .search-infield-icon .search-mag-svg {
+  display: none !important;
+}
+
+body.reader1-unified-shell #searchActionDesktop.is-clear .search-field-mag-icon,
+body.reader1-unified-shell #searchbar .search-input-wrap.mobile .search-infield-icon.is-clear .search-field-mag-icon {
+  display: none !important;
+}
+
+body.reader1-unified-shell #searchActionDesktop.is-clear .search-clear-x {
+  display: block !important;
+}
+
+body.reader1-unified-shell #searchActionDesktop.is-mag .search-clear-x {
+  display: none !important;
+}
+
+body.reader1-unified-shell #searchActionDesktop .search-clear-x {
+  font-size: 18px;
+  line-height: 1;
+  color: rgba(255,255,255,0.92);
+}
+
+body.reader1-unified-shell #searchDesktop .search-arrow svg,
+body.reader1-unified-shell #searchbar .search-nav .search-arrow svg,
+body.reader1-unified-shell #searchFloatControls .search-arrow svg {
+  display: none !important;
+}
+
+body.reader1-unified-shell #searchDesktop .search-arrow::before,
+body.reader1-unified-shell #searchbar .search-nav .search-arrow::before,
+body.reader1-unified-shell #searchFloatControls .search-arrow::before {
+  content: "";
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-top: 1.8px solid rgba(255, 255, 255, 0.98);
+  border-right: 1.8px solid rgba(255, 255, 255, 0.98);
+}
+
+body.reader1-unified-shell #searchPrevDesktop::before,
+body.reader1-unified-shell #searchPrev::before,
+body.reader1-unified-shell #searchFloatPrev::before {
+  transform: rotate(-135deg);
+  margin-left: 4px;
+}
+
+body.reader1-unified-shell #searchNextDesktop::before,
+body.reader1-unified-shell #searchNext::before,
+body.reader1-unified-shell #searchFloatNext::before {
+  transform: rotate(45deg);
+  margin-left: -4px;
+}
+
+body.reader1-unified-shell #title-controls .tts-toggle .tts-icon-on,
+body.reader1-unified-shell #title-controls .tts-toggle .tts-icon-off,
+body.reader1-unified-shell #ttsToggleMobile .tts-icon-on,
+body.reader1-unified-shell #ttsToggleMobile .tts-icon-off {
+  display: none !important;
+}
+
+body.reader1-unified-shell #title-controls .tts-toggle .tts-icon-on,
+body.reader1-unified-shell #ttsToggleMobile .tts-icon-on {
+  display: block !important;
+}
+
+body.reader1-unified-shell #title-controls .tts-toggle.is-speaking .tts-icon-on,
+body.reader1-unified-shell #ttsToggleMobile.is-speaking .tts-icon-on {
+  display: none !important;
+}
+
+body.reader1-unified-shell #title-controls .tts-toggle.is-speaking .tts-icon-off,
+body.reader1-unified-shell #ttsToggleMobile.is-speaking .tts-icon-off {
+  display: block !important;
+}
+
+body.reader1-unified-shell #searchActionDesktop .search-field-mag-icon,
+body.reader1-unified-shell #searchbar .search-infield-icon .search-field-mag-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(77%) sepia(0%) saturate(0%) hue-rotate(158deg) brightness(92%) contrast(91%);
+}
+
+body.reader1-unified-shell #searchFloatControls {
+  gap: 2px;
+  padding: 5px 8px;
+  border-radius: 10px;
+}
+
+body.reader1-unified-shell #searchFloatControls .search-float-btn {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+}
+
+body.reader1-unified-shell #searchFloatReturn {
+  width: 30px;
+  min-width: 30px;
+}
+
+body.reader1-unified-shell #searchFloatReturn img {
+  width: 28px;
+  height: 28px;
+  display: block;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(100%);
+  transform: rotate(-90deg);
+}
+
+body.reader1-unified-shell #searchFloatControls .search-float-btn svg {
+  width: 30px;
+  height: 30px;
+}
+
+body.reader1-unified-shell #bottombar {
+  background: #4c4c4c;
+  color: #eef4fb;
+}
+
+body.reader1-unified-shell #bottomCatalogLink {
+  display: none !important;
+}
+
+body.reader1-unified-shell .page-count,
+body.reader1-unified-shell .page-count .pc-text {
+  color: #eef4fb;
+  opacity: 0.96;
+}
+
+body.reader1-unified-shell #bottombar #bookmark {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+}
+
+body.reader1-unified-shell #bottombar #bookmark.icon-bookmark-empty::before {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 20px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 18px 18px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 4h12v16l-6-4-6 4z' fill='none' stroke='%23eef4fb' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+body.reader1-unified-shell #bottombar #bookmark.icon-bookmark::before {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 20px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 18px 18px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 4h12v16l-6-4-6 4z' fill='%23eef4fb' stroke='%23eef4fb' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+body.reader1-unified-shell .arrow {
+  width: 78px;
+  z-index: 9;
+  opacity: 0;
+  color: transparent !important;
+  background: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  text-indent: -10000px;
+  overflow: hidden;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  tap-highlight-color: transparent !important;
+}
+
+html.is-desktop body.reader1-unified-shell .arrow,
+html.is-desktop body.reader1-unified-shell .arrow:hover,
+html.is-desktop body.reader1-unified-shell .arrow:active,
+html.is-desktop body.reader1-unified-shell .arrow.active,
+html.is-desktop body.reader1-unified-shell .arrow:focus,
+html.is-desktop body.reader1-unified-shell .arrow:focus-visible {
+  background: transparent !important;
+  color: transparent !important;
+  opacity: 1 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+body.reader1-unified-shell .arrow:hover,
+body.reader1-unified-shell .arrow:active,
+body.reader1-unified-shell .arrow.active,
+body.reader1-unified-shell .arrow:focus,
+body.reader1-unified-shell .arrow:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: transparent !important;
+}
+
+body.reader1-unified-shell #prev::before,
+body.reader1-unified-shell #next::before {
+  content: none;
+}
+
+body.reader1-unified-shell #prev::after,
+body.reader1-unified-shell #next::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-top: 3px solid rgba(149, 149, 149, 0.96);
+  border-right: 3px solid rgba(149, 149, 149, 0.96);
+  top: 50%;
+  left: 50%;
+  margin-top: -8px;
+  pointer-events: none;
+  opacity: 0;
+}
+
+body.reader1-unified-shell #next::after {
+  margin-left: -12px;
+  transform: rotate(45deg);
+}
+
+body.reader1-unified-shell #prev::after {
+  margin-left: -4px;
+  transform: rotate(-135deg);
+}
+
+html.is-desktop body.reader1-unified-shell #prev,
+html.is-desktop body.reader1-unified-shell #next,
+html.is-desktop body.reader1-unified-shell #prev::after,
+html.is-desktop body.reader1-unified-shell #next::after {
+  opacity: 1;
+}
+
+body.reader1-unified-shell #overlay-library,
+body.reader1-unified-shell #overlay-settings {
+  left: auto;
+  right: 0;
+  width: 360px;
+  max-width: min(100vw, 360px);
+  z-index: 9999;
+  background: rgba(72, 72, 72, 0.98);
+  color: #ffffff;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+body.reader1-unified-shell #overlay-library .overlay-head,
+body.reader1-unified-shell #overlay-settings .overlay-head {
+  padding: 16px 16px 12px;
+  align-items: center;
+}
+
+body.reader1-unified-shell #overlay-library .overlay-title,
+body.reader1-unified-shell #overlay-settings .overlay-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+body.reader1-unified-shell #overlay-library .overlay-close,
+body.reader1-unified-shell #overlay-settings .overlay-close {
+  color: rgba(255, 255, 255, 0.92);
+  border: 0;
+  background: transparent;
+}
+
+body.reader1-unified-shell #overlay-library .overlay-scroll,
+body.reader1-unified-shell #overlay-settings .overlay-scroll {
+  padding: 16px;
+}
+
+body.reader1-unified-shell #overlay-library .overlay-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+
+body.reader1-unified-shell #overlay-settings {
+  display: flex;
+  flex-direction: column;
+}
+
+body.reader1-unified-shell #overlay-settings .overlay-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+
+body.reader1-unified-shell #protectedLibraryTabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin: 0 0 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+body.reader1-unified-shell .protected-library-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font: 600 11px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.reader1-unified-shell .protected-library-tab.is-active {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+body.reader1-unified-shell .protected-library-pane.hidden {
+  display: none !important;
+}
+
+body.reader1-unified-shell .protected-library-pane {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+body.reader1-unified-shell #protectedLibraryPane-notes {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+body.reader1-unified-shell #protectedLibraryNotesMount {
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.reader1-unified-shell #protectedLibraryNotesMount > *:first-child {
+  min-height: 100%;
+}
+
+body.reader1-unified-shell #protectedLibraryPane-notes #notesView {
+  min-height: 100%;
+}
+
+body.reader1-unified-shell #protectedLibraryPane-notes #notes {
+  min-height: 0;
+}
+
+body.reader1-unified-shell #protectedLibraryNotesFooter {
+  align-self: stretch;
+  margin-left: -16px;
+  margin-right: -16px;
+  margin-bottom: 0;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(72, 72, 72, 0.96);
+}
+
+body.reader1-unified-shell #protectedNotesShareBtn {
+  width: 100%;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.96);
+  font: inherit;
+  padding: 0;
+  text-align: center;
+  cursor: pointer;
+  transition: color 120ms ease, opacity 120ms ease;
+}
+
+body.reader1-unified-shell #protectedNotesShareBtn:disabled,
+body.reader1-unified-shell #protectedNotesShareBtn.is-disabled {
+  color: rgba(255, 255, 255, 0.34);
+  cursor: default;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+body.reader1-unified-shell #protectedNotesShareBtn.is-copied {
+  color: rgba(255, 255, 255, 1);
+}
+
+body.reader1-unified-shell #protectedNotesShareBtn.is-failed {
+  color: #ffb1b1;
+}
+
+body.reader1-unified-shell #overlay-library #tocView ul,
+body.reader1-unified-shell #overlay-library #bookmarksView ul,
+body.reader1-unified-shell #overlay-library #notes,
+body.reader1-unified-shell #overlay-library #mybooks {
+  padding-left: 20px;
+  margin-top: 0;
+  margin-bottom: 24px;
+}
+
+body.reader1-unified-shell #overlay-library .notes-copy-link-wrap {
+  display: none !important;
+}
+
+body.reader1-unified-shell #overlay-library #tocView,
+body.reader1-unified-shell #overlay-library #bookmarksView,
+body.reader1-unified-shell #overlay-library #notesView,
+body.reader1-unified-shell #overlay-library #mybooksView,
+body.reader1-unified-shell #overlay-settings #voiceView {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView > ul > li.list_item,
+body.reader1-unified-shell #overlay-library #notes > li.list_item,
+body.reader1-unified-shell #overlay-library #mybooks > li.list_item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0 0 14px;
+  margin: 0 0 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+body.reader1-unified-shell #overlay-library .bookmark_link,
+body.reader1-unified-shell #overlay-library .bookmark-comment,
+body.reader1-unified-shell #overlay-library #tocView a,
+body.reader1-unified-shell #overlay-library #tocView .toc_link {
+  color: rgba(255, 255, 255, 0.96);
+  background: transparent !important;
+}
+
+body.reader1-unified-shell #overlay-settings #protectedSettingsBookCardMount {
+  margin: 0 0 18px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+body.reader1-unified-shell #settings-modal,
+body.reader1-unified-shell .overlay.md-overlay {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body.reader1-unified-shell #overlay-settings #reader1SettingsBookCard {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 6px 0 18px;
+}
+
+body.reader1-unified-shell #overlay-settings .reader1-book-cover-wrap {
+  width: 104px;
+  height: 148px;
+  flex: 0 0 104px;
+}
+
+body.reader1-unified-shell #overlay-settings #reader1SettingsBookCover,
+body.reader1-unified-shell #overlay-settings .reader1-book-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+body.reader1-unified-shell #overlay-settings #reader1SettingsBookTitle {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+body.reader1-unified-shell #overlay-settings #reader1SettingsBookAuthor {
+  font-size: 14px;
+  line-height: 1.35;
+  opacity: 0.9;
+  margin-top: 8px;
+}
+
+body.reader1-unified-shell #protectedSettingsTextSectionTitle,
+body.reader1-unified-shell #protectedSettingsVoiceSectionTitle {
+  font: 600 14px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0 0 14px;
+  color: #ffffff;
+}
+
+body.reader1-unified-shell #protectedSettingsVoiceSection {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+body.reader1-unified-shell #protectedTypographyModes {
+  display: none !important;
+}
+
+body.reader1-unified-shell .protected-typography-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  cursor: default;
+}
+
+body.reader1-unified-shell .protected-typography-mode .sample {
+  font-size: 19px;
+  line-height: 0.82;
+}
+
+body.reader1-unified-shell .protected-typography-mode[data-font-mode="sans"] .sample {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body.reader1-unified-shell .protected-typography-mode[data-font-mode="serif"] .sample {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+body.reader1-unified-shell .protected-typography-mode .label {
+  font: 700 13px/1.1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body.reader1-unified-shell .protected-typography-mode[aria-disabled="true"] {
+  opacity: 0.42;
+}
+
+body.reader1-unified-shell .protected-typography-size-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+}
+
+body.reader1-unified-shell #protectedTypographyScale {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  accent-color: transparent;
+}
+
+body.reader1-unified-shell #protectedTypographyScale:focus {
+  outline: none;
+}
+
+body.reader1-unified-shell #protectedTypographyScale::-webkit-slider-runnable-track {
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  background:
+    linear-gradient(to right,
+      #ffffff 0%,
+      #ffffff var(--reader1-range-fill, 50%),
+      rgba(255, 255, 255, 0) var(--reader1-range-fill, 50%),
+      rgba(255, 255, 255, 0) 100%);
+  box-sizing: border-box;
+}
+
+body.reader1-unified-shell #protectedTypographyScale::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+  margin-top: -9px;
+}
+
+body.reader1-unified-shell #protectedTypographyScale::-moz-range-track {
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  background: rgba(255, 255, 255, 0);
+  box-sizing: border-box;
+}
+
+body.reader1-unified-shell #protectedTypographyScale::-moz-range-progress {
+  height: 12px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+body.reader1-unified-shell #protectedTypographyScale::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+body.reader1-unified-shell #protectedTypographyScale::-ms-track {
+  height: 12px;
+  border-color: transparent;
+  color: transparent;
+  background: transparent;
+}
+
+body.reader1-unified-shell #protectedTypographyScale::-ms-fill-lower {
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+body.reader1-unified-shell #protectedTypographyScale::-ms-fill-upper {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0);
+  border: 1px solid rgba(255, 255, 255, 0.46);
+}
+
+body.reader1-unified-shell #protectedTypographyScale::-ms-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: #ffffff;
+}
+
+body.reader1-unified-shell #overlay-settings #voiceView,
+body.reader1-unified-shell #protectedSettingsVoiceMount #voiceView {
+  display: block !important;
+  width: 100%;
+  padding: 4px 0 0;
+}
+
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-label,
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-dropdown-toggle,
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-option {
+  color: #ffffff;
+}
+
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-dropdown-toggle,
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-dropdown-list {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.reader1-unified-shell #overlay-settings .voice-picker-dropdown,
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-dropdown {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  overflow: visible;
+}
+
+body.reader1-unified-shell #overlay-settings .voice-picker-dropdown-toggle,
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-dropdown-toggle {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 40px 8px 12px;
+  font-size: 14px;
+  text-align: left;
+  position: relative;
+  box-sizing: border-box;
+}
+
+body.reader1-unified-shell #overlay-settings .voice-picker-dropdown-list,
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-dropdown-list {
+  display: none;
+  position: static !important;
+  inset: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  order: 2;
+  width: 100%;
+  max-height: min(220px, 38vh);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  border-radius: 6px;
+  z-index: auto;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+
+body.reader1-unified-shell #overlay-settings .voice-picker-dropdown-list::-webkit-scrollbar,
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-dropdown-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+body.reader1-unified-shell #overlay-settings .voice-picker-dropdown.is-open .voice-picker-dropdown-list,
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-dropdown.is-open .voice-picker-dropdown-list {
+  display: block;
+}
+
+body.reader1-unified-shell #protectedSettingsVoiceMount .voice-picker-status {
+  display: none !important;
+}
+
+body.reader1-unified-shell .protected-settings-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin-top: auto;
+  margin-left: -16px;
+  margin-right: -16px;
+  margin-bottom: 0;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(72, 72, 72, 0.96);
+}
+
+body.reader1-unified-shell .protected-settings-footer .menu-share-link-btn {
+  width: 100%;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255,255,255,0.96);
+  font: inherit;
+  padding: 0;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+body.reader1-unified-shell .protected-settings-footer .menu-share-link-btn.is-disabled,
+body.reader1-unified-shell .protected-settings-footer .menu-share-link-btn:disabled {
+  color: rgba(255,255,255,0.34);
+  cursor: default;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+body.reader1-unified-shell .protected-settings-footer .menu-share-link-btn.is-copied {
+  color: rgba(255,255,255,1);
+}
+
+body.reader1-unified-shell .protected-settings-footer .menu-share-link-btn.is-failed {
+  color: #ffb1b1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body.reader1-unified-shell .protected-settings-footer .menu-share-link-btn:hover {
+    background: rgba(255,255,255,0.08);
+  }
+
+  body.reader1-unified-shell .protected-settings-footer .menu-share-link-btn:active,
+  body.reader1-unified-shell .protected-settings-footer .menu-share-link-btn.is-pressed {
+    background: rgba(255,255,255,0.16);
+    color: #eef4fb;
+  }
+}
+
+@media (max-width: 820px) {
+  body.reader1-unified-shell #overlay-library,
+  body.reader1-unified-shell #overlay-settings {
+    width: min(100vw, 360px);
+  }
+}
+
+@media (orientation: portrait) {
+  html.is-phone body.reader1-unified-shell #overlay-library,
+  html.is-phone body.reader1-unified-shell #overlay-settings,
+  html.is-tablet.tablet-portrait body.reader1-unified-shell #overlay-library,
+  html.is-tablet.tablet-portrait body.reader1-unified-shell #overlay-settings {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+}
+
+html.is-desktop body.reader1-unified-shell #title-controls > #themeToggle,
+html.is-desktop body.reader1-unified-shell #title-controls > #setting,
+html.is-desktop body.reader1-unified-shell #title-controls > #shellLibraryToggle {
+  display: inline-flex !important;
+}
+
+html.is-desktop body.reader1-unified-shell #title-controls > #themeToggle {
+  order: 60 !important;
+}
+
+html.is-desktop body.reader1-unified-shell #title-controls > #ttsToggleDesktop {
+  order: 59 !important;
+}
+
+html.is-desktop body.reader1-unified-shell #title-controls > #setting {
+  order: 64 !important;
+}
+
+html.is-desktop body.reader1-unified-shell #title-controls > #shellLibraryToggle {
+  order: 62 !important;
+}
+
 /* ===== Desktop: keep bars fixed to top/bottom (never drift) ===== */
 @media (min-width: 900px) and (hover: hover) and (pointer: fine) {
   #viewerStack {
     top: var(--titlebar-h);
     bottom: var(--bottombar-h);
   }
+}
+
+html.is-desktop body.reader1-unified-shell #metainfo {
+  width: min(40vw, 560px);
+  max-width: calc(100vw - 540px);
+}
+
+html.is-desktop body.reader1-unified-shell #searchDesktop,
+html.is-desktop body.reader1-unified-shell #searchDesktop .search-input-wrap,
+html.is-desktop body.reader1-unified-shell #searchInputDesktop {
+  overflow: visible !important;
 }
 
 .font-menu-panel.is-open {
@@ -1304,7 +2448,6 @@ input:-ms-placeholder {
   -moz-transition: visibility 0 ease .5s;
   -ms-transition: visibility 0 ease .5s;
 }
-
 
 
 #sidebar.open #tocView,
@@ -1843,37 +2986,39 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
   position: fixed;
   z-index: 10050;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 6px 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
   background: var(--fbbar-bg);
   color: var(--fbbar-fg);
   border: 1px solid var(--fbbar-border);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: 0 6px 16px rgba(0,0,0,.18);
-  align-items: stretch;
+  white-space: nowrap;
 }
 .selection-toolbar.hidden{ display: none; }
 .selection-toolbar .sel-btn{
-  width: auto;
-  height: auto;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   background: transparent;
   border: 0;
   color: inherit;
   cursor: pointer;
-  padding: 5px 6px;
-  gap: 10px;
+  padding: 0;
+  gap: 0;
+  border-radius: 8px;
 }
 .selection-toolbar .sel-icon{
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 26px;
+  flex: 0 0 24px;
 }
 .selection-toolbar .sel-btn svg{
   width: 24px;
@@ -1885,12 +3030,26 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
   stroke-linejoin: round;
 }
 .selection-toolbar .sel-label{
-  font-size: 17px;
-  line-height: 1.2;
-  white-space: nowrap;
+  display: none;
 }
 .selection-toolbar .sel-note .sel-icon svg{
-  transform: scale(0.7);
+  transform: scale(0.8);
+  transform-origin: center;
+}
+.selection-toolbar .sel-translate .sel-icon svg{
+  transform: scale(1.2);
+  transform-origin: center;
+}
+.selection-toolbar .sel-search .sel-icon svg{
+  transform: scale(0.94);
+  transform-origin: center;
+}
+.selection-toolbar .sel-share .sel-icon svg{
+  transform: scale(1.08);
+  transform-origin: center;
+}
+.selection-toolbar .sel-copy .sel-icon svg{
+  transform: scale(1.3);
   transform-origin: center;
 }
 
@@ -2087,16 +3246,13 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
 
 @media (hover: none) and (pointer: coarse){
   .selection-toolbar .sel-icon{
-    width: 32px;
-    height: 32px;
-    flex: 0 0 32px;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
   }
   .selection-toolbar .sel-btn svg{
-    width: 29px;
-    height: 29px;
-  }
-  .selection-toolbar .sel-label{
-    font-size: 21px;
+    width: 24px;
+    height: 24px;
   }
   .selection-translate{
     align-items: flex-end;
@@ -2410,6 +3566,7 @@ body.dark{
 body.sidebar-open #fb-tap-layer{ display:none; }
 body.overlay-open #fb-tap-layer{ display:none; }
 body.mobile-more-open #fb-tap-layer{ display:none; }
+body.search-open #fb-tap-layer{ display:none; }
 
 body.sidebar-open #sidebar-backdrop{
   opacity: 1;
@@ -2512,8 +3669,7 @@ body.sidebar-open #sidebar-backdrop{
 /* icons / controls color */
 /* icons / controls color */
 #titlebar a, #titlebar button,
-#bottombar a, #bottombar button,
-#titlebar #opener a{
+#bottombar a, #bottombar button{
   color: currentColor !important;
   fill: currentColor !important;
 }
@@ -2653,10 +3809,10 @@ body.ui-hidden #viewerStack{
 /* Reader area: always sit BETWEEN the fixed top/bottom bars (no overlap) */
 #viewerStack{
   position: fixed;
-  top: var(--titlebar-h);
-  bottom: var(--bottombar-h);
-  left: var(--viewer-side);
-  right: var(--viewer-side);
+  top: 0;
+  bottom: 0;
+  left: calc(var(--viewer-side) + var(--readernew-compat-extra-inset));
+  right: calc(var(--viewer-side) + var(--readernew-compat-extra-inset));
 }
 
 /* Mobile/tablet: bars overlay text and must not resize the reading viewport */
@@ -2693,7 +3849,7 @@ body.gesture-active{
 body.light #titlebar { color: var(--fbbar-fg) !important; }
 body.dark #titlebar { color: var(--fbbar-fg) !important; }
 
-#titlebar #title-controls a, #titlebar #title-controls button, #titlebar #slider { color: inherit !important; }
+#titlebar #title-controls a, #titlebar #title-controls button{ color: inherit !important; }
 #titlebar svg { stroke: currentColor; fill: currentColor; }
 
 /* ===== HARD OVERRIDES (mobile/desktop): sidebar MUST NOT push the book ===== */
@@ -2726,13 +3882,6 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 #sidebar #bookmarksView a,
 #sidebar #notesView a{
   color: var(--fbbar-fg) !important;
-}
-
-/* Menu icon in sidebar header */
-#sidebar #slider,
-#sidebar #opener a,
-#sidebar #opener button{
-  color: var(--fbbar-fg-strong) !important;
 }
 
 
@@ -2876,14 +4025,20 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   padding: 10px 16px calc(22px + env(safe-area-inset-bottom)) 16px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-#overlay-notes .overlay-scroll{
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 10px 16px calc(22px + env(safe-area-inset-bottom)) 16px;
-  display: flex;
-  flex-direction: column;
+.overlay-scroll::-webkit-scrollbar,
+#protectedLibraryNotesMount::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+#protectedLibraryNotesMount {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .overlay-head{
@@ -2904,12 +4059,11 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 }
 
 /* Content styling (no icons, compact) */
-#overlay-toc #tocView,
-#overlay-bookmarks #bookmarksView,
-#overlay-notes #notesView,
-#overlay-mybooks #mybooksView,
-#overlay-voice #voiceView,
-#overlay-menu #menuView {
+#tocView,
+#bookmarksView,
+#notesView,
+#mybooksView,
+#voiceView{
   font-family: var(--ui-font-family);
   font-size: calc(var(--bottom-font-size, 14px) * 1.2);
   /* In the legacy reader CSS, #tocView/#bookmarksView are hidden unless #sidebar.open.
@@ -2922,7 +4076,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   overflow: visible;
 }
 
-#overlay-notes #notesView{
+#notesView{
   height: 100%;
   min-height: 100%;
   padding-top: 0 !important;
@@ -2932,7 +4086,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   overflow: visible;
 }
 
-#overlay-notes #notes{
+#notesView #notes{
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
@@ -2942,7 +4096,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   overscroll-behavior: contain;
 }
 
-#overlay-notes #notesView .notes-copy-link-wrap{
+#notesView .notes-copy-link-wrap{
   position: sticky;
   bottom: 0;
   z-index: 3;
@@ -2954,7 +4108,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   background: var(--fbbar-bg);
 }
 
-#overlay-notes #notesView .notes-copy-link-btn{
+#notesView .notes-copy-link-btn{
   width: 100%;
   height: auto;
   border: 0;
@@ -2968,186 +4122,52 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
 }
 
-#overlay-notes #notesView .notes-copy-link-btn:disabled,
-#overlay-notes #notesView .notes-copy-link-btn.is-disabled{
+#notesView .notes-copy-link-btn:disabled,
+#notesView .notes-copy-link-btn.is-disabled{
   color: rgba(255,255,255,0.34);
   cursor: default;
   opacity: 0.55;
   pointer-events: none;
 }
 
-#overlay-notes #notesView .notes-copy-link-btn.is-copied{
+#notesView .notes-copy-link-btn.is-copied{
   color: var(--fbbar-fg-strong);
 }
 
-#overlay-notes #notesView .notes-copy-link-btn.is-failed{
-  color: #ffb1b1;
-}
-
-#overlay-menu #menuView{
-  height: 100%;
-  min-height: 100%;
-  padding-top: 0 !important;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
-}
-
-#overlay-menu #menuView .menu-book-card{
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 6px 0 18px;
-  border-bottom: 1px solid var(--fbbar-border);
-  margin-bottom: 2px;
-}
-
-#overlay-menu #menuView .menu-book-cover-wrap{
-  width: 104px;
-  height: 148px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex: 0 0 104px;
-}
-
-#overlay-menu #menuView .menu-book-cover,
-#overlay-menu #menuView .menu-book-cover-placeholder{
-  width: 100%;
-  height: 100%;
-}
-
-#overlay-menu #menuView .menu-book-cover{
-  display: block;
-  object-fit: contain;
-  object-position: left center;
-}
-
-#overlay-menu #menuView .menu-book-cover.hidden{
-  display: none;
-}
-
-#overlay-menu #menuView .menu-book-cover-placeholder{
-  background: transparent;
-  border: 0;
-}
-
-#overlay-menu #menuView .menu-book-cover-placeholder.hidden{
-  display: none;
-}
-
-#overlay-menu #menuView .menu-book-title,
-#overlay-menu #menuView .menu-book-author{
-  width: auto;
-  text-align: left;
-  line-height: 1.35;
-  color: var(--fbbar-fg);
-}
-
-#overlay-menu #menuView .menu-book-title{
-  font-size: 18px;
-  font-weight: 600;
-}
-
-#overlay-menu #menuView .menu-book-author{
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-#overlay-menu #menuView .menu-book-meta{
-  min-width: 0;
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-}
-
-#overlay-menu #menuList{
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 0;
-  padding: 0 !important;
-  overflow-y: visible;
-  overflow-x: visible;
-  overscroll-behavior: contain;
-}
-
-#overlay-menu #menuView .menu-share-link-wrap{
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
-  margin-top: auto;
-  margin-left: -16px;
-  margin-right: -16px;
-  padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--fbbar-border);
-  background: var(--fbbar-bg);
-}
-
-#overlay-menu #menuView .menu-share-link-btn{
-  width: 100%;
-  height: auto;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--fbbar-fg);
-  font: inherit;
-  padding: 0;
-  text-align: center;
-  cursor: pointer;
-  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
-}
-
-#overlay-menu #menuView .menu-share-link-btn.is-copied{
-  color: var(--fbbar-fg-strong);
-}
-
-#overlay-menu #menuView .menu-share-link-btn.is-failed{
+#notesView .notes-copy-link-btn.is-failed{
   color: #ffb1b1;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  #overlay-notes #notesView .notes-copy-link-btn:hover{
+  #notesView .notes-copy-link-btn:hover{
     background: rgba(255,255,255,0.08);
   }
-  #overlay-notes #notesView .notes-copy-link-btn:disabled:hover,
-  #overlay-notes #notesView .notes-copy-link-btn.is-disabled:hover{
+  #notesView .notes-copy-link-btn:disabled:hover,
+  #notesView .notes-copy-link-btn.is-disabled:hover{
     background: transparent;
   }
-  #overlay-notes #notesView .notes-copy-link-btn:active,
-  #overlay-notes #notesView .notes-copy-link-btn.is-pressed{
-    background: rgba(255,255,255,0.16);
-    color: var(--fbbar-fg-strong);
-  }
-  #overlay-menu #menuView .menu-share-link-btn:hover{
-    background: rgba(255,255,255,0.08);
-  }
-  #overlay-menu #menuView .menu-share-link-btn:active,
-  #overlay-menu #menuView .menu-share-link-btn.is-pressed{
+  #notesView .notes-copy-link-btn:active,
+  #notesView .notes-copy-link-btn.is-pressed{
     background: rgba(255,255,255,0.16);
     color: var(--fbbar-fg-strong);
   }
 }
 
-#overlay-toc #tocView ul,
-#overlay-bookmarks #bookmarksView ul,
-#overlay-notes #notesView ul,
-#overlay-mybooks #mybooksView ul,
-#overlay-voice #voiceView ul,
-#overlay-menu #menuView ul {
+#tocView ul,
+#bookmarksView ul,
+#notesView ul,
+#mybooksView ul,
+#voiceView ul{
   list-style: none;
   margin: 0;
   padding: 0;
   width: 100%;
 }
-#overlay-toc #tocView li,
-#overlay-bookmarks #bookmarksView li,
-#overlay-notes #notesView li,
-#overlay-mybooks #mybooksView li,
-#overlay-voice #voiceView li,
-#overlay-menu #menuView li {
+#tocView li,
+#bookmarksView li,
+#notesView li,
+#mybooksView li,
+#voiceView li{
   margin: 0;
   padding: 0;
   display: flex;
@@ -3155,10 +4175,10 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   gap: 10px;
   width: 100%;
 }
-#overlay-mybooks #mybooksView li{
+#mybooksView li{
   border-bottom: 1px solid var(--fbbar-border);
 }
-#overlay-notes #notesView li{
+#notesView li{
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -3168,18 +4188,17 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   padding: 0;
   border-bottom: 1px solid var(--fbbar-border);
 }
-#overlay-notes #notesView li:first-child{
+#notesView li:first-child{
   border-top: 0;
 }
-#overlay-notes #notesView li:last-child{
+#notesView li:last-child{
   border-bottom: 0;
 }
-#overlay-toc #tocView a,
-#overlay-bookmarks #bookmarksView a,
-#overlay-notes #notesView a,
-#overlay-mybooks #mybooksView a,
-#overlay-voice #voiceView a,
-#overlay-menu #menuView a {
+#tocView a,
+#bookmarksView a,
+#notesView a,
+#mybooksView a,
+#voiceView a{
   display: block;
   padding: 10px 6px;
   color: var(--fbbar-fg) !important;
@@ -3189,62 +4208,14 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   width: 100%;
   box-sizing: border-box;
 }
-#overlay-mybooks #mybooksView a{
+#mybooksView a{
   border-bottom: 0;
 }
-#overlay-notes #notesView a{
+#notesView a{
   border-bottom: 0;
-}
-#overlay-menu #menuView .menu-item{
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 6px;
-  background: transparent;
-  border: 0;
-  color: var(--fbbar-fg) !important;
-  text-align: left;
-  border-bottom: 1px solid var(--fbbar-border);
-  cursor: pointer;
-  font: inherit;
-}
-#overlay-menu #menuView{
-  --menu-icon-size: 24px;
-}
-#overlay-menu #menuView .menu-icon{
-  width: var(--menu-icon-size);
-  height: var(--menu-icon-size);
-  flex: 0 0 var(--menu-icon-size);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-#overlay-menu #menuView .menu-icon:before{
-  margin-right: 0;
-  font-size: var(--menu-icon-size);
-  line-height: 1;
-  display: inline-block;
-}
-#overlay-menu #menuView .menu-icon svg{
-  width: var(--menu-icon-size);
-  height: var(--menu-icon-size);
-  display: block;
-  stroke: currentColor;
-  fill: none !important;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-#overlay-menu #menuView .menu-icon-catalog svg{
-  fill: currentColor !important;
-  stroke: none !important;
-}
-#overlay-menu #menuView .menu-label{
-  flex: 1 1 auto;
 }
 
-#overlay-voice #voiceView {
+#voiceView {
   padding: 10px 6px;
 }
 .voice-picker-wrap {
@@ -3350,23 +4321,23 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   font-size: 13px;
   cursor: pointer;
 }
-#overlay-bookmarks #bookmarksView .bookmark-text,
-#overlay-mybooks #mybooksView .bookmark-text,
-#overlay-notes #notesView .bookmark-text{
+#bookmarksView .bookmark-text,
+#mybooksView .bookmark-text,
+#notesView .bookmark-text{
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-width: 0;
   width: 100%;
 }
-#overlay-mybooks #mybooksView .bookmark-text .bookmark_link{
+#mybooksView .bookmark-text .bookmark_link{
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#overlay-bookmarks #bookmarksView .bookmark-comment,
-#overlay-mybooks #mybooksView .bookmark-comment,
-#overlay-notes #notesView .bookmark-comment{
+#bookmarksView .bookmark-comment,
+#mybooksView .bookmark-comment,
+#notesView .bookmark-comment{
   margin: 4px 6px 8px;
   padding: 0;
   border: 0;
@@ -3382,24 +4353,24 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   width: 100%;
   box-sizing: border-box;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-item{
+#mybooksView .mybooks-auth-item{
   border-bottom: 0;
   padding: 4px 0 0;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-wrap{
+#mybooksView .mybooks-auth-wrap{
   border: 1px solid var(--fbbar-border);
   border-radius: 10px;
   padding: 10px 10px 12px;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-title{
+#mybooksView .mybooks-auth-title{
   font-size: 14px;
   font-weight: 600;
   margin: 0 6px 4px;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-copy{
+#mybooksView .mybooks-auth-copy{
   margin-bottom: 10px;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-btn{
+#mybooksView .mybooks-auth-btn{
   margin: 0 6px;
   border: 1px solid var(--fbbar-border);
   background: transparent;
@@ -3409,13 +4380,13 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   font: inherit;
   cursor: pointer;
 }
-#overlay-mybooks #mybooksView .mybooks-auth-btn[disabled]{
+#mybooksView .mybooks-auth-btn[disabled]{
   opacity: 0.65;
   cursor: default;
 }
-#overlay-bookmarks #bookmarksView .bookmark-delete,
-#overlay-mybooks #mybooksView .bookmark-delete,
-#overlay-notes #notesView .bookmark-delete{
+#bookmarksView .bookmark-delete,
+#mybooksView .bookmark-delete,
+#notesView .bookmark-delete{
   flex: 0 0 32px;
   width: 32px;
   height: 32px;
@@ -3433,9 +4404,9 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   padding: 0;
   margin: 0;
 }
-#overlay-bookmarks #bookmarksView .bookmark-delete svg,
-#overlay-mybooks #mybooksView .bookmark-delete svg,
-#overlay-notes #notesView .bookmark-delete svg{
+#bookmarksView .bookmark-delete svg,
+#mybooksView .bookmark-delete svg,
+#notesView .bookmark-delete svg{
   width: 18px;
   height: 18px;
   stroke: currentColor;
@@ -3475,6 +4446,17 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
   font-weight: 600;
   margin-bottom: 8px;
 }
+.comment-quote{
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255,255,255,0.62);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+body.light .comment-quote{
+  color: rgba(0,0,0,0.46);
+}
 .comment-input{
   width: 100%;
   border: 1px solid var(--fbbar-border);
@@ -3504,16 +4486,24 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 }
 @media (max-width: 768px){
   .comment-sheet{
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: auto;
-    width: 100%;
-    border-radius: 14px 14px 0 0;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
-    transform: none;
+    width: min(420px, calc(100vw - 24px));
     max-width: 100vw;
+    border-radius: 12px;
+    padding-bottom: 12px;
   }
+}
+
+html.is-phone .comment-sheet,
+html.is-tablet .comment-sheet{
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  width: 100%;
+  max-width: none;
+  transform: none;
+  border-radius: 16px 16px 0 0;
+  padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
 }
 
 /* iOS: prevent viewport zoom on focus (font-size >= 16px) and keep sheet within viewport */
@@ -3521,20 +4511,20 @@ html.is-ios .comment-input{
   font-size: 16px;
 }
 html.is-ios .comment-sheet{
-  max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
   overflow: auto;
 }
-#overlay-toc #tocView a:before,
-#overlay-bookmarks #bookmarksView a:before,
-#overlay-toc #tocView .icon,
-#overlay-bookmarks #bookmarksView .icon {
+#tocView a:before,
+#bookmarksView a:before,
+#tocView .icon,
+#bookmarksView .icon {
   display: none !important;
 }
-#overlay-toc #tocView a:hover,
-#overlay-bookmarks #bookmarksView a:hover {
+#tocView a:hover,
+#bookmarksView a:hover {
   background: var(--fbbar-hover) !important;
 }
-#overlay-toc #tocView .currentChapter a {
+#tocView .currentChapter a {
   color: var(--fbbar-fg-strong);
   text-decoration: underline;
   background: transparent;
@@ -3766,7 +4756,6 @@ html.is-ios .comment-sheet{
 
 /* Search/topbar mode switching */
 body.search-open #titlebar #metainfo,
-body.search-open #titlebar #opener,
 body.search-open #titlebar #title-controls > :not(#searchDesktop) {
   display: none !important;
 }
@@ -3824,38 +4813,6 @@ html.is-tablet body.ui-hidden #titlebar *,
 html.is-tablet body.ui-hidden #bottombar * {
   pointer-events: auto;
 }
-html.is-phone #opener #openNotes,
-html.is-phone #opener #openBookmarks,
-html.is-tablet #opener #openNotes,
-html.is-tablet #opener #openBookmarks {
-  display: none !important;
-}
-/* iOS safety: even if is-phone/is-tablet class detection fails, keep only hamburger in opener */
-html.is-ios #opener #openNotes,
-html.is-ios #opener #openBookmarks {
-  display: none !important;
-}
-html.is-phone #opener #slider,
-html.is-tablet #opener #slider {
-  width: var(--title-icon-size, 22px);
-  height: var(--title-icon-size, 22px);
-  min-width: var(--title-icon-size, 22px);
-  min-height: var(--title-icon-size, 22px);
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-html.is-ios #opener #slider {
-  width: var(--title-icon-size, 22px) !important;
-  height: var(--title-icon-size, 22px) !important;
-  min-width: var(--title-icon-size, 22px) !important;
-  min-height: var(--title-icon-size, 22px) !important;
-  line-height: 1 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
 html.is-phone #titlebar,
 html.is-tablet #titlebar {
   --titlebar-h: 48px;
@@ -3887,13 +4844,13 @@ html.is-tablet #metainfo {
 }
 html.is-phone #title-controls,
 html.is-tablet #title-controls {
-  --title-icon-size: 20px;
-  --title-icon-glyph-size: 18px;
-  --title-icon-gap: 18px;
-  --controls-right-pad: 12px;
+  --title-icon-size: 16px;
+  --title-icon-glyph-size: 14px;
+  --title-icon-gap: 12px;
+  --controls-right-pad: 8px;
   margin-left: auto;
   gap: var(--title-icon-gap);
-  padding-left: 12px;
+  padding-left: 8px;
   padding-right: calc(var(--controls-right-pad) + env(safe-area-inset-right));
 }
 html.is-ios #title-controls {
@@ -3949,6 +4906,16 @@ html.is-phone #ttsToggleMobile,
 html.is-tablet #ttsToggleMobile {
   margin-left: 12px !important;
 }
+
+html.is-phone body.reader1-unified-shell #bottombar #bookmark,
+html.is-tablet body.reader1-unified-shell #bottombar #bookmark {
+  display: inline-flex !important;
+  position: absolute;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 html.is-ios #mobileMoreToggle {
   margin-right: 4px !important;
 }
@@ -3995,13 +4962,11 @@ html.is-phone #ttsToggleMobile .tts-icon,
 html.is-phone #searchOpen .search-open-icon,
 html.is-phone #themeToggle .theme-icon,
 html.is-phone #addressBarToggle .ab-icon,
-html.is-phone #slider .menu-hamburger-icon,
 html.is-phone #mobileMoreToggle .mobile-more-icon,
 html.is-tablet #ttsToggleMobile .tts-icon,
 html.is-tablet #searchOpen .search-open-icon,
 html.is-tablet #themeToggle .theme-icon,
 html.is-tablet #addressBarToggle .ab-icon,
-html.is-tablet #slider .menu-hamburger-icon,
 html.is-tablet #mobileMoreToggle .mobile-more-icon {
   width: var(--title-icon-glyph-size) !important;
   height: var(--title-icon-glyph-size) !important;
@@ -4013,19 +4978,419 @@ html.is-tablet #mobileMoreToggle .mobile-more-icon {
   display: block !important;
   object-fit: fill !important;
 }
-html.is-ios #slider .menu-hamburger-icon,
-html.is-phone #slider .menu-hamburger-icon,
-html.is-tablet #slider .menu-hamburger-icon {
+
+html.is-phone #bottomCatalogLink,
+html.is-tablet #bottomCatalogLink {
+  display: inline-flex;
+}
+
+html.is-phone body.reader1-unified-shell #ttsToggleMobile,
+html.is-tablet body.reader1-unified-shell #ttsToggleMobile,
+html.is-phone body.reader1-unified-shell #mobileMoreToggle,
+html.is-tablet body.reader1-unified-shell #mobileMoreToggle,
+html.is-phone body.reader1-unified-shell #addressBarToggle,
+html.is-tablet body.reader1-unified-shell #addressBarToggle,
+html.is-phone body.reader1-unified-shell #fontDec,
+html.is-tablet body.reader1-unified-shell #fontDec,
+html.is-phone body.reader1-unified-shell #fontInc,
+html.is-tablet body.reader1-unified-shell #fontInc {
   display: none !important;
 }
-html.is-ios #slider,
-html.is-phone #slider,
-html.is-tablet #slider {
-  background-image: url("../icons/hamburger.svg?v=20260303-mobile-hamburger-bg-1") !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-  background-size: var(--title-icon-glyph-size) var(--title-icon-glyph-size) !important;
-  border-radius: 0 !important;
+
+html.is-phone body.reader1-unified-shell #title-controls > #ttsToggleDesktop,
+html.is-phone body.reader1-unified-shell #title-controls > #themeToggle,
+html.is-phone body.reader1-unified-shell #title-controls > #shellLibraryToggle,
+html.is-phone body.reader1-unified-shell #title-controls > #setting,
+html.is-tablet body.reader1-unified-shell #title-controls > #ttsToggleDesktop,
+html.is-tablet body.reader1-unified-shell #title-controls > #themeToggle,
+html.is-tablet body.reader1-unified-shell #title-controls > #shellLibraryToggle,
+html.is-tablet body.reader1-unified-shell #title-controls > #setting,
+html.is-phone body.reader1-unified-shell #searchOpen,
+html.is-tablet body.reader1-unified-shell #searchOpen {
+  display: inline-flex !important;
+}
+
+html.is-phone body.reader1-unified-shell #title-controls,
+html.is-tablet body.reader1-unified-shell #title-controls {
+  gap: 14px !important;
+  overflow: visible !important;
+}
+
+@media (orientation: portrait) {
+  html.is-phone body.reader1-unified-shell #shellTopLinks,
+  html.is-tablet body.reader1-unified-shell #shellTopLinks{
+    display: none !important;
+  }
+
+  html.is-phone body.reader1-unified-shell #metainfo,
+  html.is-tablet body.reader1-unified-shell #metainfo {
+    position: absolute;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    right: calc(124px + env(safe-area-inset-right, 0px));
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0 !important;
+    justify-content: flex-start;
+    text-align: left;
+    width: auto;
+    max-width: none;
+    pointer-events: none;
+  }
+
+  html.is-phone body.reader1-unified-shell #metaText,
+  html.is-tablet body.reader1-unified-shell #metaText {
+    align-items: flex-start;
+    justify-content: center;
+    text-align: left;
+  }
+
+  html.is-phone body.reader1-unified-shell #book-title,
+  html.is-phone body.reader1-unified-shell #chapter-title,
+  html.is-tablet body.reader1-unified-shell #book-title,
+  html.is-tablet body.reader1-unified-shell #chapter-title {
+    max-width: 100%;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  html.is-phone body.reader1-unified-shell #book-title,
+  html.is-tablet body.reader1-unified-shell #book-title {
+    font-size: 13px;
+    line-height: 1.15;
+  }
+
+  html.is-phone body.reader1-unified-shell #chapter-title,
+  html.is-tablet body.reader1-unified-shell #chapter-title {
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.1;
+    opacity: 0.9;
+  }
+}
+
+html.is-phone body.reader1-unified-shell #searchDesktop,
+html.is-tablet body.reader1-unified-shell #searchDesktop {
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  z-index: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+html.is-phone body.reader1-unified-shell #searchDesktop .search-input-wrap,
+html.is-phone body.reader1-unified-shell #searchDesktop .search-nav.desktop,
+html.is-tablet body.reader1-unified-shell #searchDesktop .search-input-wrap,
+html.is-tablet body.reader1-unified-shell #searchDesktop .search-nav.desktop {
+  display: none !important;
+}
+
+html.is-phone body.reader1-unified-shell #title-controls > #ttsToggleDesktop,
+html.is-phone body.reader1-unified-shell #title-controls > #themeToggle,
+html.is-phone body.reader1-unified-shell #title-controls > #shellLibraryToggle,
+html.is-phone body.reader1-unified-shell #title-controls > #setting,
+html.is-phone body.reader1-unified-shell #searchOpen,
+html.is-tablet body.reader1-unified-shell #title-controls > #ttsToggleDesktop,
+html.is-tablet body.reader1-unified-shell #title-controls > #themeToggle,
+html.is-tablet body.reader1-unified-shell #title-controls > #shellLibraryToggle,
+html.is-tablet body.reader1-unified-shell #title-controls > #setting,
+html.is-tablet body.reader1-unified-shell #searchOpen {
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+}
+
+html.is-phone body.reader1-unified-shell #ttsToggleDesktop .tts-icon,
+html.is-phone body.reader1-unified-shell #themeToggle .theme-icon,
+html.is-phone body.reader1-unified-shell #shellLibraryToggle .shell-control-img,
+html.is-phone body.reader1-unified-shell #setting .shell-control-img,
+html.is-phone body.reader1-unified-shell #searchOpen .search-open-icon,
+html.is-tablet body.reader1-unified-shell #ttsToggleDesktop .tts-icon,
+html.is-tablet body.reader1-unified-shell #themeToggle .theme-icon,
+html.is-tablet body.reader1-unified-shell #shellLibraryToggle .shell-control-img,
+html.is-tablet body.reader1-unified-shell #setting .shell-control-img,
+html.is-tablet body.reader1-unified-shell #searchOpen .search-open-icon {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+}
+
+@media (orientation: portrait) {
+  html.is-phone body.reader1-unified-shell #bottombar,
+  html.is-tablet body.reader1-unified-shell #bottombar {
+    min-height: 44px;
+    height: 44px;
+  }
+
+  html.is-phone body.reader1-unified-shell #bottomCatalogLink,
+  html.is-tablet body.reader1-unified-shell #bottomCatalogLink {
+    display: inline-flex !important;
+    position: absolute;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  html.is-phone body.reader1-unified-shell #bottombar #bookmark,
+  html.is-tablet body.reader1-unified-shell #bottombar #bookmark {
+    display: inline-flex !important;
+    position: absolute;
+    right: calc(14px + env(safe-area-inset-right, 0px));
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  html.is-phone body.reader1-unified-shell #bottombar #page-count,
+  html.is-tablet body.reader1-unified-shell #bottombar #page-count {
+    position: absolute;
+    right: calc(52px + env(safe-area-inset-right, 0px));
+    left: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
+    text-align: right;
+    white-space: nowrap;
+  }
+}
+
+@media (hover: hover) and (pointer: fine), (orientation: landscape) {
+  #titlebar {
+    --titlebar-h: 43px;
+    min-height: 43px;
+    height: 43px;
+    padding: 3px 8px;
+    position: relative;
+    align-items: center;
+  }
+
+  #shellTopLinks {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: inline-flex;
+    max-width: min(24vw, 320px);
+  }
+
+  #shellCatalogLink {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    font: 500 15px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--fbbar-fg-strong);
+  }
+
+  #metainfo {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    width: min(44vw, 620px);
+    max-width: calc(100vw - 420px);
+    justify-content: center;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  #metaText {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    line-height: 1.18;
+  }
+
+  #book-title,
+  #chapter-title {
+    width: 100%;
+    text-align: center;
+  }
+
+  #book-title {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  #chapter-title {
+    margin-top: 4px;
+    font-size: 11px;
+    opacity: 0.9;
+  }
+
+  #title-controls {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    max-width: calc(100vw - 360px);
+    overflow: hidden;
+  }
+
+  #title-controls > #themeToggle,
+  #title-controls > #fontDec,
+  #title-controls > #fontInc,
+  #title-controls > #bookmark,
+  #title-controls > #mobileMoreToggle,
+  #title-controls > #ttsToggleMobile,
+  #title-controls > #searchOpen,
+  #title-controls > #addressBarToggle {
+    display: none !important;
+  }
+
+  #shellLibraryToggle,
+  #setting,
+  #ttsToggleDesktop,
+  #themeToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+    overflow: hidden;
+  }
+
+  #searchDesktop {
+    order: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: none;
+    min-width: 0;
+    width: auto;
+    overflow: hidden;
+  }
+
+  #ttsToggleDesktop {
+    order: 20;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+  }
+
+  #shellLibraryToggle {
+    order: 62;
+  }
+
+  #setting {
+    order: 64;
+  }
+
+  #themeToggle {
+    order: 60;
+  }
+
+  #bottomCatalogLink {
+    display: none;
+  }
+
+  #searchDesktop .search-nav.desktop {
+    flex: 0 0 auto;
+  }
+
+  #searchDesktop .search-input-wrap {
+    flex: 0 0 auto;
+    width: 187px;
+    min-width: 187px;
+    max-width: 187px;
+    overflow: hidden;
+  }
+
+  #searchInputDesktop {
+    width: 187px;
+    min-width: 187px;
+    max-width: 187px;
+  }
+
+  #searchActionDesktop {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    min-height: 18px;
+  }
+
+  #ttsToggleDesktop .tts-icon,
+  #themeToggle .theme-icon,
+  #shellLibraryToggle .shell-control-img,
+  #setting .shell-control-img {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    object-fit: contain;
+    display: block;
+  }
+}
+
+html.is-phone #titlebar,
+html.is-tablet #titlebar {
+  --titlebar-h: 48px;
+  height: var(--titlebar-h);
+  min-height: var(--titlebar-h);
+  padding: 8px 10px;
+  justify-content: flex-start;
+  gap: 0;
+  overflow: hidden;
+}
+
+html.is-phone #searchbar,
+html.is-tablet #searchbar {
+  height: var(--titlebar-h);
+  min-height: var(--titlebar-h);
+  padding: 8px 12px;
+}
+
+html.is-phone #bottombar,
+html.is-tablet #bottombar,
+html.is-phone body.reader1-unified-shell #bottombar,
+html.is-tablet body.reader1-unified-shell #bottombar {
+  min-height: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.settings-shell-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-font-controls {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.settings-shell-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--fbbar-border);
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  cursor: pointer;
 }
 html.is-phone #ttsToggleMobile .tts-icon-on,
 html.is-tablet #ttsToggleMobile .tts-icon-on {
@@ -4057,21 +5422,6 @@ html.is-tablet #addressBarToggle.ab-state-small .ab-icon-small {
 }
 html.is-ios #addressBarToggle {
   display: none !important;
-}
-html.is-phone #overlay-menu #menuView .menu-icon,
-html.is-tablet #overlay-menu #menuView .menu-icon {
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-}
-html.is-phone #overlay-menu #menuView .menu-icon:before,
-html.is-tablet #overlay-menu #menuView .menu-icon:before {
-  font-size: 20px;
-}
-html.is-phone #overlay-menu #menuView .menu-icon svg,
-html.is-tablet #overlay-menu #menuView .menu-icon svg {
-  width: 22px;
-  height: 22px;
 }
 
 /* Highlight style inside rendition documents */
@@ -4160,6 +5510,205 @@ html.is-tablet .overlay-backdrop {
   z-index: 30000 !important;
 }
 
+body.reader1-unified-shell #overlay-library #bookmarksView > ul,
+body.reader1-unified-shell #overlay-library #mybooks,
+body.reader1-unified-shell #overlay-library #notes {
+  list-style: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView > ul > li.list_item,
+body.reader1-unified-shell #overlay-library #mybooks > li.list_item,
+body.reader1-unified-shell #overlay-library #notes > li.list_item {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView .bookmark-text,
+body.reader1-unified-shell #overlay-library #mybooks .bookmark-text,
+body.reader1-unified-shell #overlay-library #notes .bookmark-text {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView .bookmark-page-label,
+body.reader1-unified-shell #overlay-library #notes .bookmark-page-label {
+  display: block;
+  margin: 0 0 6px;
+  padding: 0;
+  font-size: 1em;
+  line-height: 1.1;
+  color: rgba(255,255,255,0.95);
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView .bookmark_link,
+body.reader1-unified-shell #overlay-library #mybooks .bookmark_link,
+body.reader1-unified-shell #overlay-library #notes .bookmark_link {
+  margin: 0;
+  padding: 0;
+  display: block;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView .bookmark_link {
+  font-size: 0.84em;
+  line-height: 1.32;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(255,255,255,0.92);
+}
+
+body.reader1-unified-shell #overlay-library #mybooks .bookmark_link {
+  color: rgba(255,255,255,0.96);
+  font-size: 0.96em;
+  font-weight: 600;
+  line-height: 1.24;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: calc(1.24em * 2);
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView .bookmark-comment,
+body.reader1-unified-shell #overlay-library #notes .bookmark-comment,
+body.reader1-unified-shell #overlay-library #mybooks .bookmark-comment {
+  margin: 6px 0 0;
+  padding: 0;
+  font-size: 0.84em;
+  line-height: 1.28;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body.reader1-unified-shell #overlay-library #mybooks .bookmark-comment {
+  color: rgba(255,255,255,0.56);
+  font-size: 0.78em;
+  line-height: 1.24;
+}
+
+body.reader1-unified-shell #overlay-library #notes .bookmark-comment {
+  margin-top: 10px;
+  font-size: 1em;
+  line-height: 1.34;
+  color: rgba(255,255,255,0.96);
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView .bookmark-comment {
+  color: rgba(255,255,255,0.56);
+  font-size: 0.78em;
+  line-height: 1.24;
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView .bookmark-delete,
+body.reader1-unified-shell #overlay-library #mybooks .bookmark-delete,
+body.reader1-unified-shell #overlay-library #notes .bookmark-delete {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  height: 22px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit;
+  opacity: 0.82;
+  box-shadow: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  float: none !important;
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+  justify-self: end !important;
+  align-self: start !important;
+  margin-left: auto !important;
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView .bookmark-delete:hover,
+body.reader1-unified-shell #overlay-library #mybooks .bookmark-delete:hover,
+body.reader1-unified-shell #overlay-library #notes .bookmark-delete:hover {
+  opacity: 1;
+}
+
+body.reader1-unified-shell #overlay-library #bookmarksView .bookmark-delete svg,
+body.reader1-unified-shell #overlay-library #mybooks .bookmark-delete svg,
+body.reader1-unified-shell #overlay-library #notes .bookmark-delete svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+}
+
+html.is-phone body.reader1-unified-shell.search-open:not(.search-minimized) #titlebar,
+html.is-tablet body.reader1-unified-shell.search-open:not(.search-minimized) #titlebar {
+  display: none !important;
+}
+
+html.is-phone body.reader1-unified-shell.search-open:not(.search-minimized) #searchbar,
+html.is-tablet body.reader1-unified-shell.search-open:not(.search-minimized) #searchbar {
+  display: flex !important;
+}
+
+html.is-phone body.reader1-unified-shell.search-open.search-minimized #titlebar,
+html.is-phone body.reader1-unified-shell.search-open.search-minimized #bottombar,
+html.is-tablet body.reader1-unified-shell.search-open.search-minimized #titlebar,
+html.is-tablet body.reader1-unified-shell.search-open.search-minimized #bottombar {
+  display: none !important;
+}
+
+body.reader1-unified-shell #searchFloatControls {
+  z-index: 30020 !important;
+}
+
+html.is-phone body.reader1-unified-shell #searchbar,
+html.is-tablet body.reader1-unified-shell #searchbar,
+html.is-phone body.reader1-unified-shell #searchFloatControls,
+html.is-tablet body.reader1-unified-shell #searchFloatControls {
+  display: none;
+}
+
+html.is-phone body.reader1-unified-shell.search-open:not(.search-minimized) #searchbar,
+html.is-tablet body.reader1-unified-shell.search-open:not(.search-minimized) #searchbar {
+  display: flex !important;
+}
+
+html.is-phone body.reader1-unified-shell.search-active #searchFloatControls:not(.hidden),
+html.is-tablet body.reader1-unified-shell.search-active #searchFloatControls:not(.hidden) {
+  display: inline-flex !important;
+}
+
 /* Mobile + tablet: prevent vertical pull-to-refresh / page bounce */
 @media (hover: none) and (pointer: coarse) {
   html, body {
@@ -4183,11 +5732,10 @@ html.is-tablet .overlay-backdrop {
   /* Sidebar/overlay lists must keep vertical scrolling on touch devices. */
   .overlay-panel,
   .overlay-panel .overlay-scroll,
-  #overlay-toc #tocView,
-  #overlay-bookmarks #bookmarksView,
-  #overlay-notes #notesView,
-  #overlay-mybooks #mybooksView,
-  #overlay-menu #menuView {
+  #tocView,
+  #bookmarksView,
+  #notesView,
+  #mybooksView {
     touch-action: pan-y !important;
     overscroll-behavior: contain;
     overscroll-behavior-y: contain;
@@ -4207,17 +5755,17 @@ html.is-tablet #mobileMoreToggle::before {
 }
 
 /* Notes rows: force same geometry as My Books delete controls (without !important). */
-#overlay-notes #notesView #notes > li.list_item {
+#notesView #notes > li.list_item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
 }
-#overlay-notes #notesView #notes > li.list_item > div {
+#notesView #notes > li.list_item > div {
   flex: 1 1 auto;
   min-width: 0;
 }
-#overlay-notes #notesView #notes > li.list_item > button,
-#overlay-notes #notesView #notes > li.list_item > button.bookmark-delete {
+#notesView #notes > li.list_item > button,
+#notesView #notes > li.list_item > button.bookmark-delete {
   position: static;
   inset: auto;
   flex: 0 0 32px;

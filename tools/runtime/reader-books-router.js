@@ -111,6 +111,9 @@ async function serveProtectedArtifactObject(env, key, route) {
   const response = await serveR2Object(env, key, route);
   if (response.status !== 200) return response;
   const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store, no-cache, must-revalidate, max-age=0");
+  headers.set("cdn-cache-control", "no-store");
+  headers.set("cloudflare-cdn-cache-control", "no-store");
   headers.set("access-control-allow-origin", "*");
   headers.set("access-control-allow-methods", "GET, HEAD, OPTIONS");
   headers.set("access-control-allow-headers", "content-type");
