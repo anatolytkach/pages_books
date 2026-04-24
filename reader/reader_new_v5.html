@@ -85,6 +85,7 @@
       return (
         pathname === "/books/reader_new/" ||
         pathname === "/books/reader_new_v5/" ||
+        pathname === "/books/protected/" ||
         pathname === "/reader_new/" ||
         pathname === "/reader_new_v5/" ||
         pathname === "/reader/reader_new" ||
@@ -93,11 +94,17 @@
         pathname === "/reader/reader_new_v5/" ||
         pathname === "/books/reader_new/index.html" ||
         pathname === "/books/reader_new_v5/index.html" ||
+        pathname === "/books/protected/index.html" ||
         pathname === "/reader_new/index.html" ||
         pathname === "/reader_new_v5/index.html" ||
         pathname === "/reader/reader_new.html" ||
         pathname === "/reader/reader_new_v5.html"
       );
+    }
+
+    function isProtectedPublicRoute() {
+      var pathname = String((window.location && window.location.pathname) || "").trim();
+      return pathname === "/books/protected/" || pathname === "/books/protected/index.html";
     }
 
     function renderEntryMessage(title, body) {
@@ -157,9 +164,13 @@
     var readerRemoteMode = String(
       params.get("readerRemoteMode") || params.get("protectedRemoteMode") || ""
     ).trim().toLowerCase();
-    var resolvedArtifactSource = protectedArtifactSource || (readerContentSource === "r2" ? "r2" : "");
+    var protectedPublicRoute = isProtectedPublicRoute();
+    var resolvedArtifactSource =
+      protectedArtifactSource ||
+      (readerContentSource === "r2" ? "r2" : "") ||
+      (protectedPublicRoute && !isLocalPreviewHost() ? "r2" : "");
 
-    if (artifactBookId && readerMode !== "protected") {
+    if ((artifactBookId || protectedPublicRoute) && readerMode !== "protected") {
       readerMode = "protected";
     }
 
@@ -190,46 +201,50 @@
     try {
       var normalizedParams = new URLSearchParams(window.location.search || "");
       var changed = false;
-      if (normalizedParams.get("reader") !== "protected") {
-        normalizedParams.set("reader", "protected");
-        changed = true;
-      }
-      if (normalizedParams.get("protectedArtifactBookId") !== id) {
-        normalizedParams.set("protectedArtifactBookId", id);
-        changed = true;
-      }
-      if (artifactBookId && normalizedParams.get("artifactBookId") !== artifactBookId) {
-        normalizedParams.set("artifactBookId", artifactBookId);
-        changed = true;
-      }
-      if (!normalizedParams.get("id")) {
-        normalizedParams.set("id", id);
-        changed = true;
-      }
-      if (resolvedArtifactSource && normalizedParams.get("protectedArtifactSource") !== resolvedArtifactSource) {
-        normalizedParams.set("protectedArtifactSource", resolvedArtifactSource);
-        changed = true;
-      }
-      if (!resolvedArtifactSource && normalizedParams.get("protectedArtifactSource") !== "local") {
-        normalizedParams.set("protectedArtifactSource", "local");
-        changed = true;
-      }
-      if (normalizedParams.get("protectedUx") !== "protected-shell") {
-        normalizedParams.set("protectedUx", "protected-shell");
-        changed = true;
-      }
-      if (!normalizedParams.get("renderMode")) {
-        normalizedParams.set("renderMode", "shape");
-        changed = true;
-      }
-      if (!normalizedParams.get("metricsMode")) {
-        normalizedParams.set("metricsMode", "shape");
-        changed = true;
-      }
+      if (protectedPublicRoute) {
+        window.__readerpubReaderNewNormalizedHref = window.location.pathname + window.location.search + (hashIsCfi ? rawHash : "");
+      } else {
+        if (normalizedParams.get("reader") !== "protected") {
+          normalizedParams.set("reader", "protected");
+          changed = true;
+        }
+        if (normalizedParams.get("protectedArtifactBookId") !== id) {
+          normalizedParams.set("protectedArtifactBookId", id);
+          changed = true;
+        }
+        if (artifactBookId && normalizedParams.get("artifactBookId") !== artifactBookId) {
+          normalizedParams.set("artifactBookId", artifactBookId);
+          changed = true;
+        }
+        if (!normalizedParams.get("id")) {
+          normalizedParams.set("id", id);
+          changed = true;
+        }
+        if (resolvedArtifactSource && normalizedParams.get("protectedArtifactSource") !== resolvedArtifactSource) {
+          normalizedParams.set("protectedArtifactSource", resolvedArtifactSource);
+          changed = true;
+        }
+        if (!resolvedArtifactSource && normalizedParams.get("protectedArtifactSource") !== "local") {
+          normalizedParams.set("protectedArtifactSource", "local");
+          changed = true;
+        }
+        if (normalizedParams.get("protectedUx") !== "protected-shell") {
+          normalizedParams.set("protectedUx", "protected-shell");
+          changed = true;
+        }
+        if (!normalizedParams.get("renderMode")) {
+          normalizedParams.set("renderMode", "shape");
+          changed = true;
+        }
+        if (!normalizedParams.get("metricsMode")) {
+          normalizedParams.set("metricsMode", "shape");
+          changed = true;
+        }
 
-      var normalizedHref = window.location.pathname + "?" + normalizedParams.toString() + (hashIsCfi ? rawHash : "");
-      if (changed) history.replaceState(null, "", normalizedHref);
-      window.__readerpubReaderNewNormalizedHref = normalizedHref;
+        var normalizedHref = window.location.pathname + "?" + normalizedParams.toString() + (hashIsCfi ? rawHash : "");
+        if (changed) history.replaceState(null, "", normalizedHref);
+        window.__readerpubReaderNewNormalizedHref = normalizedHref;
+      }
     } catch (eReaderNewNormalize) {}
 
     try {

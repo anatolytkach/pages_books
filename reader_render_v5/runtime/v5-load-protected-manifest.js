@@ -18,6 +18,8 @@ export async function loadProtectedManifest(artifactRoot) {
   const rootUrl = new URL(String(artifactRoot || "").replace(/\/?$/, "/"), baseHref).toString();
   const manifestUrl = new URL("manifest.json", rootUrl).toString();
   const manifest = await fetchJson(manifestUrl);
+  manifest.source = manifest.source && typeof manifest.source === "object" ? manifest.source : {};
+  manifest.source.publicRootPath = new URL("assets", rootUrl).toString().replace(/\/$/, "");
 
   if (Number(manifest.version) !== PROTECTED_V4_BOOTSTRAP_MANIFEST_VERSION) {
     throw new Error(`Unsupported v4 manifest version: ${manifest.version}`);

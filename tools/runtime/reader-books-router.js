@@ -14,6 +14,9 @@ Allow: /category/
 Allow: /sitemap.xml
 Allow: /sitemaps/
 Disallow: /books/reader/
+Disallow: /books/reader_new/
+Disallow: /books/reader_new_v5/
+Disallow: /books/protected/
 Disallow: /books/reader1/
 Disallow: /books/api/
 
@@ -179,6 +182,21 @@ export default {
       return redirect("/books/reader/", "slash-redirect");
     }
 
+    if (path === "/books/reader_new") {
+      return redirect("/books/reader_new/", "slash-redirect");
+    }
+
+    if (path === "/books/reader_new_v4") {
+      return redirect("/books/reader_new_v4/", "slash-redirect");
+    }
+
+    if (path === "/books/reader_new_v5") {
+      return redirect(`/books/reader_new_v5/${url.search || ""}`, "slash-redirect");
+    }
+
+    if (path === "/books/protected") {
+      return redirect(`/books/protected/${url.search || ""}`, "slash-redirect");
+    }
     if (path === "/books/reader1") {
       return redirect("/books/reader1/", "slash-redirect");
     }
@@ -263,6 +281,25 @@ export default {
       return proxyRequest(request, upstreamUrl, "proxy-reader-api");
     }
 
+    if (path === "/reader_render_v5" || path.startsWith("/reader_render_v5/")) {
+      const protectedArtifactMatch = path.match(/^\/reader_render_v5\/artifacts\/protected-books\/([^/]+)\/(.+)$/);
+      if (protectedArtifactMatch) {
+        const bookId = decodePathSegment(protectedArtifactMatch[1]);
+        const rawSuffix = protectedArtifactMatch[2];
+        const decodedSuffix = decodePathSegment(rawSuffix);
+        const primaryKey = `protected-content/${bookId}/${decodedSuffix}`;
+        const fallbackKey = `protected-content/${bookId}/${rawSuffix}`;
+        const primary = await serveProtectedArtifactObject(env, primaryKey, "r2-protected-v5-artifact-alias");
+        if (primary.status !== 404 || fallbackKey === primaryKey) {
+          return primary;
+        }
+        return serveProtectedArtifactObject(env, fallbackKey, "r2-protected-v5-artifact-alias");
+      }
+      const upstreamUrl = new URL(`${host}${path}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-reader-render-v5");
+    }
+
     if (
       path === "/robots.txt" ||
       path === "/sitemap.xml" ||
@@ -320,6 +357,45 @@ export default {
       return proxyRequest(request, upstreamUrl, "proxy-reader");
     }
 
+    if (path === "/books/reader_new/" || path.startsWith("/books/reader_new/")) {
+      const rewrittenPath =
+        path === "/books/reader_new/" || path === "/books/reader_new/index.html"
+          ? "/reader/reader_new.html"
+          : path.replace(/^\/books\/reader_new/, "/reader");
+      const upstreamUrl = new URL(`${host}${rewrittenPath}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-reader-new");
+    }
+
+    if (path === "/books/reader_new_v4/" || path.startsWith("/books/reader_new_v4/")) {
+      return readerBooksPagesWorker.fetch(
+        new Request(request.url, request),
+        {
+          ...env,
+          READER_BOOKS: env.BOOKS,
+        },
+      );
+    }
+
+    if (path === "/books/reader_new_v5/" || path.startsWith("/books/reader_new_v5/")) {
+      const rewrittenPath =
+        path === "/books/reader_new_v5/" || path === "/books/reader_new_v5/index.html"
+          ? "/reader/reader_new_v5"
+          : path.replace(/^\/books\/reader_new_v5/, "/reader");
+      const upstreamUrl = new URL(`${host}${rewrittenPath}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-reader-new-v5");
+    }
+
+    if (path === "/books/protected/" || path.startsWith("/books/protected/")) {
+      const rewrittenPath =
+        path === "/books/protected/" || path === "/books/protected/index.html"
+          ? "/reader/reader_new_v5"
+          : path.replace(/^\/books\/protected/, "/reader");
+      const upstreamUrl = new URL(`${host}${rewrittenPath}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-protected-v5");
+    }
     if (path === "/books/reader1/" || path.startsWith("/books/reader1/")) {
       const rewrittenPath = path.replace(/^\/books\/reader1/, "/reader1");
       const upstreamUrl = new URL(`${host}${rewrittenPath}`);

@@ -4,6 +4,7 @@ compatibility_date = "2026-02-04"
 
 routes = [
   { pattern = "reader.pub/books*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/reader_render_v5*", zone_name = "reader.pub" },
   { pattern = "reader.pub/book*", zone_name = "reader.pub" },
   { pattern = "reader.pub/author*", zone_name = "reader.pub" },
   { pattern = "reader.pub/category*", zone_name = "reader.pub" },

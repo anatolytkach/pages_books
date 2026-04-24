@@ -22,6 +22,11 @@ function getProtectedHostConfig() {
   return null;
 }
 
+function isLocalPreviewUrl(url) {
+  const hostname = String(url && url.hostname ? url.hostname : "").trim().toLowerCase();
+  return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1";
+}
+
 function normalizeBookId(url) {
   const params = url.searchParams;
   const rawHash = String(url.hash || "").replace(/^#/, "");
@@ -63,20 +68,33 @@ function isReaderNewPath(url) {
   const pathname = String(url && url.pathname ? url.pathname : "").trim();
   return (
     pathname === "/books/reader_new/" ||
+    pathname === "/books/reader_new_v5/" ||
+    pathname === "/books/protected/" ||
     pathname === "/reader_new/" ||
+    pathname === "/reader_new_v5/" ||
     pathname === "/books/reader_new/index.html" ||
-    pathname === "/reader_new/index.html"
+    pathname === "/books/reader_new_v5/index.html" ||
+    pathname === "/books/protected/index.html" ||
+    pathname === "/reader_new/index.html" ||
+    pathname === "/reader_new_v5/index.html"
   );
+}
+
+function isProtectedPublicPath(url) {
+  const pathname = String(url && url.pathname ? url.pathname : "").trim();
+  return pathname === "/books/protected/" || pathname === "/books/protected/index.html";
 }
 
 function resolveProtectedArtifactRoot(url, artifactBookId) {
   const hostConfig = getProtectedHostConfig();
+  const publicProtectedRoute = isProtectedPublicPath(url);
   const artifactSource = String(
     url.searchParams.get("protectedArtifactSource") ||
       url.searchParams.get("readerContentSource") ||
       url.searchParams.get("bookContentSource") ||
       (hostConfig && hostConfig.protectedArtifactSource) ||
       url.searchParams.get("artifactSource") ||
+      (publicProtectedRoute && !isLocalPreviewUrl(url) ? "r2" : "") ||
       ""
   )
     .trim()
@@ -107,12 +125,14 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
     String(url.searchParams.get("rt") || "").trim() ||
     "";
   const artifactRoot = resolveProtectedArtifactRoot(url, artifactBookId);
+  const publicProtectedRoute = isProtectedPublicPath(url);
   const artifactSource = String(
     url.searchParams.get("protectedArtifactSource") ||
       url.searchParams.get("readerContentSource") ||
       url.searchParams.get("bookContentSource") ||
       (hostConfig && hostConfig.protectedArtifactSource) ||
       url.searchParams.get("artifactSource") ||
+      (publicProtectedRoute && !isLocalPreviewUrl(url) ? "r2" : "") ||
       ""
   )
     .trim()
@@ -161,6 +181,7 @@ export function parseProtectedIntegrationRoute(input = window.location.href) {
     remoteMode,
     source,
     artifactRoot,
+    publicProtectedRoute,
     shareState,
     lastCfi,
     explicitProtectedRequest:
