@@ -142,6 +142,23 @@ async function serveR2ObjectWithFallback(env, primaryKey, fallbackKey, route) {
   return serveR2Object(env, fallbackKey, route);
 }
 
+async function serveR2ObjectFromCandidates(env, keys, route) {
+  const uniqueKeys = [];
+  for (const key of keys) {
+    const normalized = String(key || "");
+    if (normalized && !uniqueKeys.includes(normalized)) {
+      uniqueKeys.push(normalized);
+    }
+  }
+
+  let response = null;
+  for (const key of uniqueKeys) {
+    response = await serveR2Object(env, key, route);
+    if (response.status !== 404) return response;
+  }
+  return response || serveR2Object(env, uniqueKeys[0] || "", route);
+}
+
 async function fetchPosthogPublicConfig(host) {
   try {
     const response = await fetch(`${host}/books/`, { method: "GET" });
@@ -179,7 +196,7 @@ export default {
     }
 
     if (path === "/books/reader") {
-      return redirect("/books/reader/", "slash-redirect");
+      return redirect(`/books/reader/${url.search || ""}`, "slash-redirect");
     }
 
     if (path === "/books/reader_new") {
@@ -244,10 +261,16 @@ export default {
       }
       const rawSuffix = normalizedPath.slice("/books/api/".length);
       const decodedSuffix = decodePathSegment(rawSuffix);
-      return serveR2ObjectWithFallback(
+      const decodedKey = `api/${decodedSuffix}`;
+      const rawKey = `api/${rawSuffix}`;
+      return serveR2ObjectFromCandidates(
         env,
-        `api/${decodedSuffix}`,
-        `api/${rawSuffix}`,
+        [
+          decodedKey,
+          rawKey,
+          decodedKey.toLocaleLowerCase(),
+          rawKey.toLocaleLowerCase(),
+        ],
         "r2-api",
       );
     }
@@ -351,10 +374,10 @@ export default {
     }
 
     if (path === "/books/reader/" || path.startsWith("/books/reader/")) {
-      const rewrittenPath = path.replace(/^\/books\/reader/, "/reader");
+      const rewrittenPath = path.replace(/^\/books\/reader/, "/reader1");
       const upstreamUrl = new URL(`${host}${rewrittenPath}`);
       upstreamUrl.search = url.search;
-      return proxyRequest(request, upstreamUrl, "proxy-reader");
+      return proxyRequest(request, upstreamUrl, "proxy-reader1-legacy-alias");
     }
 
     if (path === "/books/reader_new/" || path.startsWith("/books/reader_new/")) {

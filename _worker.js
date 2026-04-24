@@ -3634,6 +3634,14 @@ export default {
       if (!object && rawKey !== decodedKey) {
         object = await env.READER_BOOKS.get(rawKey);
       }
+      const lowerDecodedKey = decodedKey.toLocaleLowerCase();
+      const lowerRawKey = rawKey.toLocaleLowerCase();
+      if (!object && lowerDecodedKey !== decodedKey && lowerDecodedKey !== rawKey) {
+        object = await env.READER_BOOKS.get(lowerDecodedKey);
+      }
+      if (!object && lowerRawKey !== rawKey && lowerRawKey !== decodedKey && lowerRawKey !== lowerDecodedKey) {
+        object = await env.READER_BOOKS.get(lowerRawKey);
+      }
       if (!object) {
         const headers = new Headers({
           "content-type": "text/plain; charset=utf-8",
@@ -3786,7 +3794,10 @@ export default {
     // Rewrite /books/reader/* to /reader/* so it works without the router,
     // while still applying the standard response headers and HTML rewriting.
     if (path.startsWith("/books/reader/")) {
-      const rewrittenPath = path.replace(/^\/books\/reader/, "/reader");
+      const rewrittenPath =
+        path === "/books/reader/" || path === "/books/reader/index.html"
+          ? "/reader1/index.html"
+          : path.replace(/^\/books\/reader/, "/reader1");
       const rewrittenUrl = new URL(url);
       rewrittenUrl.pathname = rewrittenPath;
       assetRequest = new Request(rewrittenUrl.toString(), request);
