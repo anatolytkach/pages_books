@@ -91,6 +91,10 @@ const HOST_STATE = {
   imageViewerGesture: null,
   touchUiGuardInstalled: false,
   viewportEnvironmentInstalled: false,
+  addressBarToggleInstalled: false,
+  addressBarHidden: false,
+  addressBarBaseline: 0,
+  addressBarBaselineWidth: 0,
   tts: {
     active: false,
     token: 0
@@ -151,6 +155,14 @@ function detectIosDevice() {
   }
 }
 
+function detectAndroidDevice() {
+  try {
+    return /Android/i.test(String((navigator && navigator.userAgent) || ""));
+  } catch (_error) {
+    return false;
+  }
+}
+
 function getScreenMinDimension() {
   try {
     const sw = (screen && screen.width) ? screen.width : 0;
@@ -203,12 +215,21 @@ function isTabletViewportHost() {
 function syncProtectedViewportEnvironment() {
   const root = document.documentElement;
   if (!root) return;
+  let changed = false;
   try {
     const vv = window.visualViewport;
     const h = (vv && vv.height) ? vv.height : (window.innerHeight || 0);
     const w = (vv && vv.width) ? vv.width : (window.innerWidth || 0);
-    if (h) root.style.setProperty("--app-vh", `${h}px`);
-    if (w) root.style.setProperty("--app-vw", `${w}px`);
+    if (h) {
+      const next = `${h}px`;
+      changed = changed || root.style.getPropertyValue("--app-vh") !== next;
+      root.style.setProperty("--app-vh", next);
+    }
+    if (w) {
+      const next = `${w}px`;
+      changed = changed || root.style.getPropertyValue("--app-vw") !== next;
+      root.style.setProperty("--app-vw", next);
+    }
   } catch (_error) {}
   try {
     const touchLike = hasTouchLikeViewportHost();
@@ -216,12 +237,18 @@ function syncProtectedViewportEnvironment() {
     const isPhone = !!(touchLike && !isTablet);
     const isDesktop = !isPhone && !isTablet;
     root.classList.toggle("is-ios", detectIosDevice());
+    root.classList.toggle("is-android", detectAndroidDevice());
     root.classList.toggle("is-tablet", !!isTablet);
     root.classList.toggle("is-phone", !!isPhone);
     root.classList.toggle("is-desktop", !!isDesktop);
     root.classList.toggle("tablet-portrait", !!(isTablet && (window.innerHeight || 0) > (window.innerWidth || 0)));
     root.classList.toggle("tablet-landscape", !!(isTablet && !((window.innerHeight || 0) > (window.innerWidth || 0))));
   } catch (_error) {}
+  if (changed) {
+    try {
+      window.dispatchEvent(new CustomEvent("readerpub:protected-viewport-sync"));
+    } catch (_error) {}
+  }
 }
 
 function installProtectedViewportEnvironmentSync() {
@@ -502,6 +529,33 @@ function installStyles() {
     body.protected-shell #viewerStack {
       overflow: hidden;
       -webkit-tap-highlight-color: transparent !important;
+    }
+    html.is-phone body.protected-shell,
+    html.is-tablet body.protected-shell {
+      width: var(--app-vw, 100vw);
+      max-width: var(--app-vw, 100vw);
+      overflow-x: hidden;
+    }
+    html.is-phone body.protected-shell #container,
+    html.is-phone body.protected-shell #main,
+    html.is-phone body.protected-shell #viewerStack,
+    html.is-tablet body.protected-shell #container,
+    html.is-tablet body.protected-shell #main,
+    html.is-tablet body.protected-shell #viewerStack {
+      width: var(--app-vw, 100vw) !important;
+      max-width: var(--app-vw, 100vw) !important;
+      left: 0 !important;
+      right: auto !important;
+      overflow-x: hidden;
+    }
+    html.is-phone body.protected-shell #titlebar,
+    html.is-phone body.protected-shell #bottombar,
+    html.is-tablet body.protected-shell #titlebar,
+    html.is-tablet body.protected-shell #bottombar {
+      width: var(--app-vw, 100vw) !important;
+      max-width: var(--app-vw, 100vw) !important;
+      left: 0 !important;
+      right: auto !important;
     }
     body.protected-shell #fb-tap-layer {
       display: none !important;
@@ -995,10 +1049,10 @@ function installStyles() {
     }
     html.is-phone body.protected-shell #protectedImageViewer .protected-image-viewer-panel,
     html.is-tablet body.protected-shell #protectedImageViewer .protected-image-viewer-panel {
-      width: 100vw;
-      max-width: 100vw;
-      height: 100vh;
-      max-height: 100vh;
+      width: var(--app-vw, 100vw);
+      max-width: var(--app-vw, 100vw);
+      height: var(--app-vh, 100vh);
+      max-height: var(--app-vh, 100vh);
       padding: 0;
       border-radius: 0;
       background: #000;
@@ -1014,20 +1068,20 @@ function installStyles() {
     }
     html.is-phone body.protected-shell #protectedImageViewer .protected-image-viewer-frame,
     html.is-tablet body.protected-shell #protectedImageViewer .protected-image-viewer-frame {
-      width: 100vw;
-      height: 100vh;
-      max-width: 100vw;
-      max-height: 100vh;
+      width: var(--app-vw, 100vw);
+      height: var(--app-vh, 100vh);
+      max-width: var(--app-vw, 100vw);
+      max-height: var(--app-vh, 100vh);
     }
     html.is-phone body.protected-shell #protectedImageViewer .protected-image-viewer-stage,
     html.is-tablet body.protected-shell #protectedImageViewer .protected-image-viewer-stage {
-      width: 100vw;
-      height: 100vh;
+      width: var(--app-vw, 100vw);
+      height: var(--app-vh, 100vh);
     }
     html.is-phone body.protected-shell #protectedImageViewer .protected-image-viewer-image,
     html.is-tablet body.protected-shell #protectedImageViewer .protected-image-viewer-image {
-      max-width: 100vw;
-      max-height: 100vh;
+      max-width: var(--app-vw, 100vw);
+      max-height: var(--app-vh, 100vh);
     }
     html.is-phone body.protected-shell #protectedFootnotePopup.popup,
     html.is-tablet body.protected-shell #protectedFootnotePopup.popup {
@@ -1616,8 +1670,8 @@ function installStyles() {
       fill: currentColor;
       stroke: none;
     }
-    html.is-phone body.protected-shell.android #addressBarToggle,
-    html.is-tablet body.protected-shell.android #addressBarToggle {
+    html.is-phone body.protected-shell.addressbar-toggle-enabled #addressBarToggle,
+    html.is-tablet body.protected-shell.addressbar-toggle-enabled #addressBarToggle {
       display: inline-flex !important;
       position: absolute;
       right: calc(14px + env(safe-area-inset-right, 0px));
@@ -1640,8 +1694,8 @@ function installStyles() {
       justify-content: center;
       overflow: visible;
     }
-    html.is-phone body.protected-shell.android #addressBarToggle .ab-icon,
-    html.is-tablet body.protected-shell.android #addressBarToggle .ab-icon {
+    html.is-phone body.protected-shell.addressbar-toggle-enabled #addressBarToggle .ab-icon,
+    html.is-tablet body.protected-shell.addressbar-toggle-enabled #addressBarToggle .ab-icon {
       width: 18px !important;
       height: 18px !important;
       min-width: 18px !important;
@@ -1652,29 +1706,29 @@ function installStyles() {
       padding: 0 !important;
       transform: none !important;
     }
-    html.is-phone body.protected-shell.android #addressBarToggle.ab-state-full .ab-icon-full,
-    html.is-tablet body.protected-shell.android #addressBarToggle.ab-state-full .ab-icon-full {
+    html.is-phone body.protected-shell.addressbar-toggle-enabled #addressBarToggle.ab-state-full .ab-icon-full,
+    html.is-tablet body.protected-shell.addressbar-toggle-enabled #addressBarToggle.ab-state-full .ab-icon-full {
       display: block !important;
     }
-    html.is-phone body.protected-shell.android #addressBarToggle.ab-state-small .ab-icon-small,
-    html.is-tablet body.protected-shell.android #addressBarToggle.ab-state-small .ab-icon-small {
+    html.is-phone body.protected-shell.addressbar-toggle-enabled #addressBarToggle.ab-state-small .ab-icon-small,
+    html.is-tablet body.protected-shell.addressbar-toggle-enabled #addressBarToggle.ab-state-small .ab-icon-small {
       display: block !important;
     }
-    html.is-phone body.protected-shell.android #bottombar #bookmark,
-    html.is-tablet body.protected-shell.android #bottombar #bookmark {
+    html.is-phone body.protected-shell.addressbar-toggle-enabled #bottombar #bookmark,
+    html.is-tablet body.protected-shell.addressbar-toggle-enabled #bottombar #bookmark {
       right: calc(52px + env(safe-area-inset-right, 0px));
     }
     @media (orientation: portrait) {
-      html.is-phone body.protected-shell.android #bottombar #page-count,
-      html.is-tablet body.protected-shell.android #bottombar #page-count {
+      html.is-phone body.protected-shell.addressbar-toggle-enabled #bottombar #page-count,
+      html.is-tablet body.protected-shell.addressbar-toggle-enabled #bottombar #page-count {
         right: calc(92px + env(safe-area-inset-right, 0px));
       }
     }
     @media (orientation: landscape) {
       html.is-phone body.protected-shell #bottombar #page-count,
       html.is-tablet body.protected-shell #bottombar #page-count,
-      html.is-phone body.protected-shell.android #bottombar #page-count,
-      html.is-tablet body.protected-shell.android #bottombar #page-count {
+      html.is-phone body.protected-shell.addressbar-toggle-enabled #bottombar #page-count,
+      html.is-tablet body.protected-shell.addressbar-toggle-enabled #bottombar #page-count {
         position: absolute;
         left: 50%;
         right: auto;
@@ -3465,6 +3519,218 @@ function closeAllShellOverlays() {
   } catch (error) {}
 }
 
+function getProtectedFullscreenElement() {
+  return document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.webkitCurrentFullScreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement ||
+    null;
+}
+
+function requestProtectedFullscreen(element) {
+  const target = element || document.getElementById("container") || document.documentElement;
+  if (!target) return false;
+  const request = target.requestFullscreen ||
+    target.webkitRequestFullscreen ||
+    target.webkitRequestFullScreen ||
+    target.mozRequestFullScreen ||
+    target.msRequestFullscreen;
+  if (!request) return false;
+  try {
+    const result = request.call(target);
+    if (result && typeof result.catch === "function") {
+      result.catch(() => {});
+    }
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function exitProtectedFullscreen() {
+  const exit = document.exitFullscreen ||
+    document.webkitExitFullscreen ||
+    document.webkitCancelFullScreen ||
+    document.mozCancelFullScreen ||
+    document.msExitFullscreen;
+  if (!exit) return false;
+  try {
+    const result = exit.call(document);
+    if (result && typeof result.catch === "function") {
+      result.catch(() => {});
+    }
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function getProtectedViewportHeight() {
+  try {
+    return (window.visualViewport && window.visualViewport.height) ||
+      window.innerHeight ||
+      (document.documentElement && document.documentElement.clientHeight) ||
+      0;
+  } catch (_error) {
+    return 0;
+  }
+}
+
+function resetProtectedAddressBarBaselineIfNeeded() {
+  const width = Math.round(
+    (window.visualViewport && window.visualViewport.width) ||
+    window.innerWidth ||
+    (document.documentElement && document.documentElement.clientWidth) ||
+    0
+  );
+  if (
+    !HOST_STATE.addressBarBaseline ||
+    !HOST_STATE.addressBarBaselineWidth ||
+    Math.abs(width - HOST_STATE.addressBarBaselineWidth) > 50
+  ) {
+    HOST_STATE.addressBarBaseline = getProtectedViewportHeight();
+    HOST_STATE.addressBarBaselineWidth = width;
+  }
+}
+
+function updateProtectedAddressBarIcon(hidden) {
+  const toggle = document.getElementById("addressBarToggle");
+  if (!toggle) return;
+  toggle.classList.remove("icon-resize-full", "icon-resize-small", "icon-resize-full-1", "hidden");
+  toggle.classList.toggle("ab-state-small", !!hidden);
+  toggle.classList.toggle("ab-state-full", !hidden);
+  toggle.setAttribute("aria-label", hidden ? "Exit fullscreen" : "Enter fullscreen");
+  toggle.setAttribute("title", hidden ? "Exit fullscreen" : "Enter fullscreen");
+  toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
+}
+
+function syncProtectedAddressBarIconState() {
+  resetProtectedAddressBarBaselineIfNeeded();
+  const height = getProtectedViewportHeight();
+  if (height && HOST_STATE.addressBarBaseline) {
+    HOST_STATE.addressBarBaseline = Math.min(HOST_STATE.addressBarBaseline, height);
+  }
+  const delta = height - HOST_STATE.addressBarBaseline;
+  const hidden = !!getProtectedFullscreenElement() || delta > 40;
+  HOST_STATE.addressBarHidden = hidden;
+  updateProtectedAddressBarIcon(hidden);
+}
+
+function nudgeProtectedAddressBar() {
+  try {
+    if (window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+  } catch (_error) {}
+  try {
+    const docEl = document.documentElement;
+    const body = document.body;
+    const height = getProtectedViewportHeight();
+    const previous = {
+      docOverflow: docEl && docEl.style ? docEl.style.overflow : "",
+      bodyOverflow: body && body.style ? body.style.overflow : "",
+      docHeight: docEl && docEl.style ? docEl.style.height : "",
+      bodyMinHeight: body && body.style ? body.style.minHeight : ""
+    };
+    const spacer = document.createElement("div");
+    spacer.setAttribute("aria-hidden", "true");
+    spacer.style.cssText = "position:absolute;left:0;top:0;width:1px;height:2px;opacity:0;pointer-events:none;";
+    if (body) body.appendChild(spacer);
+    if (docEl && docEl.style) {
+      docEl.style.overflow = "auto";
+      if (height) docEl.style.height = `${height + 2}px`;
+    }
+    if (body && body.style) {
+      body.style.overflow = "auto";
+      if (height) body.style.minHeight = `${height + 2}px`;
+    }
+    const doScroll = () => {
+      try { window.scrollTo(0, 1); } catch (_error) {}
+      try { if (docEl) docEl.scrollTop = 1; } catch (_error) {}
+      try { if (body) body.scrollTop = 1; } catch (_error) {}
+    };
+    doScroll();
+    window.setTimeout(doScroll, 50);
+    window.setTimeout(() => {
+      try { if (spacer && spacer.parentNode) spacer.parentNode.removeChild(spacer); } catch (_error) {}
+      try {
+        if (docEl && docEl.style) {
+          docEl.style.overflow = previous.docOverflow;
+          docEl.style.height = previous.docHeight;
+        }
+      } catch (_error) {}
+      try {
+        if (body && body.style) {
+          body.style.overflow = previous.bodyOverflow;
+          body.style.minHeight = previous.bodyMinHeight;
+        }
+      } catch (_error) {}
+    }, 250);
+  } catch (_error) {}
+}
+
+function shouldEnableProtectedAddressBarToggle() {
+  if (detectIosDevice()) return false;
+  try {
+    const root = document.documentElement;
+    if (root && (root.classList.contains("is-phone") || root.classList.contains("is-tablet"))) return true;
+  } catch (_error) {}
+  return detectAndroidDevice();
+}
+
+function installProtectedAddressBarToggle() {
+  const toggle = document.getElementById("addressBarToggle");
+  if (!toggle) return;
+  const enabled = shouldEnableProtectedAddressBarToggle();
+  document.body.classList.toggle("android", detectAndroidDevice());
+  document.body.classList.toggle("addressbar-toggle-enabled", enabled);
+  if (!enabled) {
+    toggle.classList.add("hidden");
+    return;
+  }
+  updateProtectedAddressBarIcon(!!getProtectedFullscreenElement());
+  if (HOST_STATE.addressBarToggleInstalled) return;
+  HOST_STATE.addressBarToggleInstalled = true;
+  toggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (getProtectedFullscreenElement()) {
+      exitProtectedFullscreen();
+      window.setTimeout(syncProtectedAddressBarIconState, 80);
+      return;
+    }
+    if (HOST_STATE.addressBarHidden) {
+      try { window.scrollTo(0, 0); } catch (_error) {}
+      window.setTimeout(syncProtectedAddressBarIconState, 80);
+      window.setTimeout(syncProtectedAddressBarIconState, 240);
+      return;
+    }
+    nudgeProtectedAddressBar();
+    window.setTimeout(syncProtectedAddressBarIconState, 100);
+    window.setTimeout(syncProtectedAddressBarIconState, 250);
+    window.setTimeout(() => {
+      if (HOST_STATE.addressBarHidden || getProtectedFullscreenElement()) return;
+      requestProtectedFullscreen(document.getElementById("container") || document.documentElement);
+      window.setTimeout(syncProtectedAddressBarIconState, 80);
+    }, 320);
+  });
+  ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach((type) => {
+    document.addEventListener(type, syncProtectedAddressBarIconState);
+  });
+  window.addEventListener("scroll", syncProtectedAddressBarIconState, { passive: true });
+  window.addEventListener("resize", () => {
+    installProtectedAddressBarToggle();
+    syncProtectedAddressBarIconState();
+  }, { passive: true });
+  window.addEventListener("readerpub:protected-viewport-sync", installProtectedAddressBarToggle, { passive: true });
+  try {
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncProtectedAddressBarIconState, { passive: true });
+      window.visualViewport.addEventListener("scroll", syncProtectedAddressBarIconState, { passive: true });
+    }
+  } catch (_error) {}
+  syncProtectedAddressBarIconState();
+}
+
 function isAutomationMode() {
   return !!(HOST_STATE.route && HOST_STATE.route.automationSafe);
 }
@@ -5065,10 +5331,13 @@ function syncProtectedShellIcons() {
     bottomBar.appendChild(pageCount);
   }
   const addressBarToggle = document.getElementById("addressBarToggle");
-  const isAndroid = /Android/i.test(String(navigator.userAgent || ""));
+  const isAndroid = detectAndroidDevice();
+  const addressBarEnabled = shouldEnableProtectedAddressBarToggle();
   if (addressBarToggle) {
     document.body.classList.toggle("android", isAndroid);
-    if (isAndroid && bottomBar && addressBarToggle.parentElement !== bottomBar) {
+    document.body.classList.toggle("addressbar-toggle-enabled", addressBarEnabled);
+    addressBarToggle.classList.toggle("hidden", !addressBarEnabled);
+    if (addressBarEnabled && bottomBar && addressBarToggle.parentElement !== bottomBar) {
       bottomBar.appendChild(addressBarToggle);
     }
   }
@@ -6094,6 +6363,7 @@ async function openProtectedNoteComposer(debugCaptureOverride = null) {
   }, 0);
   return new Promise((resolve) => {
     let actionLockUntil = 0;
+    const backdropCancelSuppressedUntil = Date.now() + 500;
     const shouldSkipSheetAction = () => Date.now() < actionLockUntil;
     const markSheetActionHandled = () => {
       actionLockUntil = Date.now() + 500;
@@ -6117,6 +6387,17 @@ async function openProtectedNoteComposer(debugCaptureOverride = null) {
       resolve();
     };
     const onCancel = async (event) => {
+      if (
+        event &&
+        backdrop &&
+        event.currentTarget === backdrop &&
+        Date.now() < backdropCancelSuppressedUntil
+      ) {
+        event.preventDefault();
+        event.stopPropagation && event.stopPropagation();
+        event.stopImmediatePropagation && event.stopImmediatePropagation();
+        return;
+      }
       if (shouldSkipSheetAction()) return;
       markSheetActionHandled();
       event && event.preventDefault();
@@ -6790,8 +7071,7 @@ async function handleProtectedLinkActivation(anchor, pointerType = "mouse") {
   if (pointerType === "touch") {
     HOST_STATE.suppressSyntheticClickUntil = Date.now() + 900;
   }
-  if (anchor.kind === "external" && anchor.externalUrl) {
-    openExternalUrl(anchor.externalUrl);
+  if (anchor.kind === "external") {
     return true;
   }
   if (anchor.kind === "internal" && Number.isFinite(Number(anchor.globalOffset))) {
@@ -9011,6 +9291,30 @@ function installTouchSwipe(target) {
         durationMs <= 900 &&
         !previewVisible &&
         !overlaysVisible();
+      const isStationaryLongPress =
+        Math.abs(totalDx) <= 22 &&
+        Math.abs(totalDy) <= 22 &&
+        durationMs >= 390 &&
+        !previewVisible &&
+        !overlaysVisible();
+      if (isStationaryLongPress) {
+        const mediaItem = completedGesture.mediaProbe
+          ? await completedGesture.mediaProbe
+          : await probeMediaAtClientPoint(
+              touch ? touch.clientX : completedGesture.startX,
+              touch ? touch.clientY : completedGesture.startY,
+              "touch"
+            ).then((result) => (result && result.active && result.media ? result.media : null)).catch(() => null);
+        window.__protectedTouchDebug.end.image = !!mediaItem;
+        if (mediaItem) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+          suppressShellToggle("image-longpress-release");
+          showProtectedImageViewer(mediaItem, "touch");
+          return;
+        }
+      }
       if (isTap) {
         const footnoteAnchor = await probeFootnoteAtClientPoint(
           touch ? touch.clientX : completedGesture.startX,
@@ -9868,7 +10172,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260422-v5-image-viewer-2");
+      await import("../dev/protected-reader.js?v=20260424-v5-android-viewport");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
@@ -9991,6 +10295,7 @@ async function bootProtectedShellHost() {
   installStyles();
   document.body.classList.add("protected-shell");
   document.body.classList.toggle("protected-dev-panel", isDevPanelEnabled());
+  installProtectedAddressBarToggle();
   installTouchUiVisibilityGuard();
   hideShellUi();
   setShellLoading(true);
@@ -10065,6 +10370,7 @@ window.__readerpubEnsureUnifiedShellOverlays = function () {
   ensureLibraryOverlay();
   ensureSettingsOverlay();
   syncProtectedShellIcons();
+  installProtectedAddressBarToggle();
 };
 try {
   const host = String((window.location && window.location.hostname) || "").trim().toLowerCase();

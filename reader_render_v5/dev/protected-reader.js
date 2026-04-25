@@ -149,7 +149,10 @@ function isProtectedShellHostMode() {
   const shellMode = state && state.entryConfig
     ? String(state.entryConfig.shellMode || "").trim().toLowerCase()
     : "";
-  return isEmbeddedProtectedShellMode() || shellMode === "protected-shell";
+  const renderHost = state && state.entryConfig
+    ? String(state.entryConfig.renderHost || "").trim().toLowerCase()
+    : "";
+  return isEmbeddedProtectedShellMode() || shellMode === "protected-shell" || renderHost === "direct";
 }
 
 function isDriveUiDisabled() {
@@ -1221,6 +1224,26 @@ async function restoreReadingStateIfAvailable(bookId) {
   return null;
 }
 
+function getHostedReadingStateBookIdCandidates(bookId) {
+  const candidates = [];
+  const add = (value) => {
+    const normalized = String(value || "").trim();
+    if (!normalized || candidates.includes(normalized)) return;
+    candidates.push(normalized);
+    const numeric = Number(normalized);
+    if (Number.isFinite(numeric) && numeric >= 90000000) {
+      const publicId = String(Math.floor(numeric - 90000000));
+      if (publicId && !candidates.includes(publicId)) candidates.push(publicId);
+    }
+  };
+  add(bookId);
+  if (state.entryConfig && state.entryConfig.readerNewRoute) {
+    add(state.entryConfig.readerNewRoute.bookId);
+    add(state.entryConfig.readerNewRoute.artifactBookId);
+  }
+  return candidates;
+}
+
 function loadHostedPersistedReadingState(bookId) {
   if (!bookId || !state.entryConfig || !state.entryConfig.repositoryPersistence) return null;
   const persistence = state.entryConfig.repositoryPersistence;
@@ -1230,10 +1253,14 @@ function loadHostedPersistedReadingState(bookId) {
   try {
     const storage = persistence.storage || window.localStorage;
     if (!storage || typeof storage.getItem !== "function") return null;
-    const raw = storage.getItem(`${namespace}:${bookId}:default:bundle`);
-    if (!raw) return null;
-    const parsedBundle = JSON.parse(raw);
-    return extractReadingStateFromBundle(parsedBundle);
+    for (const candidateBookId of getHostedReadingStateBookIdCandidates(bookId)) {
+      const raw = storage.getItem(`${namespace}:${candidateBookId}:default:bundle`);
+      if (!raw) continue;
+      const parsedBundle = JSON.parse(raw);
+      const readingState = extractReadingStateFromBundle(parsedBundle);
+      if (readingState && readingState.restoreToken) return readingState;
+    }
+    return null;
   } catch (_error) {
     return null;
   }
@@ -4104,6 +4131,7 @@ async function boot() {
     }, 120);
   };
   window.addEventListener("resize", scheduleViewportSync, { passive: true });
+  window.addEventListener("readerpub:protected-viewport-sync", scheduleViewportSync, { passive: true });
   if (window.visualViewport) {
     window.visualViewport.addEventListener("resize", scheduleViewportSync, { passive: true });
   }
