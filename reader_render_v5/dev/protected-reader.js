@@ -296,8 +296,8 @@ async function ensureCurrentBookCoverResolved() {
 
 function getCurrentBookCoverUrl() {
   const hinted = getCoverHintFromLocation();
-  if (hinted) return hinted;
-  return state.resolvedCoverUrl || "";
+  if (hinted) return normalizeCoverAssetUrl(hinted);
+  return normalizeCoverAssetUrl(state.resolvedCoverUrl || "");
 }
 
 function applyEmbeddedTheme(theme) {
