@@ -20,7 +20,12 @@ export async function loadProtectedManifest(artifactRoot) {
   const manifest = await fetchJson(manifestUrl);
   manifest.source = manifest.source && typeof manifest.source === "object" ? manifest.source : {};
   const currentUrl = new URL(baseHref);
-  const bookId = String(manifest.source.bookId || "").trim();
+  const artifactBookMatch = String(artifactRoot || "").match(/\/protected-books\/([^/?#]+)/i);
+  const bookId = String(
+    (artifactBookMatch && artifactBookMatch[1]) ||
+    manifest.source.bookId ||
+    ""
+  ).trim();
   const isLocalHost = /^(?:127\.0\.0\.1|localhost|::1)$/i.test(currentUrl.hostname || "") || /\.local$/i.test(currentUrl.hostname || "");
   if (!isLocalHost && bookId) {
     manifest.source.publicRootPath = `${currentUrl.origin}/books/protected-content/${encodeURIComponent(bookId)}/assets`;
