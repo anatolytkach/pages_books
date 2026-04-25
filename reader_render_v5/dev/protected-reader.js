@@ -3557,7 +3557,9 @@ async function bridgeSetFontScale(fontScale = 1, generationMeta = null) {
 async function bridgeSetFontMode(fontMode = "sans", generationMeta = null) {
   if (generationMeta) applyGenerationMeta(generationMeta);
   state.fontMode = normalizeFontMode(fontMode);
-  const snapshot = await state.workerClient.updateRenderConfig({
+  state.fontModeBackgroundTimer && clearTimeout(state.fontModeBackgroundTimer);
+  state.fontModeBackgroundTimer = null;
+  const renderConfigPayload = {
     renderMode: state.renderMode,
     metricsMode: state.metricsMode,
     viewportWidth: getViewportWidth(),
@@ -3566,9 +3568,31 @@ async function bridgeSetFontMode(fontMode = "sans", generationMeta = null) {
     fontMode: state.fontMode,
     ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
+  };
+  const snapshot = await state.workerClient.updateRenderConfig({
+    ...renderConfigPayload,
+    fastCurrentPageOnly: true
   });
   applySnapshot(snapshot);
-  await refreshTurnPreviews();
+  const appliedRestoreToken = snapshot && snapshot.restoreToken ? String(snapshot.restoreToken) : "";
+  state.fontModeBackgroundTimer = setTimeout(() => {
+    state.fontModeBackgroundTimer = null;
+    Promise.resolve()
+      .then(() => state.workerClient.updateRenderConfig(renderConfigPayload))
+      .then((fullSnapshot) => {
+        if (!fullSnapshot) return;
+        const currentRestoreToken = state.currentSnapshot && state.currentSnapshot.restoreToken
+          ? String(state.currentSnapshot.restoreToken)
+          : "";
+        const stillOnSamePage = appliedRestoreToken && currentRestoreToken === appliedRestoreToken;
+        const stillSameMode = state.fontMode === normalizeFontMode(fontMode);
+        if (stillOnSamePage && stillSameMode) {
+          applySnapshot(fullSnapshot);
+        }
+      })
+      .then(() => refreshTurnPreviews())
+      .catch(() => {});
+  }, 1800);
   return buildBridgeSummary();
 }
 

@@ -109,6 +109,8 @@ const FONT_SCALE_STORAGE_PREFIX = "readerpub:protected-shell:font-scale:";
 const FONT_MODE_STORAGE_PREFIX = "readerpub:protected-shell:font-mode:";
 const HOST_TTS_VOICE_URI_STORAGE_KEY = "readerpub:protected-shell:tts:voice-uri";
 const HOST_TTS_VOICE_LANG_STORAGE_KEY = "readerpub:protected-shell:tts:voice-lang";
+const HOST_TTS_LANG_USER_SELECTED_STORAGE_KEY = "readerpub:protected-shell:tts:lang-user-selected";
+const HOST_TTS_VOICE_USER_SELECTED_STORAGE_KEY = "readerpub:protected-shell:tts:voice-user-selected";
 const PROTECTED_SEARCH_ICON_SRC = "icons/search.svg?v=20260303-icons-tight-x-3";
 const PROTECTED_TOC_ICON_SRC = "/reader_render_v5/assets/toc.svg";
 const PROTECTED_SETTINGS_ICON_SRC = "/reader_render_v5/assets/settings.svg";
@@ -462,11 +464,28 @@ function bindPrimaryAction(target, handler, options = {}) {
   if (!target || target.__protectedPrimaryActionBound) return;
   target.__protectedPrimaryActionBound = true;
   const touchOnly = options.touchOnly !== false;
+  const clickOnly = options.clickOnly === true;
+  const releaseOnly = options.releaseOnly === true;
   const suppressWindowMs = Number(options.suppressWindowMs || 700);
   let suppressClickUntil = 0;
+  let suppressNextClick = false;
   let lastInvocationAt = 0;
-  const invoke = (event) => {
+  const invoke = (event, source = "") => {
     const now = Date.now();
+    if (
+      source === "release" &&
+      target.closest &&
+      target.closest("#overlay-settings, #overlay-library, #overlay-search") &&
+      typeof shouldSuppressProtectedOverlayRelease === "function" &&
+      shouldSuppressProtectedOverlayRelease()
+    ) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation && event.stopImmediatePropagation();
+      }
+      return;
+    }
     if (now - lastInvocationAt < 300) {
       if (event) {
         event.preventDefault();
@@ -477,6 +496,7 @@ function bindPrimaryAction(target, handler, options = {}) {
     }
     lastInvocationAt = now;
     suppressClickUntil = now + suppressWindowMs;
+    if (source === "release") suppressNextClick = true;
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -484,15 +504,26 @@ function bindPrimaryAction(target, handler, options = {}) {
     }
     void handler(event);
   };
-  target.addEventListener("pointerdown", (event) => {
-    if (touchOnly && String(event.pointerType || "").toLowerCase() !== "touch") return;
-    invoke(event);
-  }, true);
-  target.addEventListener("touchstart", (event) => {
-    invoke(event);
-  }, { capture: true, passive: false });
+  if (releaseOnly) {
+    target.addEventListener("pointerup", (event) => {
+      if (touchOnly && String(event.pointerType || "").toLowerCase() !== "touch") return;
+      invoke(event, "release");
+    }, true);
+    target.addEventListener("touchend", (event) => {
+      invoke(event, "release");
+    }, { capture: true, passive: false });
+  } else if (!clickOnly) {
+    target.addEventListener("pointerdown", (event) => {
+      if (touchOnly && String(event.pointerType || "").toLowerCase() !== "touch") return;
+      invoke(event);
+    }, true);
+    target.addEventListener("touchstart", (event) => {
+      invoke(event);
+    }, { capture: true, passive: false });
+  }
   target.addEventListener("click", (event) => {
-    if (Date.now() < suppressClickUntil) {
+    if (suppressNextClick || Date.now() < suppressClickUntil) {
+      suppressNextClick = false;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation && event.stopImmediatePropagation();
@@ -557,10 +588,27 @@ function installStyles() {
     html.is-phone body.protected-shell #bottombar,
     html.is-tablet body.protected-shell #titlebar,
     html.is-tablet body.protected-shell #bottombar {
-      width: var(--app-vw, 100vw) !important;
-      max-width: var(--app-vw, 100vw) !important;
+      width: auto !important;
+      max-width: none !important;
       left: 0 !important;
-      right: auto !important;
+      right: 0 !important;
+      box-sizing: border-box;
+    }
+    html.is-phone body.protected-shell #titlebar,
+    html.is-tablet body.protected-shell #titlebar {
+      padding-right: calc(10px + env(safe-area-inset-right, 0px)) !important;
+    }
+    html.is-phone body.protected-shell #overlay-backdrop,
+    html.is-tablet body.protected-shell #overlay-backdrop {
+      z-index: 29990 !important;
+    }
+    html.is-phone body.protected-shell #overlay-settings,
+    html.is-phone body.protected-shell #overlay-library,
+    html.is-phone body.protected-shell #overlay-search,
+    html.is-tablet body.protected-shell #overlay-settings,
+    html.is-tablet body.protected-shell #overlay-library,
+    html.is-tablet body.protected-shell #overlay-search {
+      z-index: 30010 !important;
     }
     body.protected-shell #fb-tap-layer {
       display: none !important;
@@ -1249,7 +1297,7 @@ function installStyles() {
     html.is-phone body.protected-shell #title-controls,
     html.is-tablet body.protected-shell #title-controls {
       gap: 12px !important;
-      transform: translateX(6px);
+      transform: none;
     }
     html.is-phone body.protected-shell #title-controls > #ttsToggleDesktop,
     html.is-phone body.protected-shell #title-controls > #themeToggle,
@@ -1549,7 +1597,7 @@ function installStyles() {
       html.is-phone body.protected-shell #title-controls,
       html.is-tablet body.protected-shell #title-controls {
         position: absolute;
-        right: 8px;
+        right: calc(8px + env(safe-area-inset-right, 0px));
         top: 50%;
         transform: translateY(-50%);
         z-index: 2;
@@ -1892,12 +1940,21 @@ function installStyles() {
       width: 360px;
       max-width: min(100vw, 360px);
       z-index: 9999;
+      display: flex;
+      flex-direction: column;
     }
     #overlay-library .overlay-scroll {
       display: flex;
       flex-direction: column;
+      flex: 1 1 auto;
       min-height: 0;
       padding-top: 10px;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      overscroll-behavior: contain;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y !important;
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
@@ -1907,7 +1964,15 @@ function installStyles() {
       display: none;
     }
     #overlay-search .overlay-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
       padding-top: 10px;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      overscroll-behavior: contain;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y !important;
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
@@ -2632,6 +2697,12 @@ function installStyles() {
       flex: 1 1 auto;
       min-height: 0;
       padding-top: 16px;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      overscroll-behavior: contain;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y !important;
     }
     #overlay-settings .overlay-footer {
       flex: 0 0 auto;
@@ -3139,6 +3210,19 @@ function installStyles() {
         height: 67svh !important;
         max-height: 67svh !important;
       }
+      html.is-phone body.protected-shell #overlay-settings .overlay-scroll,
+      html.is-phone body.protected-shell #overlay-library .overlay-scroll,
+      html.is-phone body.protected-shell #overlay-search .overlay-scroll,
+      html.is-tablet body.protected-shell #overlay-settings .overlay-scroll,
+      html.is-tablet body.protected-shell #overlay-library .overlay-scroll,
+      html.is-tablet body.protected-shell #overlay-search .overlay-scroll {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        touch-action: pan-y !important;
+        overscroll-behavior: contain;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+      }
     }
   `;
   document.head.append(style);
@@ -3280,6 +3364,15 @@ function clearProtectedNotesShareButtonState(button = getProtectedNotesShareButt
   button.classList.remove("is-failed");
 }
 
+function isNativeShareCancelError(error) {
+  const name = String(error && error.name || "");
+  const message = String(error && error.message || "");
+  return (
+    name === "AbortError" ||
+    /abort|cancel|cancell?ed|dismiss/i.test(message)
+  );
+}
+
 function getShareableProtectedNoteCount(summary = HOST_STATE.lastSummary) {
   const annotations = Array.isArray(summary && summary.annotations) ? summary.annotations : [];
   return annotations.filter((annotation) => annotation && annotation.type === "note").length;
@@ -3350,9 +3443,12 @@ async function handleProtectedNotesShare(event) {
   event && event.preventDefault && event.preventDefault();
   const button = getProtectedNotesShareButton();
   if (!button || button.disabled) return;
+  if (button.dataset.shareBusy === "yes") return;
+  button.dataset.shareBusy = "yes";
   const idleLabel = getProtectedNotesShareLabel();
   clearProtectedNotesShareButtonState(button);
   updateProtectedNotesShareButtonState(HOST_STATE.lastSummary);
+  let cancelled = false;
   try {
     const exported = await invokeBridge("exportNotesSharePayload");
     const notesPayload = exported && exported.sharePayload && Array.isArray(exported.sharePayload.notes)
@@ -3366,7 +3462,10 @@ async function handleProtectedNotesShare(event) {
     if (isPhoneOrTabletShell()) {
       if (!navigator.share) throw new Error("Share unavailable");
       await navigator.share({ url: generatedUrl }).catch((error) => {
-        if (error && error.name === "AbortError") return;
+        if (isNativeShareCancelError(error)) {
+          cancelled = true;
+          return;
+        }
         throw error;
       });
     } else {
@@ -3378,6 +3477,7 @@ async function handleProtectedNotesShare(event) {
     button.classList.add("is-failed");
     button.textContent = isPhoneOrTabletShell() ? "Share unavailable" : "Copy failed";
   } finally {
+    delete button.dataset.shareBusy;
     window.setTimeout(() => {
       updateProtectedNotesShareButtonState(HOST_STATE.lastSummary);
       if (!button.disabled) button.textContent = idleLabel;
@@ -3400,8 +3500,11 @@ async function handleProtectedBookShare(event) {
   event && event.preventDefault && event.preventDefault();
   const button = getProtectedBookShareButton();
   if (!button || button.disabled) return;
+  if (button.dataset.shareBusy === "yes") return;
+  button.dataset.shareBusy = "yes";
   const idleLabel = getProtectedBookShareLabel();
   clearProtectedBookShareButtonState(button);
+  let cancelled = false;
   try {
     const shareUrl = buildProtectedBookShareUrl();
     const summary = HOST_STATE.lastSummary || {};
@@ -3409,10 +3512,13 @@ async function handleProtectedBookShare(event) {
     if (isPhoneOrTabletShell()) {
       if (!navigator.share) throw new Error("Share unavailable");
       await navigator.share({ title: shareTitle, url: shareUrl }).catch((error) => {
-        if (error && error.name === "AbortError") return;
+        if (isNativeShareCancelError(error)) {
+          cancelled = true;
+          return;
+        }
         throw error;
       });
-      setHostActionStatus("Book link shared.");
+      if (!cancelled) setHostActionStatus("Book link shared.");
     } else {
       await copyTextToClipboard(shareUrl);
       button.classList.add("is-copied");
@@ -3424,6 +3530,7 @@ async function handleProtectedBookShare(event) {
     button.textContent = isPhoneOrTabletShell() ? "Share unavailable" : "Copy failed";
     setHostActionStatus(isPhoneOrTabletShell() ? "Book sharing is unavailable." : "Book link copy failed.");
   } finally {
+    delete button.dataset.shareBusy;
     window.setTimeout(() => {
       updateProtectedBookShareButtonState();
       if (!button.disabled) button.textContent = idleLabel;
@@ -3531,6 +3638,87 @@ function closeOverlayById(id) {
   }
 }
 
+function bindProtectedOverlayTouchScroll(overlay) {
+  if (!overlay || overlay.dataset.protectedTouchScrollBound === "yes") return;
+  overlay.dataset.protectedTouchScrollBound = "yes";
+  let scrollState = null;
+  const suppressOverlaySelection = (durationMs = 650) => {
+    const until = String(Date.now() + Math.max(0, Number(durationMs || 0)));
+    overlay.dataset.protectedTouchScrolledUntil = until;
+    document.documentElement.dataset.protectedOverlayTouchScrolledUntil = until;
+  };
+  const shouldSuppressOverlaySelection = () => (
+    Date.now() < Number(overlay.dataset.protectedTouchScrolledUntil || 0)
+  );
+  const findScrollNode = (target) => {
+    if (!target || !target.closest) return null;
+    return target.closest(".voice-picker-dropdown-list, .overlay-scroll");
+  };
+  overlay.addEventListener("touchstart", (event) => {
+    const touch = event.touches && event.touches[0] ? event.touches[0] : null;
+    const scrollNode = findScrollNode(event.target);
+    if (!touch || !scrollNode) {
+      scrollState = null;
+      return;
+    }
+    scrollState = {
+      node: scrollNode,
+      startY: Number(touch.clientY || 0),
+      lastY: Number(touch.clientY || 0),
+      moved: false
+    };
+  }, { capture: true, passive: true });
+  overlay.addEventListener("touchmove", (event) => {
+    if (!scrollState || !scrollState.node) return;
+    const touch = event.touches && event.touches[0] ? event.touches[0] : null;
+    if (!touch) return;
+    const y = Number(touch.clientY || 0);
+    const dy = scrollState.lastY - y;
+    const total = scrollState.startY - y;
+    scrollState.lastY = y;
+    if (!scrollState.moved && Math.abs(total) < 6) return;
+    scrollState.moved = true;
+    const node = scrollState.node;
+    const maxScroll = Math.max(0, Number(node.scrollHeight || 0) - Number(node.clientHeight || 0));
+    if (maxScroll > 0) {
+      node.scrollTop = Math.max(0, Math.min(maxScroll, Number(node.scrollTop || 0) + dy));
+    }
+    suppressOverlaySelection();
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+  }, { capture: true, passive: false });
+  overlay.addEventListener("touchend", (event) => {
+    if (scrollState && scrollState.moved) {
+      suppressOverlaySelection();
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+    }
+    scrollState = null;
+  }, { capture: true, passive: false });
+  overlay.addEventListener("touchcancel", () => {
+    if (scrollState && scrollState.moved) suppressOverlaySelection();
+    scrollState = null;
+  }, { capture: true, passive: true });
+  overlay.addEventListener("click", (event) => {
+    if (!shouldSuppressOverlaySelection()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+  }, true);
+}
+
+function shouldSuppressProtectedOverlayRelease() {
+  const now = Date.now();
+  const rootUntil = Number(document.documentElement.dataset.protectedOverlayTouchScrolledUntil || 0);
+  if (now < rootUntil) return true;
+  return ["overlay-settings", "overlay-library", "overlay-search"].some((id) => {
+    const overlay = document.getElementById(id);
+    return !!(overlay && now < Number(overlay.dataset.protectedTouchScrolledUntil || 0));
+  });
+}
+
 function closeAllShellOverlays() {
   closeSearchOverlay();
   closeLibraryOverlay();
@@ -3561,7 +3749,7 @@ function getProtectedFullscreenElement() {
 }
 
 function getProtectedFullscreenTarget() {
-  return document.documentElement || document.getElementById("container") || document.body || null;
+  return document.getElementById("container") || document.body || document.documentElement || null;
 }
 
 async function requestProtectedFullscreen(element) {
@@ -3584,14 +3772,14 @@ async function requestProtectedFullscreen(element) {
     target.msRequestFullscreen;
   if (!request) return { ok: false, error: "Fullscreen API is unavailable." };
   try {
-    const result = request.call(target, { navigationUI: "hide" });
+    const result = request.call(target);
     if (result && typeof result.then === "function") {
       await result;
     }
     await new Promise((resolve) => window.setTimeout(resolve, 80));
     const fullscreenElement = getProtectedFullscreenElement();
     return fullscreenElement
-      ? { ok: true, element: fullscreenElement }
+      ? { ok: true, element: fullscreenElement, target }
       : { ok: false, error: "Fullscreen request completed but browser did not enter fullscreen." };
   } catch (error) {
     return {
@@ -3744,10 +3932,14 @@ function installProtectedAddressBarToggle() {
   updateProtectedAddressBarIcon(!!getProtectedFullscreenElement());
   if (HOST_STATE.addressBarToggleInstalled) return;
   HOST_STATE.addressBarToggleInstalled = true;
-  toggle.addEventListener("click", async (event) => {
+  let lastFullscreenActivationAt = 0;
+  const handleFullscreenActivation = async (event, source = "click") => {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation && event.stopImmediatePropagation();
+    const now = Date.now();
+    if (source === "click" && now - lastFullscreenActivationAt < 700) return;
+    lastFullscreenActivationAt = now;
     if (toggle.dataset.fullscreenBusy === "1") return;
     toggle.dataset.fullscreenBusy = "1";
     toggle.setAttribute("aria-busy", "true");
@@ -3760,7 +3952,11 @@ function installProtectedAddressBarToggle() {
         at: Date.now(),
         ok: !!(result && result.ok),
         error: result && result.error ? String(result.error) : "",
-        fullscreen: !!getProtectedFullscreenElement()
+        fullscreen: !!getProtectedFullscreenElement(),
+        source,
+        target: result && result.target
+          ? (result.target.id || result.target.tagName || "")
+          : ""
       };
       if (result && !result.ok) {
         setHostActionStatus(result.error || "Fullscreen is unavailable.");
@@ -3773,7 +3969,18 @@ function installProtectedAddressBarToggle() {
     }
     const result = await requestProtectedFullscreen(getProtectedFullscreenTarget());
     finish(result, "request");
-  });
+  };
+  toggle.addEventListener("pointerup", (event) => {
+    const pointerType = String(event.pointerType || "").toLowerCase();
+    if (pointerType && pointerType !== "touch" && pointerType !== "pen") return;
+    void handleFullscreenActivation(event, "pointerup");
+  }, true);
+  toggle.addEventListener("touchend", (event) => {
+    void handleFullscreenActivation(event, "touchend");
+  }, { capture: true, passive: false });
+  toggle.addEventListener("click", (event) => {
+    void handleFullscreenActivation(event, "click");
+  }, true);
   ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach((type) => {
     document.addEventListener(type, syncProtectedAddressBarIconState);
   });
@@ -4150,7 +4357,7 @@ function renderToc(summary) {
     bindPrimaryAction(link, async () => {
       await invokeBridge("goToToc", item.id);
       closeAllShellOverlays();
-    }, { touchOnly: false });
+    }, { touchOnly: false, releaseOnly: true });
     li.append(link);
     list.append(li);
   }
@@ -4289,6 +4496,12 @@ function bindBookmarkListInteractions(target) {
   };
 
   const handlePrimaryInteraction = async (event) => {
+    if (shouldSuppressProtectedOverlayRelease()) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+      return;
+    }
     const actionTarget = getActionTarget(event);
     if (!actionTarget || !target.contains(actionTarget)) return;
     event.preventDefault();
@@ -4315,9 +4528,9 @@ function bindBookmarkListInteractions(target) {
     await handlePrimaryInteraction(event);
   };
 
-  target.addEventListener("pointerdown", (event) => { void handlePrimaryInteraction(event); }, true);
-  target.addEventListener("mousedown", (event) => { void handlePrimaryInteraction(event); }, true);
-  target.addEventListener("touchstart", (event) => { void handlePrimaryInteraction(event); }, { capture: true, passive: false });
+  target.addEventListener("pointerup", (event) => { void handlePrimaryInteraction(event); }, true);
+  target.addEventListener("mouseup", (event) => { void handlePrimaryInteraction(event); }, true);
+  target.addEventListener("touchend", (event) => { void handlePrimaryInteraction(event); }, { capture: true, passive: false });
   target.addEventListener("click", handleInteraction, true);
 }
 
@@ -4471,7 +4684,7 @@ function createOldStyleNoteItem(annotation) {
   link.className = "bookmark_link";
   link.href = "#";
   link.textContent = annotation.quote || "…";
-  bindPrimaryAction(link, openNote, { touchOnly: false });
+  bindPrimaryAction(link, openNote, { touchOnly: false, releaseOnly: true });
   wrap.append(link);
 
   const comment = document.createElement("div");
@@ -5063,6 +5276,7 @@ function readCurrentFontScale(summary = HOST_STATE.lastSummary) {
 }
 
 function closeTypographyPanel(options = {}) {
+  if (!(options && options.force) && shouldSuppressProtectedOverlayRelease()) return;
   const wrap = document.getElementById("protectedTypographyControl");
   const trigger = document.getElementById("protectedTypographyTrigger");
   const overlay = document.getElementById("overlay-settings");
@@ -5442,6 +5656,7 @@ function switchLibraryTab(nextTab = "toc") {
 }
 
 function closeLibraryOverlay(options = {}) {
+  if (!(options && options.force) && shouldSuppressProtectedOverlayRelease()) return;
   const wrap = document.getElementById("protectedLibraryControl");
   const trigger = document.getElementById("protectedLibraryTrigger");
   const overlay = document.getElementById("overlay-library");
@@ -5490,6 +5705,7 @@ function openLibraryOverlay(tab = "toc") {
 }
 
 function closeSearchOverlay(options = {}) {
+  if (!(options && options.force) && shouldSuppressProtectedOverlayRelease()) return;
   const wrap = document.getElementById("protectedSearchControl");
   const trigger = document.getElementById("protectedSearchTrigger");
   const overlay = document.getElementById("overlay-search");
@@ -5649,6 +5865,7 @@ function ensureSearchOverlay() {
       closeSearchOverlay({ hideShellAfterClose: true });
     });
   }
+  bindProtectedOverlayTouchScroll(overlay);
   return overlay;
 }
 
@@ -5703,16 +5920,24 @@ function ensureLibraryOverlay() {
         else if (id.endsWith("-notes")) switchLibraryTab("notes");
         else if (id.endsWith("-bookmarks")) switchLibraryTab("bookmarks");
         else if (id.endsWith("-mybooks")) switchLibraryTab("mybooks");
-      });
+      }, { releaseOnly: true });
     });
     const notesShareButton = overlay.querySelector("#protectedNotesShareBtn");
     if (notesShareButton) {
       notesShareButton.addEventListener("mousedown", () => notesShareButton.classList.add("is-pressed"));
       notesShareButton.addEventListener("mouseup", () => notesShareButton.classList.remove("is-pressed"));
       notesShareButton.addEventListener("mouseleave", () => notesShareButton.classList.remove("is-pressed"));
-      bindPrimaryAction(notesShareButton, handleProtectedNotesShare);
+      bindPrimaryAction(notesShareButton, handleProtectedNotesShare, { releaseOnly: true, suppressWindowMs: 2500 });
     }
     const maybeCloseLibraryAfterNavigationTap = (event) => {
+      if (shouldSuppressProtectedOverlayRelease()) {
+        try {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+        } catch (_error) {}
+        return;
+      }
       const target = event.target && event.target.closest
         ? event.target.closest(
             "#tocView a.toc_link, " +
@@ -5744,6 +5969,7 @@ function ensureLibraryOverlay() {
   if (myBooksMount && myBooksView && HOST_STATE.libraryActiveTab === "mybooks" && myBooksView.parentElement !== myBooksMount) {
     myBooksMount.appendChild(myBooksView);
   }
+  bindProtectedOverlayTouchScroll(overlay);
   updateProtectedNotesShareButtonState(HOST_STATE.lastSummary);
   return overlay;
 }
@@ -5812,6 +6038,7 @@ function ensureSettingsOverlay() {
       if (!overlay.classList.contains("hidden")) closeTypographyPanel({ hideShellAfterClose: true });
     });
   }
+  bindProtectedOverlayTouchScroll(document.getElementById("overlay-settings"));
   const bookCardMount = document.getElementById("protectedSettingsBookCardMount");
   const protectedSettingsBookCard = document.getElementById("protectedSettingsBookCard");
   if (bookCardMount && protectedSettingsBookCard && protectedSettingsBookCard.parentElement !== bookCardMount) {
@@ -8187,7 +8414,17 @@ function setHostTtsButtonState(active) {
 }
 
 function normalizeTtsLang(value) {
-  return String(value || "").trim().toLowerCase();
+  const normalized = String(value || "").trim().replace(/_/g, "-").toLowerCase();
+  if (!normalized) return "";
+  const parts = normalized.split("-").filter(Boolean);
+  if (!parts.length || !/^[a-z]{2,3}$/.test(parts[0])) return "";
+  return parts
+    .map((part, index) => {
+      if (index === 0) return part;
+      return /^[a-z0-9]{2,8}$/.test(part) ? part : "";
+    })
+    .filter(Boolean)
+    .join("-");
 }
 
 function loadStoredHostTtsVoiceUri() {
@@ -8203,6 +8440,36 @@ function saveStoredHostTtsVoiceUri(value) {
     const next = String(value || "").trim();
     if (next) localStorage.setItem(HOST_TTS_VOICE_URI_STORAGE_KEY, next);
     else localStorage.removeItem(HOST_TTS_VOICE_URI_STORAGE_KEY);
+  } catch (_error) {}
+}
+
+function loadStoredHostTtsVoiceUserSelected() {
+  try {
+    return localStorage.getItem(HOST_TTS_VOICE_USER_SELECTED_STORAGE_KEY) === "yes";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function saveStoredHostTtsVoiceUserSelected(value) {
+  try {
+    if (value) localStorage.setItem(HOST_TTS_VOICE_USER_SELECTED_STORAGE_KEY, "yes");
+    else localStorage.removeItem(HOST_TTS_VOICE_USER_SELECTED_STORAGE_KEY);
+  } catch (_error) {}
+}
+
+function loadStoredHostTtsLangUserSelected() {
+  try {
+    return localStorage.getItem(HOST_TTS_LANG_USER_SELECTED_STORAGE_KEY) === "yes";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function saveStoredHostTtsLangUserSelected(value) {
+  try {
+    if (value) localStorage.setItem(HOST_TTS_LANG_USER_SELECTED_STORAGE_KEY, "yes");
+    else localStorage.removeItem(HOST_TTS_LANG_USER_SELECTED_STORAGE_KEY);
   } catch (_error) {}
 }
 
@@ -8305,7 +8572,7 @@ function resolveHostTtsMetadataLang(metadataLanguages, availableLanguages) {
     if (available.includes(candidate)) return candidate;
     if (!candidate.includes("-")) {
       const prefixed = available.find((lang) => lang.startsWith(`${candidate}-`));
-      if (prefixed) return prefixed;
+      if (prefixed) return candidate;
       continue;
     }
     const base = candidate.split("-")[0];
@@ -8317,6 +8584,70 @@ function resolveHostTtsMetadataLang(metadataLanguages, availableLanguages) {
   return "";
 }
 
+function scoreHostTtsVoice(voice, wantedLang = "") {
+  if (!voice) return -1000;
+  const voiceLang = normalizeTtsLang(voice.lang);
+  const desiredLang = normalizeTtsLang(wantedLang);
+  const desiredBase = desiredLang ? desiredLang.split("-")[0] : "";
+  const voiceBase = voiceLang ? voiceLang.split("-")[0] : "";
+  let score = 0;
+  if (desiredLang && voiceLang === desiredLang) score += 200;
+  else if (desiredBase && voiceBase === desiredBase) score += 130;
+  else if (desiredLang) score -= 120;
+  if (voice.default) score += 35;
+  if (voice.localService) score += 25;
+  const label = `${String(voice.name || "")} ${String(voice.voiceURI || "")}`.toLowerCase();
+  if (/\bgoogle\b/.test(label)) score += 8;
+  if (/\bnetwork\b|online|remote/.test(label)) score -= 35;
+  return score;
+}
+
+function pickBestHostTtsVoiceForLang(voices, wantedLang = "") {
+  const candidates = Array.isArray(voices) ? voices.filter(Boolean) : [];
+  if (!candidates.length) return null;
+  return candidates
+    .slice()
+    .sort((left, right) => {
+      const scoreDiff = scoreHostTtsVoice(right, wantedLang) - scoreHostTtsVoice(left, wantedLang);
+      if (scoreDiff !== 0) return scoreDiff;
+      return String(left.name || "").localeCompare(String(right.name || ""), "en", { sensitivity: "base" });
+    })[0] || null;
+}
+
+function resolveHostTtsFallbackLang(availableLanguages, voices) {
+  const available = Array.isArray(availableLanguages)
+    ? availableLanguages.map((lang) => normalizeTtsLang(lang)).filter(Boolean)
+    : [];
+  if (!available.length) return "";
+  const browserLanguages = [];
+  try {
+    if (Array.isArray(navigator.languages)) browserLanguages.push(...navigator.languages);
+    if (navigator.language) browserLanguages.push(navigator.language);
+  } catch (_error) {}
+  for (const rawLang of browserLanguages) {
+    const lang = normalizeTtsLang(rawLang);
+    if (!lang) continue;
+    if (available.includes(lang)) return lang;
+    const base = lang.split("-")[0];
+    if (available.includes(base)) return base;
+    const sibling = available.find((item) => item.startsWith(`${base}-`));
+    if (sibling) return sibling;
+  }
+  const defaultVoice = Array.isArray(voices) ? voices.find((voice) => voice && voice.default && normalizeTtsLang(voice.lang)) : null;
+  const defaultLang = normalizeTtsLang(defaultVoice && defaultVoice.lang);
+  if (defaultLang) {
+    if (available.includes(defaultLang)) return defaultLang;
+    const base = defaultLang.split("-")[0];
+    if (available.includes(base)) return base;
+    const sibling = available.find((item) => item.startsWith(`${base}-`));
+    if (sibling) return sibling;
+  }
+  if (available.includes("en")) return "en";
+  const english = available.find((item) => item.startsWith("en-"));
+  if (english) return english;
+  return available[0] || "";
+}
+
 function closeHostTtsDropdowns() {
   document.querySelectorAll("#voiceLangDropdown, #voiceDropdown").forEach((root) => {
     root.classList.remove("is-open");
@@ -8325,10 +8656,62 @@ function closeHostTtsDropdowns() {
   });
 }
 
+function scrollHostTtsDropdownIntoView(dropdownEl) {
+  const listEl = dropdownEl && dropdownEl.querySelector ? dropdownEl.querySelector(".voice-picker-dropdown-list") : null;
+  const toggleEl = dropdownEl && dropdownEl.querySelector ? dropdownEl.querySelector(".voice-picker-dropdown-toggle") : null;
+  const scrollEl = dropdownEl && dropdownEl.closest ? dropdownEl.closest(".overlay-scroll") : null;
+  if (!listEl || !toggleEl || !scrollEl) return;
+  try {
+    listEl.style.maxHeight = "";
+    const listRect = listEl.getBoundingClientRect();
+    const scrollRect = scrollEl.getBoundingClientRect();
+    const bottomOverflow = listRect.bottom - scrollRect.bottom;
+    if (bottomOverflow > 0) {
+      scrollEl.scrollTop = Number(scrollEl.scrollTop || 0) + bottomOverflow + 8;
+    }
+    const topOverflow = scrollRect.top - listRect.top;
+    if (topOverflow > 0) {
+      scrollEl.scrollTop = Math.max(0, Number(scrollEl.scrollTop || 0) - topOverflow - 8);
+    }
+    requestAnimationFrame(() => {
+      try {
+        const nextListRect = listEl.getBoundingClientRect();
+        const nextScrollRect = scrollEl.getBoundingClientRect();
+        const availableHeight = Math.floor(nextScrollRect.bottom - nextListRect.top - 8);
+        const maxHeight = Math.max(72, Math.min(220, availableHeight));
+        listEl.style.maxHeight = `${maxHeight}px`;
+      } catch (_error) {}
+    });
+  } catch (_error) {}
+}
+
 function syncHostTtsDropdown(selectEl, dropdownEl, toggleEl, listEl) {
   if (!selectEl || !dropdownEl || !toggleEl || !listEl) return;
   listEl.replaceChildren();
   const options = Array.from(selectEl.options || []);
+  const shouldSuppressDropdownSelection = (button) => {
+    const now = Date.now();
+    const overlay = button && button.closest
+      ? button.closest("#overlay-settings, #overlay-library, #overlay-search")
+      : null;
+    const overlayScrolledUntil = Number(overlay && overlay.dataset ? overlay.dataset.protectedTouchScrolledUntil || 0 : 0);
+    const dropdownSuppressUntil = Number(dropdownEl && dropdownEl.dataset ? dropdownEl.dataset.suppressSelectionUntil || 0 : 0);
+    return now < overlayScrolledUntil || now < dropdownSuppressUntil;
+  };
+  const suppressDropdownSelection = () => {
+    if (dropdownEl && dropdownEl.dataset) {
+      dropdownEl.dataset.suppressSelectionUntil = String(Date.now() + 650);
+    }
+  };
+  const selectOptionValue = (nextValue) => {
+    if (selectEl.value !== nextValue) {
+      selectEl.value = nextValue;
+      selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+    } else {
+      syncHostTtsDropdown(selectEl, dropdownEl, toggleEl, listEl);
+    }
+    closeHostTtsDropdowns();
+  };
   options.forEach((option) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -8337,16 +8720,45 @@ function syncHostTtsDropdown(selectEl, dropdownEl, toggleEl, listEl) {
     button.setAttribute("aria-selected", option.selected ? "true" : "false");
     button.dataset.value = String(option.value || "");
     button.textContent = String(option.textContent || "").trim();
-    bindPrimaryAction(button, () => {
-      const nextValue = String(button.dataset.value || "");
-      if (selectEl.value !== nextValue) {
-        selectEl.value = nextValue;
-        selectEl.dispatchEvent(new Event("change", { bubbles: true }));
-      } else {
-        syncHostTtsDropdown(selectEl, dropdownEl, toggleEl, listEl);
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartScrollTop = 0;
+    let touchMoved = false;
+    button.addEventListener("touchstart", (event) => {
+      const touch = event.touches && event.touches[0] ? event.touches[0] : null;
+      touchStartX = touch ? Number(touch.clientX || 0) : 0;
+      touchStartY = touch ? Number(touch.clientY || 0) : 0;
+      touchStartScrollTop = Number(listEl.scrollTop || 0);
+      touchMoved = false;
+    }, { capture: true, passive: true });
+    button.addEventListener("touchmove", (event) => {
+      const touch = event.touches && event.touches[0] ? event.touches[0] : null;
+      if (touch && (
+        Math.abs(Number(touch.clientY || 0) - touchStartY) > 6 ||
+        Math.abs(Number(touch.clientX || 0) - touchStartX) > 6
+      )) {
+        touchMoved = true;
+        suppressDropdownSelection();
       }
-      closeHostTtsDropdowns();
-    }, { touchOnly: false });
+    }, { capture: true, passive: true });
+    button.addEventListener("touchend", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+      const listScrolled = Math.abs(Number(listEl.scrollTop || 0) - touchStartScrollTop) > 1;
+      if (touchMoved || listScrolled || shouldSuppressDropdownSelection(button)) {
+        suppressDropdownSelection();
+        return;
+      }
+      selectOptionValue(String(button.dataset.value || ""));
+    }, { capture: true, passive: false });
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation && event.stopImmediatePropagation();
+      if (shouldSuppressDropdownSelection(button)) return;
+      selectOptionValue(String(button.dataset.value || ""));
+    }, true);
     listEl.append(button);
   });
   const selectedOption = selectEl.options && selectEl.selectedIndex >= 0 ? selectEl.options[selectEl.selectedIndex] : null;
@@ -8362,6 +8774,7 @@ function bindHostTtsDropdown(dropdownEl, toggleEl) {
     if (!open) {
       dropdownEl.classList.add("is-open");
       toggleEl.setAttribute("aria-expanded", "true");
+      requestAnimationFrame(() => scrollHostTtsDropdownIntoView(dropdownEl));
     }
   }, { touchOnly: false });
 }
@@ -8395,14 +8808,18 @@ async function refreshHostTtsVoicePicker({ preserveVoice = true } = {}) {
       voiceLangSelect.dataset.userSelected = "yes";
       voiceLangSelect.dataset.userSelectedBookId = String(getCurrentBookId() || "");
       saveStoredHostTtsVoiceLang(voiceLangSelect.value || "");
+      saveStoredHostTtsLangUserSelected(true);
       saveStoredHostTtsVoiceUri("");
+      saveStoredHostTtsVoiceUserSelected(false);
       void refreshHostTtsVoicePicker({ preserveVoice: false });
     });
   }
   if (!voiceSelect.dataset.hostBound) {
     voiceSelect.dataset.hostBound = "yes";
     voiceSelect.addEventListener("change", () => {
+      voiceSelect.dataset.userSelected = "yes";
       saveStoredHostTtsVoiceUri(voiceSelect.value || "");
+      saveStoredHostTtsVoiceUserSelected(true);
       syncHostTtsDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
     });
   }
@@ -8426,6 +8843,8 @@ async function refreshHostTtsVoicePicker({ preserveVoice = true } = {}) {
   const normalizedVoices = Array.isArray(voices) ? voices.filter(Boolean) : [];
   const currentLang = normalizeTtsLang(voiceLangSelect.value || loadStoredHostTtsVoiceLang());
   const currentVoiceUri = String(voiceSelect.value || loadStoredHostTtsVoiceUri()).trim();
+  const userSelectedVoice = voiceSelect.dataset.userSelected === "yes" || loadStoredHostTtsVoiceUserSelected();
+  const userSelectedStoredLang = loadStoredHostTtsLangUserSelected();
 
   if (!normalizedVoices.length) {
     voiceLangSelect.innerHTML = "";
@@ -8448,10 +8867,13 @@ async function refreshHostTtsVoicePicker({ preserveVoice = true } = {}) {
     : langs;
   const currentBookId = String(getCurrentBookId() || "");
   const userSelectedBookId = String(voiceLangSelect.dataset.userSelectedBookId || "");
-  const userSelectedLang = voiceLangSelect.dataset.userSelected === "yes" && (!currentBookId || currentBookId === userSelectedBookId);
+  const userSelectedLang =
+    (voiceLangSelect.dataset.userSelected === "yes" && (!currentBookId || currentBookId === userSelectedBookId)) ||
+    userSelectedStoredLang;
+  const fallbackLang = resolveHostTtsFallbackLang(orderedLangs, normalizedVoices);
   const selectedLang = userSelectedLang && orderedLangs.includes(currentLang)
     ? currentLang
-    : (metadataLang || (orderedLangs.includes(currentLang) ? currentLang : "") || orderedLangs[0] || "");
+    : (metadataLang || fallbackLang || "");
   voiceLangSelect.innerHTML = "";
   orderedLangs.forEach((lang) => {
     const option = document.createElement("option");
@@ -8460,7 +8882,7 @@ async function refreshHostTtsVoicePicker({ preserveVoice = true } = {}) {
     option.selected = lang === selectedLang;
     voiceLangSelect.append(option);
   });
-  saveStoredHostTtsVoiceLang(selectedLang);
+  if (selectedLang) saveStoredHostTtsVoiceLang(selectedLang);
 
   const filteredVoices = normalizedVoices
     .filter((voice) => {
@@ -8477,9 +8899,10 @@ async function refreshHostTtsVoicePicker({ preserveVoice = true } = {}) {
       if (byName !== 0) return byName;
       return String(left.voiceURI || "").localeCompare(String(right.voiceURI || ""), "en", { sensitivity: "base" });
     });
-  const selectedVoiceUri = preserveVoice && filteredVoices.some((voice) => String(voice.voiceURI || "") === currentVoiceUri)
+  const bestVoice = pickBestHostTtsVoiceForLang(filteredVoices, selectedLang);
+  const selectedVoiceUri = preserveVoice && userSelectedVoice && filteredVoices.some((voice) => String(voice.voiceURI || "") === currentVoiceUri)
     ? currentVoiceUri
-    : String((filteredVoices[0] && filteredVoices[0].voiceURI) || "");
+    : String((bestVoice && bestVoice.voiceURI) || (filteredVoices[0] && filteredVoices[0].voiceURI) || "");
   voiceSelect.innerHTML = "";
   filteredVoices.forEach((voice) => {
     const option = document.createElement("option");
@@ -8488,7 +8911,7 @@ async function refreshHostTtsVoicePicker({ preserveVoice = true } = {}) {
     option.selected = option.value === selectedVoiceUri;
     voiceSelect.append(option);
   });
-  saveStoredHostTtsVoiceUri(selectedVoiceUri);
+  if (userSelectedVoice) saveStoredHostTtsVoiceUri(selectedVoiceUri);
   syncHostTtsDropdown(voiceLangSelect, voiceLangDropdown, voiceLangToggle, voiceLangList);
   syncHostTtsDropdown(voiceSelect, voiceDropdown, voiceToggle, voiceList);
   if (voiceStatus) voiceStatus.textContent = "Select a voice for reading aloud.";
@@ -8498,7 +8921,8 @@ function pickHostTtsVoice(voices, payload = null) {
   if (!Array.isArray(voices) || !voices.length) return null;
   const voiceSelect = document.getElementById("voiceSelect");
   const selectedVoiceUri = voiceSelect ? String(voiceSelect.value || "").trim() : "";
-  if (selectedVoiceUri) {
+  const userSelectedVoice = voiceSelect && (voiceSelect.dataset.userSelected === "yes" || loadStoredHostTtsVoiceUserSelected());
+  if (selectedVoiceUri && userSelectedVoice) {
     const exact = voices.find((voice) => voice && String(voice.voiceURI || "") === selectedVoiceUri) || null;
     if (exact) return exact;
   }
@@ -8507,13 +8931,10 @@ function pickHostTtsVoice(voices, payload = null) {
   const payloadLang = normalizeTtsLang(payload && payload.lang ? payload.lang : "");
   const wantedLang = selectedLang || payloadLang;
   if (wantedLang) {
-    const exactLang = voices.find((voice) => normalizeTtsLang(voice && voice.lang) === wantedLang) || null;
-    if (exactLang) return exactLang;
-    const prefix = wantedLang.split("-")[0];
-    const prefixMatch = voices.find((voice) => normalizeTtsLang(voice && voice.lang).startsWith(prefix)) || null;
-    if (prefixMatch) return prefixMatch;
+    const best = pickBestHostTtsVoiceForLang(voices, wantedLang);
+    if (best) return best;
   }
-  return voices[0] || null;
+  return pickBestHostTtsVoiceForLang(voices, "") || voices[0] || null;
 }
 
 async function getHostTtsVoices(synth) {
@@ -8600,7 +9021,7 @@ async function speakProtectedReadAloudPage({ continueFromNextPage = false } = {}
   let index = 0;
   setHostTtsButtonState(true);
 
-  const speakNextSegment = () => {
+  const speakNextSegment = (retryWithoutVoice = false) => {
     if (!HOST_STATE.tts.active || token !== HOST_STATE.tts.token) return;
     if (index >= segments.length) {
       const summary = HOST_STATE.lastSummary;
@@ -8622,9 +9043,14 @@ async function speakProtectedReadAloudPage({ continueFromNextPage = false } = {}
       return;
     }
     const utterance = new Utterance(segments[index]);
-    if (selectedVoice) {
+    utterance.volume = 1;
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    if (selectedVoice && !retryWithoutVoice) {
       utterance.voice = selectedVoice;
       if (selectedVoice.lang) utterance.lang = selectedVoice.lang;
+    } else if (payload && payload.lang) {
+      utterance.lang = payload.lang;
     }
     utterance.onend = () => {
       if (!HOST_STATE.tts.active || token !== HOST_STATE.tts.token) return;
@@ -8632,6 +9058,16 @@ async function speakProtectedReadAloudPage({ continueFromNextPage = false } = {}
       speakNextSegment();
     };
     utterance.onerror = () => {
+      if (selectedVoice && !retryWithoutVoice) {
+        try {
+          synth.cancel();
+        } catch (_error) {}
+        window.setTimeout(() => {
+          if (!HOST_STATE.tts.active || token !== HOST_STATE.tts.token) return;
+          speakNextSegment(true);
+        }, 80);
+        return;
+      }
       stopHostTts();
     };
     try {
@@ -8909,6 +9345,16 @@ function overlaysVisible() {
     });
 }
 
+function isProtectedOverlayEventTarget(target) {
+  return !!(
+    target &&
+    target.closest &&
+    target.closest(
+      "#overlay-settings, #overlay-library, #overlay-search, #commentSheet, #protectedImageViewer, #protectedFootnoteModal, #selectionToolbar"
+    )
+  );
+}
+
 function isTouchPortraitShellMode() {
   try {
     const root = document.documentElement;
@@ -8999,6 +9445,7 @@ function installTouchSwipe(target) {
   }
 
   function onStart(event) {
+    if (isProtectedOverlayEventTarget(event && event.target)) return;
     const touch = event.touches ? event.touches[0] : null;
     if (!touch || overlaysVisible()) return;
     const zoneBounds = getTouchZoneBounds();
@@ -9092,6 +9539,7 @@ function installTouchSwipe(target) {
   }
 
   function onMove(event) {
+    if (isProtectedOverlayEventTarget(event && event.target)) return;
     if (!gesture) return;
     const touch = event.touches ? event.touches[0] : null;
     if (!touch) return;
@@ -9268,6 +9716,11 @@ function installTouchSwipe(target) {
   }
 
   async function onEnd(event) {
+    if (isProtectedOverlayEventTarget(event && event.target)) {
+      if (gesture && gesture.swipeCaptured) setFramePointerEventsDisabled(false);
+      gesture = null;
+      return;
+    }
     if (!gesture) return;
     const completedGesture = gesture;
     const touchSelection = getTouchSelectionState();
@@ -9609,6 +10062,14 @@ function bindShellControls() {
     toggleTypographyPanel();
   });
   const dismissTypographyPanel = (event) => {
+    if (shouldSuppressProtectedOverlayRelease()) {
+      try {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation && event.stopImmediatePropagation();
+      } catch (_error) {}
+      return;
+    }
     const libraryWrap = document.getElementById("protectedLibraryControl");
     const searchWrap = document.getElementById("protectedSearchControl");
     const libraryOverlay = document.getElementById("overlay-library");
@@ -9730,6 +10191,28 @@ function bindShellControls() {
     event.stopPropagation();
     event.stopImmediatePropagation && event.stopImmediatePropagation();
   }, true);
+  let typographyScaleCommitTimer = null;
+  let typographyScaleCommitToken = 0;
+  const invokeTypographyScaleCommit = async (nextScale) => {
+    const token = ++typographyScaleCommitToken;
+    try {
+      await invokeBridge("setFontScale", nextScale);
+    } catch (_error) {
+      if (token === typographyScaleCommitToken) {
+        HOST_STATE.fontScaleSynced = false;
+      }
+    }
+  };
+  const scheduleTypographyScaleCommit = (nextScale, delay = 180) => {
+    if (typographyScaleCommitTimer) {
+      window.clearTimeout(typographyScaleCommitTimer);
+      typographyScaleCommitTimer = null;
+    }
+    typographyScaleCommitTimer = window.setTimeout(() => {
+      typographyScaleCommitTimer = null;
+      void invokeTypographyScaleCommit(nextScale);
+    }, delay);
+  };
   const commitTypographyScale = async (input) => {
     if (!input) return;
     const nextScale = persistShellFontScale(
@@ -9738,9 +10221,12 @@ function bindShellControls() {
     updateTypographyScaleVisual(input);
     HOST_STATE.lastAppliedFontScale = nextScale;
     HOST_STATE.fontScaleSynced = true;
-    await invokeBridge("setFontScale", nextScale);
+    if (typographyScaleCommitTimer) {
+      window.clearTimeout(typographyScaleCommitTimer);
+      typographyScaleCommitTimer = null;
+    }
+    await invokeTypographyScaleCommit(nextScale);
   };
-  let typographyScalePreviewTimer = null;
   let activeTypographyScaleDrag = null;
   const previewTypographyScale = (input) => {
     if (!input) return;
@@ -9750,16 +10236,7 @@ function bindShellControls() {
     updateTypographyScaleVisual(input);
     HOST_STATE.lastAppliedFontScale = nextScale;
     HOST_STATE.fontScaleSynced = true;
-    if (typographyScalePreviewTimer) {
-      window.clearTimeout(typographyScalePreviewTimer);
-      typographyScalePreviewTimer = null;
-    }
-    typographyScalePreviewTimer = window.setTimeout(() => {
-      typographyScalePreviewTimer = null;
-      invokeBridge("setFontScale", nextScale).catch(() => {
-        HOST_STATE.fontScaleSynced = false;
-      });
-    }, 0);
+    scheduleTypographyScaleCommit(nextScale);
   };
   const updateTypographyScaleFromClientX = (input, clientX) => {
     if (!input || !Number.isFinite(clientX)) return false;
@@ -9829,7 +10306,7 @@ function bindShellControls() {
   window.addEventListener("pointerup", () => { void releaseTypographyScaleDrag(); }, true);
   window.addEventListener("touchend", () => { void releaseTypographyScaleDrag(); }, true);
   window.addEventListener("touchcancel", () => { activeTypographyScaleDrag = null; }, true);
-  settingsShareButton && bindPrimaryAction(settingsShareButton, handleProtectedBookShare);
+  settingsShareButton && bindPrimaryAction(settingsShareButton, handleProtectedBookShare, { releaseOnly: true, suppressWindowMs: 2500 });
   fontModeButtons.forEach((button) => {
     button.addEventListener("click", async (event) => {
       const target = event.currentTarget;
@@ -10233,7 +10710,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260424-v5-android-viewport");
+      await import("../dev/protected-reader.js?v=20260425-v5-fast-font-mode");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
