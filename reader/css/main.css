@@ -1167,7 +1167,7 @@ body.dark-ui #bottombar {
 
 /* ===== Desktop: keep bars fixed to top/bottom (never drift) ===== */
 @media (min-width: 900px) and (hover: hover) and (pointer: fine) {
-  #viewerStack {
+  body:not(.unprotected-runtime-unified-shell) #viewerStack {
     top: var(--titlebar-h);
     bottom: var(--bottombar-h);
   }

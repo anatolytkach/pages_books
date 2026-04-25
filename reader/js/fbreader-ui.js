@@ -260,9 +260,13 @@
       if (!vs) return;
       var overlayBars = false;
       try {
-        // Mobile + tablet: bars must overlay content and never change reading viewport.
-        overlayBars = isTabletViewport() || isMobileViewport();
-      } catch (eOverlay) {}
+          // Protected old-shell and all touch layouts: bars overlay content and never change reading viewport.
+          overlayBars =
+            !!window.__readerpubProtectedOldShellMode ||
+            !!(document.body && document.body.classList && document.body.classList.contains("unprotected-runtime-unified-shell")) ||
+            isTabletViewport() ||
+            isMobileViewport();
+        } catch (eOverlay) {}
       var hidden = document.body.classList.contains("ui-hidden");
       if (overlayBars) {
         vs.style.top = "0px";
@@ -1041,6 +1045,62 @@
     try { toggleUi(); } catch (e) {}
   };
 
+  function installDesktopReaderSurfaceToggle() {
+    try {
+      if (!window.__fb_isDesktop || window.__fbDesktopReaderSurfaceToggleInstalled) return;
+      window.__fbDesktopReaderSurfaceToggleInstalled = true;
+      var surface = document.getElementById("viewerStack") || document.getElementById("viewer");
+      if (!surface) return;
+      var state = { armed: false, x: 0, y: 0, ts: 0 };
+      function isBlockedTarget(target) {
+        try {
+          if (!target || !target.closest) return false;
+          return !!target.closest(
+            "#titlebar,#bottombar,#searchbar,.overlay,#overlay-backdrop,#selectionToolbar," +
+            "a,button,input,textarea,select,label"
+          );
+        } catch (e) {
+          return false;
+        }
+      }
+      surface.addEventListener("pointerdown", function (event) {
+        try {
+          if (event && event.button != null && event.button !== 0) return;
+          if (isBlockedTarget(event.target)) return;
+          if (document.body && document.body.classList && document.body.classList.contains("search-open")) return;
+          state.armed = true;
+          state.x = Number(event.clientX || 0);
+          state.y = Number(event.clientY || 0);
+          state.ts = Date.now();
+        } catch (e) {
+          state.armed = false;
+        }
+      }, true);
+      surface.addEventListener("pointermove", function (event) {
+        if (!state.armed) return;
+        var dx = Math.abs(Number(event.clientX || 0) - state.x);
+        var dy = Math.abs(Number(event.clientY || 0) - state.y);
+        if (dx > 8 || dy > 8) state.armed = false;
+      }, true);
+      surface.addEventListener("pointerup", function (event) {
+        try {
+          if (!state.armed) return;
+          if (event && event.button != null && event.button !== 0) return;
+          if (Date.now() - state.ts > 800) return;
+          if (isBlockedTarget(event.target)) return;
+          if (window.__fbSelectionActive) return;
+          event.preventDefault && event.preventDefault();
+          event.stopPropagation && event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+          toggleUi();
+        } catch (e) {
+        } finally {
+          state.armed = false;
+        }
+      }, true);
+    } catch (e) {}
+  }
+
   // -------- overlays --------
   function setupOverlays() {
     var isMobile = isMobileViewport();
@@ -1523,8 +1583,7 @@
       }
 
       function onEnd(e) {
-        // Center tap toggles bars on mobile only, and only if it was a real tap (no swipe).
-        if (__fb_isDesktop) return;
+        // Desktop clicks anywhere in the reading surface toggle bars; touch keeps center-zone behavior.
         try {
           if (document.body && document.body.classList && document.body.classList.contains("search-open")) return;
         } catch (eSearch) {}
@@ -1547,6 +1606,16 @@
           // Support both TouchEvent and PointerEvent
           var pt = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : e;
           if (!pt) return;
+          if (__fb_isDesktop) {
+            try {
+              var interactive = e && e.target && e.target.closest
+                ? e.target.closest("a,button,input,textarea,select,label")
+                : null;
+              if (interactive) return;
+            } catch (eDesktopInteractive) {}
+            toggleUi();
+            return;
+          }
           var x = pt.clientX, y = pt.clientY;
           var inCenter = false;
           var inCenterY = false;
@@ -7169,6 +7238,7 @@
       }
     } catch (e) {}
 	    setupOverlays();
+      try { installDesktopReaderSurfaceToggle(); } catch (eDesktopToggle) {}
       try { setupMobileMoreMenu(); } catch (eMoreMenu) {}
 	    // Mobile tap/swipe is handled by reader.js attachSwipeToDoc().
 	    // Keep this legacy bridge desktop-only to avoid competing mobile gesture handlers.

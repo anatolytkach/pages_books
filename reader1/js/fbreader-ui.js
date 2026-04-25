@@ -261,7 +261,10 @@
       var overlayBars = false;
       try {
         // Mobile + tablet: bars must overlay content and never change reading viewport.
-        overlayBars = isTabletViewport() || isMobileViewport();
+        overlayBars =
+          !!(document.body && document.body.classList && document.body.classList.contains("reader1-unified-shell")) ||
+          isTabletViewport() ||
+          isMobileViewport();
       } catch (eOverlay) {}
       var hidden = document.body.classList.contains("ui-hidden");
       if (overlayBars) {
@@ -1435,6 +1438,7 @@
         if (max > min) pct = ((value - min) / (max - min)) * 100;
         pct = Math.max(0, Math.min(100, pct));
         range.style.setProperty("--reader1-range-progress", pct + "%");
+        range.style.setProperty("--protected-typography-scale-pct", pct + "%");
         var thumb = 28;
         var width = Math.max(0, Number(range.clientWidth || range.offsetWidth || 0));
         if (width > 0) {
@@ -1484,15 +1488,24 @@
         if (window.reader && window.reader.rendition && window.reader.rendition.themes && window.reader.rendition.themes.override) {
           window.reader.rendition.themes.override("font-family", family);
         }
+        if (window.reader && window.reader.rendition && window.reader.rendition.themes && window.reader.rendition.themes.font) {
+          window.reader.rendition.themes.font(family);
+        }
       } catch (_e1) {}
       try {
         if (window.reader && window.reader.renditionPrev && window.reader.renditionPrev.themes && window.reader.renditionPrev.themes.override) {
           window.reader.renditionPrev.themes.override("font-family", family);
         }
+        if (window.reader && window.reader.renditionPrev && window.reader.renditionPrev.themes && window.reader.renditionPrev.themes.font) {
+          window.reader.renditionPrev.themes.font(family);
+        }
       } catch (_e2) {}
       try {
         if (window.reader && window.reader.renditionNext && window.reader.renditionNext.themes && window.reader.renditionNext.themes.override) {
           window.reader.renditionNext.themes.override("font-family", family);
+        }
+        if (window.reader && window.reader.renditionNext && window.reader.renditionNext.themes && window.reader.renditionNext.themes.font) {
+          window.reader.renditionNext.themes.font(family);
         }
       } catch (_e3) {}
       try { localStorage.setItem(fontModeKey, next); } catch (_e4) {}
@@ -1909,9 +1922,8 @@
       }
 
       function onEnd(e) {
-        // In reader_new compat host, center tap/click must toggle the outer shell
-        // on all platforms. In standalone reader1, keep the old mobile-only behavior.
-        if (__fb_isDesktop && !window.__readerpubReaderNewCompat) return;
+        // Desktop click is handled separately; touch keeps center-zone behavior.
+        if (__fb_isDesktop) return;
         try {
           if (
             document.body &&
@@ -1982,8 +1994,8 @@
         } catch (e2) {}
       }
 
-      function onCompatDesktopClick(e) {
-        if (!window.__readerpubReaderNewCompat || !__fb_isDesktop) return;
+      function onDesktopReaderClick(e) {
+        if (!__fb_isDesktop) return;
         try {
           if (
             document.body &&
@@ -2001,9 +2013,16 @@
         } catch (eSel) {}
         try {
           var tgt = e && e.target;
-          if (closestInteractive(tgt)) return;
+          var interactive = tgt && tgt.closest
+            ? tgt.closest("a,button,input,textarea,select,label")
+            : null;
+          if (interactive) return;
           var pt = e;
           if (!pt || typeof pt.clientX !== "number" || typeof pt.clientY !== "number") return;
+          if (!window.__readerpubReaderNewCompat) {
+            toggleUi();
+            return;
+          }
           var x = pt.clientX, y = pt.clientY;
           var w = doc.defaultView.innerWidth || doc.documentElement.clientWidth;
           var centerW = w * 0.60;
@@ -2011,7 +2030,7 @@
           var mx2 = mx1 + centerW;
           if (x < mx1 || x > mx2) return;
           toggleUi();
-        } catch (eCompatClick) {}
+        } catch (eDesktopClick) {}
       }
 
       function blockContextMenu(e) {
@@ -2030,14 +2049,13 @@
         doc.addEventListener("pointerdown", onStart, { passive: true, capture: true });
         doc.addEventListener("pointermove", onMove, { passive: true, capture: true });
         doc.addEventListener("pointerup", onEnd, { passive: true, capture: true });
-        doc.addEventListener("click", onCompatDesktopClick, true);
+        doc.addEventListener("click", onDesktopReaderClick, true);
         doc.addEventListener("contextmenu", blockContextMenu, true);
         doc.addEventListener("longpress", blockContextMenu, true);
         if (win) {
           win.addEventListener("pointerdown", onStart, { passive: true, capture: true });
           win.addEventListener("pointermove", onMove, { passive: true, capture: true });
           win.addEventListener("pointerup", onEnd, { passive: true, capture: true });
-          win.addEventListener("click", onCompatDesktopClick, true);
           win.addEventListener("contextmenu", blockContextMenu, true);
         }
       } catch (e) {
@@ -8296,8 +8314,6 @@
     // Always start hidden and let the outer shell reveal the bars on center tap.
     if (window.__readerpubReaderNewCompat) {
       hideUi();
-    } else if (window.__fb_isDesktop || window.__readerpubAutostart) {
-      showUi();
     } else {
       hideUi();
     }
