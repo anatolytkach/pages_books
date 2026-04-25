@@ -5078,6 +5078,59 @@ html.is-tablet body.reader1-unified-shell #bottombar #bookmark {
   transform: translateY(-50%);
 }
 
+html.is-phone body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #addressBarToggle,
+html.is-tablet body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #addressBarToggle {
+  display: inline-flex !important;
+  position: absolute;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+html.is-phone body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #addressBarToggle .ab-icon,
+html.is-tablet body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #addressBarToggle .ab-icon {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  display: none !important;
+  object-fit: contain !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+}
+
+html.is-phone body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #addressBarToggle.ab-state-full .ab-icon-full,
+html.is-tablet body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #addressBarToggle.ab-state-full .ab-icon-full {
+  display: block !important;
+}
+
+html.is-phone body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #addressBarToggle.ab-state-small .ab-icon-small,
+html.is-tablet body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #addressBarToggle.ab-state-small .ab-icon-small {
+  display: block !important;
+}
+
+html.is-phone body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #bookmark,
+html.is-tablet body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #bookmark {
+  right: calc(52px + env(safe-area-inset-right, 0px));
+}
+
 html.is-ios #mobileMoreToggle {
   margin-right: 4px !important;
 }
@@ -5310,6 +5363,11 @@ html.is-tablet body.reader1-unified-shell #searchOpen .search-open-icon {
     transform: translateY(-50%);
   }
 
+  html.is-phone body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #bookmark,
+  html.is-tablet body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #bookmark {
+    right: calc(52px + env(safe-area-inset-right, 0px));
+  }
+
   html.is-phone body.reader1-unified-shell #bottombar #page-count,
   html.is-tablet body.reader1-unified-shell #bottombar #page-count {
     position: absolute;
@@ -5320,6 +5378,11 @@ html.is-tablet body.reader1-unified-shell #searchOpen .search-open-icon {
     width: auto;
     text-align: right;
     white-space: nowrap;
+  }
+
+  html.is-phone body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #page-count,
+  html.is-tablet body.reader1-unified-shell.addressbar-toggle-enabled #bottombar #page-count {
+    right: calc(92px + env(safe-area-inset-right, 0px));
   }
 }
 
@@ -5680,6 +5743,26 @@ body.reader1-unified-shell #overlay-library #notes {
   box-sizing: border-box;
 }
 
+@media (orientation: portrait) {
+  html.is-phone body.reader1-unified-shell #overlay-settings,
+  html.is-tablet body.reader1-unified-shell #overlay-settings {
+    top: 0 !important;
+    bottom: auto !important;
+    height: 67svh !important;
+    max-height: 67svh !important;
+  }
+
+  html.is-phone body.reader1-unified-shell #overlay-settings .overlay-scroll,
+  html.is-tablet body.reader1-unified-shell #overlay-settings .overlay-scroll {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    touch-action: pan-y !important;
+    overscroll-behavior: contain;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 body.reader1-unified-shell #overlay-library #bookmarksView > ul > li.list_item,
 body.reader1-unified-shell #overlay-library #mybooks > li.list_item,
 body.reader1-unified-shell #overlay-library #notes > li.list_item {
@@ -5902,6 +5985,71 @@ html.is-tablet body.reader1-unified-shell.search-active #searchFloatControls:not
     overscroll-behavior: contain;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
+  }
+}
+
+body.reader1-unified-shell #metainfo,
+body.reader1-unified-shell #metaText,
+body.reader1-unified-shell #book-title,
+body.reader1-unified-shell #chapter-title {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+body.reader1-unified-shell #metaText,
+body.reader1-unified-shell #book-title,
+body.reader1-unified-shell #chapter-title {
+  max-width: 100% !important;
+}
+
+body.reader1-unified-shell #book-title,
+body.reader1-unified-shell #chapter-title {
+  display: block !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+html:not(.is-phone):not(.is-tablet) body.reader1-unified-shell #metainfo {
+  left: 180px !important;
+  right: 288px !important;
+  width: auto !important;
+  max-width: none !important;
+  transform: translateY(-50%) !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+html:not(.is-phone):not(.is-tablet) body.reader1-unified-shell #metaText {
+  align-items: flex-start !important;
+  text-align: left !important;
+}
+
+html:not(.is-phone):not(.is-tablet) body.reader1-unified-shell #book-title,
+html:not(.is-phone):not(.is-tablet) body.reader1-unified-shell #chapter-title {
+  text-align: left !important;
+}
+
+html.is-phone body.reader1-unified-shell #metainfo,
+html.is-tablet body.reader1-unified-shell #metainfo {
+  left: calc(14px + env(safe-area-inset-left, 0px)) !important;
+  right: calc(214px + env(safe-area-inset-right, 0px)) !important;
+  width: auto !important;
+  max-width: none !important;
+  transform: translateY(-50%) !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+html.is-phone body.reader1-unified-shell #metaText,
+html.is-tablet body.reader1-unified-shell #metaText {
+  align-items: flex-start !important;
+  text-align: left !important;
+}
+
+@media (orientation: landscape) {
+  html.is-phone body.reader1-unified-shell #metainfo,
+  html.is-tablet body.reader1-unified-shell #metainfo {
+    right: calc(340px + env(safe-area-inset-right, 0px)) !important;
   }
 }
 

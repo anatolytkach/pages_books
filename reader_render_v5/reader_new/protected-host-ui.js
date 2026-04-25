@@ -3224,6 +3224,62 @@ function installStyles() {
         -webkit-overflow-scrolling: touch;
       }
     }
+    body.protected-shell #metainfo,
+    body.protected-shell #metaText,
+    body.protected-shell #book-title,
+    body.protected-shell #chapter-title {
+      min-width: 0 !important;
+      overflow: hidden !important;
+    }
+    body.protected-shell #metaText,
+    body.protected-shell #book-title,
+    body.protected-shell #chapter-title {
+      max-width: 100% !important;
+    }
+    body.protected-shell #book-title,
+    body.protected-shell #chapter-title {
+      display: block !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #metainfo {
+      left: 180px !important;
+      right: 288px !important;
+      width: auto !important;
+      max-width: none !important;
+      transform: translateY(-50%) !important;
+      justify-content: flex-start !important;
+      text-align: left !important;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #metaText {
+      align-items: flex-start !important;
+      text-align: left !important;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #book-title,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #chapter-title {
+      text-align: left !important;
+    }
+    html.is-phone body.protected-shell #metainfo,
+    html.is-tablet body.protected-shell #metainfo {
+      left: calc(14px + env(safe-area-inset-left, 0px)) !important;
+      right: calc(214px + env(safe-area-inset-right, 0px)) !important;
+      width: auto !important;
+      max-width: none !important;
+      transform: translateY(-50%) !important;
+      justify-content: flex-start !important;
+      text-align: left !important;
+    }
+    html.is-phone body.protected-shell #metaText,
+    html.is-tablet body.protected-shell #metaText {
+      align-items: flex-start !important;
+      text-align: left !important;
+    }
+    @media (orientation: landscape) {
+      html.is-phone body.protected-shell #metainfo,
+      html.is-tablet body.protected-shell #metainfo {
+        right: calc(340px + env(safe-area-inset-right, 0px)) !important;
+      }
+    }
   `;
   document.head.append(style);
 }
