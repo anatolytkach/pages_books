@@ -2880,7 +2880,9 @@ function installStyles() {
       background: transparent;
     }
     body.protected-shell #page-count {
-      visibility: visible;
+      display: inline-block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
     }
     body.protected-shell.protected-theme-dark {
       background: #101926;
