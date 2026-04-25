@@ -3243,28 +3243,31 @@ function installStyles() {
       white-space: nowrap !important;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-shell #metainfo {
-      left: 180px !important;
-      right: 288px !important;
-      width: auto !important;
-      max-width: none !important;
-      transform: translateY(-50%) !important;
-      justify-content: flex-start !important;
-      text-align: left !important;
+      left: 50% !important;
+      right: auto !important;
+      width: min(44vw, 620px) !important;
+      max-width: calc(100vw - 420px) !important;
+      transform: translate(-50%, -50%) !important;
+      justify-content: center !important;
+      text-align: center !important;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-shell #metaText {
-      align-items: flex-start !important;
-      text-align: left !important;
+      align-items: center !important;
+      text-align: center !important;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-shell #book-title,
     html:not(.is-phone):not(.is-tablet) body.protected-shell #chapter-title {
-      text-align: left !important;
+      text-align: center !important;
     }
     html.is-phone body.protected-shell #metainfo,
     html.is-tablet body.protected-shell #metainfo {
+      position: absolute !important;
+      top: 50% !important;
       left: calc(14px + env(safe-area-inset-left, 0px)) !important;
-      right: calc(214px + env(safe-area-inset-right, 0px)) !important;
+      right: calc(238px + env(safe-area-inset-right, 0px)) !important;
       width: auto !important;
       max-width: none !important;
+      max-height: calc(var(--titlebar-h, 43px) - 8px) !important;
       transform: translateY(-50%) !important;
       justify-content: flex-start !important;
       text-align: left !important;
@@ -3272,12 +3275,53 @@ function installStyles() {
     html.is-phone body.protected-shell #metaText,
     html.is-tablet body.protected-shell #metaText {
       align-items: flex-start !important;
+      justify-content: center !important;
+      text-align: left !important;
+      line-height: 1.08 !important;
+      max-height: calc(var(--titlebar-h, 43px) - 8px) !important;
+    }
+    html.is-phone body.protected-shell #book-title,
+    html.is-phone body.protected-shell #chapter-title,
+    html.is-tablet body.protected-shell #book-title,
+    html.is-tablet body.protected-shell #chapter-title {
       text-align: left !important;
     }
     @media (orientation: landscape) {
       html.is-phone body.protected-shell #metainfo,
       html.is-tablet body.protected-shell #metainfo {
-        right: calc(340px + env(safe-area-inset-right, 0px)) !important;
+        left: 50% !important;
+        right: auto !important;
+        width: min(40vw, 420px) !important;
+        max-width: calc(100vw - 440px) !important;
+        transform: translate(-50%, -50%) !important;
+        justify-content: center !important;
+        text-align: center !important;
+      }
+      html.is-phone body.protected-shell #metaText,
+      html.is-tablet body.protected-shell #metaText {
+        align-items: center !important;
+        text-align: center !important;
+      }
+      html.is-phone body.protected-shell #book-title,
+      html.is-phone body.protected-shell #chapter-title,
+      html.is-tablet body.protected-shell #book-title,
+      html.is-tablet body.protected-shell #chapter-title {
+        text-align: center !important;
+      }
+      html.is-phone body.protected-shell #protectedBottomCatalogLink,
+      html.is-tablet body.protected-shell #protectedBottomCatalogLink {
+        display: none !important;
+      }
+    }
+    @media (orientation: portrait) {
+      html.is-phone body.protected-shell #metainfo,
+      html.is-tablet body.protected-shell #metainfo {
+        left: calc(2px + env(safe-area-inset-left, 0px)) !important;
+        right: calc(222px + env(safe-area-inset-right, 0px)) !important;
+      }
+      html.is-phone body.protected-shell #title-controls,
+      html.is-tablet body.protected-shell #title-controls {
+        right: calc(0px + env(safe-area-inset-right, 0px)) !important;
       }
     }
   `;
