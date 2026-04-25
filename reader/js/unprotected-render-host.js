@@ -62,7 +62,6 @@
     if (!viewer || !viewerStack) throw new Error("Missing viewer host");
 
     document.body.classList.add("unprotected-runtime-new");
-    document.body.classList.remove("ui-hidden");
     if (sharedShellMode) {
       document.body.classList.add("unprotected-old-shell");
     }

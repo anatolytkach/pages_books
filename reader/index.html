@@ -13,7 +13,7 @@
 <meta content="" name="posthog-host"/>
 <link rel="icon" type="image/svg+xml" href="/books/assets/logo-flip.svg?v=20260218-1" />
 <link href="css/normalize.css" rel="stylesheet"/>
-<link href="css/main.css?v=20260315-swipe-select-hold-1" rel="stylesheet"/>
+<link href="css/main.css?v=20260425-unprotected-overlay-bars-1" rel="stylesheet"/>
 <link href="css/popup.css" rel="stylesheet"/>
 <script src="/books/shared/posthog.js"></script>
 <script src="js/libs/jquery.min.js"></script>
@@ -304,6 +304,7 @@
   } catch (e3) {}
 
   function showCatalogEntryHint() {
+    return;
     if (!shouldShowCatalogEntryHint || catalogEntryHintShown || catalogEntryHintDismissed) return;
     catalogEntryHintShown = true;
     try {
@@ -669,10 +670,10 @@
     [
       "js/unprotected-runtime-events.js?v=20260413-phase13-skeleton-1",
       "js/unprotected-runtime-state.js?v=20260413-phase13-skeleton-1",
-      "js/unprotected-render-host.js?v=20260413-phase13-skeleton-1",
+      "js/unprotected-render-host.js?v=20260425-unprotected-overlay-bars-1",
       "js/unprotected-runtime-core.js?v=20260413-phase13-skeleton-1",
       "js/unprotected-runtime-adapter.js?v=20260413-phase13-skeleton-1",
-      "js/unprotected-runtime-shell.js?v=20260413-phase13-skeleton-1"
+      "js/unprotected-runtime-shell.js?v=20260425-unprotected-overlay-bars-1"
     ].forEach(function (src) {
       var script = document.createElement("script");
       script.src = src;
@@ -684,7 +685,7 @@
 <!-- Reader -->
 <script src="js/reader.js?v=20260315-swipe-select-hold-1"></script>
 <script src="js/fullscreen-fix.js"></script>
-<script src="js/fbreader-ui.js?v=20260315-desktop-search-fix-2"></script>
+<script src="js/fbreader-ui.js?v=20260425-unprotected-overlay-bars-1"></script>
 <!-- Plugins -->
 <!--
 -->
@@ -1033,11 +1034,13 @@
 <div id="selectionToolbar" class="selection-toolbar hidden" role="toolbar" aria-label="Selection actions">
   <button class="sel-btn sel-note" data-action="note" type="button" aria-label="Note">
     <span class="sel-icon" aria-hidden="true">
-      <svg viewBox="0 0 20 20">
-        <rect x="1" y="1" width="18" height="18" rx="2.5"></rect>
-        <line x1="4" y1="6.5" x2="16" y2="6.5"></line>
-        <line x1="4" y1="10" x2="16" y2="10"></line>
-        <line x1="4" y1="13.5" x2="12.5" y2="13.5"></line>
+      <svg viewBox="2 2 21 20" preserveAspectRatio="xMidYMid meet">
+        <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+        <path d="M7 9h10"></path>
+        <path d="M7 13h10"></path>
+        <path d="M7 17h7"></path>
+        <path d="M13.5 19.5l1.1-3.6 5.9-5.9a1.4 1.4 0 0 1 2 2l-5.9 5.9z"></path>
+        <path d="M19.7 10.8l2.5 2.5"></path>
       </svg>
     </span>
     <span class="sel-label">Note</span>

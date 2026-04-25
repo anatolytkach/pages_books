@@ -83,7 +83,6 @@
     var directNavPrev = renderHost && renderHost.navPrevButton ? renderHost.navPrevButton : null;
     var directNavNext = renderHost && renderHost.navNextButton ? renderHost.navNextButton : null;
 
-    document.body.classList.remove("ui-hidden");
     document.body.setAttribute("data-unprotected-runtime", "new");
     document.body.removeAttribute("data-unprotected-runtime-rollback");
     document.body.classList.remove("unprotected-runtime-legacy");
