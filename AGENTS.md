@@ -17,3 +17,15 @@ Working rules:
 - After significant changes, update the relevant context/state files in `docs/`. Do not update them for trivial edits.
 - Prefer file-based context over chat history. New Codex branches should be able to start from these files.
 - Always use `rclone` for uploading book content/artifacts to R2. Do not use per-file `wrangler r2 object put` for book uploads unless `rclone` is unavailable and the user approves the fallback.
+
+Production deploy target for `reader.pub`:
+- Static reader/catalog changes for the live site must be deployed to Cloudflare Pages project `reader-books` on branch `production`.
+- Use `npx wrangler pages deploy <deploy-dir> --project-name reader-books --branch production --commit-dirty=true`.
+- Do not deploy live updates with the current Git branch name or `--branch main`; those create Preview deployments and do not update `reader.pub`.
+- The live router serves `reader.pub/books*` and `reader.pub/reader_render_v5*` through the production `reader-books.pages.dev` deployment.
+- Build a temporary deploy directory from `deploy/` with symlinks followed and exclude protected sources/artifacts before deploying. At minimum exclude:
+  - `books/gutenberg_protected_epub3_sources/**`
+  - `reader_render_v5/artifacts/protected-books/**`
+  - `reader_render_v5/artifacts/protected-bootstrap-books/**`
+  - `reader_render_v5/node_modules/**`
+- Verify after deploy with `curl https://reader.pub/books/protected/?id=<id>` and confirm the expected cache-busted asset URL or changed content is present.

@@ -35,6 +35,7 @@ const HOST_STATE = {
   lastNotesCount: 0,
   fontScaleSynced: false,
   lastAppliedFontScale: 0,
+  viewportFontScaleSyncTimer: null,
   fontModeSynced: false,
   lastAppliedFontMode: "sans",
   readerConfig: {
@@ -248,6 +249,7 @@ function syncProtectedViewportEnvironment() {
     try {
       window.dispatchEvent(new CustomEvent("readerpub:protected-viewport-sync"));
     } catch (_error) {}
+    scheduleViewportFontScaleResync("viewport");
   }
 }
 
@@ -256,7 +258,10 @@ function installProtectedViewportEnvironmentSync() {
   HOST_STATE.viewportEnvironmentInstalled = true;
   syncProtectedViewportEnvironment();
   window.addEventListener("resize", syncProtectedViewportEnvironment, { passive: true });
-  window.addEventListener("orientationchange", syncProtectedViewportEnvironment, { passive: true });
+  window.addEventListener("orientationchange", () => {
+    syncProtectedViewportEnvironment();
+    scheduleViewportFontScaleResync("orientationchange");
+  }, { passive: true });
   try {
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", syncProtectedViewportEnvironment, { passive: true });
@@ -3486,6 +3491,33 @@ function persistShellFontScale(fontScale) {
   return normalizedScale;
 }
 
+function scheduleViewportFontScaleResync(reason = "viewport") {
+  HOST_STATE.fontScaleSynced = false;
+  HOST_STATE.lastAppliedFontScale = 0;
+  if (HOST_STATE.viewportFontScaleSyncTimer) {
+    window.clearTimeout(HOST_STATE.viewportFontScaleSyncTimer);
+    HOST_STATE.viewportFontScaleSyncTimer = null;
+  }
+  HOST_STATE.viewportFontScaleSyncTimer = window.setTimeout(() => {
+    HOST_STATE.viewportFontScaleSyncTimer = null;
+    const summary = HOST_STATE.lastSummary;
+    if (!summary || !summary.ready) return;
+    const preferredFontScale = getShellPreferredFontScale();
+    const currentFontScale = Number(summary.fontScale || 1) || 1;
+    if (Math.abs(preferredFontScale - currentFontScale) < 0.01) {
+      HOST_STATE.fontScaleSynced = true;
+      HOST_STATE.lastAppliedFontScale = preferredFontScale;
+      return;
+    }
+    HOST_STATE.fontScaleSynced = true;
+    HOST_STATE.lastAppliedFontScale = preferredFontScale;
+    invokeBridge("setFontScale", preferredFontScale).catch(() => {
+      HOST_STATE.fontScaleSynced = false;
+      HOST_STATE.lastAppliedFontScale = 0;
+    });
+  }, reason === "orientationchange" ? 420 : 320);
+}
+
 function closeOverlayById(id) {
   const panel = document.getElementById(id);
   if (!panel) return;
@@ -3526,41 +3558,68 @@ function getProtectedFullscreenElement() {
     null;
 }
 
-function requestProtectedFullscreen(element) {
-  const target = element || document.getElementById("container") || document.documentElement;
-  if (!target) return false;
+function getProtectedFullscreenTarget() {
+  return document.documentElement || document.getElementById("container") || document.body || null;
+}
+
+async function requestProtectedFullscreen(element) {
+  const target = element || getProtectedFullscreenTarget();
+  if (!target) return { ok: false, error: "Fullscreen target is unavailable." };
+  try {
+    if (
+      document.fullscreenEnabled === false &&
+      document.webkitFullscreenEnabled === false &&
+      document.mozFullScreenEnabled === false &&
+      document.msFullscreenEnabled === false
+    ) {
+      return { ok: false, error: "Fullscreen is disabled by the browser." };
+    }
+  } catch (_error) {}
   const request = target.requestFullscreen ||
     target.webkitRequestFullscreen ||
     target.webkitRequestFullScreen ||
     target.mozRequestFullScreen ||
     target.msRequestFullscreen;
-  if (!request) return false;
+  if (!request) return { ok: false, error: "Fullscreen API is unavailable." };
   try {
-    const result = request.call(target);
-    if (result && typeof result.catch === "function") {
-      result.catch(() => {});
+    const result = request.call(target, { navigationUI: "hide" });
+    if (result && typeof result.then === "function") {
+      await result;
     }
-    return true;
-  } catch (_error) {
-    return false;
+    await new Promise((resolve) => window.setTimeout(resolve, 80));
+    const fullscreenElement = getProtectedFullscreenElement();
+    return fullscreenElement
+      ? { ok: true, element: fullscreenElement }
+      : { ok: false, error: "Fullscreen request completed but browser did not enter fullscreen." };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error && error.message ? error.message : String(error || "Fullscreen request failed.")
+    };
   }
 }
 
-function exitProtectedFullscreen() {
+async function exitProtectedFullscreen() {
   const exit = document.exitFullscreen ||
     document.webkitExitFullscreen ||
     document.webkitCancelFullScreen ||
     document.mozCancelFullScreen ||
     document.msExitFullscreen;
-  if (!exit) return false;
+  if (!exit) return { ok: false, error: "Fullscreen exit API is unavailable." };
   try {
     const result = exit.call(document);
-    if (result && typeof result.catch === "function") {
-      result.catch(() => {});
+    if (result && typeof result.then === "function") {
+      await result;
     }
-    return true;
-  } catch (_error) {
-    return false;
+    await new Promise((resolve) => window.setTimeout(resolve, 80));
+    return getProtectedFullscreenElement()
+      ? { ok: false, error: "Browser did not exit fullscreen." }
+      : { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error && error.message ? error.message : String(error || "Fullscreen exit failed.")
+    };
   }
 }
 
@@ -3605,12 +3664,7 @@ function updateProtectedAddressBarIcon(hidden) {
 
 function syncProtectedAddressBarIconState() {
   resetProtectedAddressBarBaselineIfNeeded();
-  const height = getProtectedViewportHeight();
-  if (height && HOST_STATE.addressBarBaseline) {
-    HOST_STATE.addressBarBaseline = Math.min(HOST_STATE.addressBarBaseline, height);
-  }
-  const delta = height - HOST_STATE.addressBarBaseline;
-  const hidden = !!getProtectedFullscreenElement() || delta > 40;
+  const hidden = !!getProtectedFullscreenElement();
   HOST_STATE.addressBarHidden = hidden;
   updateProtectedAddressBarIcon(hidden);
 }
@@ -3688,28 +3742,35 @@ function installProtectedAddressBarToggle() {
   updateProtectedAddressBarIcon(!!getProtectedFullscreenElement());
   if (HOST_STATE.addressBarToggleInstalled) return;
   HOST_STATE.addressBarToggleInstalled = true;
-  toggle.addEventListener("click", (event) => {
+  toggle.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
+    event.stopImmediatePropagation && event.stopImmediatePropagation();
+    if (toggle.dataset.fullscreenBusy === "1") return;
+    toggle.dataset.fullscreenBusy = "1";
+    toggle.setAttribute("aria-busy", "true");
+    const finish = (result, action) => {
+      toggle.dataset.fullscreenBusy = "0";
+      toggle.removeAttribute("aria-busy");
+      syncProtectedAddressBarIconState();
+      window.__readerpubProtectedFullscreenDebug = {
+        action,
+        at: Date.now(),
+        ok: !!(result && result.ok),
+        error: result && result.error ? String(result.error) : "",
+        fullscreen: !!getProtectedFullscreenElement()
+      };
+      if (result && !result.ok) {
+        setHostActionStatus(result.error || "Fullscreen is unavailable.");
+      }
+    };
     if (getProtectedFullscreenElement()) {
-      exitProtectedFullscreen();
-      window.setTimeout(syncProtectedAddressBarIconState, 80);
+      const result = await exitProtectedFullscreen();
+      finish(result, "exit");
       return;
     }
-    if (HOST_STATE.addressBarHidden) {
-      try { window.scrollTo(0, 0); } catch (_error) {}
-      window.setTimeout(syncProtectedAddressBarIconState, 80);
-      window.setTimeout(syncProtectedAddressBarIconState, 240);
-      return;
-    }
-    nudgeProtectedAddressBar();
-    window.setTimeout(syncProtectedAddressBarIconState, 100);
-    window.setTimeout(syncProtectedAddressBarIconState, 250);
-    window.setTimeout(() => {
-      if (HOST_STATE.addressBarHidden || getProtectedFullscreenElement()) return;
-      requestProtectedFullscreen(document.getElementById("container") || document.documentElement);
-      window.setTimeout(syncProtectedAddressBarIconState, 80);
-    }, 320);
+    const result = await requestProtectedFullscreen(getProtectedFullscreenTarget());
+    finish(result, "request");
   });
   ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach((type) => {
     document.addEventListener(type, syncProtectedAddressBarIconState);
