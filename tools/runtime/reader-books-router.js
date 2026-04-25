@@ -14,6 +14,10 @@ Allow: /category/
 Allow: /sitemap.xml
 Allow: /sitemaps/
 Disallow: /books/reader/
+Disallow: /books/reader_new/
+Disallow: /books/reader_new_v5/
+Disallow: /books/protected/
+Disallow: /books/reader1/
 Disallow: /books/api/
 
 Sitemap: https://reader.pub/sitemap.xml
@@ -103,6 +107,23 @@ async function serveR2Object(env, key, route) {
   });
 }
 
+async function serveProtectedArtifactObject(env, key, route) {
+  const response = await serveR2Object(env, key, route);
+  if (response.status !== 200) return response;
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store, no-cache, must-revalidate, max-age=0");
+  headers.set("cdn-cache-control", "no-store");
+  headers.set("cloudflare-cdn-cache-control", "no-store");
+  headers.set("access-control-allow-origin", "*");
+  headers.set("access-control-allow-methods", "GET, HEAD, OPTIONS");
+  headers.set("access-control-allow-headers", "content-type");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function decodePathSegment(value) {
   try {
     return decodeURIComponent(String(value || ""));
@@ -122,6 +143,23 @@ async function serveR2ObjectWithFallback(env, primaryKey, fallbackKey, route) {
     return primary;
   }
   return serveR2Object(env, fallbackKey, route);
+}
+
+async function serveR2ObjectFromCandidates(env, keys, route) {
+  const uniqueKeys = [];
+  for (const key of keys) {
+    const normalized = String(key || "");
+    if (normalized && !uniqueKeys.includes(normalized)) {
+      uniqueKeys.push(normalized);
+    }
+  }
+
+  let response = null;
+  for (const key of uniqueKeys) {
+    response = await serveR2Object(env, key, route);
+    if (response.status !== 404) return response;
+  }
+  return response || serveR2Object(env, uniqueKeys[0] || "", route);
 }
 
 async function fetchPosthogPublicConfig(host) {
@@ -161,7 +199,26 @@ export default {
     }
 
     if (path === "/books/reader") {
-      return redirect("/books/reader/", "slash-redirect");
+      return redirect(`/books/reader/${url.search || ""}`, "slash-redirect");
+    }
+
+    if (path === "/books/reader_new") {
+      return redirect("/books/reader_new/", "slash-redirect");
+    }
+
+    if (path === "/books/reader_new_v4") {
+      return redirect("/books/reader_new_v4/", "slash-redirect");
+    }
+
+    if (path === "/books/reader_new_v5") {
+      return redirect(`/books/reader_new_v5/${url.search || ""}`, "slash-redirect");
+    }
+
+    if (path === "/books/protected") {
+      return redirect(`/books/protected/${url.search || ""}`, "slash-redirect");
+    }
+    if (path === "/books/reader1") {
+      return redirect("/books/reader1/", "slash-redirect");
     }
 
     if (path === "/books/ping") {
@@ -207,10 +264,16 @@ export default {
       }
       const rawSuffix = normalizedPath.slice("/books/api/".length);
       const decodedSuffix = decodePathSegment(rawSuffix);
-      return serveR2ObjectWithFallback(
+      const decodedKey = `api/${decodedSuffix}`;
+      const rawKey = `api/${rawSuffix}`;
+      return serveR2ObjectFromCandidates(
         env,
-        `api/${decodedSuffix}`,
-        `api/${rawSuffix}`,
+        [
+          decodedKey,
+          rawKey,
+          decodedKey.toLocaleLowerCase(),
+          rawKey.toLocaleLowerCase(),
+        ],
         "r2-api",
       );
     }
@@ -226,10 +289,41 @@ export default {
       );
     }
 
+    if (path.startsWith("/books/protected-content/")) {
+      const rawSuffix = path.slice("/books/protected-content/".length);
+      const decodedSuffix = decodePathSegment(rawSuffix);
+      const primaryKey = `protected-content/${decodedSuffix}`;
+      const fallbackKey = `protected-content/${rawSuffix}`;
+      const primary = await serveProtectedArtifactObject(env, primaryKey, "r2-protected-content");
+      if (primary.status !== 404 || !fallbackKey || fallbackKey === primaryKey) {
+        return primary;
+      }
+      return serveProtectedArtifactObject(env, fallbackKey, "r2-protected-content");
+    }
+
     if (path.startsWith("/books/reader/api/")) {
       const upstreamUrl = new URL(`${host}${path}`);
       upstreamUrl.search = url.search;
       return proxyRequest(request, upstreamUrl, "proxy-reader-api");
+    }
+
+    if (path === "/reader_render_v5" || path.startsWith("/reader_render_v5/")) {
+      const protectedArtifactMatch = path.match(/^\/reader_render_v5\/artifacts\/protected-books\/([^/]+)\/(.+)$/);
+      if (protectedArtifactMatch) {
+        const bookId = decodePathSegment(protectedArtifactMatch[1]);
+        const rawSuffix = protectedArtifactMatch[2];
+        const decodedSuffix = decodePathSegment(rawSuffix);
+        const primaryKey = `protected-content/${bookId}/${decodedSuffix}`;
+        const fallbackKey = `protected-content/${bookId}/${rawSuffix}`;
+        const primary = await serveProtectedArtifactObject(env, primaryKey, "r2-protected-v5-artifact-alias");
+        if (primary.status !== 404 || fallbackKey === primaryKey) {
+          return primary;
+        }
+        return serveProtectedArtifactObject(env, fallbackKey, "r2-protected-v5-artifact-alias");
+      }
+      const upstreamUrl = new URL(`${host}${path}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-reader-render-v5");
     }
 
     if (
@@ -283,10 +377,56 @@ export default {
     }
 
     if (path === "/books/reader/" || path.startsWith("/books/reader/")) {
-      const rewrittenPath = path.replace(/^\/books\/reader/, "/reader");
+      const rewrittenPath = path.replace(/^\/books\/reader/, "/reader1");
       const upstreamUrl = new URL(`${host}${rewrittenPath}`);
       upstreamUrl.search = url.search;
-      return proxyRequest(request, upstreamUrl, "proxy-reader");
+      return proxyRequest(request, upstreamUrl, "proxy-reader1-legacy-alias");
+    }
+
+    if (path === "/books/reader_new/" || path.startsWith("/books/reader_new/")) {
+      const rewrittenPath =
+        path === "/books/reader_new/" || path === "/books/reader_new/index.html"
+          ? "/reader/reader_new.html"
+          : path.replace(/^\/books\/reader_new/, "/reader");
+      const upstreamUrl = new URL(`${host}${rewrittenPath}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-reader-new");
+    }
+
+    if (path === "/books/reader_new_v4/" || path.startsWith("/books/reader_new_v4/")) {
+      return readerBooksPagesWorker.fetch(
+        new Request(request.url, request),
+        {
+          ...env,
+          READER_BOOKS: env.BOOKS,
+        },
+      );
+    }
+
+    if (path === "/books/reader_new_v5/" || path.startsWith("/books/reader_new_v5/")) {
+      const rewrittenPath =
+        path === "/books/reader_new_v5/" || path === "/books/reader_new_v5/index.html"
+          ? "/reader/reader_new_v5"
+          : path.replace(/^\/books\/reader_new_v5/, "/reader");
+      const upstreamUrl = new URL(`${host}${rewrittenPath}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-reader-new-v5");
+    }
+
+    if (path === "/books/protected/" || path.startsWith("/books/protected/")) {
+      const rewrittenPath =
+        path === "/books/protected/" || path === "/books/protected/index.html"
+          ? "/reader/reader_new_v5"
+          : path.replace(/^\/books\/protected/, "/reader");
+      const upstreamUrl = new URL(`${host}${rewrittenPath}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-protected-v5");
+    }
+    if (path === "/books/reader1/" || path.startsWith("/books/reader1/")) {
+      const rewrittenPath = path.replace(/^\/books\/reader1/, "/reader1");
+      const upstreamUrl = new URL(`${host}${rewrittenPath}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-reader1");
     }
 
     return new Response("Not found", {

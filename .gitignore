@@ -37,3 +37,11 @@ deploy/books
 deploy/reader
 deploy/catalog
 deploy/_worker.js
+deploy/reader1
+deploy/reader_render_v3
+deploy/publisher_tasks
+
+# Generated reader_render_v3 outputs
+reader_render_v3/artifacts/
+reader_render_v3/examples/test-book/
+reader_render_v3/node_modules/

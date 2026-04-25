@@ -311,6 +311,7 @@
 
       <!-- My Publications (books I published) -->
       <div class="tab-content" id="tab-publications">
+        <div id="publisherOnboardingPanel" class="panel" style="display:none;"></div>
         <div id="publicationsList" class="empty-state"><span class="spinner"></span> Loading...</div>
       </div>
 
@@ -390,13 +391,88 @@
       function applyPublishingNavVisibility() {
         const publicationsBtn = document.querySelector('[data-tab="publications"]');
         const publicationsTab = document.getElementById('tab-publications');
-        if (!platformAccess.can_publish) {
-          if (publicationsBtn) publicationsBtn.style.display = 'none';
-          if (publicationsTab) publicationsTab.innerHTML = '<div class="empty-state">Publishing is not available for this account.</div>';
-          if (window.location.hash.replace('#', '') === 'publications') {
-            window.location.hash = 'library';
-          }
+        if (publicationsBtn) publicationsBtn.style.display = '';
+        if (!platformAccess.can_publish && publicationsTab && !document.getElementById('publisherOnboardingPanel')) {
+          publicationsTab.innerHTML = '<div class="empty-state">Publishing is not available for this account.</div>';
         }
+      }
+
+      function slugify(value) {
+        return String(value || '')
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 60);
+      }
+
+      function renderPublisherOnboardingPanel() {
+        const panel = document.getElementById('publisherOnboardingPanel');
+        if (!panel) return;
+        if (platformAccess.can_publish) {
+          panel.style.display = 'none';
+          panel.innerHTML = '';
+          return;
+        }
+
+        const suggestedName = String(name || '').trim() || 'My Publishing';
+        const suggestedSlug = slugify(suggestedName || email.split('@')[0] || 'publisher');
+        panel.style.display = '';
+        panel.innerHTML = `
+          <h3 style="margin-top:0;">Become a Publisher</h3>
+          <div style="color:var(--muted); font-size:14px; margin-bottom:18px;">Create your individual publisher account to upload drafts and manage your own books.</div>
+          <div class="stack">
+            <div>
+              <label for="selfPublisherName" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Publisher Name</label>
+              <input id="selfPublisherName" type="text" value="${esc(suggestedName)}" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" />
+            </div>
+            <div>
+              <label for="selfPublisherSlug" style="display:block; font-size:14px; font-weight:600; color:var(--muted); margin-bottom:6px;">Publisher Slug</label>
+              <input id="selfPublisherSlug" type="text" value="${esc(suggestedSlug)}" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-md);" />
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+              <button class="btn" id="selfPublisherOnboardBtn">Become a Publisher</button>
+              <span id="selfPublisherOnboardResult" style="font-size:13px; color:var(--muted);"></span>
+            </div>
+          </div>
+        `;
+
+        const nameInput = document.getElementById('selfPublisherName');
+        const slugInput = document.getElementById('selfPublisherSlug');
+        nameInput?.addEventListener('input', () => {
+          if (!slugInput) return;
+          if (!slugInput.dataset.editedManually) {
+            slugInput.value = slugify(nameInput.value);
+          }
+        });
+        slugInput?.addEventListener('input', () => {
+          slugInput.dataset.editedManually = '1';
+        });
+
+        document.getElementById('selfPublisherOnboardBtn')?.addEventListener('click', async () => {
+          const btn = document.getElementById('selfPublisherOnboardBtn');
+          const result = document.getElementById('selfPublisherOnboardResult');
+          const tenantName = String(nameInput?.value || '').trim();
+          const tenantSlug = slugify(slugInput?.value || '');
+          if (!tenantName || !tenantSlug) {
+            result.textContent = 'Publisher name and slug are required.';
+            result.style.color = '#c0392b';
+            return;
+          }
+          btn.disabled = true;
+          btn.textContent = 'Creating...';
+          result.textContent = '';
+          try {
+            await apiFetch('POST', '/onboarding/self-publisher', { name: tenantName, slug: tenantSlug });
+            window.location.href = '/books/publish/';
+          } catch (err) {
+            result.textContent = err.message;
+            result.style.color = '#c0392b';
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Become a Publisher';
+          }
+        });
       }
 
       // Profile
@@ -485,10 +561,11 @@
         platformAccess = { is_superuser: false, admin_tenants: [], publishing_tenants: [], can_publish: false };
       }
       applyPublishingNavVisibility();
+      renderPublisherOnboardingPanel();
 
       try {
         if (!platformAccess.can_publish) {
-          $pubs.innerHTML = '<div class="empty-state">Publishing is not available for this account.</div>';
+          $pubs.innerHTML = '<div class="empty-state">Create your publisher account above to start uploading drafts and managing your books.</div>';
         } else {
           const published = await apiFetch('GET', '/publish/books').catch(() => []);
           if (!published.length) {

@@ -63,6 +63,19 @@
     return null;
   }
 
+  function isDemoEntry() {
+    try {
+      var ctx = window.__readerpubEntryContext || null;
+      return !!(ctx && ctx.isDemoEntry);
+    } catch (e) {}
+    return false;
+  }
+
+  function currentDemoBookId() {
+    if (!isDemoEntry()) return "";
+    return currentBookId();
+  }
+
   function loadPendingReaderSync() {
     var storage = getStorage();
     if (!storage) return null;
@@ -87,6 +100,16 @@
         title: String(payload.title || ""),
         author: String(payload.author || ""),
         cover: String(payload.cover || payload.coverUrl || payload.cover_url || ""),
+        source: String(payload.source || ""),
+        openUrl: String(payload.openUrl || ""),
+        protected: !!payload.protected,
+        reader: String(payload.reader || ""),
+        protectedArtifactBookId: String(payload.protectedArtifactBookId || ""),
+        protectedArtifactSource: String(payload.protectedArtifactSource || ""),
+        readerRemoteMode: String(payload.readerRemoteMode || ""),
+        protectedUx: String(payload.protectedUx || ""),
+        renderMode: String(payload.renderMode || ""),
+        metricsMode: String(payload.metricsMode || ""),
         cfi: String(payload.cfi || ""),
         bookmarks: Array.isArray(payload.bookmarks) ? payload.bookmarks : [],
         notes: Array.isArray(payload.notes) ? payload.notes : [],
@@ -405,14 +428,26 @@
     var s = normalizeSnapshot(snapshot || {});
     var out = [];
     var books = s.books || {};
+    var demoBookId = currentDemoBookId();
     Object.keys(books).forEach(function (id) {
       var item = books[id];
       if (!item || !item.id) return;
+      if (demoBookId && String(item.id) === demoBookId) return;
       out.push({
         id: String(item.id),
+        source: String(item.source || ""),
         title: String(item.title || ("Book " + item.id)),
         author: String(item.author || ""),
         cover: String(item.cover || item.coverUrl || item.cover_url || ""),
+        openUrl: String(item.openUrl || ""),
+        protected: !!item.protected,
+        reader: String(item.reader || ""),
+        protectedArtifactBookId: String(item.protectedArtifactBookId || ""),
+        protectedArtifactSource: String(item.protectedArtifactSource || ""),
+        readerRemoteMode: String(item.readerRemoteMode || ""),
+        protectedUx: String(item.protectedUx || ""),
+        renderMode: String(item.renderMode || ""),
+        metricsMode: String(item.metricsMode || ""),
         openedAt: item.openedAt || 0
       });
     });
@@ -453,6 +488,7 @@
     var storage = getStorage();
     var snapshot = normalizeSnapshot({});
     var ts = nowTs();
+    var demoBookId = currentDemoBookId();
     if (!storage) return snapshot;
 
     function coerceArray(value) {
@@ -468,27 +504,44 @@
       var title = m.title ? String(m.title) : ("Book " + bid);
       var author = m.author ? String(m.author) : "";
       var cover = m.cover ? String(m.cover) : "";
-      if (!snapshot.books[bid]) {
-        snapshot.books[bid] = {
+      var key = buildBookSnapshotKey({
+        id: bid,
+        source: m.source || "",
+        protected: !!m.protected,
+        reader: m.reader || "",
+        protectedArtifactBookId: m.protectedArtifactBookId || ""
+      });
+      if (!snapshot.books[key]) {
+        snapshot.books[key] = {
           id: bid,
+          source: String(m.source || ""),
           title: title,
           author: author,
           cover: cover,
+          openUrl: String(m.openUrl || ""),
+          protected: !!m.protected,
+          reader: String(m.reader || ""),
+          protectedArtifactBookId: String(m.protectedArtifactBookId || ""),
+          protectedArtifactSource: String(m.protectedArtifactSource || ""),
+          readerRemoteMode: String(m.readerRemoteMode || ""),
+          protectedUx: String(m.protectedUx || ""),
+          renderMode: String(m.renderMode || ""),
+          metricsMode: String(m.metricsMode || ""),
           openedAt: openedAt,
           updatedAt: ts
         };
       } else {
-        if ((!snapshot.books[bid].title || snapshot.books[bid].title === ("Book " + bid)) && title) {
-          snapshot.books[bid].title = title;
+        if ((!snapshot.books[key].title || snapshot.books[key].title === ("Book " + bid)) && title) {
+          snapshot.books[key].title = title;
         }
-        if (!snapshot.books[bid].author && author) {
-          snapshot.books[bid].author = author;
+        if (!snapshot.books[key].author && author) {
+          snapshot.books[key].author = author;
         }
-        if (!snapshot.books[bid].cover && cover) {
-          snapshot.books[bid].cover = cover;
+        if (!snapshot.books[key].cover && cover) {
+          snapshot.books[key].cover = cover;
         }
-        if (openedAt > (parseInt(snapshot.books[bid].openedAt || "0", 10) || 0)) {
-          snapshot.books[bid].openedAt = openedAt;
+        if (openedAt > (parseInt(snapshot.books[key].openedAt || "0", 10) || 0)) {
+          snapshot.books[key].openedAt = openedAt;
         }
       }
       return bid;
@@ -511,6 +564,7 @@
         if (!key || key.indexOf("epubjsreader:") !== 0) continue;
         var m = key.match(/:\/books\/content\/([^/]+)\//);
         if (!m || !m[1]) continue;
+        if (demoBookId && String(m[1]) === demoBookId) continue;
         var bid = ensureBook(m[1], null);
         if (!bid) continue;
 
@@ -538,7 +592,7 @@
 
     try {
       var lastId = storage.getItem("readerpub:lastid");
-      if (lastId) ensureBook(lastId, { openedAt: ts });
+      if (lastId && (!demoBookId || String(lastId) !== demoBookId)) ensureBook(lastId, { openedAt: ts });
     } catch (e2) {}
     try {
       var lang = String(storage.getItem(TTS_LANG_LOCAL_KEY) || "").trim();
@@ -560,7 +614,11 @@
     try { storage.setItem(MYBOOKS_LOCAL_KEY, JSON.stringify(books)); } catch (e1) {}
 
     var present = {};
+    var presentKeys = {};
     books.forEach(function (b) { present[String(b.id)] = true; });
+    Object.keys(s.books).forEach(function (key) {
+      if (s.books[key] && s.books[key].id) presentKeys[String(key)] = true;
+    });
 
     try {
       for (var i = 0; i < storage.length; i++) {
@@ -576,8 +634,11 @@
       }
     } catch (e2) {}
 
-    Object.keys(s.books).forEach(function (id) {
-      if (!present[id]) return;
+    Object.keys(s.books).forEach(function (snapshotKey) {
+      var item = s.books[snapshotKey] || {};
+      var id = String(item.id || snapshotKey);
+      if (!present[id] && !presentKeys[snapshotKey]) return;
+      if (snapshotKey !== id) return;
       var key = currentBookStorageKey(id);
       var saved = safeParseJson((storage && storage.getItem(key)) || "null", null);
       if (!saved || typeof saved !== "object") saved = {};
@@ -630,6 +691,7 @@
   }
 
   function buildReaderPayload(reader, meta) {
+    if (isDemoEntry()) return null;
     var id = (meta && meta.id) ? String(meta.id) : currentBookId();
     if (!id) return null;
     var title = (meta && meta.title) ? String(meta.title) : "";
@@ -671,34 +733,77 @@
     } catch (e5) {}
     return {
       id: id,
+      source: meta && meta.source ? String(meta.source) : "",
       title: title || ("Book " + id),
       author: author || "",
       cover: cover || "",
+      openUrl: meta && meta.openUrl ? String(meta.openUrl) : "",
+      protected: !!(meta && meta.protected),
+      reader: meta && meta.reader ? String(meta.reader) : "",
+      protectedArtifactBookId: meta && meta.protectedArtifactBookId ? String(meta.protectedArtifactBookId) : "",
+      protectedArtifactSource: meta && meta.protectedArtifactSource ? String(meta.protectedArtifactSource) : "",
+      readerRemoteMode: meta && meta.readerRemoteMode ? String(meta.readerRemoteMode) : "",
+      protectedUx: meta && meta.protectedUx ? String(meta.protectedUx) : "",
+      renderMode: meta && meta.renderMode ? String(meta.renderMode) : "",
+      metricsMode: meta && meta.metricsMode ? String(meta.metricsMode) : "",
       cfi: cfi || "",
       bookmarks: bookmarks,
       notes: notes
     };
   }
 
+  function buildBookSnapshotKey(entry) {
+    var id = String(entry && entry.id || "").trim();
+    if (!id) return "";
+    var source = String(entry && entry.source || "").trim();
+    var reader = String(entry && entry.reader || "").trim().toLowerCase();
+    var artifactId = String(entry && entry.protectedArtifactBookId || "").trim();
+    if (entry && (entry.protected || reader === "protected")) {
+      return ["protected", source || "default", artifactId || id].join(":");
+    }
+    if (source && source !== "gutenberg") return [source, id].join(":");
+    return id;
+  }
+
+  function writeBookPayloadToSnapshot(snapshot, payload, ts) {
+    var key = buildBookSnapshotKey(payload);
+    if (!key) return "";
+    var existing = (snapshot.books && snapshot.books[key] && typeof snapshot.books[key] === "object") ? snapshot.books[key] : {};
+    snapshot.books[key] = {
+      id: String(payload.id),
+      source: String(payload.source || existing.source || ""),
+      title: payload.title || existing.title || ("Book " + payload.id),
+      author: payload.author || existing.author || "",
+      cover: payload.cover || existing.cover || "",
+      openUrl: payload.openUrl || existing.openUrl || "",
+      protected: !!(payload.protected || existing.protected),
+      reader: payload.reader || existing.reader || "",
+      protectedArtifactBookId: payload.protectedArtifactBookId || existing.protectedArtifactBookId || "",
+      protectedArtifactSource: payload.protectedArtifactSource || existing.protectedArtifactSource || "",
+      readerRemoteMode: payload.readerRemoteMode || existing.readerRemoteMode || "",
+      protectedUx: payload.protectedUx || existing.protectedUx || "",
+      renderMode: payload.renderMode || existing.renderMode || "",
+      metricsMode: payload.metricsMode || existing.metricsMode || "",
+      openedAt: ts,
+      updatedAt: ts
+    };
+    return key;
+  }
+
   function syncCurrentReaderState(reader, meta, options) {
+    if (isDemoEntry()) return Promise.resolve(false);
     var payload = buildReaderPayload(reader, meta);
     if (!payload || !payload.id) return Promise.resolve(false);
     var opts = options || {};
     return pullSnapshot({ interactive: !!opts.interactive }).then(function (snapshot) {
-      var id = payload.id;
       var ts = nowTs();
-      var existing = (snapshot.books && snapshot.books[id] && typeof snapshot.books[id] === "object") ? snapshot.books[id] : {};
-      snapshot.books[id] = {
-        id: id,
-        title: payload.title || ("Book " + id),
-        author: payload.author || "",
-        cover: payload.cover || existing.cover || "",
-        openedAt: ts,
-        updatedAt: ts
-      };
-      if (payload.cfi) snapshot.positions[id] = { cfi: payload.cfi, updatedAt: ts };
-      snapshot.bookmarks[id] = Array.isArray(payload.bookmarks) ? payload.bookmarks : [];
-      snapshot.notes[id] = Array.isArray(payload.notes) ? payload.notes : [];
+      var id = payload.id;
+      var snapshotKey = writeBookPayloadToSnapshot(snapshot, payload, ts);
+      if (!snapshotKey || snapshotKey === id) {
+        if (payload.cfi) snapshot.positions[id] = { cfi: payload.cfi, updatedAt: ts };
+        snapshot.bookmarks[id] = Array.isArray(payload.bookmarks) ? payload.bookmarks : [];
+        snapshot.notes[id] = Array.isArray(payload.notes) ? payload.notes : [];
+      }
       return saveSnapshot(snapshot, { interactive: !!opts.interactive }).then(function (saved) {
         applySnapshotToLocalReader(saved);
         clearPendingReaderSync();
@@ -707,6 +812,26 @@
     }).catch(function () {
       savePendingReaderSync(payload);
       return false;
+    });
+  }
+
+  function deleteBookEntry(meta, options) {
+    var m = (meta && typeof meta === "object") ? meta : {};
+    var id = String(m.id || "").trim();
+    if (!id) return Promise.resolve(normalizeSnapshot({}));
+    var key = buildBookSnapshotKey(m) || id;
+    var opts = options || {};
+    return pullSnapshot({ interactive: !!opts.interactive }).then(function (snapshot) {
+      try { delete snapshot.books[key]; } catch (e1) {}
+      if (key === id) {
+        try { delete snapshot.positions[id]; } catch (e2) {}
+        try { delete snapshot.bookmarks[id]; } catch (e3) {}
+        try { delete snapshot.notes[id]; } catch (e4) {}
+      }
+      return saveSnapshot(snapshot, { interactive: !!opts.interactive }).then(function (saved) {
+        applySnapshotToLocalReader(saved);
+        return saved;
+      });
     });
   }
 
@@ -723,6 +848,7 @@
 
   var _syncTimer = null;
   function scheduleCurrentReaderStateSync(reader, meta, delayMs) {
+    if (isDemoEntry()) return;
     var delay = (typeof delayMs === "number" && delayMs >= 0) ? delayMs : 900;
     if (_syncTimer) {
       try { clearTimeout(_syncTimer); } catch (e0) {}
@@ -744,6 +870,7 @@
     saveSnapshot: saveSnapshot,
     listMyBooks: listMyBooks,
     deleteBooksCascade: deleteBooksCascade,
+    deleteBookEntry: deleteBookEntry,
     applySnapshotToLocalReader: applySnapshotToLocalReader,
     getLastDetectedTtsLanguage: getLastDetectedTtsLanguage,
     setLastDetectedTtsLanguage: setLastDetectedTtsLanguage,

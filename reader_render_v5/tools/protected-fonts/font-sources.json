@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-03",
+  "sources": [
+    {
+      "scripts": ["Latin", "Greek", "Cyrillic"],
+      "primaryFamily": "Noto Serif",
+      "alternates": [],
+      "coverageNote": "Primary serif family for Latin, Greek, and Cyrillic books.",
+      "styles": {
+        "regular": { "status": "expected", "note": "Available in the Noto Serif family." },
+        "italic": { "status": "expected", "note": "Available in the Noto Serif family." },
+        "bold": { "status": "expected", "note": "Available in the Noto Serif family." },
+        "boldItalic": { "status": "expected", "note": "Available in the Noto Serif family." }
+      }
+    },
+    {
+      "scripts": ["Han", "Hiragana", "Katakana", "Bopomofo", "Hangul"],
+      "primaryFamily": "Noto Serif CJK",
+      "alternates": ["Source Han Serif"],
+      "coverageNote": "Use Noto Serif CJK when available; Source Han Serif is the equivalent alternate family.",
+      "styles": {
+        "regular": { "status": "expected", "note": "Regular serif style expected." },
+        "italic": { "status": "gap", "note": "Italic variants are generally unavailable for CJK serif families and must be treated as a coverage gap." },
+        "bold": { "status": "expected", "note": "Bold weights are available." },
+        "boldItalic": { "status": "gap", "note": "Bold-italic is generally unavailable for CJK serif families and must be treated as a coverage gap." }
+      }
+    },
+    {
+      "scripts": ["Hebrew", "Arabic", "Syriac", "Thaana", "Nko", "Adlam"],
+      "primaryFamily": "Noto Serif",
+      "alternates": ["Appropriate Noto script-specific families"],
+      "coverageNote": "Script-specific Noto families may be required depending on actual corpus coverage.",
+      "styles": {
+        "regular": { "status": "expected", "note": "Regular script-specific family should be selected." },
+        "italic": { "status": "gap", "note": "Do not assume italic exists; scanner must report if corpus requires it." },
+        "bold": { "status": "unknown", "note": "Depends on selected script-specific Noto family." },
+        "boldItalic": { "status": "gap", "note": "Do not synthesize without explicit decision." }
+      }
+    },
+    {
+      "scripts": ["Devanagari", "Bengali", "Gurmukhi", "Gujarati", "Oriya", "Tamil", "Telugu", "Kannada", "Malayalam", "Sinhala", "Thai", "Lao", "Myanmar", "Khmer", "Ethiopic", "Georgian", "Armenian"],
+      "primaryFamily": "Appropriate Noto script-specific serif family",
+      "alternates": [],
+      "coverageNote": "Pick the matching Noto family per script. Some scripts may only have regular/bold coverage.",
+      "styles": {
+        "regular": { "status": "expected", "note": "Regular is expected in the script-specific Noto family." },
+        "italic": { "status": "gap", "note": "Do not assume italic exists; treat missing italic as an explicit gap." },
+        "bold": { "status": "unknown", "note": "Depends on exact Noto family." },
+        "boldItalic": { "status": "gap", "note": "Do not synthesize bold-italic without a later explicit decision." }
+      }
+    },
+    {
+      "scripts": ["Unknown"],
+      "primaryFamily": "Appropriate Noto family",
+      "alternates": [],
+      "coverageNote": "Fallback bucket for any script not yet mapped explicitly.",
+      "styles": {
+        "regular": { "status": "unknown", "note": "Must be resolved after scan." },
+        "italic": { "status": "gap", "note": "Do not assume italic availability." },
+        "bold": { "status": "unknown", "note": "Must be resolved after scan." },
+        "boldItalic": { "status": "gap", "note": "Do not assume bold-italic availability." }
+      }
+    }
+  ]
+}

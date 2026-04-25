@@ -1,0 +1,155 @@
+{
+  "version": 4,
+  "mode": "protected-runtime-safe",
+  "artifactContract": {
+    "kind": "dual-family-static-v1",
+    "supportedFontModes": [
+      "sans",
+      "serif"
+    ],
+    "defaultFontMode": "sans"
+  },
+  "metadata": {
+    "title": "Adventures of Huckleberry Finn",
+    "creators": [
+      "Mark Twain"
+    ],
+    "languages": [
+      "en"
+    ]
+  },
+  "source": {
+    "inputType": "epub",
+    "bookId": "pg76-images-3",
+    "publicRootPath": "/reader_render_v5/artifacts/protected-books/76/assets"
+  },
+  "chunking": {
+    "mode": "logical-deterministic",
+    "viewportIndependent": true
+  },
+  "runtimeContract": {
+    "glyphMode": "opaque-chunk-local",
+    "renderPayload": "opaque-glyph-ops",
+    "reconstructionMode": "sealed-window-scoped",
+    "reconstructionSurface": "embedded-substrate",
+    "unicodeLeakage": "forbidden-in-runtime-safe-render-path",
+    "visualPayload": "dual-family-static-v1",
+    "runtimeVisualSelection": "default-artifact-font-mode-only"
+  },
+  "debugArtifactAvailable": false,
+  "chunks": [
+    {
+      "chunkId": "chunk-000001",
+      "order": 0,
+      "chunkPath": "chunks/chunk-000001.json",
+      "glyphsPath": "glyphs/chunk-000001.glyphs.json",
+      "shapesPath": "shapes/chunk-000001.shapes.json",
+      "startOffset": 0,
+      "endOffset": 894,
+      "textLength": 894
+    },
+    {
+      "chunkId": "chunk-000002",
+      "order": 1,
+      "chunkPath": "chunks/chunk-000002.json",
+      "glyphsPath": "glyphs/chunk-000002.glyphs.json",
+      "shapesPath": "shapes/chunk-000002.shapes.json",
+      "startOffset": 894,
+      "endOffset": 64445,
+      "textLength": 63551
+    },
+    {
+      "chunkId": "chunk-000003",
+      "order": 2,
+      "chunkPath": "chunks/chunk-000003.json",
+      "glyphsPath": "glyphs/chunk-000003.glyphs.json",
+      "shapesPath": "shapes/chunk-000003.shapes.json",
+      "startOffset": 64445,
+      "endOffset": 127502,
+      "textLength": 63057
+    },
+    {
+      "chunkId": "chunk-000004",
+      "order": 3,
+      "chunkPath": "chunks/chunk-000004.json",
+      "glyphsPath": "glyphs/chunk-000004.glyphs.json",
+      "shapesPath": "shapes/chunk-000004.shapes.json",
+      "startOffset": 127502,
+      "endOffset": 191617,
+      "textLength": 64115
+    },
+    {
+      "chunkId": "chunk-000005",
+      "order": 4,
+      "chunkPath": "chunks/chunk-000005.json",
+      "glyphsPath": "glyphs/chunk-000005.glyphs.json",
+      "shapesPath": "shapes/chunk-000005.shapes.json",
+      "startOffset": 191617,
+      "endOffset": 250462,
+      "textLength": 58845
+    },
+    {
+      "chunkId": "chunk-000006",
+      "order": 5,
+      "chunkPath": "chunks/chunk-000006.json",
+      "glyphsPath": "glyphs/chunk-000006.glyphs.json",
+      "shapesPath": "shapes/chunk-000006.shapes.json",
+      "startOffset": 250462,
+      "endOffset": 314416,
+      "textLength": 63954
+    },
+    {
+      "chunkId": "chunk-000007",
+      "order": 6,
+      "chunkPath": "chunks/chunk-000007.json",
+      "glyphsPath": "glyphs/chunk-000007.glyphs.json",
+      "shapesPath": "shapes/chunk-000007.shapes.json",
+      "startOffset": 314416,
+      "endOffset": 378382,
+      "textLength": 63966
+    },
+    {
+      "chunkId": "chunk-000008",
+      "order": 7,
+      "chunkPath": "chunks/chunk-000008.json",
+      "glyphsPath": "glyphs/chunk-000008.glyphs.json",
+      "shapesPath": "shapes/chunk-000008.shapes.json",
+      "startOffset": 378382,
+      "endOffset": 438186,
+      "textLength": 59804
+    },
+    {
+      "chunkId": "chunk-000009",
+      "order": 8,
+      "chunkPath": "chunks/chunk-000009.json",
+      "glyphsPath": "glyphs/chunk-000009.glyphs.json",
+      "shapesPath": "shapes/chunk-000009.shapes.json",
+      "startOffset": 438186,
+      "endOffset": 499681,
+      "textLength": 61495
+    },
+    {
+      "chunkId": "chunk-000010",
+      "order": 9,
+      "chunkPath": "chunks/chunk-000010.json",
+      "glyphsPath": "glyphs/chunk-000010.glyphs.json",
+      "shapesPath": "shapes/chunk-000010.shapes.json",
+      "startOffset": 499681,
+      "endOffset": 563418,
+      "textLength": 63737
+    },
+    {
+      "chunkId": "chunk-000011",
+      "order": 10,
+      "chunkPath": "chunks/chunk-000011.json",
+      "glyphsPath": "glyphs/chunk-000011.glyphs.json",
+      "shapesPath": "shapes/chunk-000011.shapes.json",
+      "startOffset": 563418,
+      "endOffset": 584834,
+      "textLength": 21416
+    }
+  ],
+  "tocPath": "toc.json",
+  "locationsPath": "locations.json",
+  "stylesPath": "styles.json"
+}

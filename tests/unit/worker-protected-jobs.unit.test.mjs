@@ -1,0 +1,882 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  callWorker,
+  createFetchMockSequence,
+  createR2Bucket,
+  patchGlobal,
+  readJson,
+} from "../helpers/worker-test-utils.mjs";
+
+function buildJwt(sub = "user-1", email = "publisher@example.com") {
+  const tokenPayload = Buffer.from(JSON.stringify({ sub, email, exp: 4102444800 }))
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+  return `x.${tokenPayload}.y`;
+}
+
+test("Unit: protected job creation creates draft book and presigned upload", async (t) => {
+  const jwt = buildJwt();
+  const jobId = "123e4567-e89b-12d3-a456-426614174111";
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "publisher@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(JSON.stringify({}), { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(
+      JSON.stringify([
+        {
+          id: "membership-1",
+          role: "publisher",
+          tenant_id: "tenant-1",
+          tenants: {
+            id: "tenant-1",
+            slug: "acme-publishing",
+            name: "Acme Publishing",
+            tenant_type: "publisher",
+          },
+        },
+      ]),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify(200555),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ slug: "acme-publishing" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "book-1",
+        content_id: "200555",
+        title: "Ben Hur",
+        author: "Lew Wallace",
+        manifest: {
+          readerType: "protected",
+        },
+      }),
+      { status: 201, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-1",
+        content_id: "200555",
+        status: "awaiting_upload",
+        source_format: "epub",
+        protected_prefix: "protected-content/200555",
+      }),
+      { status: 201, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-1",
+        content_id: "200555",
+        status: "awaiting_upload",
+        source_format: "epub",
+        source_r2_key: `uploads/protected/${jobId}/Ben-Hur.epub`,
+        protected_prefix: "protected-content/200555",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(JSON.stringify({}), { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(
+      JSON.stringify({
+        id: "asset-1",
+      }),
+      { status: 201, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: "https://reader.pub/books/api/v1/protected-jobs",
+    method: "POST",
+    headers: { authorization: `Bearer ${jwt}` },
+    body: {
+      title: "Ben Hur",
+      author: "Lew Wallace",
+      filename: "Ben-Hur.epub",
+      source_format: "epub",
+      visibility: "public",
+      tenant_id: "tenant-1",
+    },
+    env: {
+      READER_BOOKS: createR2Bucket(),
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      CLOUDFLARE_ACCOUNT_ID: "764a8c94ce002764fc1d3d29faa4bb09",
+      R2_BUCKET_NAME: "reader-books",
+      R2_ACCESS_KEY_ID: "access-key",
+      R2_SECRET_ACCESS_KEY: "secret-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 201);
+  assert.equal(payload.jobId, jobId);
+  assert.equal(payload.bookId, "book-1");
+  assert.equal(payload.contentId, "200555");
+  assert.equal(payload.status, "awaiting_upload");
+  assert.equal(payload.sourceObjectKey, `uploads/protected/${jobId}/Ben-Hur.epub`);
+  assert.equal(payload.upload.method, "PUT");
+  assert.match(payload.upload.url, new RegExp(`^https://764a8c94ce002764fc1d3d29faa4bb09\\.r2\\.cloudflarestorage\\.com/reader-books/uploads/protected/${jobId}/Ben-Hur\\.epub\\?`));
+});
+
+test("Unit: protected job creation falls back to worker upload when presign config is missing", async (t) => {
+  const jwt = buildJwt();
+  const jobId = "223e4567-e89b-12d3-a456-426614174111";
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "publisher@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(JSON.stringify({}), { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(
+      JSON.stringify([
+        {
+          id: "membership-1",
+          role: "publisher",
+          tenant_id: "tenant-1",
+          tenants: {
+            id: "tenant-1",
+            slug: "acme-publishing",
+            name: "Acme Publishing",
+            tenant_type: "publisher",
+          },
+        },
+      ]),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify(200556),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ slug: "acme-publishing" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "book-2",
+        content_id: "200556",
+        title: "Ben Hur",
+        author: "Lew Wallace",
+        manifest: {
+          readerType: "protected",
+        },
+      }),
+      { status: 201, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-2",
+        content_id: "200556",
+        status: "awaiting_upload",
+        source_format: "epub",
+        protected_prefix: "protected-content/200556",
+      }),
+      { status: 201, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-2",
+        content_id: "200556",
+        status: "awaiting_upload",
+        source_format: "epub",
+        source_r2_key: `uploads/protected/${jobId}/Ben-Hur.epub`,
+        protected_prefix: "protected-content/200556",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(JSON.stringify({}), { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(
+      JSON.stringify({
+        id: "asset-2",
+      }),
+      { status: 201, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: "https://reader.pub/books/api/v1/protected-jobs",
+    method: "POST",
+    headers: { authorization: `Bearer ${jwt}` },
+    body: {
+      title: "Ben Hur",
+      author: "Lew Wallace",
+      filename: "Ben-Hur.epub",
+      source_format: "epub",
+      visibility: "public",
+      tenant_id: "tenant-1",
+    },
+    env: {
+      READER_BOOKS: createR2Bucket(),
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 201);
+  assert.equal(payload.jobId, jobId);
+  assert.equal(payload.upload.kind, "worker");
+  assert.equal(payload.upload.method, "PUT");
+  assert.equal(payload.upload.url, `/books/api/v1/protected-jobs/${jobId}/source`);
+});
+
+test("Unit: DOCX protected job creation returns source and cover uploads", async (t) => {
+  const jwt = buildJwt();
+  const jobId = "2a3e4567-e89b-12d3-a456-426614174111";
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "publisher@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(JSON.stringify({}), { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(
+      JSON.stringify([
+        {
+          id: "membership-1",
+          role: "publisher",
+          tenant_id: "tenant-1",
+          tenants: {
+            id: "tenant-1",
+            slug: "acme-publishing",
+            name: "Acme Publishing",
+            tenant_type: "publisher",
+          },
+        },
+      ]),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify(200557),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ slug: "acme-publishing" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "book-docx",
+        content_id: "200557",
+        title: "Sample",
+        author: "Publisher",
+        manifest: {
+          readerType: "protected",
+        },
+      }),
+      { status: 201, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-docx",
+        content_id: "200557",
+        status: "awaiting_upload",
+        source_format: "docx",
+        protected_prefix: "protected-content/200557",
+      }),
+      { status: 201, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-docx",
+        content_id: "200557",
+        status: "awaiting_upload",
+        source_format: "docx",
+        source_r2_key: `uploads/protected/${jobId}/sample.docx`,
+        result_payload: {
+          cover_upload: {
+            filename: "cover.jpg",
+            r2_key: `uploads/protected/${jobId}/cover/cover.jpg`,
+            content_type: "image/jpeg",
+            status: "awaiting_upload",
+          },
+        },
+        protected_prefix: "protected-content/200557",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(JSON.stringify({}), { status: 404, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(
+      JSON.stringify({
+        id: "asset-docx",
+      }),
+      { status: 201, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: "https://reader.pub/books/api/v1/protected-jobs",
+    method: "POST",
+    headers: { authorization: `Bearer ${jwt}` },
+    body: {
+      title: "Sample",
+      author: "Publisher",
+      filename: "sample.docx",
+      cover_filename: "cover.jpg",
+      source_format: "docx",
+      visibility: "public",
+      tenant_id: "tenant-1",
+    },
+    env: {
+      READER_BOOKS: createR2Bucket(),
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      CLOUDFLARE_ACCOUNT_ID: "764a8c94ce002764fc1d3d29faa4bb09",
+      R2_BUCKET_NAME: "reader-books",
+      R2_ACCESS_KEY_ID: "access-key",
+      R2_SECRET_ACCESS_KEY: "secret-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 201);
+  assert.equal(payload.sourceFormat, "docx");
+  assert.equal(payload.uploads.source.objectKey, `uploads/protected/${jobId}/sample.docx`);
+  assert.equal(payload.uploads.cover.objectKey, `uploads/protected/${jobId}/cover/cover.jpg`);
+  assert.equal(payload.uploads.cover.filename, "cover.jpg");
+});
+
+test("Unit: protected job source upload stores the source in R2", async (t) => {
+  const jwt = buildJwt();
+  const jobId = "323e4567-e89b-12d3-a456-426614174111";
+  const bucket = createR2Bucket();
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "publisher@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-3",
+        content_id: "200557",
+        status: "awaiting_upload",
+        source_format: "epub",
+        source_r2_key: `uploads/protected/${jobId}/Ben-Hur.epub`,
+        triggered_by_user_id: "user-1",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/protected-jobs/${jobId}/source`,
+    method: "PUT",
+    headers: {
+      authorization: `Bearer ${jwt}`,
+      "content-type": "application/epub+zip",
+    },
+    body: "epub-bytes",
+    env: {
+      READER_BOOKS: bucket,
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+  const stored = await bucket.get(`uploads/protected/${jobId}/Ben-Hur.epub`);
+
+  assert.equal(response.status, 201);
+  assert.equal(payload.uploaded, true);
+  assert.ok(stored);
+});
+
+test("Unit: protected job cover upload stores the cover in R2", async (t) => {
+  const jwt = buildJwt();
+  const jobId = "3a3e4567-e89b-12d3-a456-426614174111";
+  const bucket = createR2Bucket();
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "publisher@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-3",
+        content_id: "200557",
+        status: "awaiting_upload",
+        source_format: "docx",
+        source_r2_key: `uploads/protected/${jobId}/sample.docx`,
+        triggered_by_user_id: "user-1",
+        result_payload: {
+          cover_upload: {
+            filename: "cover.jpg",
+            r2_key: `uploads/protected/${jobId}/cover/cover.jpg`,
+            content_type: "image/jpeg",
+            status: "awaiting_upload",
+          },
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/protected-jobs/${jobId}/cover`,
+    method: "PUT",
+    headers: {
+      authorization: `Bearer ${jwt}`,
+      "content-type": "image/jpeg",
+    },
+    body: "cover-bytes",
+    env: {
+      READER_BOOKS: bucket,
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+  const stored = await bucket.get(`uploads/protected/${jobId}/cover/cover.jpg`);
+
+  assert.equal(response.status, 201);
+  assert.equal(payload.uploaded, true);
+  assert.ok(stored);
+});
+
+test("Unit: upload-complete verifies R2 object and dispatches GitHub job", async (t) => {
+  const jwt = buildJwt();
+  const jobId = "123e4567-e89b-12d3-a456-426614174111";
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      [`uploads/protected/${jobId}/Ben-Hur.epub`]: {
+        body: "epub",
+        async text() {
+          return "epub";
+        },
+        async json() {
+          return { ok: true };
+        },
+        writeHttpMetadata() {},
+      },
+    },
+  });
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "publisher@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-1",
+        content_id: "200555",
+        status: "awaiting_upload",
+        source_format: "epub",
+        source_r2_key: `uploads/protected/${jobId}/Ben-Hur.epub`,
+        protected_prefix: "protected-content/200555",
+        visibility: "public",
+        triggered_by_user_id: "user-1",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ id: jobId, status: "uploaded", source_format: "epub" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ id: "book-1", status: "processing" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-1",
+        content_id: "200555",
+        status: "queued",
+        source_format: "epub",
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    (...args) => {
+      const [url, options] = args;
+      assert.equal(url, "https://api.github.com/repos/anatolytkach/pages_books/actions/workflows/process-protected-job.yml/dispatches");
+      assert.equal(options.method, "POST");
+      const body = JSON.parse(options.body);
+      assert.equal(body.ref, "codex/protected-publish-jobs");
+      assert.equal(body.inputs.job_id, jobId);
+      assert.equal(body.inputs.source_format, "epub");
+      return new Response(null, { status: 204 });
+    },
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/protected-jobs/${jobId}/upload-complete`,
+    method: "POST",
+    headers: { authorization: `Bearer ${jwt}` },
+    env: {
+      READER_BOOKS: bucket,
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      GITHUB_REPO_DISPATCH_TOKEN: "github-token",
+      GITHUB_REPO_OWNER: "anatolytkach",
+      GITHUB_REPO_NAME: "pages_books",
+      GITHUB_WORKFLOW_REF: "codex/protected-publish-jobs",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 202);
+  assert.equal(payload.status, "queued");
+  assert.equal(payload.message, "Queued for protected conversion");
+});
+
+test("Unit: DOCX upload-complete requires uploaded cover object", async (t) => {
+  const jwt = buildJwt();
+  const jobId = "4a3e4567-e89b-12d3-a456-426614174111";
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      [`uploads/protected/${jobId}/sample.docx`]: {
+        body: "docx",
+        async text() {
+          return "docx";
+        },
+        async json() {
+          return { ok: true };
+        },
+        writeHttpMetadata() {},
+      },
+    },
+  });
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "publisher@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-docx",
+        content_id: "200561",
+        status: "awaiting_upload",
+        source_format: "docx",
+        source_r2_key: `uploads/protected/${jobId}/sample.docx`,
+        protected_prefix: "protected-content/200561",
+        visibility: "public",
+        triggered_by_user_id: "user-1",
+        result_payload: {
+          cover_upload: {
+            filename: "cover.jpg",
+            r2_key: `uploads/protected/${jobId}/cover/cover.jpg`,
+            content_type: "image/jpeg",
+            status: "awaiting_upload",
+          },
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/protected-jobs/${jobId}/upload-complete`,
+    method: "POST",
+    headers: { authorization: `Bearer ${jwt}` },
+    env: {
+      READER_BOOKS: bucket,
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      GITHUB_REPO_DISPATCH_TOKEN: "github-token",
+      GITHUB_REPO_OWNER: "anatolytkach",
+      GITHUB_REPO_NAME: "pages_books",
+      GITHUB_WORKFLOW_REF: "codex/protected-publish-jobs",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 409);
+  assert.equal(payload.error, "Uploaded cover object was not found");
+});
+
+test("Unit: protected job status exposes normalized EPUB metadata for completed DOCX jobs", async (t) => {
+  const jwt = buildJwt();
+  const jobId = "423e4567-e89b-12d3-a456-426614174111";
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "user-1", email: "publisher@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-4",
+        content_id: "200558",
+        status: "completed",
+        source_format: "docx",
+        source_filename: "Sample.docx",
+        submitted_title: "Sample Book",
+        tenant_id: "tenant-1",
+        triggered_by_user_id: "user-1",
+        result_payload: {
+          normalized_epub: {
+            available: true,
+            r2_key: `generated/protected-jobs/${jobId}/normalized.epub`,
+            filename: "normalized.epub",
+          },
+          protected_content_path: "/books/protected-content/200558",
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/protected-jobs/${jobId}`,
+    method: "GET",
+    headers: { authorization: `Bearer ${jwt}` },
+    env: {
+      READER_BOOKS: createR2Bucket(),
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.message, "Protected book published");
+  assert.deepEqual(payload.normalized_epub, {
+    available: true,
+    filename: "normalized.epub",
+    download_url: `/books/api/v1/protected-jobs/${jobId}/normalized-epub`,
+  });
+});
+
+test("Unit: protected normalized EPUB download returns attachment for authorized tenant member", async (t) => {
+  const jwt = buildJwt("tenant-user-1", "tenant@example.com");
+  const jobId = "523e4567-e89b-12d3-a456-426614174111";
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      [`generated/protected-jobs/${jobId}/normalized.epub`]: {
+        body: "normalized-epub-bytes",
+        httpEtag: '"epub-etag"',
+        async text() {
+          return "normalized-epub-bytes";
+        },
+        async json() {
+          return { invalid: true };
+        },
+        writeHttpMetadata(headers) {
+          headers.set("content-type", "application/epub+zip");
+        },
+      },
+    },
+  });
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({ id: "tenant-user-1", email: "tenant@example.com" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-5",
+        content_id: "200559",
+        status: "completed",
+        source_format: "docx",
+        source_filename: "sample.docx",
+        submitted_title: "Client Facing Sample",
+        tenant_id: "tenant-1",
+        triggered_by_user_id: "owner-user",
+        result_payload: {
+          normalized_epub: {
+            available: true,
+            r2_key: `generated/protected-jobs/${jobId}/normalized.epub`,
+            filename: "normalized.epub",
+          },
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({ id: "membership-1" }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/protected-jobs/${jobId}/normalized-epub`,
+    method: "GET",
+    headers: { authorization: `Bearer ${jwt}` },
+    env: {
+      READER_BOOKS: bucket,
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/epub+zip");
+  assert.equal(response.headers.get("content-disposition"), 'attachment; filename="normalized.epub"');
+  assert.equal(await response.text(), "normalized-epub-bytes");
+});
+
+test("Unit: finalize publishes uploaded DOCX cover as book cover_url", async (t) => {
+  const jobId = "623e4567-e89b-12d3-a456-426614174111";
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "protected-content/200560/manifest.json": {
+        body: "{}",
+        async text() {
+          return "{}";
+        },
+        async json() {
+          return {};
+        },
+        writeHttpMetadata() {},
+      },
+      [`uploads/protected/${jobId}/cover/cover.jpg`]: {
+        body: "cover-image-bytes",
+        async text() {
+          return "cover-image-bytes";
+        },
+        async json() {
+          return { invalid: true };
+        },
+        writeHttpMetadata() {},
+      },
+    },
+  });
+  const fetchMock = createFetchMockSequence([
+    new Response(
+      JSON.stringify({
+        id: jobId,
+        book_id: "book-6",
+        content_id: "200560",
+        status: "reindexing",
+        source_format: "docx",
+        source_filename: "sample.docx",
+        source_r2_key: `uploads/protected/${jobId}/sample.docx`,
+        protected_prefix: "protected-content/200560",
+        visibility: "public",
+        tenant_id: "tenant-1",
+        tenant_slug: "manual",
+        submitted_title: "Covered Book",
+        submitted_author: "Author Name",
+        triggered_by_user_id: "user-1",
+        result_payload: {
+          cover_upload: {
+            filename: "cover.jpg",
+            r2_key: `uploads/protected/${jobId}/cover/cover.jpg`,
+            content_type: "image/jpeg",
+            status: "uploaded",
+          },
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    new Response(
+      JSON.stringify({
+        id: "book-6",
+        title: "Covered Book",
+        author: "Author Name",
+        manifest: { readerType: "protected" },
+        tenant: { slug: "manual" },
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    ),
+    (...args) => {
+      const [url, options] = args;
+      if (String(url).includes("/rest/v1/books?id=eq.book-6")) {
+        const body = JSON.parse(options.body);
+        assert.equal(body.cover_url, "/books/content/200560/cover/cover.jpg");
+      }
+      return new Response(
+        JSON.stringify({
+          id: "book-6",
+          title: "Covered Book",
+          author: "Author Name",
+          cover_url: "/books/content/200560/cover/cover.jpg",
+          manifest: { readerType: "protected" },
+        }),
+        { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+      );
+    },
+    new Response(JSON.stringify({ id: "asset-6" }), { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(JSON.stringify({
+      id: jobId,
+      status: "completed",
+      source_format: "docx",
+      result_payload: {
+        cover_upload: {
+          filename: "cover.jpg",
+          r2_key: `uploads/protected/${jobId}/cover/cover.jpg`,
+          content_type: "image/jpeg",
+          status: "uploaded",
+        },
+        protected_content_path: "/books/protected-content/200560",
+        content_id: "200560",
+      },
+    }), { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(JSON.stringify({
+      books: [],
+      authors: [],
+      letters: {},
+      source: "manual",
+      updatedAt: "2026-01-01T00:00:00Z",
+    }), { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(JSON.stringify({ items: [] }), { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(JSON.stringify({ count: 0, books: [] }), { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(JSON.stringify({ books: [] }), { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }),
+    new Response(JSON.stringify({ id: jobId }), { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }),
+  ]);
+  const restoreFetch = patchGlobal("fetch", fetchMock);
+  t.after(restoreFetch);
+
+  const response = await callWorker({
+    url: `https://reader.pub/books/api/v1/protected-jobs/${jobId}/finalize`,
+    method: "POST",
+    headers: {
+      "x-reader-internal-key": "test-secret",
+    },
+    body: {},
+    env: {
+      READER_BOOKS: bucket,
+      PROTECTED_JOB_CALLBACK_SECRET: "test-secret",
+      SUPABASE_URL: "https://supabase.example",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    },
+  });
+  const payload = await readJson(response);
+  const copiedCover = await bucket.get("content/200560/cover/cover.jpg");
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.message, "Protected book published");
+  assert.ok(copiedCover);
+});

@@ -1,15 +1,37 @@
 import { handlePublisherTaskRequest } from "./publisher_tasks/service.mjs";
-
-function jsonResponse(payload, status = 200, extraHeaders = {}) {
-  const headers = new Headers({
-    "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store",
-    "access-control-allow-origin": "*",
-    ...extraHeaders,
-  });
-  headers.set("x-reader-worker", "1");
-  return new Response(JSON.stringify(payload), { status, headers });
-}
+import {
+  completeProtectedPublishingUpload,
+  createProtectedPublishingJob,
+  downloadProtectedPublishingNormalizedEpub,
+  failProtectedPublishingJob,
+  finalizeProtectedPublishingJob,
+  getProtectedPublishingJob,
+  uploadProtectedPublishingCover,
+  uploadProtectedPublishingSource,
+  updateProtectedPublishingProgress,
+} from "./api/protected-publishing/handlers.mjs";
+import {
+  buildBookManifest,
+  getBookReaderConfig,
+  getRequestedReaderType,
+  normalizeReaderType,
+} from "./api/protected-publishing/shared.mjs";
+import { handleCatalogApiRoute } from "./api/catalog/handlers.mjs";
+import { handleCommerceApiRoute } from "./api/commerce/handlers.mjs";
+import { createApiContext } from "./api/shared/context.mjs";
+import {
+  buildApiOptionsResponse,
+  getSupabaseAdminConfig as sharedGetSupabaseAdminConfig,
+  jsonResponse,
+  readJsonSafe as sharedReadJsonSafe,
+  resolveBookContentAccessForRequest as sharedResolveBookContentAccessForRequest,
+  sbFetchWithEnv as sharedSbFetchWithEnv,
+  verifySupabaseJwt as sharedVerifySupabaseJwt,
+} from "./api/shared/worker-helpers.mjs";
+import { handleIdentityApiRoute } from "./api/identity/handlers.mjs";
+import { handlePublishingApiRoute } from "./api/publishing/handlers.mjs";
+import { handleReaderApiRoute } from "./api/reader/handlers.mjs";
+import { handleReaderAccessApiRoute } from "./api/reader-access/handlers.mjs";
 
 function notesShareCorsHeaders() {
   return {
@@ -85,14 +107,6 @@ function normalizeNotes(raw) {
   return out;
 }
 
-async function readJsonSafe(response) {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Verify a Supabase JWT by calling Supabase's auth API.
  * Supports both HS256 and ES256 tokens.
@@ -132,6 +146,95 @@ async function verifySupabaseJwt(token, env) {
   } catch {
     return null;
   }
+}
+
+function getSupabaseAdminConfig(env) {
+  const url = String(env?.SUPABASE_URL || "").trim();
+  const key = String(env?.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  if (!url || !key) return null;
+  return { url, key };
+}
+
+async function sbFetchWithEnv(env, table, { method = "GET", params = "", body, single = false } = {}, fetchImpl = fetch) {
+  const sb = getSupabaseAdminConfig(env);
+  if (!sb) return { data: null, error: "Supabase not configured" };
+  const fetchUrl = `${sb.url}/rest/v1/${table}${params ? "?" + params : ""}`;
+  const headers = {
+    apikey: sb.key,
+    authorization: `Bearer ${sb.key}`,
+    "content-type": "application/json",
+  };
+  if (single) headers.accept = "application/vnd.pgrst.object+json";
+  if (method === "POST" || method === "PATCH") headers.prefer = "return=representation";
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetchImpl(fetchUrl, opts);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    return { data: null, error: detail || `HTTP ${res.status}` };
+  }
+  const data = await res.json().catch(() => null);
+  return { data, error: null };
+}
+
+async function getActiveUserTenantIdsForAccess(env, userId, fetchImpl = fetch) {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) return [];
+  const { data, error } = await sbFetchWithEnv(env, "tenant_memberships", {
+    params: `user_id=eq.${normalizedUserId}&is_active=eq.true&select=tenant_id`,
+  }, fetchImpl);
+  if (error || !Array.isArray(data)) return [];
+  return [...new Set(data.map((row) => String(row.tenant_id || "").trim()).filter(Boolean))];
+}
+
+async function userCanAccessTenantBookForAccess(env, book, userId, fetchImpl = fetch) {
+  if (!book || !userId) return false;
+  if (String(book.published_by_user_id || "") === String(userId)) return true;
+  const visibility = String(book.visibility || "");
+  const tenantId = String(book.published_by_tenant_id || "").trim();
+  if (visibility !== "tenant_only" || !tenantId) return false;
+  const tenantIds = await getActiveUserTenantIdsForAccess(env, userId, fetchImpl);
+  return tenantIds.includes(tenantId);
+}
+
+async function resolveBookContentAccessForRequest({ env, contentId, user = null, fetchImpl = fetch }) {
+  const { data: book } = await sbFetchWithEnv(env, "books", {
+    params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free,visibility,published_by_tenant_id,published_by_user_id`,
+    single: true,
+  }, fetchImpl);
+
+  if (!book) return { access: "full", type: "free", book: null, offers: [] };
+  if (book.is_free) return { access: "full", type: "free", book, offers: [] };
+  if (book.status !== "published") return { access: "full", type: "unpublished", book, offers: [] };
+  if (user && book.published_by_user_id === user.sub) {
+    return { access: "full", type: "publisher", book, offers: [] };
+  }
+  if (user && await userCanAccessTenantBookForAccess(env, book, user.sub, fetchImpl)) {
+    return { access: "full", type: "tenant_membership", book, offers: [] };
+  }
+
+  if (user) {
+    const { data: entitlements } = await sbFetchWithEnv(env, "entitlements", {
+      params: `user_id=eq.${user.sub}&book_id=eq.${book.id}&is_active=eq.true&select=*&order=created_at.desc`,
+    }, fetchImpl);
+    if (entitlements && entitlements.length > 0) {
+      for (const ent of entitlements) {
+        if (ent.entitlement_type === "purchase") {
+          return { access: "full", type: "purchase", book, offers: [] };
+        }
+        if (ent.entitlement_type === "rental" && (!ent.expires_at || new Date(ent.expires_at) > new Date())) {
+          return { access: "full", type: "rental", expires_at: ent.expires_at, book, offers: [] };
+        }
+      }
+    }
+  }
+
+  const { data: offers } = await sbFetchWithEnv(env, "book_offers", {
+    params: `book_id=eq.${book.id}&is_active=eq.true&select=*`,
+  }, fetchImpl);
+  if (!offers || !offers.length) return { access: "full", type: "free", book, offers: [] };
+
+  return { access: "none", type: "offers_required", book, offers };
 }
 
 /**
@@ -230,6 +333,7 @@ async function updateCatalogIndexes(env, book, options = {}) {
   const language = String(book.language || "en").trim();
   const source = String(options.source || book.source || "manual").trim() || "manual";
   const sourceBookId = String(options.sourceBookId || contentId).trim() || contentId;
+  const readerConfig = getBookReaderConfig(book);
   if (!authorName || !title || !contentId) return;
 
   const { authorKey, indexKey, indexKeyAscii, display: authorDisplay } = parseAuthorForIndex(authorName);
@@ -259,6 +363,18 @@ async function updateCatalogIndexes(env, book, options = {}) {
     coverUrl,
     source,
     sourceBookId,
+    readerType: readerConfig.readerType,
+    protectedContentPath: readerConfig.protectedContentPath,
+  });
+
+  await updateNewestDiscoveryIndexes(env, {
+    contentId,
+    title,
+    author: authorDisplay,
+    coverUrl,
+    language,
+    source,
+    sourceBookId,
   });
 
   // 5. Update languages.json — ensure the book's language is listed
@@ -283,6 +399,46 @@ async function updateCatalogIndexes(env, book, options = {}) {
     await env.READER_BOOKS.put(langR2Key, JSON.stringify(langData), {
       httpMetadata: { contentType: "application/json; charset=utf-8" },
     });
+  }
+}
+
+async function updateNewestDiscoveryIndexes(env, { contentId, title, author, coverUrl, language, source, sourceBookId }) {
+  const generatedAt = new Date().toISOString();
+  const catalogAddedAt = generatedAt;
+  const entry = {
+    id: contentId,
+    source: String(source || "manual"),
+    legacyId: contentId,
+    sourceBookId: String(sourceBookId || contentId),
+    title: String(title || contentId),
+    author: String(author || ""),
+    cover: String(coverUrl || ""),
+    language: String(language || ""),
+    catalogAddedAt,
+  };
+
+  const prefixes = ["api"];
+  if (language && language !== "und") {
+    prefixes.push(`api/lang/${language}`);
+  }
+
+  for (const apiPrefix of prefixes) {
+    const newestKey = `${apiPrefix}/discover/newest.json`;
+    const payload = await getCatalogJson(env, newestKey, {
+      windowDays: 30,
+      generatedAt,
+      count: 0,
+      books: [],
+    });
+    const books = Array.isArray(payload && payload.books) ? payload.books : [];
+    const withoutCurrent = books.filter((item) => String(item && (item.legacyId || item.id || "")) !== contentId);
+    withoutCurrent.unshift(entry);
+    const windowDays = Number(payload && payload.windowDays) > 0 ? Number(payload.windowDays) : 30;
+    payload.windowDays = windowDays;
+    payload.generatedAt = generatedAt;
+    payload.books = withoutCurrent.slice(0, Math.max(100, books.length || 0));
+    payload.count = payload.books.length;
+    await putCatalogJson(env, newestKey, payload);
   }
 }
 
@@ -506,7 +662,7 @@ async function getCatalogJson(env, r2Key, fallback) {
   }
 }
 
-async function updateBookLocationIndexes(env, { contentId, title, author, coverUrl, source, sourceBookId }) {
+async function updateBookLocationIndexes(env, { contentId, title, author, coverUrl, source, sourceBookId, readerType, protectedContentPath }) {
   const generatedAt = new Date().toISOString();
   const normalizedSource = String(source || "manual").trim() || "manual";
   const normalizedSourceBookId = String(sourceBookId || contentId).trim() || contentId;
@@ -523,7 +679,11 @@ async function updateBookLocationIndexes(env, { contentId, title, author, coverU
     title: String(title || contentId),
     author: String(author || ""),
     cover: String(coverUrl || ""),
+    readerType: normalizeReaderType(readerType),
   };
+  if (item.readerType === "protected" && String(protectedContentPath || "").trim()) {
+    item.protectedContentPath = String(protectedContentPath).trim();
+  }
 
   const rootKey = "api/book-locations.json";
   const rootData = await getCatalogJson(env, rootKey, { version: "1", generatedAt, count: 0, items: {} });
@@ -1064,6 +1224,28 @@ function buildSeoAnalyticsHtml(posthogConfig, pageData) {
 async function readBucketObject(env, key) {
   if (!env.READER_BOOKS) return null;
   return await env.READER_BOOKS.get(key);
+}
+
+function contentTypeFromR2Key(key) {
+  const normalized = String(key || "").toLowerCase().split("?")[0];
+  if (normalized.endsWith(".json")) return "application/json; charset=utf-8";
+  if (normalized.endsWith(".html") || normalized.endsWith(".htm")) return "text/html; charset=utf-8";
+  if (normalized.endsWith(".xhtml")) return "application/xhtml+xml; charset=utf-8";
+  if (normalized.endsWith(".xml") || normalized.endsWith(".opf")) return "application/xml; charset=utf-8";
+  if (normalized.endsWith(".ncx")) return "application/x-dtbncx+xml";
+  if (normalized.endsWith(".css")) return "text/css; charset=utf-8";
+  if (normalized.endsWith(".js")) return "application/javascript; charset=utf-8";
+  if (normalized.endsWith(".svg")) return "image/svg+xml";
+  if (normalized.endsWith(".png")) return "image/png";
+  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
+  if (normalized.endsWith(".gif")) return "image/gif";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  if (normalized.endsWith(".avif")) return "image/avif";
+  if (normalized.endsWith(".woff2")) return "font/woff2";
+  if (normalized.endsWith(".woff")) return "font/woff";
+  if (normalized.endsWith(".ttf")) return "font/ttf";
+  if (normalized.endsWith(".otf")) return "font/otf";
+  return "application/octet-stream";
 }
 
 async function readBucketText(env, key) {
@@ -2390,15 +2572,19 @@ export default {
       normalizedPath === "/books/api/notes-share" ||
       normalizedPath === "/api/notes-share" ||
       normalizedPath === "/books/reader/api/notes-share" ||
+      normalizedPath === "/books/reader1/api/notes-share" ||
       normalizedPath === "/books/api/ns" ||
       normalizedPath === "/api/ns" ||
       normalizedPath === "/books/reader/api/ns" ||
+      normalizedPath === "/books/reader1/api/ns" ||
       normalizedPath.startsWith("/books/api/notes-share/") ||
       normalizedPath.startsWith("/api/notes-share/") ||
       normalizedPath.startsWith("/books/reader/api/notes-share/") ||
+      normalizedPath.startsWith("/books/reader1/api/notes-share/") ||
       normalizedPath.startsWith("/books/api/ns/") ||
       normalizedPath.startsWith("/api/ns/") ||
-      normalizedPath.startsWith("/books/reader/api/ns/")
+      normalizedPath.startsWith("/books/reader/api/ns/") ||
+      normalizedPath.startsWith("/books/reader1/api/ns/")
     ) {
       if (request.method === "OPTIONS") {
         const headers = new Headers(notesShareCorsHeaders());
@@ -2410,9 +2596,11 @@ export default {
         normalizedPath === "/books/api/notes-share" ||
         normalizedPath === "/api/notes-share" ||
         normalizedPath === "/books/reader/api/notes-share" ||
+        normalizedPath === "/books/reader1/api/notes-share" ||
         normalizedPath === "/books/api/ns" ||
         normalizedPath === "/api/ns" ||
-        normalizedPath === "/books/reader/api/ns"
+        normalizedPath === "/books/reader/api/ns" ||
+        normalizedPath === "/books/reader1/api/ns"
       ) {
         if (request.method !== "POST") {
           const headers = new Headers(notesShareCorsHeaders());
@@ -2776,21 +2964,38 @@ export default {
     ) {
       // CORS preflight for all platform API routes
       if (request.method === "OPTIONS") {
-        return new Response(null, {
-          status: 204,
-          headers: {
-            "access-control-allow-origin": "*",
-            "access-control-allow-methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
-            "access-control-allow-headers": "content-type, authorization",
-            "access-control-max-age": "86400",
-            "x-reader-worker": "1",
-          },
-        });
+        return buildApiOptionsResponse();
       }
 
       const apiPath = normalizedPath.startsWith("/books/api/v1/")
         ? normalizedPath.slice("/books/api/v1".length)
         : normalizedPath.slice("/api/v1".length);
+
+      const extractedApiContext = {
+        ...(await createApiContext({ request, env, url })),
+        apiPath,
+      };
+
+      let extractedResponse = await handleIdentityApiRoute(extractedApiContext);
+      if (extractedResponse) return extractedResponse;
+
+      extractedResponse = await handleCatalogApiRoute(extractedApiContext);
+      if (extractedResponse) return extractedResponse;
+
+      extractedResponse = await handleReaderApiRoute(extractedApiContext);
+      if (extractedResponse) return extractedResponse;
+
+      extractedResponse = await handleReaderAccessApiRoute(extractedApiContext);
+      if (extractedResponse) return extractedResponse;
+
+      extractedResponse = await handleCommerceApiRoute(extractedApiContext);
+      if (extractedResponse) return extractedResponse;
+
+      extractedResponse = await handlePublishingApiRoute(extractedApiContext, {
+        processEpub,
+        updateCatalogIndexes,
+      });
+      if (extractedResponse) return extractedResponse;
 
       // Parse JWT if present (does not reject — some routes are public)
       let user = null;
@@ -2814,6 +3019,19 @@ export default {
             401,
             apiCorsHeaders
           );
+        }
+        return null;
+      };
+
+      const requireInternalTaskAuth = () => {
+        const provided = String(request.headers.get("x-reader-internal-key") || "").trim();
+        const acceptedSecrets = [
+          String(env.PROTECTED_JOB_CALLBACK_SECRET || "").trim(),
+          String(env.INTERNAL_TASK_SECRET || "").trim(),
+          String(env.SUPABASE_SERVICE_ROLE_KEY || "").trim(),
+        ].filter(Boolean);
+        if (!provided || acceptedSecrets.length === 0 || !acceptedSecrets.includes(provided)) {
+          return jsonResponse({ error: "Forbidden" }, 403, apiCorsHeaders);
         }
         return null;
       };
@@ -3220,6 +3438,15 @@ export default {
         return data;
       };
 
+      const getTenantPublishingMemberships = async () => {
+        if (!user) return [];
+        const { data, error } = await sbFetch("tenant_memberships", {
+          params: `user_id=eq.${user.sub}&is_active=eq.true&role=in.(owner,admin,publisher)&select=id,role,tenant_id,tenants:tenant_id(id,slug,name,tenant_type)`,
+        });
+        if (error || !Array.isArray(data)) return [];
+        return data;
+      };
+
       const listPlatformTenants = async () => {
         const { data, error } = await sbFetch("tenants", {
           params: "select=id,slug,name,tenant_type,is_active,created_at&order=name.asc",
@@ -3319,13 +3546,26 @@ export default {
       };
 
       const resolvePublishingTenant = async ({ tenantId = "", tenantSlug = "" } = {}) => {
-        const memberships = await getTenantAdminMemberships();
-        if (!memberships.length) {
-          return { error: jsonResponse({ error: "Tenant admin access required for publishing" }, 403, apiCorsHeaders) };
-        }
+        const [isSuperuser, memberships] = await Promise.all([
+          getPlatformSuperuserStatus(),
+          getTenantPublishingMemberships(),
+        ]);
 
         const normalizedTenantId = String(tenantId || "").trim();
         const normalizedTenantSlug = String(tenantSlug || "").trim().toLowerCase();
+
+        if (!normalizedTenantId && !normalizedTenantSlug && isSuperuser) {
+          return {
+            tenantId: "",
+            tenantSlug: "",
+            membership: null,
+            personal: true,
+          };
+        }
+
+        if (!memberships.length) {
+          return { error: jsonResponse({ error: "Publishing access required" }, 403, apiCorsHeaders) };
+        }
 
         let match = null;
         if (normalizedTenantId) {
@@ -3348,6 +3588,7 @@ export default {
           tenantId: String(match.tenant_id || ""),
           tenantSlug: String(match?.tenants?.slug || ""),
           membership: match,
+          personal: false,
         };
       };
 
@@ -3372,1457 +3613,6 @@ export default {
         return { data, error: null };
       };
 
-      // ── POST /v1/auth/register — password signup without Supabase emails ──
-      if (apiPath === "/auth/register" && request.method === "POST") {
-        const body = await request.json().catch(() => null);
-        const email = normalizeEmail(body?.email);
-        const password = String(body?.password || "");
-        const displayName = String(body?.display_name || "").trim();
-        const inviteToken = String(body?.invite_token || "").trim();
-
-        if (!email || !password || !displayName) {
-          return jsonResponse({ error: "email, password, and display_name are required" }, 400, apiCorsHeaders);
-        }
-
-        const createResult = await createPasswordUser({ email, password, displayName });
-        if (createResult.error) {
-          const message = String(createResult.error || "");
-          const status = /already been registered|already exists|duplicate/i.test(message) ? 409 : 400;
-          return jsonResponse({ error: message }, status, apiCorsHeaders);
-        }
-
-        let inviteAcceptance = null;
-        if (inviteToken) {
-          const acceptResult = await applyInvitationTokenForUser(inviteToken, {
-            userId: createResult.data.id,
-            email,
-          });
-          if (acceptResult.error) {
-            return jsonResponse({ error: acceptResult.error }, 400, apiCorsHeaders);
-          }
-          inviteAcceptance = acceptResult.data;
-        }
-
-        return jsonResponse({
-          registered: true,
-          user: createResult.data,
-          invite: inviteAcceptance,
-        }, 201, apiCorsHeaders);
-      }
-
-      // ── GET /v1/invitations/inspect — public invite metadata ──
-      if (apiPath === "/invitations/inspect" && request.method === "GET") {
-        const token = String(url.searchParams.get("token") || "").trim();
-        if (!token) {
-          return jsonResponse({ error: "token is required" }, 400, apiCorsHeaders);
-        }
-        const inspected = await inspectInvitationToken(token);
-        if (inspected.error) {
-          return jsonResponse({ error: inspected.error }, 404, apiCorsHeaders);
-        }
-        return jsonResponse(inspected.data, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/me — current user profile ──
-      if (apiPath === "/me" && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const { data, error } = await sbFetch("user_profiles", {
-          params: `id=eq.${user.sub}&select=*`,
-          single: true,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-        return jsonResponse(data || {}, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/me/entitlements — user's entitlements ──
-      if (apiPath === "/me/entitlements" && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const { data, error } = await sbFetch("entitlements", {
-          params: `user_id=eq.${user.sub}&is_active=eq.true&select=*,books:book_id(id,title,author,cover_url,content_id)`,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-        return jsonResponse(data || [], 200, apiCorsHeaders);
-      }
-
-      if (apiPath === "/me/catalog-books" && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const tenantIds = await getActiveUserTenantIds(user.sub);
-        if (!tenantIds.length) return jsonResponse([], 200, apiCorsHeaders);
-
-        const encodedTenantIds = tenantIds.map((id) => `"${id}"`).join(",");
-        const { data, error } = await sbFetch("books", {
-          params: `status=eq.published&visibility=eq.tenant_only&published_by_tenant_id=in.(${encodedTenantIds})&select=id,title,author,cover_url,content_id,published_by_tenant_id,tenant:tenants!books_published_by_tenant_id_fkey(slug,name)&order=updated_at.desc`,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-
-        const items = (Array.isArray(data) ? data : [])
-          .filter((book) => String(book.content_id || "").trim())
-          .map((book) => ({
-            id: String(book.content_id),
-            source: String(book?.tenant?.slug || "").trim(),
-            title: String(book.title || ""),
-            author: String(book.author || ""),
-            cover: String(book.cover_url || ""),
-            visibility: "tenant_only",
-            tenant_name: String(book?.tenant?.name || ""),
-          }));
-        return jsonResponse(items, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/me/tenants — user's tenant memberships ──
-      if (apiPath === "/me/tenants" && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const { data, error } = await sbFetch("tenant_memberships", {
-          params: `user_id=eq.${user.sub}&is_active=eq.true&select=id,role,department,tenants:tenant_id(id,slug,name,tenant_type,logo_url)`,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-        return jsonResponse(data || [], 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/me/platform-access — superuser flag + admin tenants ──
-      if (apiPath === "/me/platform-access" && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const [isSuperuser, adminTenants] = await Promise.all([
-          getPlatformSuperuserStatus(),
-          getTenantAdminMemberships(),
-        ]);
-        return jsonResponse({
-          is_superuser: !!isSuperuser,
-          admin_tenants: adminTenants.map((item) => ({
-            tenant_id: item.tenant_id,
-            role: item.role,
-            tenant: item.tenants || null,
-          })),
-        }, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/platform/tenants — list all tenants (superuser only) ──
-      if (apiPath === "/platform/tenants" && request.method === "GET") {
-        const superErr = await requireSuperuser();
-        if (superErr) return superErr;
-        return jsonResponse(await listPlatformTenantsWithRoster(), 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/platform/superusers — list superusers + pending invites ──
-      if (apiPath === "/platform/superusers" && request.method === "GET") {
-        const superErr = await requireSuperuser();
-        if (superErr) return superErr;
-        const [{ data: superusers }, { data: invites }] = await Promise.all([
-          sbFetch("platform_superusers", {
-            params: "select=user_id,granted_by,created_at,user_profiles:user_id(display_name,avatar_url)&order=created_at.asc",
-          }),
-          sbFetch("platform_superuser_invitations", {
-            params: "accepted_at=is.null&select=id,email,token,expires_at,created_at&order=created_at.desc",
-          }),
-        ]);
-        return jsonResponse({
-          superusers: Array.isArray(superusers) ? superusers : [],
-          pending_invites: Array.isArray(invites) ? invites : [],
-        }, 200, apiCorsHeaders);
-      }
-
-      const platformSuperuserInviteDeleteMatch = apiPath.match(/^\/platform\/superusers\/invitations\/([a-f0-9-]+)$/i);
-      if (platformSuperuserInviteDeleteMatch && request.method === "DELETE") {
-        const superErr = await requireSuperuser();
-        if (superErr) return superErr;
-        const invitationId = platformSuperuserInviteDeleteMatch[1];
-        const { data: invite } = await sbFetch("platform_superuser_invitations", {
-          params: `id=eq.${invitationId}&accepted_at=is.null&select=id,email,token,expires_at`,
-          single: true,
-        });
-        if (!invite) {
-          return jsonResponse({ error: "Invitation not found" }, 404, apiCorsHeaders);
-        }
-        const { error: deleteErr } = await sbFetch("platform_superuser_invitations", {
-          method: "DELETE",
-          params: `id=eq.${invitationId}`,
-        });
-        if (deleteErr) return jsonResponse({ error: deleteErr }, 400, apiCorsHeaders);
-        return jsonResponse({ deleted: true, invite_id: invite.id, email: invite.email }, 200, apiCorsHeaders);
-      }
-
-      // ── POST /v1/platform/superusers/invite — invite a new superuser ──
-      if (apiPath === "/platform/superusers/invite" && request.method === "POST") {
-        const superErr = await requireSuperuser();
-        if (superErr) return superErr;
-        const body = await request.json().catch(() => null);
-        const email = normalizeEmail(body?.email);
-        if (!email) {
-          return jsonResponse({ error: "email is required" }, 400, apiCorsHeaders);
-        }
-        const { data: invite, error } = await sbFetch("platform_superuser_invitations", {
-          method: "POST",
-          body: {
-            email,
-            invited_by: user.sub,
-          },
-          single: true,
-        });
-        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
-        let emailDelivery = { sent: false, skipped: true, reason: "not-attempted" };
-        try {
-          emailDelivery = await sendSuperuserInviteNotification({ invite });
-        } catch (err) {
-          emailDelivery = { sent: false, skipped: false, error: err.message };
-        }
-        return jsonResponse({
-          ...invite,
-          invite_url: buildInviteUrl(invite.token),
-          email_delivery: emailDelivery,
-        }, 201, apiCorsHeaders);
-      }
-
-      // ── POST /v1/invitations/accept — accept tenant or self-publisher invite ──
-      if (apiPath === "/invitations/accept" && request.method === "POST") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const body = await request.json().catch(() => null);
-        const token = String(body?.token || "").trim();
-        if (!token) {
-          return jsonResponse({ error: "token is required" }, 400, apiCorsHeaders);
-        }
-
-        const { data: invite, error: inviteErr } = await sbFetch("tenant_invitations", {
-          params: `token=eq.${token}&select=*`,
-          single: true,
-        });
-        if (!inviteErr && invite) {
-          if (invite.accepted_at) return jsonResponse({ error: "Invitation already accepted" }, 400, apiCorsHeaders);
-          if (invite.expires_at && new Date(invite.expires_at) <= new Date()) {
-            return jsonResponse({ error: "Invitation has expired" }, 400, apiCorsHeaders);
-          }
-          if (normalizeEmail(invite.email) !== normalizeEmail(user.email)) {
-            return jsonResponse({ error: "Invitation email does not match authenticated user" }, 403, apiCorsHeaders);
-          }
-
-          const grantedRole = invite.invite_type === "self_publisher" ? "owner" : invite.role;
-
-          const { data: existingMembership } = await sbFetch("tenant_memberships", {
-            params: `tenant_id=eq.${invite.tenant_id}&user_id=eq.${user.sub}&select=id,role,is_active`,
-            single: true,
-          });
-          if (existingMembership) {
-            const nextRole = roleRank(existingMembership.role) >= roleRank(grantedRole)
-              ? existingMembership.role
-              : grantedRole;
-            await sbFetch("tenant_memberships", {
-              method: "PATCH",
-              params: `id=eq.${existingMembership.id}`,
-              body: { role: nextRole, is_active: true },
-            });
-          } else {
-            const { error: membershipErr } = await sbFetch("tenant_memberships", {
-              method: "POST",
-              body: {
-                tenant_id: invite.tenant_id,
-                user_id: user.sub,
-                role: grantedRole,
-              },
-              single: true,
-            });
-            if (membershipErr) return jsonResponse({ error: membershipErr }, 400, apiCorsHeaders);
-          }
-
-          await sbFetch("tenant_invitations", {
-            method: "PATCH",
-            params: `id=eq.${invite.id}&select=*`,
-            body: { accepted_at: new Date().toISOString() },
-          });
-
-          const { data: tenant } = await sbFetch("tenants", {
-            params: `id=eq.${invite.tenant_id}&select=id,slug,name,tenant_type`,
-            single: true,
-          });
-          return jsonResponse({
-            accepted: true,
-            invite_type: invite.invite_type || "tenant_reader",
-            role: grantedRole,
-            tenant,
-          }, 200, apiCorsHeaders);
-        }
-
-        const { data: superInvite, error: superInviteErr } = await sbFetch("platform_superuser_invitations", {
-          params: `token=eq.${token}&select=*`,
-          single: true,
-        });
-        if (superInviteErr || !superInvite) {
-          return jsonResponse({ error: "Invitation not found" }, 404, apiCorsHeaders);
-        }
-        if (superInvite.accepted_at) {
-          return jsonResponse({ error: "Invitation already accepted" }, 400, apiCorsHeaders);
-        }
-        if (superInvite.expires_at && new Date(superInvite.expires_at) <= new Date()) {
-          return jsonResponse({ error: "Invitation has expired" }, 400, apiCorsHeaders);
-        }
-        if (normalizeEmail(superInvite.email) !== normalizeEmail(user.email)) {
-          return jsonResponse({ error: "Invitation email does not match authenticated user" }, 403, apiCorsHeaders);
-        }
-
-        const { data: existingSuperuser } = await sbFetch("platform_superusers", {
-          params: `user_id=eq.${user.sub}&select=user_id`,
-          single: true,
-        });
-        if (!existingSuperuser) {
-          const { error: grantErr } = await sbFetch("platform_superusers", {
-            method: "POST",
-            body: {
-              user_id: user.sub,
-              granted_by: superInvite.invited_by || null,
-            },
-            single: true,
-          });
-          if (grantErr) return jsonResponse({ error: grantErr }, 400, apiCorsHeaders);
-        }
-
-        await sbFetch("platform_superuser_invitations", {
-          method: "PATCH",
-          params: `id=eq.${superInvite.id}&select=*`,
-          body: {
-            accepted_at: new Date().toISOString(),
-            accepted_by: user.sub,
-          },
-        });
-
-        return jsonResponse({
-          accepted: true,
-          invite_type: "platform_superuser",
-          role: "superuser",
-        }, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/genres — list genres ──
-      if (apiPath === "/genres" && request.method === "GET") {
-        const { data, error } = await sbFetch("genres", {
-          params: "select=*&order=display_order",
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-        return jsonResponse(data || [], 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/books/by-content/:contentId — look up book by content_id ──
-      const byContentMatch = apiPath.match(/^\/books\/by-content\/(\d+)$/);
-      if (byContentMatch && request.method === "GET") {
-        const contentId = byContentMatch[1];
-        const { data: book } = await sbFetch("books", {
-          params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free,published_by_user_id`,
-          single: true,
-        });
-        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-        return jsonResponse(book, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/books/by-content/:contentId/access — combined lookup + entitlement check ──
-      const byContentAccessMatch = apiPath.match(/^\/books\/by-content\/(\d+)\/access$/);
-      if (byContentAccessMatch && request.method === "GET") {
-        const contentId = byContentAccessMatch[1];
-        const { data: book } = await sbFetch("books", {
-          params: `content_id=eq.${contentId}&select=id,title,author,annotation,cover_url,status,is_free,visibility,published_by_tenant_id,published_by_user_id`,
-          single: true,
-        });
-
-        // Not in DB — grant access (Gutenberg or unknown)
-        if (!book) return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
-
-        // Free books — grant access
-        if (book.is_free) return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
-
-        // Not published — grant access (draft/processing)
-        if (book.status !== "published") return jsonResponse({ access: "full", type: "unpublished" }, 200, apiCorsHeaders);
-
-        // Publisher always has access to their own books
-        if (user && book.published_by_user_id === user.sub) {
-          return jsonResponse({ access: "full", type: "publisher" }, 200, apiCorsHeaders);
-        }
-
-        if (user && await userCanAccessTenantBook(book, user.sub)) {
-          return jsonResponse({ access: "full", type: "tenant_membership" }, 200, apiCorsHeaders);
-        }
-
-        // Check for purchase/rental entitlements
-        if (user) {
-          const { data: entitlements } = await sbFetch("entitlements", {
-            params: `user_id=eq.${user.sub}&book_id=eq.${book.id}&is_active=eq.true&select=*&order=created_at.desc`,
-          });
-          if (entitlements && entitlements.length > 0) {
-            for (const ent of entitlements) {
-              if (ent.entitlement_type === "purchase") {
-                return jsonResponse({ access: "full", type: "purchase" }, 200, apiCorsHeaders);
-              }
-              if (ent.entitlement_type === "rental") {
-                if (!ent.expires_at || new Date(ent.expires_at) > new Date()) {
-                  return jsonResponse({ access: "full", type: "rental", expires_at: ent.expires_at }, 200, apiCorsHeaders);
-                }
-              }
-            }
-          }
-        }
-
-        // Check if book has offers — if none, treat as free
-        const { data: offers } = await sbFetch("book_offers", {
-          params: `book_id=eq.${book.id}&is_active=eq.true&select=*`,
-        });
-        if (!offers || !offers.length) {
-          return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
-        }
-
-        // Access denied — return book info and offers
-        return jsonResponse({ access: "none", book, offers }, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/books/by-content/:contentId/location — resolve readable content path for authorized users ──
-      const byContentLocationMatch = apiPath.match(/^\/books\/by-content\/(\d+)\/location$/);
-      if (byContentLocationMatch && request.method === "GET") {
-        const contentId = byContentLocationMatch[1];
-        const { data: book } = await sbFetch("books", {
-          params: `content_id=eq.${contentId}&select=id,content_id,status,is_free,visibility,published_by_tenant_id,published_by_user_id,tenant:tenants!books_published_by_tenant_id_fkey(slug)`,
-          single: true,
-        });
-        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-
-        let hasAccess = false;
-
-        if (book.status !== "published" || book.is_free || book.visibility === "public") {
-          hasAccess = true;
-        } else if (user && book.published_by_user_id === user.sub) {
-          hasAccess = true;
-        } else if (user && await userCanAccessTenantBook(book, user.sub)) {
-          hasAccess = true;
-        } else if (user) {
-          const { data: entitlements } = await sbFetch("entitlements", {
-            params: `user_id=eq.${user.sub}&book_id=eq.${book.id}&is_active=eq.true&select=entitlement_type,expires_at&order=created_at.desc`,
-          });
-          if (entitlements && entitlements.length > 0) {
-            for (const ent of entitlements) {
-              if (ent.entitlement_type === "purchase") {
-                hasAccess = true;
-                break;
-              }
-              if (ent.entitlement_type === "rental" && (!ent.expires_at || new Date(ent.expires_at) > new Date())) {
-                hasAccess = true;
-                break;
-              }
-            }
-          }
-        }
-
-        if (!hasAccess) {
-          return jsonResponse({ error: "Access denied" }, 403, apiCorsHeaders);
-        }
-
-        return jsonResponse({
-          id: String(book.content_id || contentId),
-          source: String(book?.tenant?.slug || ""),
-          contentPath: `/books/content/${contentId}/`,
-          localContentPath: `/books/content/${contentId}/`,
-        }, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/books/:id/entitlement — check access ──
-      const entitlementMatch = apiPath.match(/^\/books\/([0-9a-f-]+)\/entitlement$/);
-      if (entitlementMatch && request.method === "GET") {
-        const bookId = entitlementMatch[1];
-
-        // Check if book is free
-        const { data: book } = await sbFetch("books", {
-          params: `id=eq.${bookId}&select=id,is_free,status,visibility,published_by_tenant_id,published_by_user_id`,
-          single: true,
-        });
-        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-        if (book.is_free) {
-          return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
-        }
-
-        // If not authenticated, check for offers
-        if (!user) {
-          const { data: offers } = await sbFetch("book_offers", {
-            params: `book_id=eq.${bookId}&is_active=eq.true&select=*`,
-          });
-          return jsonResponse({ access: "none", offers: offers || [] }, 200, apiCorsHeaders);
-        }
-
-        if (await userCanAccessTenantBook(book, user.sub)) {
-          return jsonResponse({ access: "full", type: "tenant_membership" }, 200, apiCorsHeaders);
-        }
-
-        // Check purchase entitlement
-        const { data: entitlements } = await sbFetch("entitlements", {
-          params: `user_id=eq.${user.sub}&book_id=eq.${bookId}&is_active=eq.true&select=*&order=created_at.desc`,
-        });
-        if (entitlements && entitlements.length > 0) {
-          for (const ent of entitlements) {
-            if (ent.entitlement_type === "purchase") {
-              return jsonResponse({ access: "full", type: "purchase" }, 200, apiCorsHeaders);
-            }
-            if (ent.entitlement_type === "rental") {
-              if (!ent.expires_at || new Date(ent.expires_at) > new Date()) {
-                return jsonResponse({
-                  access: "full",
-                  type: "rental",
-                  expires_at: ent.expires_at,
-                }, 200, apiCorsHeaders);
-              }
-            }
-          }
-        }
-
-        // No entitlement — check if there are any offers
-        const { data: offers } = await sbFetch("book_offers", {
-          params: `book_id=eq.${bookId}&is_active=eq.true&select=*`,
-        });
-
-        // If no offers exist, treat the book as publicly accessible
-        if (!offers || !offers.length) {
-          return jsonResponse({ access: "full", type: "free" }, 200, apiCorsHeaders);
-        }
-
-        return jsonResponse({ access: "none", offers }, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/books/:id/offers — list offers ──
-      const offersMatch = apiPath.match(/^\/books\/([0-9a-f-]+)\/offers$/);
-      if (offersMatch && request.method === "GET") {
-        const bookId = offersMatch[1];
-        const { data, error } = await sbFetch("book_offers", {
-          params: `book_id=eq.${bookId}&is_active=eq.true&select=*`,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-        return jsonResponse(data || [], 200, apiCorsHeaders);
-      }
-
-      // ── POST /v1/books/:id/offers — create offer ──
-      if (offersMatch && request.method === "POST") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const bookId = offersMatch[1];
-        const body = await request.json().catch(() => null);
-        if (!body || !body.offer_type) {
-          return jsonResponse({ error: "offer_type is required" }, 400, apiCorsHeaders);
-        }
-        if (!["purchase", "rental"].includes(body.offer_type)) {
-          return jsonResponse({ error: "offer_type must be 'purchase' or 'rental'" }, 400, apiCorsHeaders);
-        }
-        if (body.price_cents === undefined || body.price_cents < 0) {
-          return jsonResponse({ error: "price_cents is required and must be >= 0" }, 400, apiCorsHeaders);
-        }
-        if (body.offer_type === "rental" && (!body.rental_days || body.rental_days < 1)) {
-          return jsonResponse({ error: "rental_days is required for rental offers" }, 400, apiCorsHeaders);
-        }
-
-        // Verify user owns the book
-        const { data: book } = await sbFetch("books", {
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=id`,
-          single: true,
-        });
-        if (!book) return jsonResponse({ error: "Book not found or not owned by you" }, 404, apiCorsHeaders);
-
-        const offer = {
-          book_id: bookId,
-          offer_type: body.offer_type,
-          price_cents: body.price_cents,
-          currency: body.currency || "USD",
-          created_by_user_id: user.sub,
-        };
-        if (body.offer_type === "rental") offer.rental_days = body.rental_days;
-
-        const { data, error } = await sbFetch("book_offers", {
-          method: "POST",
-          body: offer,
-          single: true,
-        });
-        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
-        return jsonResponse(data, 201, apiCorsHeaders);
-      }
-
-      // ── PATCH /v1/offers/:id — update or deactivate offer ──
-      const offerPatchMatch = apiPath.match(/^\/offers\/([0-9a-f-]+)$/);
-      if (offerPatchMatch && request.method === "PATCH") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const offerId = offerPatchMatch[1];
-        const body = await request.json().catch(() => null);
-        if (!body) return jsonResponse({ error: "Invalid JSON" }, 400, apiCorsHeaders);
-
-        const allowed = ["price_cents", "currency", "rental_days", "is_active"];
-        const updates = {};
-        for (const key of allowed) {
-          if (body[key] !== undefined) updates[key] = body[key];
-        }
-        if (!Object.keys(updates).length) {
-          return jsonResponse({ error: "No fields to update" }, 400, apiCorsHeaders);
-        }
-
-        const { data, error } = await sbFetch("book_offers", {
-          method: "PATCH",
-          params: `id=eq.${offerId}&created_by_user_id=eq.${user.sub}&select=*`,
-          body: updates,
-          single: true,
-        });
-        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
-        if (!data) return jsonResponse({ error: "Offer not found" }, 404, apiCorsHeaders);
-        return jsonResponse(data, 200, apiCorsHeaders);
-      }
-
-      // ── POST /v1/tenants — create tenant ──
-      if (apiPath === "/tenants" && request.method === "POST") {
-        const superErr = await requireSuperuser();
-        if (superErr) return superErr;
-        const body = await request.json().catch(() => null);
-        if (!body || !body.name || !body.slug || !body.tenant_type) {
-          return jsonResponse({ error: "name, slug, and tenant_type are required" }, 400, apiCorsHeaders);
-        }
-        // Create tenant
-        const { data: tenant, error: tenantErr } = await sbFetch("tenants", {
-          method: "POST",
-          body: { name: body.name, slug: body.slug, tenant_type: body.tenant_type },
-          single: true,
-        });
-        if (tenantErr) return jsonResponse({ error: tenantErr }, 400, apiCorsHeaders);
-        // Add creator as owner
-        await sbFetch("tenant_memberships", {
-          method: "POST",
-          body: { tenant_id: tenant.id, user_id: user.sub, role: "owner" },
-        });
-        return jsonResponse(tenant, 201, apiCorsHeaders);
-      }
-
-      // ── POST /v1/onboarding/self-publisher/invite — bootstrap individual author ──
-      if (apiPath === "/onboarding/self-publisher/invite" && request.method === "POST") {
-        const superErr = await requireSuperuser();
-        if (superErr) return superErr;
-        const body = await request.json().catch(() => null);
-        if (!body || !body.email || !body.name || !body.slug) {
-          return jsonResponse({ error: "email, name, and slug are required" }, 400, apiCorsHeaders);
-        }
-
-        const tenantSlug = String(body.slug || "").trim().toLowerCase();
-        const email = normalizeEmail(body.email);
-        if (!tenantSlug) return jsonResponse({ error: "slug is required" }, 400, apiCorsHeaders);
-        if (!email) return jsonResponse({ error: "email is required" }, 400, apiCorsHeaders);
-
-        const { data: tenant, error: tenantErr } = await sbFetch("tenants", {
-          method: "POST",
-          body: {
-            name: body.name,
-            slug: tenantSlug,
-            tenant_type: "individual_author",
-          },
-          single: true,
-        });
-        if (tenantErr) return jsonResponse({ error: tenantErr }, 400, apiCorsHeaders);
-
-        const { data: invite, error: inviteErr } = await sbFetch("tenant_invitations", {
-          method: "POST",
-          body: {
-            tenant_id: tenant.id,
-            email,
-            role: "publisher",
-            invite_type: "self_publisher",
-            invited_by: user.sub,
-          },
-          single: true,
-        });
-        if (inviteErr) return jsonResponse({ error: inviteErr }, 400, apiCorsHeaders);
-        let emailDelivery = { sent: false, skipped: true, reason: "not-attempted" };
-        try {
-          emailDelivery = await sendTenantInviteNotification({
-            invite,
-            tenant,
-            audienceLabel: "self-publisher",
-          });
-        } catch (err) {
-          emailDelivery = { sent: false, skipped: false, error: err.message };
-        }
-
-        return jsonResponse({
-          invite,
-          tenant,
-          invite_url: buildInviteUrl(invite.token),
-          email_delivery: emailDelivery,
-        }, 201, apiCorsHeaders);
-      }
-
-      const getTenantSourceSlug = async (tenantId) => {
-        const normalizedTenantId = String(tenantId || "").trim();
-        if (!normalizedTenantId) return "";
-        const { data: tenant } = await sbFetch("tenants", {
-          params: `id=eq.${normalizedTenantId}&select=slug`,
-          single: true,
-        });
-        return String(tenant?.slug || "").trim().toLowerCase();
-      };
-
-      // ── GET /v1/tenants/:slug — tenant info ──
-      const tenantSlugMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])$/);
-      if (tenantSlugMatch && request.method === "GET") {
-        const slug = tenantSlugMatch[1];
-        const { data: tenant } = await sbFetch("tenants", {
-          params: `slug=eq.${slug}&is_active=eq.true&select=*`,
-          single: true,
-        });
-        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
-        return jsonResponse(tenant, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/tenants/:slug/members — list members (admin only) ──
-      const tenantMembersMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/members$/);
-      if (tenantMembersMatch && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const slug = tenantMembersMatch[1];
-        const { data: tenant } = await sbFetch("tenants", {
-          params: `slug=eq.${slug}&select=id,slug,name,tenant_type`,
-          single: true,
-        });
-        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
-
-        if (!(await canManageTenantUsers(tenant.id))) {
-          return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
-        }
-
-        const { data: members } = await sbFetch("tenant_memberships", {
-          params: `tenant_id=eq.${tenant.id}&is_active=eq.true&select=id,role,department,user_id,created_at,user_profiles:user_id(display_name,avatar_url)&order=created_at.asc`,
-        });
-        return jsonResponse(members || [], 200, apiCorsHeaders);
-      }
-
-      const tenantRosterMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/roster$/);
-      if (tenantRosterMatch && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const slug = tenantRosterMatch[1];
-        const { data: tenant } = await sbFetch("tenants", {
-          params: `slug=eq.${slug}&select=id,slug,name,tenant_type,created_at`,
-          single: true,
-        });
-        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
-        if (!(await canManageTenantUsers(tenant.id))) {
-          return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
-        }
-
-        const [membersRes, invitesRes] = await Promise.all([
-          sbFetch("tenant_memberships", {
-            params: `tenant_id=eq.${tenant.id}&is_active=eq.true&select=id,role,department,user_id,created_at&order=created_at.asc`,
-          }),
-          sbFetch("tenant_invitations", {
-            params: `tenant_id=eq.${tenant.id}&accepted_at=is.null&select=id,email,role,invite_type,token,created_at,expires_at&order=created_at.desc`,
-          }),
-        ]);
-
-        const members = await attachProfilesToMemberships(Array.isArray(membersRes.data) ? membersRes.data : []);
-
-        return jsonResponse({
-          tenant,
-          members,
-          pending_invites: Array.isArray(invitesRes.data) ? invitesRes.data : [],
-        }, 200, apiCorsHeaders);
-      }
-
-      const tenantInviteDeleteMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/invitations\/([a-f0-9-]+)$/i);
-      if (tenantInviteDeleteMatch && request.method === "DELETE") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const slug = tenantInviteDeleteMatch[1];
-        const invitationId = tenantInviteDeleteMatch[2];
-        const { data: tenant } = await sbFetch("tenants", {
-          params: `slug=eq.${slug}&select=id,slug,name`,
-          single: true,
-        });
-        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
-        if (!(await canManageTenantUsers(tenant.id))) {
-          return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
-        }
-
-        const { data: invite } = await sbFetch("tenant_invitations", {
-          params: `id=eq.${invitationId}&tenant_id=eq.${tenant.id}&accepted_at=is.null&select=id,email,role,token,expires_at`,
-          single: true,
-        });
-        if (!invite) {
-          return jsonResponse({ error: "Invitation not found" }, 404, apiCorsHeaders);
-        }
-
-        const { error: deleteErr } = await sbFetch("tenant_invitations", {
-          method: "DELETE",
-          params: `id=eq.${invitationId}&tenant_id=eq.${tenant.id}`,
-        });
-        if (deleteErr) return jsonResponse({ error: deleteErr }, 400, apiCorsHeaders);
-        return jsonResponse({ deleted: true, invite_id: invite.id, email: invite.email }, 200, apiCorsHeaders);
-      }
-
-      // ── POST /v1/tenants/:slug/invite — invite by email ──
-      const tenantInviteMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/invite$/);
-      if (tenantInviteMatch && request.method === "POST") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const slug = tenantInviteMatch[1];
-        const body = await request.json().catch(() => null);
-        const email = normalizeEmail(body?.email);
-        const role = String(body?.role || "member").trim().toLowerCase();
-        if (!email) {
-          return jsonResponse({ error: "email is required" }, 400, apiCorsHeaders);
-        }
-        if (!["member", "publisher"].includes(role)) {
-          return jsonResponse({ error: "role must be member or publisher" }, 400, apiCorsHeaders);
-        }
-
-        const { data: tenant } = await sbFetch("tenants", {
-          params: `slug=eq.${slug}&select=id,slug,name,tenant_type`,
-          single: true,
-        });
-        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
-
-        if (!(await canManageTenantUsers(tenant.id))) {
-          return jsonResponse({ error: "Not authorized" }, 403, apiCorsHeaders);
-        }
-
-        const { data: invite, error: invErr } = await sbFetch("tenant_invitations", {
-          method: "POST",
-          body: {
-            tenant_id: tenant.id,
-            email,
-            role,
-            invite_type: "tenant_reader",
-            invited_by: user.sub,
-          },
-          single: true,
-        });
-        if (invErr) return jsonResponse({ error: invErr }, 400, apiCorsHeaders);
-        let emailDelivery = { sent: false, skipped: true, reason: "not-attempted" };
-        try {
-          emailDelivery = await sendTenantInviteNotification({
-            invite,
-            tenant,
-            audienceLabel: role,
-          });
-        } catch (err) {
-          emailDelivery = { sent: false, skipped: false, error: err.message };
-        }
-        return jsonResponse({
-          ...invite,
-          invite_url: buildInviteUrl(invite.token),
-          email_delivery: emailDelivery,
-        }, 201, apiCorsHeaders);
-      }
-
-      // ── POST /v1/tenants/:slug/admin-invite — superuser invites org admin/owner ──
-      const tenantAdminInviteMatch = apiPath.match(/^\/tenants\/([a-z0-9][a-z0-9-]+[a-z0-9])\/admin-invite$/);
-      if (tenantAdminInviteMatch && request.method === "POST") {
-        const superErr = await requireSuperuser();
-        if (superErr) return superErr;
-        const slug = tenantAdminInviteMatch[1];
-        const body = await request.json().catch(() => null);
-        const email = normalizeEmail(body?.email);
-        const role = String(body?.role || "admin").trim().toLowerCase();
-        if (!email) {
-          return jsonResponse({ error: "email is required" }, 400, apiCorsHeaders);
-        }
-        if (!["owner", "admin"].includes(role)) {
-          return jsonResponse({ error: "role must be owner or admin" }, 400, apiCorsHeaders);
-        }
-
-        const { data: tenant } = await sbFetch("tenants", {
-          params: `slug=eq.${slug}&select=id,slug,name,tenant_type`,
-          single: true,
-        });
-        if (!tenant) return jsonResponse({ error: "Tenant not found" }, 404, apiCorsHeaders);
-
-        const { data: invite, error } = await sbFetch("tenant_invitations", {
-          method: "POST",
-          body: {
-            tenant_id: tenant.id,
-            email,
-            role,
-            invite_type: "tenant_admin",
-            invited_by: user.sub,
-          },
-          single: true,
-        });
-        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
-        let emailDelivery = { sent: false, skipped: true, reason: "not-attempted" };
-        try {
-          emailDelivery = await sendTenantInviteNotification({
-            invite,
-            tenant,
-            audienceLabel: "organization admin",
-          });
-        } catch (err) {
-          emailDelivery = { sent: false, skipped: false, error: err.message };
-        }
-        return jsonResponse({
-          invite,
-          tenant,
-          invite_url: buildInviteUrl(invite.token),
-          email_delivery: emailDelivery,
-        }, 201, apiCorsHeaders);
-      }
-
-      // ── GET /v1/publish/books — list user's books ──
-      if (apiPath === "/publish/books" && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const { data, error } = await sbFetch("books", {
-          params: `published_by_user_id=eq.${user.sub}&select=*,tenant:tenants!books_published_by_tenant_id_fkey(id,slug,name,tenant_type)&order=created_at.desc`,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-        return jsonResponse(data || [], 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/publish/books/:id — get book draft ──
-      const publishBookMatch = apiPath.match(/^\/publish\/books\/([0-9a-f-]+)$/);
-      if (publishBookMatch && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const bookId = publishBookMatch[1];
-        const { data: book } = await sbFetch("books", {
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*,tenant:tenants!books_published_by_tenant_id_fkey(id,slug,name,tenant_type)`,
-          single: true,
-        });
-        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-        // Attach source asset info
-        const { data: assets } = await sbFetch("source_assets", {
-          params: `book_id=eq.${bookId}&select=*&order=created_at.desc&limit=1`,
-        });
-        if (assets && assets.length) book.source_asset = assets[0];
-        return jsonResponse(book, 200, apiCorsHeaders);
-      }
-
-      // ── PATCH /v1/publish/books/:id/metadata — update metadata ──
-      const metaMatch = apiPath.match(/^\/publish\/books\/([0-9a-f-]+)\/metadata$/);
-      if (metaMatch && request.method === "PATCH") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const bookId = metaMatch[1];
-        const body = await request.json().catch(() => null);
-        if (!body) return jsonResponse({ error: "Invalid JSON" }, 400, apiCorsHeaders);
-
-        const allowed = ["title", "author", "genre_id", "year_written", "isbn", "language", "annotation", "cover_url"];
-        const updates = {};
-        for (const key of allowed) {
-          if (body[key] !== undefined) updates[key] = body[key];
-        }
-        if (!Object.keys(updates).length) {
-          return jsonResponse({ error: "No fields to update" }, 400, apiCorsHeaders);
-        }
-
-        const { data, error } = await sbFetch("books", {
-          method: "PATCH",
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=*`,
-          body: updates,
-          single: true,
-        });
-        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
-        return jsonResponse(data, 200, apiCorsHeaders);
-      }
-
-      // ── DELETE /v1/publish/books/:id — delete a draft/failed book ──
-      if (publishBookMatch && request.method === "DELETE") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const bookId = publishBookMatch[1];
-
-        // Only allow deleting draft or failed books
-        const { data: book } = await sbFetch("books", {
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&select=id,status`,
-          single: true,
-        });
-        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-        if (book.status === "published") {
-          return jsonResponse({ error: "Cannot delete a published book. Unpublish it first." }, 400, apiCorsHeaders);
-        }
-
-        // Delete source assets first
-        await sbFetch("source_assets", {
-          method: "DELETE",
-          params: `book_id=eq.${bookId}`,
-        });
-        // Delete the book
-        await sbFetch("books", {
-          method: "DELETE",
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}`,
-        });
-        return jsonResponse({ deleted: true }, 200, apiCorsHeaders);
-      }
-
-      // ── POST /v1/publish/books/:id/publish — publish a book ──
-      const pubMatch = apiPath.match(/^\/publish\/books\/([0-9a-f-]+)\/publish$/);
-      if (pubMatch && request.method === "POST") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const bookId = pubMatch[1];
-        const body = await request.json().catch(() => ({}));
-        const visibility = body.visibility || "public";
-        if (!["public", "tenant_only"].includes(visibility)) {
-          return jsonResponse({ error: "visibility must be 'public' or 'tenant_only'" }, 400, apiCorsHeaders);
-        }
-
-        const tenantContext = await resolvePublishingTenant({
-          tenantId: body.tenant_id,
-          tenantSlug: body.tenant_slug,
-        });
-        if (tenantContext.error) return tenantContext.error;
-
-        // Verify book is ready and belongs to publishing user within the selected tenant
-        const { data: book } = await sbFetch("books", {
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
-          single: true,
-        });
-        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-        if (book.status !== "ready") {
-          return jsonResponse({ error: `Book status is '${book.status}', must be 'ready' to publish` }, 400, apiCorsHeaders);
-        }
-        if (!book.title || !book.author || !book.genre_id || !book.annotation) {
-          return jsonResponse({ error: "Complete all required metadata before publishing" }, 400, apiCorsHeaders);
-        }
-
-        const { data, error } = await sbFetch("books", {
-          method: "PATCH",
-          params: `id=eq.${bookId}&published_by_user_id=eq.${user.sub}&published_by_tenant_id=eq.${tenantContext.tenantId}&select=*`,
-          body: { status: "published", visibility },
-          single: true,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-
-        // Only public books should appear in public browse/search artifacts.
-        if (visibility === "public") {
-          try {
-            const source = await getTenantSourceSlug(tenantContext.tenantId) || "manual";
-            await updateCatalogIndexes(env, data, {
-              source,
-              sourceBookId: String(data.content_id || ""),
-            });
-          } catch (indexErr) {
-            // Non-fatal: book is published even if index update fails
-          }
-        }
-
-        return jsonResponse(data, 200, apiCorsHeaders);
-      }
-
-      // ── POST /v1/publish/upload — upload EPUB file ──
-      if (apiPath === "/publish/upload" && request.method === "POST") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-
-        if (!env.READER_BOOKS) {
-          return jsonResponse({ error: "Storage not configured" }, 500, apiCorsHeaders);
-        }
-
-        try {
-          const formData = await request.formData();
-          const tenantContext = await resolvePublishingTenant({
-            tenantId: formData.get("tenant_id"),
-            tenantSlug: formData.get("tenant_slug"),
-          });
-          if (tenantContext.error) return tenantContext.error;
-          const file = formData.get("file");
-          if (!file || !file.name) {
-            return jsonResponse({ error: "No file provided" }, 400, apiCorsHeaders);
-          }
-
-          const filename = file.name;
-          const lower = filename.toLowerCase();
-
-          if (!lower.endsWith(".epub")) {
-            return jsonResponse({ error: "Only .epub files are supported at this time" }, 400, apiCorsHeaders);
-          }
-
-          if (file.size > 100 * 1024 * 1024) {
-            return jsonResponse({ error: "File too large (max 100 MB)" }, 400, apiCorsHeaders);
-          }
-
-          const format = "epub";
-          const uploadId = crypto.randomUUID();
-          const r2Key = `uploads/${uploadId}/${filename}`;
-
-          // Store file in R2
-          const fileBytes = await file.arrayBuffer();
-          await env.READER_BOOKS.put(r2Key, fileBytes, {
-            httpMetadata: { contentType: file.type || "application/epub+zip" },
-          });
-
-          // Get next content_id
-          const { data: contentId } = await sbRpc("nextval_content_id");
-
-          // Create book row
-          const { data: book, error: bookErr } = await sbFetch("books", {
-            method: "POST",
-            body: {
-              title: filename.replace(/\.epub$/i, "").replace(/[_-]/g, " "),
-              author: "Unknown",
-              genre_id: "fiction",
-              annotation: "",
-              content_id: String(contentId),
-              published_by_tenant_id: tenantContext.tenantId,
-              published_by_user_id: user.sub,
-              status: "processing",
-            },
-            single: true,
-          });
-          if (bookErr) return jsonResponse({ error: bookErr }, 500, apiCorsHeaders);
-
-          // Create source_assets row
-          await sbFetch("source_assets", {
-            method: "POST",
-            body: {
-              book_id: book.id,
-              filename,
-              format,
-              r2_key: r2Key,
-              file_size_bytes: file.size,
-              validation_status: "validating",
-              uploaded_by: user.sub,
-            },
-          });
-
-          // Process EPUB: validate, extract metadata, unpack to R2
-          try {
-            const epubResult = await processEpub(env, fileBytes, book.id, String(contentId));
-
-            // Update book with extracted metadata
-            const metaUpdates = { status: "ready" };
-            if (epubResult.title) metaUpdates.title = epubResult.title;
-            if (epubResult.author) metaUpdates.author = epubResult.author;
-            if (epubResult.language) metaUpdates.language = epubResult.language;
-            if (epubResult.coverUrl) metaUpdates.cover_url = epubResult.coverUrl;
-
-            await sbFetch("books", {
-              method: "PATCH",
-              params: `id=eq.${book.id}`,
-              body: metaUpdates,
-            });
-
-            await sbFetch("source_assets", {
-              method: "PATCH",
-              params: `book_id=eq.${book.id}`,
-              body: { validation_status: "valid" },
-            });
-          } catch (procErr) {
-            await sbFetch("books", {
-              method: "PATCH",
-              params: `id=eq.${book.id}`,
-              body: { status: "failed" },
-            });
-            await sbFetch("source_assets", {
-              method: "PATCH",
-              params: `book_id=eq.${book.id}`,
-              body: {
-                validation_status: "invalid",
-                validation_errors: [{ message: procErr.message || String(procErr) }],
-              },
-            });
-          }
-
-          return jsonResponse({ bookId: book.id, contentId: String(contentId) }, 201, apiCorsHeaders);
-        } catch (err) {
-          return jsonResponse({ error: err.message || "Upload failed" }, 500, apiCorsHeaders);
-        }
-      }
-
-      // ── GET /v1/books/:bookId/notes — get user's notes for a book ──
-      const bookNotesMatch = apiPath.match(/^\/books\/([0-9a-f-]+)\/notes$/);
-      if (bookNotesMatch && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const bookId = bookNotesMatch[1];
-        const { data, error } = await sbFetch("notes", {
-          params: `book_id=eq.${bookId}&author_user_id=eq.${user.sub}&select=*&order=created_at`,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-        return jsonResponse(data || [], 200, apiCorsHeaders);
-      }
-
-      // ── POST /v1/books/:bookId/notes — create a note ──
-      if (bookNotesMatch && request.method === "POST") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const bookId = bookNotesMatch[1];
-        const body = await request.json().catch(() => null);
-        if (!body || !body.cfi) {
-          return jsonResponse({ error: "cfi is required" }, 400, apiCorsHeaders);
-        }
-
-        // Get user's display name
-        const { data: profile } = await sbFetch("user_profiles", {
-          params: `id=eq.${user.sub}&select=display_name`,
-          single: true,
-        });
-        const displayName = profile?.display_name || user.email || "Anonymous";
-
-        const { data, error } = await sbFetch("notes", {
-          method: "POST",
-          body: {
-            book_id: bookId,
-            author_user_id: user.sub,
-            author_display_name: displayName,
-            anchor_cfi: body.cfi,
-            anchor_href: body.href || null,
-            quote: body.quote || "",
-            note_text: body.comment || body.note_text || "",
-            visibility: body.visibility || "private",
-          },
-          single: true,
-        });
-        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
-        return jsonResponse(data, 201, apiCorsHeaders);
-      }
-
-      // ── PATCH /v1/notes/:id — update a note ──
-      const noteMatch = apiPath.match(/^\/notes\/([0-9a-f-]+)$/);
-      if (noteMatch && request.method === "PATCH") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const noteId = noteMatch[1];
-        const body = await request.json().catch(() => null);
-        if (!body) return jsonResponse({ error: "Invalid JSON" }, 400, apiCorsHeaders);
-
-        const allowed = ["note_text", "quote", "visibility"];
-        const updates = {};
-        for (const key of allowed) {
-          if (body[key] !== undefined) updates[key] = body[key];
-        }
-        // Also accept "comment" as alias for note_text
-        if (body.comment !== undefined && !updates.note_text) updates.note_text = body.comment;
-
-        if (!Object.keys(updates).length) {
-          return jsonResponse({ error: "No fields to update" }, 400, apiCorsHeaders);
-        }
-
-        const { data, error } = await sbFetch("notes", {
-          method: "PATCH",
-          params: `id=eq.${noteId}&author_user_id=eq.${user.sub}&select=*`,
-          body: updates,
-          single: true,
-        });
-        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
-        if (!data) return jsonResponse({ error: "Note not found" }, 404, apiCorsHeaders);
-        return jsonResponse(data, 200, apiCorsHeaders);
-      }
-
-      // ── DELETE /v1/notes/:id — delete a note ──
-      if (noteMatch && request.method === "DELETE") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const noteId = noteMatch[1];
-        await sbFetch("notes", {
-          method: "DELETE",
-          params: `id=eq.${noteId}&author_user_id=eq.${user.sub}`,
-        });
-        return jsonResponse({ deleted: true }, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/me/notes — all notes by current user ──
-      if (apiPath === "/me/notes" && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const { data, error } = await sbFetch("notes", {
-          params: `author_user_id=eq.${user.sub}&select=*,books:book_id(id,title,author,content_id,cover_url)&order=created_at.desc`,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-        return jsonResponse(data || [], 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/books/by-content/:contentId/notes — get notes by content_id ──
-      const contentNotesMatch = apiPath.match(/^\/books\/by-content\/(\d+)\/notes$/);
-      if (contentNotesMatch && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const contentId = contentNotesMatch[1];
-        // Look up book UUID from content_id
-        const { data: book } = await sbFetch("books", {
-          params: `content_id=eq.${contentId}&select=id`,
-          single: true,
-        });
-        if (!book) return jsonResponse([], 200, apiCorsHeaders);
-        const { data, error } = await sbFetch("notes", {
-          params: `book_id=eq.${book.id}&author_user_id=eq.${user.sub}&select=*&order=created_at`,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-        return jsonResponse(data || [], 200, apiCorsHeaders);
-      }
-
-      // ── POST /v1/books/by-content/:contentId/notes — create note by content_id ──
-      if (contentNotesMatch && request.method === "POST") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const contentId = contentNotesMatch[1];
-        const { data: book } = await sbFetch("books", {
-          params: `content_id=eq.${contentId}&select=id`,
-          single: true,
-        });
-        if (!book) return jsonResponse({ error: "Book not found" }, 404, apiCorsHeaders);
-
-        const body = await request.json().catch(() => null);
-        if (!body || !body.cfi) {
-          return jsonResponse({ error: "cfi is required" }, 400, apiCorsHeaders);
-        }
-
-        const { data: profile } = await sbFetch("user_profiles", {
-          params: `id=eq.${user.sub}&select=display_name`,
-          single: true,
-        });
-        const displayName = profile?.display_name || user.email || "Anonymous";
-
-        const { data, error } = await sbFetch("notes", {
-          method: "POST",
-          body: {
-            book_id: book.id,
-            author_user_id: user.sub,
-            author_display_name: displayName,
-            anchor_cfi: body.cfi,
-            anchor_href: body.href || null,
-            quote: body.quote || "",
-            note_text: body.comment || body.note_text || "",
-            visibility: body.visibility || "private",
-          },
-          single: true,
-        });
-        if (error) return jsonResponse({ error }, 400, apiCorsHeaders);
-        return jsonResponse(data, 201, apiCorsHeaders);
-      }
-
-      // ── POST /v1/note-packages — create a note package ──
-      if (apiPath === "/note-packages" && request.method === "POST") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const body = await request.json().catch(() => null);
-        if (!body || !Array.isArray(body.note_ids) || !body.note_ids.length) {
-          return jsonResponse({ error: "note_ids array is required" }, 400, apiCorsHeaders);
-        }
-
-        // Verify all notes belong to the user
-        const noteIdList = body.note_ids.map(id => `"${id}"`).join(",");
-        const { data: notes } = await sbFetch("notes", {
-          params: `id=in.(${noteIdList})&author_user_id=eq.${user.sub}&select=id,book_id`,
-        });
-        if (!notes || notes.length !== body.note_ids.length) {
-          return jsonResponse({ error: "Some notes not found or not owned by you" }, 400, apiCorsHeaders);
-        }
-
-        // Determine book_id (single book if all notes are from same book)
-        const bookIds = [...new Set(notes.map(n => n.book_id))];
-        const packageType = bookIds.length === 1 ? "single_book" : "multi_book";
-        const bookId = bookIds.length === 1 ? bookIds[0] : null;
-
-        // Create package
-        const { data: pkg, error: pkgErr } = await sbFetch("note_packages", {
-          method: "POST",
-          body: {
-            created_by: user.sub,
-            title: body.title || null,
-            book_id: bookId,
-            package_type: packageType,
-            audience_scope: body.audience_scope || "anyone",
-          },
-          single: true,
-        });
-        if (pkgErr) return jsonResponse({ error: pkgErr }, 400, apiCorsHeaders);
-
-        // Add items to package
-        for (let i = 0; i < body.note_ids.length; i++) {
-          await sbFetch("note_package_items", {
-            method: "POST",
-            body: { package_id: pkg.id, note_id: body.note_ids[i], display_order: i },
-          });
-        }
-
-        // Update note visibility to 'package'
-        for (const noteId of body.note_ids) {
-          await sbFetch("notes", {
-            method: "PATCH",
-            params: `id=eq.${noteId}&author_user_id=eq.${user.sub}`,
-            body: { visibility: "package" },
-          });
-        }
-
-        return jsonResponse({
-          packageId: pkg.id,
-          shareToken: pkg.share_token,
-          shareUrl: `/notes/${pkg.share_token}`,
-        }, 201, apiCorsHeaders);
-      }
-
-      // ── GET /v1/note-packages/:token — get package by share token (public) ──
-      const pkgTokenMatch = apiPath.match(/^\/note-packages\/([a-f0-9]{24})$/);
-      if (pkgTokenMatch && request.method === "GET") {
-        const token = pkgTokenMatch[1];
-        const { data: pkg } = await sbFetch("note_packages", {
-          params: `share_token=eq.${token}&select=*`,
-          single: true,
-        });
-        if (!pkg) return jsonResponse({ error: "Package not found" }, 404, apiCorsHeaders);
-
-        // Check expiry
-        if (pkg.share_link_expires_at && new Date(pkg.share_link_expires_at) < new Date()) {
-          return jsonResponse({ error: "Share link has expired" }, 410, apiCorsHeaders);
-        }
-
-        // Fetch package items with notes
-        const { data: items } = await sbFetch("note_package_items", {
-          params: `package_id=eq.${pkg.id}&select=display_order,notes:note_id(id,anchor_cfi,anchor_href,quote,note_text,author_display_name,author_user_id,created_at)&order=display_order`,
-        });
-
-        // Fetch book info if single-book package
-        let book = null;
-        if (pkg.book_id) {
-          const { data: bookData } = await sbFetch("books", {
-            params: `id=eq.${pkg.book_id}&select=id,title,author,cover_url,content_id,annotation`,
-            single: true,
-          });
-          book = bookData;
-        }
-
-        // Fetch creator info
-        const { data: creator } = await sbFetch("user_profiles", {
-          params: `id=eq.${pkg.created_by}&select=display_name,avatar_url`,
-          single: true,
-        });
-
-        // Track recipient if authenticated
-        if (user && user.sub !== pkg.created_by) {
-          await sbFetch("note_package_recipients", {
-            method: "POST",
-            body: { package_id: pkg.id, recipient_user_id: user.sub },
-          }).catch(() => {}); // Ignore duplicate
-        }
-
-        return jsonResponse({
-          id: pkg.id,
-          title: pkg.title,
-          shareToken: pkg.share_token,
-          packageType: pkg.package_type,
-          createdAt: pkg.created_at,
-          creator: creator ? { displayName: creator.display_name, avatarUrl: creator.avatar_url } : null,
-          book,
-          notes: (items || []).map(item => item.notes).filter(Boolean),
-        }, 200, apiCorsHeaders);
-      }
-
-      // ── GET /v1/me/note-packages — list user's packages ──
-      if (apiPath === "/me/note-packages" && request.method === "GET") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const { data, error } = await sbFetch("note_packages", {
-          params: `created_by=eq.${user.sub}&select=*&order=created_at.desc`,
-        });
-        if (error) return jsonResponse({ error }, 500, apiCorsHeaders);
-        return jsonResponse(data || [], 200, apiCorsHeaders);
-      }
-
-      // ── DELETE /v1/note-packages/:id — delete package ──
-      const pkgIdMatch = apiPath.match(/^\/note-packages\/([0-9a-f-]{36})$/i);
-      if (pkgIdMatch && request.method === "DELETE") {
-        const authErr = requireAuth();
-        if (authErr) return authErr;
-        const pkgId = pkgIdMatch[1];
-        await sbFetch("note_package_items", { method: "DELETE", params: `package_id=eq.${pkgId}` });
-        await sbFetch("note_package_recipients", { method: "DELETE", params: `package_id=eq.${pkgId}` });
-        await sbFetch("note_packages", { method: "DELETE", params: `id=eq.${pkgId}&created_by=eq.${user.sub}` });
-        return jsonResponse({ deleted: true }, 200, apiCorsHeaders);
-      }
 
       // ── Fallback: route not found ──
       return jsonResponse({ error: "Not found" }, 404, apiCorsHeaders);
@@ -4843,6 +3633,14 @@ export default {
       let object = await env.READER_BOOKS.get(decodedKey);
       if (!object && rawKey !== decodedKey) {
         object = await env.READER_BOOKS.get(rawKey);
+      }
+      const lowerDecodedKey = decodedKey.toLocaleLowerCase();
+      const lowerRawKey = rawKey.toLocaleLowerCase();
+      if (!object && lowerDecodedKey !== decodedKey && lowerDecodedKey !== rawKey) {
+        object = await env.READER_BOOKS.get(lowerDecodedKey);
+      }
+      if (!object && lowerRawKey !== rawKey && lowerRawKey !== decodedKey && lowerRawKey !== lowerDecodedKey) {
+        object = await env.READER_BOOKS.get(lowerRawKey);
       }
       if (!object) {
         const headers = new Headers({
@@ -4892,6 +3690,48 @@ export default {
       return new Response(object.body, { headers });
     }
 
+    if (decodedPath.startsWith("/books/protected-content/")) {
+      if (!env.READER_BOOKS) {
+        return proxyReaderBooksUpstream(request, path, "proxy-reader-books-protected-content");
+      }
+      const decodedKey = `protected-content/${decodedPath.slice("/books/protected-content/".length)}`;
+      const rawKey = `protected-content/${path.slice("/books/protected-content/".length)}`;
+      let object = await env.READER_BOOKS.get(decodedKey);
+      if (!object && rawKey !== decodedKey) {
+        object = await env.READER_BOOKS.get(rawKey);
+      }
+      if (!object) {
+        const headers = new Headers({
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*",
+        });
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "r2-protected-content-miss");
+        return new Response("Not found", { status: 404, headers });
+      }
+      const headers = new Headers({
+        "content-type": contentTypeFromR2Key(decodedKey),
+        "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+        "cdn-cache-control": "no-store",
+        "cloudflare-cdn-cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, HEAD, OPTIONS",
+        "access-control-allow-headers": "content-type",
+      });
+      try {
+        object.writeHttpMetadata(headers);
+      } catch (error) {}
+      headers.set("etag", object.httpEtag);
+      headers.set("x-reader-worker", "1");
+      headers.set("x-reader-route", "r2-protected-content");
+      return new Response(object.body, { headers });
+    }
+
+    if (decodedPath.startsWith("/books/protected-content-v4/") && !env.READER_BOOKS) {
+      return proxyReaderBooksUpstream(request, path, "proxy-reader-books-protected-content-v4");
+    }
+
     if (path === "/books/ping") {
       const headers = new Headers({
         "content-type": "text/plain; charset=utf-8",
@@ -4935,20 +3775,35 @@ export default {
     }
 
     // Normalize reader/catalog roots to trailing-slash form to avoid 404 on some routes.
-    if (path === "/books/reader" || path === "/books/catalog") {
-      const headers = new Headers({ location: `${path}/` });
+    if (
+      path === "/books/reader" ||
+      path === "/books/reader_new" ||
+      path === "/books/reader_new_v5" ||
+      path === "/books/protected" ||
+      path === "/books/reader_new_v4" ||
+      path === "/books/reader1" ||
+      path === "/books/catalog"
+    ) {
+      const headers = new Headers({ location: `${path}/${url.search || ""}` });
       headers.set("x-reader-worker", "1");
       headers.set("x-reader-route", "slash-redirect");
       return new Response(null, { status: 302, headers });
     }
 
-    // Rewrite /books/reader/* to /reader/* so it works without the router
+    let assetRequest = request;
+    let assetPath = path;
+
+    // Rewrite /books/reader/* to /reader/* so it works without the router,
+    // while still applying the standard response headers and HTML rewriting.
     if (path.startsWith("/books/reader/")) {
-      const rewrittenPath = path.replace(/^\/books\/reader/, "/reader");
+      const rewrittenPath =
+        path === "/books/reader/" || path === "/books/reader/index.html"
+          ? "/reader1/index.html"
+          : path.replace(/^\/books\/reader/, "/reader1");
       const rewrittenUrl = new URL(url);
       rewrittenUrl.pathname = rewrittenPath;
-      const rewrittenRequest = new Request(rewrittenUrl.toString(), request);
-      return env.ASSETS.fetch(rewrittenRequest);
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+      assetPath = rewrittenPath;
     }
 
     const idMatch = path.match(/^\/books\/(\d+)(\/)?$/);
@@ -4962,7 +3817,39 @@ export default {
       return new Response(null, { status: 302, headers });
     }
 
-    const response = await env.ASSETS.fetch(request);
+    if (path === "/books/reader_new/" || path === "/books/reader_new/index.html" || path.startsWith("/books/reader_new/css/") || path.startsWith("/books/reader_new/js/") || path.startsWith("/books/reader_new/icons/") || path.startsWith("/books/reader_new/fonts/") || path.startsWith("/books/reader_new/img/")) {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname =
+        path === "/books/reader_new/" || path === "/books/reader_new/index.html"
+          ? "/reader/reader_new.html"
+          : path.replace(/^\/books\/reader_new/, "/books/reader");
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+      assetPath = rewrittenUrl.pathname;
+    } else if (path === "/books/reader_new_v4/" || path === "/books/reader_new_v4/index.html") {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname = "/reader/reader_new_v4.html";
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+      assetPath = rewrittenUrl.pathname;
+    } else if (path === "/books/reader_new_v5/" || path === "/books/reader_new_v5/index.html" || path === "/books/protected/" || path === "/books/protected/index.html") {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname = "/reader/reader_new_v5.html";
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+      assetPath = rewrittenUrl.pathname;
+    } else if (path.startsWith("/books/protected/css/") || path.startsWith("/books/protected/js/") || path.startsWith("/books/protected/icons/") || path.startsWith("/books/protected/font/") || path.startsWith("/books/protected/fonts/") || path.startsWith("/books/protected/img/")) {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname = path.replace(/^\/books\/protected/, "/reader");
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+      assetPath = rewrittenUrl.pathname;
+    } else if (path === "/reader_new/" || path === "/reader_new/index.html" || path.startsWith("/reader_new/css/") || path.startsWith("/reader_new/js/") || path.startsWith("/reader_new/icons/") || path.startsWith("/reader_new/fonts/") || path.startsWith("/reader_new/img/")) {
+      const rewrittenUrl = new URL(request.url);
+      rewrittenUrl.pathname =
+        path === "/reader_new/" || path === "/reader_new/index.html"
+          ? "/reader/reader_new.html"
+          : path.replace(/^\/reader_new/, "/reader");
+      assetRequest = new Request(rewrittenUrl.toString(), request);
+      assetPath = rewrittenUrl.pathname;
+    }
+    const response = await env.ASSETS.fetch(assetRequest);
     const headers = new Headers(response.headers);
     const isCatalogHtml =
       path === "/books" || path === "/books/" || path === "/books/index.html";
@@ -4972,7 +3859,41 @@ export default {
       path.startsWith("/books/reader/css/") ||
       path.startsWith("/books/reader/js/") ||
       path.startsWith("/books/reader/icons/") ||
-      path.startsWith("/books/reader/fonts/");
+      path.startsWith("/books/reader/fonts/") ||
+      path.startsWith("/books/reader/img/") ||
+      assetPath === "/reader/" ||
+      assetPath === "/reader/index.html" ||
+      assetPath.startsWith("/reader/css/") ||
+      assetPath.startsWith("/reader/js/") ||
+      assetPath.startsWith("/reader/icons/") ||
+      assetPath.startsWith("/reader/fonts/") ||
+      assetPath.startsWith("/reader/img/") ||
+      path === "/books/reader_new/" ||
+      path === "/books/reader_new/index.html" ||
+      path.startsWith("/books/reader_new/css/") ||
+      path.startsWith("/books/reader_new/js/") ||
+      path.startsWith("/books/reader_new/icons/") ||
+      path.startsWith("/books/reader_new/fonts/") ||
+      path.startsWith("/books/reader_new/img/") ||
+      path === "/books/reader_new_v4/" ||
+      path === "/books/reader_new_v4/index.html" ||
+      path === "/books/reader_new_v5/" ||
+      path === "/books/reader_new_v5/index.html" ||
+      path === "/books/protected/" ||
+      path === "/books/protected/index.html" ||
+      path.startsWith("/books/protected/css/") ||
+      path.startsWith("/books/protected/js/") ||
+      path.startsWith("/books/protected/icons/") ||
+      path.startsWith("/books/protected/font/") ||
+      path.startsWith("/books/protected/fonts/") ||
+      path.startsWith("/books/protected/img/") ||
+      path === "/books/reader1/" ||
+      path === "/books/reader1/index.html" ||
+      path.startsWith("/books/reader1/css/") ||
+      path.startsWith("/books/reader1/js/") ||
+      path.startsWith("/books/reader1/icons/") ||
+      path.startsWith("/books/reader1/fonts/") ||
+      path.startsWith("/books/reader1/img/");
     const isAuthPath =
       path.startsWith("/books/auth/");
     const isDocsPath = path === "/docs/" || path.startsWith("/docs/");

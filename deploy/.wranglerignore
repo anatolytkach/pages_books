@@ -3,3 +3,8 @@ books/content/*.py
 books/content/terminal.txt
 books/content/.epub_build_tmp
 books/content/.epub_build_tmp/**
+books/gutenberg_protected_epub3_sources/**
+reader_render_v5/node_modules
+reader_render_v5/node_modules/**
+reader_render_v5/artifacts/protected-books/**
+reader_render_v5/artifacts/protected-bootstrap-books/**

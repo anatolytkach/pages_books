@@ -1269,6 +1269,7 @@
 
     // Expose for deep-linking (e.g., ?mybooks=1)
     window.__fbOpenOverlay = open;
+    window.__fbCloseOverlays = closeAll;
     try {
       var p = new URLSearchParams(window.location.search || "");
       var wantMyBooks = (p.get("mybooks") === "1" || p.get("mybooks") === "true");
@@ -5053,11 +5054,16 @@
       return words.join(" ");
     }
 
-    function close() {
+    function close(reason) {
       sheet.classList.add("hidden");
       backdrop.classList.add("hidden");
       input.value = "";
       pending = null;
+      try {
+        if (typeof window.__fbOnNoteCommentClosed === "function") {
+          window.__fbOnNoteCommentClosed({ reason: String(reason || "close") });
+        }
+      } catch (e) {}
     }
 
     function open(payload) {
@@ -5080,7 +5086,7 @@
 
     function save() {
       if (!pending) {
-        close();
+        close("empty-save");
         return;
       }
       var comment = sanitize(input.value);
@@ -5091,7 +5097,7 @@
         comment: comment
       };
       if (data.cfi && window.__fbAddNote) window.__fbAddNote(data);
-      close();
+      close("save");
     }
 
     input.addEventListener("input", function () {
@@ -5101,8 +5107,8 @@
       }
     });
     saveBtn.addEventListener("click", function (e) { if (e) e.preventDefault(); save(); });
-    cancelBtn.addEventListener("click", function (e) { if (e) e.preventDefault(); close(); });
-    backdrop.addEventListener("click", function () { close(); });
+    cancelBtn.addEventListener("click", function (e) { if (e) e.preventDefault(); close("cancel"); });
+    backdrop.addEventListener("click", function () { close("backdrop"); });
 
     window.__fbOpenNoteComment = function (payload) {
       open(payload || {});
@@ -7147,7 +7153,7 @@
 
   waitForReader().then(function (reader) {
     // Desktop: bars must always be visible. Mobile: start hidden (FBReader-like).
-    if (window.__fb_isDesktop) {
+    if (window.__fb_isDesktop || window.__readerpubAutostart) {
       showUi();
     } else {
       hideUi();

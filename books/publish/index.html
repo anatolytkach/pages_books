@@ -93,6 +93,73 @@
         margin-bottom: 24px;
       }
 
+      .workflow-steps {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin: 0 0 20px;
+      }
+
+      .workflow-step {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: #fff;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .workflow-step-number {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid currentColor;
+        font-weight: 700;
+        flex: 0 0 24px;
+      }
+
+      .workflow-step.active {
+        color: var(--accent);
+        border-color: rgba(2, 143, 128, 0.35);
+        background: rgba(2, 143, 128, 0.06);
+      }
+
+      .workflow-step.complete {
+        color: var(--ink);
+      }
+
+      .section-block {
+        margin-bottom: 24px;
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.8);
+      }
+
+      .section-block:last-child {
+        margin-bottom: 0;
+      }
+
+      .section-title {
+        margin: 0 0 14px;
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .section-note {
+        margin: -6px 0 14px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
       /* ── Buttons ──────────────────────────── */
       .btn {
         display: inline-flex;
@@ -155,6 +222,39 @@
 
       .upload-zone input[type="file"] { display: none; }
 
+      .upload-selection {
+        margin-top: 12px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: #fff;
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .upload-selection.visible {
+        display: flex;
+      }
+
+      .upload-selection-meta {
+        min-width: 0;
+      }
+
+      .upload-selection-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+        word-break: break-word;
+      }
+
+      .upload-selection-subtitle {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+
       /* ── Progress ─────────────────────────── */
       .progress-wrap {
         display: none;
@@ -182,6 +282,81 @@
         font-size: 13px;
         color: var(--muted);
         margin-top: 6px;
+      }
+
+      .progress-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .progress-title {
+        font-family: "Playfair Display", "Times New Roman", serif;
+        font-size: 22px;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .progress-note {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0 0 14px;
+      }
+
+      .progress-stage-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 12px;
+        margin: 14px 0 0;
+      }
+
+      .progress-stage {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: #f7f4ef;
+        color: #a09990;
+      }
+
+      .progress-stage-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 1.5px solid currentColor;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 24px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .progress-stage-label {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .progress-stage.completed {
+        background: #e8f8f5;
+        color: var(--success);
+        border-color: #a3d9d0;
+      }
+
+      .progress-stage.current {
+        background: rgba(2, 143, 128, 0.08);
+        color: var(--accent-2);
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(2, 143, 128, 0.15);
+      }
+
+      .progress-stage.failed {
+        background: #fdf0ef;
+        color: var(--error);
+        border-color: #f5c6cb;
       }
 
       /* ── Status badges ────────────────────── */
@@ -275,10 +450,59 @@
         border-radius: var(--radius-md);
       }
 
+      .tenant-picker input[readonly] {
+        width: 100%;
+        padding: 10px 14px;
+        font-family: inherit;
+        font-size: 15px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: #f7f4ee;
+        color: var(--ink);
+      }
+
       .tenant-help {
         margin-top: 8px;
         font-size: 13px;
         color: var(--muted);
+      }
+
+      .choice-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        align-items: center;
+        min-height: 44px;
+      }
+
+      .choice-row label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .choice-row input[type="checkbox"],
+      .choice-row input[type="radio"] {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+      }
+
+      .upload-config-panel.hidden,
+      .upload-progress-panel.hidden,
+      .upload-cover-group.hidden {
+        display: none;
+      }
+
+      .upload-progress-panel {
+        display: none;
+      }
+
+      .upload-progress-panel.visible {
+        display: block;
       }
 
       /* ── Book list ────────────────────────── */
@@ -327,6 +551,25 @@
       .book-item-info .meta {
         font-size: 13px;
         color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .book-item-info .workflow-meta {
+        font-size: 13px;
+        color: var(--ink);
+      }
+
+      .book-item-info .workflow-action {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 8px;
+        padding: 4px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 600;
       }
 
       .empty-state {
@@ -399,6 +642,14 @@
         .form-row { grid-template-columns: 1fr; }
         .book-item { grid-template-columns: 48px 1fr; }
         .book-item .status-badge { grid-column: 1 / -1; }
+        .workflow-steps { grid-template-columns: 1fr; }
+        .upload-selection {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .progress-stage-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -420,9 +671,9 @@
       <!-- ── My Books view ──────────────── -->
       <div id="view-list" class="view active">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:8px;">
-          <h2 style="margin:0;" id="booksHeading">Publishing Books</h2>
+          <h2 style="margin:0;" id="booksHeading">Bookshelf</h2>
           <div style="display:flex; gap:8px;">
-            <button class="btn" id="uploadBtn">+ Upload Book</button>
+            <button class="btn" id="uploadBtn">+ Create New Title</button>
           </div>
         </div>
         <div id="publishIntro" style="color:var(--muted); font-size:14px; margin:-4px 0 16px;"></div>
@@ -436,90 +687,214 @@
 
       <!-- ── Upload view ────────────────── -->
       <div id="view-upload" class="view">
-        <h2 id="uploadHeading">Upload Book</h2>
+        <h2 id="uploadHeading">Create New Title</h2>
+        <div class="workflow-steps" id="uploadWorkflowSteps"></div>
         <div class="panel">
-          <div class="tenant-picker">
-            <label for="uploadTenantSelect">Publishing Destination</label>
-            <select id="uploadTenantSelect"></select>
-            <div class="tenant-help" id="uploadTenantHelp"></div>
-          </div>
-          <div class="upload-zone" id="uploadZone">
-            <div class="upload-icon">&#8593;</div>
-            <strong>Drop your file here or click to browse</strong>
-            <p>Accepts .epub files (max 100 MB)<br>DOCX support coming soon</p>
-            <input type="file" id="fileInput" accept=".epub" />
-          </div>
-          <div class="progress-wrap" id="progressWrap">
-            <div class="progress-bar-outer">
-              <div class="progress-bar-inner" id="progressBar"></div>
+          <div class="upload-config-panel" id="uploadConfigPanel">
+            <div class="section-block">
+              <h3 class="section-title">Book Content</h3>
+              <div class="form-group">
+                <label for="uploadSourceFormat">File Type</label>
+                <select id="uploadSourceFormat">
+                  <option value="epub">EPUB</option>
+                  <option value="docx">DOC</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Protect Content</label>
+                <div class="choice-row">
+                  <label for="uploadProtectContent">
+                    <input type="checkbox" id="uploadProtectContent" checked />
+                    Convert this upload to protected reading format
+                  </label>
+                </div>
+                <div class="tenant-help">Protected books are prepared in reader-ready format before you review pricing and publish.</div>
+              </div>
+              <div class="form-group upload-cover-group hidden" id="uploadCoverGroup">
+                <label for="coverInput">Cover Page *</label>
+                <input type="file" id="coverInput" accept=".png,.jpg,.jpeg,.webp,.gif" />
+                <div class="tenant-help" id="uploadCoverHelp">Required for DOC uploads. Use a raster image such as PNG or JPEG.</div>
+              </div>
+              <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">&#8593;</div>
+                <strong>Drop your manuscript here or click to browse</strong>
+                <p id="uploadFormatHelp">Accepts .epub files (max 100 MB).</p>
+                <input type="file" id="fileInput" accept=".epub" />
+              </div>
+              <div class="upload-selection" id="uploadSelection">
+                <div class="upload-selection-meta">
+                  <div class="upload-selection-title" id="uploadSelectionName">No file selected</div>
+                  <div class="upload-selection-subtitle" id="uploadSelectionMeta">Choose a file to upload.</div>
+                </div>
+                <button type="button" class="btn btn-secondary" id="changeUploadFileBtn">Change File</button>
+              </div>
             </div>
-            <div class="progress-text" id="progressText">Uploading...</div>
+
+            <div class="section-block">
+              <h3 class="section-title">Book Details</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="uploadTitle">Title *</label>
+                  <input type="text" id="uploadTitle" required />
+                </div>
+                <div class="form-group">
+                  <label for="uploadAuthor">Author *</label>
+                  <input type="text" id="uploadAuthor" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="uploadGenre">Genre *</label>
+                  <select id="uploadGenre" required>
+                    <option value="">Select genre...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="uploadYear">Year Written *</label>
+                  <input type="number" id="uploadYear" min="1" max="2030" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="uploadIsbn">ISBN</label>
+                  <input type="text" id="uploadIsbn" />
+                </div>
+                <div class="form-group">
+                  <label for="uploadLanguage">Language</label>
+                  <input type="text" id="uploadLanguage" value="en" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="uploadAnnotation">Annotation *</label>
+                <textarea id="uploadAnnotation" required placeholder="Describe this book..."></textarea>
+              </div>
+            </div>
+
+            <div class="section-block">
+              <h3 class="section-title">Publishing Rights</h3>
+              <div class="tenant-picker">
+                <label for="uploadTenantSelect">Publishing Source</label>
+                <select id="uploadTenantSelect"></select>
+                <input type="text" id="uploadTenantDisplay" readonly style="display:none;" />
+                <div class="tenant-help" id="uploadTenantHelp"></div>
+              </div>
+              <div class="form-group">
+                <label>Visibility</label>
+                <div class="choice-row">
+                  <label for="uploadVisibilityPublic">
+                    <input type="radio" name="uploadVisibility" id="uploadVisibilityPublic" value="public" checked />
+                    Public
+                  </label>
+                  <label for="uploadVisibilityMemberOnly">
+                    <input type="radio" name="uploadVisibility" id="uploadVisibilityMemberOnly" value="tenant_only" />
+                    Member Only
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn" id="startUploadBtn" disabled>Upload and Continue</button>
+            </div>
+          </div>
+          <div class="upload-progress-panel" id="uploadProgressPanel">
+            <div class="progress-header">
+              <span class="spinner dark" id="progressSpinner"></span>
+              <h3 class="progress-title">Preparing Draft</h3>
+            </div>
+            <div class="tenant-help" id="uploadProgressMeta"></div>
+            <p class="progress-note">This may take a few minutes. You can leave this page at any time.</p>
+            <div class="progress-wrap" id="progressWrap">
+              <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="progressBar"></div>
+              </div>
+              <div class="progress-text" id="progressText">Preparing manuscript...</div>
+            </div>
+            <div class="progress-stage-grid" id="progressStageGrid"></div>
           </div>
         </div>
-        <button class="btn btn-secondary" id="backToList">&larr; Back to My Books</button>
+        <button class="btn btn-secondary" id="backToList">&larr; Back to Bookshelf</button>
       </div>
 
 
       <!-- ── Edit metadata view ─────────── -->
       <div id="view-edit" class="view">
-        <h2>Book Details</h2>
+        <h2>Review and Publish</h2>
+        <div class="workflow-steps" id="editWorkflowSteps"></div>
         <div id="editAlert" class="alert"></div>
         <div class="panel">
           <div id="bookStatus"></div>
-          <div class="tenant-picker">
-            <label for="editTenantSelect">Publishing Destination</label>
-            <select id="editTenantSelect"></select>
-            <div class="tenant-help" id="editTenantHelp"></div>
-          </div>
           <form id="metadataForm">
-            <div class="form-group">
-              <label for="meta-visibility">Visibility</label>
-              <select id="meta-visibility">
-                <option value="public">Public</option>
-                <option value="tenant_only">Organization only</option>
-              </select>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="meta-title">Title *</label>
-                <input type="text" id="meta-title" required />
+            <div class="section-block">
+              <h3 class="section-title">Book Details</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="meta-title">Title *</label>
+                  <input type="text" id="meta-title" required />
+                </div>
+                <div class="form-group">
+                  <label for="meta-author">Author *</label>
+                  <input type="text" id="meta-author" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="meta-genre">Genre *</label>
+                  <select id="meta-genre" required>
+                    <option value="">Select genre...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="meta-year">Year Written *</label>
+                  <input type="number" id="meta-year" min="1" max="2030" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="meta-isbn">ISBN</label>
+                  <input type="text" id="meta-isbn" />
+                </div>
+                <div class="form-group">
+                  <label for="meta-language">Language</label>
+                  <input type="text" id="meta-language" value="en" />
+                </div>
               </div>
               <div class="form-group">
-                <label for="meta-author">Author *</label>
-                <input type="text" id="meta-author" required />
+                <label for="meta-annotation">Annotation *</label>
+                <textarea id="meta-annotation" required placeholder="Describe this book..."></textarea>
               </div>
             </div>
-            <div class="form-row">
+            <div class="section-block">
+              <h3 class="section-title">Rights &amp; Pricing</h3>
+              <p class="section-note">Set where this title will be published, who can access it, and review pricing options below when they become available.</p>
+              <div class="tenant-picker">
+                <label for="editTenantSelect">Publishing Destination</label>
+                <select id="editTenantSelect"></select>
+                <div class="tenant-help" id="editTenantHelp"></div>
+              </div>
               <div class="form-group">
-                <label for="meta-genre">Genre *</label>
-                <select id="meta-genre" required>
-                  <option value="">Select genre...</option>
+                <label for="meta-reader-type">Reader Type</label>
+                <select id="meta-reader-type">
+                  <option value="legacy">Standard</option>
+                  <option value="protected">Protected</option>
                 </select>
               </div>
               <div class="form-group">
-                <label for="meta-year">Year Written *</label>
-                <input type="number" id="meta-year" min="1" max="2030" required />
+                <label for="meta-visibility">Visibility</label>
+                <select id="meta-visibility">
+                  <option value="public">Public</option>
+                  <option value="tenant_only">Organization only</option>
+                </select>
               </div>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="meta-isbn">ISBN</label>
-                <input type="text" id="meta-isbn" />
+            <div class="section-block">
+              <h3 class="section-title">Publish</h3>
+              <div class="form-actions">
+                <button type="button" class="btn" id="saveMetaBtn">Save</button>
+                <button type="button" class="btn" id="publishBtn" disabled>Publish</button>
+                <button type="button" class="btn btn-secondary" id="backFromEdit">&larr; Back</button>
+                <button type="button" class="btn" id="deleteBtn" style="display:none;background:var(--error);border-color:var(--error);margin-left:auto;">Delete</button>
               </div>
-              <div class="form-group">
-                <label for="meta-language">Language</label>
-                <input type="text" id="meta-language" value="en" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="meta-annotation">Annotation *</label>
-              <textarea id="meta-annotation" required placeholder="Describe this book..."></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn" id="saveMetaBtn">Save</button>
-              <button type="button" class="btn" id="publishBtn" disabled>Publish</button>
-              <button type="button" class="btn btn-secondary" id="backFromEdit">&larr; Back</button>
-              <button type="button" class="btn" id="deleteBtn" style="display:none;background:var(--error);border-color:var(--error);margin-left:auto;">Delete</button>
             </div>
           </form>
         </div>
@@ -527,7 +902,7 @@
 
         <!-- Offers section (visible for published/ready books) -->
         <div id="offersSection" class="panel" style="display:none">
-          <h3 style="font-family:'Playfair Display',serif; margin:0 0 16px;">Pricing</h3>
+          <h3 style="font-family:'Playfair Display',serif; margin:0 0 16px;">Rights &amp; Pricing</h3>
           <div id="offersList"></div>
           <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
             <strong style="font-size:14px; color:var(--muted);">Add Offer</strong>
@@ -623,6 +998,38 @@
       const PERSONAL_PUBLISH_TARGET = '__personal__';
       let selectedUploadTenantId = '';
       let selectedEditTenantId = '';
+      const PUBLISHING_WORKFLOW_STEPS = [
+        { key: 'content', label: 'Content' },
+        { key: 'details', label: 'Details' },
+        { key: 'pricing', label: 'Pricing' },
+        { key: 'publish', label: 'Publish' },
+      ];
+
+      function getBookReaderType(book) {
+        const manifest = book && book.manifest && typeof book.manifest === 'object' ? book.manifest : {};
+        const protectedState = manifest.protected && typeof manifest.protected === 'object' ? manifest.protected : {};
+        const raw = String(manifest.readerType || manifest.reader_type || (protectedState.enabled ? 'protected' : 'legacy')).trim().toLowerCase();
+        return raw === 'protected' ? 'protected' : 'legacy';
+      }
+
+      function renderWorkflowSteps(targetId, currentStepKey) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const currentIndex = Math.max(0, PUBLISHING_WORKFLOW_STEPS.findIndex((step) => step.key === currentStepKey));
+        target.innerHTML = PUBLISHING_WORKFLOW_STEPS.map((step, index) => {
+          const classes = ['workflow-step'];
+          if (index < currentIndex) classes.push('complete');
+          if (index === currentIndex) classes.push('active');
+          return `<div class="${classes.join(' ')}"><span class="workflow-step-number">${index + 1}</span><span>${esc(step.label)}</span></div>`;
+        }).join('');
+      }
+
+      function getEditorWorkflowStep(book) {
+        const status = String(book?.status || '').trim().toLowerCase();
+        if (status === 'published') return 'publish';
+        if (status === 'ready') return 'pricing';
+        return 'details';
+      }
 
       function applyPublishingModeCopy() {
         const heading = document.getElementById('booksHeading');
@@ -633,17 +1040,17 @@
         if (!heading || !intro || !uploadHeading || !uploadBtn) return;
 
         if (platformAccess.is_superuser) {
-          heading.textContent = 'Publishing Books';
-          uploadHeading.textContent = 'Upload Book';
-          uploadBtn.textContent = '+ Upload Book';
-          intro.textContent = 'You can publish here either to your personal manual path or to an organization you administer.';
+          heading.textContent = 'Bookshelf';
+          uploadHeading.textContent = 'Create New Title';
+          uploadBtn.textContent = '+ Create New Title';
+          intro.textContent = 'Manage draft and published titles here. Create a new title to upload your manuscript and move it into review.';
           return;
         }
 
-        heading.textContent = 'Publishing Books';
-        uploadHeading.textContent = 'Upload Book';
-        uploadBtn.textContent = '+ Upload Book';
-        intro.textContent = 'You can publish here to an allowed organization or self-publisher destination. Personal publishing is not available on this account.';
+        heading.textContent = 'Bookshelf';
+        uploadHeading.textContent = 'Create New Title';
+        uploadBtn.textContent = '+ Create New Title';
+        intro.textContent = 'Manage your drafts here, then review details, pricing, and publish to an allowed organization or self-publisher destination.';
       }
 
       function organizationLabel(item) {
@@ -654,21 +1061,32 @@
       }
 
       function getTenantById(tenantId) {
-        return publishingOrganizations.find((item) => String(item.tenant_id || '') === String(tenantId || '')) || null;
+        return publishingOrganizations.find((item) => {
+          const optionTenantId = String(item.tenant_id || '');
+          const nestedTenantId = String(item?.tenant?.id || '');
+          const requested = String(tenantId || '');
+          return optionTenantId === requested || nestedTenantId === requested;
+        }) || null;
       }
 
       function populateTenantSelect(selectId, helpId, selectedId) {
         const select = document.getElementById(selectId);
         const help = document.getElementById(helpId);
+        const display = document.getElementById(selectId === 'uploadTenantSelect' ? 'uploadTenantDisplay' : '');
         if (!select || !help) return;
+        const useReadOnlyDisplay = selectId === 'uploadTenantSelect' && !platformAccess.is_superuser && publishingOrganizations.length === 1;
         if (!publishingOrganizations.length) {
           if (platformAccess.is_superuser) {
             select.innerHTML = `<option value="${PERSONAL_PUBLISH_TARGET}">Personal publishing</option>`;
             select.disabled = false;
-            help.textContent = 'Books published here will use the manual personal path.';
+            if (display) display.style.display = 'none';
+            select.style.display = '';
+            help.textContent = 'Titles published here will use the manual personal path.';
           } else {
             select.innerHTML = '<option value="">No publishing organizations available</option>';
             select.disabled = true;
+            if (display) display.style.display = 'none';
+            select.style.display = '';
             help.textContent = 'You need organization publishing access before you can upload or publish.';
           }
           return;
@@ -687,9 +1105,20 @@
         })).join('');
         const organization = getTenantById(selectedId || select.value);
         if (String(selectedId || select.value) === PERSONAL_PUBLISH_TARGET) {
-          help.textContent = 'Books published here will use the manual personal path.';
+          help.textContent = 'Titles published here will use the manual personal path.';
         } else {
-          help.textContent = organization ? `Books published here will use source "${organization.tenant?.slug || ''}".` : '';
+          help.textContent = organization ? `Titles published here will use source "${organization.tenant?.slug || ''}".` : '';
+        }
+        if (display) {
+          if (useReadOnlyDisplay) {
+            const selectedOption = select.options[select.selectedIndex];
+            display.value = selectedOption ? selectedOption.textContent : '';
+            display.style.display = '';
+            select.style.display = 'none';
+          } else {
+            display.style.display = 'none';
+            select.style.display = '';
+          }
         }
       }
 
@@ -753,14 +1182,146 @@
         try {
           genres = await apiFetch('GET', '/genres');
         } catch { genres = []; }
-        const sel = document.getElementById('meta-genre');
-        sel.innerHTML = '<option value="">Select genre...</option>';
-        for (const g of genres) {
-          const opt = document.createElement('option');
-          opt.value = g.id;
-          opt.textContent = g.parent_id ? `  ${g.name}` : g.name;
-          sel.appendChild(opt);
+        ['meta-genre', 'uploadGenre'].forEach((id) => {
+          const sel = document.getElementById(id);
+          if (!sel) return;
+          sel.innerHTML = '<option value="">Select genre...</option>';
+          for (const g of genres) {
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            opt.textContent = g.parent_id ? `  ${g.name}` : g.name;
+            sel.appendChild(opt);
+          }
+        });
+      }
+
+      function resetUploadMetadataForm() {
+        document.getElementById('uploadTitle').value = '';
+        document.getElementById('uploadAuthor').value = '';
+        document.getElementById('uploadGenre').value = '';
+        document.getElementById('uploadYear').value = '';
+        document.getElementById('uploadIsbn').value = '';
+        document.getElementById('uploadLanguage').value = 'en';
+        document.getElementById('uploadAnnotation').value = '';
+        document.getElementById('uploadVisibilityPublic').checked = true;
+        document.getElementById('uploadProtectContent').checked = true;
+        document.getElementById('uploadSourceFormat').value = 'epub';
+        document.getElementById('coverInput').value = '';
+      }
+
+      function getUploadFormState() {
+        return {
+          title: document.getElementById('uploadTitle').value.trim(),
+          author: document.getElementById('uploadAuthor').value.trim(),
+          genre_id: document.getElementById('uploadGenre').value,
+          year_written: parseInt(document.getElementById('uploadYear').value, 10) || null,
+          isbn: document.getElementById('uploadIsbn').value.trim() || null,
+          language: document.getElementById('uploadLanguage').value.trim() || 'en',
+          annotation: document.getElementById('uploadAnnotation').value.trim(),
+          visibility: document.querySelector('input[name="uploadVisibility"]:checked')?.value || 'public',
+          reader_type: document.getElementById('uploadProtectContent').checked ? 'protected' : 'legacy',
+          source_format: document.getElementById('uploadSourceFormat').value || 'epub',
+          cover_file: document.getElementById('coverInput').files?.[0] || null,
+        };
+      }
+
+      function validateUploadForm(state) {
+        if (!state.title || !state.author || !state.genre_id || !state.annotation) {
+          return 'Please fill in all required book details before uploading.';
         }
+        if (state.source_format === 'docx' && !state.cover_file) {
+          return 'DOC uploads require a cover page image.';
+        }
+        if (state.source_format === 'docx' && state.reader_type !== 'protected') {
+          return 'DOC uploads currently require Protect Content to stay enabled.';
+        }
+        return '';
+      }
+
+      function hasRequiredBookMetadata(book) {
+        return !!(
+          String(book?.title || '').trim() &&
+          String(book?.author || '').trim() &&
+          String(book?.genre_id || '').trim() &&
+          String(book?.annotation || '').trim()
+        );
+      }
+
+      function hasPricingInfo(book) {
+        if (Array.isArray(book?.offers) && book.offers.length > 0) return true;
+        if (Number(book?.offer_count || 0) > 0) return true;
+        if (Number(book?.active_offer_count || 0) > 0) return true;
+        if (book?.pricing_ready === true) return true;
+        return false;
+      }
+
+      function hasUploadedContent(book) {
+        return !!(
+          String(book?.content_id || '').trim() ||
+          book?.source_asset ||
+          String(book?.source_path || '').trim() ||
+          String(book?.source_url || '').trim()
+        );
+      }
+
+      function deriveWorkflowStage(book) {
+        const status = String(book?.status || '').trim().toLowerCase();
+        if (status === 'published') {
+          return {
+            badgeClass: 'published',
+            badgeLabel: 'Published',
+            detail: 'Published and ready to open.',
+            actionLabel: 'Open',
+          };
+        }
+        if (status === 'ready') {
+          if (hasPricingInfo(book)) {
+          return {
+            badgeClass: 'ready',
+            badgeLabel: 'Ready to publish',
+            detail: 'Details and pricing are ready for final review.',
+            actionLabel: 'Publish',
+          };
+        }
+          return {
+            badgeClass: 'ready',
+            badgeLabel: 'Ready for pricing',
+            detail: 'Your manuscript is ready. Review pricing before publishing.',
+            actionLabel: 'Review Pricing',
+          };
+        }
+        if (status === 'processing') {
+          return {
+            badgeClass: 'processing',
+            badgeLabel: 'Processing',
+            detail: 'Your manuscript is still being prepared for review.',
+            actionLabel: 'Continue Setup',
+          };
+        }
+        if (status === 'failed') {
+          return {
+            badgeClass: 'failed',
+            badgeLabel: 'Draft',
+            detail: 'This title needs attention before it can move forward.',
+            actionLabel: 'Continue Setup',
+          };
+        }
+        if (hasUploadedContent(book) && !hasRequiredBookMetadata(book)) {
+          return {
+            badgeClass: 'draft',
+            badgeLabel: 'Ready for details',
+            detail: 'Add the remaining book details to continue.',
+            actionLabel: 'Continue Setup',
+          };
+        }
+        return {
+          badgeClass: status || 'draft',
+          badgeLabel: 'Draft',
+          detail: hasRequiredBookMetadata(book)
+            ? 'Continue to pricing and publish review.'
+            : 'Finish setting up this draft to continue.',
+          actionLabel: 'Continue Setup',
+        };
       }
 
       async function loadMyBooks() {
@@ -778,23 +1339,28 @@
           if (!myBooks.length) {
             $list.innerHTML = `
               <div class="empty-state">
-                <p>You don't have any published books here yet.</p>
-                <p>${platformAccess.is_superuser ? 'Click <strong>Upload Book</strong> to get started.' : 'Click <strong>Upload Book</strong> to publish to one of your allowed organization destinations.'}</p>
+                <p>Your Bookshelf is empty.</p>
+                <p>${platformAccess.is_superuser ? 'Click <strong>Create New Title</strong> to start a draft and upload your manuscript.' : 'Click <strong>Create New Title</strong> to start a draft for one of your allowed publishing destinations.'}</p>
               </div>`;
             return;
           }
-          $list.innerHTML = myBooks.map(book => `
-            <div class="book-item" data-id="${book.id}">
-              <div class="book-item-cover">
-                ${book.cover_url ? `<img src="${book.cover_url}" alt="" />` : ''}
+          $list.innerHTML = myBooks.map(book => {
+            const stage = deriveWorkflowStage(book);
+            return `
+              <div class="book-item" data-id="${book.id}">
+                <div class="book-item-cover">
+                  ${book.cover_url ? `<img src="${book.cover_url}" alt="" />` : ''}
+                </div>
+                <div class="book-item-info">
+                  <h3>${esc(book.title)}</h3>
+                  <div class="meta">${esc(book.author)} ${book.year_written ? `(${book.year_written})` : ''}</div>
+                  <div class="workflow-meta">${esc(stage.detail)}</div>
+                  <div class="workflow-action">${esc(stage.actionLabel)}</div>
+                </div>
+                <span class="status-badge ${stage.badgeClass}">${esc(stage.badgeLabel)}</span>
               </div>
-              <div class="book-item-info">
-                <h3>${esc(book.title)}</h3>
-                <div class="meta">${esc(book.author)} ${book.year_written ? `(${book.year_written})` : ''}</div>
-              </div>
-              <span class="status-badge ${book.status}">${book.status}</span>
-            </div>
-          `).join('');
+            `;
+          }).join('');
         } catch (err) {
           $list.innerHTML = `<div class="empty-state"><p>Failed to load books: ${esc(err.message)}</p></div>`;
         }
@@ -806,10 +1372,33 @@
         return d.innerHTML;
       }
 
+      function getBookReaderUrl(book) {
+        const contentId = String(book?.content_id || '').trim();
+        if (!contentId) return '';
+        const readerType = getBookReaderType(book);
+        const url = new URL('/books/reader/', window.location.origin);
+        url.searchParams.set('id', contentId);
+        if (readerType === 'protected') {
+          url.searchParams.set('reader', 'protected');
+          url.searchParams.set('protectedUx', 'old-shell');
+          url.searchParams.set('protectedArtifactSource', 'r2');
+          url.searchParams.set('protectedAllowAll', '1');
+        }
+        return `${url.pathname}${url.search}`;
+      }
+
       // Click on book item → edit
       document.getElementById('bookList').addEventListener('click', (e) => {
         const item = e.target.closest('.book-item');
         if (!item) return;
+        const book = myBooks.find((entry) => String(entry.id) === String(item.dataset.id));
+        if (book && String(book.status || '').toLowerCase() === 'published') {
+          const readerUrl = getBookReaderUrl(book);
+          if (readerUrl) {
+            window.location.href = readerUrl;
+            return;
+          }
+        }
         openBookEditor(item.dataset.id);
       });
 
@@ -817,6 +1406,7 @@
         editingBookId = bookId;
         hideAlert($editAlert);
         showView('edit');
+        renderWorkflowSteps('editWorkflowSteps', 'details');
         try {
           const book = await apiFetch('GET', `/publish/books/${bookId}`);
           document.getElementById('meta-title').value = book.title || '';
@@ -827,6 +1417,7 @@
           document.getElementById('meta-language').value = book.language || 'en';
           document.getElementById('meta-annotation').value = book.annotation || '';
           document.getElementById('meta-visibility').value = book.visibility || 'public';
+          document.getElementById('meta-reader-type').value = getBookReaderType(book);
 
           const $status = document.getElementById('bookStatus');
           $status.innerHTML = `<span class="status-badge ${book.status}">${book.status}</span>`;
@@ -839,6 +1430,7 @@
           }
           syncTenantSelectors();
           updatePublishButtonState(book);
+          renderWorkflowSteps('editWorkflowSteps', getEditorWorkflowStep(book));
 
           // Show delete button for draft/failed books
           const $deleteBtn = document.getElementById('deleteBtn');
@@ -878,6 +1470,11 @@
           showAlert($alert, 'Publishing is not available for this account.');
           return;
         }
+        resetUploadMetadataForm();
+        syncTenantSelectors();
+        updateUploadAcceptState();
+        resetUploadUi();
+        renderWorkflowSteps('uploadWorkflowSteps', 'content');
         showView('upload');
         hideAlert($alert);
       });
@@ -893,9 +1490,397 @@
 
       const $zone = document.getElementById('uploadZone');
       const $fileInput = document.getElementById('fileInput');
+      const $coverInput = document.getElementById('coverInput');
       const $progressWrap = document.getElementById('progressWrap');
       const $progressBar = document.getElementById('progressBar');
       const $progressText = document.getElementById('progressText');
+      const $uploadConfigPanel = document.getElementById('uploadConfigPanel');
+      const $uploadProgressPanel = document.getElementById('uploadProgressPanel');
+      const $uploadProgressMeta = document.getElementById('uploadProgressMeta');
+      const $uploadProtectContent = document.getElementById('uploadProtectContent');
+      const $uploadSourceFormat = document.getElementById('uploadSourceFormat');
+      const $uploadCoverGroup = document.getElementById('uploadCoverGroup');
+      const $uploadFormatHelp = document.getElementById('uploadFormatHelp');
+      const $uploadSelection = document.getElementById('uploadSelection');
+      const $uploadSelectionName = document.getElementById('uploadSelectionName');
+      const $uploadSelectionMeta = document.getElementById('uploadSelectionMeta');
+      const $startUploadBtn = document.getElementById('startUploadBtn');
+      const $progressStageGrid = document.getElementById('progressStageGrid');
+      const $progressSpinner = document.getElementById('progressSpinner');
+      let selectedUploadFile = null;
+
+      function formatUploadFileSize(bytes) {
+        const value = Number(bytes || 0);
+        if (!Number.isFinite(value) || value <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = value;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex += 1;
+        }
+        return `${size >= 10 || unitIndex === 0 ? Math.round(size) : size.toFixed(1)} ${units[unitIndex]}`;
+      }
+
+      function setSelectedUploadFile(file) {
+        selectedUploadFile = file || null;
+        if (!selectedUploadFile) {
+          $uploadSelection.classList.remove('visible');
+          $uploadSelectionName.textContent = 'No file selected';
+          $uploadSelectionMeta.textContent = 'Choose a file to upload.';
+          $startUploadBtn.disabled = true;
+          return;
+        }
+        $uploadSelection.classList.add('visible');
+        $uploadSelectionName.textContent = selectedUploadFile.name;
+        $uploadSelectionMeta.textContent = `${formatUploadFileSize(selectedUploadFile.size)} - Ready to upload`;
+        $startUploadBtn.disabled = false;
+      }
+
+      function getUploadStageDefinitions(formState = getUploadFormState()) {
+        if ((formState.reader_type || 'legacy') === 'protected') {
+          return [
+            { key: 'upload', label: 'Upload Manuscript' },
+            { key: 'queue', label: 'Create Draft' },
+            { key: 'validate', label: 'Validate Files' },
+            { key: 'normalize', label: 'Convert Book' },
+            { key: 'artifact', label: 'Prepare Reader Format' },
+            { key: 'publish', label: 'Ready for Review' },
+          ];
+        }
+        return [
+          { key: 'upload', label: 'Upload Manuscript' },
+          { key: 'processing', label: 'Create Draft' },
+          { key: 'review', label: 'Prepare Review Copy' },
+          { key: 'done', label: 'Ready for Review' },
+        ];
+      }
+
+      function resolveUploadStageKey(status, formState = getUploadFormState()) {
+        const normalized = String(status || '').trim().toLowerCase();
+        if ((formState.reader_type || 'legacy') !== 'protected') {
+          switch (normalized) {
+            case 'upload':
+            case 'uploading':
+              return 'upload';
+            case 'processing':
+              return 'processing';
+            case 'review':
+            case 'ready':
+              return 'review';
+            case 'completed':
+            case 'done':
+              return 'done';
+            case 'failed':
+              return 'processing';
+            default:
+              return 'upload';
+          }
+        }
+        switch (normalized) {
+          case 'upload':
+          case 'awaiting_upload':
+          case 'uploading_cover':
+          case 'uploading_source':
+            return 'upload';
+          case 'uploaded':
+          case 'queued':
+            return 'queue';
+          case 'validating_source':
+          case 'not_validated':
+            return 'validate';
+          case 'normalizing':
+            return 'normalize';
+          case 'building_artifact':
+          case 'uploading_artifacts':
+            return 'artifact';
+          case 'reindexing':
+          case 'completed':
+          case 'failed':
+            return 'publish';
+          default:
+            return 'upload';
+        }
+      }
+
+      function renderUploadStages(currentStageKey, options = {}) {
+        const { completed = false, failed = false, formState = getUploadFormState() } = options;
+        const stages = getUploadStageDefinitions(formState);
+        const currentIndex = Math.max(0, stages.findIndex((stage) => stage.key === currentStageKey));
+        $progressStageGrid.innerHTML = stages.map((stage, index) => {
+          const isCompleted = completed ? index <= currentIndex : index < currentIndex;
+          const isCurrent = !completed && index === currentIndex;
+          const isFailed = failed && index === currentIndex;
+          const classes = ['progress-stage'];
+          let icon = '';
+          if (isFailed) {
+            classes.push('failed');
+            icon = '!';
+          } else if (isCompleted) {
+            classes.push('completed');
+            icon = '&#10003;';
+          } else if (isCurrent) {
+            classes.push('current');
+            icon = '&#8226;';
+          }
+          return `<div class="${classes.join(' ')}"><span class="progress-stage-icon">${icon}</span><span class="progress-stage-label">${esc(stage.label)}</span></div>`;
+        }).join('');
+      }
+
+      function updateUploadAcceptState() {
+        const sourceFormat = $uploadSourceFormat.value || 'epub';
+        const readerType = $uploadProtectContent.checked ? 'protected' : 'legacy';
+        const docMode = sourceFormat === 'docx';
+        $uploadCoverGroup.classList.toggle('hidden', !docMode);
+        $coverInput.required = docMode;
+        if (docMode) {
+          $fileInput.setAttribute('accept', '.docx');
+          $uploadFormatHelp.innerHTML = 'Accepts .docx files (max 100 MB).<br>DOC uploads require a cover page image and are converted in the background.';
+          if (selectedUploadFile && !String(selectedUploadFile.name || '').toLowerCase().endsWith('.docx')) {
+            setSelectedUploadFile(null);
+          }
+          return;
+        }
+        $fileInput.setAttribute('accept', '.epub');
+        $uploadFormatHelp.innerHTML = readerType === 'protected'
+          ? 'Accepts .epub files (max 100 MB).<br>Protected uploads are prepared in the background and then opened for review.'
+          : 'Accepts .epub files (max 100 MB).<br>Standard uploads continue into the existing draft review flow.';
+        if (selectedUploadFile) {
+          const selectedName = String(selectedUploadFile.name || '').toLowerCase();
+          const selectedMatches = docMode ? selectedName.endsWith('.docx') : selectedName.endsWith('.epub');
+          if (!selectedMatches) setSelectedUploadFile(null);
+        }
+      }
+
+      function resetUploadUi() {
+        $zone.style.display = '';
+        $uploadConfigPanel.classList.remove('hidden');
+        $uploadProgressPanel.classList.remove('visible');
+        $progressWrap.classList.remove('visible');
+        $progressBar.style.width = '0%';
+        $progressText.textContent = 'Preparing manuscript...';
+        $uploadProgressMeta.textContent = '';
+        $progressStageGrid.innerHTML = '';
+        $progressSpinner.style.display = 'inline-block';
+        $fileInput.value = '';
+        setSelectedUploadFile(null);
+      }
+
+      function uploadProgressPercent(status) {
+        switch (String(status || '')) {
+          case 'awaiting_upload': return 5;
+          case 'uploaded': return 30;
+          case 'queued': return 40;
+          case 'validating_source': return 55;
+          case 'normalizing': return 65;
+          case 'building_artifact': return 78;
+          case 'uploading_artifacts': return 88;
+          case 'reindexing': return 95;
+          case 'completed': return 100;
+          case 'failed':
+          case 'not_validated':
+            return 100;
+          default:
+            return 20;
+        }
+      }
+
+      async function uploadFileWithProgress(url, file, method = 'PUT', extraHeaders = null, label = 'Uploading file') {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open(method, url);
+          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+          if (extraHeaders && typeof extraHeaders === 'object') {
+            Object.entries(extraHeaders).forEach(([key, value]) => {
+              if (!key || value == null) return;
+              if (String(key).toLowerCase() === 'content-type') return;
+              xhr.setRequestHeader(key, value);
+            });
+          }
+          xhr.upload.addEventListener('progress', (e) => {
+            if (!e.lengthComputable) return;
+            const pct = Math.round((e.loaded / e.total) * 100);
+            $progressBar.style.width = `${Math.min(pct, 100)}%`;
+            $progressText.textContent = `${label}... ${pct}%`;
+          });
+          xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve();
+              return;
+            }
+            reject(new Error(`Direct upload failed (HTTP ${xhr.status})`));
+          });
+          xhr.addEventListener('error', () => reject(new Error('Network error during direct upload')));
+          xhr.send(file);
+        });
+      }
+
+      async function pollProtectedJob(jobId, bookId) {
+        const terminalStatuses = new Set(['completed', 'failed', 'not_validated']);
+        const formState = getUploadFormState();
+        for (let attempt = 0; attempt < 180; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const job = await apiFetch('GET', `/protected-jobs/${jobId}`);
+          $progressBar.style.width = `${uploadProgressPercent(job.status)}%`;
+          $progressText.textContent = job.message || `Preparing draft... (${job.status})`;
+          renderUploadStages(resolveUploadStageKey(job.status, formState), {
+            completed: job.status === 'completed',
+            failed: job.status === 'failed' || job.status === 'not_validated',
+            formState,
+          });
+          if (!terminalStatuses.has(job.status)) continue;
+          await loadMyBooks();
+          if (job.status === 'completed') {
+            if (bookId) {
+              await openBookEditor(bookId);
+              showAlert($editAlert, 'Your manuscript is ready. Review details, pricing, and publish.', 'success');
+            } else {
+              showView('list');
+              showAlert($alert, 'Your manuscript is ready. Review details, pricing, and publish.', 'success');
+            }
+            return job;
+          }
+          if (bookId) await openBookEditor(bookId);
+          throw new Error(job.error_message || job.message || 'Protected publishing did not complete.');
+        }
+        await loadMyBooks();
+        showView('list');
+        throw new Error('This manuscript is still being prepared. You can reopen it from Bookshelf in a few minutes.');
+      }
+
+      async function handleProtectedUpload(file, organization, formState) {
+        const body = {
+          filename: file.name,
+          source_format: formState.source_format,
+          visibility: formState.visibility,
+          reader_type: 'protected',
+          title: formState.title,
+          author: formState.author,
+          annotation: formState.annotation,
+          genre_id: formState.genre_id,
+          year_written: formState.year_written,
+          isbn: formState.isbn,
+          language: formState.language,
+          ...(formState.cover_file ? { cover_filename: formState.cover_file.name } : {}),
+        };
+        if (organization) {
+          body.tenant_id = organization.tenant_id;
+          body.tenant_slug = organization.tenant?.slug || '';
+        }
+
+        const job = await apiFetch('POST', '/protected-jobs', { body });
+        const uploads = job.uploads || { source: job.upload };
+        const addAuthHeaderIfNeeded = async (target) => {
+          const headers = (target && target.headers && typeof target.headers === 'object')
+            ? { ...target.headers }
+            : {};
+          if (String(target?.url || '').startsWith('/')) {
+            const { data: { session } } = await sb.auth.getSession();
+            if (session?.access_token) {
+              headers.authorization = `Bearer ${session.access_token}`;
+            }
+          }
+          return headers;
+        };
+
+        if (uploads.cover && formState.cover_file) {
+          const coverHeaders = await addAuthHeaderIfNeeded(uploads.cover);
+          renderUploadStages('upload', { formState });
+          await uploadFileWithProgress(uploads.cover.url, formState.cover_file, uploads.cover?.method || 'PUT', coverHeaders, 'Uploading cover page');
+          $progressBar.style.width = '18%';
+          $progressText.textContent = 'Uploading manuscript...';
+        }
+
+        const sourceHeaders = await addAuthHeaderIfNeeded(uploads.source || job.upload);
+        renderUploadStages('upload', { formState });
+        await uploadFileWithProgress((uploads.source || job.upload).url, file, (uploads.source || job.upload)?.method || 'PUT', sourceHeaders, 'Uploading manuscript');
+        if (uploads.cover && formState.cover_file) {
+          $progressBar.style.width = '35%';
+        } else {
+          $progressBar.style.width = '30%';
+        }
+        $progressText.textContent = 'Saving draft...';
+        await apiFetch('POST', `/protected-jobs/${job.jobId}/upload-complete`, { body: {} });
+        $progressBar.style.width = '40%';
+        $progressText.textContent = 'Creating review draft...';
+        renderUploadStages('queue', { formState });
+        return pollProtectedJob(job.jobId, job.bookId);
+      }
+
+      async function handleLegacyUpload(file, organization) {
+        const formState = getUploadFormState();
+        const form = new FormData();
+        form.append('file', file);
+        form.append('reader_type', 'legacy');
+        if (organization) {
+          form.append('tenant_id', organization.tenant_id);
+          if (organization.tenant?.slug) form.append('tenant_slug', organization.tenant.slug);
+        }
+
+        const result = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `${API}/publish/upload`);
+
+          sb.auth.getSession().then(({ data: { session: s } }) => {
+            if (s) xhr.setRequestHeader('Authorization', `Bearer ${s.access_token}`);
+
+            xhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                $progressBar.style.width = `${pct}%`;
+                $progressText.textContent = `Uploading manuscript... ${pct}%`;
+                renderUploadStages('upload', { formState });
+              }
+            });
+
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(JSON.parse(xhr.responseText));
+              } else {
+                try {
+                  const err = JSON.parse(xhr.responseText);
+                  reject(new Error(err.error || err.message || `HTTP ${xhr.status}`));
+                } catch {
+                  reject(new Error(`Upload failed (HTTP ${xhr.status})`));
+                }
+              }
+            });
+
+            xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+            xhr.send(form);
+          }).catch(reject);
+        });
+
+        $progressText.textContent = 'Preparing draft...';
+        $progressBar.style.width = '100%';
+        renderUploadStages('processing', { formState });
+
+        if (result.bookId) {
+          for (let attempts = 0; attempts < 30; attempts += 1) {
+            await new Promise(r => setTimeout(r, 2000));
+            try {
+              const book = await apiFetch('GET', `/publish/books/${result.bookId}`);
+              if (book.status === 'ready' || book.status === 'failed') {
+                renderUploadStages(book.status === 'ready' ? 'done' : 'processing', {
+                  completed: book.status === 'ready',
+                  failed: book.status === 'failed',
+                  formState,
+                });
+                await loadMyBooks();
+                await openBookEditor(result.bookId);
+                return book;
+              }
+              $progressText.textContent = `Preparing draft... (${book.status})`;
+              renderUploadStages('processing', { formState });
+            } catch {
+              break;
+            }
+          }
+          await loadMyBooks();
+          await openBookEditor(result.bookId);
+        }
+        return result;
+      }
 
       $zone.addEventListener('click', () => $fileInput.click());
 
@@ -911,16 +1896,18 @@
       $zone.addEventListener('drop', (e) => {
         e.preventDefault();
         $zone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files.length) setSelectedUploadFile(e.dataTransfer.files[0]);
       });
 
       $fileInput.addEventListener('change', () => {
-        if ($fileInput.files.length) handleFile($fileInput.files[0]);
+        if ($fileInput.files.length) setSelectedUploadFile($fileInput.files[0]);
       });
 
-      async function handleFile(file) {
+      async function startUpload(file) {
         hideAlert($alert);
         const name = file.name.toLowerCase();
+        const formState = getUploadFormState();
+        const readerType = formState.reader_type || 'legacy';
         const organization = getSelectedPublishingOrganization(selectedUploadTenantId);
         const isPersonalPublishing = String(selectedUploadTenantId || '') === PERSONAL_PUBLISH_TARGET;
         if (!isPersonalPublishing && !organization) {
@@ -928,8 +1915,23 @@
           return;
         }
 
-        if (!name.endsWith('.epub')) {
-          showAlert($alert, 'Only .epub files are supported at this time.');
+        const isEpub = name.endsWith('.epub');
+        const isDocx = name.endsWith('.docx');
+        if (formState.source_format === 'docx' && !isDocx) {
+          showAlert($alert, 'DOC uploads currently accept .docx files only.');
+          return;
+        }
+        if (formState.source_format === 'epub' && !isEpub) {
+          showAlert($alert, 'EPUB uploads currently accept .epub files only.');
+          return;
+        }
+        if (readerType !== 'protected' && !isEpub) {
+          showAlert($alert, 'Standard uploads currently accept .epub files only.');
+          return;
+        }
+        const formError = validateUploadForm(formState);
+        if (formError) {
+          showAlert($alert, formError);
           return;
         }
 
@@ -938,85 +1940,40 @@
           return;
         }
 
-        // Show progress
+        $uploadConfigPanel.classList.add('hidden');
+        $uploadProgressPanel.classList.add('visible');
         $progressWrap.classList.add('visible');
         $progressBar.style.width = '0%';
-        $progressText.textContent = 'Uploading...';
+        $progressText.textContent = 'Preparing manuscript...';
         $zone.style.display = 'none';
+        $uploadProgressMeta.textContent = `${formState.title} by ${formState.author} - ${formState.source_format.toUpperCase()} - ${readerType === 'protected' ? 'Protected' : 'Standard'}`;
+        renderUploadStages('upload', { formState });
+        $startUploadBtn.disabled = true;
 
         try {
-          const form = new FormData();
-          form.append('file', file);
-          if (organization) {
-            form.append('tenant_id', organization.tenant_id);
-            if (organization.tenant?.slug) form.append('tenant_slug', organization.tenant.slug);
+          if (readerType === 'protected') {
+            await handleProtectedUpload(file, organization, formState);
+            return;
           }
-
-          // Use XMLHttpRequest for progress tracking
-          const result = await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', `${API}/publish/upload`);
-
-            sb.auth.getSession().then(({ data: { session: s } }) => {
-              if (s) xhr.setRequestHeader('Authorization', `Bearer ${s.access_token}`);
-
-              xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                  const pct = Math.round((e.loaded / e.total) * 100);
-                  $progressBar.style.width = `${pct}%`;
-                  $progressText.textContent = `Uploading... ${pct}%`;
-                }
-              });
-
-              xhr.addEventListener('load', () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  resolve(JSON.parse(xhr.responseText));
-                } else {
-                  try {
-                    const err = JSON.parse(xhr.responseText);
-                    reject(new Error(err.error || err.message || `HTTP ${xhr.status}`));
-                  } catch {
-                    reject(new Error(`Upload failed (HTTP ${xhr.status})`));
-                  }
-                }
-              });
-
-              xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
-              xhr.send(form);
-            });
-          });
-
-          $progressText.textContent = 'Processing...';
-          $progressBar.style.width = '100%';
-
-          // Poll for processing completion
-          if (result.bookId) {
-            let attempts = 0;
-            while (attempts < 30) {
-              await new Promise(r => setTimeout(r, 2000));
-              attempts++;
-              try {
-                const book = await apiFetch('GET', `/publish/books/${result.bookId}`);
-                if (book.status === 'ready' || book.status === 'failed') {
-                  await loadMyBooks();
-                  openBookEditor(result.bookId);
-                  return;
-                }
-                $progressText.textContent = `Processing... (${book.status})`;
-              } catch { break; }
-            }
-            // Timed out or error — still go to editor
-            await loadMyBooks();
-            openBookEditor(result.bookId);
-          }
+          await handleLegacyUpload(file, organization);
         } catch (err) {
           showAlert($alert, err.message);
-          $zone.style.display = '';
-          $progressWrap.classList.remove('visible');
+        } finally {
+          resetUploadUi();
         }
       }
 
       // ── Save metadata ──────────────────────
+      document.getElementById('changeUploadFileBtn').addEventListener('click', () => $fileInput.click());
+
+      $startUploadBtn.addEventListener('click', async () => {
+        if (!selectedUploadFile) {
+          showAlert($alert, 'Choose a manuscript file before submitting.');
+          return;
+        }
+        await startUpload(selectedUploadFile);
+      });
+
       document.getElementById('saveMetaBtn').addEventListener('click', async () => {
         hideAlert($editAlert);
         const btn = document.getElementById('saveMetaBtn');
@@ -1032,6 +1989,7 @@
             isbn: document.getElementById('meta-isbn').value.trim() || null,
             language: document.getElementById('meta-language').value.trim() || 'en',
             annotation: document.getElementById('meta-annotation').value.trim(),
+            reader_type: document.getElementById('meta-reader-type').value || 'legacy',
           };
 
           if (!metadata.title || !metadata.author || !metadata.genre_id || !metadata.annotation) {
@@ -1045,6 +2003,7 @@
           const book = await apiFetch('GET', `/publish/books/${editingBookId}`);
           editorSavedState = true;
           updatePublishButtonState(book);
+          renderWorkflowSteps('editWorkflowSteps', getEditorWorkflowStep(book));
         } catch (err) {
           showAlert($editAlert, err.message);
         } finally {
@@ -1066,16 +2025,28 @@
           if (!isPersonalPublishing && !organization) throw new Error('Choose a publishing destination before publishing.');
           const body = {
             visibility: document.getElementById('meta-visibility').value || 'public',
+            reader_type: document.getElementById('meta-reader-type').value || 'legacy',
           };
           if (organization) {
             body.tenant_id = organization.tenant_id;
             body.tenant_slug = organization.tenant?.slug || '';
           }
-          await apiFetch('POST', `/publish/books/${editingBookId}/publish`, { body });
-          showAlert($editAlert, 'Book published!', 'success');
+          const result = await apiFetch('POST', `/publish/books/${editingBookId}/publish`, { body });
+          if (result && result.pendingProtectedConversion) {
+            showAlert($editAlert, result.message || 'Processing has started. This title will return here for review once the manuscript is ready.', 'success');
+            const $status = document.getElementById('bookStatus');
+            $status.innerHTML = '<span class="status-badge processing">processing</span>';
+            editorSavedState = true;
+            renderWorkflowSteps('editWorkflowSteps', 'details');
+            btn.disabled = true;
+            btn.textContent = 'Processing';
+            return;
+          }
+          showAlert($editAlert, 'Title published.', 'success');
           const $status = document.getElementById('bookStatus');
           $status.innerHTML = '<span class="status-badge published">published</span>';
           editorSavedState = true;
+          renderWorkflowSteps('editWorkflowSteps', 'publish');
           btn.disabled = true;
           btn.textContent = 'Published';
         } catch (err) {
@@ -1184,13 +2155,19 @@
         syncTenantSelectors();
       });
 
+      $uploadProtectContent.addEventListener('change', updateUploadAcceptState);
+      $uploadSourceFormat.addEventListener('change', updateUploadAcceptState);
+      document.getElementById('uploadTitle').addEventListener('input', hideAlert.bind(null, $alert));
+      document.getElementById('uploadAuthor').addEventListener('input', hideAlert.bind(null, $alert));
+      document.getElementById('uploadAnnotation').addEventListener('input', hideAlert.bind(null, $alert));
+
       document.getElementById('editTenantSelect').addEventListener('change', (e) => {
         selectedEditTenantId = e.target.value;
         updatePublishButtonState();
         syncTenantSelectors();
       });
 
-      ['meta-title', 'meta-author', 'meta-genre', 'meta-annotation', 'meta-visibility', 'meta-year', 'meta-isbn', 'meta-language'].forEach((id) => {
+      ['meta-title', 'meta-author', 'meta-genre', 'meta-annotation', 'meta-visibility', 'meta-reader-type', 'meta-year', 'meta-isbn', 'meta-language'].forEach((id) => {
         const field = document.getElementById(id);
         field?.addEventListener('input', () => {
           editorSavedState = false;
@@ -1201,6 +2178,9 @@
           updatePublishButtonState();
         });
       });
+
+      updateUploadAcceptState();
+      renderWorkflowSteps('uploadWorkflowSteps', 'content');
     </script>
   </body>
 </html>

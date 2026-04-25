@@ -11,13 +11,15 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEPLOY_DIR="$(mktemp -d "${TMPDIR:-/tmp}/readerpub-production-deploy.XXXXXX")"
 ACCOUNT_ID="764a8c94ce002764fc1d3d29faa4bb09"
 PROJECT="reader-books"
+WRANGLER_BIN="${WRANGLER_BIN:-npx wrangler}"
 
 trap 'rm -rf "$DEPLOY_DIR"' EXIT
 
 "$SCRIPT_DIR/build-deploy-bundle.sh" "$DEPLOY_DIR"
 
 # Safety check: should be on master branch
-BRANCH=$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+BRANCH=$(git -c safe.directory="$ROOT_DIR" -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+COMMIT=$(git -c safe.directory="$ROOT_DIR" -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
 if [[ "$BRANCH" != "master" ]]; then
   echo "WARNING: You are on branch '$BRANCH', not 'master'."
   read -rp "Continue anyway? [y/N] " confirm
@@ -28,10 +30,15 @@ echo "=== Deploying to PRODUCTION ($PROJECT) ==="
 echo "Deploy dir: $DEPLOY_DIR"
 
 CLOUDFLARE_ACCOUNT_ID="$ACCOUNT_ID" \
-  npx wrangler pages deploy "$DEPLOY_DIR" \
-  --project-name "$PROJECT" \
-  --branch production \
-  --commit-dirty=true
+  sh -c "\"$WRANGLER_BIN\" pages deploy \"$DEPLOY_DIR\" --project-name \"$PROJECT\" --branch production --commit-dirty=true"
+
+node "$ROOT_DIR/tools/deploy/record-deployment.mjs" \
+  --environment production \
+  --project "$PROJECT" \
+  --pages-branch production \
+  --source-branch "$BRANCH" \
+  --commit "$COMMIT" \
+  --url "https://reader.pub/books/"
 
 echo "=== Production deploy complete ==="
 echo "Live: https://reader.pub/books/"

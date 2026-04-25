@@ -18,6 +18,59 @@
 <script src="/books/shared/posthog.js"></script>
 <script src="js/libs/jquery.min.js"></script>
 <script src="js/libs/zip.min.js"></script>
+<style>
+  .reader-onboarding-hint {
+    position: fixed;
+    bottom: calc(var(--bottombar-h, 32px) + env(safe-area-inset-bottom, 0px) + 18px);
+    left: 50%;
+    z-index: 2500;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 260px;
+    max-width: min(92vw, 460px);
+    padding: 14px 18px;
+    border-radius: 18px;
+    background: rgba(18, 28, 45, 0.88);
+    color: #fff;
+    box-shadow: 0 14px 34px rgba(8, 14, 24, 0.24);
+    backdrop-filter: blur(10px);
+    pointer-events: none;
+    text-align: center;
+    opacity: 0;
+    transform: translate(-50%, 12px);
+    transition: transform 180ms ease, opacity 180ms ease;
+  }
+
+  .reader-onboarding-hint.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  .reader-onboarding-hint.is-hiding {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+
+  .reader-onboarding-hint-line1 {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: 0.01em;
+  }
+
+  @media (max-width: 768px) {
+    .reader-onboarding-hint {
+      max-width: min(92vw, 360px);
+      bottom: calc(var(--bottombar-h, 32px) + env(safe-area-inset-bottom, 0px) + 14px);
+      padding: 12px 16px;
+    }
+
+    .reader-onboarding-hint-line1 {
+      font-size: 15px;
+    }
+  }
+</style>
 <script>
             "use strict";
 
@@ -139,6 +192,31 @@
                 });
             }
 
+            function shouldBootProtectedReader(locationInfo) {
+              if (!locationInfo || typeof locationInfo !== "object") return false;
+              var readerType = String(locationInfo.readerType || locationInfo.reader_type || "").trim().toLowerCase();
+              if (readerType !== "protected") return false;
+              var protectedPath = String(locationInfo.protectedContentPath || locationInfo.protected_content_path || "").trim();
+              return !!protectedPath;
+            }
+
+            function redirectToProtectedReader(source, id) {
+              try {
+                var nextUrl = new URL(window.location.href);
+                nextUrl.searchParams.set("id", id);
+                if (source) nextUrl.searchParams.set("source", source);
+                else nextUrl.searchParams.delete("source");
+                nextUrl.searchParams.set("reader", "protected");
+                nextUrl.searchParams.set("protectedUx", nextUrl.searchParams.get("protectedUx") || "old-shell");
+                nextUrl.searchParams.set("protectedArtifactSource", nextUrl.searchParams.get("protectedArtifactSource") || "r2");
+                nextUrl.searchParams.set("protectedAllowAll", nextUrl.searchParams.get("protectedAllowAll") || "1");
+                window.location.replace(nextUrl.toString());
+                return true;
+              } catch (eProtectedAutoRedirect) {
+                return false;
+              }
+            }
+
             function resolveLegacyPlatformBookPath(id) {
               var basePath = `/books/content/${encodeURIComponent(id)}/`;
               var containerPath = `${basePath}META-INF/container.xml?v=${Date.now()}`;
@@ -231,9 +309,35 @@
 // Expect book id in either ?id=75586 or #75586 (hash).
 (function(){
   const params = new URLSearchParams(location.search);
+  const qReaderMode = params.get("reader");
+  const qProtectedUx = String(params.get("protectedUx") || params.get("ux") || "").trim().toLowerCase();
+  if (qReaderMode === "protected" && qProtectedUx === "old-shell") {
+    try {
+      const hashId = String(location.hash || "").replace(/^#/, "");
+      window.__readerpubProtectedOldShellMode = true;
+      window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__ = {
+        bookId: String(params.get("id") || params.get("i") || (/^\d+$/.test(hashId) ? hashId : "") || "").trim(),
+        source: String(params.get("source") || "").trim(),
+        entry: String(params.get("entry") || "").trim(),
+        url: window.location.href
+      };
+    } catch (eProtectedShell) {}
+  } else if (qReaderMode === "protected") {
+    try {
+      var protectedUrl = new URL("/reader_render_v3/integration/protected-reader.html", window.location.origin);
+      protectedUrl.search = window.location.search || "";
+      protectedUrl.hash = window.location.hash || "";
+      window.location.replace(protectedUrl.toString());
+      return;
+    } catch (eProtectedRedirect) {}
+  }
+  const AUTO_START_RETURN_KEY = "readerpub_catalog_return_v1";
   const qsource = params.get("source");
+  const qentry = params.get("entry");
   const qid = params.get("id");
   const qidShort = params.get("i");
+  const qCatalogReturn = params.get("catalog_return");
+  const qAutostart = params.get("autostart");
   const rawHash = (location.hash || "");
   const hid = rawHash.replace(/^#/, "");
   const hashIsId = /^\d+$/.test(hid);
@@ -272,6 +376,36 @@
     return;
   }
 
+  const storedCatalogReturn = (function(){
+    try {
+      return sessionStorage.getItem(AUTO_START_RETURN_KEY) || "";
+    } catch (eStorage) {
+      return "";
+    }
+  })();
+
+  const catalogReturnTarget = qCatalogReturn || storedCatalogReturn || "";
+  const isAutostartReader = qAutostart === "1" && !!catalogReturnTarget;
+  const entry = (qentry && qentry.trim()) || "";
+  if (window.__readerpubProtectedOldShellMode) {
+    try {
+      window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__ = {
+        bookId: id,
+        source: source || "",
+        entry: entry,
+        url: window.location.href,
+        catalogReturnTarget: catalogReturnTarget,
+        isAutostartReader: isAutostartReader
+      };
+      window.dispatchEvent(
+        new CustomEvent("readerpub:protected-old-shell-config", {
+          detail: window.__READERPUB_PROTECTED_OLD_SHELL_CONFIG__
+        })
+      );
+    } catch (eProtectedConfig) {}
+    return;
+  }
+
   // Always keep canonical params in URL (for reload/share). Preserve CFI hash if present.
   // Strip cover param — it's a catalog hint, not needed by the reader.
   try {
@@ -289,8 +423,114 @@
     }
   } catch (e1) {}
 
-  try { localStorage && localStorage.setItem("readerpub:lastid", id); } catch (e2) {}
-  try { if (source && localStorage) localStorage.setItem("readerpub:lastsource", source); } catch (e3) {}
+  const shouldShowCatalogEntryHint = entry === "catalog";
+  const isDemoEntry = entry === "hero";
+  let catalogEntryHintShown = false;
+  let catalogEntryHintDismissed = false;
+  let initialReaderRelocationSeen = false;
+  let catalogHintShowTimer = 0;
+  let catalogHintHideTimer = 0;
+
+  try {
+    window.__readerpubAutostart = isAutostartReader;
+    window.__readerpubCatalogReturn = catalogReturnTarget;
+    // Hero/demo opens should not be treated as a real user-selected reading session.
+    window.__readerpubEntryContext = {
+      entry: entry,
+      isDemoEntry: isDemoEntry
+    };
+  } catch (eExposeAutostart) {}
+
+  (function initAutostartBackLink(){
+    try {
+      var backLink = document.getElementById("autostartCatalogBack");
+      if (!backLink) return;
+      if (!isAutostartReader || !catalogReturnTarget) {
+        backLink.classList.add("hidden");
+        return;
+      }
+      backLink.classList.remove("hidden");
+      backLink.setAttribute("href", catalogReturnTarget);
+      backLink.addEventListener("click", function(event){
+        event.preventDefault();
+        try {
+          sessionStorage.removeItem(AUTO_START_RETURN_KEY);
+        } catch (eStorageRemove) {}
+        window.location.assign(catalogReturnTarget);
+      });
+    } catch (eBackLink) {}
+  })();
+
+  try {
+    if (!isDemoEntry && localStorage) localStorage.setItem("readerpub:lastid", id);
+  } catch (e2) {}
+  try {
+    if (!isDemoEntry && source && localStorage) localStorage.setItem("readerpub:lastsource", source);
+  } catch (e3) {}
+
+  function showCatalogEntryHint() {
+    if (!shouldShowCatalogEntryHint || catalogEntryHintShown || catalogEntryHintDismissed) return;
+    catalogEntryHintShown = true;
+    try {
+      var hint = document.getElementById("catalogOnboardingHint");
+      if (!hint) return;
+      var isDesktop = false;
+      try {
+        if (typeof window.__fb_isDesktop === "boolean") {
+          isDesktop = !!window.__fb_isDesktop;
+        } else if (window.matchMedia) {
+          isDesktop = !!window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+        }
+      } catch (eDesktop) {}
+      hint.textContent = isDesktop
+        ? "Click on edges to turn the page \u2192"
+        : "Swipe or tap edges to turn the page \u2192";
+      hint.setAttribute("aria-hidden", "false");
+      hint.classList.remove("is-hiding");
+      hint.classList.add("is-visible");
+      catalogHintHideTimer = window.setTimeout(function(){
+        hint.classList.add("is-hiding");
+      }, 3820);
+      window.setTimeout(function(){
+        hint.classList.remove("is-visible", "is-hiding");
+        hint.setAttribute("aria-hidden", "true");
+      }, 4000);
+    } catch (eHint) {}
+  }
+
+  function dismissCatalogEntryHint() {
+    if (catalogEntryHintDismissed) return;
+    catalogEntryHintDismissed = true;
+    try {
+      if (catalogHintShowTimer) {
+        window.clearTimeout(catalogHintShowTimer);
+        catalogHintShowTimer = 0;
+      }
+      if (catalogHintHideTimer) {
+        window.clearTimeout(catalogHintHideTimer);
+        catalogHintHideTimer = 0;
+      }
+      var hint = document.getElementById("catalogOnboardingHint");
+      if (!hint) return;
+      hint.classList.remove("is-visible");
+      hint.classList.add("is-hiding");
+      window.setTimeout(function(){
+        hint.classList.remove("is-hiding");
+        hint.setAttribute("aria-hidden", "true");
+      }, 180);
+    } catch (eDismiss) {}
+  }
+
+  function scheduleCatalogEntryHint() {
+    if (!shouldShowCatalogEntryHint || catalogEntryHintShown || catalogEntryHintDismissed) return;
+    try {
+      if (catalogHintShowTimer) window.clearTimeout(catalogHintShowTimer);
+      catalogHintShowTimer = window.setTimeout(function(){
+        catalogHintShowTimer = 0;
+        showCatalogEntryHint();
+      }, 1500);
+    } catch (eSchedule) {}
+  }
 
   function bootReader(bookPath) {
     const normalizedBookPath = /\.opf(?:$|\?)/i.test(String(bookPath || ""))
@@ -302,6 +542,19 @@
     };
 
     window.reader = ePubReader(normalizedBookPath, opts);
+    scheduleCatalogEntryHint();
+
+    try {
+      if (window.reader && window.reader.rendition && typeof window.reader.rendition.on === "function") {
+        window.reader.rendition.on("relocated", function(){
+          if (!initialReaderRelocationSeen) {
+            initialReaderRelocationSeen = true;
+            return;
+          }
+          dismissCatalogEntryHint();
+        });
+      }
+    } catch (eRelocatedHint) {}
 
     try {
       if (window.ReaderPubAnalytics && typeof window.ReaderPubAnalytics.boot === "function") {
@@ -387,11 +640,13 @@
       }
     })();
 
-    // Restore last position for this book (independent of EPUB.js internal restore)
+    // Restore last position for this book (independent of EPUB.js internal restore).
+    // Demo entries stay isolated from user-selected reading state and future last-read flows.
     (function(){
       try {
         if (!window.reader || !window.reader.rendition) return;
         const key = `readerpub:lastcfi:${id}`;
+        if (isDemoEntry) return;
         try {
           const last = localStorage && localStorage.getItem(key);
           if (last) {
@@ -475,7 +730,12 @@
           const keepHash = hashIsCfi ? rawHash : "";
           history.replaceState(null, "", `${location.pathname}?${nextParams.toString()}${keepHash}`);
         } catch (e4) {}
-        try { if (localStorage) localStorage.setItem("readerpub:lastsource", source); } catch (e5) {}
+        try {
+          if (!isDemoEntry && localStorage) localStorage.setItem("readerpub:lastsource", source);
+        } catch (e5) {}
+      }
+      if (shouldBootProtectedReader(locationInfo)) {
+        if (redirectToProtectedReader(source, id)) return;
       }
       var bookPath = "";
       if (locationInfo) {
@@ -499,6 +759,9 @@
     .catch(function(){
       fetchAuthorizedBookLocation(id)
         .then(function(locationInfo){
+          if (shouldBootProtectedReader(locationInfo)) {
+            if (redirectToProtectedReader(source, id)) return;
+          }
           if (locationInfo) {
             bootReader(isLocalPreviewHost() && locationInfo.localContentPath ? String(locationInfo.localContentPath) : String(locationInfo.contentPath || ""));
             return;
@@ -554,9 +817,13 @@
 <!--
 -->
 <!-- <script src="js/hooks/extensions/highlight.js"></script> -->
+<script type="module" src="/reader_render_v3/integration/protected-old-shell-host.js"></script>
 </head>
 <body class="ui-hidden" role="application" aria-label="Reader">
 <div id="container">
+<div id="catalogOnboardingHint" class="reader-onboarding-hint" aria-hidden="true">
+  <div class="reader-onboarding-hint-line1"></div>
+</div>
 <div id="overlay-backdrop" class="overlay-backdrop hidden" aria-hidden="true"></div>
 <div id="overlay-toc" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Table of contents">
   <div class="overlay-head">
@@ -762,6 +1029,7 @@
   </div>
 </div>
 <div id="title-controls">
+<a id="autostartCatalogBack" class="catalog-back-btn hidden" href="/books/" aria-label="Back to catalog">Back to catalog</a>
 <button id="ttsToggleDesktop" class="tts-toggle tts-desktop" type="button" aria-label="Start reading aloud" title="Read aloud">
   <img class="tts-icon tts-icon-on" src="icons/speaker.svg?v=20260303-icons-tight-x-3" alt="" aria-hidden="true" />
   <img class="tts-icon tts-icon-off" src="icons/speaker_back.svg?v=20260303-icons-tight-x-3" alt="" aria-hidden="true" />

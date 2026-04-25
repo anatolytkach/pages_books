@@ -3,7 +3,6 @@ import test from "node:test";
 
 import {
   callWorker,
-  createR2Bucket,
   createFetchMockSequence,
   patchGlobal,
   readJson,
@@ -60,7 +59,13 @@ test("Unit: translate trims params and truncates query text to 5000 chars", asyn
   const longText = "x".repeat(5100);
   const fetchMock = createFetchMockSequence([
     new Response(
-      JSON.stringify([[["Bonjour "], ["monde"]], null, "fr"]),
+      JSON.stringify({
+        data: {
+          translations: [
+            { translatedText: "Bonjour monde", detectedSourceLanguage: "fr" },
+          ],
+        },
+      }),
       {
         status: 200,
         headers: { "content-type": "application/json; charset=utf-8" },
@@ -75,9 +80,12 @@ test("Unit: translate trims params and truncates query text to 5000 chars", asyn
     url: "https://reader.pub/books/api/translate",
     method: "POST",
     body: { text: longText, source: "  auto ", target: "  fr " },
+    env: { READERPUB_GOOGLE_TRANSLATE_API_KEY: "test-key" },
   });
   const payload = await readJson(response);
+  const upstreamOptions = fetchMock.calls[0][1];
   const upstreamUrl = new URL(fetchMock.calls[0][0]);
+  const upstreamBody = JSON.parse(String(upstreamOptions.body || "{}"));
 
   // Assert
   assert.equal(response.status, 200);
@@ -86,16 +94,23 @@ test("Unit: translate trims params and truncates query text to 5000 chars", asyn
   assert.equal(payload.detectedSource, "fr");
   assert.equal(payload.target, "fr");
   assert.equal(fetchMock.calls.length, 1);
-  assert.equal(upstreamUrl.searchParams.get("q").length, 5000);
-  assert.equal(upstreamUrl.searchParams.get("sl"), "auto");
-  assert.equal(upstreamUrl.searchParams.get("tl"), "fr");
+  assert.equal(upstreamUrl.searchParams.get("key"), "test-key");
+  assert.equal(String(upstreamBody.q || "").length, 5000);
+  assert.equal(upstreamBody.target, "fr");
+  assert.equal("source" in upstreamBody, false);
 });
 
 test("Unit: translate uses provided source when upstream omits detected language", async (t) => {
   // Arrange
   const fetchMock = createFetchMockSequence([
     new Response(
-      JSON.stringify([[["Hola"]], null, null]),
+      JSON.stringify({
+        data: {
+          translations: [
+            { translatedText: "Hola" },
+          ],
+        },
+      }),
       {
         status: 200,
         headers: { "content-type": "application/json; charset=utf-8" },
@@ -110,6 +125,7 @@ test("Unit: translate uses provided source when upstream omits detected language
     url: "https://reader.pub/books/api/translate",
     method: "POST",
     body: { text: "hello", source: "es", target: "en" },
+    env: { READERPUB_GOOGLE_TRANSLATE_API_KEY: "test-key" },
   });
   const payload = await readJson(response);
 
@@ -133,6 +149,7 @@ test("Unit: translate returns upstream error payload after retries", async (t) =
     url: "https://reader.pub/books/api/translate",
     method: "POST",
     body: { text: "hello", source: "en", target: "fr" },
+    env: { READERPUB_GOOGLE_TRANSLATE_API_KEY: "test-key" },
   });
   const payload = await readJson(response);
 
@@ -142,7 +159,7 @@ test("Unit: translate returns upstream error payload after retries", async (t) =
   assert.equal(payload.error, "Translate upstream failed.");
   assert.equal(payload.status, 502);
   assert.equal(payload.detail, "bad gateway");
-  assert.equal(payload.attempts, 6);
+  assert.equal(payload.attempts, 3);
 });
 
 test("Unit: translate returns 500 when request JSON is invalid", async () => {
@@ -168,7 +185,13 @@ test("Unit: translate alias /api/translate is supported", async (t) => {
   // Arrange
   const fetchMock = createFetchMockSequence([
     new Response(
-      JSON.stringify([[["Hi"]], null, "en"]),
+      JSON.stringify({
+        data: {
+          translations: [
+            { translatedText: "Hi", detectedSourceLanguage: "en" },
+          ],
+        },
+      }),
       {
         status: 200,
         headers: { "content-type": "application/json; charset=utf-8" },
@@ -183,6 +206,7 @@ test("Unit: translate alias /api/translate is supported", async (t) => {
     url: "https://reader.pub/api/translate/",
     method: "POST",
     body: { text: "Privet", source: "auto", target: "en" },
+    env: { READERPUB_GOOGLE_TRANSLATE_API_KEY: "test-key" },
   });
   const payload = await readJson(response);
 

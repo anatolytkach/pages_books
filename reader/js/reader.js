@@ -3432,6 +3432,8 @@ function applyThemeToIframes(themeName) {
 	this._neighborPrevReadyKey = "";
 	this._neighborNextReadyKey = "";
 	this._neighborWaiters = [];
+	this._neighborPrevTurnWaiters = [];
+	this._neighborNextTurnWaiters = [];
 	this.__neighborBaseKeyForLocation = function(location){
 		try {
 			if (location && location.start && location.start.cfi) return String(location.start.cfi);
@@ -3466,6 +3468,27 @@ function applyThemeToIframes(themeName) {
 		} catch(e0){}
 		return false;
 	};
+	this.__notifyNeighborTurnWaiters = function(side){
+		try {
+			var waiters = side === "next" ? this._neighborNextTurnWaiters : this._neighborPrevTurnWaiters;
+			if (!waiters || !waiters.length) return;
+			var nextWaiters = [];
+			for (var i = 0; i < waiters.length; i++) {
+				var item = waiters[i];
+				try {
+					if (this.__neighborReadyForTurn(item.location, side === "next")) {
+						try { item.resolve(); } catch (eResolve) {}
+					} else {
+						nextWaiters.push(item);
+					}
+				} catch (eItem) {
+					nextWaiters.push(item);
+				}
+			}
+			if (side === "next") this._neighborNextTurnWaiters = nextWaiters;
+			else this._neighborPrevTurnWaiters = nextWaiters;
+		} catch (e) {}
+	};
 	this.__notifyNeighborWaiters = function(){
 		try {
 			if (!this._neighborWaiters || !this._neighborWaiters.length) return;
@@ -3475,6 +3498,8 @@ function applyThemeToIframes(themeName) {
 				w.forEach(function(fn){ try { fn(); } catch(e){} });
 			}
 		} catch(e){}
+		try { this.__notifyNeighborTurnWaiters("prev"); } catch (ePrev) {}
+		try { this.__notifyNeighborTurnWaiters("next"); } catch (eNext) {}
 	};
 	this.__ensureNeighborsRendered = function(timeoutMs){
 		var self = this;
@@ -3487,6 +3512,20 @@ function applyThemeToIframes(themeName) {
 					try { resolve(); } catch(e){}
 				}, timeoutMs || 450);
 			} catch(e) { resolve(); }
+		});
+	};
+	this.__ensureNeighborRenderedForTurn = function(location, isNext, timeoutMs){
+		var self = this;
+		return new Promise(function(resolve){
+			try {
+				if (self.__neighborReadyForTurn(location, !!isNext)) return resolve();
+				var side = isNext ? "next" : "prev";
+				var list = isNext ? self._neighborNextTurnWaiters : self._neighborPrevTurnWaiters;
+				list.push({ location: location, resolve: resolve });
+				setTimeout(function(){
+					try { resolve(); } catch (eTimeout) {}
+				}, timeoutMs || 450);
+			} catch (e) { resolve(); }
 		});
 	};
 	this.__markNeighborReady = function(side, token, baseKey){
@@ -3515,6 +3554,24 @@ function applyThemeToIframes(themeName) {
 			try {
 				try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
 			} catch(e){}
+		});
+		this.renditionPrev.on("relocated", function(location){
+			try {
+				var baseKey = self._neighborBaseKeyExpected || "";
+				var token = self._neighborPrevExpected || 0;
+				var locKey = location && location.start && location.start.cfi ? String(location.start.cfi) : "";
+				if (!baseKey || !token || !locKey || locKey === baseKey) return;
+				self.__markNeighborReady("prev", token, baseKey);
+			} catch (ePrevRelocated) {}
+		});
+		this.renditionNext.on("relocated", function(location){
+			try {
+				var baseKey = self._neighborBaseKeyExpected || "";
+				var token = self._neighborNextExpected || 0;
+				var locKey = location && location.start && location.start.cfi ? String(location.start.cfi) : "";
+				if (!baseKey || !token || !locKey || locKey === baseKey) return;
+				self.__markNeighborReady("next", token, baseKey);
+			} catch (eNextRelocated) {}
 		});
 	} catch(e) {}
 
@@ -4723,12 +4780,12 @@ function attachSwipeToDoc(doc) {
 							} catch(e0) {}
 							return gen.then(function(){
 								try {
-									if (reader && reader.__updateSwipeNeighbors) {
-										var l = reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation());
-										if (l) reader.__updateSwipeNeighbors(l);
-									}
-								} catch(e1) {}
-								var timeoutMs = (reader && reader._swipeWarm) ? 650 : 2000;
+							if (reader && reader.__updateSwipeNeighbors) {
+								var l = reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation());
+								if (l) reader.__updateSwipeNeighbors(l);
+							}
+						} catch(e1) {}
+								var timeoutMs = (reader && reader._swipeWarm) ? 420 : 900;
 								var p = (reader && reader.__ensureNeighborsRendered) ? reader.__ensureNeighborsRendered(timeoutMs) : Promise.resolve();
 								return p;
 							}).finally(function(){
@@ -4989,6 +5046,7 @@ function attachSwipeToDoc(doc) {
 						var w = rect.width || window.innerWidth || 0;
 						var off = isNext ? -w : w;
 						var startDx = (isFinite(state.appliedDx) && state.appliedDx !== 1e9) ? state.appliedDx : 0;
+						var isDesktopReader = !!(window && window.__fb_isDesktop);
 						var canRevealUnderlay = false;
 						try {
 							canRevealUnderlay = !!(reader && reader.__neighborReadyForTurn && reader.__neighborReadyForTurn(
@@ -4996,7 +5054,7 @@ function attachSwipeToDoc(doc) {
 								!!isNext
 							));
 						} catch (eReady) {}
-						if (!canRevealUnderlay) {
+						if (!canRevealUnderlay && !isDesktopReader) {
 							try { canRevealUnderlay = hasRenderableNeighborLayer(!!isNext); } catch (eReadyDom) {}
 						}
 						if (canRevealUnderlay) {
@@ -5081,7 +5139,6 @@ function attachSwipeToDoc(doc) {
 						if (state.lock) return;
 						try { resetTransform(); } catch (e0) {}
 						try {
-							try { ensureNeighborsReady().catch(function(){}); } catch (eWarm) {}
 							var runCommit = function(){
 								try { commitTurn(isNext); } catch (e1) {
 									try {
@@ -5094,9 +5151,22 @@ function attachSwipeToDoc(doc) {
 							};
 							try {
 								var isIosLike = /iPad|iPhone|iPod/i.test((navigator && navigator.userAgent) || "");
-								if (isIosLike && win && typeof win.requestAnimationFrame === "function") {
+								var isDesktopReader = !!(window && window.__fb_isDesktop);
+								if (isDesktopReader) {
+									var locForTurn = reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation());
+									try {
+										if (reader && reader.__updateSwipeNeighbors && locForTurn) reader.__updateSwipeNeighbors(locForTurn);
+									} catch (eRefresh) {}
+									((reader && reader.__ensureNeighborRenderedForTurn)
+										? reader.__ensureNeighborRenderedForTurn(locForTurn, !!isNext, 420)
+										: Promise.resolve())
+										.catch(function(){})
+										.finally(function(){ runCommit(); });
+								} else if (isIosLike && win && typeof win.requestAnimationFrame === "function") {
+									try { ensureNeighborsReady().catch(function(){}); } catch (eWarm) {}
 									win.requestAnimationFrame(function(){ runCommit(); });
 								} else {
+									try { ensureNeighborsReady().catch(function(){}); } catch (eWarm2) {}
 									runCommit();
 								}
 							} catch (eRun) {
@@ -5575,17 +5645,12 @@ function attachSwipeToDoc(doc) {
 				var tokPrev = reader._neighborPrevExpected;
 				var tokNext = reader._neighborNextExpected;
 				var baseKey = String(curCfi);
-
 				Promise.resolve(reader.renditionPrev.display(curCfi))
 					.then(function(){
 						if (reader._neighborPrevExpected !== tokPrev) return;
 						return reader.renditionPrev.prev();
 					})
-					.then(function(){
-						try {
-							if (reader.__markNeighborReady) reader.__markNeighborReady("prev", tokPrev, baseKey);
-						} catch(e2) {}
-					})
+					.then(function(){})
 					.catch(function(){});
 
 				Promise.resolve(reader.renditionNext.display(curCfi))
@@ -5593,11 +5658,7 @@ function attachSwipeToDoc(doc) {
 						if (reader._neighborNextExpected !== tokNext) return;
 						return reader.renditionNext.next();
 					})
-					.then(function(){
-						try {
-							if (reader.__markNeighborReady) reader.__markNeighborReady("next", tokNext, baseKey);
-						} catch(e3) {}
-					})
+					.then(function(){})
 					.catch(function(){});
 			} catch (e) {}
 		}
@@ -6792,6 +6853,7 @@ if (doc) {
 	}
 
 	function updatePageCount(loc) {
+		if (window.__readerpubProtectedOldShellMode) return;
 		if (!pageCountEl) return;
 		if (!loc) loc = getCurrentLocationSafe();
 		if (!loc) {
@@ -8594,6 +8656,20 @@ return {
 
 // ---- My Books (recently opened) ----
 (function () {
+	function isDemoEntry() {
+		try {
+			var ctx = window.__readerpubEntryContext || null;
+			return !!(ctx && ctx.isDemoEntry);
+		} catch (e) {
+			return false;
+		}
+	}
+
+	function currentDemoBookId() {
+		if (!isDemoEntry()) return "";
+		return String(getBookId() || "");
+	}
+
 	function getBookId() {
 		try {
 			var params = new URLSearchParams(window.location.search || "");
@@ -8660,6 +8736,7 @@ return {
 		var href = "?id=" + encodeURIComponent(id);
 		var cover = String((item && (item.cover || item.coverUrl || item.cover_url)) || "");
 		if (cover) href += "&cover=" + encodeURIComponent(cover);
+		href += "&entry=mybooks";
 		return href;
 	}
 
@@ -8701,6 +8778,26 @@ return {
 		}
 	}
 
+	function purgeDemoBookFromLocalMyBooks() {
+		if (!isDemoEntry()) return;
+		var id = getBookId();
+		if (!id) return;
+		var list = loadList();
+		var next = [];
+		var changed = false;
+		for (var i = 0; i < list.length; i++) {
+			var item = list[i];
+			if (item && String(item.id) === String(id)) {
+				changed = true;
+				continue;
+			}
+			next.push(item);
+		}
+		if (!changed) return;
+		saveList(next);
+		render(next);
+	}
+
 	function saveList(list) {
 		_memoryList = Array.isArray(list) ? list.slice() : [];
 		var storage = getStorage();
@@ -8715,10 +8812,12 @@ return {
 		var ul = document.getElementById("mybooks");
 		if (!ul) return;
 		var items = list || loadList();
+		var demoBookId = currentDemoBookId();
 		while (ul.firstChild) ul.removeChild(ul.firstChild);
 		for (var i = 0; i < items.length; i++) {
 			var item = items[i];
 			if (!item || !item.id) continue;
+			if (demoBookId && String(item.id) === demoBookId) continue;
 			var li = document.createElement("li");
 			li.className = "list_item";
 			li.setAttribute("data-book-id", item.id);
@@ -8800,12 +8899,14 @@ return {
 	}
 
 	function addFromMeta(title, author) {
+		if (isDemoEntry()) return;
 		var id = getBookId();
 		if (!id || !/^\d+$/.test(id)) return;
 		upsertBook({ id: id, title: title || "", author: author || "" });
 	}
 
 	function upsertBook(entry) {
+		if (isDemoEntry()) return;
 		if (!entry || !entry.id) return;
 		var list = loadList();
 		var now = Date.now();
@@ -8837,6 +8938,7 @@ return {
 	}
 
 	function ensureCurrentBook() {
+		if (isDemoEntry()) return;
 		var id = getBookId();
 		if (!id || !/^\d+$/.test(id)) return;
 		upsertBook({ id: id, title: "", author: "", cover: getBookCoverHint() });
@@ -8902,6 +9004,7 @@ return {
 
 	if (document.readyState === "loading") {
 		document.addEventListener("DOMContentLoaded", function () {
+			purgeDemoBookFromLocalMyBooks();
 			render();
 			hydrateFromDriveSilent();
 			ensureCurrentBook();
@@ -8909,6 +9012,7 @@ return {
 			setTimeout(syncFromDom, 600);
 		});
 	} else {
+		purgeDemoBookFromLocalMyBooks();
 		render();
 		hydrateFromDriveSilent();
 		ensureCurrentBook();

@@ -13,7 +13,7 @@
 <meta content="" name="posthog-host"/>
 <link rel="icon" type="image/svg+xml" href="/books/assets/logo-flip.svg?v=20260218-1" />
 <link href="css/normalize.css" rel="stylesheet"/>
-<link href="css/main.css?v=20260315-swipe-select-hold-1" rel="stylesheet"/>
+<link href="css/main.css?v=20260417-readernew-shell-desktop-48" rel="stylesheet"/>
 <link href="css/popup.css" rel="stylesheet"/>
 <script src="/books/shared/posthog.js"></script>
 <script src="js/libs/jquery.min.js"></script>
@@ -136,6 +136,32 @@
                 });
             }
 
+            function revealReaderShellForStatus() {
+              try {
+                if (window.__fbShowUi && typeof window.__fbShowUi === "function") window.__fbShowUi();
+                else if (document.body && document.body.classList) document.body.classList.remove("ui-hidden");
+              } catch (e0) {}
+              try {
+                var loader = document.getElementById("loader");
+                if (loader) {
+                  loader.style.display = "none";
+                  loader.style.visibility = "hidden";
+                  loader.style.opacity = "0";
+                  loader.style.pointerEvents = "none";
+                }
+              } catch (e1) {}
+            }
+
+            function renderReaderStatus(title, bodyHtml) {
+              revealReaderShellForStatus();
+              var el = document.getElementById("viewer");
+              if (!el) return;
+              el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
+                <h2 style="margin:0 0 10px 0;font-size:18px">${title}</h2>
+                <div style="color:#666;font-size:14px;line-height:1.4">${bodyHtml}</div>
+              </div>`;
+            }
+
             document.onreadystatechange = function () {
               if (document.readyState == "complete") {
                 // Book source: ONLY from catalog (exploded EPUB directories on R2).
@@ -149,6 +175,12 @@
   const qidShort = params.get("i");
   const qCatalogReturn = params.get("catalog_return");
   const qAutostart = params.get("autostart");
+  const requestedContentSource = String(params.get("readerContentSource") || params.get("bookContentSource") || "")
+    .trim()
+    .toLowerCase();
+  const requestedRemoteMode = String(params.get("readerRemoteMode") || params.get("protectedRemoteMode") || "")
+    .trim()
+    .toLowerCase();
   const rawHash = (location.hash || "");
   const hid = rawHash.replace(/^#/, "");
   const hashIsId = /^\d+$/.test(hid);
@@ -172,18 +204,13 @@
   } catch (e0) {}
 
   if(!/^\d+$/.test(id)){
-    const el = document.getElementById("viewer");
-    if(el){
-      el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
-        <h2 style="margin:0 0 10px 0;font-size:18px">No book selected</h2>
-        <div style="color:#666;font-size:14px;line-height:1.4">
-          Open a book from the catalog, or pass an id like
-          <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">?id=75586</code>
-          or
-          <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">#75586</code>.
-        </div>
-      </div>`;
-    }
+    renderReaderStatus(
+      "No book selected",
+      `Open a book from the catalog, or pass an id like
+      <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">?id=75586</code>
+      or
+      <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">#75586</code>.`
+    );
     return;
   }
 
@@ -324,6 +351,22 @@
   function detectReader1OpenSpec(bookPath) {
     var normalized = String(bookPath || "");
     if (!normalized.endsWith("/")) normalized += "/";
+    if (normalized.indexOf("/books/content/") !== -1 && normalized.indexOf("/books/content/manual/") === -1) {
+      return Promise.resolve({
+        path: normalized,
+        openAs: "directory",
+        format: "legacy",
+        rootPath: normalized
+      });
+    }
+    if (normalized.indexOf("/books/content/manual/") !== -1) {
+      return Promise.resolve({
+        path: normalized,
+        openAs: "directory",
+        format: "legacy",
+        rootPath: normalized
+      });
+    }
     var manifestPath = normalized + "reader1-manifest.json";
     return fetch(manifestPath, { cache: "no-store" })
       .then(function(response){
@@ -354,14 +397,79 @@
 
   function bootReader(bookPath) {
     return detectReader1OpenSpec(bookPath).then(function(spec){
+    var initialCfi = "";
+    var startupTarget = "";
+    try {
+      if (hashIsCfi && hid) {
+        initialCfi = hid;
+      } else if (!isDemoEntry) {
+        var lastKey = "readerpub:lastcfi:" + id;
+        var lastSaved = localStorage && localStorage.getItem(lastKey);
+        if (lastSaved) initialCfi = String(lastSaved);
+      }
+    } catch (eInitialCfi) {}
+    startupTarget = initialCfi;
     const opts = {
       openAs: spec.openAs,
       restore: true
     };
+    if (initialCfi) opts.previousLocationCfi = initialCfi;
 
     window.__reader1BookFormat = spec.format;
     window.reader = ePubReader(spec.path, opts);
     scheduleCatalogEntryHint();
+
+    (function(){
+      var startupRenderSeen = false;
+      var startupRetryDone = false;
+      var startupFallbackDone = false;
+
+      function markStartupSeen() {
+        startupRenderSeen = true;
+      }
+
+      function retryStartupDisplay(target, allowDefaultFallback) {
+        try {
+          if (!window.reader || !window.reader.rendition) return;
+          if (startupRenderSeen) return;
+          if (target) {
+            Promise.resolve(window.reader.rendition.display(target)).catch(function(){
+              if (!allowDefaultFallback || startupRenderSeen) return;
+              try {
+                Promise.resolve(window.reader.rendition.display()).catch(function(){});
+              } catch (eDisplayDefault) {}
+            });
+            return;
+          }
+          Promise.resolve(window.reader.rendition.display()).catch(function(){});
+        } catch (eRetryDisplay) {}
+      }
+
+      try {
+        if (window.reader && window.reader.rendition && typeof window.reader.rendition.on === "function") {
+          window.reader.rendition.on("rendered", markStartupSeen);
+          window.reader.rendition.on("relocated", markStartupSeen);
+        }
+      } catch (eStartupEvents) {}
+
+      try {
+        if (window.reader && window.reader.book && window.reader.book.ready && typeof window.reader.book.ready.then === "function") {
+          window.reader.book.ready.then(function(){
+            window.setTimeout(function(){
+              if (startupRenderSeen || startupRetryDone) return;
+              startupRetryDone = true;
+              retryStartupDisplay(startupTarget, false);
+            }, 180);
+
+            window.setTimeout(function(){
+              if (startupRenderSeen || startupFallbackDone) return;
+              startupFallbackDone = true;
+              retryStartupDisplay(startupTarget, true);
+            }, 1800);
+          }).catch(function(){});
+        }
+      } catch (eStartupReady) {}
+    })();
 
     try {
       if (window.reader && window.reader.rendition && typeof window.reader.rendition.on === "function") {
@@ -459,19 +567,14 @@
       }
     })();
 
-    // Restore last position for this book (independent of EPUB.js internal restore).
-    // Demo entries stay isolated from user-selected reading state and future last-read flows.
+    // Persist last position for this book.
+    // Initial restore is handled through opts.previousLocationCfi to avoid a second
+    // late rendition.display(...) call that can blank the first load.
     (function(){
       try {
         if (!window.reader || !window.reader.rendition) return;
         const key = `readerpub:lastcfi:${id}`;
         if (isDemoEntry) return;
-        try {
-          const last = localStorage && localStorage.getItem(key);
-          if (last) {
-            window.reader.rendition.display(last);
-          }
-        } catch (e1) {}
         try {
           window.reader.rendition.on("relocated", function(location){
             try {
@@ -529,50 +632,40 @@
       }
       var bookPath = "";
       if (locationInfo) {
-        if (isLocalPreviewHost() && locationInfo.localContentPath) {
-          bookPath = String(locationInfo.localContentPath);
+        if (
+          isLocalPreviewHost() &&
+          requestedRemoteMode === "strict" &&
+          requestedContentSource === "r2" &&
+          locationInfo.contentPath
+        ) {
+          bookPath = String(locationInfo.contentPath);
         } else if (locationInfo.contentPath) {
           bookPath = String(locationInfo.contentPath);
         }
       }
       if (!bookPath) {
-        const el = document.getElementById("viewer");
-        if (el) {
-          el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
-            <h2 style="margin:0 0 10px 0;font-size:18px">Book not found</h2>
-            <div style="color:#666;font-size:14px;line-height:1.4">
-              No catalog mapping was found for
-              <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.
-            </div>
-          </div>`;
-        }
+        renderReaderStatus(
+          "Book not found",
+          `No catalog mapping was found for
+          <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.`
+        );
         return;
       }
       if (!bookPath.endsWith("/")) bookPath += "/";
       bootReader(bookPath).catch(function(){
-        const el = document.getElementById("viewer");
-        if (el) {
-          el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
-            <h2 style="margin:0 0 10px 0;font-size:18px">Book open failed</h2>
-            <div style="color:#666;font-size:14px;line-height:1.4">
-              Reader1 could not open
-              <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.
-            </div>
-          </div>`;
-        }
+        renderReaderStatus(
+          "Book open failed",
+          `Reader1 could not open
+          <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.`
+        );
       });
     })
     .catch(function(){
-      const el = document.getElementById("viewer");
-      if (el) {
-        el.innerHTML = `<div style="padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
-          <h2 style="margin:0 0 10px 0;font-size:18px">Book not found</h2>
-          <div style="color:#666;font-size:14px;line-height:1.4">
-            Failed to resolve catalog mapping for
-            <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.
-          </div>
-        </div>`;
-      }
+      renderReaderStatus(
+        "Book not found",
+        `Failed to resolve catalog mapping for
+        <code style="background:#f3f3f3;padding:2px 6px;border-radius:6px">${id}</code>.`
+      );
     });
 })();
               }
@@ -584,12 +677,12 @@
 <!-- Full Screen -->
 <script src="js/libs/screenfull.min.js"></script>
 <!-- Render -->
-<script src="js/epub.js?v=20260331-reader1-json-contract-2"></script>
+<script src="js/epub.js?v=20260418-reader1-vertical-padding-restore-1"></script>
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
-<script src="js/reader.js?v=20260331-reader1-json-contract-2"></script>
+<script src="js/reader.js?v=20260418-reader1-touch-gesture-prod-1"></script>
 <script src="js/fullscreen-fix.js"></script>
-<script src="js/fbreader-ui.js?v=20260315-desktop-search-fix-2"></script>
+<script src="js/fbreader-ui.js?v=20260418-reader1-selection-tts-flow-6"></script>
 <!-- Plugins -->
 <!--
 -->
@@ -604,171 +697,112 @@
   <div class="reader-onboarding-hint-line1"></div>
 </div>
 <div id="overlay-backdrop" class="overlay-backdrop hidden" aria-hidden="true"></div>
-<div id="overlay-toc" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Table of contents">
-  <div class="overlay-head">
-    <div class="overlay-title">Table of contents</div>
-    <button class="overlay-close" type="button" aria-label="Close">✕</button>
+<div id="reader1ViewStore" class="hidden" aria-hidden="true">
+  <div class="view" id="tocView"></div>
+  <div class="view" id="bookmarksView"><ul id="bookmarks"></ul></div>
+  <div class="view" id="notesView">
+    <ul id="notes"></ul>
+    <div class="notes-copy-link-wrap">
+      <button id="copyNotesLinkBtn" class="notes-copy-link-btn" type="button">Copy book link with Notes</button>
+    </div>
   </div>
-  <div class="overlay-sep" aria-hidden="true"></div>
-  <div class="overlay-scroll">
-    <div class="view" id="tocView"></div>
+  <div class="view" id="mybooksView"><ul id="mybooks"></ul></div>
+  <div class="reader1-book-card" id="reader1SettingsBookCard">
+    <div class="reader1-book-cover-wrap">
+      <img id="reader1SettingsBookCover" class="reader1-book-cover hidden" alt="Book cover" />
+      <div id="reader1SettingsBookCoverPlaceholder" class="reader1-book-cover-placeholder" aria-hidden="true"></div>
+    </div>
+    <div class="reader1-book-meta">
+      <div id="reader1SettingsBookTitle" class="reader1-book-title"></div>
+      <div id="reader1SettingsBookAuthor" class="reader1-book-author"></div>
+    </div>
   </div>
-</div>
-<div id="overlay-bookmarks" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Bookmarks">
-  <div class="overlay-head">
-    <div class="overlay-title">Bookmarks</div>
-    <button class="overlay-close" type="button" aria-label="Close">✕</button>
-  </div>
-  <div class="overlay-sep" aria-hidden="true"></div>
-  <div class="overlay-scroll">
-    <div class="view" id="bookmarksView"><ul id="bookmarks"></ul></div>
-  </div>
-</div>
-<div id="overlay-notes" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Notes">
-  <div class="overlay-head">
-    <div class="overlay-title">Notes</div>
-    <button class="overlay-close" type="button" aria-label="Close">✕</button>
-  </div>
-  <div class="overlay-sep" aria-hidden="true"></div>
-  <div class="overlay-scroll">
-    <div class="view" id="notesView">
-      <ul id="notes"></ul>
-      <div class="notes-copy-link-wrap">
-        <button id="copyNotesLinkBtn" class="notes-copy-link-btn" type="button">Copy book link with Notes</button>
+  <div class="view" id="voiceView">
+    <div class="voice-picker-wrap">
+      <div id="voiceStatus" class="voice-picker-status" aria-live="polite">Select a voice for reading aloud.</div>
+      <label for="voiceLangSelect" class="voice-picker-label">Language</label>
+      <div id="voiceLangDropdown" class="voice-picker-dropdown">
+        <button id="voiceLangToggle" type="button" class="voice-picker-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false"></button>
+        <div id="voiceLangList" class="voice-picker-dropdown-list" role="listbox" aria-label="Language options"></div>
       </div>
+      <select id="voiceLangSelect" class="voice-picker-select" aria-label="Language"></select>
+      <label for="voiceSelect" class="voice-picker-label">Voice</label>
+      <div id="voiceDropdown" class="voice-picker-dropdown">
+        <button id="voiceToggle" type="button" class="voice-picker-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false"></button>
+        <div id="voiceList" class="voice-picker-dropdown-list" role="listbox" aria-label="Voice options"></div>
+      </div>
+      <select id="voiceSelect" class="voice-picker-select" aria-label="Voice"></select>
     </div>
   </div>
 </div>
-<div id="overlay-mybooks" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="My Books">
+<div id="overlay-library" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Book navigation">
   <div class="overlay-head">
-    <div class="overlay-title">My Books</div>
+    <div class="overlay-title">Book Navigation</div>
     <button class="overlay-close" type="button" aria-label="Close">✕</button>
   </div>
   <div class="overlay-sep" aria-hidden="true"></div>
   <div class="overlay-scroll">
-    <div class="view" id="mybooksView"><ul id="mybooks"></ul></div>
-  </div>
-</div>
-<div id="overlay-voice" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Choose Voice">
-  <div class="overlay-head">
-    <div class="overlay-title">Choose Voice</div>
-    <button class="overlay-close" type="button" aria-label="Close">✕</button>
-  </div>
-  <div class="overlay-sep" aria-hidden="true"></div>
-    <div class="overlay-scroll">
-      <div class="view" id="voiceView">
-      <div class="voice-picker-wrap">
-        <div id="voiceStatus" class="voice-picker-status" aria-live="polite">Select a voice for reading aloud.</div>
-        <label for="voiceLangSelect" class="voice-picker-label">Language</label>
-        <div id="voiceLangDropdown" class="voice-picker-dropdown">
-          <button id="voiceLangToggle" type="button" class="voice-picker-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false"></button>
-          <div id="voiceLangList" class="voice-picker-dropdown-list" role="listbox" aria-label="Language options"></div>
-        </div>
-        <select id="voiceLangSelect" class="voice-picker-select" aria-label="Language"></select>
-        <label for="voiceSelect" class="voice-picker-label">Voice</label>
-        <div id="voiceDropdown" class="voice-picker-dropdown">
-          <button id="voiceToggle" type="button" class="voice-picker-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false"></button>
-          <div id="voiceList" class="voice-picker-dropdown-list" role="listbox" aria-label="Voice options"></div>
-        </div>
-        <select id="voiceSelect" class="voice-picker-select" aria-label="Voice"></select>
-      </div>
+    <div id="protectedLibraryTabs" role="tablist" aria-label="Library sections">
+      <button type="button" class="protected-library-tab is-active" id="protectedLibraryTab-toc" role="tab" aria-selected="true">TOC</button>
+      <button type="button" class="protected-library-tab" id="protectedLibraryTab-notes" role="tab" aria-selected="false" tabindex="-1">Notes</button>
+      <button type="button" class="protected-library-tab" id="protectedLibraryTab-bookmarks" role="tab" aria-selected="false" tabindex="-1">Bookmarks</button>
+      <button type="button" class="protected-library-tab" id="protectedLibraryTab-mybooks" role="tab" aria-selected="false" tabindex="-1">My Library</button>
     </div>
+    <section id="protectedLibraryPane-toc" class="protected-library-pane" role="tabpanel">
+      <div id="protectedLibraryTocMount"></div>
+    </section>
+    <section id="protectedLibraryPane-notes" class="protected-library-pane hidden" role="tabpanel">
+      <div id="protectedLibraryNotesMount"></div>
+      <div id="protectedLibraryNotesFooter">
+        <button type="button" id="protectedNotesShareBtn" class="notes-copy-link-btn">Copy book link with Notes</button>
+      </div>
+    </section>
+    <section id="protectedLibraryPane-bookmarks" class="protected-library-pane hidden" role="tabpanel">
+      <div id="protectedLibraryBookmarksMount"></div>
+    </section>
+    <section id="protectedLibraryPane-mybooks" class="protected-library-pane hidden" role="tabpanel">
+      <div id="protectedLibraryMyBooksMount"></div>
+    </section>
   </div>
 </div>
-<div id="overlay-menu" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Menu">
+<div id="overlay-settings" class="overlay-panel hidden" role="dialog" aria-modal="true" aria-label="Settings">
   <div class="overlay-head">
-    <div class="overlay-title">Menu</div>
+    <div class="overlay-title">Settings</div>
     <button class="overlay-close" type="button" aria-label="Close">✕</button>
   </div>
   <div class="overlay-sep" aria-hidden="true"></div>
   <div class="overlay-scroll">
-    <div class="view" id="menuView">
-      <div class="menu-book-card" id="menuBookCard">
-        <div class="menu-book-cover-wrap">
-          <img id="menuBookCover" class="menu-book-cover hidden" alt="Book cover" />
-          <div id="menuBookCoverPlaceholder" class="menu-book-cover-placeholder" aria-hidden="true"></div>
+    <section id="protectedSettingsBookSection">
+      <div id="protectedSettingsBookCardMount"></div>
+    </section>
+    <section id="protectedSettingsTextSection">
+      <h3 id="protectedSettingsTextSectionTitle">Text:</h3>
+      <section id="protectedTypographyPanel" aria-label="Text settings">
+        <div id="protectedTypographyModes" role="group" aria-label="Reading font">
+          <button type="button" class="protected-typography-mode" id="protectedTypographySans" data-font-mode="sans">
+            <span class="sample" aria-hidden="true">Aa</span>
+            <span class="label">Sans</span>
+          </button>
+          <button type="button" class="protected-typography-mode" id="protectedTypographySerif" data-font-mode="serif">
+            <span class="sample" aria-hidden="true">Aa</span>
+            <span class="label">Serif</span>
+          </button>
         </div>
-        <div class="menu-book-meta">
-          <div id="menuBookTitle" class="menu-book-title"></div>
-          <div id="menuBookAuthor" class="menu-book-author"></div>
+        <div class="protected-typography-size">
+          <div class="protected-typography-size-row">
+            <span class="small" aria-hidden="true">A</span>
+            <input type="range" id="protectedTypographyScale" min="80" max="160" step="10" value="100" aria-label="Text size" />
+            <span class="large" aria-hidden="true">A</span>
+          </div>
         </div>
-      </div>
-      <ul id="menuList">
-        <li>
-          <button class="menu-item" type="button" data-menu="toc" aria-label="Table of contents">
-            <span class="menu-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <circle cx="5" cy="7" r="1.5"></circle>
-                <circle cx="5" cy="12" r="1.5"></circle>
-                <circle cx="5" cy="17" r="1.5"></circle>
-                <path d="M9 7h11"></path>
-                <path d="M9 12h11"></path>
-                <path d="M9 17h11"></path>
-              </svg>
-            </span>
-            <span class="menu-label">Table of contents</span>
-          </button>
-        </li>
-        <li>
-          <button class="menu-item" type="button" data-menu="notes" aria-label="Notes">
-            <span class="menu-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-                <path d="M7 9h10"></path>
-                <path d="M7 13h10"></path>
-                <path d="M7 17h7"></path>
-              </svg>
-            </span>
-            <span class="menu-label">Notes</span>
-          </button>
-        </li>
-        <li>
-          <button class="menu-item" type="button" data-menu="bookmarks" aria-label="Bookmarks">
-            <span class="menu-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M6 4h12v16l-6-4-6 4z"></path>
-              </svg>
-            </span>
-            <span class="menu-label">Bookmarks</span>
-          </button>
-        </li>
-        <li>
-          <button class="menu-item" type="button" data-menu="voice" aria-label="Choose Voice">
-            <span class="menu-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M4 14V10h4l5-5v14l-5-5z"></path>
-                <path d="M16 9c1.2 1 1.8 2 1.8 3s-.6 2-1.8 3"></path>
-                <path d="M18.5 7c2.1 1.7 3 3.5 3 5s-.9 3.3-3 5"></path>
-              </svg>
-            </span>
-            <span class="menu-label">Choose Voice</span>
-          </button>
-        </li>
-        <li>
-          <button class="menu-item" type="button" data-menu="mybooks" aria-label="My Books">
-            <span class="menu-icon menu-icon-user" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="8" r="3.5"></circle>
-                <path d="M4.5 19.5c1.9-3.7 5-5.5 7.5-5.5s5.6 1.8 7.5 5.5"></path>
-              </svg>
-            </span>
-            <span class="menu-label">My Books</span>
-          </button>
-        </li>
-        <li>
-          <a id="menuCatalogLink" class="menu-item" href="/books/" aria-label="Catalog">
-            <span class="menu-icon menu-icon-catalog" aria-hidden="true">
-              <svg viewBox="0 0 334.44 304.97">
-                <path d="M20.92,17.11c-5.16.76-9.65-1.48-15.5,2.77C1.4,22.79.12,26.55.12,32.92v183.19c0,5.86-.29,12.49.02,18.26.29,5.33,3.49,9.15,7.25,11.1,4.12,2.13,11.49,1.43,16.86,1.43h73.23c10.8,0,14.91-1.2,20.9,6.62,1.25,1.63,2.97,3.29,4.59,4.54,9.54,7.38,18.98,5.7,30.83,5.7,5.38,0,12.86.45,17.76-.71,3.97-.93,11.79-3.23,7.94-8.32-2.67-3.53-5.04-6.92-7.57-10.68-4.46-6.64-9.65-15.69-11.65-25.07-1.79-8.45-1.21-26.12-1.21-35.6V36.93c0-8.92-1.8-18.26,5.25-22.19,2.68-1.5,4.51-1.37,7.95-1.37,24.41.01,48.82,0,73.23,0,3.87,0,15.07-.47,18.02.22,4.43,1.03,8.13,4.78,8.23,9.97.25,12.14,0,24.57,0,36.74v82.36c-.02,4.1.88,3.74,4.06,5.06,5.2,2.16,7.15,4.19,10.54,7.73,2.52,2.64,6.35-.89,15.52,2.27,3.86,1.33,3-2.65,3-5.49V32.92c0-3.41.09-5.07-1.18-7.9-4.66-10.39-15.88-7.18-19.68-7.94-1.21-2.3-.58-2.6-3.1-6.44-3.91-5.96-10.83-10.07-18.71-10.42-6.24-.28-13.07-.03-19.37-.03h-58.54c-5.5,0-13.95-.47-18.97.4-8.04,1.39-11.1,5.78-12.86,6.75-.86-.62-1.57-1.42-2.51-2.16-.99-.78-1.83-1.33-2.98-1.96C138.93-1.13,130.91.19,120.86.19h-58.32c-6.42,0-13.22-.22-19.6.02-9.11.34-17.02,5.75-20.62,13.44-.46.97-.9,2.58-1.41,3.47h0ZM145.92,218.03c.34-13.01,0-26.47,0-39.53V39.6c0-4.33.51-15.93-.58-19.14-.85-2.51-2.5-4.29-4.33-5.49-2.57-1.69-4.75-1.59-8.38-1.59H53.19c-6.83,0-12.87-1.06-16.94,3.05-4.06,4.1-3.01,9.92-3.01,16.72v158.71c0,6.27-1,13.38,2.48,17.25,4.15,4.62,8.71,3.67,16.13,3.67h59.66c11.75,0,20.42-1.16,31.03,3.68.63.29,2.8,1.52,3.39,1.58h0ZM307,190.75c-.17-4.85.6-9.59-1.38-13.59-4.9-9.94-18-10.29-23.74-1.91-.5.73-.94,1.5-1.35,2.43-.36.84-.57,2.04-.95,2.82-.34-4.77.65-9.68-1.37-13.81-4.69-9.58-17.72-10.89-24.04-1.56-.7,1.03-2.12,4.41-2.07,5.43-.32-4.06-.06-26.84-.06-32.81,0-3.23.26-7.97-.19-10.93-1.94-12.75-19.69-15.63-25.65-4.15-1.61,3.12-1.62,5.36-1.62,9.29v77.46c0,3.4.43,20.02-.1,21.96-.37,1.35-2.19,1.8-3.29.78l-8.23-8.46c-5.38-5.23-16.43-15.34-25.71-18.54-6.52-2.25-13.33-1.14-14.68,5.25-2.49,11.85,16.72,35.72,22.81,43.32,6.97,8.69,18.34,21.09,26.27,28.72,2.22,2.14,3.73,3.49,5.68,5.45,6.32,6.37,19.23,12.82,28.92,15.39,6.52,1.73,13.18,1.75,20.4,1.62,23.72-.43,43.72-14.22,53.01-35.38,5.64-12.86,4.7-24.09,4.7-39.62v-32.94c0-4.13.18-6.37-1.51-9.68-4.27-8.36-15.35-9.96-21.83-3.58-3.2,3.15-2.89,5.07-4.04,7.05h.02Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"/>
-              </svg>
-            </span>
-            <span class="menu-label">ReaderPub Books</span>
-          </a>
-        </li>
-      </ul>
-      <div class="menu-share-link-wrap">
-        <button id="copyBookLinkBtn" class="menu-share-link-btn" type="button">Copy book link</button>
-      </div>
+      </section>
+    </section>
+    <section id="protectedSettingsVoiceSection">
+      <h3 id="protectedSettingsVoiceSectionTitle">Voice:</h3>
+      <div id="protectedSettingsVoiceMount"></div>
+    </section>
+    <div class="menu-share-link-wrap protected-settings-footer">
+      <button id="protectedSettingsShareBtn" class="menu-share-link-btn" type="button">Copy book link</button>
     </div>
   </div>
 </div>
@@ -777,6 +811,7 @@
 <div id="commentBackdrop" class="comment-backdrop hidden" aria-hidden="true"></div>
 <div id="commentSheet" class="comment-sheet hidden" role="dialog" aria-modal="true" aria-label="Add Comment">
   <div class="comment-title">Add Comment</div>
+  <div id="commentQuote" class="comment-quote"></div>
   <textarea id="commentInput" class="comment-input" rows="4" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
   <div class="comment-actions">
     <button id="commentCancel" type="button">Cancel</button>
@@ -785,21 +820,15 @@
 </div>
 <div id="main">
 <div id="titlebar">
-<div id="opener">
-<a aria-label="TOC" id="slider">
-  <svg class="menu-hamburger-icon" viewBox="0 0 415.7 404.37" aria-hidden="true" focusable="false">
-    <path d="M0 0h415.7v87.35H0zM0 158.51h415.7v87.35H0zM0 317.02h415.7v87.35H0z"></path>
-  </svg>
+<div id="shellTopLinks" class="shell-top-links" aria-label="Catalog shortcuts">
+  <a id="shellCatalogLink" class="shell-top-link shell-top-link-catalog" href="/books/" aria-label="ReaderPub Books">
+    <span class="shell-top-link-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path d="M1.5 1.35c-.37.06-.7-.1-1.12.2C.09 1.76 0 2.03 0 2.49v13.25c0 .42-.02.9 0 1.32.02.39.25.66.52.8.3.15.83.1 1.22.1h5.3c.78 0 1.08-.08 1.51.48.1.12.22.24.33.33.7.53 1.38.41 2.23.41.39 0 .93.03 1.28-.05.29-.07.85-.23.57-.6-.2-.25-.37-.5-.55-.77-.32-.48-.7-1.13-.84-1.81-.13-.61-.09-1.89-.09-2.58V2.78c0-.64-.13-1.32.38-1.6.19-.1.33-.1.58-.1 1.77 0 3.53 0 5.3 0 .28 0 1.09-.04 1.3.02.32.07.59.34.6.72.02.88 0 1.78 0 2.66v5.96c0 .3.07.27.3.36.37.16.51.3.76.56.18.19.46-.06 1.12.16.28.1.22-.19.22-.4V2.49c0-.25 0-.37-.08-.57-.34-.75-1.15-.52-1.43-.57-.09-.17-.04-.19-.22-.47-.28-.43-.78-.73-1.35-.75-.45-.03-.95 0-1.4 0h-4.23c-.4 0-1-.03-1.37.03-.58.1-.8.42-.93.49-.06-.05-.11-.1-.18-.16-.07-.06-.13-.1-.22-.14C10.06.04 9.48.14 8.75.14H4.54c-.46 0-.96-.02-1.42 0-.66.03-1.23.42-1.49.98-.03.07-.06.18-.1.25Zm9.03 14.53c.02-.94 0-1.91 0-2.86V2.98c0-.31.04-1.15-.04-1.39-.06-.18-.18-.31-.31-.4-.19-.12-.34-.11-.6-.11H3.83c-.49 0-.93-.08-1.22.22-.3.3-.22.72-.22 1.2v11.48c0 .45-.07.97.18 1.25.3.33.63.26 1.16.26h4.31c.85 0 1.48-.08 2.24.26.04.02.2.1.25.11Zm11.64-1.97c-.01-.35.05-.7-.1-.98-.35-.72-1.3-.74-1.72-.14-.04.06-.07.1-.1.18-.02.06-.04.15-.07.2-.03-.34.05-.7-.1-1-.34-.7-1.28-.78-1.74-.11-.05.08-.15.32-.15.39-.02-.29 0-1.94 0-2.37 0-.23.02-.58-.01-.79-.14-.92-1.42-1.13-1.85-.3-.12.23-.12.38-.12.67v5.6c0 .24.03 1.45 0 1.58-.02.1-.15.13-.23.06l-.6-.61c-.39-.38-1.19-1.11-1.86-1.34-.47-.16-.96-.08-1.06.38-.18.86 1.21 2.58 1.65 3.13.5.63 1.33 1.52 1.9 2.08.17.15.27.25.42.39.46.46 1.39.92 2.09 1.11.47.12.95.13 1.47.12 1.71-.04 3.16-1.03 3.83-2.56.4-.93.34-1.75.34-2.87v-2.38c0-.3.01-.46-.11-.7-.3-.6-1.11-.72-1.57-.26-.23.23-.21.37-.3.51Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"></path>
+      </svg>
+    </span>
+    <span class="shell-top-link-label">ReaderPub Books</span>
 </a>
-  <button id="openNotes" class="icon-note-btn" type="button" aria-label="Notes">
-  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-    <rect x="1" y="1" width="18" height="18" rx="2.5"></rect>
-    <line x1="4" y1="6.5" x2="16" y2="6.5"></line>
-    <line x1="4" y1="10" x2="16" y2="10"></line>
-    <line x1="4" y1="13.5" x2="12.5" y2="13.5"></line>
-  </svg>
-</button>
-<a aria-label="Bookmarks" class="icon-bookmark" id="openBookmarks"></a>
 </div>
 <div id="metainfo">
   <div id="metaText">
@@ -816,11 +845,25 @@
 <!-- Search (FBReader-like) -->
 <div id="searchDesktop" class="search-desktop" aria-label="Search" role="search">
   <div class="search-nav desktop" aria-hidden="true">
-    <button id="searchPrevDesktop" class="search-btn search-arrow" type="button" aria-label="Previous match">‹</button>
+    <button id="searchPrevDesktop" class="search-btn search-arrow" type="button" aria-label="Previous match">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M15 5L8 12L15 19"></path>
+      </svg>
+    </button>
+    <button id="searchReturnDesktop" class="search-btn search-return" type="button" aria-label="Return to page where search started">
+      <img src="icons/back.svg?v=20260417-reader1-cloud-preview-icons-1" alt="" aria-hidden="true" />
+    </button>
     <span id="searchCountDesktop" class="search-count">0/0</span>
-    <button id="searchNextDesktop" class="search-btn search-arrow" type="button" aria-label="Next match">›</button>
+    <button id="searchNextDesktop" class="search-btn search-arrow" type="button" aria-label="Next match">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M9 5L16 12L9 19"></path>
+      </svg>
+    </button>
   </div>
   <div class="search-input-wrap">
+    <span class="search-infield-icon" aria-hidden="true">
+      <img class="search-field-mag-icon" src="icons/search.svg?v=20260303-icons-tight-x-3" alt="" aria-hidden="true" />
+    </span>
     <input
       id="searchInputDesktop"
       class="search-input"
@@ -836,7 +879,7 @@
       data-lpignore="true"
     />
     <button id="searchActionDesktop" class="search-clear search-action is-mag is-disabled" type="button" aria-label="Search">
-      <!-- Desktop search magnifier -->
+      <img class="search-field-mag-icon" src="icons/search.svg?v=20260303-icons-tight-x-3" alt="" aria-hidden="true" />
       <svg class="search-mag-svg" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
         <circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5" />
         <line x1="15" y1="15" x2="21" y2="21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
@@ -855,9 +898,17 @@
 </div>
 
 <a aria-label="Bookmark" class="icon-bookmark" id="bookmark"></a><a aria-label="Decrease font size" class="font-size-btn font-size-dec" id="fontDec">A</a><a aria-label="Increase font size" class="font-size-btn font-size-inc" id="fontInc">A</a>
-
-
-<button class="theme-icon-btn" id="themeToggle" aria-label="Toggle theme" type="button"><img class="theme-icon" src="icons/theme.svg?v=20260303-icons-tight-x-3" alt="" aria-hidden="true" /></button>
+<button id="shellLibraryToggle" class="shell-control-btn shell-library-toggle" type="button" aria-label="Book navigation">
+  <span class="shell-control-icon" aria-hidden="true">
+    <img class="shell-control-img" src="icons/toc.svg?v=20260417-reader1-cloud-preview-icons-1" alt="" aria-hidden="true" />
+  </span>
+</button>
+<button id="setting" class="shell-control-btn shell-settings-toggle" aria-label="Settings" type="button">
+  <span class="shell-control-icon" aria-hidden="true">
+    <img class="shell-control-img" src="icons/settings.svg?v=20260417-reader1-cloud-preview-icons-1" alt="" aria-hidden="true" />
+  </span>
+</button>
+<button class="theme-icon-btn" id="themeToggle" aria-label="Toggle theme" type="button"><img class="theme-icon" src="icons/theme.svg?v=20260417-reader1-theme-icon-2" alt="" aria-hidden="true" /></button>
 <button class="ab-state-full" id="addressBarToggle" aria-label="Hide address bar" type="button">
   <img class="ab-icon ab-icon-full" src="icons/full.svg?v=20260303-icons-tight-x-3" alt="" aria-hidden="true" />
   <img class="ab-icon ab-icon-small" src="icons/full_back.svg?v=20260303-icons-tight-x-3" alt="" aria-hidden="true" style="display:none;" />
@@ -877,12 +928,21 @@
 <!-- Mobile search bar (replaces titlebar content while searching) -->
 <div id="searchbar" class="searchbar hidden" role="search" aria-label="Book search">
   <div class="search-nav">
-    <button id="searchPrev" class="search-btn search-arrow" type="button" aria-label="Previous match">‹</button>
+    <button id="searchPrev" class="search-btn search-arrow" type="button" aria-label="Previous match">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M15 5L8 12L15 19"></path>
+      </svg>
+    </button>
     <span id="searchCount" class="search-count">0/0</span>
-    <button id="searchNext" class="search-btn search-arrow" type="button" aria-label="Next match">›</button>
+    <button id="searchNext" class="search-btn search-arrow" type="button" aria-label="Next match">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M9 5L16 12L9 19"></path>
+      </svg>
+    </button>
   </div>
         <div class="search-input-wrap mobile">
           <span class="search-infield-icon" aria-hidden="true">
+            <img class="search-field-mag-icon" src="icons/search.svg?v=20260303-icons-tight-x-3" alt="" aria-hidden="true" />
             <svg class="search-mag-svg" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
               <circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
               <line x1="14.5" y1="14.5" x2="21" y2="21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -914,8 +974,7 @@
 <div id="searchFloatControls" class="search-float-controls hidden" aria-label="Search navigation">
   <button id="searchFloatPrev" class="search-float-btn search-float-arrow" type="button" aria-label="Previous match">
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M19 12H5"></path>
-      <path d="M11 6L5 12L11 18"></path>
+      <path d="M15 5L8 12L15 19"></path>
     </svg>
   </button>
   <button id="searchFloatClose" class="search-float-btn search-float-close" type="button" aria-label="Close search">
@@ -926,11 +985,12 @@
   </button>
   <button id="searchFloatNext" class="search-float-btn search-float-arrow" type="button" aria-label="Next match">
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M5 12H19"></path>
-      <path d="M13 6L19 12L13 18"></path>
+      <path d="M9 5L16 12L9 19"></path>
     </svg>
   </button>
-  <button id="searchFloatReturn" class="search-float-btn search-float-return" type="button" aria-label="Go to first match">↶</button>
+  <button id="searchFloatReturn" class="search-float-btn search-float-return" type="button" aria-label="Return to page where search started">
+    <img src="icons/back.svg?v=20260417-reader1-cloud-preview-icons-1" alt="" aria-hidden="true" />
+  </button>
 </div>
 
 <!-- Selection toolbar (FBReader-like actions) -->
@@ -949,10 +1009,11 @@
   <button class="sel-btn sel-translate" data-action="translate" type="button" aria-label="Translate">
     <span class="sel-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24">
-        <path d="M4 5h8M8 5v14M4 19h8"></path>
-        <path d="M14 7h6"></path>
-        <path d="M16.5 7c0 3-2 6-4.5 8"></path>
-        <path d="M14 15c1.5 1.4 3.2 2.5 6 3"></path>
+        <path d="M4 6h10"></path>
+        <path d="M9 6c0 6-2.5 10-6 12"></path>
+        <path d="M5 12c1.4 2 3.2 3.7 5.5 5"></path>
+        <path d="M14 18l3.2-8 3.2 8"></path>
+        <path d="M15.2 15.2h4"></path>
       </svg>
     </span>
     <span class="sel-label">Translate</span>
@@ -960,8 +1021,10 @@
   <button class="sel-btn sel-search" data-action="search" type="button" aria-label="Search in browser">
     <span class="sel-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24">
-        <circle cx="11" cy="11" r="6"></circle>
-        <line x1="16" y1="16" x2="21" y2="21"></line>
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M3.5 12h17"></path>
+        <path d="M12 3a13 13 0 0 1 0 18"></path>
+        <path d="M12 3a13 13 0 0 0 0 18"></path>
       </svg>
     </span>
     <span class="sel-label">Look Up</span>
@@ -969,9 +1032,11 @@
   <button class="sel-btn sel-share" data-action="share" type="button" aria-label="Share">
     <span class="sel-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24">
-        <path d="M12 16V5"></path>
-        <path d="M8 9l4-4 4 4"></path>
-        <rect x="5" y="12" width="14" height="8" rx="2"></rect>
+        <circle cx="18" cy="5" r="2"></circle>
+        <circle cx="6" cy="12" r="2"></circle>
+        <circle cx="18" cy="19" r="2"></circle>
+        <path d="M8 12l8-6"></path>
+        <path d="M8 12l8 6"></path>
       </svg>
     </span>
     <span class="sel-label">Share</span>
@@ -1005,6 +1070,14 @@
 <div class="arrow" id="next">›</div>
 <div id="bottombar">
 <div id="bottom-controls">
+<a id="bottomCatalogLink" class="bottom-catalog-link" href="/books/" aria-label="ReaderPub Books">
+  <span class="shell-top-link-icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M1.5 1.35c-.37.06-.7-.1-1.12.2C.09 1.76 0 2.03 0 2.49v13.25c0 .42-.02.9 0 1.32.02.39.25.66.52.8.3.15.83.1 1.22.1h5.3c.78 0 1.08-.08 1.51.48.1.12.22.24.33.33.7.53 1.38.41 2.23.41.39 0 .93.03 1.28-.05.29-.07.85-.23.57-.6-.2-.25-.37-.5-.55-.77-.32-.48-.7-1.13-.84-1.81-.13-.61-.09-1.89-.09-2.58V2.78c0-.64-.13-1.32.38-1.6.19-.1.33-.1.58-.1 1.77 0 3.53 0 5.3 0 .28 0 1.09-.04 1.3.02.32.07.59.34.6.72.02.88 0 1.78 0 2.66v5.96c0 .3.07.27.3.36.37.16.51.3.76.56.18.19.46-.06 1.12.16.28.1.22-.19.22-.4V2.49c0-.25 0-.37-.08-.57-.34-.75-1.15-.52-1.43-.57-.09-.17-.04-.19-.22-.47-.28-.43-.78-.73-1.35-.75-.45-.03-.95 0-1.4 0h-4.23c-.4 0-1-.03-1.37.03-.58.1-.8.42-.93.49-.06-.05-.11-.1-.18-.16-.07-.06-.13-.1-.22-.14C10.06.04 9.48.14 8.75.14H4.54c-.46 0-.96-.02-1.42 0-.66.03-1.23.42-1.49.98-.03.07-.06.18-.1.25Zm9.03 14.53c.02-.94 0-1.91 0-2.86V2.98c0-.31.04-1.15-.04-1.39-.06-.18-.18-.31-.31-.4-.19-.12-.34-.11-.6-.11H3.83c-.49 0-.93-.08-1.22.22-.3.3-.22.72-.22 1.2v11.48c0 .45-.07.97.18 1.25.3.33.63.26 1.16.26h4.31c.85 0 1.48-.08 2.24.26.04.02.2.1.25.11Zm11.64-1.97c-.01-.35.05-.7-.1-.98-.35-.72-1.3-.74-1.72-.14-.04.06-.07.1-.1.18-.02.06-.04.15-.07.2-.03-.34.05-.7-.1-1-.34-.7-1.28-.78-1.74-.11-.05.08-.15.32-.15.39-.02-.29 0-1.94 0-2.37 0-.23.02-.58-.01-.79-.14-.92-1.42-1.13-1.85-.3-.12.23-.12.38-.12.67v5.6c0 .24.03 1.45 0 1.58-.02.1-.15.13-.23.06l-.6-.61c-.39-.38-1.19-1.11-1.86-1.34-.47-.16-.96-.08-1.06.38-.18.86 1.21 2.58 1.65 3.13.5.63 1.33 1.52 1.9 2.08.17.15.27.25.42.39.46.46 1.39.92 2.09 1.11.47.12.95.13 1.47.12 1.71-.04 3.16-1.03 3.83-2.56.4-.93.34-1.75.34-2.87v-2.38c0-.3.01-.46-.11-.7-.3-.6-1.11-.72-1.57-.26-.23.23-.21.37-.3.51Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"></path>
+    </svg>
+  </span>
+  <span class="shell-top-link-label">ReaderPub Books</span>
+</a>
 <span class="page-count" id="page-count"></span>
 </div>
 </div>
@@ -1014,9 +1087,13 @@
 <div class="md-content">
 <h3>Settings</h3>
 <div>
-<p>
-<input id="sidebarReflow" name="sidebarReflow" type="checkbox"/>Reflow text when sidebars are open.
-                  </p>
+<div class="settings-shell-actions">
+<button id="settingsThemeToggle" class="settings-shell-btn" type="button">Toggle theme</button>
+<div class="settings-font-controls" aria-label="Font size">
+<button id="settingsFontDec" class="settings-shell-btn" type="button">A−</button>
+<button id="settingsFontInc" class="settings-shell-btn" type="button">A+</button>
+</div>
+</div>
 </div>
 <div class="closer icon-cancel-circled"></div>
 </div>

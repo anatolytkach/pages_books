@@ -1,0 +1,22 @@
+{
+  "name": "pages_books-protected-reader-tooling",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Local audit and font-analysis tooling for the protected reader project.",
+  "scripts": {
+    "protected:audit": "node tools/protected-fonts/protected-audit.js",
+    "protected:build": "node tools/protected-ingestion/build-protected-book.js",
+    "protected:build:debug": "node tools/protected-ingestion/build-protected-book.js --debug-artifact",
+    "protected:fonts:scan": "node tools/protected-fonts/scan-corpus.js",
+    "protected:fonts:plan": "node tools/protected-fonts/build-font-plan.js",
+    "protected:validate": "node tools/protected-ingestion/validate-protected-book.js"
+  },
+  "dependencies": {
+    "harfbuzzjs": "^0.4.13",
+    "opentype.js": "^1.3.4",
+    "pages_books": "file:.."
+  },
+  "devDependencies": {
+    "wrangler": "^4.81.1"
+  }
+}
