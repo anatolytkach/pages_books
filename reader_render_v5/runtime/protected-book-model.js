@@ -165,6 +165,18 @@ async function loadRuntimeSafeProtectedBook(artifactRoot) {
   const manifestUrl = `${rootUrl}/manifest.json`;
   assertNoDebug(manifestUrl);
   const manifest = await fetchJson(manifestUrl);
+  manifest.source = manifest.source && typeof manifest.source === "object" ? manifest.source : {};
+  const currentUrl = globalThis.location && globalThis.location.href
+    ? new URL(globalThis.location.href)
+    : null;
+  const protectedArtifactSource = currentUrl
+    ? String(currentUrl.searchParams.get("protectedArtifactSource") || currentUrl.searchParams.get("artifactSource") || "").trim().toLowerCase()
+    : "";
+  const bookId = String(manifest.source.bookId || "").trim();
+  if (protectedArtifactSource === "r2" && bookId) {
+    const currentOrigin = currentUrl ? currentUrl.origin : "";
+    manifest.source.publicRootPath = `${currentOrigin}/books/protected-content/${encodeURIComponent(bookId)}/assets`;
+  }
   if (manifest.mode !== "protected-runtime-safe") {
     throw new Error(`Unsupported manifest mode: ${manifest.mode}`);
   }
