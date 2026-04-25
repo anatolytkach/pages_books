@@ -19,7 +19,19 @@ export async function loadProtectedManifest(artifactRoot) {
   const manifestUrl = new URL("manifest.json", rootUrl).toString();
   const manifest = await fetchJson(manifestUrl);
   manifest.source = manifest.source && typeof manifest.source === "object" ? manifest.source : {};
-  manifest.source.publicRootPath = new URL("assets", rootUrl).toString().replace(/\/$/, "");
+  const currentUrl = globalThis.location && globalThis.location.href
+    ? new URL(globalThis.location.href)
+    : null;
+  const protectedArtifactSource = currentUrl
+    ? String(currentUrl.searchParams.get("protectedArtifactSource") || currentUrl.searchParams.get("artifactSource") || "").trim().toLowerCase()
+    : "";
+  const bookId = String(manifest.source.bookId || "").trim();
+  if (protectedArtifactSource === "r2" && bookId) {
+    const currentOrigin = currentUrl ? currentUrl.origin : "";
+    manifest.source.publicRootPath = `${currentOrigin}/books/protected-content/${encodeURIComponent(bookId)}/assets`;
+  } else {
+    manifest.source.publicRootPath = new URL("assets", rootUrl).toString().replace(/\/$/, "");
+  }
 
   if (Number(manifest.version) !== PROTECTED_V4_BOOTSTRAP_MANIFEST_VERSION) {
     throw new Error(`Unsupported v4 manifest version: ${manifest.version}`);
