@@ -3611,6 +3611,7 @@
           const entry = String(entryOverride || "catalog").trim();
           const isPagesDev = /\.pages\.dev$/i.test(String(location.hostname || ""));
           const routing = getReaderRoutingConfig();
+          const routeEntry = resolveProtectedBookRoutingEntry(target, target.source);
           const base = isPagesDev
             ? getRequiredReaderRouteBase(routing.protectedPagesDevBasePath, "protectedPagesDevBasePath")
             : getRequiredReaderRouteBase(routing.protectedBasePath, "protectedBasePath");
@@ -3618,7 +3619,17 @@
           params.set("id", target.id);
           if (target.source && target.source !== "gutenberg") params.set("source", target.source);
           if (entry) params.set("entry", entry);
-          const mergedQuery = queryOverrides && typeof queryOverrides === "object" ? queryOverrides : {};
+          const mergedQuery = {
+            ...(routeEntry && routeEntry.query ? routeEntry.query : {}),
+            ...(queryOverrides && typeof queryOverrides === "object" ? queryOverrides : {}),
+          };
+          if (!mergedQuery.reader) mergedQuery.reader = "protected";
+          if (!mergedQuery.protectedArtifactBookId) mergedQuery.protectedArtifactBookId = target.id;
+          if (!mergedQuery.protectedArtifactSource) mergedQuery.protectedArtifactSource = "r2";
+          if (!mergedQuery.readerRemoteMode) mergedQuery.readerRemoteMode = "strict";
+          if (!mergedQuery.protectedUx) mergedQuery.protectedUx = "protected-shell";
+          if (!mergedQuery.renderMode) mergedQuery.renderMode = "shape";
+          if (!mergedQuery.metricsMode) mergedQuery.metricsMode = "shape";
           Object.keys(mergedQuery).forEach((key) => {
             const value = String(mergedQuery[key] || "").trim();
             if (!value) return;
