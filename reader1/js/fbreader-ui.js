@@ -32,6 +32,13 @@
     return false;
   })();
   try { document.documentElement.classList.toggle("is-ios", !!__fb_isIOS); } catch (e) {}
+  var __fb_isAndroid = (function () {
+    try {
+      return /Android/i.test(navigator.userAgent || "");
+    } catch (e) {}
+    return false;
+  })();
+  try { document.documentElement.classList.toggle("is-android", !!__fb_isAndroid); } catch (e) {}
   var __fb_isIPhone = (function () {
     try {
       var ua = navigator.userAgent || "";
@@ -1292,6 +1299,192 @@
     }
   }
 
+  function getReader1FullscreenElement() {
+    return document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.webkitCurrentFullScreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement ||
+      null;
+  }
+
+  function getReader1FullscreenTarget() {
+    return document.getElementById("container") || document.body || document.documentElement || null;
+  }
+
+  function waitForReader1FullscreenSettle() {
+    return new Promise(function (resolve) {
+      window.setTimeout(resolve, 80);
+    });
+  }
+
+  async function requestReader1Fullscreen(element) {
+    var target = element || getReader1FullscreenTarget();
+    if (!target) return { ok: false, error: "Fullscreen target is unavailable." };
+    try {
+      if (
+        document.fullscreenEnabled === false &&
+        document.webkitFullscreenEnabled === false &&
+        document.mozFullScreenEnabled === false &&
+        document.msFullscreenEnabled === false
+      ) {
+        return { ok: false, error: "Fullscreen is disabled by the browser." };
+      }
+    } catch (_enabledError) {}
+    var request = target.requestFullscreen ||
+      target.webkitRequestFullscreen ||
+      target.webkitRequestFullScreen ||
+      target.mozRequestFullScreen ||
+      target.msRequestFullscreen;
+    if (!request) return { ok: false, error: "Fullscreen API is unavailable." };
+    try {
+      var result = request.call(target);
+      if (result && typeof result.then === "function") await result;
+      await waitForReader1FullscreenSettle();
+      var fullscreenElement = getReader1FullscreenElement();
+      return fullscreenElement
+        ? { ok: true, element: fullscreenElement, target: target }
+        : { ok: false, error: "Fullscreen request completed but browser did not enter fullscreen." };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error && error.message ? error.message : String(error || "Fullscreen request failed.")
+      };
+    }
+  }
+
+  async function exitReader1Fullscreen() {
+    var exit = document.exitFullscreen ||
+      document.webkitExitFullscreen ||
+      document.webkitCancelFullScreen ||
+      document.mozCancelFullScreen ||
+      document.msExitFullscreen;
+    if (!exit) return { ok: false, error: "Fullscreen exit API is unavailable." };
+    try {
+      var result = exit.call(document);
+      if (result && typeof result.then === "function") await result;
+      await waitForReader1FullscreenSettle();
+      return getReader1FullscreenElement()
+        ? { ok: false, error: "Browser did not exit fullscreen." }
+        : { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error && error.message ? error.message : String(error || "Fullscreen exit failed.")
+      };
+    }
+  }
+
+  function updateReader1AddressBarIcon(hidden) {
+    var toggle = document.getElementById("addressBarToggle");
+    if (!toggle) return;
+    toggle.classList.remove("icon-resize-full", "icon-resize-small", "icon-resize-full-1", "hidden");
+    toggle.classList.toggle("ab-state-small", !!hidden);
+    toggle.classList.toggle("ab-state-full", !hidden);
+    toggle.setAttribute("aria-label", hidden ? "Exit fullscreen" : "Enter fullscreen");
+    toggle.setAttribute("title", hidden ? "Exit fullscreen" : "Enter fullscreen");
+    toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
+  }
+
+  function syncReader1AddressBarIconState() {
+    updateReader1AddressBarIcon(!!getReader1FullscreenElement());
+  }
+
+  function shouldEnableReader1AddressBarToggle() {
+    if (__fb_isIOS) return false;
+    return !!__fb_isAndroid;
+  }
+
+  function installReader1AddressBarToggle() {
+    var toggle = document.getElementById("addressBarToggle");
+    if (!toggle) return;
+    var bottomBar = document.getElementById("bottombar");
+    var enabled = shouldEnableReader1AddressBarToggle();
+    try {
+      document.body.classList.toggle("android", !!__fb_isAndroid);
+      document.body.classList.toggle("addressbar-toggle-enabled", !!enabled);
+    } catch (_classError) {}
+    if (!enabled) {
+      toggle.classList.add("hidden");
+      return;
+    }
+    toggle.classList.remove("hidden");
+    if (bottomBar && toggle.parentNode !== bottomBar) {
+      try { bottomBar.appendChild(toggle); } catch (_moveError) {}
+    }
+    updateReader1AddressBarIcon(!!getReader1FullscreenElement());
+    if (toggle.__reader1AddressBarToggleInstalled) return;
+    toggle.__reader1AddressBarToggleInstalled = true;
+    var lastFullscreenActivationAt = 0;
+    var handleFullscreenActivation = async function (event, source) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+      }
+      var now = Date.now();
+      if (source === "click" && now - lastFullscreenActivationAt < 700) return;
+      lastFullscreenActivationAt = now;
+      if (toggle.dataset.fullscreenBusy === "1") return;
+      toggle.dataset.fullscreenBusy = "1";
+      toggle.setAttribute("aria-busy", "true");
+      var action = "";
+      var result = null;
+      if (getReader1FullscreenElement()) {
+        action = "exit";
+        result = await exitReader1Fullscreen();
+      } else {
+        action = "request";
+        result = await requestReader1Fullscreen(getReader1FullscreenTarget());
+      }
+      toggle.dataset.fullscreenBusy = "0";
+      toggle.removeAttribute("aria-busy");
+      syncReader1AddressBarIconState();
+      try {
+        window.__readerpubUnprotectedFullscreenDebug = {
+          action: action,
+          at: Date.now(),
+          ok: !!(result && result.ok),
+          error: result && result.error ? String(result.error) : "",
+          fullscreen: !!getReader1FullscreenElement(),
+          source: source || "",
+          target: result && result.target ? (result.target.id || result.target.tagName || "") : ""
+        };
+      } catch (_debugError) {}
+      if (result && !result.ok) {
+        try { toggle.dataset.fullscreenError = result.error || "Fullscreen is unavailable."; } catch (_datasetError) {}
+        try { console.warn("[reader1] fullscreen unavailable:", result.error || result); } catch (_consoleError) {}
+      } else {
+        try { delete toggle.dataset.fullscreenError; } catch (_clearError) {}
+      }
+    };
+    toggle.addEventListener("pointerup", function (event) {
+      var pointerType = String((event && event.pointerType) || "").toLowerCase();
+      if (pointerType && pointerType !== "touch" && pointerType !== "pen") return;
+      void handleFullscreenActivation(event, "pointerup");
+    }, true);
+    toggle.addEventListener("touchend", function (event) {
+      void handleFullscreenActivation(event, "touchend");
+    }, { capture: true, passive: false });
+    toggle.addEventListener("click", function (event) {
+      void handleFullscreenActivation(event, "click");
+    }, true);
+    ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach(function (type) {
+      document.addEventListener(type, syncReader1AddressBarIconState);
+    });
+    window.addEventListener("resize", function () {
+      installReader1AddressBarToggle();
+      syncReader1AddressBarIconState();
+    }, { passive: true });
+    try {
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", syncReader1AddressBarIconState, { passive: true });
+        window.visualViewport.addEventListener("scroll", syncReader1AddressBarIconState, { passive: true });
+      }
+    } catch (_viewportError) {}
+    syncReader1AddressBarIconState();
+  }
+
   function setupUnifiedShellChrome() {
     try {
       if (document.body && document.body.classList) document.body.classList.add("reader1-unified-shell");
@@ -1474,11 +1667,85 @@
       } catch (_error) {}
     }
 
-    function applyFontMode(mode) {
-      var next = String(mode || "sans").trim().toLowerCase() === "serif" ? "serif" : "sans";
-      var family = next === "serif"
+    function getFontModeFamily(mode) {
+      return String(mode || "sans").trim().toLowerCase() === "serif"
         ? 'Georgia, "Times New Roman", serif'
         : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+    }
+
+    function applyFontModeToDocument(doc, mode) {
+      try {
+        if (!doc || !doc.head) return;
+        var family = getFontModeFamily(mode);
+        var style = doc.getElementById("reader1-font-mode-override");
+        if (!style) {
+          style = doc.createElement("style");
+          style.id = "reader1-font-mode-override";
+          doc.head.appendChild(style);
+        }
+        style.textContent = [
+          "html,body{font-family:" + family + " !important;}",
+          "body :not(svg):not(svg *){font-family:" + family + " !important;}"
+        ].join("");
+      } catch (_error) {}
+    }
+
+    function applyFontModeToRenderedDocuments(mode) {
+      try {
+        var frames = document.querySelectorAll("#viewerStack iframe, #viewer iframe, #viewer-prev iframe, #viewer-next iframe");
+        for (var i = 0; i < frames.length; i++) {
+          try { applyFontModeToDocument(frames[i].contentDocument, mode); } catch (_frameError) {}
+        }
+      } catch (_error) {}
+      try {
+        if (window.reader && window.reader.rendition && typeof window.reader.rendition.getContents === "function") {
+          var contents = window.reader.rendition.getContents() || [];
+          for (var j = 0; j < contents.length; j++) {
+            try { applyFontModeToDocument(contents[j] && contents[j].document, mode); } catch (_contentError) {}
+          }
+        }
+      } catch (_contentsError) {}
+    }
+
+    function getStoredFontMode() {
+      try { return localStorage.getItem(fontModeKey) || "sans"; } catch (_error) {}
+      return "sans";
+    }
+
+    function bindFontModeHooks() {
+      try {
+        if (!window.reader || window.reader.__reader1FontModeHooksBound) return;
+        window.reader.__reader1FontModeHooksBound = true;
+        var bindOne = function (rendition) {
+          try {
+            if (!rendition || rendition.__reader1FontModeHookBound) return;
+            rendition.__reader1FontModeHookBound = true;
+            if (rendition.hooks && rendition.hooks.content && typeof rendition.hooks.content.register === "function") {
+              rendition.hooks.content.register(function (contents) {
+                try { applyFontModeToDocument(contents && contents.document, getStoredFontMode()); } catch (_hookError) {}
+              });
+            }
+            if (typeof rendition.on === "function") {
+              rendition.on("rendered", function (_section, view) {
+                try {
+                  var doc = view && view.document
+                    ? view.document
+                    : (view && view.iframe ? view.iframe.contentDocument : null);
+                  applyFontModeToDocument(doc, getStoredFontMode());
+                } catch (_renderedError) {}
+              });
+            }
+          } catch (_bindError) {}
+        };
+        bindOne(window.reader.rendition);
+        bindOne(window.reader.renditionPrev);
+        bindOne(window.reader.renditionNext);
+      } catch (_error) {}
+    }
+
+    function applyFontMode(mode) {
+      var next = String(mode || "sans").trim().toLowerCase() === "serif" ? "serif" : "sans";
+      var family = getFontModeFamily(next);
       try {
         if (window.reader && window.reader.book && typeof window.reader.book.setStyle === "function") {
           window.reader.book.setStyle("font-family", family);
@@ -1508,6 +1775,8 @@
           window.reader.renditionNext.themes.font(family);
         }
       } catch (_e3) {}
+      bindFontModeHooks();
+      applyFontModeToRenderedDocuments(next);
       try { localStorage.setItem(fontModeKey, next); } catch (_e4) {}
       if (fontSans) {
         fontSans.classList.toggle("is-active", next === "sans");
@@ -1570,6 +1839,7 @@
       if (bottomControls && bookmark && bookmark.parentNode !== bottomControls) bottomControls.appendChild(bookmark);
     } catch (eMoveBookmark) {}
     syncShellMounts();
+    installReader1AddressBarToggle();
 
     if (shellLibraryToggle && !shellLibraryToggle.__fbShellBound) {
       shellLibraryToggle.__fbShellBound = true;
