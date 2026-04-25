@@ -6035,6 +6035,7 @@ html.is-tablet body.reader1-unified-shell #metainfo {
   right: calc(214px + env(safe-area-inset-right, 0px)) !important;
   width: auto !important;
   max-width: none !important;
+  margin: 0 !important;
   transform: translateY(-50%) !important;
   justify-content: flex-start !important;
   text-align: left !important;
@@ -6050,6 +6051,67 @@ html.is-tablet body.reader1-unified-shell #metaText {
   html.is-phone body.reader1-unified-shell #metainfo,
   html.is-tablet body.reader1-unified-shell #metainfo {
     right: calc(340px + env(safe-area-inset-right, 0px)) !important;
+  }
+}
+
+html:not(.is-phone):not(.is-tablet) body.reader1-unified-shell #metainfo {
+  left: 50% !important;
+  right: auto !important;
+  width: min(44vw, 620px) !important;
+  max-width: calc(100vw - 420px) !important;
+  transform: translate(-50%, -50%) !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+html:not(.is-phone):not(.is-tablet) body.reader1-unified-shell #metaText {
+  align-items: center !important;
+  text-align: center !important;
+}
+
+html:not(.is-phone):not(.is-tablet) body.reader1-unified-shell #book-title,
+html:not(.is-phone):not(.is-tablet) body.reader1-unified-shell #chapter-title {
+  text-align: center !important;
+}
+
+@media (orientation: landscape) {
+  html.is-phone body.reader1-unified-shell #metainfo,
+  html.is-tablet body.reader1-unified-shell #metainfo {
+    left: 50% !important;
+    right: auto !important;
+    width: min(40vw, 420px) !important;
+    max-width: calc(100vw - 440px) !important;
+    margin: 0 !important;
+    transform: translate(-50%, -50%) !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  html.is-phone body.reader1-unified-shell #metaText,
+  html.is-tablet body.reader1-unified-shell #metaText {
+    align-items: center !important;
+    text-align: center !important;
+  }
+
+  html.is-phone body.reader1-unified-shell #book-title,
+  html.is-phone body.reader1-unified-shell #chapter-title,
+  html.is-tablet body.reader1-unified-shell #book-title,
+  html.is-tablet body.reader1-unified-shell #chapter-title {
+    text-align: center !important;
+  }
+}
+
+@media (orientation: portrait) {
+  html.is-phone body.reader1-unified-shell #titlebar,
+  html.is-tablet body.reader1-unified-shell #titlebar {
+    padding-right: 14px !important;
+  }
+
+  html.is-phone body.reader1-unified-shell #title-controls,
+  html.is-tablet body.reader1-unified-shell #title-controls {
+    --controls-right-pad: 14px;
+    padding-right: env(safe-area-inset-right, 0px) !important;
+    margin-right: 0 !important;
   }
 }
 
