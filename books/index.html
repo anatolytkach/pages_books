@@ -5319,7 +5319,8 @@
               const isPagesPreview =
                 host.endsWith(".pages.dev") ||
                 host === "reader-books.pages.dev";
-              if (isLocalHost || isPagesPreview) {
+              const isStagingHost = host === "books-staging.reader.pub";
+              if (isLocalHost || isPagesPreview || isStagingHost) {
                 config.baseUrl = `${window.location.origin}/books/api`;
                 config.assetBaseUrl = window.location.origin;
               }
