@@ -3702,14 +3702,7 @@ function setMenuBookMeta(summary) {
   const title = summary && summary.bookTitle ? summary.bookTitle : "";
   const author = summary && summary.bookAuthor ? summary.bookAuthor : "";
   const rawCover = summary && summary.coverUrl ? String(summary.coverUrl).trim() : "";
-  let cover = "";
-  if (rawCover) {
-    try {
-      cover = new URL(rawCover, window.location.origin).href;
-    } catch (_error) {
-      cover = rawCover;
-    }
-  }
+  const cover = normalizeMyBooksCoverUrl(rawCover);
   const titleNode = document.getElementById("protectedSettingsBookTitle");
   const authorNode = document.getElementById("protectedSettingsBookAuthor");
   const coverNode = document.getElementById("protectedSettingsBookCover");
@@ -4427,10 +4420,14 @@ function updateBookmarkControl(summary) {
 function normalizeMyBooksCoverUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
+  const rewritten = raw.replace(
+    /^(?:https?:\/\/[^/]+)?\/reader_render_v5\/artifacts\/protected-books\/(\d+)\//i,
+    `${window.location.origin}/books/protected-content/$1/`
+  );
   try {
-    return new URL(raw, window.location.origin).href;
+    return new URL(rewritten, window.location.origin).href;
   } catch (_error) {
-    return raw;
+    return rewritten;
   }
 }
 
