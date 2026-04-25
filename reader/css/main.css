@@ -3519,10 +3519,7 @@ body.dark #titlebar { color: var(--fbbar-fg) !important; }
 }
 .comment-selection-quote{
   margin-bottom: 10px;
-  padding: 9px 11px;
-  border: 1px solid color-mix(in srgb, var(--fbbar-border) 88%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--fbbar-bg) 86%, #ffffff 14%);
+  padding: 0 2px;
   color: color-mix(in srgb, var(--fbbar-fg) 90%, #6a7480 10%);
   font-size: 13px;
   line-height: 1.45;
