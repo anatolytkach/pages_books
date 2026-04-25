@@ -632,6 +632,7 @@ export class ProtectedReaderRuntimeCore {
       totalPages: 0,
       totalChunks: 0
     };
+    this.chunkLayoutCache = new Map();
     this.focusedAnnotationId = null;
     this.focusedTocTarget = null;
     this.selectionState = createSelectionState();
@@ -672,6 +673,89 @@ export class ProtectedReaderRuntimeCore {
     return this.currentPaginationModel.pages[this.currentPageIndex] || null;
   }
 
+  getChunkLayoutCacheKey(chunkIndex, runtimeFontMode = this.getCurrentRuntimeFontMode()) {
+    const chunk = this.book && this.book.manifest && this.book.manifest.chunks
+      ? this.book.manifest.chunks[chunkIndex]
+      : null;
+    return [
+      chunk ? chunk.chunkId : String(chunkIndex),
+      runtimeFontMode || this.getDefaultArtifactRuntimeFontMode(),
+      this.getLayoutWidth(),
+      this.viewportHeight,
+      this.fontScale,
+      this.renderMode,
+      this.metricsMode
+    ].join("|");
+  }
+
+  async buildChunkLayoutState(chunkIndex, runtimeFontMode = this.getCurrentRuntimeFontMode()) {
+    const boundedIndex = Math.max(0, Math.min(chunkIndex, this.book.manifest.chunks.length - 1));
+    const cacheKey = this.getChunkLayoutCacheKey(boundedIndex, runtimeFontMode);
+    const cached = this.chunkLayoutCache.get(cacheKey);
+    if (cached) return cached;
+    const chunkModel = await loadProtectedChunkModel(this.book, boundedIndex, { runtimeFontMode });
+    const shapeRegistry = createGlyphShapeRegistry(
+      chunkModel.shapeBundle,
+      chunkModel.glyphMap
+    );
+    const layout = layoutChunk({
+      chunkModel,
+      styles: this.book.styleMap,
+      bookLanguage:
+        Array.isArray(this.book && this.book.manifest && this.book.manifest.metadata && this.book.manifest.metadata.languages) &&
+        this.book.manifest.metadata.languages.length
+          ? String(this.book.manifest.metadata.languages[0] || "")
+          : "",
+      width: this.getLayoutWidth(),
+      viewportHeight: this.viewportHeight,
+      fontScale: this.fontScale,
+      renderMode: this.renderMode,
+      metricsMode: this.metricsMode,
+      shapeRegistry
+    });
+    const state = {
+      chunkModel,
+      shapeRegistry,
+      layout,
+      pagination: buildPaginationModel({
+        chunkModel,
+        layout,
+        viewportHeight: this.viewportHeight,
+        globalModel: this.book.globalLocationModel
+      })
+    };
+    state.layout.projectionMeta = {
+      chunkId: state.chunkModel && state.chunkModel.chunk ? state.chunkModel.chunk.chunkId : "",
+      runtimeFontMode: state.chunkModel && state.chunkModel.runtimeFontMode
+        ? state.chunkModel.runtimeFontMode
+        : this.getDefaultArtifactRuntimeFontMode(),
+      configGeneration: Number(this.configGeneration || 0) || 0,
+      layoutGeneration: Number(this.layoutGeneration || 0) || 0
+    };
+    this.chunkLayoutCache.set(cacheKey, state);
+    while (this.chunkLayoutCache.size > 32) {
+      const firstKey = this.chunkLayoutCache.keys().next().value;
+      if (!firstKey) break;
+      this.chunkLayoutCache.delete(firstKey);
+    }
+    return state;
+  }
+
+  scheduleCurrentChunkFontWarmup() {
+    if (!this.book || !this.book.artifactContract) return;
+    const supported = Array.isArray(this.book.artifactContract.supportedFontModes)
+      ? this.book.artifactContract.supportedFontModes
+      : [];
+    const alternate = supported.find((mode) => mode && mode !== this.getCurrentRuntimeFontMode());
+    if (!alternate) return;
+    const chunkIndex = this.currentChunkIndex;
+    const run = () => {
+      this.buildChunkLayoutState(chunkIndex, alternate).catch(() => {});
+    };
+    if (typeof setTimeout === "function") setTimeout(run, 0);
+    else Promise.resolve().then(run).catch(() => {});
+  }
+
   getCurrentSearchMatch() {
     if (!this.searchState || !Array.isArray(this.searchState.matches)) return null;
     if (this.searchState.currentIndex < 0 || this.searchState.currentIndex >= this.searchState.matches.length) return null;
@@ -691,24 +775,7 @@ export class ProtectedReaderRuntimeCore {
     const chunkPageCounts = [];
     const runtimeFontMode = this.getCurrentRuntimeFontMode();
     for (let index = 0; index < this.book.manifest.chunks.length; index += 1) {
-      const chunkModel = await loadProtectedChunkModel(this.book, index, { runtimeFontMode });
-      const shapeRegistry = createGlyphShapeRegistry(chunkModel.shapeBundle, chunkModel.glyphMap);
-      const layout = layoutChunk({
-        chunkModel,
-        styles: this.book.styleMap,
-        width: this.getLayoutWidth(),
-        viewportHeight: this.viewportHeight,
-        fontScale: this.fontScale,
-        renderMode: this.renderMode,
-        metricsMode: this.metricsMode,
-        shapeRegistry
-      });
-      const pagination = buildPaginationModel({
-        chunkModel,
-        layout,
-        viewportHeight: this.viewportHeight,
-        globalModel: this.book.globalLocationModel
-      });
+      const { pagination } = await this.buildChunkLayoutState(index, runtimeFontMode);
       chunkPageCounts.push(Math.max(1, (pagination.pages || []).length));
     }
     this.bookPaginationSummary = {
@@ -767,6 +834,7 @@ export class ProtectedReaderRuntimeCore {
     this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
     this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     this.book = await loadProtectedBook(artifactRoot);
+    this.chunkLayoutCache.clear();
     this.cfiResolver = buildProtectedCfiResolver(this.book);
     this.bookSummary = summarizeBook(this.book);
     let initialSnapshot = null;
@@ -824,9 +892,11 @@ export class ProtectedReaderRuntimeCore {
         this.currentChunkModel.tocLabel = getChunkTocLabel(chunkLocation) || this.currentChunkModel.tocLabel || "";
       })
       .catch(() => {});
-    Promise.resolve()
-      .then(() => this.rebuildBookPaginationSummary())
-      .catch(() => {});
+    const rebuildInitialPagination = () => {
+      this.rebuildBookPaginationSummary().catch(() => {});
+    };
+    if (typeof setTimeout === "function") setTimeout(rebuildInitialPagination, 1800);
+    else Promise.resolve().then(rebuildInitialPagination).catch(() => {});
     return initialSnapshot;
   }
 
@@ -843,33 +913,12 @@ export class ProtectedReaderRuntimeCore {
     if (!this.book) throw new Error("Book is not initialized.");
     const boundedIndex = Math.max(0, Math.min(chunkIndex, this.book.manifest.chunks.length - 1));
     this.currentChunkIndex = boundedIndex;
-    this.currentChunkModel = await loadProtectedChunkModel(this.book, boundedIndex, { runtimeFontMode });
-    this.currentShapeRegistry = createGlyphShapeRegistry(
-      this.currentChunkModel.shapeBundle,
-      this.currentChunkModel.glyphMap
-    );
-    this.currentLayout = layoutChunk({
-      chunkModel: this.currentChunkModel,
-      styles: this.book.styleMap,
-      bookLanguage:
-        Array.isArray(this.book && this.book.manifest && this.book.manifest.metadata && this.book.manifest.metadata.languages) &&
-        this.book.manifest.metadata.languages.length
-          ? String(this.book.manifest.metadata.languages[0] || "")
-          : "",
-      width: this.getLayoutWidth(),
-      viewportHeight: this.viewportHeight,
-      fontScale: this.fontScale,
-      renderMode: this.renderMode,
-      metricsMode: this.metricsMode,
-      shapeRegistry: this.currentShapeRegistry
-    });
+    const layoutState = await this.buildChunkLayoutState(boundedIndex, runtimeFontMode);
+    this.currentChunkModel = layoutState.chunkModel;
+    this.currentShapeRegistry = layoutState.shapeRegistry;
+    this.currentLayout = layoutState.layout;
     this.currentLayout.projectionMeta = buildLayoutProjectionMeta(this);
-    this.currentPaginationModel = buildPaginationModel({
-      chunkModel: this.currentChunkModel,
-      layout: this.currentLayout,
-      viewportHeight: this.viewportHeight,
-      globalModel: this.book.globalLocationModel
-    });
+    this.currentPaginationModel = layoutState.pagination;
     if (globalOffset != null) {
       const resolvedOffset = globalOffsetToLocal(this.book.globalLocationModel, globalOffset);
       const localOffset =
@@ -902,7 +951,9 @@ export class ProtectedReaderRuntimeCore {
     if (!this.focusedTocTarget || this.focusedTocTarget.chunkIndex !== boundedIndex) {
       this.focusedTocTarget = null;
     }
-    return this.buildSnapshot({ annotations, includeBook });
+    const snapshot = this.buildSnapshot({ annotations, includeBook });
+    this.scheduleCurrentChunkFontWarmup();
+    return snapshot;
   }
 
   async goToToc({ tocId, annotations = [] }) {
@@ -1175,6 +1226,7 @@ export class ProtectedReaderRuntimeCore {
     fontMode = this.fontMode,
     configGeneration = this.configGeneration,
     layoutGeneration = this.layoutGeneration,
+    fastCurrentPageOnly = false,
     annotations = []
   }) {
     const currentPage = this.getCurrentPage();
@@ -1197,7 +1249,9 @@ export class ProtectedReaderRuntimeCore {
     this.fontMode = String(fontMode || "").trim().toLowerCase() === "serif" ? "serif" : "sans";
     this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
     this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
-    await this.rebuildBookPaginationSummary();
+    if (!fastCurrentPageOnly) {
+      await this.rebuildBookPaginationSummary();
+    }
     return currentVisibleRange
       ? this.goToChunk({
           chunkIndex: currentVisibleRange.chunkIndex,
