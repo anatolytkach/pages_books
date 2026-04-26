@@ -49,6 +49,7 @@ import {
   createReconstructionScope,
   disposeReconstructionScope,
   getReconstructionScopeDiagnostics,
+  reconstructSearchTextWithOffsets,
   reconstructRangeText,
   reconstructSelectionRange
 } from "./protected-text-reconstruction.js";
@@ -134,6 +135,41 @@ function buildAutomationSelectionPosition(line, offset, projectionMeta = null) {
           layoutGeneration: Number(projectionMeta.layoutGeneration || 0) || 0
         }
       : undefined
+  };
+}
+
+function normalizeSearchText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function findMappedSearchOffset(offsets, startIndex, endIndex, direction) {
+  if (!Array.isArray(offsets) || !offsets.length) return null;
+  const min = Math.max(0, Number(startIndex || 0));
+  const max = Math.min(offsets.length - 1, Number(endIndex || 0));
+  if (max < min) return null;
+  if (direction === "backward") {
+    for (let index = max; index >= min; index -= 1) {
+      const offset = offsets[index];
+      if (Number.isFinite(offset)) return offset;
+    }
+    return null;
+  }
+  for (let index = min; index <= max; index += 1) {
+    const offset = offsets[index];
+    if (Number.isFinite(offset)) return offset;
+  }
+  return null;
+}
+
+function mapSearchMatchToOffsets(offsets, foundAt, queryLength) {
+  const matchStartIndex = Number(foundAt || 0);
+  const matchEndIndex = matchStartIndex + Math.max(0, Number(queryLength || 0)) - 1;
+  const startOffset = findMappedSearchOffset(offsets, matchStartIndex, matchEndIndex, "forward");
+  const endOffsetBase = findMappedSearchOffset(offsets, matchStartIndex, matchEndIndex, "backward");
+  if (!Number.isFinite(startOffset) || !Number.isFinite(endOffsetBase)) return null;
+  return {
+    startOffset,
+    endOffset: Math.max(startOffset + 1, endOffsetBase + 1)
   };
 }
 
@@ -1267,8 +1303,15 @@ export class ProtectedReaderRuntimeCore {
         });
   }
 
-  async searchBook({ query = "", annotations = [] } = {}) {
-    const normalizedQuery = String(query || "").trim();
+  async searchBook({
+    query = "",
+    configGeneration = this.configGeneration,
+    layoutGeneration = this.layoutGeneration,
+    annotations = []
+  } = {}) {
+    this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
+    this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
+    const normalizedQuery = normalizeSearchText(query);
     if (!normalizedQuery) {
       this.clearSearchState();
       return this.buildSnapshot({ annotations });
@@ -1314,12 +1357,27 @@ export class ProtectedReaderRuntimeCore {
         endOffset: textEndOffset
       });
       try {
-        const text = reconstructRangeText(chunkModel, 0, textEndOffset, scope);
+        const searchText = reconstructSearchTextWithOffsets(chunkModel, 0, textEndOffset, scope);
+        const text = searchText.text;
         const lower = text.toLowerCase();
         let cursor = 0;
         while (cursor < lower.length) {
           const foundAt = lower.indexOf(queryLower, cursor);
           if (foundAt < 0) break;
+          const mappedRange = mapSearchMatchToOffsets(searchText.offsets, foundAt, normalizedQuery.length);
+          if (!mappedRange) {
+            cursor = foundAt + Math.max(1, normalizedQuery.length);
+            continue;
+          }
+          const highlightRects = buildRangeHighlights(
+            layout,
+            mappedRange.startOffset,
+            mappedRange.endOffset
+          );
+          if (!highlightRects.length) {
+            cursor = foundAt + Math.max(1, normalizedQuery.length);
+            continue;
+          }
           let excerptStart = Math.max(0, foundAt - 48);
           let excerptEnd = Math.min(text.length, foundAt + normalizedQuery.length + 72);
           while (excerptStart > 0 && /\S/.test(text.charAt(excerptStart - 1))) excerptStart -= 1;
@@ -1328,15 +1386,15 @@ export class ProtectedReaderRuntimeCore {
             .slice(excerptStart, excerptEnd)
             .replace(/\s+/g, " ")
             .trim();
-          const matchPageIndex = findPageIndexForOffset(pagination, foundAt);
+          const matchPageIndex = findPageIndexForOffset(pagination, mappedRange.startOffset);
           const globalPageIndex = globalPageBeforeChunk + Number(matchPageIndex || 0) + 1;
           matches.push({
             chunkIndex,
             chunkId: chunkModel.chunk.chunkId,
-            startOffset: foundAt,
-            endOffset: foundAt + normalizedQuery.length,
-            globalStartOffset: Number(manifestChunk.startOffset || 0) + foundAt,
-            globalEndOffset: Number(manifestChunk.startOffset || 0) + foundAt + normalizedQuery.length,
+            startOffset: mappedRange.startOffset,
+            endOffset: mappedRange.endOffset,
+            globalStartOffset: Number(manifestChunk.startOffset || 0) + mappedRange.startOffset,
+            globalEndOffset: Number(manifestChunk.startOffset || 0) + mappedRange.endOffset,
             excerpt,
             globalPageLabel: globalPageCount ? `${globalPageIndex} / ${globalPageCount}` : `${globalPageIndex}`
           });
@@ -1438,7 +1496,14 @@ export class ProtectedReaderRuntimeCore {
     return { labels };
   }
 
-  async goToSearchResult({ resultIndex = -1, annotations = [] } = {}) {
+  async goToSearchResult({
+    resultIndex = -1,
+    configGeneration = this.configGeneration,
+    layoutGeneration = this.layoutGeneration,
+    annotations = []
+  } = {}) {
+    this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
+    this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     const nextIndex = Number(resultIndex);
     if (!Number.isFinite(nextIndex) || nextIndex < 0 || !this.searchState || !Array.isArray(this.searchState.matches)) {
       return this.buildSnapshot({ annotations });
@@ -1456,7 +1521,13 @@ export class ProtectedReaderRuntimeCore {
     });
   }
 
-  async searchNextResult({ annotations = [] } = {}) {
+  async searchNextResult({
+    configGeneration = this.configGeneration,
+    layoutGeneration = this.layoutGeneration,
+    annotations = []
+  } = {}) {
+    this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
+    this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     if (!this.searchState.matches.length) return this.buildSnapshot({ annotations });
     this.searchState.currentIndex = (this.searchState.currentIndex + 1) % this.searchState.matches.length;
     const match = this.getCurrentSearchMatch();
@@ -1467,7 +1538,13 @@ export class ProtectedReaderRuntimeCore {
     });
   }
 
-  async searchPrevResult({ annotations = [] } = {}) {
+  async searchPrevResult({
+    configGeneration = this.configGeneration,
+    layoutGeneration = this.layoutGeneration,
+    annotations = []
+  } = {}) {
+    this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
+    this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     if (!this.searchState.matches.length) return this.buildSnapshot({ annotations });
     const count = this.searchState.matches.length;
     this.searchState.currentIndex = (this.searchState.currentIndex - 1 + count) % count;
@@ -1479,7 +1556,13 @@ export class ProtectedReaderRuntimeCore {
     });
   }
 
-  clearSearch({ annotations = [] } = {}) {
+  clearSearch({
+    configGeneration = this.configGeneration,
+    layoutGeneration = this.layoutGeneration,
+    annotations = []
+  } = {}) {
+    this.configGeneration = Math.max(1, Math.floor(Number(configGeneration || this.configGeneration || 1)));
+    this.layoutGeneration = Math.max(1, Math.floor(Number(layoutGeneration || this.layoutGeneration || 1)));
     this.clearSearchState();
     return this.buildSnapshot({ annotations });
   }

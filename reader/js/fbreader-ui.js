@@ -349,16 +349,42 @@
       window.__fbUiHiddenObserver = mo;
     } catch (e) {}
   }
-  function showUi() {
-    try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs0) {}
-    document.body.classList.remove("ui-hidden");
-    syncBarHeights(false);
-  }
-  function hideUi() {
-    try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs1) {}
-    document.body.classList.add("ui-hidden");
-    syncBarHeights(false);
-  }
+	  function showUi() {
+	    try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs0) {}
+	    document.body.classList.remove("ui-hidden");
+	    syncBarHeights(false);
+	  }
+	  function closePanelsForUiHide() {
+	    try {
+	      if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
+	        if (typeof window.__fb_closeMobileMore === "function") window.__fb_closeMobileMore();
+	      }
+	    } catch (eMoreHide) {}
+	    try {
+	      if (document.body && document.body.classList && document.body.classList.contains("overlay-open")) {
+	        var ids = ["overlay-toc", "overlay-bookmarks", "overlay-notes", "overlay-menu", "overlay-mybooks", "overlay-voice"];
+	        for (var i = 0; i < ids.length; i += 1) {
+	          var panel = document.getElementById(ids[i]);
+	          if (panel) {
+	            panel.classList.add("hidden");
+	            panel.setAttribute("aria-hidden", "true");
+	          }
+	        }
+	        var backdrop = document.getElementById("overlay-backdrop");
+	        if (backdrop) {
+	          backdrop.classList.add("hidden");
+	          backdrop.setAttribute("aria-hidden", "true");
+	        }
+	        document.body.classList.remove("overlay-open");
+	      }
+	    } catch (eOverlayHide) {}
+	  }
+	  function hideUi() {
+	    try { window.__fbUiLastToggleTs = Date.now(); } catch (eTs1) {}
+	    closePanelsForUiHide();
+	    document.body.classList.add("ui-hidden");
+	    syncBarHeights(false);
+	  }
   try {
     window.__fbShowUi = showUi;
     window.__fbHideUi = hideUi;
@@ -373,7 +399,11 @@
     } catch (eSearchOpen) {}
     try {
       if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
-        if (typeof window.__fb_closeMobileMore === "function") window.__fb_closeMobileMore();
+        if (typeof window.__fb_closeMobileMoreAndHideBars === "function") window.__fb_closeMobileMoreAndHideBars();
+        else if (typeof window.__fb_closeMobileMore === "function") {
+          window.__fb_closeMobileMore();
+          hideUi();
+        }
         return;
       }
     } catch (eMoreOpen) {}
@@ -447,6 +477,11 @@
       try { toggle.setAttribute("aria-expanded", "false"); } catch (e2) {}
     }
 
+    function closePanelAndHideBars() {
+      closePanel();
+      hideUi();
+    }
+
     function openPanel() {
       if (!isTouchUi()) return;
       syncBookmarkState();
@@ -466,6 +501,9 @@
     };
     window.__fb_closeMobileMore = function () {
       closePanel();
+    };
+    window.__fb_closeMobileMoreAndHideBars = function () {
+      closePanelAndHideBars();
     };
 
     if (!toggle.__fbMobileMoreBound) {
@@ -538,7 +576,7 @@
         try {
           if (!isOpen()) return;
           try { window.__fbSuppressUiTapUntil = Date.now() + 1200; } catch (eSup0) {}
-          closePanel();
+          closePanelAndHideBars();
           if (ev && ev.preventDefault) ev.preventDefault();
           if (ev && ev.stopPropagation) ev.stopPropagation();
           if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
@@ -638,10 +676,53 @@
       try {
         var ot = document.getElementById("overlay-toc");
         var ob = document.getElementById("overlay-bookmarks");
-        return (ot && !ot.classList.contains("hidden")) || (ob && !ob.classList.contains("hidden"));
+        var on = document.getElementById("overlay-notes");
+        var om = document.getElementById("overlay-menu");
+        var obooks = document.getElementById("overlay-mybooks");
+        var ov = document.getElementById("overlay-voice");
+        return (ot && !ot.classList.contains("hidden")) ||
+          (ob && !ob.classList.contains("hidden")) ||
+          (on && !on.classList.contains("hidden")) ||
+          (om && !om.classList.contains("hidden")) ||
+          (obooks && !obooks.classList.contains("hidden")) ||
+          (ov && !ov.classList.contains("hidden"));
       } catch (e) {
         return false;
       }
+    }
+
+    function closeOpenPanelFromTap(e) {
+      try {
+        if (document.body && document.body.classList && document.body.classList.contains("overlay-open")) {
+          if (typeof window.__fbCloseOverlaysAndHideBars === "function") {
+            window.__fbCloseOverlaysAndHideBars();
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (e && e.preventDefault) e.preventDefault();
+            return true;
+          }
+        }
+      } catch (eOverlay) {}
+      try {
+        if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
+          if (typeof window.__fb_closeMobileMoreAndHideBars === "function") {
+            window.__fb_closeMobileMoreAndHideBars();
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (e && e.preventDefault) e.preventDefault();
+            return true;
+          }
+        }
+      } catch (eMore) {}
+      return false;
+    }
+
+    function dismissOpenPanelFromLayer(e) {
+      try {
+        if (closeOpenPanelFromTap(e)) {
+          if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+          return true;
+        }
+      } catch (eDismiss) {}
+      return false;
     }
 
     function isUiChromeTarget(tgt) {
@@ -786,10 +867,15 @@
       if (now - lastToggleAt < 350) return;
 
       try {
+        if (dismissOpenPanelFromLayer(e)) return;
         if (overlaysOpen()) return;
         try {
           if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
-            if (typeof window.__fb_closeMobileMore === "function") window.__fb_closeMobileMore();
+            if (typeof window.__fb_closeMobileMoreAndHideBars === "function") window.__fb_closeMobileMoreAndHideBars();
+            else if (typeof window.__fb_closeMobileMore === "function") {
+              window.__fb_closeMobileMore();
+              hideUi();
+            }
             if (e && e.stopPropagation) e.stopPropagation();
             if (e && e.preventDefault) e.preventDefault();
             return;
@@ -862,10 +948,15 @@
       var now = Date.now();
       if (now - lastToggleAt < 350) return;
       try {
+        if (dismissOpenPanelFromLayer(e)) return;
         if (overlaysOpen()) return;
         try {
           if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
-            if (typeof window.__fb_closeMobileMore === "function") window.__fb_closeMobileMore();
+            if (typeof window.__fb_closeMobileMoreAndHideBars === "function") window.__fb_closeMobileMoreAndHideBars();
+            else if (typeof window.__fb_closeMobileMore === "function") {
+              window.__fb_closeMobileMore();
+              hideUi();
+            }
             if (e && e.stopPropagation) e.stopPropagation();
             if (e && e.preventDefault) e.preventDefault();
             return;
@@ -953,6 +1044,10 @@
     // Use POINTER events only to avoid double-firing (touchend + pointerup).
     // Fallback to touch events only if PointerEvent is unavailable.
     if (window.PointerEvent) {
+      layer.addEventListener("pointerup", function (e) {
+        if (e.pointerType !== "touch") return;
+        dismissOpenPanelFromLayer(e);
+      });
       center.addEventListener("pointerdown", function (e) {
         if (e.pointerType !== "touch") return;
         activePointerId = e.pointerId;
@@ -1017,6 +1112,7 @@
         activePointerId = null;
       });
     } else {
+      layer.addEventListener("touchend", dismissOpenPanelFromLayer, { passive: false });
       center.addEventListener("touchstart", onStart, { passive: true });
       center.addEventListener("touchmove", onMove, { passive: true });
       center.addEventListener("touchend", tryToggle, { passive: false });
@@ -1104,6 +1200,7 @@
   // -------- overlays --------
   function setupOverlays() {
     var isMobile = isMobileViewport();
+    var lastOverlayOpenAt = 0;
     function syncMobileClass() {
       try { document.body.classList.toggle('is-mobile', !!isMobileViewport()); } catch (e) {}
     }
@@ -1259,6 +1356,52 @@
       try { document.body.classList.remove("overlay-open"); } catch (e) {}
     }
 
+    function closeAllAndHideBars() {
+      closeAll();
+      hideUi();
+    }
+
+    function hasOpenOverlay() {
+      try {
+        if (document.body && document.body.classList && document.body.classList.contains("overlay-open")) return true;
+      } catch (e0) {}
+      var overlays = [overlayToc, overlayBookmarks, overlayNotes, overlayMenu, overlayMyBooks, overlayVoice];
+      for (var i = 0; i < overlays.length; i += 1) {
+        var panel = overlays[i];
+        if (panel && panel.classList && !panel.classList.contains("hidden")) return true;
+      }
+      return false;
+    }
+
+    function isOverlayChromeTarget(target) {
+      try {
+        if (!target || !target.closest) return false;
+        return !!(
+          target.closest(".overlay-panel") ||
+          target.closest("#overlay-backdrop") ||
+          target.closest("#titlebar") ||
+          target.closest("#bottombar") ||
+          target.closest("#searchbar") ||
+          target.closest("#mobileMorePanel") ||
+          target.closest("#selectionToolbar")
+        );
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function closeFromOutside(event) {
+      if (!hasOpenOverlay()) return;
+      if (Date.now() - lastOverlayOpenAt < 180) return;
+      if (event && isOverlayChromeTarget(event.target)) return;
+      try {
+        if (event && event.preventDefault) event.preventDefault();
+        if (event && event.stopPropagation) event.stopPropagation();
+        if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
+      } catch (e0) {}
+      closeAllAndHideBars();
+    }
+
     function bumpOverlayZ() {
       var z = 30000;
       if (overlayToc) overlayToc.style.zIndex = z;
@@ -1272,6 +1415,7 @@
 
     function open(which) {
       isMobile = isMobileViewport(); // recalc on rotate
+      lastOverlayOpenAt = Date.now();
       bumpOverlayZ();
       var isMobileLike = isMobile || isTabletPortrait();
       if (!isMobileLike && backdrop) backdrop.classList.remove("hidden");
@@ -1330,6 +1474,7 @@
     // Expose for deep-linking (e.g., ?mybooks=1)
     window.__fbOpenOverlay = open;
     window.__fbCloseOverlays = closeAll;
+    window.__fbCloseOverlaysAndHideBars = closeAllAndHideBars;
     try {
       var p = new URLSearchParams(window.location.search || "");
       var wantMyBooks = (p.get("mybooks") === "1" || p.get("mybooks") === "true");
@@ -1378,33 +1523,20 @@
     // Desktop: close only by backdrop click (as requested earlier)
     if (backdrop) {
       backdrop.addEventListener("click", function () {
-        if (!isMobileViewport() && !isTabletPortrait()) closeAll();
+        if (!isMobileViewport() && !isTabletPortrait()) closeAllAndHideBars();
       });
     }
 
-    // Mobile: close by X only
+    document.addEventListener("pointerdown", closeFromOutside, true);
+    document.addEventListener("click", closeFromOutside, true);
+
+    // Explicit close buttons dismiss the whole side panel UI and bars.
     closeBtns.forEach(function (b) {
       b.addEventListener("click", function (e) {
         e.preventDefault();
-        var panelId = "";
-        try {
-          var panel = b.closest ? b.closest(".overlay-panel") : null;
-          panelId = panel && panel.id ? String(panel.id) : "";
-        } catch (e0) {}
-
-        // For list overlays, return to sidebar menu instead of closing everything.
-        if (
-          panelId === "overlay-toc" ||
-          panelId === "overlay-bookmarks" ||
-          panelId === "overlay-notes" ||
-          panelId === "overlay-mybooks" ||
-          panelId === "overlay-voice"
-        ) {
-          open("menu");
-          return;
-        }
-
-        closeAll();
+        if (e.stopPropagation) e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        closeAllAndHideBars();
       });
     });
 
@@ -1417,14 +1549,14 @@
         try {
           var t = ev && ev.target;
           if (!t) return;
-          if (t.tagName === "A" || (t.closest && t.closest("a"))) closeAll();
+          if (t.tagName === "A" || (t.closest && t.closest("a"))) closeAllAndHideBars();
         } catch (e) {}
       });
     });
 
     // ESC closes on desktop
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && !isMobileViewport()) closeAll();
+      if (e.key === "Escape" && !isMobileViewport()) closeAllAndHideBars();
     });
 
     window.__fbCloseOverlays = closeAll;
@@ -1589,6 +1721,26 @@
         } catch (eSearch) {}
         if (moved) return;
         try {
+          if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
+            if (typeof window.__fb_closeMobileMoreAndHideBars === "function") {
+              window.__fb_closeMobileMoreAndHideBars();
+              try {
+                if (e && e.stopPropagation) e.stopPropagation();
+                if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+              } catch (eMoreStop) {}
+              return;
+            }
+          }
+          if (document.body && document.body.classList && document.body.classList.contains("overlay-open")) {
+            if (typeof window.__fbCloseOverlaysAndHideBars === "function") {
+              window.__fbCloseOverlaysAndHideBars();
+              try {
+                if (e && e.stopPropagation) e.stopPropagation();
+                if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+              } catch (eOverlayStop) {}
+              return;
+            }
+          }
           if (Date.now() - startTime > 150) return;
           if (window.__fbSelectionActive && typeof window.__fbClearSelectionToolbar === "function") {
             window.__fbClearSelectionToolbar();

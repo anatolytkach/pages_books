@@ -9,6 +9,7 @@ function ensurePage(lines, pageIndex, viewportHeight, chunkModel, globalModel) {
       pageCount: 1,
       lineStartIndex: 0,
       lineEndIndex: -1,
+      lineOffsetRanges: [],
       top: 0,
       height: viewportHeight,
       startOffset,
@@ -26,6 +27,12 @@ function ensurePage(lines, pageIndex, viewportHeight, chunkModel, globalModel) {
     pageIndex,
     lineStartIndex: startLine.lineIndex,
     lineEndIndex: endLine.lineIndex,
+    lineOffsetRanges: lines
+      .map((line) => ({
+        startOffset: Number(line.startOffset || 0),
+        endOffset: Number(line.endOffset || 0)
+      }))
+      .filter((range) => range.endOffset > range.startOffset),
     top: Math.max(0, startLine.y),
     height: viewportHeight,
     startOffset,
@@ -56,14 +63,29 @@ function buildPageFromSlot({
     .slice()
     .reverse()
     .find((block) => block && Number(block.endOffset || 0) > Number(block.startOffset || 0)) || null;
-  const startOffset = firstTextBlock
-    ? Math.max(0, Number(firstTextBlock.startOffset || 0))
-    : 0;
-  const endOffset = lastTextBlock
-    ? Math.max(startOffset, Number(lastTextBlock.endOffset || startOffset))
-    : startOffset;
   const lineStartIndex = slotLines.length ? Number(slotLines[0].lineIndex || 0) : 0;
   const lineEndIndex = slotLines.length ? Number(slotLines[slotLines.length - 1].lineIndex || 0) : -1;
+  const lineOffsetRanges = slotLines
+    .map((line) => ({
+      startOffset: Number(line && line.startOffset || 0),
+      endOffset: Number(line && line.endOffset || 0)
+    }))
+    .filter((range) => range.endOffset > range.startOffset);
+  const firstTextLine = slotLines.find((line) => line && Number(line.endOffset || 0) > Number(line.startOffset || 0)) || null;
+  const lastTextLine = slotLines
+    .slice()
+    .reverse()
+    .find((line) => line && Number(line.endOffset || 0) > Number(line.startOffset || 0)) || null;
+  const startOffset = firstTextLine
+    ? Math.max(0, Number(firstTextLine.startOffset || 0))
+    : firstTextBlock
+      ? Math.max(0, Number(firstTextBlock.startOffset || 0))
+      : 0;
+  const endOffset = lastTextLine
+    ? Math.max(startOffset, Number(lastTextLine.endOffset || startOffset))
+    : lastTextBlock
+      ? Math.max(startOffset, Number(lastTextBlock.endOffset || startOffset))
+      : startOffset;
   return {
     pageIndex,
     pageCount: 1,
@@ -74,11 +96,12 @@ function buildPageFromSlot({
     height: viewportHeight,
     lineStartIndex,
     lineEndIndex,
+    lineOffsetRanges,
     startOffset,
     endOffset,
     globalStartOffset: localOffsetToGlobal(globalModel, chunkModel.chunk.chunkId, startOffset),
     globalEndOffset: localOffsetToGlobal(globalModel, chunkModel.chunk.chunkId, endOffset),
-    hasTextContent: !!firstTextBlock,
+    hasTextContent: !!(firstTextLine || firstTextBlock),
     blockStartIndex: slotBlocks.length ? Number(slotBlocks[0].orderIndex || 0) : -1,
     blockEndIndex: slotBlocks.length ? Number(slotBlocks[slotBlocks.length - 1].orderIndex || 0) : -1
   };
@@ -133,8 +156,14 @@ export function buildPaginationModel({ chunkModel, layout, viewportHeight, globa
 
 export function findPageIndexForOffset(paginationModel, localOffset) {
   const pages = paginationModel.pages || [];
+  const normalizedOffset = Number(localOffset || 0);
+  const pagesWithLineRanges = pages.filter((item) => Array.isArray(item && item.lineOffsetRanges) && item.lineOffsetRanges.length);
+  const lineRangePage = pagesWithLineRanges.find((item) => (
+    item.lineOffsetRanges || []
+  ).some((range) => normalizedOffset >= Number(range.startOffset || 0) && normalizedOffset < Number(range.endOffset || 0)));
+  if (lineRangePage) return lineRangePage.pageIndex;
   const page =
-    pages.find((item) => localOffset >= item.startOffset && localOffset < item.endOffset) ||
+    pages.find((item) => normalizedOffset >= item.startOffset && normalizedOffset < item.endOffset) ||
     pages[pages.length - 1] ||
     null;
   return page ? page.pageIndex : 0;
