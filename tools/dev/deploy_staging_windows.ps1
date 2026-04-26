@@ -6,6 +6,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Assert-Windows {
+  $isWindowsHost = if (Get-Variable -Name IsWindows -Scope Global -ErrorAction SilentlyContinue) {
+    $IsWindows
+  } else {
+    [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
+  }
+
+  if (-not $isWindowsHost) {
+    throw "This script is Windows-only. Use tools/dev/deploy_staging_macos.sh on macOS."
+  }
+}
+
 function Get-RepoRoot {
   $root = git rev-parse --show-toplevel 2>$null
   if (-not $root) {
@@ -19,6 +31,7 @@ function Get-WorktreeRoots {
   if (-not $output) {
     return @()
   }
+
   $roots = @()
   foreach ($line in $output) {
     if ($line -like "worktree *") {
@@ -43,13 +56,6 @@ function Join-PathMany {
   return $result
 }
 
-function Test-IsWindows {
-  if (Get-Variable -Name IsWindows -Scope Global -ErrorAction SilentlyContinue) {
-    return $IsWindows
-  }
-  return [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
-}
-
 function Resolve-WranglerPath {
   param(
     [string]$RepoRoot,
@@ -61,9 +67,7 @@ function Resolve-WranglerPath {
   foreach ($root in $roots) {
     foreach ($candidate in @(
       (Join-PathMany $root @("reader_render_v3", "node_modules", ".bin", "wrangler.cmd")),
-      (Join-PathMany $root @("reader_render_v3", "node_modules", ".bin", "wrangler")),
-      (Join-PathMany $root @("node_modules", ".bin", "wrangler.cmd")),
-      (Join-PathMany $root @("node_modules", ".bin", "wrangler"))
+      (Join-PathMany $root @("node_modules", ".bin", "wrangler.cmd"))
     )) {
       if (-not $candidates.Contains($candidate)) {
         $candidates.Add($candidate)
@@ -84,15 +88,15 @@ function Resolve-WranglerPath {
     }
   }
 
-  $pathWrangler = Get-Command wrangler -ErrorAction SilentlyContinue
+  $pathWrangler = Get-Command wrangler.cmd -ErrorAction SilentlyContinue
   if ($pathWrangler -and $pathWrangler.Source) {
     return $pathWrangler.Source
   }
 
   throw @"
-Could not find a local Wrangler executable in this repo or its linked worktrees.
-Checked reader_render_v3/node_modules/.bin/wrangler(.cmd), root node_modules/.bin/wrangler(.cmd), WRANGLER_BIN, and PATH.
-Install the project dependencies in one worktree first, then rerun this script.
+Could not find a Windows Wrangler executable in this repo or its linked worktrees.
+Checked reader_render_v3/node_modules/.bin/wrangler.cmd, root node_modules/.bin/wrangler.cmd, WRANGLER_BIN, and PATH.
+Install the project dependencies in one Windows worktree first, then rerun this script.
 "@
 }
 
@@ -107,46 +111,20 @@ function Copy-Tree {
     throw "Missing source path: $Source"
   }
 
-  if (Test-IsWindows) {
-    $robocopyArgs = @($Source, $Destination, "/E", "/XJ", "/R:1", "/W:1")
-    if ($ExcludeDirs.Count -gt 0) {
-      $robocopyArgs += "/XD"
-      $robocopyArgs += $ExcludeDirs
-    }
-
-    & robocopy @robocopyArgs | Out-Null
-    $exitCode = $LASTEXITCODE
-    if ($exitCode -ge 8) {
-      throw "robocopy failed for $Source -> $Destination with exit code $exitCode"
-    }
-    return
+  $robocopyArgs = @($Source, $Destination, "/E", "/XJ", "/R:1", "/W:1")
+  if ($ExcludeDirs.Count -gt 0) {
+    $robocopyArgs += "/XD"
+    $robocopyArgs += $ExcludeDirs
   }
 
-  $rsync = Get-Command rsync -ErrorAction SilentlyContinue
-  if ($rsync) {
-    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-    $sourcePath = (Resolve-Path $Source).Path.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + "/"
-    $rsyncArgs = @("-a", "--delete")
-    foreach ($dir in $ExcludeDirs) {
-      $rsyncArgs += "--exclude=$dir/"
-    }
-    $rsyncArgs += $sourcePath
-    $rsyncArgs += $Destination
-    & $rsync.Source @rsyncArgs
-    if ($LASTEXITCODE -ne 0) {
-      throw "rsync failed for $Source -> $Destination with exit code $LASTEXITCODE"
-    }
-    return
-  }
-
-  Copy-Item -LiteralPath $Source -Destination $Destination -Recurse -Force
-  foreach ($dir in $ExcludeDirs) {
-    $excludedPath = Join-Path $Destination $dir
-    if (Test-Path $excludedPath) {
-      Remove-Item -LiteralPath $excludedPath -Recurse -Force
-    }
+  & robocopy @robocopyArgs | Out-Null
+  $exitCode = $LASTEXITCODE
+  if ($exitCode -ge 8) {
+    throw "robocopy failed for $Source -> $Destination with exit code $exitCode"
   }
 }
+
+Assert-Windows
 
 $repoRoot = Get-RepoRoot
 Set-Location $repoRoot
@@ -156,7 +134,7 @@ $commit = (git rev-parse HEAD).Trim()
 $worktreeRoots = Get-WorktreeRoots
 $wranglerPath = Resolve-WranglerPath -RepoRoot $repoRoot -WorktreeRoots $worktreeRoots
 
-$tempRoot = if ($env:TEMP) { $env:TEMP } elseif ($env:TMPDIR) { $env:TMPDIR } else { [System.IO.Path]::GetTempPath() }
+$tempRoot = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
 $deployDir = Join-Path $tempRoot ("readerpub-books-staging-deploy-" + ([guid]::NewGuid().ToString("N")))
 New-Item -ItemType Directory -Path $deployDir | Out-Null
 
@@ -164,17 +142,12 @@ try {
   Copy-Item (Join-Path $repoRoot "_worker.js") $deployDir
   Copy-Tree -Source (Join-Path $repoRoot "api") -Destination (Join-Path $deployDir "api")
   Copy-Tree -Source (Join-Path $repoRoot "publisher_tasks") -Destination (Join-Path $deployDir "publisher_tasks")
-  Copy-Tree -Source (Join-Path $repoRoot "books") -Destination (Join-Path $deployDir "books")
+  Copy-Tree -Source (Join-Path $repoRoot "books") -Destination (Join-Path $deployDir "books") -ExcludeDirs @("content", "gutenberg_protected_epub3_sources")
   Copy-Tree -Source (Join-Path $repoRoot "reader") -Destination (Join-Path $deployDir "reader")
   Copy-Tree -Source (Join-Path $repoRoot "reader1") -Destination (Join-Path $deployDir "reader1")
   Copy-Tree -Source (Join-Path $repoRoot "reader_render_v3") -Destination (Join-Path $deployDir "reader_render_v3") -ExcludeDirs @("node_modules", "artifacts")
   if (Test-Path (Join-Path $repoRoot "reader_render_v5")) {
     Copy-Tree -Source (Join-Path $repoRoot "reader_render_v5") -Destination (Join-Path $deployDir "reader_render_v5") -ExcludeDirs @("node_modules", "artifacts")
-  }
-
-  $booksContent = Join-PathMany $deployDir @("books", "content")
-  if (Test-Path $booksContent) {
-    Remove-Item -Recurse -Force $booksContent
   }
 
   Write-Host "[deploy-staging] Repo root: $repoRoot"

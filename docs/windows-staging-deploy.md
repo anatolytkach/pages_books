@@ -13,17 +13,18 @@ Target project:
 
 ## macOS Procedure
 
-The historical Windows helper now also works on macOS when run with PowerShell:
+Use the native macOS helper:
 
-```powershell
-pwsh tools/dev/deploy_staging_windows.ps1
+```bash
+tools/dev/deploy_staging_macos.sh
 ```
 
-On macOS the script keeps the same staging target, but uses platform-native behavior:
+The script keeps the same staging target, but uses platform-native behavior:
 
 - deploy bundle is created under the macOS temp directory
-- directory copies use `rsync` when available
-- Wrangler is resolved as `reader_render_v3/node_modules/.bin/wrangler`, root `node_modules/.bin/wrangler`, `WRANGLER_BIN`, or `wrangler` from `PATH`
+- directory copies use `rsync`
+- Wrangler is resolved as `WRANGLER_BIN`, `reader_render_v3/node_modules/.bin/wrangler`, root `node_modules/.bin/wrangler`, or `wrangler` from `PATH`
+- local book content and protected source directories are excluded from the Pages bundle
 
 If Wrangler is not found, install dependencies in this checkout or set `WRANGLER_BIN` to the executable path.
 
@@ -101,6 +102,8 @@ Use a Windows-native deploy flow:
 1. build the deploy bundle in a Windows path
 2. use `robocopy` instead of naive `Copy-Item -Recurse` for the large directory trees
 3. explicitly exclude:
+   - `books/content`
+   - `books/gutenberg_protected_epub3_sources`
    - `reader_render_v3/node_modules`
    - `reader_render_v3/artifacts`
 4. deploy with:
@@ -130,10 +133,7 @@ Copy-Item -LiteralPath (Join-Path $root '_worker.js') -Destination (Join-Path $d
 Copy-Item -LiteralPath (Join-Path $root 'api') -Destination (Join-Path $deployDir 'api') -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'publisher_tasks') -Destination (Join-Path $deployDir 'publisher_tasks') -Recurse
 
-$null = robocopy (Join-Path $root 'books') (Join-Path $deployDir 'books') /E /XJ /R:1 /W:1
-if (Test-Path (Join-Path $deployDir 'books\content')) {
-  Remove-Item -LiteralPath (Join-Path $deployDir 'books\content') -Recurse -Force
-}
+$null = robocopy (Join-Path $root 'books') (Join-Path $deployDir 'books') /E /XJ /XD content gutenberg_protected_epub3_sources /R:1 /W:1
 
 $null = robocopy (Join-Path $root 'reader') (Join-Path $deployDir 'reader') /E /XJ /R:1 /W:1
 $null = robocopy (Join-Path $root 'reader1') (Join-Path $deployDir 'reader1') /E /XJ /R:1 /W:1
@@ -176,6 +176,8 @@ node (Join-Path $root 'tools\deploy\record-deployment.mjs') `
 - it avoids the Linux-vs-Windows `workerd` mismatch
 - it avoids problematic recursive copy behavior by using `robocopy`
 - it excludes bundle content that must not go to Pages:
+  - local book content
+  - protected book source directories
   - local `node_modules`
   - generated `artifacts`
 - it records the deployment in repo history after a successful upload

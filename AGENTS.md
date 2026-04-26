@@ -63,11 +63,35 @@ Use the documented staging procedure in:
 
 - `docs/windows-staging-deploy.md`
 
-The helper script `tools/dev/deploy_staging_windows.ps1` is cross-platform despite the historical filename:
+Use one platform-native helper per OS. Do not run the Windows PowerShell helper on macOS, and do not run the macOS shell helper on Windows.
 
-- on Windows it uses `robocopy` and `wrangler.cmd`
-- on macOS/Linux it uses `rsync` when available and a POSIX `wrangler`
-- it deploys to `readerpub-books-staging` / Pages branch `develop`
+Windows deploy:
+
+```powershell
+tools/dev/deploy_staging_windows.ps1
+```
+
+- this script is Windows-only
+- it builds the deploy bundle in a Windows temp path
+- it copies large trees with `robocopy`
+- it deploys with Windows Wrangler, preferably `reader_render_v3\node_modules\.bin\wrangler.cmd` or root `node_modules\.bin\wrangler.cmd`
+
+macOS deploy:
+
+```bash
+tools/dev/deploy_staging_macos.sh
+```
+
+- this script is macOS-only for this worktree
+- it builds the deploy bundle in the macOS temp directory
+- it copies large trees with `rsync`
+- it deploys with POSIX Wrangler, resolved from `WRANGLER_BIN`, `reader_render_v3/node_modules/.bin/wrangler`, root `node_modules/.bin/wrangler`, or `wrangler` from `PATH`
+
+Both helpers deploy to:
+
+- Cloudflare Pages project: `readerpub-books-staging`
+- Pages branch: `develop`
+- canonical URL: `https://books-staging.reader.pub/books/`
 
 ## Deploy Target For `develop-anatoly`
 
@@ -81,10 +105,10 @@ In this branch/worktree, reader/catalog deployments default to staging only:
 Important constraints from that runbook:
 
 - do not rely on `scripts/deploy-staging.sh` directly from this setup
-- use local Wrangler when available (`reader_render_v3/node_modules/.bin/wrangler(.cmd)` or root `node_modules/.bin/wrangler(.cmd)`)
 - build the deploy bundle in a platform-native temp path
-- use `robocopy` on Windows or `rsync` on macOS/Linux
 - exclude:
+  - `books/content`
+  - `books/gutenberg_protected_epub3_sources`
   - `reader_render_v3/node_modules`
   - `reader_render_v3/artifacts`
 
