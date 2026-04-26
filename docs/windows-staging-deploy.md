@@ -11,6 +11,22 @@ Target project:
 - Cloudflare Pages project: `readerpub-books-staging`
 - Pages branch: `develop`
 
+## macOS Procedure
+
+The historical Windows helper now also works on macOS when run with PowerShell:
+
+```powershell
+pwsh tools/dev/deploy_staging_windows.ps1
+```
+
+On macOS the script keeps the same staging target, but uses platform-native behavior:
+
+- deploy bundle is created under the macOS temp directory
+- directory copies use `rsync` when available
+- Wrangler is resolved as `reader_render_v3/node_modules/.bin/wrangler`, root `node_modules/.bin/wrangler`, `WRANGLER_BIN`, or `wrangler` from `PATH`
+
+If Wrangler is not found, install dependencies in this checkout or set `WRANGLER_BIN` to the executable path.
+
 ## What Failed
 
 ### 1. Running `scripts/deploy-staging.sh` from PowerShell with default `npx wrangler`

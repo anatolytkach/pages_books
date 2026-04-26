@@ -57,18 +57,33 @@ npm.cmd run test:all
 
 Use the narrowest relevant test command for the area you changed. Do not broaden test scope without a reason.
 
-## Staging Deploys On Windows
+## Staging Deploys
 
-Use the documented Windows-native staging procedure in:
+Use the documented staging procedure in:
 
 - `docs/windows-staging-deploy.md`
 
+The helper script `tools/dev/deploy_staging_windows.ps1` is cross-platform despite the historical filename:
+
+- on Windows it uses `robocopy` and `wrangler.cmd`
+- on macOS/Linux it uses `rsync` when available and a POSIX `wrangler`
+- it deploys to `readerpub-books-staging` / Pages branch `develop`
+
+## Deploy Target For `develop-anatoly`
+
+In this branch/worktree, reader/catalog deployments default to staging only:
+
+- default target: `https://books-staging.reader.pub/books/`
+- do not deploy to `https://reader.pub/books/` unless the user explicitly asks for production/live/`reader.pub`
+- if the user says only "deploy readers", "deploy catalog", "deploy this branch", or similar without naming production, deploy to staging
+- production deploy instructions elsewhere in this repository apply only after the user explicitly requests production/live/`reader.pub`
+
 Important constraints from that runbook:
 
-- do not rely on `scripts/deploy-staging.sh` directly from this Windows setup
-- use local `reader_render_v3\node_modules\.bin\wrangler.cmd`
-- build the deploy bundle in a Windows path
-- use `robocopy`
+- do not rely on `scripts/deploy-staging.sh` directly from this setup
+- use local Wrangler when available (`reader_render_v3/node_modules/.bin/wrangler(.cmd)` or root `node_modules/.bin/wrangler(.cmd)`)
+- build the deploy bundle in a platform-native temp path
+- use `robocopy` on Windows or `rsync` on macOS/Linux
 - exclude:
   - `reader_render_v3/node_modules`
   - `reader_render_v3/artifacts`
