@@ -720,13 +720,11 @@
   // A dedicated transparent layer ABOVE the book is the only 100% reliable way to
   // detect a center tap on EVERY page.
   function installCenterTapLayer() {
-    try {
-      var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
-      var touch = (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-      if (__fb_isDesktop && !window.__readerpubReaderNewCompat && !coarse && !touch) return;
-    } catch (e0) {
-      if (__fb_isDesktop && !window.__readerpubReaderNewCompat) return;
-    }
+	    try {
+	      var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+	      var touch = (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+	    } catch (e0) {
+	    }
     var existing = document.getElementById("fb-tap-layer");
     var host = document.getElementById("container") || null;
     if (existing) {
@@ -770,26 +768,39 @@
       return window.innerWidth;
     }
 
-    function updateCenterTapBounds() {
-      try {
-        var layerRect = null;
-        try { layerRect = layer && layer.getBoundingClientRect ? layer.getBoundingClientRect() : null; } catch (eL) { layerRect = null; }
-        var vw = (layerRect && layerRect.width) ? layerRect.width : getVisibleViewportWidth();
-        var vLeft = (layerRect && typeof layerRect.left === "number") ? layerRect.left : 0;
-        var centerW = Math.max(0, Math.round(vw * 0.60));
-        var edgeW = Math.max(0, Math.round(vw * 0.20));
-        var left = Math.max(0, Math.round((vw - centerW) / 2));
-        center.style.left = left + "px";
-        center.style.width = centerW + "px";
-        center.style.right = "auto";
-        try {
-          var leftZone = document.getElementById("fb-tap-left");
-          var rightZone = document.getElementById("fb-tap-right");
-          if (leftZone) leftZone.style.width = edgeW + "px";
-          if (rightZone) rightZone.style.width = edgeW + "px";
-        } catch (e4) {}
-        // Expose bounds for iframe-level handlers to use the exact same zone.
-        window.__fbTapCenterBounds = { left: vLeft + left, right: vLeft + left + centerW, width: vw };
+	    function updateCenterTapBounds() {
+	      try {
+	        var layerRect = null;
+	        try { layerRect = layer && layer.getBoundingClientRect ? layer.getBoundingClientRect() : null; } catch (eL) { layerRect = null; }
+	        var vw = (layerRect && layerRect.width) ? layerRect.width : getVisibleViewportWidth();
+	        var vLeft = (layerRect && typeof layerRect.left === "number") ? layerRect.left : 0;
+	        var centerW = Math.max(0, Math.round(vw * 0.60));
+	        var leftEdgeW = Math.max(0, Math.round(vw * 0.20));
+	        var rightEdgeW = leftEdgeW;
+	        var left = Math.max(0, Math.round((vw - centerW) / 2));
+	        try {
+	          if (__fb_isDesktop && !window.matchMedia("(pointer: coarse)").matches) {
+	            var stack = document.getElementById("viewerStack") || document.getElementById("viewer");
+	            var sr = stack && stack.getBoundingClientRect ? stack.getBoundingClientRect() : null;
+	            if (sr && sr.width > 0) {
+	              leftEdgeW = Math.max(0, Math.round(sr.left - vLeft));
+	              rightEdgeW = Math.max(0, Math.round((vLeft + vw) - sr.right));
+	              left = leftEdgeW;
+	              centerW = Math.max(0, Math.round(vw - leftEdgeW - rightEdgeW));
+	            }
+	          }
+	        } catch (eDesktopBounds) {}
+	        center.style.left = left + "px";
+	        center.style.width = centerW + "px";
+	        center.style.right = "auto";
+	        try {
+	          var leftZone = document.getElementById("fb-tap-left");
+	          var rightZone = document.getElementById("fb-tap-right");
+	          if (leftZone) leftZone.style.width = leftEdgeW + "px";
+	          if (rightZone) rightZone.style.width = rightEdgeW + "px";
+	        } catch (e4) {}
+	        // Expose bounds for iframe-level handlers to use the exact same zone.
+	        window.__fbTapCenterBounds = { left: vLeft + left, right: vLeft + left + centerW, width: vw };
       } catch (e3) {}
     }
 
@@ -973,6 +984,33 @@
       }
     }
 
+    function isBookTextAtPoint(x, y) {
+      try {
+        var ifr = findIframeAtPoint(x, y);
+        if (!ifr || !ifr.contentDocument || !ifr.getBoundingClientRect) return false;
+        var r = ifr.getBoundingClientRect();
+        var ix = x - r.left;
+        var iy = y - r.top;
+        var doc = ifr.contentDocument;
+        var el = null;
+        try { el = doc.elementFromPoint(ix, iy); } catch (e0) { el = null; }
+        if (!el) return false;
+        if (el.nodeType === 3) el = el.parentElement;
+        if (!el || !el.closest) return false;
+        if (el.closest("a,button,input,textarea,select,label")) return false;
+        var textHost = el.closest("p,li,blockquote,h1,h2,h3,h4,h5,h6,div,span");
+        if (!textHost) return false;
+        var text = String(textHost.textContent || "").trim();
+        if (!text) return false;
+        if (textHost.getBoundingClientRect) {
+          var tr = textHost.getBoundingClientRect();
+          if (tr.width <= 0 || tr.height <= 0) return false;
+        }
+        return true;
+      } catch (e) {}
+      return false;
+    }
+
     function tryToggle(e) {
       // Debounce to avoid double-fire and randomness.
       var now = Date.now();
@@ -1081,6 +1119,10 @@
         try {
           var pt = (e && (e.changedTouches && e.changedTouches[0])) || (e && (e.touches && e.touches[0])) || e;
           if (pt && typeof pt.clientX === "number" && typeof pt.clientY === "number") {
+            if (isBookTextAtPoint(pt.clientX, pt.clientY)) {
+              tryToggle(e);
+              return;
+            }
             var ifr = findIframeAtPoint(pt.clientX, pt.clientY);
             if (ifr && ifr.getBoundingClientRect && ifr.contentDocument && ifr.contentDocument.__fb_tryFootnoteAtPoint) {
               var r = ifr.getBoundingClientRect();
@@ -1247,6 +1289,12 @@
     }
 
     if (__fb_isDesktop || window.__readerpubReaderNewCompat) {
+      try {
+        layer.style.pointerEvents = "auto";
+        center.style.pointerEvents = "auto";
+        left.style.pointerEvents = "auto";
+        right.style.pointerEvents = "auto";
+      } catch (ePointer) {}
       center.addEventListener("click", function (e) {
         primeClickTap(e);
         tryToggle(e);
@@ -2339,11 +2387,15 @@
     // attach directly to rendition.getContents() on every relocation.
     function attachAllRenditionContents() {
       try {
-        if (!reader || !reader.rendition || typeof reader.rendition.getContents !== "function") return;
-        var cs = reader.rendition.getContents();
-        if (!cs || !cs.length) return;
-        for (var i = 0; i < cs.length; i++) {
-          try { attachToDoc(cs[i] && cs[i].document); } catch (e) {}
+        var renditions = [reader && reader.rendition, reader && reader.renditionPrev, reader && reader.renditionNext];
+        for (var r = 0; r < renditions.length; r++) {
+          var rendition = renditions[r];
+          if (!rendition || typeof rendition.getContents !== "function") continue;
+          var cs = rendition.getContents();
+          if (!cs || !cs.length) continue;
+          for (var i = 0; i < cs.length; i++) {
+            try { attachToDoc(cs[i] && cs[i].document); } catch (e) {}
+          }
         }
       } catch (e0) {}
     }
@@ -2354,6 +2406,9 @@
 
       var startX = 0, startY = 0, moved = false;
       var startTime = 0;
+      var lastDesktopTapAt = 0;
+      var lastDesktopTapX = -10000;
+      var lastDesktopTapY = -10000;
       // Android often reports micro-movements during a "tap" (especially on text pages
       // where the WebView tries to scroll / selection kicks in). If the threshold is
       // too low, tapping works on the title page but fails on later pages.
@@ -2405,9 +2460,27 @@
         } catch (e2) {}
       }
 
+      function getDocSelection() {
+        try {
+          if (doc.getSelection) return doc.getSelection();
+          if (doc.defaultView && doc.defaultView.getSelection) return doc.defaultView.getSelection();
+        } catch (e) {}
+        return null;
+      }
+
+      function hasDocTextSelection() {
+        try {
+          var sel = getDocSelection();
+          return !!(sel && !sel.isCollapsed && String(sel.toString() || "").trim());
+        } catch (e) {}
+        return false;
+      }
+
       function onEnd(e) {
-        // Desktop click is handled separately; touch keeps center-zone behavior.
-        if (__fb_isDesktop) return;
+        if (__fb_isDesktop) {
+          maybeHandleDesktopReaderTap(e);
+          return;
+        }
         try {
           if (
             document.body &&
@@ -2498,7 +2571,7 @@
         } catch (e2) {}
       }
 
-      function onDesktopReaderClick(e) {
+      function maybeHandleDesktopReaderTap(e) {
         if (!__fb_isDesktop) return;
         try {
           if (
@@ -2508,33 +2581,35 @@
             !document.body.classList.contains("search-minimized")
           ) return;
         } catch (eSearch) {}
+        if (moved) return;
+        if (Date.now() - startTime > 700) return;
         try {
+          if (window.__fbSelectionActive && !hasDocTextSelection()) window.__fbSelectionActive = false;
           if (window.__fbSelectionActive) return;
-          var sel = null;
-          if (doc.getSelection) sel = doc.getSelection();
-          else if (doc.defaultView && doc.defaultView.getSelection) sel = doc.defaultView.getSelection();
-          if (sel && !sel.isCollapsed) return;
+          if (hasDocTextSelection()) return;
         } catch (eSel) {}
         try {
           var tgt = e && e.target;
+          if (tgt && tgt.nodeType === 3) tgt = tgt.parentElement;
           var interactive = tgt && tgt.closest
             ? tgt.closest("a,button,input,textarea,select,label")
             : null;
           if (interactive) return;
           var pt = e;
           if (!pt || typeof pt.clientX !== "number" || typeof pt.clientY !== "number") return;
-          if (!window.__readerpubReaderNewCompat) {
-            toggleUi();
-            return;
-          }
-          var x = pt.clientX, y = pt.clientY;
-          var w = doc.defaultView.innerWidth || doc.documentElement.clientWidth;
-          var centerW = w * 0.60;
-          var mx1 = (w - centerW) / 2;
-          var mx2 = mx1 + centerW;
-          if (x < mx1 || x > mx2) return;
+          var now = Date.now();
+          var dx = Math.abs(pt.clientX - lastDesktopTapX);
+          var dy = Math.abs(pt.clientY - lastDesktopTapY);
+          if (now - lastDesktopTapAt < 120 && dx < 3 && dy < 3) return;
+          lastDesktopTapAt = now;
+          lastDesktopTapX = pt.clientX;
+          lastDesktopTapY = pt.clientY;
           toggleUi();
         } catch (eDesktopClick) {}
+      }
+
+      function onDesktopReaderClick(e) {
+        maybeHandleDesktopReaderTap(e);
       }
 
       function blockContextMenu(e) {
@@ -2549,17 +2624,38 @@
       // Attach both to the document and to the iframe window to maximize coverage.
       var win = null;
       try { win = doc.defaultView; } catch (e) {}
+      function bindMouseTapTarget(target) {
+        if (!target || target.__fbTextTapTargetAttached) return;
+        try { target.__fbTextTapTargetAttached = true; } catch (e0) {}
+        try {
+          target.addEventListener("pointerdown", onStart, { passive: true, capture: true });
+          target.addEventListener("pointermove", onMove, { passive: true, capture: true });
+          target.addEventListener("pointerup", onEnd, { passive: true, capture: true });
+          target.addEventListener("mousedown", onStart, { passive: true, capture: true });
+          target.addEventListener("mousemove", onMove, { passive: true, capture: true });
+          target.addEventListener("mouseup", onEnd, { passive: true, capture: true });
+          target.addEventListener("click", onDesktopReaderClick, true);
+        } catch (e1) {}
+      }
       try {
         doc.addEventListener("pointerdown", onStart, { passive: true, capture: true });
         doc.addEventListener("pointermove", onMove, { passive: true, capture: true });
         doc.addEventListener("pointerup", onEnd, { passive: true, capture: true });
+        doc.addEventListener("mousedown", onStart, { passive: true, capture: true });
+        doc.addEventListener("mousemove", onMove, { passive: true, capture: true });
+        doc.addEventListener("mouseup", onEnd, { passive: true, capture: true });
         doc.addEventListener("click", onDesktopReaderClick, true);
         doc.addEventListener("contextmenu", blockContextMenu, true);
         doc.addEventListener("longpress", blockContextMenu, true);
+        bindMouseTapTarget(doc.documentElement);
+        bindMouseTapTarget(doc.body);
         if (win) {
           win.addEventListener("pointerdown", onStart, { passive: true, capture: true });
           win.addEventListener("pointermove", onMove, { passive: true, capture: true });
           win.addEventListener("pointerup", onEnd, { passive: true, capture: true });
+          win.addEventListener("mousedown", onStart, { passive: true, capture: true });
+          win.addEventListener("mousemove", onMove, { passive: true, capture: true });
+          win.addEventListener("mouseup", onEnd, { passive: true, capture: true });
           win.addEventListener("contextmenu", blockContextMenu, true);
         }
       } catch (e) {
@@ -2614,28 +2710,38 @@
 
     // Hook each content document (covers highlights rendered inside the iframe document).
     try {
-      reader.rendition.hooks.content.register(function (contents) {
-        try { attachToDoc(contents.document); } catch (e) {}
-        try { ensureSearchHlCss(contents.document); } catch (e) {}
-      });
-      reader.rendition.on("rendered", function (section, view) {
-        try {
-          // Ensure CSS in the parent doc that owns the view element (overlay lives here).
-          if (view && view.element && view.element.ownerDocument) ensureSearchHlCss(view.element.ownerDocument);
-        } catch (e) {}
-        // epub.js versions differ: sometimes `view.element` is the iframe itself.
-        try {
-          var iframe = null;
-          if (view && view.element) {
-            if (view.element.tagName === "IFRAME") iframe = view.element;
-            else if (view.element.querySelector) iframe = view.element.querySelector("iframe");
-          }
-          if (iframe && iframe.contentDocument) {
-            attachToDoc(iframe.contentDocument);
-            ensureSearchHlCss(iframe.contentDocument);
-          }
-        } catch (e) {}
-      });
+      var hookRenditions = [reader.rendition, reader.renditionPrev, reader.renditionNext];
+      for (var hr = 0; hr < hookRenditions.length; hr++) {
+        (function (rendition) {
+          if (!rendition) return;
+          try {
+            rendition.hooks.content.register(function (contents) {
+              try { attachToDoc(contents.document); } catch (e) {}
+              try { ensureSearchHlCss(contents.document); } catch (e) {}
+            });
+          } catch (eHook) {}
+          try {
+            rendition.on("rendered", function (section, view) {
+              try {
+                // Ensure CSS in the parent doc that owns the view element (overlay lives here).
+                if (view && view.element && view.element.ownerDocument) ensureSearchHlCss(view.element.ownerDocument);
+              } catch (e) {}
+              // epub.js versions differ: sometimes `view.element` is the iframe itself.
+              try {
+                var iframe = null;
+                if (view && view.element) {
+                  if (view.element.tagName === "IFRAME") iframe = view.element;
+                  else if (view.element.querySelector) iframe = view.element.querySelector("iframe");
+                }
+                if (iframe && iframe.contentDocument) {
+                  attachToDoc(iframe.contentDocument);
+                  ensureSearchHlCss(iframe.contentDocument);
+                }
+              } catch (e) {}
+            });
+          } catch (eRendered) {}
+        })(hookRenditions[hr]);
+      }
     } catch (e) {}
 
 
@@ -4526,8 +4632,8 @@
     // reader_new compat mode the center tap layer is still needed to toggle
     // the outer shell chrome.
     try {
-      var tapCenter = document.getElementById("fb-tap-center");
-      if (tapCenter) tapCenter.style.pointerEvents = window.__readerpubReaderNewCompat ? "auto" : "none";
+	      var tapCenter = document.getElementById("fb-tap-center");
+	      if (tapCenter) tapCenter.style.pointerEvents = (__fb_isDesktop || window.__readerpubReaderNewCompat) ? "auto" : "none";
     } catch (e) {}
 
     var state = {
