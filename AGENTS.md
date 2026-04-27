@@ -24,6 +24,7 @@ Key areas:
 - Make the smallest safe change set that satisfies the request.
 - Do not do unrelated cleanup.
 - Do not touch `reader/` or `reader1/` unless the task clearly requires it.
+- For unprotected reader work, `/books/reader/` is the active local route and currently serves the `reader1` runtime. Target and verify `reader1` only. Do not update the parallel `reader` client unless the user explicitly asks for it.
 - Preserve existing backend contracts and data model unless a task explicitly calls for backend changes.
 - Prefer targeted helpers/constants over broad rewrites.
 
