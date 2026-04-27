@@ -5156,6 +5156,12 @@
         if (before) frag.appendChild(doc.createTextNode(before));
         var mark = doc.createElement("span");
         mark.className = "fb-selection-mark";
+        try {
+          mark.style.setProperty("background", "var(--fb-selection-bg,rgba(165,244,236,0.72))", "important");
+          mark.style.setProperty("color", "inherit", "important");
+          mark.style.setProperty("-webkit-box-decoration-break", "clone", "important");
+          mark.style.setProperty("box-decoration-break", "clone", "important");
+        } catch (eStyle) {}
         mark.textContent = middle;
         frag.appendChild(mark);
         if (after) frag.appendChild(doc.createTextNode(after));
@@ -6678,6 +6684,59 @@
       try { window.open(url, "_blank", "noopener"); } catch (e) { window.location.href = url; }
     }
 
+    function buildSelectionShareUrl(cfi) {
+      try {
+        var current = new URL(window.location.href || "", window.location.origin);
+        var u = new URL(current.pathname || window.location.pathname || "/", window.location.origin);
+        var id = "";
+        var source = "";
+        try {
+          id = current.searchParams.get("id") || current.searchParams.get("i") || "";
+          source = current.searchParams.get("source") || "";
+        } catch (eId) {}
+        if (source) u.searchParams.set("source", source);
+        if (id) u.searchParams.set("id", id);
+        if (cfi) {
+          u.searchParams.set("selectionCfi", cfi);
+          u.hash = cfi;
+        }
+        return u.toString();
+      } catch (e) {}
+      return "";
+    }
+
+    function getIncomingSelectionCfi() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        var cfi = u.searchParams.get("selectionCfi") || "";
+        if (!cfi) return "";
+        return /^epubcfi\(/i.test(cfi) ? cfi : "";
+      } catch (e) {}
+      return "";
+    }
+
+    function activateIncomingSelectionHighlight() {
+      var cfi = getIncomingSelectionCfi();
+      if (!cfi) return;
+      notePendingCfi = cfi;
+      try {
+        if (reader && reader.rendition && typeof reader.rendition.display === "function") {
+          Promise.resolve(reader.rendition.display(cfi)).catch(function () {});
+        }
+      } catch (eDisplay) {}
+      var attempts = 0;
+      var tryOnce = function () {
+        if (!notePendingCfi) return;
+        if (highlightNoteCfi(cfi)) {
+          notePendingCfi = null;
+          return;
+        }
+        attempts++;
+        if (attempts < 80) setTimeout(tryOnce, 150);
+      };
+      setTimeout(tryOnce, 0);
+    }
+
     function isReaderNewCompatHost() {
       try {
         if (window.__readerpubReaderNewCompat) return true;
@@ -6773,13 +6832,18 @@
         openUrl(qUrl);
       } else if (action === "share") {
         try {
+          var shareCfi = state.cfi || "";
+          var shareUrl = buildSelectionShareUrl(shareCfi);
+          var shareText = shareUrl ? (text + "\n\n" + shareUrl) : text;
           if (navigator.share) {
-            navigator.share({ text: text });
+            var sharePayload = { text: text };
+            if (shareUrl) sharePayload.url = shareUrl;
+            navigator.share(sharePayload);
           } else if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text);
+            navigator.clipboard.writeText(shareText);
           } else {
             var ta = document.createElement("textarea");
-            ta.value = text;
+            ta.value = shareText;
             ta.setAttribute("readonly", "true");
             ta.style.position = "fixed";
             ta.style.opacity = "0";
@@ -6867,6 +6931,13 @@
     try {
       reader.rendition.hooks.content.register(function (contents) {
         try { attachToDoc(contents.document); } catch (e) {}
+        try {
+          if (notePendingCfi) {
+            setTimeout(function () {
+              try { if (notePendingCfi && highlightNoteCfi(notePendingCfi)) notePendingCfi = null; } catch (ePendingContent) {}
+            }, 0);
+          }
+        } catch (ePendingHook) {}
       });
       reader.rendition.on("rendered", function (section, view) {
         try {
@@ -6898,6 +6969,7 @@
       } catch (e) {}
     }
     scanIframes();
+    activateIncomingSelectionHighlight();
 
     try {
       reader.rendition.on("relocated", function () {

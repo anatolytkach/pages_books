@@ -769,3 +769,12 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - If the next priority is resilience rather than more refactor work:
   - keep updating this handoff after each milestone
   - commit and push immediately after each meaningful phase
+
+## 2026-04-27 Reader1 Selection Share Link
+
+- Updated unprotected `reader1` selection toolbar share action to include both selected text and a stable link to the selected CFI.
+- Shared links now carry `selectionCfi` plus the CFI hash; opening the link navigates to that location and retries the iframe highlight until the content is ready.
+- Added inline mark styling and bumped the `fbreader-ui.js` cache key in `reader1/index.html`.
+- Verification:
+  - `node --check reader1/js/fbreader-ui.js` passed.
+  - `npm test` was attempted earlier in the session and still failed on pre-existing unrelated worker/catalog/protected route expectations.
