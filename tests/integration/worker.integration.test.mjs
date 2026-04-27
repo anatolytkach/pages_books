@@ -345,6 +345,66 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
   assert.match(body, /#epubcfi\(\/6\/6\[item3\]/);
 });
 
+test("Integration: protected selection share API stores payload and redirects to protected reader", async () => {
+  const protectedAnchor = {
+    kind: "protected-range-v1",
+    bookId: "90025344",
+    start: { bookId: "90025344", chunkId: "chunk-000001", chunkOrder: 1, localOffset: 10, globalOffset: 10 },
+    end: { bookId: "90025344", chunkId: "chunk-000001", chunkOrder: 1, localOffset: 42, globalOffset: 42 },
+  };
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "api/book-locations/44.json": createR2Object({
+        body: JSON.stringify({
+          items: {
+            "90025344": {
+              title: "The Protected Book",
+              author: "Example, Ada",
+              cover: "/books/content/90025344/cover.jpg",
+              readerType: "protected",
+            },
+          },
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const createResponse = await callWorker({
+    url: "https://books-staging.reader.pub/books/api/ss",
+    method: "POST",
+    body: {
+      readerType: "protected",
+      bookId: "90025344",
+      artifactBookId: "90025344",
+      protectedArtifactSource: "r2",
+      protectedAnchor,
+      selectionText: "Protected quoted text",
+    },
+    env,
+  });
+  const data = await createResponse.json();
+
+  assert.equal(createResponse.status, 200);
+  const stored = JSON.parse(bucket.putCalls[0].body);
+  assert.equal(stored.readerType, "protected");
+  assert.deepEqual(stored.protectedAnchor, protectedAnchor);
+  assert.equal(stored.selectionText, "Protected quoted text");
+
+  const shareResponse = await callWorker({
+    url: data.url,
+    env,
+  });
+  const body = await shareResponse.text();
+
+  assert.equal(shareResponse.status, 200);
+  assert.match(body, /property="og:title" content="The Protected Book"/);
+  assert.match(body, /name="twitter:description" content="by Ada Example\. &quot;Protected quoted text&quot;"/);
+  assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/books\/protected\/\?id=90025344&reader=protected/);
+  assert.match(body, /protectedSelectionAnchor=/);
+  assert.match(body, /protectedArtifactSource=r2/);
+});
+
 test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () => {
   const bucket = createR2Bucket({
     objectsByKey: {

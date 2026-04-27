@@ -25,13 +25,14 @@ import {
 } from "./protected-reader-runtime-core.js";
 import {
   createProtectedReaderHostBridge
-} from "./protected-reader-host-bridge.js?v=20260422-v5-image-viewer-2";
+} from "./protected-reader-host-bridge.js?v=20260427-protected-selection-share-1";
 import {
   createProtectedReaderEventChannel,
   PROTECTED_READER_CANONICAL_EVENT_NAMES
 } from "./protected-reader-events.js";
 import { createInitialProtectedDriveState, mergeProtectedDriveState } from "../runtime/protected-drive-state.js";
 import { extractReadingStateFromBundle } from "../runtime/protected-reading-state-store.js";
+import { createHighlightAnnotation } from "../runtime/protected-annotation-model.js";
 
 // Harness/dev shell DOM wiring stays here. Runtime state is owned by protected-reader-runtime-core.js.
 const elements = {
@@ -354,7 +355,7 @@ function ensureDriveTransport() {
 }
 
 function buildBridgeSummary() {
-  const annotations = state.annotationStore ? state.annotationStore.all() : [];
+  const annotations = getCurrentAnnotations();
   const runtimeMeta =
     state.currentSnapshot && state.currentSnapshot.runtimeMeta ? state.currentSnapshot.runtimeMeta : null;
   const chunkSummary =
@@ -924,7 +925,75 @@ function getSelectionBounds() {
 }
 
 function getCurrentAnnotations() {
-  return state.annotationStore ? state.annotationStore.all() : [];
+  const annotations = state.annotationStore ? state.annotationStore.all() : [];
+  return state.sharedSelectionAnnotation ? [...annotations, state.sharedSelectionAnnotation] : annotations;
+}
+
+function cloneJson(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function normalizeIncomingProtectedSelectionAnchor(anchor) {
+  let parsed = anchor;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch (_error) {
+      return null;
+    }
+  }
+  if (!parsed || typeof parsed !== "object" || !parsed.start || !parsed.end) return null;
+  const startGlobal = Number(parsed.start.globalOffset);
+  const endGlobal = Number(parsed.end.globalOffset);
+  if (!Number.isFinite(startGlobal) || !Number.isFinite(endGlobal) || startGlobal === endGlobal) return null;
+  const bookId = state.bookSummary && state.bookSummary.bookId ? String(state.bookSummary.bookId) : "";
+  const anchorBookId = String(parsed.bookId || parsed.start.bookId || parsed.end.bookId || "").trim();
+  if (bookId && anchorBookId && anchorBookId !== bookId) return null;
+  return cloneJson(parsed);
+}
+
+function getIncomingProtectedSelection() {
+  const route = state.entryConfig && state.entryConfig.readerNewRoute ? state.entryConfig.readerNewRoute : null;
+  const query = route && route.query ? route.query : {};
+  const anchor =
+    query.protectedSelectionAnchor ||
+    query.selectionAnchor ||
+    query.protectedAnchor ||
+    "";
+  const normalizedAnchor = normalizeIncomingProtectedSelectionAnchor(anchor);
+  if (!normalizedAnchor) return null;
+  return {
+    anchor: normalizedAnchor,
+    selectionText: String(query.selectionText || "").replace(/\s+/g, " ").trim()
+  };
+}
+
+async function applyIncomingProtectedSelectionIfAvailable() {
+  const incoming = getIncomingProtectedSelection();
+  if (!incoming || state.sharedSelectionApplied) return null;
+  state.sharedSelectionApplied = true;
+  const bookId = state.bookSummary && state.bookSummary.bookId ? String(state.bookSummary.bookId) : "";
+  state.sharedSelectionAnnotation = createHighlightAnnotation({
+    bookId,
+    rangeDescriptor: incoming.anchor,
+    color: "amber",
+    annotationId: "shared_selection_highlight",
+    metadata: {
+      source: "selection-share",
+      selectionQuote: incoming.selectionText || ""
+    }
+  });
+  const focusRange = {
+    ...incoming.anchor,
+    annotationId: state.sharedSelectionAnnotation.annotationId
+  };
+  const snapshot = await state.workerClient.goToAnnotation({
+    rangeDescriptor: focusRange,
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  await refreshTurnPreviews();
+  return buildBridgeSummary();
 }
 
 function ensureTurnPreviewRoot(direction) {
@@ -1872,6 +1941,7 @@ async function finalizeArtifactLoad({
   state.artifactLoadStatus = "loaded";
   renderRuntimeMeta();
   await autoImportSharedPayload();
+  await applyIncomingProtectedSelectionIfAvailable();
   if (state.annotationStore && state.annotationStore.all().length) {
     await requestAndApply("getRuntimeStatus");
   }
@@ -3341,6 +3411,26 @@ async function bridgeRestoreFromToken(token) {
   return buildBridgeSummary();
 }
 
+async function bridgeRestoreSharedSelection(anchor, selectionText = "") {
+  const normalizedAnchor = normalizeIncomingProtectedSelectionAnchor(anchor);
+  if (!normalizedAnchor) throw new Error("Shared selection anchor is invalid.");
+  state.sharedSelectionApplied = false;
+  state.sharedSelectionAnnotation = null;
+  const previousEntryConfig = state.entryConfig || {};
+  state.entryConfig = {
+    ...previousEntryConfig,
+    readerNewRoute: {
+      ...(previousEntryConfig.readerNewRoute || {}),
+      query: {
+        ...((previousEntryConfig.readerNewRoute && previousEntryConfig.readerNewRoute.query) || {}),
+        protectedSelectionAnchor: JSON.stringify(normalizedAnchor),
+        selectionText: String(selectionText || "")
+      }
+    }
+  };
+  return applyIncomingProtectedSelectionIfAvailable();
+}
+
 async function bridgeGoToGlobalOffset(globalOffset, chunkOrder = null) {
   const normalizedChunkOrder = Number(chunkOrder);
   const chunkIndex = Number.isFinite(normalizedChunkOrder)
@@ -3384,6 +3474,9 @@ async function bridgeCaptureSelectionForUserAction() {
   return {
     hasSelection: !!state.pendingSelectionRangeDescriptor,
     rangeDescriptor: state.pendingSelectionRangeDescriptor
+      ? JSON.parse(JSON.stringify(state.pendingSelectionRangeDescriptor))
+      : null,
+    selectionAnchor: state.pendingSelectionRangeDescriptor
       ? JSON.parse(JSON.stringify(state.pendingSelectionRangeDescriptor))
       : null,
     clipboardText: exported && exported.clipboardText ? String(exported.clipboardText) : "",
@@ -3687,6 +3780,7 @@ function buildEmbeddedHostHandlers() {
     goToToc: bridgeGoToToc,
     goToAnnotation: bridgeGoToAnnotation,
     restoreFromToken: bridgeRestoreFromToken,
+    restoreSharedSelection: bridgeRestoreSharedSelection,
     goToGlobalOffset: bridgeGoToGlobalOffset,
     getFootnoteAtClientPoint: bridgeGetFootnoteAtClientPoint,
     getLinkAtClientPoint: bridgeGetLinkAtClientPoint,

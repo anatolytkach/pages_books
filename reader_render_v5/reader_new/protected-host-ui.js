@@ -56,6 +56,18 @@ const HOST_STATE = {
   suppressSelectionDismissUntil: 0,
   cachedSelectionActionState: null,
   suppressSelectionToolbarUntil: 0,
+  selectionShare: {
+    key: "",
+    shareUrl: "",
+    promise: null,
+    pending: false,
+    lastEndpoint: "",
+    lastStatus: "",
+    lastError: "",
+    lastPayload: null,
+    lastCopyValue: "",
+    lastToolbarAction: ""
+  },
   bookmarkRestoreInFlight: "",
   searchSidebarState: null,
   searchSidebarSubmitted: false,
@@ -3551,6 +3563,205 @@ function getNotesShareCreateEndpoints() {
   return endpoints;
 }
 
+function getSelectionShareCreateEndpoints() {
+  let endpoints = ["/books/api/ss", "/api/ss", "/books/api/selection-share", "/api/selection-share"];
+  try {
+    const host = String(window.location.hostname || "").toLowerCase();
+    if (host === "reader.pub" || host === "www.reader.pub") {
+      endpoints = [
+        "/books/reader/api/ss",
+        "/books/api/ss",
+        "/api/ss",
+        "/books/reader/api/selection-share",
+        "/books/api/selection-share",
+        "/api/selection-share"
+      ];
+    }
+  } catch (_error) {}
+  return endpoints;
+}
+
+function getProtectedSelectionShareButton() {
+  return document.querySelector("#selectionToolbar [data-action='share']");
+}
+
+function normalizeProtectedSelectionText(text) {
+  return String(text || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function getProtectedSelectionShareKey(capture) {
+  const anchor = capture && capture.selectionAnchor ? capture.selectionAnchor : capture && capture.rangeDescriptor ? capture.rangeDescriptor : null;
+  if (!anchor) return "";
+  return JSON.stringify({
+    bookId: String((HOST_STATE.route && HOST_STATE.route.bookId) || getCurrentBookId() || ""),
+    artifactBookId: String((HOST_STATE.route && HOST_STATE.route.artifactBookId) || ""),
+    anchor,
+    text: normalizeProtectedSelectionText(capture && capture.clipboardText ? capture.clipboardText : "").slice(0, 500)
+  });
+}
+
+function buildProtectedSelectionSharePayload(capture) {
+  const route = HOST_STATE.route || {};
+  const anchor = capture && capture.selectionAnchor ? capture.selectionAnchor : capture && capture.rangeDescriptor ? capture.rangeDescriptor : null;
+  if (!anchor) throw new Error("Selection anchor is unavailable.");
+  const bookId = String(route.bookId || getCurrentBookId() || "").trim();
+  if (!bookId) throw new Error("Book id is unavailable.");
+  return {
+    readerType: "protected",
+    bookId,
+    artifactBookId: String(route.artifactBookId || bookId).trim(),
+    source: String(route.source || "").trim(),
+    protectedArtifactSource: String(route.artifactSource || "").trim(),
+    protectedUx: "protected-shell",
+    renderMode: String(route.renderMode || "shape").trim() || "shape",
+    metricsMode: String(route.metricsMode || "shape").trim() || "shape",
+    protectedAnchor: anchor,
+    selectionText: normalizeProtectedSelectionText(capture && capture.clipboardText ? capture.clipboardText : "").slice(0, 500)
+  };
+}
+
+function resetProtectedSelectionShareState() {
+  const state = HOST_STATE.selectionShare;
+  if (!state) return;
+  state.key = "";
+  state.shareUrl = "";
+  state.promise = null;
+  state.pending = false;
+  state.lastEndpoint = "";
+  state.lastStatus = "";
+  state.lastError = "";
+  state.lastPayload = null;
+  state.lastCopyValue = "";
+}
+
+function updateProtectedSelectionShareButtonState() {
+  const button = getProtectedSelectionShareButton();
+  if (!button) return;
+  const share = HOST_STATE.selectionShare || {};
+  const gateMobile = isPhoneOrTabletShell() && !!navigator.share;
+  const enabled = !gateMobile || !!share.shareUrl;
+  button.disabled = !enabled;
+  button.classList.toggle("is-disabled", !enabled);
+  button.setAttribute("aria-disabled", enabled ? "false" : "true");
+  button.setAttribute("title", gateMobile && !share.shareUrl ? "Preparing link" : "Share");
+}
+
+async function createShortProtectedSelectionShare(payload) {
+  const share = HOST_STATE.selectionShare;
+  share.lastPayload = payload;
+  share.lastError = "";
+  for (const endpoint of getSelectionShareCreateEndpoints()) {
+    share.lastEndpoint = endpoint;
+    share.lastStatus = "pending";
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json; charset=utf-8" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload)
+      });
+      share.lastStatus = response ? String(response.status || "") : "no-response";
+      if (!response || !response.ok) throw new Error(`selection share create failed: ${share.lastStatus}`);
+      const data = await response.json();
+      const shareId = data && data.shareId ? String(data.shareId) : "";
+      if (!shareId) throw new Error("missing share id");
+      return new URL(`/s/${encodeURIComponent(shareId)}`, window.location.origin).toString();
+    } catch (error) {
+      share.lastError = error && error.message ? error.message : String(error || "");
+    }
+  }
+  throw new Error(share.lastError || "selection share create failed");
+}
+
+function prewarmProtectedSelectionShare(capture) {
+  const share = HOST_STATE.selectionShare;
+  if (!share || !capture || !capture.hasSelection) return null;
+  const key = getProtectedSelectionShareKey(capture);
+  if (!key) return null;
+  if (share.key === key && (share.shareUrl || share.promise)) return share.promise;
+  share.key = key;
+  share.shareUrl = "";
+  share.pending = true;
+  share.lastError = "";
+  updateProtectedSelectionShareButtonState();
+  const payload = buildProtectedSelectionSharePayload(capture);
+  share.promise = createShortProtectedSelectionShare(payload)
+    .then((url) => {
+      if (share.key === key) {
+        share.shareUrl = url || "";
+        share.pending = false;
+      }
+      return url;
+    })
+    .catch((error) => {
+      if (share.key === key) {
+        share.shareUrl = "";
+        share.pending = false;
+        share.lastError = error && error.message ? error.message : String(error || "");
+      }
+      throw error;
+    })
+    .finally(() => {
+      if (share.key === key) share.promise = null;
+      updateProtectedSelectionShareButtonState();
+    });
+  return share.promise;
+}
+
+async function getProtectedSelectionShareUrl(capture) {
+  const share = HOST_STATE.selectionShare;
+  const key = getProtectedSelectionShareKey(capture);
+  if (key && share.key === key && share.shareUrl) return share.shareUrl;
+  const promise = prewarmProtectedSelectionShare(capture);
+  return promise ? promise : "";
+}
+
+function installProtectedSelectionShareDebug() {
+  window.__readerpubSelectionShareDebug = {
+    status() {
+      const share = HOST_STATE.selectionShare || {};
+      return {
+        shareUrl: share.shareUrl || "",
+        pending: !!share.pending,
+        lastEndpoint: share.lastEndpoint || "",
+        lastStatus: share.lastStatus || "",
+        lastError: share.lastError || "",
+        lastPayload: share.lastPayload || null,
+        lastCopyValue: share.lastCopyValue || "",
+        lastToolbarAction: share.lastToolbarAction || ""
+      };
+    }
+  };
+}
+
+function getIncomingProtectedSelectionShare() {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const rawAnchor =
+      String(params.get("protectedSelectionAnchor") || "").trim() ||
+      String(params.get("selectionAnchor") || "").trim() ||
+      String(params.get("protectedAnchor") || "").trim();
+    if (!rawAnchor) return null;
+    return {
+      anchor: JSON.parse(rawAnchor),
+      selectionText: normalizeProtectedSelectionText(params.get("selectionText") || "")
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function restoreIncomingProtectedSelectionShare() {
+  if (HOST_STATE.incomingSelectionShareApplied) return;
+  const incoming = getIncomingProtectedSelectionShare();
+  if (!incoming) return;
+  const bridge = getBridge();
+  if (!bridge || typeof bridge.restoreSharedSelection !== "function") return;
+  HOST_STATE.incomingSelectionShareApplied = true;
+  const summary = await bridge.restoreSharedSelection(incoming.anchor, incoming.selectionText || "");
+  if (summary) updateFromSummary(summary);
+}
+
 function buildNotesShareUrl(shareId) {
   const url = new URL(window.location.href || "", window.location.origin);
   ["n", "notesShare", "notes", "notesz"].forEach((key) => url.searchParams.delete(key));
@@ -6904,6 +7115,8 @@ function hideSelectionToolbar() {
   HOST_STATE.cachedSelectionActionState = null;
   HOST_STATE.lastSelectionSignature = "";
   HOST_STATE.selectionStableCount = 0;
+  resetProtectedSelectionShareState();
+  updateProtectedSelectionShareButtonState();
 }
 
 function suppressSelectionToolbarReopen(durationMs = 900) {
@@ -7114,7 +7327,15 @@ function showSelectionToolbarForSummary(summary, fallbackX = 160, fallbackY = 16
     x: chosen.x,
     y: chosen.y
   };
-  void primeSelectionActionState();
+  void primeSelectionActionState().then((capture) => {
+    if (capture && capture.hasSelection) {
+      prewarmProtectedSelectionShare(capture);
+    } else {
+      updateProtectedSelectionShareButtonState();
+    }
+  }).catch(() => {
+    updateProtectedSelectionShareButtonState();
+  });
 }
 
 function openExternalUrl(url) {
@@ -7685,6 +7906,7 @@ function bindSelectionToolbar() {
   toolbar.__protectedBound = true;
 async function handleAction(action) {
     if (!action) return;
+    if (HOST_STATE.selectionShare) HOST_STATE.selectionShare.lastToolbarAction = action;
     if (action === "note") {
       await openProtectedNoteComposer();
       hideSelectionToolbar();
@@ -7694,10 +7916,11 @@ async function handleAction(action) {
       const cached = HOST_STATE.cachedSelectionActionState || await primeSelectionActionState();
       const selectionText = cached && cached.clipboardText ? String(cached.clipboardText) : "";
       await copyTextToClipboard(selectionText);
+      if (HOST_STATE.selectionShare) HOST_STATE.selectionShare.lastCopyValue = selectionText;
       await invokeBridge("clearSelection");
       HOST_STATE.cachedSelectionActionState = null;
       HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
-      setHostActionStatus("Copied selection.");
+      setHostActionStatus("Text copied.");
       hideSelectionToolbar();
       return;
     }
@@ -7714,12 +7937,22 @@ async function handleAction(action) {
       } else if (action === "translate") {
         openExternalUrl(`https://translate.google.com/?sl=auto&tl=en&text=${encodeURIComponent(selectionText)}&op=translate`);
       } else if (action === "share") {
+        const shareUrl = isPhoneOrTabletShell() && navigator.share
+          ? (HOST_STATE.selectionShare && HOST_STATE.selectionShare.shareUrl ? HOST_STATE.selectionShare.shareUrl : "")
+          : await getProtectedSelectionShareUrl(exported);
+        if (!shareUrl) {
+          prewarmProtectedSelectionShare(exported);
+          setHostActionStatus("Preparing link.");
+          updateProtectedSelectionShareButtonState();
+          return;
+        }
         try {
-          if (navigator.share) {
-            await navigator.share({ text: selectionText });
-          } else if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(selectionText);
-            setHostActionStatus("Copied selection for sharing.");
+          if (isPhoneOrTabletShell() && navigator.share) {
+            await navigator.share({ url: shareUrl });
+          } else {
+            await copyTextToClipboard(shareUrl);
+            if (HOST_STATE.selectionShare) HOST_STATE.selectionShare.lastCopyValue = shareUrl;
+            setHostActionStatus("Link copied.");
           }
         } catch (error) {
           setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
@@ -10867,7 +11100,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260425-v5-fast-font-mode");
+      await import("../dev/protected-reader.js?v=20260427-protected-selection-share-1");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
@@ -10954,6 +11187,11 @@ async function ensureDirectProtectedHost() {
     try {
       updateFromSummary(bridge.getSummary());
     } catch (_error) {}
+  }
+  try {
+    await restoreIncomingProtectedSelectionShare();
+  } catch (error) {
+    setHostActionStatus(error && error.message ? error.message : "Unable to restore shared selection.");
   }
   void prepareAndSyncNeighborPreviews();
   ensureNeighborLayersMounted();
@@ -11060,6 +11298,7 @@ function waitForConfigAndBoot() {
 }
 
 waitForConfigAndBoot();
+installProtectedSelectionShareDebug();
 window.__readerpubApplyUnifiedShellChrome = applyUnifiedShellChrome;
 window.__readerpubEnsureUnifiedShellOverlays = function () {
   ensureLibraryOverlay();

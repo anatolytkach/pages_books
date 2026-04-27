@@ -191,6 +191,8 @@ function randomShareId() {
 
 function normalizeSelectionSharePayload(raw) {
   if (!raw || typeof raw !== "object") return null;
+  const readerType = String(raw.readerType || raw.reader || "").trim().toLowerCase();
+  if (readerType === "protected") return normalizeProtectedSelectionSharePayload(raw);
   const bookId = String(raw.bookId || raw.id || raw.i || "").trim().slice(0, 200);
   const selectionCfi = String(raw.selectionCfi || raw.cfi || "").trim().slice(0, 2000);
   if (!bookId || !/^epubcfi\(/i.test(selectionCfi)) return null;
@@ -205,9 +207,70 @@ function normalizeSelectionSharePayload(raw) {
   };
 }
 
+function normalizeProtectedSelectionAnchor(rawAnchor) {
+  let anchor = rawAnchor;
+  if (typeof rawAnchor === "string") {
+    try {
+      anchor = JSON.parse(rawAnchor);
+    } catch (_error) {
+      return null;
+    }
+  }
+  if (!anchor || typeof anchor !== "object") return null;
+  const start = anchor.start && typeof anchor.start === "object" ? anchor.start : null;
+  const end = anchor.end && typeof anchor.end === "object" ? anchor.end : null;
+  if (!start || !end) return null;
+  const bookId = String(anchor.bookId || start.bookId || end.bookId || "").trim().slice(0, 200);
+  const startGlobal = Number(start.globalOffset);
+  const endGlobal = Number(end.globalOffset);
+  if (!bookId || !Number.isFinite(startGlobal) || !Number.isFinite(endGlobal) || startGlobal === endGlobal) return null;
+  const clone = JSON.parse(JSON.stringify(anchor));
+  clone.kind = String(clone.kind || "protected-range-v1").slice(0, 80);
+  clone.bookId = bookId;
+  return clone;
+}
+
+function normalizeProtectedSelectionSharePayload(raw) {
+  const bookId = String(raw.bookId || raw.id || raw.i || raw.artifactBookId || raw.protectedArtifactBookId || "").trim().slice(0, 200);
+  const artifactBookId = String(raw.artifactBookId || raw.protectedArtifactBookId || raw.protectedBookId || bookId).trim().slice(0, 200);
+  const protectedAnchor = normalizeProtectedSelectionAnchor(
+    raw.protectedAnchor || raw.selectionAnchor || raw.selectionRange || raw.rangeDescriptor
+  );
+  if (!bookId || !artifactBookId || !protectedAnchor) return null;
+  return {
+    v: 1,
+    type: "reader-selection",
+    readerType: "protected",
+    bookId,
+    artifactBookId,
+    source: String(raw.source || "").trim().slice(0, 200),
+    protectedArtifactSource: String(raw.protectedArtifactSource || raw.artifactSource || "").trim().slice(0, 80),
+    protectedUx: String(raw.protectedUx || "protected-shell").trim().slice(0, 80),
+    renderMode: String(raw.renderMode || "shape").trim() === "text" ? "text" : "shape",
+    metricsMode: String(raw.metricsMode || "shape").trim() === "text" ? "text" : "shape",
+    protectedAnchor,
+    selectionText: String(raw.selectionText || raw.text || "").replace(/\s+/g, " ").trim().slice(0, 500),
+    createdAt: Date.now(),
+  };
+}
+
 function buildSelectionReaderUrl(origin, payload) {
   const safePayload = normalizeSelectionSharePayload(payload);
   if (!safePayload) return "";
+  if (safePayload.readerType === "protected") {
+    const u = new URL("/books/protected/", origin);
+    u.searchParams.set("id", safePayload.bookId);
+    u.searchParams.set("reader", "protected");
+    u.searchParams.set("protectedArtifactBookId", safePayload.artifactBookId || safePayload.bookId);
+    if (safePayload.source) u.searchParams.set("source", safePayload.source);
+    if (safePayload.protectedArtifactSource) u.searchParams.set("protectedArtifactSource", safePayload.protectedArtifactSource);
+    u.searchParams.set("protectedUx", safePayload.protectedUx || "protected-shell");
+    u.searchParams.set("renderMode", safePayload.renderMode || "shape");
+    u.searchParams.set("metricsMode", safePayload.metricsMode || "shape");
+    u.searchParams.set("protectedSelectionAnchor", JSON.stringify(safePayload.protectedAnchor));
+    if (safePayload.selectionText) u.searchParams.set("selectionText", safePayload.selectionText);
+    return u.toString();
+  }
   const u = new URL("/reader1/", origin);
   u.searchParams.set("id", safePayload.bookId);
   if (safePayload.source) u.searchParams.set("source", safePayload.source);

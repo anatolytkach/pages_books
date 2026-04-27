@@ -797,3 +797,19 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - Verification:
   - `node --check reader1/js/fbreader-ui.js` passed.
   - `npm test` was attempted earlier in the session and still failed on pre-existing unrelated worker/catalog/protected route expectations.
+
+## 2026-04-27 Protected Selection Short Share
+
+- Added protected-reader support to selection short links without changing the existing unprotected `reader1` payload shape.
+- `/books/api/ss` now accepts `readerType: "protected"` with a protected range anchor, selected quote, route book id, artifact book id, protected UX, render mode, metrics mode, and artifact source.
+- `/s/<id>` now redirects protected shares to `/books/protected/` with `protectedSelectionAnchor` and `selectionText`, while preserving OG/Twitter preview metadata through the existing catalog resolver.
+- Updated the active protected reader path (`reader/reader_new_v5.html` -> `reader_render_v5/reader_new/protected-host-ui.js` -> `reader_render_v5/dev/protected-reader.js`), not the old v3 path.
+- Protected selection toolbar Share now prewarms `/s/<id>` links, copies only the short link on desktop, uses `navigator.share({ url })` on mobile only when the short link is ready, and leaves Copy as text-only.
+- Added protected `window.__readerpubSelectionShareDebug.status()` with `shareUrl`, `pending`, endpoint/status/error, payload, last copied value, and last toolbar action.
+- Protected shared opens create a transient highlight annotation from the incoming protected range and focus it without persisting it into the user's annotation store.
+- Local preview server `tools/dev/local_preview_server.mjs` now mirrors protected selection short-link create/read behavior for local validation.
+- Verification:
+  - `node --test --test-name-pattern "selection share|protected selection share|reader1 selection" tests/integration/worker.integration.test.mjs` passed.
+  - `node --check` passed for `_worker.js`, `tools/dev/local_preview_server.mjs`, `reader_render_v5/dev/protected-reader-host-bridge.js`, `reader_render_v5/dev/protected-reader.js`, and `reader_render_v5/reader_new/protected-host-ui.js`.
+  - Local preview on `http://127.0.0.1:8788` created a protected `/s/<id>` and opened it into `reader_new_v5` with `focusedAnnotationId: "shared_selection_highlight"` and `focusHighlightCount: 1`.
+  - Full `node --test tests/integration/worker.integration.test.mjs` still has two pre-existing unrelated failures around `/books/reader/` rewrite and PostHog meta expectations.
