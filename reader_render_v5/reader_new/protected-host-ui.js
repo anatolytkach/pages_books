@@ -3406,9 +3406,51 @@ function setHostActionStatus(message) {
   if (actionStatus && message) actionStatus.textContent = String(message);
 }
 
+function showProtectedSelectionToast(message) {
+  if (!isReader1DesktopShareMode()) return;
+  try {
+    let toast = document.getElementById("selectionCopyToast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "selectionCopyToast";
+      toast.className = "selection-copy-toast";
+      toast.setAttribute("role", "status");
+      toast.setAttribute("aria-live", "polite");
+      document.body.appendChild(toast);
+    }
+    toast.textContent = String(message || "");
+    if (toast.__protectedHideTimer) {
+      window.clearTimeout(toast.__protectedHideTimer);
+      toast.__protectedHideTimer = null;
+    }
+    toast.classList.remove("is-hiding");
+    toast.classList.add("is-visible");
+    toast.__protectedHideTimer = window.setTimeout(() => {
+      toast.classList.add("is-hiding");
+      toast.classList.remove("is-visible");
+      toast.__protectedHideTimer = null;
+    }, 900);
+  } catch (_error) {}
+}
+
 function isPhoneOrTabletShell() {
   const root = document.documentElement;
   return !!(root && (root.classList.contains("is-phone") || root.classList.contains("is-tablet")));
+}
+
+function isReader1DesktopShareMode() {
+  try {
+    let desktopRaw = false;
+    if (window.matchMedia && window.matchMedia("(min-width: 769px)").matches) desktopRaw = true;
+    if (window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches) desktopRaw = true;
+    return !!(desktopRaw && !isTabletViewportHost());
+  } catch (_error) {}
+  const root = document.documentElement;
+  return !!(root && root.classList.contains("is-desktop") && !isPhoneOrTabletShell());
+}
+
+function shouldUseNativeSelectionShare() {
+  return !!(!isReader1DesktopShareMode() && navigator.share);
 }
 
 async function copyTextToClipboard(text) {
@@ -3639,7 +3681,7 @@ function updateProtectedSelectionShareButtonState() {
   const button = getProtectedSelectionShareButton();
   if (!button) return;
   const share = HOST_STATE.selectionShare || {};
-  const gateMobile = isPhoneOrTabletShell() && !!navigator.share;
+  const gateMobile = shouldUseNativeSelectionShare();
   const enabled = !gateMobile || !!share.shareUrl;
   button.disabled = !enabled;
   button.classList.toggle("is-disabled", !enabled);
@@ -7922,11 +7964,13 @@ async function handleAction(action) {
       HOST_STATE.cachedSelectionActionState = null;
       HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
       setHostActionStatus("Text copied.");
+      showProtectedSelectionToast("Text copied");
+      suppressSelectionToolbarReopen(1200);
       hideSelectionToolbar();
       return;
     }
     if (action === "search" || action === "translate" || action === "share") {
-      if (action === "share" && isPhoneOrTabletShell() && navigator.share) {
+      if (action === "share" && shouldUseNativeSelectionShare()) {
         const prewarmedUrl = HOST_STATE.selectionShare && HOST_STATE.selectionShare.shareUrl
           ? HOST_STATE.selectionShare.shareUrl
           : "";
@@ -7938,13 +7982,21 @@ async function handleAction(action) {
           return;
         }
         try {
-          await navigator.share({ url: prewarmedUrl });
-          setHostActionStatus("Link shared.");
+          navigator.share({ url: prewarmedUrl }).then(() => {
+            setHostActionStatus("Link shared.");
+          }).catch((error) => {
+            if (!isNativeShareCancelError(error)) {
+              setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
+            }
+          });
         } catch (error) {
           if (!isNativeShareCancelError(error)) {
             setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
           }
         }
+        await invokeBridge("clearSelection");
+        HOST_STATE.cachedSelectionActionState = null;
+        suppressSelectionToolbarReopen(1200);
         hideSelectionToolbar();
         return;
       }
@@ -7960,9 +8012,7 @@ async function handleAction(action) {
       } else if (action === "translate") {
         openExternalUrl(`https://translate.google.com/?sl=auto&tl=en&text=${encodeURIComponent(selectionText)}&op=translate`);
       } else if (action === "share") {
-        const shareUrl = isPhoneOrTabletShell() && navigator.share
-          ? (HOST_STATE.selectionShare && HOST_STATE.selectionShare.shareUrl ? HOST_STATE.selectionShare.shareUrl : "")
-          : await getProtectedSelectionShareUrl(exported);
+        const shareUrl = await getProtectedSelectionShareUrl(exported);
         if (!shareUrl) {
           prewarmProtectedSelectionShare(exported);
           setHostActionStatus("Preparing link.");
@@ -7970,16 +8020,17 @@ async function handleAction(action) {
           return;
         }
         try {
-          if (isPhoneOrTabletShell() && navigator.share) {
-            await navigator.share({ url: shareUrl });
-          } else {
-            await copyTextToClipboard(shareUrl);
-            if (HOST_STATE.selectionShare) HOST_STATE.selectionShare.lastCopyValue = shareUrl;
-            setHostActionStatus("Link copied.");
-          }
+          await copyTextToClipboard(shareUrl);
+          if (HOST_STATE.selectionShare) HOST_STATE.selectionShare.lastCopyValue = shareUrl;
+          setHostActionStatus("Link copied.");
+          showProtectedSelectionToast("Link copied");
+          suppressSelectionToolbarReopen(1200);
         } catch (error) {
           setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
         }
+        await invokeBridge("clearSelection");
+        HOST_STATE.cachedSelectionActionState = null;
+        suppressSelectionToolbarReopen(1200);
       }
       hideSelectionToolbar();
       return;
@@ -8069,6 +8120,7 @@ async function handleAction(action) {
       summaryActive: !!(summary && summary.selectionActive),
       selectedChars: Number(summary && summary.selectedChars || 0)
     };
+    if (isSelectionToolbarReopenSuppressed()) return;
     const source = pointerType === "touch" ? "touch" : "pointer";
     rememberSelectionToolbarReleaseAnchor(clientX, clientY, source);
     if (pointerType === "touch") {

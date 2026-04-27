@@ -2304,7 +2304,24 @@ function recordPointerDebug(stage, payload = null) {
 
 function notifySelectionReleased(clientX, clientY, snapshot, pointerType) {
   if (!snapshot || !snapshot.selectionActive || Number(snapshot.selectedChars || 0) <= 0) return;
+  const summary = {
+    selectionActive: !!snapshot.selectionActive,
+    selectedChars: Number(snapshot.selectedChars || 0),
+    selectionBounds: snapshot.selectionBounds || null
+  };
   try {
+    const localShowSelectionToolbar =
+      typeof window.__PROTECTED_SHELL_SHOW_SELECTION_TOOLBAR__ === "function"
+        ? window.__PROTECTED_SHELL_SHOW_SELECTION_TOOLBAR__
+        : null;
+    if (localShowSelectionToolbar) {
+      localShowSelectionToolbar(
+        summary,
+        Number(clientX || 0),
+        Number(clientY || 0),
+        String(pointerType || "")
+      );
+    }
     if (window.parent && window.parent !== window) {
       const showSelectionToolbar =
         typeof window.parent.__PROTECTED_SHELL_SHOW_SELECTION_TOOLBAR__ === "function"
@@ -2312,11 +2329,7 @@ function notifySelectionReleased(clientX, clientY, snapshot, pointerType) {
             : null;
       if (showSelectionToolbar) {
         showSelectionToolbar(
-          {
-            selectionActive: !!snapshot.selectionActive,
-            selectedChars: Number(snapshot.selectedChars || 0),
-            selectionBounds: snapshot.selectionBounds || null
-          },
+          summary,
           Number(clientX || 0),
           Number(clientY || 0),
           String(pointerType || "")
@@ -2327,11 +2340,7 @@ function notifySelectionReleased(clientX, clientY, snapshot, pointerType) {
         clientX: Number(clientX || 0),
         clientY: Number(clientY || 0),
         pointerType: String(pointerType || ""),
-        summary: {
-          selectionActive: !!snapshot.selectionActive,
-          selectedChars: Number(snapshot.selectedChars || 0),
-          selectionBounds: snapshot.selectionBounds || null
-        }
+        summary
       }, "*");
     }
   } catch (_error) {}

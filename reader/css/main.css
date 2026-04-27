@@ -1910,6 +1910,35 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
   transform-origin: center;
 }
 
+.selection-copy-toast{
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 10120;
+  transform: translate(-50%, -50%) scale(0.98);
+  min-width: 148px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: var(--fbbar-bg);
+  color: var(--fbbar-fg);
+  border: 1px solid var(--fbbar-border);
+  box-shadow: 0 14px 34px rgba(0,0,0,0.22);
+  font-size: 15px;
+  line-height: 1.2;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+.selection-copy-toast.is-visible{
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.selection-copy-toast.is-hiding{
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.98);
+}
+
 #selectionDismiss{
   position: fixed;
   inset: 0;
