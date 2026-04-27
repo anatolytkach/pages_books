@@ -3612,6 +3612,7 @@ function buildProtectedSelectionSharePayload(capture) {
     artifactBookId: String(route.artifactBookId || bookId).trim(),
     source: String(route.source || "").trim(),
     protectedArtifactSource: String(route.artifactSource || "").trim(),
+    protectedAllowAll: String(route.query && route.query.protectedAllowAll || "").trim(),
     protectedUx: "protected-shell",
     renderMode: String(route.renderMode || "shape").trim() || "shape",
     metricsMode: String(route.metricsMode || "shape").trim() || "shape",

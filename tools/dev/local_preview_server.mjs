@@ -258,6 +258,7 @@ function normalizeProtectedSelectionSharePayload(raw) {
     artifactBookId,
     source: String(raw.source || "").trim().slice(0, 200),
     protectedArtifactSource: String(raw.protectedArtifactSource || raw.artifactSource || "").trim().slice(0, 80),
+    protectedAllowAll: /^(1|true|yes|on)$/i.test(String(raw.protectedAllowAll || "").trim()) ? "1" : "",
     protectedUx: String(raw.protectedUx || "protected-shell").trim().slice(0, 80),
     renderMode: String(raw.renderMode || "shape").trim() === "text" ? "text" : "shape",
     metricsMode: String(raw.metricsMode || "shape").trim() === "text" ? "text" : "shape",
@@ -277,6 +278,7 @@ function buildSelectionReaderUrl(origin, payload) {
     u.searchParams.set("protectedArtifactBookId", safePayload.artifactBookId || safePayload.bookId);
     if (safePayload.source) u.searchParams.set("source", safePayload.source);
     if (safePayload.protectedArtifactSource) u.searchParams.set("protectedArtifactSource", safePayload.protectedArtifactSource);
+    if (safePayload.protectedAllowAll) u.searchParams.set("protectedAllowAll", safePayload.protectedAllowAll);
     u.searchParams.set("protectedUx", safePayload.protectedUx || "protected-shell");
     u.searchParams.set("renderMode", safePayload.renderMode || "shape");
     u.searchParams.set("metricsMode", safePayload.metricsMode || "shape");

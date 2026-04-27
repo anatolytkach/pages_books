@@ -378,6 +378,7 @@ test("Integration: protected selection share API stores payload and redirects to
       bookId: "90025344",
       artifactBookId: "90025344",
       protectedArtifactSource: "r2",
+      protectedAllowAll: "1",
       protectedAnchor,
       selectionText: "Protected quoted text",
     },
@@ -388,6 +389,7 @@ test("Integration: protected selection share API stores payload and redirects to
   assert.equal(createResponse.status, 200);
   const stored = JSON.parse(bucket.putCalls[0].body);
   assert.equal(stored.readerType, "protected");
+  assert.equal(stored.protectedAllowAll, "1");
   assert.deepEqual(stored.protectedAnchor, protectedAnchor);
   assert.equal(stored.selectionText, "Protected quoted text");
 
@@ -403,6 +405,7 @@ test("Integration: protected selection share API stores payload and redirects to
   assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/books\/protected\/\?id=90025344&reader=protected/);
   assert.match(body, /protectedSelectionAnchor=/);
   assert.match(body, /protectedArtifactSource=r2/);
+  assert.match(body, /protectedAllowAll=1/);
 });
 
 test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () => {
