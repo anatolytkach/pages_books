@@ -20,7 +20,12 @@ const PORT = Number(process.env.PORT || 8788);
 const HOST = process.env.HOST || "127.0.0.1";
 const PROD_ORIGIN = process.env.READERPUB_PREVIEW_UPSTREAM || "https://reader.pub";
 const DEFAULT_FRONTEND_SOURCE = String(process.env.READERPUB_PREVIEW_FRONTEND_SOURCE || "local").trim().toLowerCase();
-const GOOGLE_DRIVE_CLIENT_ID = process.env.READERPUB_GOOGLE_CLIENT_ID || process.env.GOOGLE_DRIVE_CLIENT_ID || "";
+const DEFAULT_GOOGLE_DRIVE_CLIENT_ID =
+  "495098660383-9us35c8ap8c4tulnmjclv2jp9hear9pt.apps.googleusercontent.com";
+const GOOGLE_DRIVE_CLIENT_ID =
+  process.env.READERPUB_GOOGLE_CLIENT_ID ||
+  process.env.GOOGLE_DRIVE_CLIENT_ID ||
+  DEFAULT_GOOGLE_DRIVE_CLIENT_ID;
 
 const MIME = new Map([
   [".html", "text/html; charset=utf-8"],
