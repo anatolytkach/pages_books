@@ -2136,12 +2136,6 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
     align-items: stretch;
   }
 }
-@media (hover: hover) and (pointer: fine){
-  .selection-toolbar .sel-share{ display: none; }
-}
-html.is-desktop .selection-toolbar .sel-share{ display: none; }
-
-
 /* Font size controls (no color changes)
    Keep them on the same baseline as other titlebar controls.
    Also keep the two A buttons close to each other. */

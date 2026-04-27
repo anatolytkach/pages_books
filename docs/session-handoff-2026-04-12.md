@@ -805,6 +805,7 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - `/s/<id>` now redirects protected shares to `/books/protected/` with `protectedSelectionAnchor` and `selectionText`, while preserving OG/Twitter preview metadata through the existing catalog resolver.
 - Protected short-link payloads preserve the staging rollout hint `protectedAllowAll=1` when it exists on the active protected route, so `/s/<id>` opens the same protected reader path instead of falling back to unavailable.
 - Protected OG metadata resolver falls back from protected wrapper ids like `90025344` to public catalog ids like `25344` for title, author, and cover lookup.
+- Follow-up fix: desktop protected selection toolbar now shows Share by removing the old desktop CSS hide rule, and mobile protected Share now calls `navigator.share({ url })` immediately from the tap handler using the prewarmed short URL instead of awaiting bridge capture first.
 - Updated the active protected reader path (`reader/reader_new_v5.html` -> `reader_render_v5/reader_new/protected-host-ui.js` -> `reader_render_v5/dev/protected-reader.js`), not the old v3 path.
 - Protected selection toolbar Share now prewarms `/s/<id>` links, copies only the short link on desktop, uses `navigator.share({ url })` on mobile only when the short link is ready, and leaves Copy as text-only.
 - Added protected `window.__readerpubSelectionShareDebug.status()` with `shareUrl`, `pending`, endpoint/status/error, payload, last copied value, and last toolbar action.

@@ -7926,6 +7926,28 @@ async function handleAction(action) {
       return;
     }
     if (action === "search" || action === "translate" || action === "share") {
+      if (action === "share" && isPhoneOrTabletShell() && navigator.share) {
+        const prewarmedUrl = HOST_STATE.selectionShare && HOST_STATE.selectionShare.shareUrl
+          ? HOST_STATE.selectionShare.shareUrl
+          : "";
+        if (!prewarmedUrl) {
+          const cachedCapture = HOST_STATE.cachedSelectionActionState;
+          if (cachedCapture && cachedCapture.hasSelection) prewarmProtectedSelectionShare(cachedCapture);
+          setHostActionStatus("Preparing link.");
+          updateProtectedSelectionShareButtonState();
+          return;
+        }
+        try {
+          await navigator.share({ url: prewarmedUrl });
+          setHostActionStatus("Link shared.");
+        } catch (error) {
+          if (!isNativeShareCancelError(error)) {
+            setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
+          }
+        }
+        hideSelectionToolbar();
+        return;
+      }
       const exported = HOST_STATE.cachedSelectionActionState || await primeSelectionActionState();
       const selectionText = exported && exported.clipboardText ? String(exported.clipboardText) : "";
       if (!selectionText) {
