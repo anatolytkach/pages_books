@@ -268,6 +268,83 @@ test("Integration: /reader1 selection links inject reader OG preview metadata", 
   assert.match(rewriter.appendCalls[0].html, /name="twitter:card" content="summary"/);
 });
 
+test("Integration: selection share API stores payload and returns short url", async () => {
+  const bucket = createR2Bucket();
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://books-staging.reader.pub/books/api/ss",
+    method: "POST",
+    body: {
+      bookId: "1399",
+      selectionCfi: "epubcfi(/6/6[item3]!/4/2[pgepubid00003]/4[chap01]/6,/1:0,/8/1:10)",
+      selectionText: "Everything was in confusion",
+    },
+    env,
+  });
+  const data = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.match(data.shareId, /^[A-Za-z0-9_-]{9}$/);
+  assert.equal(data.url, `https://books-staging.reader.pub/s/${data.shareId}`);
+  assert.equal(bucket.putCalls.length, 1);
+  assert.equal(bucket.putCalls[0].key, `api/selection_shares/${data.shareId}.json`);
+  assert.deepEqual(JSON.parse(bucket.putCalls[0].body), {
+    v: 1,
+    type: "reader-selection",
+    bookId: "1399",
+    source: "",
+    selectionCfi: "epubcfi(/6/6[item3]!/4/2[pgepubid00003]/4[chap01]/6,/1:0,/8/1:10)",
+    selectionText: "Everything was in confusion",
+    createdAt: JSON.parse(bucket.putCalls[0].body).createdAt,
+  });
+});
+
+test("Integration: /s/<id> renders preview tags and redirects to reader selection", async () => {
+  const selectionCfi = "epubcfi(/6/6[item3]!/4/2[pgepubid00003]/4[chap01]/6,/1:0,/8/1:10)";
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "api/selection_shares/abc123XYZ.json": createR2Object({
+        body: JSON.stringify({
+          v: 1,
+          type: "reader-selection",
+          bookId: "1399",
+          selectionCfi,
+          selectionText: "Everything was in confusion",
+          createdAt: 1,
+        }),
+      }),
+      "api/book-locations/99.json": createR2Object({
+        body: JSON.stringify({
+          items: {
+            "1399": {
+              title: "Anna Karenina",
+              author: "Tolstoy, Leo graf",
+              cover: "/books/content/1399/OEBPS/cover.jpg",
+            },
+          },
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://books-staging.reader.pub/s/abc123XYZ",
+    env,
+  });
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-reader-route"), "selection-share-page");
+  assert.match(body, /property="og:site_name" content="ReaderPub"/);
+  assert.match(body, /property="og:title" content="Anna Karenina"/);
+  assert.match(body, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
+  assert.match(body, /name="twitter:description" content="by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
+  assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/reader1\/\?id=1399&selectionCfi=/);
+  assert.match(body, /#epubcfi\(\/6\/6\[item3\]/);
+});
+
 test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () => {
   const bucket = createR2Bucket({
     objectsByKey: {

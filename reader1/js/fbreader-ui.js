@@ -6806,6 +6806,78 @@
       return "";
     }
 
+    function getCurrentBookSource() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        return String(u.searchParams.get("source") || "");
+      } catch (e0) {}
+      return "";
+    }
+
+    function getSelectionShareCreateEndpoints() {
+      var endpoints = [
+        "/books/api/ss",
+        "/api/ss",
+        "/books/api/selection-share",
+        "/api/selection-share"
+      ];
+      try {
+        var host = String(window.location.hostname || "").toLowerCase();
+        if (host === "reader.pub" || host === "www.reader.pub") {
+          endpoints = [
+            "/books/reader/api/ss",
+            "/books/api/ss",
+            "/api/ss",
+            "/books/reader/api/selection-share",
+            "/books/api/selection-share",
+            "/api/selection-share"
+          ];
+        }
+      } catch (e0) {}
+      return endpoints;
+    }
+
+    function createShortSelectionShare(cfi, text) {
+      if (!cfi) return Promise.reject(new Error("missing selection cfi"));
+      var body = {
+        bookId: getCurrentBookId(),
+        source: getCurrentBookSource(),
+        selectionCfi: cfi,
+        selectionText: normalizeInlineText(text || "").slice(0, 500)
+      };
+      if (!body.bookId) return Promise.reject(new Error("missing book id"));
+      var endpoints = getSelectionShareCreateEndpoints();
+      var idx = 0;
+      var tryNext = function () {
+        if (idx >= endpoints.length) return Promise.reject(new Error("selection share create failed"));
+        var endpoint = endpoints[idx++];
+        return fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json; charset=utf-8" },
+          credentials: "same-origin",
+          body: JSON.stringify(body)
+        }).then(function (resp) {
+          if (!resp || !resp.ok) throw new Error("selection share create failed");
+          return resp.json();
+        }).then(function (data) {
+          var url = data && data.url ? String(data.url) : "";
+          if (url) return url;
+          var shareId = data && data.shareId ? String(data.shareId) : "";
+          if (!shareId) throw new Error("missing share id");
+          return new URL("/s/" + encodeURIComponent(shareId), window.location.origin).toString();
+        }).catch(function () {
+          return tryNext();
+        });
+      };
+      return tryNext();
+    }
+
+    function getSelectionShareUrl(cfi, text, fallbackUrl) {
+      return createShortSelectionShare(cfi, text).catch(function () {
+        return fallbackUrl || buildSelectionShareUrl(cfi, text);
+      });
+    }
+
     function getIncomingSelectionCfi() {
       try {
         var u = new URL(window.location.href || "", window.location.origin);
@@ -7010,19 +7082,29 @@
       } else if (action === "share") {
         try {
           var shareCfi = state.cfi || refreshSelectionCfiFromState();
-          var shareUrl = buildSelectionShareUrl(shareCfi, text);
-          var shareText = shareUrl ? (text + "\n\n" + shareUrl) : text;
+          var fallbackShareUrl = buildSelectionShareUrl(shareCfi, text);
           if (isDesktopSelectionMode()) {
-            if (!shareUrl) return;
-            copySelectionText(shareUrl).then(function () {
-              showSelectionToast("Link copied");
+            if (!fallbackShareUrl) return;
+            getSelectionShareUrl(shareCfi, text, fallbackShareUrl).then(function (shareUrl) {
+              if (!shareUrl) return;
+              return copySelectionText(shareUrl).then(function () {
+                showSelectionToast("Link copied");
+              });
             }).catch(function () {});
           } else if (navigator.share) {
-            var sharePayload = { text: text };
-            if (shareUrl) sharePayload.url = shareUrl;
-            navigator.share(sharePayload);
+            getSelectionShareUrl(shareCfi, text, fallbackShareUrl).then(function (shareUrl) {
+              var sharePayload = { text: text };
+              if (shareUrl) sharePayload.url = shareUrl;
+              return navigator.share(sharePayload).catch(function () {
+                var fallbackText = shareUrl ? (text + "\n\n" + shareUrl) : text;
+                return copySelectionText(fallbackText).catch(function () {});
+              });
+            }).catch(function () {});
           } else {
-            copySelectionText(shareText).catch(function () {});
+            getSelectionShareUrl(shareCfi, text, fallbackShareUrl).then(function (shareUrl) {
+              var shareText = shareUrl ? (text + "\n\n" + shareUrl) : text;
+              return copySelectionText(shareText).catch(function () {});
+            }).catch(function () {});
           }
         } catch (e) {}
       } else if (action === "copy") {

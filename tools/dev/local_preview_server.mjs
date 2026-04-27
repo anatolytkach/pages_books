@@ -26,6 +26,7 @@ const GOOGLE_DRIVE_CLIENT_ID =
   process.env.READERPUB_GOOGLE_CLIENT_ID ||
   process.env.GOOGLE_DRIVE_CLIENT_ID ||
   DEFAULT_GOOGLE_DRIVE_CLIENT_ID;
+const selectionShares = new Map();
 
 const MIME = new Map([
   [".html", "text/html; charset=utf-8"],
@@ -179,6 +180,121 @@ function injectReaderPreviewMeta(html, meta) {
     meta.author ? `<meta name="author" content="${escapeHtml(meta.author)}" />` : "",
   ].filter(Boolean).join("\n");
   return html.replace(/<\/head>/i, `${tags}\n</head>`);
+}
+
+function randomShareId() {
+  const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let out = "";
+  for (let i = 0; i < 9; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return out;
+}
+
+function normalizeSelectionSharePayload(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const bookId = String(raw.bookId || raw.id || raw.i || "").trim().slice(0, 200);
+  const selectionCfi = String(raw.selectionCfi || raw.cfi || "").trim().slice(0, 2000);
+  if (!bookId || !/^epubcfi\(/i.test(selectionCfi)) return null;
+  return {
+    v: 1,
+    type: "reader-selection",
+    bookId,
+    source: String(raw.source || "").trim().slice(0, 200),
+    selectionCfi,
+    selectionText: String(raw.selectionText || raw.text || "").replace(/\s+/g, " ").trim().slice(0, 500),
+    createdAt: Date.now(),
+  };
+}
+
+function buildSelectionReaderUrl(origin, payload) {
+  const safePayload = normalizeSelectionSharePayload(payload);
+  if (!safePayload) return "";
+  const u = new URL("/reader1/", origin);
+  u.searchParams.set("id", safePayload.bookId);
+  if (safePayload.source) u.searchParams.set("source", safePayload.source);
+  u.searchParams.set("selectionCfi", safePayload.selectionCfi);
+  if (safePayload.selectionText) u.searchParams.set("selectionText", safePayload.selectionText);
+  u.hash = safePayload.selectionCfi;
+  return u.toString();
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk) => { body += chunk; });
+    req.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (error) {
+        reject(error);
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
+function sendJson(res, status, body, headers = {}) {
+  return send(res, status, JSON.stringify(body), {
+    "content-type": "application/json; charset=utf-8",
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-headers": "content-type",
+    ...headers,
+  });
+}
+
+async function handleSelectionShareCreate(req, res, url) {
+  if (req.method === "OPTIONS") {
+    return send(res, 204, "", {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-headers": "content-type",
+      "x-reader-route": "selection-share-options",
+    });
+  }
+  if (req.method !== "POST") {
+    return sendJson(res, 405, { error: "Method not allowed" }, { "x-reader-route": "selection-share-method" });
+  }
+  try {
+    const payload = normalizeSelectionSharePayload(await readJsonBody(req));
+    if (!payload) return sendJson(res, 400, { error: "Invalid selection share payload" });
+    let shareId = "";
+    for (let i = 0; i < 5; i++) {
+      shareId = randomShareId();
+      if (!selectionShares.has(shareId)) break;
+      shareId = "";
+    }
+    if (!shareId) return sendJson(res, 500, { error: "Failed to create share id" });
+    selectionShares.set(shareId, payload);
+    return sendJson(res, 200, {
+      shareId,
+      url: new URL(`/s/${encodeURIComponent(shareId)}`, url.origin).toString(),
+    }, { "x-reader-route": "selection-share-create" });
+  } catch (error) {
+    return sendJson(res, 500, { error: "Failed to create selection share" });
+  }
+}
+
+async function handleSelectionSharePage(res, url, shareId) {
+  const payload = selectionShares.get(shareId);
+  if (!payload) return send(res, 404, "Not found", { "content-type": "text/plain; charset=utf-8", "x-reader-route": "selection-share-miss" });
+  const targetUrl = buildSelectionReaderUrl(url.origin, payload);
+  const previewUrl = new URL(targetUrl);
+  const meta = await resolveReaderPreviewMeta(previewUrl);
+  if (meta) meta.url = new URL(`/s/${encodeURIComponent(shareId)}`, url.origin).toString();
+  const tags = [
+    `<meta charset="utf-8" />`,
+    `<meta name="viewport" content="width=device-width, initial-scale=1" />`,
+    `<title>${escapeHtml((meta && meta.title) || "ReaderPub")}</title>`,
+    meta ? injectReaderPreviewMeta("<head></head>", meta).replace(/^<head>|<\/head>$/g, "") : "",
+    `<link rel="canonical" href="${escapeHtml(targetUrl)}" />`,
+    `<meta http-equiv="refresh" content="0;url=${escapeHtml(targetUrl)}" />`,
+    `<script>window.location.replace(${JSON.stringify(targetUrl)});</script>`,
+  ].filter(Boolean).join("\n");
+  return send(res, 200, `<!doctype html><html lang="en"><head>${tags}</head><body><a href="${escapeHtml(targetUrl)}">Open in ReaderPub</a></body></html>`, {
+    "content-type": "text/html; charset=utf-8",
+    "x-reader-route": "selection-share-page",
+  });
 }
 
 function buildProtectedReaderRedirect(url) {
@@ -504,6 +620,20 @@ const server = http.createServer(async (req, res) => {
   if (pathname === "/books/reader_render_v3") return redirect(res, "/books/reader_render_v3/", "slash-redirect");
   if (pathname === "/books/ping") {
     return send(res, 200, "pong\n", { "content-type": "text/plain; charset=utf-8", "x-reader-route": "ping" });
+  }
+
+  if (
+    pathname === "/books/api/ss" ||
+    pathname === "/api/ss" ||
+    pathname === "/books/api/selection-share" ||
+    pathname === "/api/selection-share"
+  ) {
+    return handleSelectionShareCreate(req, res, url);
+  }
+
+  const shortShareMatch = pathname.match(/^\/s\/([A-Za-z0-9_-]{4,64})$/);
+  if (shortShareMatch) {
+    return handleSelectionSharePage(res, url, shortShareMatch[1]);
   }
 
   if (pathname === "/books/protected/" || pathname.startsWith("/books/protected/")) {

@@ -786,6 +786,7 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - Desktop page-turn arrow/tap zones no longer derive their width from transient text bounds; they use stable edge widths so the hit areas cannot jump or collapse to `0px` while paging.
 - Reader selection links now get server-rendered OG/Twitter preview metadata with ReaderPub, book title, author, cover image, and selected quote when the URL includes `selectionText`.
 - Reader selection OG/Twitter metadata now applies to the actual `/reader1/` share URLs used on staging, not only to `/books/reader/` aliases.
+- Reader selection share now creates short `/s/<id>` URLs through the Worker, stores the selection payload in R2, serves OG/Twitter preview metadata from the short URL, and redirects opens back to `/reader1/` with `selectionCfi`/`selectionText`.
 - Selection links also include a short `selectionText` fallback so mobile-generated links can highlight by text when the CFI navigates correctly but resolves to a non-visible range.
 - `#reader1ViewStore` is explicitly hidden in CSS to avoid exposing the notes/view storage container during reload FOUC.
 - Added inline mark styling and bumped the `fbreader-ui.js` cache key in `reader1/index.html`.
