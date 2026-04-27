@@ -3728,10 +3728,6 @@ export default {
       return new Response(object.body, { headers });
     }
 
-    if (decodedPath.startsWith("/books/protected-content-v4/") && !env.READER_BOOKS) {
-      return proxyReaderBooksUpstream(request, path, "proxy-reader-books-protected-content-v4");
-    }
-
     if (path === "/books/ping") {
       const headers = new Headers({
         "content-type": "text/plain; charset=utf-8",

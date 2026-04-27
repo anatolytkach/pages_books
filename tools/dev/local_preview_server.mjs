@@ -16,7 +16,6 @@ const READER_RENDER_V5_DIR = path.join(ROOT, "reader_render_v5");
 const INDEX_DIR = path.join(ROOT, "reader_lang_indexes");
 const CONTENT_DIR = path.join(ROOT, "books", "content");
 const PROTECTED_CONTENT_DIR = path.join(ROOT, "reader_render_v3", "artifacts", "protected-books");
-const PROTECTED_CONTENT_V4_DIR = path.join(ROOT, "books", "protected-content-v4");
 const PORT = Number(process.env.PORT || 8788);
 const HOST = process.env.HOST || "127.0.0.1";
 const PROD_ORIGIN = process.env.READERPUB_PREVIEW_UPSTREAM || "https://reader.pub";
@@ -281,12 +280,6 @@ function routeLocalPath(urlPath) {
       route: "r2-protected-content"
     };
   }
-  if (urlPath.startsWith("/books/protected-content-v4/")) {
-    return {
-      file: safeJoin(PROTECTED_CONTENT_V4_DIR, urlPath.slice("/books/protected-content-v4".length)),
-      route: "r2-protected-content-v4"
-    };
-  }
   if (urlPath === "/books/reader/" || urlPath === "/books/reader/index.html") {
     return { file: path.join(READER1_DIR, "index.html"), route: "reader1-legacy-alias" };
   }
@@ -371,23 +364,17 @@ function routeLocalPath(urlPath) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host || `${HOST}:${PORT}`}`);
   const pathname = decodeURIComponent(url.pathname);
-  const remoteMode = String(url.searchParams.get("readerRemoteMode") || "").trim().toLowerCase();
   const requestedFrontendSource = String(
     url.searchParams.get("readerFrontendSource") || url.searchParams.get("readerCatalogFrontend") || ""
   )
     .trim()
     .toLowerCase();
-  const requestedArtifactSource = String(url.searchParams.get("readerArtifactSource") || "").trim().toLowerCase();
-  const requestedContentSource = String(url.searchParams.get("readerContentSource") || "").trim().toLowerCase();
   const cookies = parseCookies(req.headers.cookie || "");
   const cookieFrontendSource = String(
     cookies.readerpub_frontend_source || cookies.readerpub_catalog_frontend || ""
   )
     .trim()
     .toLowerCase();
-  const cookieRemoteMode = String(cookies.readerpub_remote_mode || "").trim().toLowerCase();
-  const cookieArtifactSource = String(cookies.readerpub_artifact_source || "").trim().toLowerCase();
-  const cookieContentSource = String(cookies.readerpub_content_source || "").trim().toLowerCase();
   const frontendSource = requestedFrontendSource || cookieFrontendSource || DEFAULT_FRONTEND_SOURCE;
 
   if (pathname === "/books") return redirect(res, "/books/", "slash-redirect");
@@ -431,105 +418,35 @@ const server = http.createServer(async (req, res) => {
   if (!routed.file) {
     return send(res, 404, "Not found", { "content-type": "text/plain; charset=utf-8", "x-reader-route": "not-found" });
   }
-  if (
-    pathname.startsWith("/books/content/") &&
-    cookieRemoteMode === "strict" &&
-    cookieContentSource === "r2"
-  ) {
-    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content-strict-remote", {
+  if (pathname.startsWith("/books/content/")) {
+    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content-force-remote", {
       "x-reader-book-source": "remote",
       "x-reader-book-origin": PROD_ORIGIN,
-      "x-reader-book-fallback": "strict-remote-lock"
+      "x-reader-book-fallback": "force-remote"
     });
   }
-  if (pathname.startsWith("/books/content/") && !existsSync(routed.file)) {
-    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content", {
+  if (pathname.startsWith("/books/protected-content/")) {
+    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content-force-remote", {
       "x-reader-artifact-source": "remote",
       "x-reader-artifact-origin": PROD_ORIGIN,
-      "x-reader-artifact-fallback": "proxy-miss-local"
-    });
-  }
-  if (pathname.startsWith("/books/content/") && existsSync(routed.file)) {
-    if (
-      (remoteMode === "strict" && requestedContentSource === "r2") ||
-      (cookieRemoteMode === "strict" && cookieContentSource === "r2")
-    ) {
-      return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-content-strict-remote", {
-        "x-reader-book-source": "remote",
-        "x-reader-book-origin": PROD_ORIGIN,
-        "x-reader-book-fallback": "strict-remote-lock"
-      });
-    }
-    return serveFile(res, routed.file, routed.route, {
-      "x-reader-book-source": "local",
-      "x-reader-book-origin": "localhost",
-      "x-reader-book-fallback": "none"
+      "x-reader-artifact-fallback": "force-remote"
     });
   }
   if (
-    pathname.startsWith("/books/protected-content/") &&
-    cookieRemoteMode === "strict" &&
-    cookieArtifactSource === "r2"
+    pathname.startsWith("/reader_render_v5/artifacts/protected-bootstrap-books/") ||
+    pathname.startsWith("/reader_render_v5/artifacts/protected-books/")
   ) {
-    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content-strict-remote", {
+    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-v5-artifact-force-remote", {
       "x-reader-artifact-source": "remote",
       "x-reader-artifact-origin": PROD_ORIGIN,
-      "x-reader-artifact-fallback": "strict-remote-lock"
+      "x-reader-artifact-fallback": "force-remote"
     });
   }
-  if (pathname.startsWith("/books/protected-content/") && !existsSync(routed.file)) {
-    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content", {
-      "x-reader-artifact-source": "remote",
-      "x-reader-artifact-origin": PROD_ORIGIN,
-      "x-reader-artifact-fallback": "proxy-miss-local"
-    });
-  }
-  if (pathname.startsWith("/books/protected-content-v4/") && !existsSync(routed.file)) {
-    return send(res, 404, "Not found", {
-      "content-type": "text/plain; charset=utf-8",
-      "x-reader-route": "not-found-v4-artifact"
-    });
-  }
-  if (
-    (pathname.startsWith("/reader_render_v5/artifacts/protected-bootstrap-books/") ||
-      pathname.startsWith("/reader_render_v5/artifacts/protected-books/")) &&
-    !existsSync(routed.file)
-  ) {
-    return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-v5-artifact", {
-      "x-reader-artifact-source": "remote",
-      "x-reader-artifact-origin": PROD_ORIGIN,
-      "x-reader-artifact-fallback": "proxy-miss-local"
-    });
-  }
-    if (pathname.startsWith("/books/api/")) {
+  if (pathname.startsWith("/books/api/")) {
     return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-api", {
       "x-reader-artifact-source": "remote",
       "x-reader-artifact-origin": PROD_ORIGIN,
       "x-reader-artifact-fallback": "proxy-force-remote"
-    });
-  }
-  if (pathname.startsWith("/books/protected-content/") && existsSync(routed.file)) {
-    if (
-      (remoteMode === "strict" && requestedArtifactSource === "r2") ||
-      (cookieRemoteMode === "strict" && cookieArtifactSource === "r2")
-    ) {
-      return proxyUpstream(req, res, `${PROD_ORIGIN}${pathname}${url.search}`, "proxy-protected-content-strict-remote", {
-        "x-reader-artifact-source": "remote",
-        "x-reader-artifact-origin": PROD_ORIGIN,
-        "x-reader-artifact-fallback": "strict-remote-lock"
-      });
-    }
-    return serveFile(res, routed.file, routed.route, {
-      "x-reader-artifact-source": "local",
-      "x-reader-artifact-origin": "localhost",
-      "x-reader-artifact-fallback": "none"
-    });
-  }
-  if (pathname.startsWith("/books/protected-content-v4/") && existsSync(routed.file)) {
-    return serveFile(res, routed.file, routed.route, {
-      "x-reader-artifact-source": "local",
-      "x-reader-artifact-origin": "localhost",
-      "x-reader-artifact-fallback": "none"
     });
   }
   return serveFile(res, routed.file, routed.route);
@@ -538,5 +455,3 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   process.stdout.write(`ReaderPub local preview: http://${HOST}:${PORT}/books/\n`);
 });
-
-

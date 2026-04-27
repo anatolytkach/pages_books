@@ -47,6 +47,6 @@
 
 - `tools/reader1/publish_books.py` is only for non-Gutenberg books.
 - Gutenberg books must continue to use the legacy Gutenberg pipeline and remain source-less in root storage.
-- `tools/dev/local_preview_server.mjs` serves the local catalog frontend by default; the new `READERPUB_PREVIEW_FRONTEND_SOURCE=remote` mode proxies the catalog frontend from `https://reader.pub` while keeping the same local preview port.
+- `tools/dev/local_preview_server.mjs` serves the local catalog frontend by default; book API data, unprotected content, protected content, and v5 protected artifacts are proxied from `https://reader.pub`. The `READERPUB_PREVIEW_FRONTEND_SOURCE=remote` mode proxies the catalog frontend from `https://reader.pub` while keeping the same local preview port.
 - Detailed operational instructions live in:
   - `docs/README.md`, section `7.6 Reader1 publish pipeline`

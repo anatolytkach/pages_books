@@ -81,6 +81,24 @@ function decodeGlyphTokens(chunkModel, glyphTokens, scope) {
     .join("");
 }
 
+function appendSearchChar(state, char, offset) {
+  if (!char) return;
+  if (/\s/.test(char)) {
+    if (!state.text || state.text.endsWith(" ")) return;
+    state.text += " ";
+    state.offsets.push(Number.isFinite(offset) ? offset : null);
+    return;
+  }
+  for (let index = 0; index < char.length; index += 1) {
+    state.text += char.charAt(index);
+    state.offsets.push(Number.isFinite(offset) ? offset : null);
+  }
+}
+
+function appendSearchGap(state) {
+  appendSearchChar(state, " ", null);
+}
+
 export function reconstructRangeText(chunkModel, startOffset, endOffset, scope = null) {
   if (startOffset == null || endOffset == null || endOffset <= startOffset) return "";
   const cacheKey = scope ? `${startOffset}:${endOffset}` : "";
@@ -115,6 +133,40 @@ export function reconstructRangeText(chunkModel, startOffset, endOffset, scope =
     scope.cacheEntries = scope.decodedRanges.size;
   }
   return output;
+}
+
+export function reconstructSearchTextWithOffsets(chunkModel, startOffset, endOffset, scope = null) {
+  if (startOffset == null || endOffset == null || endOffset <= startOffset) {
+    return { text: "", offsets: [] };
+  }
+
+  const segments = chunkModel.textSegments || [];
+  let cursor = startOffset;
+  const state = { text: "", offsets: [] };
+
+  for (const segment of segments) {
+    if (segment.end <= startOffset) continue;
+    if (segment.start >= endOffset) break;
+
+    if (segment.start > cursor) {
+      appendSearchGap(state);
+      cursor = segment.start;
+    }
+
+    const run = chunkModel.runBySegmentKey.get(`${segment.blockId}:${segment.runIndex}`);
+    if (!run) continue;
+    const sliceStart = Math.max(startOffset, segment.start) - segment.start;
+    const sliceEnd = Math.min(endOffset, segment.end) - segment.start;
+    const glyphTokens = (run.glyphTokens || []).slice(sliceStart, sliceEnd);
+    for (let index = 0; index < glyphTokens.length; index += 1) {
+      const scalar = decodeScalar(chunkModel, glyphTokens[index]);
+      if (scope) scope.decodedChars += 1;
+      appendSearchChar(state, scalar != null ? codePointToChar(scalar) : "", segment.start + sliceStart + index);
+    }
+    cursor = Math.min(endOffset, segment.end);
+  }
+
+  return state;
 }
 
 export function reconstructVisibleWindow(chunkModel, pageWindow, scope = null) {

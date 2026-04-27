@@ -301,6 +301,15 @@ function setReaderNewUiSmokeState(patch = {}) {
 
 function classifyBridgeUpdate(method) {
   if (method === "setFontScale" || method === "setFontMode") return "layout-affecting";
+  if (
+    method === "searchBook" ||
+    method === "goToSearchResult" ||
+    method === "searchNextResult" ||
+    method === "searchPrevResult" ||
+    method === "clearSearch"
+  ) {
+    return "redraw-only";
+  }
   return "state-only";
 }
 
@@ -396,6 +405,31 @@ function desktopSearchLocksShellUi() {
   try {
     const active = document.activeElement;
     if (active && active.id === "searchInputDesktop") return true;
+  } catch (_error) {}
+  return false;
+}
+
+function touchSearchNavigationLocksCenterTap() {
+  if (!isTouchShellMode()) return false;
+  try {
+    if (!document.body || !document.body.classList.contains("search-open")) return false;
+  } catch (_error) {
+    return false;
+  }
+  try {
+    const floatControls = document.getElementById("searchFloatControls");
+    if (floatControls && !floatControls.classList.contains("hidden")) return true;
+  } catch (_error) {}
+  try {
+    const search = HOST_STATE.lastSummary && HOST_STATE.lastSummary.searchSummary
+      ? HOST_STATE.lastSummary.searchSummary
+      : null;
+    return !!(
+      search &&
+      search.active &&
+      Number(search.totalMatches || 0) > 0 &&
+      document.body.classList.contains("search-minimized")
+    );
   } catch (_error) {}
   return false;
 }
@@ -2130,6 +2164,8 @@ function installStyles() {
     }
     body.protected-shell #searchDesktop .search-nav.desktop {
       gap: 2px;
+      flex: 0 0 auto;
+      min-width: 0;
     }
     body.protected-shell #searchDesktop .search-nav.desktop .search-arrow,
     body.protected-shell #searchbar .search-nav .search-arrow {
@@ -2156,7 +2192,6 @@ function installStyles() {
       stroke-linejoin: round;
     }
     body.protected-shell #searchReturnDesktop.search-return {
-      order: -1;
       width: 22px;
       height: 22px;
       min-width: 22px;
@@ -2176,10 +2211,19 @@ function installStyles() {
       height: 20px;
       color: rgba(255,255,255,0.54);
     }
+    body.protected-shell #searchDesktop .search-input-wrap {
+      flex: 0 0 auto;
+      width: 150px;
+      min-width: 150px;
+      max-width: 150px;
+      box-sizing: border-box;
+      overflow: visible;
+    }
     body.protected-shell #searchInputDesktop.search-input {
       width: 150px;
       min-width: 150px;
       max-width: 150px;
+      box-sizing: border-box;
     }
     body.protected-shell #searchActionDesktop.search-action img.search-field-mag-icon,
     body.protected-shell #searchbar .search-input-wrap.mobile .search-infield-icon img.search-field-mag-icon {
@@ -5005,7 +5049,7 @@ function createEmptySearchSidebarState() {
 }
 
 async function invokeSearchBridge(method, ...args) {
-  const result = await invokeBridgeRaw(method, ...args);
+  const result = await invokeBridge(method, ...args);
   if (result && typeof result === "object") {
     HOST_STATE.searchSidebarState = normalizeSearchSidebarState(
       result.searchSummary,
@@ -5577,7 +5621,17 @@ function ensureDesktopSearchReturnButton() {
   const nav = document.querySelector("#searchDesktop .search-nav.desktop");
   if (!nav) return null;
   let button = document.getElementById("searchReturnDesktop");
-  if (button) return button;
+  const prevButton = document.getElementById("searchPrevDesktop");
+  const placeButton = (node) => {
+    if (!node) return node;
+    if (prevButton && prevButton.parentNode === nav && prevButton.nextSibling !== node) {
+      nav.insertBefore(node, prevButton.nextSibling);
+    } else if (!prevButton && node.parentNode !== nav) {
+      nav.prepend(node);
+    }
+    return node;
+  };
+  if (button) return placeButton(button);
   button = document.createElement("button");
   button.id = "searchReturnDesktop";
   button.className = "search-btn search-return";
@@ -5588,8 +5642,7 @@ function ensureDesktopSearchReturnButton() {
   img.alt = "";
   img.setAttribute("aria-hidden", "true");
   button.replaceChildren(img);
-  nav.prepend(button);
-  return button;
+  return placeButton(button);
 }
 
 function syncLegacySearchFieldIcons() {
@@ -9966,6 +10019,10 @@ function installTouchSwipe(target) {
         };
         if (tapZone === "center") {
           event.preventDefault();
+          if (touchSearchNavigationLocksCenterTap()) {
+            window.__protectedTouchDebug.tap.shellToggleSuppressed = "search-navigation";
+            return;
+          }
           scheduleShellToggle("touch-center", 180);
           window.__protectedTouchDebug.tap.bodyHiddenAfter = !!(document.body && document.body.classList && document.body.classList.contains("ui-hidden"));
           return;

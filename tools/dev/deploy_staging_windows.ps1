@@ -6,6 +6,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Assert-Windows {
+  $isWindowsHost = if (Get-Variable -Name IsWindows -Scope Global -ErrorAction SilentlyContinue) {
+    $IsWindows
+  } else {
+    [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
+  }
+
+  if (-not $isWindowsHost) {
+    throw "This script is Windows-only. Use tools/dev/deploy_staging_macos.sh on macOS."
+  }
+}
+
 function Get-RepoRoot {
   $root = git rev-parse --show-toplevel 2>$null
   if (-not $root) {
@@ -19,6 +31,7 @@ function Get-WorktreeRoots {
   if (-not $output) {
     return @()
   }
+
   $roots = @()
   foreach ($line in $output) {
     if ($line -like "worktree *") {
@@ -28,6 +41,21 @@ function Get-WorktreeRoots {
   return $roots
 }
 
+function Join-PathMany {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Base,
+    [Parameter(Mandatory = $true)]
+    [string[]]$Parts
+  )
+
+  $result = $Base
+  foreach ($part in $Parts) {
+    $result = Join-Path $result $part
+  }
+  return $result
+}
+
 function Resolve-WranglerPath {
   param(
     [string]$RepoRoot,
@@ -35,23 +63,40 @@ function Resolve-WranglerPath {
   )
 
   $candidates = New-Object System.Collections.Generic.List[string]
-  $candidates.Add((Join-Path $RepoRoot "reader_render_v3\node_modules\.bin\wrangler.cmd"))
-  foreach ($root in $WorktreeRoots) {
-    $candidate = Join-Path $root "reader_render_v3\node_modules\.bin\wrangler.cmd"
-    if (-not $candidates.Contains($candidate)) {
-      $candidates.Add($candidate)
+  $roots = @($RepoRoot) + $WorktreeRoots
+  foreach ($root in $roots) {
+    foreach ($candidate in @(
+      (Join-PathMany $root @("reader_render_v3", "node_modules", ".bin", "wrangler.cmd")),
+      (Join-PathMany $root @("node_modules", ".bin", "wrangler.cmd"))
+    )) {
+      if (-not $candidates.Contains($candidate)) {
+        $candidates.Add($candidate)
+      }
+    }
+  }
+
+  if ($env:WRANGLER_BIN) {
+    $envCandidate = $env:WRANGLER_BIN.Trim()
+    if ($envCandidate -and -not $candidates.Contains($envCandidate)) {
+      $candidates.Insert(0, $envCandidate)
     }
   }
 
   foreach ($candidate in $candidates) {
-    if (Test-Path $candidate) {
+    if ($candidate -and (Test-Path $candidate)) {
       return $candidate
     }
   }
 
+  $pathWrangler = Get-Command wrangler.cmd -ErrorAction SilentlyContinue
+  if ($pathWrangler -and $pathWrangler.Source) {
+    return $pathWrangler.Source
+  }
+
   throw @"
-Could not find reader_render_v3\node_modules\.bin\wrangler.cmd in this repo or its linked worktrees.
-Install the project dependencies in one worktree first, then rerun this script.
+Could not find a Windows Wrangler executable in this repo or its linked worktrees.
+Checked reader_render_v3/node_modules/.bin/wrangler.cmd, root node_modules/.bin/wrangler.cmd, WRANGLER_BIN, and PATH.
+Install the project dependencies in one Windows worktree first, then rerun this script.
 "@
 }
 
@@ -66,7 +111,7 @@ function Copy-Tree {
     throw "Missing source path: $Source"
   }
 
-  $robocopyArgs = @($Source, $Destination, "/E")
+  $robocopyArgs = @($Source, $Destination, "/E", "/XJ", "/R:1", "/W:1")
   if ($ExcludeDirs.Count -gt 0) {
     $robocopyArgs += "/XD"
     $robocopyArgs += $ExcludeDirs
@@ -79,6 +124,8 @@ function Copy-Tree {
   }
 }
 
+Assert-Windows
+
 $repoRoot = Get-RepoRoot
 Set-Location $repoRoot
 
@@ -87,24 +134,20 @@ $commit = (git rev-parse HEAD).Trim()
 $worktreeRoots = Get-WorktreeRoots
 $wranglerPath = Resolve-WranglerPath -RepoRoot $repoRoot -WorktreeRoots $worktreeRoots
 
-$deployDir = Join-Path $env:TEMP ("readerpub-books-staging-deploy-" + ([guid]::NewGuid().ToString("N")))
+$tempRoot = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
+$deployDir = Join-Path $tempRoot ("readerpub-books-staging-deploy-" + ([guid]::NewGuid().ToString("N")))
 New-Item -ItemType Directory -Path $deployDir | Out-Null
 
 try {
   Copy-Item (Join-Path $repoRoot "_worker.js") $deployDir
   Copy-Tree -Source (Join-Path $repoRoot "api") -Destination (Join-Path $deployDir "api")
   Copy-Tree -Source (Join-Path $repoRoot "publisher_tasks") -Destination (Join-Path $deployDir "publisher_tasks")
-  Copy-Tree -Source (Join-Path $repoRoot "books") -Destination (Join-Path $deployDir "books")
+  Copy-Tree -Source (Join-Path $repoRoot "books") -Destination (Join-Path $deployDir "books") -ExcludeDirs @("content", "gutenberg_protected_epub3_sources")
   Copy-Tree -Source (Join-Path $repoRoot "reader") -Destination (Join-Path $deployDir "reader")
   Copy-Tree -Source (Join-Path $repoRoot "reader1") -Destination (Join-Path $deployDir "reader1")
   Copy-Tree -Source (Join-Path $repoRoot "reader_render_v3") -Destination (Join-Path $deployDir "reader_render_v3") -ExcludeDirs @("node_modules", "artifacts")
   if (Test-Path (Join-Path $repoRoot "reader_render_v5")) {
     Copy-Tree -Source (Join-Path $repoRoot "reader_render_v5") -Destination (Join-Path $deployDir "reader_render_v5") -ExcludeDirs @("node_modules", "artifacts")
-  }
-
-  $booksContent = Join-Path $deployDir "books\content"
-  if (Test-Path $booksContent) {
-    Remove-Item -Recurse -Force $booksContent
   }
 
   Write-Host "[deploy-staging] Repo root: $repoRoot"
@@ -127,7 +170,7 @@ try {
     throw "Wrangler deploy succeeded but no Pages preview URL was found in the output."
   }
 
-  node (Join-Path $repoRoot "tools\deploy\record-deployment.mjs") `
+  node (Join-PathMany $repoRoot @("tools", "deploy", "record-deployment.mjs")) `
     --environment staging `
     --project $ProjectName `
     --pages-branch $PagesBranch `

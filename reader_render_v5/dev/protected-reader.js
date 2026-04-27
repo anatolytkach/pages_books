@@ -90,6 +90,7 @@ const elements = {
 };
 
 const state = createProtectedReaderRuntimeState();
+let viewportSyncTimer = null;
 state.footnoteHoverToken = 0;
 state.footnoteHoverPoint = null;
 state.footnoteHoverScheduled = false;
@@ -827,6 +828,60 @@ function getViewportConfig() {
     viewportWidth: getViewportWidth(),
     viewportHeight: getViewportHeight()
   };
+}
+
+function getSnapshotViewportConfig(snapshot = state.currentSnapshot) {
+  const typographySummary =
+    snapshot &&
+    snapshot.runtimeMeta &&
+    snapshot.runtimeMeta.typographySummary
+      ? snapshot.runtimeMeta.typographySummary
+      : null;
+  return {
+    viewportWidth: typographySummary ? Number(typographySummary.viewportWidth || 0) : 0,
+    viewportHeight: typographySummary ? Number(typographySummary.viewportHeight || 0) : 0
+  };
+}
+
+function hasViewportConfigChanged(nextConfig, currentConfig, tolerance = 2) {
+  if (!nextConfig || !currentConfig) return false;
+  const nextWidth = Number(nextConfig.viewportWidth || 0);
+  const nextHeight = Number(nextConfig.viewportHeight || 0);
+  const currentWidth = Number(currentConfig.viewportWidth || 0);
+  const currentHeight = Number(currentConfig.viewportHeight || 0);
+  if (!nextWidth || !nextHeight || !currentWidth || !currentHeight) return false;
+  return (
+    Math.abs(nextWidth - currentWidth) > tolerance ||
+    Math.abs(nextHeight - currentHeight) > tolerance
+  );
+}
+
+function bumpViewportLayoutGeneration() {
+  state.configGeneration = normalizeGeneration(state.configGeneration, 1) + 1;
+  state.layoutGeneration = normalizeGeneration(state.layoutGeneration, 1) + 1;
+}
+
+async function syncWorkerViewportConfig({ force = false, refreshPreviews = false } = {}) {
+  if (!state.currentSnapshot || state.workerClient.mode !== "worker") return false;
+  const viewportConfig = getViewportConfig();
+  if (!force && !hasViewportConfigChanged(viewportConfig, getSnapshotViewportConfig())) return false;
+  if (viewportSyncTimer) {
+    window.clearTimeout(viewportSyncTimer);
+    viewportSyncTimer = null;
+  }
+  bumpViewportLayoutGeneration();
+  const snapshot = await state.workerClient.updateRenderConfig({
+    renderMode: "shape",
+    metricsMode: state.metricsMode,
+    fontScale: state.fontScale,
+    fontMode: state.fontMode,
+    ...viewportConfig,
+    ...getGenerationPayload(),
+    annotations: getCurrentAnnotations()
+  });
+  applySnapshot(snapshot);
+  if (refreshPreviews) await refreshTurnPreviews();
+  return true;
 }
 
 function getSelectionBounds() {
@@ -3437,7 +3492,9 @@ async function debugSelectWordAtPoint(x, y) {
   return buildBridgeSummary();
 }
 
-async function bridgeSearchBook(query = "") {
+async function bridgeSearchBook(query = "", generationMeta = null) {
+  if (generationMeta) applyGenerationMeta(generationMeta);
+  await syncWorkerViewportConfig();
   const snapshot = await state.workerClient.searchBook({
     query: String(query || ""),
     ...getGenerationPayload(),
@@ -3447,7 +3504,9 @@ async function bridgeSearchBook(query = "") {
   return buildBridgeSummary();
 }
 
-async function bridgeSearchNextResult() {
+async function bridgeSearchNextResult(generationMeta = null) {
+  if (generationMeta) applyGenerationMeta(generationMeta);
+  await syncWorkerViewportConfig();
   const snapshot = await state.workerClient.searchNextResult({
     ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
@@ -3456,7 +3515,9 @@ async function bridgeSearchNextResult() {
   return buildBridgeSummary();
 }
 
-async function bridgeSearchPrevResult() {
+async function bridgeSearchPrevResult(generationMeta = null) {
+  if (generationMeta) applyGenerationMeta(generationMeta);
+  await syncWorkerViewportConfig();
   const snapshot = await state.workerClient.searchPrevResult({
     ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
@@ -3465,7 +3526,9 @@ async function bridgeSearchPrevResult() {
   return buildBridgeSummary();
 }
 
-async function bridgeGoToSearchResult(resultIndex = -1) {
+async function bridgeGoToSearchResult(resultIndex = -1, generationMeta = null) {
+  if (generationMeta) applyGenerationMeta(generationMeta);
+  await syncWorkerViewportConfig();
   const snapshot = await state.workerClient.goToSearchResult({
     resultIndex: Number(resultIndex || 0),
     ...getGenerationPayload(),
@@ -3475,7 +3538,8 @@ async function bridgeGoToSearchResult(resultIndex = -1) {
   return buildBridgeSummary();
 }
 
-async function bridgeClearSearch() {
+async function bridgeClearSearch(generationMeta = null) {
+  if (generationMeta) applyGenerationMeta(generationMeta);
   const snapshot = await state.workerClient.clearSearch({
     ...getGenerationPayload(),
     annotations: getCurrentAnnotations()
@@ -4133,21 +4197,13 @@ async function boot() {
     window.__PROTECTED_POINTER_BINDING__.bound = true;
   }
 
-  let viewportSyncTimer = null;
   const scheduleViewportSync = () => {
     if (!state.currentSnapshot || state.workerClient.mode !== "worker") return;
     if (viewportSyncTimer) window.clearTimeout(viewportSyncTimer);
     viewportSyncTimer = window.setTimeout(async () => {
       viewportSyncTimer = null;
       try {
-        const snapshot = await state.workerClient.updateRenderConfig({
-          renderMode: "shape",
-          metricsMode: state.metricsMode,
-          fontScale: state.fontScale,
-          ...getViewportConfig(),
-          annotations: getCurrentAnnotations()
-        });
-        applySnapshot(snapshot);
+        await syncWorkerViewportConfig({ refreshPreviews: true });
       } catch (error) {
         console.error(error);
         setStatus(error.message || String(error), "error");

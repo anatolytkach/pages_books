@@ -3724,11 +3724,18 @@ body.dark{
 #fb-tap-left{ left: 0; }
 #fb-tap-right{ right: 0; }
 
-/* Disable center-tap capture while overlays are open (TOC / Bookmarks), so backdrop clicks work reliably */
+/* Disable center-tap capture while legacy sidebar/search is open. Overlay/mobile-more
+   panels keep the layer available behind the panel so taps on the book can dismiss UI. */
 body.sidebar-open #fb-tap-layer{ display:none; }
-body.overlay-open #fb-tap-layer{ display:none; }
-body.mobile-more-open #fb-tap-layer{ display:none; }
 body.search-open #fb-tap-layer{ display:none; }
+body.overlay-open #fb-tap-layer,
+body.mobile-more-open #fb-tap-layer{ display:block; pointer-events:auto; }
+body.overlay-open #fb-tap-left,
+body.overlay-open #fb-tap-center,
+body.overlay-open #fb-tap-right,
+body.mobile-more-open #fb-tap-left,
+body.mobile-more-open #fb-tap-center,
+body.mobile-more-open #fb-tap-right{ pointer-events:auto !important; }
 
 body.sidebar-open #sidebar-backdrop{
   opacity: 1;
