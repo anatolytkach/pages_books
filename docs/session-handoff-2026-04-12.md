@@ -777,9 +777,12 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - Desktop selection toolbar now shows Share second from the right; it copies the selection link to clipboard and shows a fading `Link copied` toast, while Copy shows `Text copied`.
 - Cold opens from a selection link now pass `selectionCfi` into the normal reader startup CFI instead of issuing late UI-layer `rendition.display(...)` calls.
 - Incoming selection handling only retries iframe highlighting after `book.ready` / first `reader.displayed`, so it does not trap normal page navigation.
-- Reader relocation now updates the URL hash to the current CFI and strips one-shot selection query params after startup, so reload keeps the user's latest page instead of returning to the original share/deep-link position.
-- Swipe/tap page turns also commit the prepared neighbor page CFI immediately, with delayed `currentLocation()` samples as backup, because `relocated` alone can lag behind the visible page.
+- Reader relocation now follows the production-style position model again: it saves `readerpub:lastcfi:<id>` in localStorage and does not live-sync ordinary reading position into the URL hash.
+- Swipe/tap and desktop next/prev no longer pre-commit neighbor CFI into the URL; one-shot share/deep-link CFI is only used as startup input.
 - Startup now decodes percent-encoded CFI hashes before passing them to epub.js, avoiding reload fallback to the beginning when the browser encodes hash characters.
+- Startup passes explicit CFI into `opts.previousLocationCfi`, then ordinary reading position is restored from localStorage on later reloads.
+- Incoming share/deep-link URLs are cleaned after the first confirmed relocation by removing `selectionCfi`, `selectionText`, and the CFI hash, leaving subsequent reloads to restore from saved reading position.
+- Initial cold render no longer overwrites the saved reading CFI before the first user interaction; this prevents refresh immediately after opening a private window from moving to a nearby spread/page.
 - Reader selection links now get server-rendered OG/Twitter preview metadata with ReaderPub, book title, author, cover image, and selected quote when the URL includes `selectionText`.
 - Selection links also include a short `selectionText` fallback so mobile-generated links can highlight by text when the CFI navigates correctly but resolves to a non-visible range.
 - `#reader1ViewStore` is explicitly hidden in CSS to avoid exposing the notes/view storage container during reload FOUC.

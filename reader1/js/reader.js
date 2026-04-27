@@ -5300,13 +5300,6 @@ function attachSwipeToDoc(doc) {
 									var rtl = isRtlReadingOrderSafe();
 									var goNext = isNext;
 									if (rtl) goNext = !goNext;
-									try {
-										var targetRendition = goNext ? reader.renditionNext : reader.renditionPrev;
-										var targetLoc = targetRendition && targetRendition.currentLocation ? targetRendition.currentLocation() : null;
-										if (targetLoc && window && typeof window.__readerpubCommitReaderCfi === "function") {
-											window.__readerpubCommitReaderCfi(targetLoc);
-										}
-									} catch (eCommitPreview) {}
 									if (goNext) rendition.next(); else rendition.prev();
 							} catch (e) {}
 							// After epub.js rerenders, reset transform
@@ -6800,10 +6793,14 @@ if (doc) {
 	}
 	reader.__generateLocationsOnce = generateLocationsOnce;
 	reader.__setFontPct = setFontPct;
-	reader._userInteractionTs = Date.now();
+	reader._userInteractionTs = 0;
+	reader._readerpubPositionSaveUnlocked = !!this.settings.readerpubSaveInitialLocation;
 
 	function markReaderInteraction() {
-		try { reader._userInteractionTs = Date.now(); } catch (e) {}
+		try {
+			reader._userInteractionTs = Date.now();
+			reader._readerpubPositionSaveUnlocked = true;
+		} catch (e) {}
 	}
 
 	function waitFrame() {
@@ -7429,6 +7426,7 @@ if (doc) {
 		try {
 			if (!reader.settings || !reader.settings.restore) return;
 			if (!localStorage) return;
+			if (!reader._readerpubPositionSaveUnlocked && !reader.settings.readerpubSaveInitialLocation) return;
 		} catch (e0) { return; }
 		if (saveLocTimer) {
 			try { clearTimeout(saveLocTimer); } catch (e1) {}
@@ -7719,7 +7717,11 @@ EPUBJS.Reader.prototype.saveSettings = function(){
 };
 
 EPUBJS.Reader.prototype.unload = function(){
-	if(this.settings.restore && localStorage) {
+	if(
+		this.settings.restore &&
+		localStorage &&
+		(this._readerpubPositionSaveUnlocked || this.settings.readerpubSaveInitialLocation)
+	) {
 		this.saveSettings();
 	}
 };

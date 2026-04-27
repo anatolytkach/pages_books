@@ -426,7 +426,9 @@
     startupTarget = initialCfi;
     const opts = {
       openAs: spec.openAs,
-      restore: true
+      restore: true,
+      history: false,
+      readerpubSaveInitialLocation: !!(querySelectionIsCfi || hashIsCfi)
     };
     if (initialCfi) opts.previousLocationCfi = initialCfi;
 
@@ -598,61 +600,26 @@
           } catch (eCfiFromLocation) {}
           return "";
         }
-        function commitReaderCfi(location) {
-          try {
-            const cfi = getCfiFromLocation(location);
-            if (!cfi) return false;
-            if (localStorage) localStorage.setItem(key, cfi);
-            try { window.__readerpubLastCommittedCfi = cfi; } catch (eLastCommitted) {}
+        try {
+          window.reader.rendition.on("relocated", function(location){
             try {
+              const cfi = getCfiFromLocation(location);
+              const canSaveInitial = !!(querySelectionIsCfi || hashIsCfi);
+              const canSaveInteraction = !!(window.reader && window.reader._readerpubPositionSaveUnlocked);
+              if (cfi && localStorage && (canSaveInitial || canSaveInteraction)) localStorage.setItem(key, cfi);
+            } catch (e2) {}
+            try {
+              if (!(querySelectionIsCfi || hashIsCfi)) return;
+              if (window.__readerpubDeepLinkCleared) return;
+              window.__readerpubDeepLinkCleared = true;
               const p = new URLSearchParams(window.location.search || "");
               p.delete("selectionCfi");
               p.delete("selectionText");
               const nextSearch = p.toString();
-              history.replaceState(null, "", `${window.location.pathname}${nextSearch ? "?" + nextSearch : ""}#${cfi}`);
-            } catch (eUrlCfi) {}
-            return true;
-          } catch (eCommitCfi) {}
-          return false;
-        }
-        try { window.__readerpubCommitReaderCfi = commitReaderCfi; } catch (eExposeCommitCfi) {}
-        try {
-          window.reader.rendition.on("relocated", function(location){
-            try { commitReaderCfi(location); } catch (e2) {}
+              history.replaceState(null, "", `${window.location.pathname}${nextSearch ? "?" + nextSearch : ""}`);
+            } catch (eClearDeepLink) {}
           });
         } catch (e3) {}
-        try {
-          const originalNext = window.reader.rendition.next && window.reader.rendition.next.bind(window.reader.rendition);
-          const originalPrev = window.reader.rendition.prev && window.reader.rendition.prev.bind(window.reader.rendition);
-          function scheduleCommitSamples() {
-            [120, 320, 700, 1200, 1800].forEach(function(delay){
-              window.setTimeout(function(){
-                try {
-                  const loc = window.reader && window.reader.rendition && window.reader.rendition.currentLocation
-                    ? window.reader.rendition.currentLocation()
-                    : null;
-                  commitReaderCfi(loc);
-                } catch (eSampleCommit) {}
-              }, delay);
-            });
-          }
-          if (originalNext && !window.reader.rendition.__readerpubCommitNextWrapped) {
-            window.reader.rendition.__readerpubCommitNextWrapped = true;
-            window.reader.rendition.next = function() {
-              const result = originalNext.apply(window.reader.rendition, arguments);
-              scheduleCommitSamples();
-              return result;
-            };
-          }
-          if (originalPrev && !window.reader.rendition.__readerpubCommitPrevWrapped) {
-            window.reader.rendition.__readerpubCommitPrevWrapped = true;
-            window.reader.rendition.prev = function() {
-              const result = originalPrev.apply(window.reader.rendition, arguments);
-              scheduleCommitSamples();
-              return result;
-            };
-          }
-        } catch (eWrapNavCommit) {}
       } catch (e0) {}
     })();
     });
@@ -750,7 +717,7 @@
 <script src="js/epub.js?v=20260418-reader1-vertical-padding-restore-1"></script>
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
-<script src="js/reader.js?v=20260427-reader1-position-commit-2"></script>
+<script src="js/reader.js?v=20260427-reader1-production-position-2"></script>
 <script src="js/fullscreen-fix.js"></script>
 <script src="js/fbreader-ui.js?v=20260427-reader1-desktop-selection-share-7"></script>
 <!-- Plugins -->
