@@ -5825,6 +5825,53 @@
       }
     }
 
+    function ensureToolbarForTouchSelection() {
+      try {
+        if (!isTouchSelectionMode()) return;
+        if (!state.locked || !state.doc || !state.range || !state.text) return;
+        state.dragSelecting = false;
+        showToolbarForCurrentSelection();
+        setDismissActive(true);
+      } catch (e) {}
+    }
+
+    function completePendingTouchToolbar() {
+      try {
+        if (!state.pendingTouchToolbar) return;
+        state.pendingTouchToolbar = false;
+        setTimeout(function () {
+          ensureToolbarForTouchSelection();
+        }, 0);
+      } catch (e) {}
+    }
+
+    function bindTouchToolbarReleaseFallback(doc) {
+      try {
+        if (!doc || doc.__fbTouchToolbarReleaseFallback) return;
+        doc.__fbTouchToolbarReleaseFallback = true;
+        var win = doc.defaultView || null;
+        var topDoc = null;
+        try { topDoc = win && win.parent && win.parent.document ? win.parent.document : null; } catch (eTopDoc) { topDoc = null; }
+        var onRelease = function () { completePendingTouchToolbar(); };
+        try { doc.addEventListener("touchend", onRelease, { capture: true, passive: true }); } catch (e1) {}
+        try { doc.addEventListener("touchcancel", onRelease, { capture: true, passive: true }); } catch (e2) {}
+        try { doc.addEventListener("pointerup", onRelease, { capture: true, passive: true }); } catch (e3) {}
+        try { doc.addEventListener("pointercancel", onRelease, { capture: true, passive: true }); } catch (e4) {}
+        if (win) {
+          try { win.addEventListener("touchend", onRelease, { capture: true, passive: true }); } catch (e5) {}
+          try { win.addEventListener("touchcancel", onRelease, { capture: true, passive: true }); } catch (e6) {}
+          try { win.addEventListener("pointerup", onRelease, { capture: true, passive: true }); } catch (e7) {}
+          try { win.addEventListener("pointercancel", onRelease, { capture: true, passive: true }); } catch (e8) {}
+        }
+        if (topDoc && topDoc !== doc) {
+          try { topDoc.addEventListener("touchend", onRelease, { capture: true, passive: true }); } catch (e9) {}
+          try { topDoc.addEventListener("touchcancel", onRelease, { capture: true, passive: true }); } catch (e10) {}
+          try { topDoc.addEventListener("pointerup", onRelease, { capture: true, passive: true }); } catch (e11) {}
+          try { topDoc.addEventListener("pointercancel", onRelease, { capture: true, passive: true }); } catch (e12) {}
+        }
+      } catch (e) {}
+    }
+
       function clearLongPress() {
         if (lpTimer) {
           try { clearTimeout(lpTimer); } catch (e) {}
@@ -5863,7 +5910,20 @@
           lpAnchorRect = rectFromRange(word);
           lpDir = 0;
           lpHasMeaningfulDrag = false;
-          if (word) applyCustomSelection(word, false);
+          if (word) {
+            applyCustomSelection(word, false);
+            state.pendingTouchToolbar = true;
+            bindTouchToolbarReleaseFallback(doc);
+            setTimeout(function () {
+              try {
+                if (!state.pendingTouchToolbar || lpHasMeaningfulDrag) return;
+                state.pendingTouchToolbar = false;
+                state.dragSelecting = false;
+                showToolbarForCurrentSelection();
+                setDismissActive(true);
+              } catch (eDeferredToolbar) {}
+            }, 260);
+          }
         }, 500);
       }
 
@@ -5920,15 +5980,20 @@
             if (!lpHasMeaningfulDrag && lpAnchorRange) {
               applyCustomSelection(lpAnchorRange, false);
             }
+            state.pendingTouchToolbar = false;
             showToolbarForCurrentSelection();
             setDismissActive(true);
           }
+        } else {
+          completePendingTouchToolbar();
+          ensureToolbarForTouchSelection();
         }
       }
 
       try { doc.addEventListener("touchstart", onTouchStart, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("touchmove", onTouchMove, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("touchend", onTouchEnd, { passive: false, capture: true }); } catch (e) {}
+      try { doc.addEventListener("touchcancel", onTouchEnd, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("pointerdown", function (e) {
         if (!e || e.pointerType !== "touch") return;
         onTouchStart(e);
@@ -5938,6 +6003,10 @@
         onTouchMove(e);
       }, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("pointerup", function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        onTouchEnd(e);
+      }, { passive: false, capture: true }); } catch (e) {}
+      try { doc.addEventListener("pointercancel", function (e) {
         if (!e || e.pointerType !== "touch") return;
         onTouchEnd(e);
       }, { passive: false, capture: true }); } catch (e) {}
