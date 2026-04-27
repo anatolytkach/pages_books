@@ -4946,7 +4946,9 @@
       shareUrlKey: "",
       shareUrl: "",
       shareUrlPromise: null,
-      shareUrlPending: false
+      shareUrlPending: false,
+      shareUrlAttempts: 0,
+      shareUrlTimer: null
     };
     var notePendingCfi = null;
 
@@ -6895,10 +6897,15 @@
     }
 
     function clearSelectionShareCache() {
+      try {
+        if (state.shareUrlTimer) clearTimeout(state.shareUrlTimer);
+      } catch (e0) {}
       state.shareUrlKey = "";
       state.shareUrl = "";
       state.shareUrlPromise = null;
       state.shareUrlPending = false;
+      state.shareUrlAttempts = 0;
+      state.shareUrlTimer = null;
       syncSelectionShareButtonState();
     }
 
@@ -6922,7 +6929,6 @@
         var ready = !!state.shareUrl;
         var pending = !!state.shareUrlPending;
         var disabled = gated && !ready;
-        btn.disabled = !!disabled;
         btn.classList.toggle("is-disabled", !!disabled);
         btn.classList.toggle("is-loading", !!(gated && pending && !ready));
         btn.setAttribute("aria-disabled", disabled ? "true" : "false");
@@ -6930,29 +6936,59 @@
       } catch (e) {}
     }
 
+    function scheduleSelectionSharePrewarm(delay) {
+      try {
+        if (state.shareUrlTimer || state.shareUrl) return;
+        state.shareUrlTimer = setTimeout(function () {
+          state.shareUrlTimer = null;
+          prewarmSelectionShareUrl();
+        }, delay || 250);
+      } catch (e) {}
+    }
+
     function prewarmSelectionShareUrl() {
       try {
+        if (state.shareUrlTimer) {
+          try { clearTimeout(state.shareUrlTimer); } catch (eTimer) {}
+          state.shareUrlTimer = null;
+        }
         if (!state.text) return;
-        var cfi = state.cfi || refreshSelectionCfiFromState();
-        if (!cfi) return;
+        var cfi = state.cfi || refreshSelectionCfiFromState() || getCurrentCfi();
+        if (!cfi) {
+          state.shareUrlPending = shouldGateMobileShareButton();
+          syncSelectionShareButtonState();
+          if (state.shareUrlAttempts < 20) {
+            state.shareUrlAttempts++;
+            scheduleSelectionSharePrewarm(250);
+          }
+          return;
+        }
         var key = selectionShareCacheKey(cfi, state.text);
         if (state.shareUrlKey === key && (state.shareUrl || state.shareUrlPromise)) return;
         state.shareUrlKey = key;
         state.shareUrl = "";
         state.shareUrlPending = true;
         syncSelectionShareButtonState();
+        state.shareUrlAttempts++;
         state.shareUrlPromise = createShortSelectionShare(cfi, state.text).then(function (url) {
           if (state.shareUrlKey === key) {
             state.shareUrl = url || "";
             state.shareUrlPending = false;
+            state.shareUrlAttempts = 0;
             syncSelectionShareButtonState();
           }
           return url || "";
         }).catch(function () {
           if (state.shareUrlKey === key) {
             state.shareUrlPromise = null;
-            state.shareUrlPending = false;
+            state.shareUrlPending = true;
             syncSelectionShareButtonState();
+            if (state.shareUrlAttempts < 10) {
+              scheduleSelectionSharePrewarm(Math.min(1500, 250 + state.shareUrlAttempts * 150));
+            } else {
+              state.shareUrlPending = false;
+              syncSelectionShareButtonState();
+            }
           }
           return "";
         });
@@ -7170,7 +7206,7 @@
         openUrl(qUrl);
       } else if (action === "share") {
         try {
-          var shareCfi = state.cfi || refreshSelectionCfiFromState();
+          var shareCfi = state.cfi || refreshSelectionCfiFromState() || getCurrentCfi();
           var fallbackShareUrl = buildSelectionShareUrl(shareCfi, text);
           if (isDesktopSelectionMode()) {
             if (!fallbackShareUrl) return;
