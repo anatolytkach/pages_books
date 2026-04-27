@@ -868,18 +868,9 @@
         var left = Math.max(0, Math.round((vw - centerW) / 2));
         try {
           if (__fb_isDesktop && !window.matchMedia("(pointer: coarse)").matches) {
-            var textBounds = getVisibleTextBounds();
-            if (textBounds) {
-              leftEdgeW = Math.max(0, Math.round(textBounds.left - vLeft));
-              rightEdgeW = Math.max(0, Math.round((vLeft + vw) - textBounds.right));
-            } else {
-              var stack = document.getElementById("viewerStack") || document.getElementById("viewer");
-              var sr = stack && stack.getBoundingClientRect ? stack.getBoundingClientRect() : null;
-              if (sr && sr.width > 0) {
-                leftEdgeW = Math.max(0, Math.round(sr.left - vLeft));
-                rightEdgeW = Math.max(0, Math.round((vLeft + vw) - sr.right));
-              }
-            }
+            var desktopEdgeW = Math.max(78, Math.min(120, Math.round(vw * 0.058)));
+            leftEdgeW = desktopEdgeW;
+            rightEdgeW = desktopEdgeW;
             left = leftEdgeW;
             centerW = Math.max(0, Math.round(vw - leftEdgeW - rightEdgeW));
           }

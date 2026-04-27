@@ -783,6 +783,7 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - Startup passes explicit CFI into `opts.previousLocationCfi`, then ordinary reading position is restored from localStorage on later reloads.
 - Incoming share/deep-link URLs are cleaned after the first confirmed relocation by removing `selectionCfi`, `selectionText`, and the CFI hash, leaving subsequent reloads to restore from saved reading position.
 - Initial cold render no longer overwrites the saved reading CFI before the first user interaction; this prevents refresh immediately after opening a private window from moving to a nearby spread/page.
+- Desktop page-turn arrow/tap zones no longer derive their width from transient text bounds; they use stable edge widths so the hit areas cannot jump or collapse to `0px` while paging.
 - Reader selection links now get server-rendered OG/Twitter preview metadata with ReaderPub, book title, author, cover image, and selected quote when the URL includes `selectionText`.
 - Selection links also include a short `selectionText` fallback so mobile-generated links can highlight by text when the CFI navigates correctly but resolves to a non-visible range.
 - `#reader1ViewStore` is explicitly hidden in CSS to avoid exposing the notes/view storage container during reload FOUC.
