@@ -3989,7 +3989,12 @@ export default {
       headers.set("pragma", "no-cache");
     }
 
-    const readerPreviewMeta = isHtml && (path === "/books/reader/" || path === "/books/reader/index.html")
+    const isReaderPreviewHtml =
+      path === "/books/reader/" ||
+      path === "/books/reader/index.html" ||
+      path === "/reader1/" ||
+      path === "/reader1/index.html";
+    const readerPreviewMeta = isHtml && isReaderPreviewHtml
       ? await resolveReaderPreviewMeta(env, url)
       : null;
     const readerPreviewMetaTags = buildReaderPreviewMetaTags(readerPreviewMeta);

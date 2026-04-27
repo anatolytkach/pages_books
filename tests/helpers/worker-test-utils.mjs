@@ -143,6 +143,7 @@ export class HTMLRewriterMock {
   constructor() {
     this.rules = [];
     this.attributeCalls = [];
+    this.appendCalls = [];
     HTMLRewriterMock.instances.push(this);
   }
 
@@ -155,6 +156,13 @@ export class HTMLRewriterMock {
     for (const rule of this.rules) {
       if (typeof rule.handlers?.element === "function") {
         rule.handlers.element({
+          append: (html, options = {}) => {
+            this.appendCalls.push({
+              selector: rule.selector,
+              html,
+              options,
+            });
+          },
           setAttribute: (name, value) => {
             this.attributeCalls.push({
               selector: rule.selector,

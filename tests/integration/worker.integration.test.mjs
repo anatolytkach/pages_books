@@ -220,6 +220,54 @@ test("Integration: html response skips HTMLRewriter when drive client id is empt
   assert.equal(HTMLRewriterMock.lastInstance(), null);
 });
 
+test("Integration: /reader1 selection links inject reader OG preview metadata", async (t) => {
+  HTMLRewriterMock.reset();
+  const restoreRewriter = patchGlobal("HTMLRewriter", HTMLRewriterMock);
+  t.after(restoreRewriter);
+
+  const assets = createAssetsMock({
+    body: "<html><head></head><body>reader</body></html>",
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "api/book-locations/99.json": createR2Object({
+        body: JSON.stringify({
+          items: {
+            "1399": {
+              title: "Anna Karenina",
+              author: "Tolstoy, Leo graf",
+              cover: "/books/content/1399/OEBPS/cover.jpg",
+            },
+          },
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ ASSETS: assets, READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://books-staging.reader.pub/reader1/?id=1399&selectionText=Everything+was+in+confusion",
+    env,
+  });
+  const rewriter = HTMLRewriterMock.lastInstance();
+
+  assert.equal(response.status, 200);
+  assert.ok(rewriter);
+  assert.equal(assets.calls[0], "https://books-staging.reader.pub/reader1/?id=1399&selectionText=Everything+was+in+confusion");
+  assert.deepEqual(bucket.calls, [
+    "api/book-locations/99.json",
+    "api/book-locations/gutenberg/99.json",
+  ]);
+  assert.equal(rewriter.appendCalls.length, 1);
+  assert.equal(rewriter.appendCalls[0].selector, "head");
+  assert.equal(rewriter.appendCalls[0].options.html, true);
+  assert.match(rewriter.appendCalls[0].html, /property="og:title" content="Anna Karenina"/);
+  assert.match(rewriter.appendCalls[0].html, /property="og:description" content="by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
+  assert.match(rewriter.appendCalls[0].html, /property="og:image" content="https:\/\/books-staging\.reader\.pub\/books\/content\/1399\/OEBPS\/cover\.jpg"/);
+  assert.match(rewriter.appendCalls[0].html, /name="twitter:card" content="summary"/);
+});
+
 test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () => {
   const bucket = createR2Bucket({
     objectsByKey: {

@@ -564,7 +564,12 @@ const server = http.createServer(async (req, res) => {
     });
   }
   const readerPreviewMeta =
-    (pathname === "/books/reader/" || pathname === "/books/reader/index.html")
+    (
+      pathname === "/books/reader/" ||
+      pathname === "/books/reader/index.html" ||
+      pathname === "/reader1/" ||
+      pathname === "/reader1/index.html"
+    )
       ? await resolveReaderPreviewMeta(url)
       : null;
   return serveFile(res, routed.file, routed.route, {}, { readerPreviewMeta });
