@@ -4945,7 +4945,8 @@
       dragSelecting: false,
       shareUrlKey: "",
       shareUrl: "",
-      shareUrlPromise: null
+      shareUrlPromise: null,
+      shareUrlPending: false
     };
     var notePendingCfi = null;
 
@@ -6897,6 +6898,36 @@
       state.shareUrlKey = "";
       state.shareUrl = "";
       state.shareUrlPromise = null;
+      state.shareUrlPending = false;
+      syncSelectionShareButtonState();
+    }
+
+    function getSelectionShareButton() {
+      try { return toolbar ? toolbar.querySelector('[data-action="share"]') : null; } catch (e) {}
+      return null;
+    }
+
+    function shouldGateMobileShareButton() {
+      try {
+        return !isDesktopSelectionMode() && !!navigator.share;
+      } catch (e) {}
+      return false;
+    }
+
+    function syncSelectionShareButtonState() {
+      try {
+        var btn = getSelectionShareButton();
+        if (!btn) return;
+        var gated = shouldGateMobileShareButton();
+        var ready = !!state.shareUrl;
+        var pending = !!state.shareUrlPending;
+        var disabled = gated && !ready;
+        btn.disabled = !!disabled;
+        btn.classList.toggle("is-disabled", !!disabled);
+        btn.classList.toggle("is-loading", !!(gated && pending && !ready));
+        btn.setAttribute("aria-disabled", disabled ? "true" : "false");
+        btn.setAttribute("aria-label", disabled ? "Preparing share link" : "Share");
+      } catch (e) {}
     }
 
     function prewarmSelectionShareUrl() {
@@ -6908,11 +6939,21 @@
         if (state.shareUrlKey === key && (state.shareUrl || state.shareUrlPromise)) return;
         state.shareUrlKey = key;
         state.shareUrl = "";
+        state.shareUrlPending = true;
+        syncSelectionShareButtonState();
         state.shareUrlPromise = createShortSelectionShare(cfi, state.text).then(function (url) {
-          if (state.shareUrlKey === key) state.shareUrl = url || "";
+          if (state.shareUrlKey === key) {
+            state.shareUrl = url || "";
+            state.shareUrlPending = false;
+            syncSelectionShareButtonState();
+          }
           return url || "";
         }).catch(function () {
-          if (state.shareUrlKey === key) state.shareUrlPromise = null;
+          if (state.shareUrlKey === key) {
+            state.shareUrlPromise = null;
+            state.shareUrlPending = false;
+            syncSelectionShareButtonState();
+          }
           return "";
         });
       } catch (e) {}
@@ -7140,16 +7181,17 @@
               });
             }).catch(function () {});
           } else if (navigator.share) {
-            var mobileShareUrl = getPrewarmedSelectionShareUrl(shareCfi, text) || fallbackShareUrl;
+            var mobileShareUrl = getPrewarmedSelectionShareUrl(shareCfi, text);
+            if (!mobileShareUrl) {
+              prewarmSelectionShareUrl();
+              return;
+            }
             var sharePayload = { text: text };
-            if (mobileShareUrl) sharePayload.url = mobileShareUrl;
+            sharePayload.url = mobileShareUrl;
             navigator.share(sharePayload).catch(function () {
-              var fallbackText = mobileShareUrl ? (text + "\n\n" + mobileShareUrl) : text;
+              var fallbackText = text + "\n\n" + mobileShareUrl;
               return copySelectionText(fallbackText).catch(function () {});
             }).catch(function () {});
-            if (!getPrewarmedSelectionShareUrl(shareCfi, text)) {
-              prewarmSelectionShareUrl();
-            }
           } else {
             getSelectionShareUrl(shareCfi, text, fallbackShareUrl).then(function (shareUrl) {
               var shareText = shareUrl ? (text + "\n\n" + shareUrl) : text;
@@ -7175,6 +7217,7 @@
       while (node && depth < 6) {
         try {
           if (node.getAttribute && node.getAttribute("data-action")) {
+            if (node.disabled || node.getAttribute("aria-disabled") === "true") return null;
             return node.getAttribute("data-action");
           }
         } catch (e1) {}
@@ -7188,6 +7231,7 @@
             var el = path[i];
             try {
               if (el && el.getAttribute && el.getAttribute("data-action")) {
+                if (el.disabled || el.getAttribute("aria-disabled") === "true") return null;
                 return el.getAttribute("data-action");
               }
             } catch (e3) {}

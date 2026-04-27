@@ -3179,6 +3179,18 @@ body.dark-ui .tap-zone:active { background: rgba(136,136,136,0.28) !important; }
   gap: 0;
   border-radius: 8px;
 }
+.selection-toolbar .sel-btn.is-disabled,
+.selection-toolbar .sel-btn:disabled{
+  opacity: .42;
+  cursor: default;
+}
+.selection-toolbar .sel-btn.is-loading .sel-icon{
+  animation: selectionSharePulse .75s ease-in-out infinite alternate;
+}
+@keyframes selectionSharePulse{
+  from{ opacity: .45; }
+  to{ opacity: .9; }
+}
 .selection-toolbar .sel-icon{
   width: 24px;
   height: 24px;
