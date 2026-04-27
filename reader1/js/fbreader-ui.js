@@ -4948,7 +4948,17 @@
       shareUrlPromise: null,
       shareUrlPending: false,
       shareUrlAttempts: 0,
-      shareUrlTimer: null
+      shareUrlTimer: null,
+      shareUrlLastEndpoint: "",
+      shareUrlLastStatus: "",
+      shareUrlLastError: "",
+      shareUrlLastBody: null,
+      shareUrlLastPayload: null,
+      shareUrlLastUpdatedAt: 0,
+      lastToolbarAction: "",
+      lastToolbarActionAt: 0,
+      lastCopyValue: "",
+      lastCopyAt: 0
     };
     var notePendingCfi = null;
 
@@ -5474,7 +5484,7 @@
       state.text = text;
       state.cfi = cfi;
       state.href = href;
-      clearSelectionShareCache();
+      resetSelectionShareIfChanged(cfi, text);
       prewarmSelectionShareUrl();
 
       // Desktop: use native selection highlight.
@@ -5509,7 +5519,7 @@
         state.text = text;
         state.cfi = cfi;
         state.href = href;
-        clearSelectionShareCache();
+        resetSelectionShareIfChanged(cfi, text);
         prewarmSelectionShareUrl();
 
         showToolbarAt(doc, range);
@@ -5844,7 +5854,7 @@
         if (contents && contents.cfiFromRange) state.cfi = contents.cfiFromRange(range);
         if (contents && contents.section && contents.section.href) state.href = contents.section.href;
       } catch (e) {}
-      clearSelectionShareCache();
+      resetSelectionShareIfChanged(state.cfi, state.text);
       prewarmSelectionShareUrl();
       applyMark(doc, range);
       if (showToolbar) {
@@ -6736,6 +6746,10 @@
       var txt = String(value || "");
       if (!txt) return Promise.reject(new Error("No text to copy"));
       try {
+        state.lastCopyValue = txt;
+        state.lastCopyAt = Date.now();
+      } catch (eCopyState) {}
+      try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           return navigator.clipboard.writeText(txt).catch(function () {
             return fallbackCopySelectionText(txt);
@@ -6769,7 +6783,7 @@
     }
 
     function showSelectionToast(message) {
-      if (!isDesktopSelectionMode()) return;
+      if (!window.__fb_isDesktop) return;
       try {
         var toast = document.getElementById("selectionCopyToast");
         if (!toast) {
@@ -6828,12 +6842,23 @@
       return "";
     }
 
+    function getSelectionBookId() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        var id = u.searchParams.get("id") || u.searchParams.get("i");
+        if (id) return String(id);
+      } catch (e0) {}
+      return "";
+    }
+
     function getSelectionShareCreateEndpoints() {
       var endpoints = [
         "/books/api/ss",
         "/api/ss",
+        "/books/reader1/api/ss",
         "/books/api/selection-share",
-        "/api/selection-share"
+        "/api/selection-share",
+        "/books/reader1/api/selection-share"
       ];
       try {
         var host = String(window.location.hostname || "").toLowerCase();
@@ -6854,32 +6879,46 @@
     function createShortSelectionShare(cfi, text) {
       if (!cfi) return Promise.reject(new Error("missing selection cfi"));
       var body = {
-        bookId: getCurrentBookId(),
+        bookId: getSelectionBookId(),
         source: getCurrentBookSource(),
         selectionCfi: cfi,
         selectionText: normalizeInlineText(text || "").slice(0, 500)
       };
+      state.shareUrlLastPayload = body;
       if (!body.bookId) return Promise.reject(new Error("missing book id"));
       var endpoints = getSelectionShareCreateEndpoints();
       var idx = 0;
       var tryNext = function () {
-        if (idx >= endpoints.length) return Promise.reject(new Error("selection share create failed"));
+        if (idx >= endpoints.length) {
+          state.shareUrlLastUpdatedAt = Date.now();
+          return Promise.reject(new Error("selection share create failed"));
+        }
         var endpoint = endpoints[idx++];
+        state.shareUrlLastEndpoint = endpoint;
+        state.shareUrlLastStatus = "pending";
+        state.shareUrlLastError = "";
+        state.shareUrlLastUpdatedAt = Date.now();
         return fetch(endpoint, {
           method: "POST",
           headers: { "content-type": "application/json; charset=utf-8" },
           credentials: "same-origin",
           body: JSON.stringify(body)
         }).then(function (resp) {
-          if (!resp || !resp.ok) throw new Error("selection share create failed");
+          state.shareUrlLastStatus = resp ? String(resp.status || "") : "no-response";
+          state.shareUrlLastUpdatedAt = Date.now();
+          if (!resp || !resp.ok) throw new Error("selection share create failed: " + state.shareUrlLastStatus);
           return resp.json();
         }).then(function (data) {
+          state.shareUrlLastBody = data || null;
+          state.shareUrlLastUpdatedAt = Date.now();
           var url = data && data.url ? String(data.url) : "";
           if (url) return url;
           var shareId = data && data.shareId ? String(data.shareId) : "";
           if (!shareId) throw new Error("missing share id");
           return new URL("/s/" + encodeURIComponent(shareId), window.location.origin).toString();
-        }).catch(function () {
+        }).catch(function (error) {
+          state.shareUrlLastError = error && error.message ? error.message : String(error || "");
+          state.shareUrlLastUpdatedAt = Date.now();
           return tryNext();
         });
       };
@@ -6906,7 +6945,24 @@
       state.shareUrlPending = false;
       state.shareUrlAttempts = 0;
       state.shareUrlTimer = null;
+      state.shareUrlLastEndpoint = "";
+      state.shareUrlLastStatus = "";
+      state.shareUrlLastError = "";
+      state.shareUrlLastBody = null;
+      state.shareUrlLastPayload = null;
+      state.shareUrlLastUpdatedAt = 0;
       syncSelectionShareButtonState();
+    }
+
+    function resetSelectionShareIfChanged(cfi, text) {
+      try {
+        var key = selectionShareCacheKey(cfi || "", text || "");
+        if (key && state.shareUrlKey === key && (state.shareUrl || state.shareUrlPromise || state.shareUrlPending)) {
+          syncSelectionShareButtonState();
+          return;
+        }
+      } catch (e) {}
+      clearSelectionShareCache();
     }
 
     function getSelectionShareButton() {
@@ -6916,7 +6972,7 @@
 
     function shouldGateMobileShareButton() {
       try {
-        return !isDesktopSelectionMode() && !!navigator.share;
+        return !window.__fb_isDesktop && isTouchSelectionMode() && !!navigator.share;
       } catch (e) {}
       return false;
     }
@@ -7002,6 +7058,68 @@
       } catch (e) {}
       return "";
     }
+
+    function installSelectionShareDebugHooks() {
+      try {
+        window.__readerpubSelectionShareDebug = {
+          status: function () {
+            var cfi = "";
+            try { cfi = state.cfi || refreshSelectionCfiFromState() || getCurrentCfi() || ""; } catch (e0) {}
+            var btn = getSelectionShareButton();
+            return {
+              text: state.text || "",
+              cfi: cfi,
+              stateCfi: state.cfi || "",
+              currentCfi: (function () { try { return getCurrentCfi() || ""; } catch (e1) { return ""; } })(),
+              bookId: getSelectionBookId(),
+              source: getCurrentBookSource(),
+              shareUrl: state.shareUrl || "",
+              shareUrlKey: state.shareUrlKey || "",
+              pending: !!state.shareUrlPending,
+              attempts: state.shareUrlAttempts || 0,
+              hasTimer: !!state.shareUrlTimer,
+              lastEndpoint: state.shareUrlLastEndpoint || "",
+              lastStatus: state.shareUrlLastStatus || "",
+              lastError: state.shareUrlLastError || "",
+              lastBody: state.shareUrlLastBody || null,
+              lastPayload: state.shareUrlLastPayload || null,
+              lastUpdatedAt: state.shareUrlLastUpdatedAt || 0,
+              lastToolbarAction: state.lastToolbarAction || "",
+              lastToolbarActionAt: state.lastToolbarActionAt || 0,
+              lastCopyValue: state.lastCopyValue || "",
+              lastCopyAt: state.lastCopyAt || 0,
+              gated: shouldGateMobileShareButton(),
+              mobileGated: shouldGateMobileShareButton(),
+              buttonAriaDisabled: btn ? btn.getAttribute("aria-disabled") : "",
+              buttonClass: btn ? btn.className : ""
+            };
+          },
+          prewarm: function () {
+            prewarmSelectionShareUrl();
+            return this.status();
+          },
+          clear: function () {
+            clearSelectionShareCache();
+            return this.status();
+          },
+          createNow: function () {
+            var cfi = state.cfi || refreshSelectionCfiFromState() || getCurrentCfi() || "";
+            return createShortSelectionShare(cfi, state.text || "").then(function (url) {
+              state.shareUrl = url || "";
+              state.shareUrlPending = false;
+              syncSelectionShareButtonState();
+              return window.__readerpubSelectionShareDebug.status();
+            }).catch(function (error) {
+              state.shareUrlLastError = error && error.message ? error.message : String(error || "");
+              syncSelectionShareButtonState();
+              return window.__readerpubSelectionShareDebug.status();
+            });
+          }
+        };
+      } catch (e) {}
+    }
+
+    installSelectionShareDebugHooks();
 
     function getIncomingSelectionCfi() {
       try {
@@ -7155,6 +7273,10 @@
     }
 
     function handleAction(action) {
+      try {
+        state.lastToolbarAction = String(action || "");
+        state.lastToolbarActionAt = Date.now();
+      } catch (eActionState) {}
       var text = state.text || "";
       if (!text) { hideAndClear(); return; }
 
@@ -7208,13 +7330,16 @@
         try {
           var shareCfi = state.cfi || refreshSelectionCfiFromState() || getCurrentCfi();
           var fallbackShareUrl = buildSelectionShareUrl(shareCfi, text);
-          if (isDesktopSelectionMode()) {
+          if (window.__fb_isDesktop) {
             if (!fallbackShareUrl) return;
-            getSelectionShareUrl(shareCfi, text, fallbackShareUrl).then(function (shareUrl) {
-              if (!shareUrl) return;
-              return copySelectionText(shareUrl).then(function () {
+            var desktopShareUrl = getPrewarmedSelectionShareUrl(shareCfi, text);
+            if (!desktopShareUrl) {
+              prewarmSelectionShareUrl();
+              showSelectionToast("Preparing link");
+              return;
+            }
+            copySelectionText(desktopShareUrl).then(function () {
                 showSelectionToast("Link copied");
-              });
             }).catch(function () {});
           } else if (navigator.share) {
             var mobileShareUrl = getPrewarmedSelectionShareUrl(shareCfi, text);
@@ -7230,7 +7355,8 @@
             }).catch(function () {});
           } else {
             getSelectionShareUrl(shareCfi, text, fallbackShareUrl).then(function (shareUrl) {
-              var shareText = shareUrl ? (text + "\n\n" + shareUrl) : text;
+              if (!shareUrl) return;
+              var shareText = text + "\n\n" + shareUrl;
               return copySelectionText(shareText).catch(function () {});
             }).catch(function () {});
           }

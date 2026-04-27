@@ -790,6 +790,7 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - Mobile selection share keeps `navigator.share()` inside the tap gesture by prewarming short URLs before the Share button is pressed; this avoids losing Web Share API user activation.
 - Mobile selection Share is now gated until the short `/s/<id>` URL is ready, so system share never falls back to sending the long selection URL.
 - Short-link prewarm now retries while selection CFI/API creation is not ready and falls back to current reader CFI plus `selectionText`, preventing the mobile Share button from staying inactive.
+- Selection short-link creation now uses a toolbar-local book id helper, preserves prepared links across unchanged selection updates, and exposes `window.__readerpubSelectionShareDebug` for staging/mobile diagnostics.
 - Selection links also include a short `selectionText` fallback so mobile-generated links can highlight by text when the CFI navigates correctly but resolves to a non-visible range.
 - `#reader1ViewStore` is explicitly hidden in CSS to avoid exposing the notes/view storage container during reload FOUC.
 - Added inline mark styling and bumped the `fbreader-ui.js` cache key in `reader1/index.html`.
