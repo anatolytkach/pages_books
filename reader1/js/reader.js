@@ -3338,6 +3338,18 @@ function applyThemeToIframes(themeName) {
     }
   } catch (e) {}
 }
+function applyReaderLayoutToIframes(themeName) {
+  try { applyThemeToIframes(themeName); } catch (eTheme) {}
+  try {
+    var list = document.querySelectorAll("#viewerStack iframe, #viewer iframe, #viewer-prev iframe, #viewer-next iframe");
+    for (var i = 0; i < list.length; i++) {
+      try {
+        var doc = list[i] && list[i].contentDocument ? list[i].contentDocument : null;
+        if (doc && window.__fbApplyDesktopBarFields) window.__fbApplyDesktopBarFields(doc);
+      } catch (eDoc) {}
+    }
+  } catch (e) {}
+}
 	var plugin;
 	var $viewer = $("#viewer");
 	var search = window.location.search;
@@ -3601,6 +3613,8 @@ function applyThemeToIframes(themeName) {
 		this.renditionPrev.on("rendered", function(section, view){
 			try {
 				try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
+				try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutPrevRendered) {}
+				try { setTimeout(function(){ try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutPrevRenderedLater) {} }, 0); } catch(eLayoutPrevTimer) {}
 				try {
 					var baseKey = self._neighborBaseKeyExpected || "";
 					var token = self._neighborPrevExpected || 0;
@@ -3615,6 +3629,8 @@ function applyThemeToIframes(themeName) {
 		this.renditionNext.on("rendered", function(section, view){
 			try {
 				try { var d=(view && (view.document || (view.contents && view.contents.document))) || null; attachUiTapToDoc(d); } catch(eu) {}
+				try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutNextRendered) {}
+				try { setTimeout(function(){ try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutNextRenderedLater) {} }, 0); } catch(eLayoutNextTimer) {}
 				try {
 					var baseKey = self._neighborBaseKeyExpected || "";
 					var token = self._neighborNextExpected || 0;
@@ -3628,6 +3644,8 @@ function applyThemeToIframes(themeName) {
 		});
 		this.renditionPrev.on("relocated", function(location){
 			try {
+				try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutPrevRelocated) {}
+				try { setTimeout(function(){ try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutPrevRelocatedLater) {} }, 0); } catch(eLayoutPrevRelocatedTimer) {}
 				var baseKey = self._neighborBaseKeyExpected || "";
 				var token = self._neighborPrevExpected || 0;
 				var locKey = location && location.start && location.start.cfi ? String(location.start.cfi) : "";
@@ -3637,6 +3655,8 @@ function applyThemeToIframes(themeName) {
 		});
 		this.renditionNext.on("relocated", function(location){
 			try {
+				try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutNextRelocated) {}
+				try { setTimeout(function(){ try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutNextRelocatedLater) {} }, 0); } catch(eLayoutNextRelocatedTimer) {}
 				var baseKey = self._neighborBaseKeyExpected || "";
 				var token = self._neighborNextExpected || 0;
 				var locKey = location && location.start && location.start.cfi ? String(location.start.cfi) : "";
@@ -4904,6 +4924,7 @@ function attachSwipeToDoc(doc) {
 							// Ensure neighbor views use current layout dimensions (prevents mismatched pagination).
 							try { reader.renditionPrev && reader.renditionPrev.resize && reader.renditionPrev.resize(); } catch(e3) {}
 							try { reader.renditionNext && reader.renditionNext.resize && reader.renditionNext.resize(); } catch(e4) {}
+							try { applyReaderLayoutToIframes(reader.currentTheme || "light"); } catch(e5) {}
 						} catch (e) {}
 					}
 
@@ -5202,9 +5223,6 @@ function attachSwipeToDoc(doc) {
 								!!isNext
 							));
 						} catch (eReady) {}
-						if (!canRevealUnderlay && !isDesktopReader) {
-							try { canRevealUnderlay = hasRenderableNeighborLayer(!!isNext); } catch (eReadyDom) {}
-						}
 						if (canRevealUnderlay) {
 							setReveal(startDx || (isNext ? -1 : 1));
 							try {
@@ -5406,7 +5424,7 @@ function attachSwipeToDoc(doc) {
 									)
 								);
 							} catch (eReadyNow) {}
-							state.waitingNeighbors = !isTabletMode() && !neighborsReadyNow;
+							state.waitingNeighbors = !neighborsReadyNow;
 							if (state.waitingNeighbors) {
 								ensureNeighborsReady().then(function(){
 									state.waitingNeighbors = false;
@@ -5779,6 +5797,16 @@ function attachSwipeToDoc(doc) {
 				}
 				if (!curCfi) return;
 				reader._neighborBaseKeyExpected = String(curCfi);
+				try {
+					var fs = (reader.settings && reader.settings.styles && reader.settings.styles.fontSize) ? reader.settings.styles.fontSize : null;
+					if (fs) {
+						try { reader.renditionPrev.themes.fontSize(fs); } catch(eFsPrev) {}
+						try { reader.renditionNext.themes.fontSize(fs); } catch(eFsNext) {}
+					}
+					try { reader.renditionPrev.resize && reader.renditionPrev.resize(); } catch(eResizePrev) {}
+					try { reader.renditionNext.resize && reader.renditionNext.resize(); } catch(eResizeNext) {}
+					try { applyReaderLayoutToIframes(reader.currentTheme || "light"); } catch(eThemeBefore) {}
+				} catch (eSyncBefore) {}
 
 				// Tokenize to avoid races when fast-swiping.
 				reader._neighborPrevReady = false;
@@ -5798,7 +5826,17 @@ function attachSwipeToDoc(doc) {
 						if (reader._neighborPrevExpected !== tokPrev) return;
 						return reader.renditionPrev.prev();
 					})
-					.then(function(){})
+					.then(function(){
+						if (reader._neighborPrevExpected !== tokPrev) return;
+						try { applyReaderLayoutToIframes(reader.currentTheme || "light"); } catch(eThemePrev) {}
+						try {
+							var loc = reader.renditionPrev && reader.renditionPrev.currentLocation ? reader.renditionPrev.currentLocation() : null;
+							var locKey = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
+							if (locKey && locKey !== baseKey && reader.__markNeighborReady) {
+								reader.__markNeighborReady("prev", tokPrev, baseKey);
+							}
+						} catch (eReadyPrev) {}
+					})
 					.catch(function(){});
 
 				Promise.resolve(reader.renditionNext.display(curCfi))
@@ -5806,7 +5844,17 @@ function attachSwipeToDoc(doc) {
 						if (reader._neighborNextExpected !== tokNext) return;
 						return reader.renditionNext.next();
 					})
-					.then(function(){})
+					.then(function(){
+						if (reader._neighborNextExpected !== tokNext) return;
+						try { applyReaderLayoutToIframes(reader.currentTheme || "light"); } catch(eThemeNext) {}
+						try {
+							var loc = reader.renditionNext && reader.renditionNext.currentLocation ? reader.renditionNext.currentLocation() : null;
+							var locKey = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
+							if (locKey && locKey !== baseKey && reader.__markNeighborReady) {
+								reader.__markNeighborReady("next", tokNext, baseKey);
+							}
+						} catch (eReadyNext) {}
+					})
 					.catch(function(){});
 			} catch (e) {}
 		}
@@ -5843,7 +5891,7 @@ try {
           try { f.style.setProperty("background-color", bg, "important"); } catch(e1) {}
         }
         if (f && f.contentDocument) {
-          try { applyThemeToDoc(f.contentDocument, t); } catch(e2) {}
+          try { applyReaderLayoutToIframes(t); } catch(e2) {}
           attachToDoc(f.contentDocument);
         }
       }

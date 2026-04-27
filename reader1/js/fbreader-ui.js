@@ -285,15 +285,33 @@
       var root = document.documentElement;
       var topField = enabled ? (root.style.getPropertyValue("--fb-desktop-top-field") || "0px") : "0px";
       var bottomField = enabled ? (root.style.getPropertyValue("--fb-desktop-bottom-field") || "0px") : "0px";
-      var visualCorrection = 0;
-      if (enabled) {
+      if (!enabled) {
+        var restoreMobileEpubPadding = false;
         try {
-          var bodyStyle = doc.defaultView && doc.defaultView.getComputedStyle ? doc.defaultView.getComputedStyle(doc.body) : null;
-          var fontSize = bodyStyle ? (parseFloat(bodyStyle.fontSize) || 0) : 0;
-          var lineHeight = bodyStyle ? (parseFloat(bodyStyle.lineHeight) || 0) : 0;
-          if (fontSize > 0 && lineHeight > fontSize) visualCorrection = Math.min(12, Math.max(0, (lineHeight - fontSize) / 2));
-        } catch (eCorrection) {}
+          restoreMobileEpubPadding = !!(
+            isTabletViewport() ||
+            isMobileViewport() ||
+            (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches)
+          );
+        } catch (eMobilePad) {}
+        try { doc.documentElement.style.setProperty("--fb-desktop-top-field", "0px"); } catch (eTopOffVar) {}
+        try { doc.documentElement.style.setProperty("--fb-desktop-bottom-field", "0px"); } catch (eBottomOffVar) {}
+        if (restoreMobileEpubPadding) {
+          try { doc.body.style.setProperty("padding-top", "20px", "important"); } catch (eTopMobilePad) {}
+          try { doc.body.style.setProperty("padding-bottom", "20px", "important"); } catch (eBottomMobilePad) {}
+        } else {
+          try { doc.body.style.removeProperty("padding-top"); } catch (eTopOffPad) {}
+          try { doc.body.style.removeProperty("padding-bottom"); } catch (eBottomOffPad) {}
+        }
+        return;
       }
+      var visualCorrection = 0;
+      try {
+        var bodyStyle = doc.defaultView && doc.defaultView.getComputedStyle ? doc.defaultView.getComputedStyle(doc.body) : null;
+        var fontSize = bodyStyle ? (parseFloat(bodyStyle.fontSize) || 0) : 0;
+        var lineHeight = bodyStyle ? (parseFloat(bodyStyle.lineHeight) || 0) : 0;
+        if (fontSize > 0 && lineHeight > fontSize) visualCorrection = Math.min(12, Math.max(0, (lineHeight - fontSize) / 2));
+      } catch (eCorrection) {}
       var topPx = Math.max(0, (parseFloat(topField) || 0) - visualCorrection) + "px";
       var bottomPx = Math.max(0, (parseFloat(bottomField) || 0) - visualCorrection) + "px";
       try { doc.documentElement.style.setProperty("--fb-desktop-top-field", topField); } catch (eTopVar) {}
