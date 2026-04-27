@@ -7971,17 +7971,16 @@ async function handleAction(action) {
     }
     if (action === "search" || action === "translate" || action === "share") {
       if (action === "share" && shouldUseNativeSelectionShare()) {
-        const cachedCapture = HOST_STATE.cachedSelectionActionState || await primeSelectionActionState();
-        const selectionText = cachedCapture && cachedCapture.clipboardText ? String(cachedCapture.clipboardText) : "";
-        if (!selectionText) {
-          setHostActionStatus("Create a non-empty selection first.");
-          hideSelectionToolbar();
-          return;
-        }
         const shareUrl = HOST_STATE.selectionShare && HOST_STATE.selectionShare.shareUrl
           ? HOST_STATE.selectionShare.shareUrl
-          : await getProtectedSelectionShareUrl(cachedCapture);
-        if (!shareUrl) throw new Error("Unable to create share link.");
+          : "";
+        if (!shareUrl) {
+          const cachedCapture = HOST_STATE.cachedSelectionActionState;
+          if (cachedCapture && cachedCapture.hasSelection) prewarmProtectedSelectionShare(cachedCapture);
+          setHostActionStatus("Preparing link.");
+          updateProtectedSelectionShareButtonState();
+          return;
+        }
         try {
           navigator.share({ url: shareUrl }).then(() => {
             setHostActionStatus("Link shared.");
@@ -8041,7 +8040,10 @@ async function handleAction(action) {
 
   function toolbarActionFromEvent(event) {
     const direct = event && event.target && event.target.closest ? event.target.closest("[data-action]") : null;
-    if (direct) return direct.getAttribute("data-action");
+    if (direct) {
+      if (direct.disabled || direct.getAttribute("aria-disabled") === "true") return "";
+      return direct.getAttribute("data-action");
+    }
     return "";
   }
 
