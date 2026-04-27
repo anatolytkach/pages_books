@@ -2837,7 +2837,7 @@ input:-ms-placeholder {
 #settingsPanel .large {  font-size:large; }
 #settingsPanel .xlarge {  font-size:x-large; }
 
-.highlight { background-color: #61c2fa }
+.highlight { background-color: var(--fb-selection-bg, rgba(165,244,236,0.72)); }
 
 .modal {
   position: fixed;
@@ -5657,15 +5657,15 @@ html.is-ios #addressBarToggle {
 }
 
 /* Highlight style inside rendition documents */
-.epubjs-hl.search-match { background: #61c2fa; }
+.epubjs-hl.search-match { background: var(--fb-selection-bg, rgba(165,244,236,0.72)); }
 
 /* epub.js highlight SVG (some engines ignore background on .epubjs-hl) */
 .search-match, .search-match rect {
-  fill: #61c2fa !important;
+  fill: var(--fb-selection-bg, rgba(165,244,236,0.72)) !important;
   fill-opacity: 1 !important; opacity: 1 !important;
 }
 /* Text-only highlight (no rectangles) */
-.search-match-text { color: #61c2fa !important; background: transparent !important; }
+.search-match-text { color: inherit !important; background: var(--fb-selection-bg, rgba(165,244,236,0.72)) !important; }
 
 
 /* iOS: prevent input focus zoom / horizontal pan from expanding bars */

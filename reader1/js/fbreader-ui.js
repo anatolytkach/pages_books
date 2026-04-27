@@ -261,6 +261,79 @@
   }
 
   // -------- UI bars --------
+  function isUnifiedOverlayShell() {
+    try {
+      return !!(document.body && document.body.classList && document.body.classList.contains("reader1-unified-shell"));
+    } catch (e) {}
+    return false;
+  }
+
+  function shouldUseDesktopBarFields() {
+    try {
+      if (!isUnifiedOverlayShell()) return false;
+      if (isTabletViewport() || isMobileViewport()) return false;
+      if (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) return false;
+      return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function applyDesktopBarFieldsToDoc(doc) {
+    try {
+      if (!doc || !doc.documentElement || !doc.body) return;
+      var enabled = shouldUseDesktopBarFields();
+      var root = document.documentElement;
+      var topField = enabled ? (root.style.getPropertyValue("--fb-desktop-top-field") || "0px") : "0px";
+      var bottomField = enabled ? (root.style.getPropertyValue("--fb-desktop-bottom-field") || "0px") : "0px";
+      var visualCorrection = 0;
+      if (enabled) {
+        try {
+          var bodyStyle = doc.defaultView && doc.defaultView.getComputedStyle ? doc.defaultView.getComputedStyle(doc.body) : null;
+          var fontSize = bodyStyle ? (parseFloat(bodyStyle.fontSize) || 0) : 0;
+          var lineHeight = bodyStyle ? (parseFloat(bodyStyle.lineHeight) || 0) : 0;
+          if (fontSize > 0 && lineHeight > fontSize) visualCorrection = Math.min(12, Math.max(0, (lineHeight - fontSize) / 2));
+        } catch (eCorrection) {}
+      }
+      var topPx = Math.max(0, (parseFloat(topField) || 0) - visualCorrection) + "px";
+      var bottomPx = Math.max(0, (parseFloat(bottomField) || 0) - visualCorrection) + "px";
+      try { doc.documentElement.style.setProperty("--fb-desktop-top-field", topField); } catch (eTopVar) {}
+      try { doc.documentElement.style.setProperty("--fb-desktop-bottom-field", bottomField); } catch (eBottomVar) {}
+      try { doc.body.style.setProperty("padding-top", topPx, "important"); } catch (eTopPad) {}
+      try { doc.body.style.setProperty("padding-bottom", bottomPx, "important"); } catch (eBottomPad) {}
+    } catch (e) {}
+  }
+
+  function applyDesktopBarFields(topH, bottomH) {
+    try {
+      var enabled = shouldUseDesktopBarFields();
+      var topField = enabled ? ((topH || 0) * 1.05) + "px" : "0px";
+      var bottomField = enabled ? ((bottomH || 0) * 1.05) + "px" : "0px";
+      var root = document.documentElement;
+      root.style.setProperty("--fb-desktop-top-field", topField);
+      root.style.setProperty("--fb-desktop-bottom-field", bottomField);
+      var list = document.querySelectorAll("#viewerStack iframe, #viewer iframe, #viewer-prev iframe, #viewer-next iframe, #reader-pagecalc-host iframe");
+      for (var i = 0; i < list.length; i++) {
+        try { applyDesktopBarFieldsToDoc(list[i].contentDocument); } catch (eDoc) {}
+      }
+    } catch (e) {}
+  }
+
+  try {
+    window.__fbApplyDesktopBarFields = function (doc) {
+      if (doc) {
+        applyDesktopBarFieldsToDoc(doc);
+        return;
+      }
+      var top = document.getElementById("titlebar");
+      var search = document.getElementById("searchbar");
+      var bottom = document.getElementById("bottombar");
+      var topH = (top && top.offsetHeight) || 0;
+      if (!topH && search) topH = search.offsetHeight || 0;
+      var bottomH = (bottom && bottom.offsetHeight) || 0;
+      applyDesktopBarFields(topH, bottomH);
+    };
+  } catch (eExposeFields) {}
+
   function applyViewerInsets(topH, bottomH, withResize) {
     try {
       var vs = document.getElementById("viewerStack") || document.getElementById("viewer");
@@ -315,6 +388,9 @@
       var bottomH = (bottom && bottom.offsetHeight) || 0;
       root.style.setProperty("--titlebar-h", (topH || 0) + "px");
       root.style.setProperty("--bottombar-h", (bottomH || 0) + "px");
+      applyDesktopBarFields(topH, bottomH);
+      try { setTimeout(function () { applyDesktopBarFields(topH, bottomH); }, 80); } catch (eFieldT1) {}
+      try { setTimeout(function () { applyDesktopBarFields(topH, bottomH); }, 320); } catch (eFieldT2) {}
       applyViewerInsets(topH, bottomH, withResize);
     } catch (e) {}
   }
@@ -374,6 +450,12 @@
 	    try { document.body.classList.remove("ui-hidden"); } catch (eBody0) {}
 	    try { syncBarHeights(false); } catch (eSync0) {}
 	  }
+  function suppressUiTapBurst(ms) {
+    try {
+      var until = Date.now() + (ms || 550);
+      window.__fbSuppressUiTapUntil = Math.max(window.__fbSuppressUiTapUntil || 0, until);
+    } catch (eSuppress) {}
+  }
 	  function closePanelsForUiHide() {
 	    try {
 	      if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
@@ -1326,6 +1408,7 @@
     }
 
     function closeAllAndHideBars() {
+      suppressUiTapBurst();
       closeAll();
       hideUi();
     }
@@ -1354,9 +1437,15 @@
     } catch (e) {}
 
     if (backdrop) {
-      backdrop.addEventListener("click", function () {
-        if (!isMobileViewport() && !isTabletPortrait()) closeAllAndHideBars();
-      });
+      backdrop.addEventListener("click", function (event) {
+        if (isMobileViewport() || isTabletPortrait()) return;
+        try {
+          if (event && event.preventDefault) event.preventDefault();
+          if (event && event.stopPropagation) event.stopPropagation();
+          if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
+        } catch (eBackdropStop) {}
+        closeAllAndHideBars();
+      }, true);
     }
 
     closeBtns.forEach(function (b) {
@@ -1682,6 +1771,7 @@
     }
 
     function closeAllOverlaysAndHideBars() {
+      suppressUiTapBurst();
       closeAllOverlays();
       hideUi();
     }
@@ -1984,9 +2074,14 @@
 
     if (overlayBackdrop && !overlayBackdrop.__fbShellBound) {
       overlayBackdrop.__fbShellBound = true;
-      overlayBackdrop.addEventListener("click", function () {
+      overlayBackdrop.addEventListener("click", function (event) {
+        try {
+          if (event && event.preventDefault) event.preventDefault();
+          if (event && event.stopPropagation) event.stopPropagation();
+          if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
+        } catch (_backdropStopError) {}
         closeAllOverlaysAndHideBars();
-      });
+      }, true);
     }
 
     [overlayLibrary, overlaySettings].forEach(function (panel) {
@@ -2482,7 +2577,7 @@
       }
     }
 
-    // ---- Search highlight color fix (guarantee #61c2fa) ----
+    // ---- Search highlight color fix (match protected reader overlay) ----
     // epub.js can render highlights either:
     //   A) inside the iframe document (some builds)
     //   B) as an SVG overlay in the *parent* document (most builds)
@@ -2493,18 +2588,20 @@
         if (doc.getElementById("__fb_search_hl_css")) return;
         var style = doc.createElement("style");
         style.id = "__fb_search_hl_css";
-        // Force the requested highlight style (#61c2fa background, text color unchanged).
+        // Force the protected-reader highlight color, text color unchanged.
         // Notes:
         // - epub.js uses SVG <rect> elements for highlights; many versions set `opacity` or `style` inline.
         // - CSS with !important overrides presentation attributes and non-!important inline styles.
         style.textContent = ""
-          + "::highlight(fb-search){background:#61c2fa!important;color:inherit!important;}"
+          + ":root{--fb-search-bg:var(--fb-selection-bg,rgba(165,244,236,0.72));}"
+          + "@media (prefers-color-scheme: dark){:root{--fb-search-bg:var(--fb-selection-bg,rgba(0,130,116,0.72));}}"
+          + "::highlight(fb-search){background:var(--fb-search-bg)!important;color:inherit!important;}"
           + ".epubjs-hl, .epubjs-hl *, [class*='epubjs-hl'], [class*='epubjs-hl'] *{mix-blend-mode:multiply!important;}"
-          + ".search-match{background:#61c2fa!important;color:inherit!important;}"
-          + ".search-match-text{background:#61c2fa!important;color:inherit!important;}"
+          + ".search-match{background:var(--fb-search-bg)!important;color:inherit!important;}"
+          + ".search-match-text{background:var(--fb-search-bg)!important;color:inherit!important;}"
           + ".epubjs-hl rect, rect.epubjs-hl, [class*='epubjs-hl'] rect, rect[class*='epubjs-hl'],"
-          + "svg .epubjs-hl rect, svg rect.epubjs-hl{fill:#61c2fa!important;fill-opacity:1!important;opacity:1!important;}"
-          + ".search-match rect, rect.search-match{fill:#61c2fa!important;fill-opacity:1!important;opacity:1!important;}"
+          + "svg .epubjs-hl rect, svg rect.epubjs-hl{fill:var(--fb-search-bg)!important;fill-opacity:1!important;opacity:1!important;}"
+          + ".search-match rect, rect.search-match{fill:var(--fb-search-bg)!important;fill-opacity:1!important;opacity:1!important;}"
           + "@media (hover:none) and (pointer:coarse){"
           + "html,body,body *{-webkit-touch-callout:none!important;-webkit-tap-highlight-color:rgba(0,0,0,0)!important;}"
           + "}";
@@ -3223,7 +3320,7 @@
         if (before) frag.appendChild(doc.createTextNode(before));
         var span = doc.createElement("span");
         span.className = "search-match-text";
-        span.style.setProperty("background", "#61c2fa", "important");
+        span.style.setProperty("background", "var(--fb-search-bg,var(--fb-selection-bg,rgba(165,244,236,0.72)))", "important");
         span.style.setProperty("color", "inherit", "important");
         span.textContent = middle;
         frag.appendChild(span);
@@ -3318,6 +3415,50 @@
       return false;
     }
 
+    function ensureHighlightedRangeVisible(contents, range) {
+      try {
+        if (!contents || !range || !reader || !reader.rendition || !reader.rendition.manager) return false;
+        var manager = reader.rendition.manager;
+        if (!manager.moveTo) return false;
+        var rect = range.getBoundingClientRect();
+        var doc = contents.document || (range.startContainer && range.startContainer.ownerDocument) || null;
+        var iframe = doc && doc.defaultView ? doc.defaultView.frameElement : null;
+        var iframeRect = iframe && iframe.getBoundingClientRect ? iframe.getBoundingClientRect() : null;
+        var viewer = document.getElementById("viewer") || document.getElementById("viewerStack");
+        var viewerRect = viewer && viewer.getBoundingClientRect ? viewer.getBoundingClientRect() : null;
+        if (!viewerRect || !iframeRect) return false;
+        var absLeft = iframeRect.left + rect.left;
+        var absRight = iframeRect.left + rect.right;
+        var absTop = iframeRect.top + rect.top;
+        var absBottom = iframeRect.top + rect.bottom;
+        var outX = absRight <= viewerRect.left || absLeft >= viewerRect.right;
+        var outY = absBottom <= viewerRect.top || absTop >= viewerRect.bottom;
+        if (!(outX || outY)) return false;
+        if (manager.scrollTo && manager.container) {
+          var targetLeft = manager.container.scrollLeft || 0;
+          var targetTop = manager.container.scrollTop || 0;
+          if (outX) {
+            var delta = (manager.layout && manager.layout.delta) || viewerRect.width || manager.container.clientWidth || 1;
+            targetLeft = Math.max(0, Math.floor((targetLeft + absLeft - viewerRect.left) / delta) * delta);
+          }
+          if (outY) {
+            var pageH = (manager.layout && manager.layout.height) || viewerRect.height || manager.container.clientHeight || 1;
+            targetTop = Math.max(0, Math.floor((targetTop + absTop - viewerRect.top) / pageH) * pageH);
+          }
+          manager.scrollTo(targetLeft, targetTop, true);
+        } else {
+          manager.moveTo({ left: Math.max(0, rect.left || 0), top: Math.max(0, rect.top || 0) });
+        }
+        return true;
+      } catch (e) {}
+      return false;
+    }
+
+    function scheduleHighlightedRangeVisible(contents, range) {
+      try { setTimeout(function () { ensureHighlightedRangeVisible(contents, range); }, 80); } catch (e0) {}
+      try { setTimeout(function () { ensureHighlightedRangeVisible(contents, range); }, 240); } catch (e1) {}
+    }
+
     function highlightCfi(cfi) {
       clearHighlight();
       if (!cfi) return false;
@@ -3340,6 +3481,8 @@
                 state.lastHighlight = { type: "text", doc: c.document };
                 state.pendingHighlightCfi = null;
                 state.highlightRetryCount = 0;
+                ensureHighlightedRangeVisible(c, r);
+                scheduleHighlightedRangeVisible(c, r);
                 return true;
               }
             } catch (eTxt) {}
@@ -3353,6 +3496,8 @@
               state.lastHighlight = { type: "css", doc: c.document };
               state.pendingHighlightCfi = null;
               state.highlightRetryCount = 0;
+              ensureHighlightedRangeVisible(c, r);
+              scheduleHighlightedRangeVisible(c, r);
               return true;
             }
           } catch (eCss) {}
@@ -3361,6 +3506,8 @@
             state.lastHighlight = { cfi: cfi, type: "highlight" };
             state.pendingHighlightCfi = null;
             state.highlightRetryCount = 0;
+            ensureHighlightedRangeVisible(c, r);
+            scheduleHighlightedRangeVisible(c, r);
             return true;
           } catch (eAnn) {}
         }
@@ -3369,6 +3516,7 @@
     }
 
     function ensureMatchVisible(item) {
+      var moved = false;
       try {
         if (!item || item.sectionIndex == null) return;
         var cfi = item.cfi;
@@ -3381,20 +3529,43 @@
         var rect = range.getBoundingClientRect();
         var doc = contents.document;
         var win = doc.defaultView || null;
-        var vw = (doc.documentElement && doc.documentElement.clientWidth) || (win && win.innerWidth) || 0;
-        var vh = (doc.documentElement && doc.documentElement.clientHeight) || (win && win.innerHeight) || 0;
+        var viewer = document.getElementById("viewer") || document.getElementById("viewerStack");
+        var viewerRect = viewer && viewer.getBoundingClientRect ? viewer.getBoundingClientRect() : null;
+        var vw = (viewerRect && viewerRect.width) || (win && win.innerWidth) || (doc.documentElement && doc.documentElement.clientWidth) || 0;
+        var vh = (viewerRect && viewerRect.height) || (win && win.innerHeight) || (doc.documentElement && doc.documentElement.clientHeight) || 0;
         if (!vw || !vh) return;
         var outX = (rect.right <= 0) || (rect.left >= vw);
         var outY = (rect.bottom <= 0) || (rect.top >= vh);
         if (!(outX || outY)) return;
         var offset = null;
         try { offset = contents.locationOf ? contents.locationOf(cfi) : null; } catch (e1) { offset = null; }
+        if ((!offset || (!(offset.left > 0) && !(offset.top > 0))) && (outX || outY)) {
+          offset = { left: Math.max(0, rect.left || 0), top: Math.max(0, rect.top || 0) };
+        }
         if (offset && reader.rendition && reader.rendition.manager && reader.rendition.manager.moveTo) {
-          reader.rendition.manager.moveTo(offset);
+          if (reader.rendition.manager.scrollTo && reader.rendition.manager.container && (outX || outY)) {
+            var mgr = reader.rendition.manager;
+            var targetLeft = mgr.container.scrollLeft || 0;
+            var targetTop = mgr.container.scrollTop || 0;
+            if (outX) {
+              var delta = (mgr.layout && mgr.layout.delta) || vw || mgr.container.clientWidth || 1;
+              targetLeft = Math.max(0, Math.floor((targetLeft + rect.left) / delta) * delta);
+            }
+            if (outY) {
+              var pageH = (mgr.layout && mgr.layout.height) || vh || mgr.container.clientHeight || 1;
+              targetTop = Math.max(0, Math.floor((targetTop + rect.top) / pageH) * pageH);
+            }
+            mgr.scrollTo(targetLeft, targetTop, true);
+          } else {
+            reader.rendition.manager.moveTo(offset);
+          }
+          moved = true;
         } else {
           reader.rendition.display(cfi);
+          moved = true;
         }
       } catch (e) {}
+      return moved;
     }
 
     function scheduleEnsureVisible(item) {
@@ -3410,7 +3581,16 @@
         if (!state.searchActive) return;
         if (token !== state.ensureVisibleToken) return;
         tries++;
-        ensureMatchVisible(item);
+        var moved = ensureMatchVisible(item);
+        if (moved) {
+          try {
+            var cfi = item && item.cfi;
+            setTimeout(function () {
+              if (!state.searchActive) return;
+              if (cfi) highlightCfi(cfi);
+            }, 90);
+          } catch (eHighlightAfterMove) {}
+        }
         if (tries >= maxTries) return;
         state.ensureVisibleTimer = setTimeout(step, 80);
       };
@@ -3663,7 +3843,7 @@
               scheduleHighlightRetry(targetCfi);
               return;
             }
-            if (touchFlow) scheduleEnsureVisible(item);
+            scheduleEnsureVisible(item);
           }).catch(function () {
             var firstTouchMatch = touchFlow && (safeIdx === 0);
             if (firstTouchMatch) {
@@ -3677,7 +3857,7 @@
               scheduleHighlightRetry(targetCfi);
               return;
             }
-            if (touchFlow) scheduleEnsureVisible(item);
+            scheduleEnsureVisible(item);
           });
         } catch (e) {
           var firstTouchMatch = touchFlow && (safeIdx === 0);
@@ -3692,7 +3872,7 @@
             scheduleHighlightRetry(targetCfi);
             return;
           }
-          if (touchFlow) scheduleEnsureVisible(item);
+          scheduleEnsureVisible(item);
         }
       };
 
@@ -4917,7 +5097,11 @@
         if (!doc.getElementById("__fb_selection_css")) {
           var st = doc.createElement("style");
           st.id = "__fb_selection_css";
-          st.textContent = ".fb-selection-mark{background:#61c2fa;color:inherit;-webkit-box-decoration-break:clone;box-decoration-break:clone;}";
+          st.textContent = ""
+            + ":root{--fb-selection-bg:rgba(165,244,236,0.72);}"
+            + "@media (prefers-color-scheme: dark){:root{--fb-selection-bg:rgba(0,130,116,0.72);}}"
+            + "::selection{background:var(--fb-selection-bg);color:inherit;}"
+            + ".fb-selection-mark{background:var(--fb-selection-bg);color:inherit;-webkit-box-decoration-break:clone;box-decoration-break:clone;}";
           doc.head && doc.head.appendChild(st);
         }
       } catch (e) {}

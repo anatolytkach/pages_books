@@ -218,6 +218,28 @@
   - `docx -> epub -> protected artifact -> local protected reader`
 - New doc:
   - `docs/local-docx-to-protected-reader.md`
+
+## Additional Milestone: Unprotected Reader Stabilization
+
+- Branch used for this session:
+  - `develop-anatoly`
+- Local catalog server:
+  - `http://127.0.0.1:8788/books/`
+- Working unprotected reader route:
+  - `/books/reader/`
+  - served runtime: `reader1`
+- Implemented fixes in the unprotected reader:
+  - closing side panels in mobile landscape no longer immediately re-shows top/bottom bars
+  - text selection color now matches the protected reader
+  - search highlight color now matches the protected reader
+  - desktop vertical text fields account for overlay bars without changing bar overlay behavior
+  - search navigation now keeps the active highlighted match visible in paginated/two-column layouts
+- Verification performed locally:
+  - `node --check reader/js/fbreader-ui.js reader1/js/fbreader-ui.js reader/js/reader.js reader1/js/reader.js`
+  - Playwright smoke tests against `http://127.0.0.1:8788/books/reader/`
+  - search smoke on `id=1399`, query `single`, with visible highlights across repeated Next navigation
+- Note:
+  - Future unprotected-reader work should target the active `reader1` runtime unless explicitly requested otherwise.
 - The documented flow covers:
   - DOCX validation
   - local DOCX to EPUB conversion

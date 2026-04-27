@@ -3246,6 +3246,7 @@ function primeThemeForContents(contents, themeName) {
     var isDark = themeName === "dark";
     var bg = isDark ? "#000000" : "#FCFAF8";
     var fg = isDark ? "#ffffff" : "#000000";
+    var selectionBg = isDark ? "rgba(0,130,116,0.72)" : "rgba(165,244,236,0.72)";
     try {
       if (contents.addStylesheetRules) {
         contents.addStylesheetRules({
@@ -3260,6 +3261,7 @@ function primeThemeForContents(contents, themeName) {
     try { doc.body.style.setProperty("background-color", bg, "important"); } catch (e2) {}
     try { doc.documentElement.style.setProperty("color", fg, "important"); } catch (e3) {}
     try { doc.body.style.setProperty("color", fg, "important"); } catch (e4) {}
+    try { doc.documentElement.style.setProperty("--fb-selection-bg", selectionBg); } catch (e4a) {}
     try {
       var fe = (doc.defaultView && doc.defaultView.frameElement) ? doc.defaultView.frameElement : null;
       if (fe && fe.style) fe.style.setProperty("background-color", bg, "important");
@@ -3272,10 +3274,12 @@ function applyThemeToDoc(doc, themeName) {
     var isDark = themeName === "dark";
     var bg = isDark ? "#000000" : "#FCFAF8";
     var fg = isDark ? "#ffffff" : "#000000";
+    var selectionBg = isDark ? "rgba(0,130,116,0.72)" : "rgba(165,244,236,0.72)";
     try { doc.documentElement.style.setProperty("background-color", bg, "important"); } catch (e1) {}
     try { doc.body.style.setProperty("background-color", bg, "important"); } catch (e2) {}
     try { doc.documentElement.style.setProperty("color", fg, "important"); } catch (e3) {}
     try { doc.body.style.setProperty("color", fg, "important"); } catch (e4) {}
+    try { doc.documentElement.style.setProperty("--fb-selection-bg", selectionBg); } catch (e4a) {}
   } catch (e5) {}
 }
 function applyThemeToIframes(themeName) {
@@ -4249,6 +4253,13 @@ function applyThemeToIframes(themeName) {
 			try { attachUiTapToDoc(doc); } catch(eu) {}
 			try { attachSwipeToDoc(doc); } catch(e) {}
 if (!doc) return;
+			try {
+				if (window.parent && window.parent.__fbApplyDesktopBarFields) {
+					window.parent.__fbApplyDesktopBarFields(doc);
+				} else if (window.__fbApplyDesktopBarFields) {
+					window.__fbApplyDesktopBarFields(doc);
+				}
+			} catch (eFields) {}
 			if (doc.__epubjsFootnoteModalAttached) return;
 			doc.__epubjsFootnoteModalAttached = true;
 
