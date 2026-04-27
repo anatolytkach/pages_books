@@ -5079,6 +5079,43 @@
       return null;
     }
 
+    function cfiFromDocRange(doc, range) {
+      if (!doc || !range) return "";
+      try {
+        var contents = getContentsForDoc(doc);
+        if (contents && contents.cfiFromRange) {
+          return String(contents.cfiFromRange(range) || "");
+        }
+      } catch (e0) {}
+      return "";
+    }
+
+    function refreshSelectionCfiFromState() {
+      try {
+        if (state.doc && state.range) {
+          var cfi = cfiFromDocRange(state.doc, state.range);
+          if (cfi) {
+            state.cfi = cfi;
+            return cfi;
+          }
+        }
+      } catch (e0) {}
+      try {
+        var doc = state.doc || null;
+        var sel = getSelection(doc);
+        if (sel && !sel.isCollapsed && sel.rangeCount) {
+          var range = sel.getRangeAt(0).cloneRange();
+          var fromSelection = cfiFromDocRange(doc, range);
+          if (fromSelection) {
+            state.range = range;
+            state.cfi = fromSelection;
+            return fromSelection;
+          }
+        }
+      } catch (e1) {}
+      return "";
+    }
+
     function clearSelection(doc) {
       try {
         var sel = getSelection(doc);
@@ -5103,9 +5140,9 @@
 
     function applyMark(doc, range) {
       clearMarks();
-      if (!doc || !range) return;
+      if (!doc || !range) return false;
       var root = range.commonAncestorContainer;
-      if (!root) return;
+      if (!root) return false;
       var walker = null;
       var nodes = [];
       if (root.nodeType === 3) {
@@ -5130,7 +5167,7 @@
           }
         });
       } catch (e) {}
-      if (!walker) return;
+      if (!walker) return false;
       try {
         var n = walker.nextNode();
         while (n) { nodes.push(n); n = walker.nextNode(); }
@@ -5168,6 +5205,7 @@
         parent.replaceChild(frag, node);
         state.markNodes.push(mark);
       }
+      return !!(state.markNodes && state.markNodes.length);
     }
 
     function setDismissActive(on) {
@@ -6271,8 +6309,13 @@
         state.range = r;
         state.text = "";
         state.cfi = cfi;
-        applyMark(state.doc, r);
+        var marked = applyMark(state.doc, r);
         var mrect = getMarkRect(state.doc);
+        if (!marked || !mrect) {
+          clearMarks();
+          if (!highlightTextFallbackInDoc(c.document)) continue;
+          mrect = getMarkRect(state.doc);
+        }
         if (mrect) {
           try { showToolbarAtRect(state.doc, mrect); } catch (e2) {}
           hideToolbar();
@@ -6684,7 +6727,71 @@
       try { window.open(url, "_blank", "noopener"); } catch (e) { window.location.href = url; }
     }
 
-    function buildSelectionShareUrl(cfi) {
+    function copySelectionText(value) {
+      var txt = String(value || "");
+      if (!txt) return Promise.reject(new Error("No text to copy"));
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(txt).catch(function () {
+            return fallbackCopySelectionText(txt);
+          });
+        }
+      } catch (e0) {}
+      return fallbackCopySelectionText(txt);
+    }
+
+    function fallbackCopySelectionText(txt) {
+      return new Promise(function (resolve, reject) {
+        try {
+          var ta = document.createElement("textarea");
+          ta.value = String(txt || "");
+          ta.setAttribute("readonly", "true");
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          ta.style.top = "-9999px";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          var ok = false;
+          try { ok = document.execCommand("copy"); } catch (e1) { ok = false; }
+          document.body.removeChild(ta);
+          if (ok) resolve();
+          else reject(new Error("Copy command failed"));
+        } catch (e2) {
+          reject(e2);
+        }
+      });
+    }
+
+    function showSelectionToast(message) {
+      if (!isDesktopSelectionMode()) return;
+      try {
+        var toast = document.getElementById("selectionCopyToast");
+        if (!toast) {
+          toast = document.createElement("div");
+          toast.id = "selectionCopyToast";
+          toast.className = "selection-copy-toast";
+          toast.setAttribute("role", "status");
+          toast.setAttribute("aria-live", "polite");
+          document.body.appendChild(toast);
+        }
+        toast.textContent = String(message || "");
+        if (toast.__fbHideTimer) {
+          try { clearTimeout(toast.__fbHideTimer); } catch (e0) {}
+          toast.__fbHideTimer = null;
+        }
+        toast.classList.remove("is-hiding");
+        toast.classList.add("is-visible");
+        toast.__fbHideTimer = setTimeout(function () {
+          try {
+            toast.classList.add("is-hiding");
+            toast.classList.remove("is-visible");
+          } catch (e1) {}
+        }, 900);
+      } catch (e) {}
+    }
+
+    function buildSelectionShareUrl(cfi, text) {
       try {
         var current = new URL(window.location.href || "", window.location.origin);
         var u = new URL(current.pathname || window.location.pathname || "/", window.location.origin);
@@ -6694,12 +6801,15 @@
           id = current.searchParams.get("id") || current.searchParams.get("i") || "";
           source = current.searchParams.get("source") || "";
         } catch (eId) {}
+        if (!cfi) return "";
         if (source) u.searchParams.set("source", source);
         if (id) u.searchParams.set("id", id);
-        if (cfi) {
-          u.searchParams.set("selectionCfi", cfi);
-          u.hash = cfi;
-        }
+        u.searchParams.set("selectionCfi", cfi);
+        try {
+          var quote = normalizeInlineText(text || "");
+          if (quote) u.searchParams.set("selectionText", quote.slice(0, 500));
+        } catch (eQuote) {}
+        u.hash = cfi;
         return u.toString();
       } catch (e) {}
       return "";
@@ -6715,26 +6825,136 @@
       return "";
     }
 
+    function getIncomingSelectionText() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        return normalizeInlineText(u.searchParams.get("selectionText") || "");
+      } catch (e) {}
+      return "";
+    }
+
+    function findTextRangeInDoc(doc, query) {
+      query = normalizeInlineText(query || "");
+      if (!doc || !doc.body || !query) return null;
+      try {
+        var NF = doc.defaultView ? doc.defaultView.NodeFilter : NodeFilter;
+        var walker = doc.createTreeWalker(doc.body, NF.SHOW_TEXT, null, false);
+        var chars = [];
+        var points = [];
+        var prevSpace = true;
+        var node;
+        while ((node = walker.nextNode())) {
+          var value = node.nodeValue || "";
+          for (var i = 0; i < value.length; i++) {
+            var ch = value.charAt(i);
+            if (/\s/.test(ch)) {
+              if (!prevSpace) {
+                chars.push(" ");
+                points.push({ node: node, offset: i });
+                prevSpace = true;
+              }
+            } else {
+              chars.push(ch);
+              points.push({ node: node, offset: i });
+              prevSpace = false;
+            }
+          }
+        }
+        var haystack = chars.join("").toLowerCase();
+        var needle = query.toLowerCase();
+        var idx = haystack.indexOf(needle);
+        if (idx < 0) return null;
+        var start = points[idx];
+        var end = points[Math.min(points.length - 1, idx + needle.length - 1)];
+        if (!start || !end) return null;
+        var range = doc.createRange();
+        range.setStart(start.node, start.offset);
+        range.setEnd(end.node, Math.min((end.node.nodeValue || "").length, end.offset + 1));
+        return range;
+      } catch (e0) {}
+      return null;
+    }
+
+    function highlightTextFallbackInDoc(doc) {
+      try {
+        var query = getIncomingSelectionText();
+        if (!query) return false;
+        var range = findTextRangeInDoc(doc, query);
+        if (!range) return false;
+        state.doc = doc;
+        state.range = range;
+        state.text = query;
+        var marked = applyMark(doc, range);
+        return !!(marked && getMarkRect(doc));
+      } catch (e) {}
+      return false;
+    }
+
     function activateIncomingSelectionHighlight() {
       var cfi = getIncomingSelectionCfi();
       if (!cfi) return;
       notePendingCfi = cfi;
-      try {
-        if (reader && reader.rendition && typeof reader.rendition.display === "function") {
-          Promise.resolve(reader.rendition.display(cfi)).catch(function () {});
-        }
-      } catch (eDisplay) {}
       var attempts = 0;
+      var lastDisplayAt = 0;
+      var displayInFlight = false;
+      var displayStartedAt = 0;
+      function retryDisplay() {
+        try {
+          if (!reader || !reader.rendition || typeof reader.rendition.display !== "function") return;
+          var now = Date.now();
+          if (displayInFlight && now - displayStartedAt < 1800) return;
+          displayInFlight = false;
+          if (now - lastDisplayAt < 650) return;
+          lastDisplayAt = now;
+          displayInFlight = true;
+          displayStartedAt = now;
+          var releaseTimer = setTimeout(function () {
+            displayInFlight = false;
+          }, 1800);
+          Promise.resolve(reader.rendition.display(cfi)).catch(function () {}).then(function () {
+            try { clearTimeout(releaseTimer); } catch (eRelease) {}
+            displayInFlight = false;
+            setTimeout(function () {
+              try {
+                if (notePendingCfi === cfi && highlightNoteCfi(cfi)) notePendingCfi = null;
+              } catch (eAfterDisplay) {}
+            }, 0);
+          });
+        } catch (eDisplay) {
+          displayInFlight = false;
+        }
+      }
       var tryOnce = function () {
         if (!notePendingCfi) return;
         if (highlightNoteCfi(cfi)) {
           notePendingCfi = null;
           return;
         }
+        retryDisplay();
         attempts++;
         if (attempts < 80) setTimeout(tryOnce, 150);
       };
       setTimeout(tryOnce, 0);
+      try {
+        if (reader && reader.book && reader.book.ready && typeof reader.book.ready.then === "function") {
+          reader.book.ready.then(function () {
+            if (!notePendingCfi) return;
+            lastDisplayAt = 0;
+            displayInFlight = false;
+            retryDisplay();
+          }).catch(function () {});
+        }
+      } catch (eReady) {}
+      try {
+        if (reader && reader.displayed && typeof reader.displayed.then === "function") {
+          reader.displayed.then(function () {
+            if (!notePendingCfi) return;
+            lastDisplayAt = 0;
+            displayInFlight = false;
+            retryDisplay();
+          }).catch(function () {});
+        }
+      } catch (eDisplayed) {}
     }
 
     function isReaderNewCompatHost() {
@@ -6832,42 +7052,27 @@
         openUrl(qUrl);
       } else if (action === "share") {
         try {
-          var shareCfi = state.cfi || "";
-          var shareUrl = buildSelectionShareUrl(shareCfi);
+          var shareCfi = state.cfi || refreshSelectionCfiFromState();
+          var shareUrl = buildSelectionShareUrl(shareCfi, text);
           var shareText = shareUrl ? (text + "\n\n" + shareUrl) : text;
-          if (navigator.share) {
+          if (isDesktopSelectionMode()) {
+            if (!shareUrl) return;
+            copySelectionText(shareUrl).then(function () {
+              showSelectionToast("Link copied");
+            }).catch(function () {});
+          } else if (navigator.share) {
             var sharePayload = { text: text };
             if (shareUrl) sharePayload.url = shareUrl;
             navigator.share(sharePayload);
-          } else if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(shareText);
           } else {
-            var ta = document.createElement("textarea");
-            ta.value = shareText;
-            ta.setAttribute("readonly", "true");
-            ta.style.position = "fixed";
-            ta.style.opacity = "0";
-            document.body.appendChild(ta);
-            ta.select();
-            try { document.execCommand("copy"); } catch (e2) {}
-            document.body.removeChild(ta);
+            copySelectionText(shareText).catch(function () {});
           }
         } catch (e) {}
       } else if (action === "copy") {
         try {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text);
-          } else {
-            var ta2 = document.createElement("textarea");
-            ta2.value = text;
-            ta2.setAttribute("readonly", "true");
-            ta2.style.position = "fixed";
-            ta2.style.opacity = "0";
-            document.body.appendChild(ta2);
-            ta2.select();
-            try { document.execCommand("copy"); } catch (e3) {}
-            document.body.removeChild(ta2);
-          }
+          copySelectionText(text).then(function () {
+            showSelectionToast("Text copied");
+          }).catch(function () {});
         } catch (e) {}
       }
 
@@ -6905,6 +7110,9 @@
     function maybeHandleToolbarAction(e, viaClick) {
       var action = toolbarActionFromEvent(e);
       if (!action) return;
+      try {
+        if (!viaClick && e && e.type === "pointerdown" && e.pointerType === "mouse" && isDesktopSelectionMode()) return;
+      } catch (eMouseDown) {}
       try {
         if (toolbar.__fbActionLock && Date.now() - toolbar.__fbActionLock < 500) return;
       } catch (e0) {}

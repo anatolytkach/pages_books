@@ -774,6 +774,11 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 
 - Updated unprotected `reader1` selection toolbar share action to include both selected text and a stable link to the selected CFI.
 - Shared links now carry `selectionCfi` plus the CFI hash; opening the link navigates to that location and retries the iframe highlight until the content is ready.
+- Desktop selection toolbar now shows Share second from the right; it copies the selection link to clipboard and shows a fading `Link copied` toast, while Copy shows `Text copied`.
+- Cold opens from a selection link now retry `rendition.display(selectionCfi)` before highlighting, avoiding startup races with saved-position restore.
+- Incoming selection navigation retries now recover from early/hung `rendition.display(selectionCfi)` calls and rerun after `book.ready` / first `reader.displayed`.
+- Selection links also include a short `selectionText` fallback so mobile-generated links can highlight by text when the CFI navigates correctly but resolves to a non-visible range.
+- `#reader1ViewStore` is explicitly hidden in CSS to avoid exposing the notes/view storage container during reload FOUC.
 - Added inline mark styling and bumped the `fbreader-ui.js` cache key in `reader1/index.html`.
 - Verification:
   - `node --check reader1/js/fbreader-ui.js` passed.
