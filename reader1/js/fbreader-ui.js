@@ -6818,7 +6818,7 @@
     function getIncomingSelectionCfi() {
       try {
         var u = new URL(window.location.href || "", window.location.origin);
-        var cfi = u.searchParams.get("selectionCfi") || "";
+        var cfi = u.searchParams.get("selectionCfi") || window.__readerpubIncomingSelectionCfi || "";
         if (!cfi) return "";
         return /^epubcfi\(/i.test(cfi) ? cfi : "";
       } catch (e) {}
@@ -6828,7 +6828,7 @@
     function getIncomingSelectionText() {
       try {
         var u = new URL(window.location.href || "", window.location.origin);
-        return normalizeInlineText(u.searchParams.get("selectionText") || "");
+        return normalizeInlineText(u.searchParams.get("selectionText") || window.__readerpubIncomingSelectionText || "");
       } catch (e) {}
       return "";
     }
@@ -6895,42 +6895,12 @@
       if (!cfi) return;
       notePendingCfi = cfi;
       var attempts = 0;
-      var lastDisplayAt = 0;
-      var displayInFlight = false;
-      var displayStartedAt = 0;
-      function retryDisplay() {
-        try {
-          if (!reader || !reader.rendition || typeof reader.rendition.display !== "function") return;
-          var now = Date.now();
-          if (displayInFlight && now - displayStartedAt < 1800) return;
-          displayInFlight = false;
-          if (now - lastDisplayAt < 650) return;
-          lastDisplayAt = now;
-          displayInFlight = true;
-          displayStartedAt = now;
-          var releaseTimer = setTimeout(function () {
-            displayInFlight = false;
-          }, 1800);
-          Promise.resolve(reader.rendition.display(cfi)).catch(function () {}).then(function () {
-            try { clearTimeout(releaseTimer); } catch (eRelease) {}
-            displayInFlight = false;
-            setTimeout(function () {
-              try {
-                if (notePendingCfi === cfi && highlightNoteCfi(cfi)) notePendingCfi = null;
-              } catch (eAfterDisplay) {}
-            }, 0);
-          });
-        } catch (eDisplay) {
-          displayInFlight = false;
-        }
-      }
       var tryOnce = function () {
         if (!notePendingCfi) return;
         if (highlightNoteCfi(cfi)) {
           notePendingCfi = null;
           return;
         }
-        retryDisplay();
         attempts++;
         if (attempts < 80) setTimeout(tryOnce, 150);
       };
@@ -6939,9 +6909,7 @@
         if (reader && reader.book && reader.book.ready && typeof reader.book.ready.then === "function") {
           reader.book.ready.then(function () {
             if (!notePendingCfi) return;
-            lastDisplayAt = 0;
-            displayInFlight = false;
-            retryDisplay();
+            setTimeout(tryOnce, 0);
           }).catch(function () {});
         }
       } catch (eReady) {}
@@ -6949,9 +6917,7 @@
         if (reader && reader.displayed && typeof reader.displayed.then === "function") {
           reader.displayed.then(function () {
             if (!notePendingCfi) return;
-            lastDisplayAt = 0;
-            displayInFlight = false;
-            retryDisplay();
+            setTimeout(tryOnce, 0);
           }).catch(function () {});
         }
       } catch (eDisplayed) {}
@@ -7160,7 +7126,7 @@
           var pendingCfi = notePendingCfi || (state.noteHighlightActive ? state.cfi : null);
           if (pendingCfi) {
             setTimeout(function () {
-              try { highlightNoteCfi(pendingCfi); } catch (eHighlightRender) {}
+              try { if (highlightNoteCfi(pendingCfi)) notePendingCfi = null; } catch (eHighlightRender) {}
             }, 0);
           }
         } catch (eRenderedHighlight) {}

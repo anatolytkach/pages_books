@@ -5300,6 +5300,13 @@ function attachSwipeToDoc(doc) {
 									var rtl = isRtlReadingOrderSafe();
 									var goNext = isNext;
 									if (rtl) goNext = !goNext;
+									try {
+										var targetRendition = goNext ? reader.renditionNext : reader.renditionPrev;
+										var targetLoc = targetRendition && targetRendition.currentLocation ? targetRendition.currentLocation() : null;
+										if (targetLoc && window && typeof window.__readerpubCommitReaderCfi === "function") {
+											window.__readerpubCommitReaderCfi(targetLoc);
+										}
+									} catch (eCommitPreview) {}
 									if (goNext) rendition.next(); else rendition.prev();
 							} catch (e) {}
 							// After epub.js rerenders, reset transform

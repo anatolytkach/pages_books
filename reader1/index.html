@@ -173,6 +173,9 @@
   const qentry = params.get("entry");
   const qid = params.get("id");
   const qidShort = params.get("i");
+  const qSelectionCfi = String(params.get("selectionCfi") || "").trim();
+  const querySelectionIsCfi = /^epubcfi\(/i.test(qSelectionCfi);
+  const qSelectionText = String(params.get("selectionText") || "");
   const qCatalogReturn = params.get("catalog_return");
   const qAutostart = params.get("autostart");
   const requestedContentSource = String(params.get("readerContentSource") || params.get("bookContentSource") || "")
@@ -182,12 +185,21 @@
     .trim()
     .toLowerCase();
   const rawHash = (location.hash || "");
-  const hid = rawHash.replace(/^#/, "");
+  const rawHashValue = rawHash.replace(/^#/, "");
+  let hid = rawHashValue;
+  try {
+    hid = decodeURIComponent(rawHashValue || "");
+  } catch (eDecodeHash) {}
   const hashIsId = /^\d+$/.test(hid);
   const hashIsCfi = /^epubcfi\(/i.test(hid);
   let id = (qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId ? hid.trim() : "") || "";
   let source = (qsource && qsource.trim()) || "";
   if (source === "gutenberg") source = "";
+
+  try {
+    window.__readerpubIncomingSelectionCfi = querySelectionIsCfi ? qSelectionCfi : "";
+    window.__readerpubIncomingSelectionText = qSelectionText;
+  } catch (eIncomingSelection) {}
 
   const hasExplicitId = !!((qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId && hid.trim()));
 
@@ -401,7 +413,9 @@
     var initialCfi = "";
     var startupTarget = "";
     try {
-      if (hashIsCfi && hid) {
+      if (querySelectionIsCfi && qSelectionCfi) {
+        initialCfi = qSelectionCfi;
+      } else if (hashIsCfi && hid) {
         initialCfi = hid;
       } else if (!isDemoEntry) {
         var lastKey = "readerpub:lastcfi:" + id;
@@ -576,14 +590,69 @@
         if (!window.reader || !window.reader.rendition) return;
         const key = `readerpub:lastcfi:${id}`;
         if (isDemoEntry) return;
+        function getCfiFromLocation(location) {
+          try {
+            if (!location) return "";
+            if (typeof location === "string") return /^epubcfi\(/i.test(location) ? location : "";
+            return location && location.start && location.start.cfi ? String(location.start.cfi) : "";
+          } catch (eCfiFromLocation) {}
+          return "";
+        }
+        function commitReaderCfi(location) {
+          try {
+            const cfi = getCfiFromLocation(location);
+            if (!cfi) return false;
+            if (localStorage) localStorage.setItem(key, cfi);
+            try { window.__readerpubLastCommittedCfi = cfi; } catch (eLastCommitted) {}
+            try {
+              const p = new URLSearchParams(window.location.search || "");
+              p.delete("selectionCfi");
+              p.delete("selectionText");
+              const nextSearch = p.toString();
+              history.replaceState(null, "", `${window.location.pathname}${nextSearch ? "?" + nextSearch : ""}#${cfi}`);
+            } catch (eUrlCfi) {}
+            return true;
+          } catch (eCommitCfi) {}
+          return false;
+        }
+        try { window.__readerpubCommitReaderCfi = commitReaderCfi; } catch (eExposeCommitCfi) {}
         try {
           window.reader.rendition.on("relocated", function(location){
-            try {
-              const cfi = location && location.start && location.start.cfi;
-              if (cfi && localStorage) localStorage.setItem(key, cfi);
-            } catch (e2) {}
+            try { commitReaderCfi(location); } catch (e2) {}
           });
         } catch (e3) {}
+        try {
+          const originalNext = window.reader.rendition.next && window.reader.rendition.next.bind(window.reader.rendition);
+          const originalPrev = window.reader.rendition.prev && window.reader.rendition.prev.bind(window.reader.rendition);
+          function scheduleCommitSamples() {
+            [120, 320, 700, 1200, 1800].forEach(function(delay){
+              window.setTimeout(function(){
+                try {
+                  const loc = window.reader && window.reader.rendition && window.reader.rendition.currentLocation
+                    ? window.reader.rendition.currentLocation()
+                    : null;
+                  commitReaderCfi(loc);
+                } catch (eSampleCommit) {}
+              }, delay);
+            });
+          }
+          if (originalNext && !window.reader.rendition.__readerpubCommitNextWrapped) {
+            window.reader.rendition.__readerpubCommitNextWrapped = true;
+            window.reader.rendition.next = function() {
+              const result = originalNext.apply(window.reader.rendition, arguments);
+              scheduleCommitSamples();
+              return result;
+            };
+          }
+          if (originalPrev && !window.reader.rendition.__readerpubCommitPrevWrapped) {
+            window.reader.rendition.__readerpubCommitPrevWrapped = true;
+            window.reader.rendition.prev = function() {
+              const result = originalPrev.apply(window.reader.rendition, arguments);
+              scheduleCommitSamples();
+              return result;
+            };
+          }
+        } catch (eWrapNavCommit) {}
       } catch (e0) {}
     })();
     });
@@ -681,9 +750,9 @@
 <script src="js/epub.js?v=20260418-reader1-vertical-padding-restore-1"></script>
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
-<script src="js/reader.js?v=20260427-reader1-underlay-ready-retry-1"></script>
+<script src="js/reader.js?v=20260427-reader1-position-commit-2"></script>
 <script src="js/fullscreen-fix.js"></script>
-<script src="js/fbreader-ui.js?v=20260427-reader1-desktop-selection-share-4"></script>
+<script src="js/fbreader-ui.js?v=20260427-reader1-desktop-selection-share-7"></script>
 <!-- Plugins -->
 <!--
 -->
