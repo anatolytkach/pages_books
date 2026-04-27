@@ -75,6 +75,112 @@ function redirect(res, location, route = "redirect") {
   send(res, 302, "", { location, "x-reader-route": route });
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatAuthorDisplayName(value) {
+  const source = String(value || "").trim();
+  if (!source.includes(",")) return source;
+  const parts = source
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return source;
+  return `${parts.slice(1).join(" ")} ${parts[0]}`.replace(/\s+/g, " ").trim();
+}
+
+function normalizePreviewText(value, maxLength = 220) {
+  const source = String(value || "").replace(/\s+/g, " ").trim();
+  if (source.length <= maxLength) return source;
+  const cut = source.slice(0, Math.max(0, maxLength - 1)).replace(/\s+\S*$/, "");
+  return `${cut || source.slice(0, Math.max(0, maxLength - 1))}...`;
+}
+
+function bookLocationShard(id) {
+  const raw = String(id || "").trim();
+  if (/^\d+$/.test(raw)) return String(Number(raw) % 100).padStart(2, "0");
+  let total = 0;
+  for (let i = 0; i < raw.length; i++) total = (total + raw.charCodeAt(i)) % 100;
+  return String(total).padStart(2, "0");
+}
+
+async function readBookLocationShard(source, shard) {
+  const relPath = source
+    ? `/book-locations/${source}/${shard}.json`
+    : `/book-locations/${shard}.json`;
+  const filePath = safeJoin(INDEX_DIR, relPath);
+  if (!filePath || !existsSync(filePath)) return null;
+  try {
+    return JSON.parse(await fs.readFile(filePath, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+async function resolveReaderPreviewMeta(url) {
+  const id = String(url.searchParams.get("id") || url.searchParams.get("i") || "").trim();
+  if (!id) return null;
+  const shard = bookLocationShard(id);
+  const source = String(url.searchParams.get("source") || "").trim();
+  const candidates = [];
+  if (source) candidates.push(await readBookLocationShard(source, shard));
+  candidates.push(await readBookLocationShard("", shard));
+  if (source !== "gutenberg") candidates.push(await readBookLocationShard("gutenberg", shard));
+
+  let item = null;
+  for (const payload of candidates) {
+    const found = payload && payload.items && payload.items[id] ? payload.items[id] : null;
+    if (found) {
+      item = found;
+      break;
+    }
+  }
+  if (!item) return null;
+
+  const title = String(item.title || "ReaderPub").trim();
+  const author = formatAuthorDisplayName(item.author || item.creator || "");
+  const quote = normalizePreviewText(url.searchParams.get("selectionText") || "", 240);
+  const description = quote
+    ? `${author ? `by ${author}. ` : ""}"${quote}"`
+    : `${author ? `by ${author}. ` : ""}Read on ReaderPub.`;
+  let image = String(item.cover || item.coverUrl || item.cover_url || "").trim();
+  if (image && !/^https?:\/\//i.test(image)) {
+    image = `${url.origin}${image.startsWith("/") ? "" : "/"}${image}`;
+  }
+  return {
+    title,
+    author,
+    quote,
+    description: normalizePreviewText(description, 300),
+    image,
+    url: url.toString(),
+  };
+}
+
+function injectReaderPreviewMeta(html, meta) {
+  if (!meta) return html;
+  const tags = [
+    `<meta property="og:site_name" content="ReaderPub" />`,
+    `<meta property="og:type" content="article" />`,
+    `<meta property="og:title" content="${escapeHtml(meta.title)}" />`,
+    `<meta property="og:description" content="${escapeHtml(meta.description)}" />`,
+    `<meta property="og:url" content="${escapeHtml(meta.url)}" />`,
+    meta.image ? `<meta property="og:image" content="${escapeHtml(meta.image)}" />` : "",
+    `<meta name="twitter:card" content="summary" />`,
+    `<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`,
+    `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`,
+    meta.image ? `<meta name="twitter:image" content="${escapeHtml(meta.image)}" />` : "",
+    meta.author ? `<meta name="author" content="${escapeHtml(meta.author)}" />` : "",
+  ].filter(Boolean).join("\n");
+  return html.replace(/<\/head>/i, `${tags}\n</head>`);
+}
+
 function buildProtectedReaderRedirect(url) {
   const params = new URLSearchParams(url.search || "");
   const id = String(
@@ -134,7 +240,7 @@ function isRemoteFrontendPath(urlPath) {
   );
 }
 
-async function serveFile(res, filePath, route, extraHeaders = {}) {
+async function serveFile(res, filePath, route, extraHeaders = {}, options = {}) {
   try {
     const stat = await fs.stat(filePath);
     if (!stat.isFile()) {
@@ -144,6 +250,9 @@ async function serveFile(res, filePath, route, extraHeaders = {}) {
     const contentType = mimeType(filePath);
     if (contentType.startsWith("text/html")) {
       let html = await fs.readFile(filePath, "utf-8");
+      if (options.readerPreviewMeta) {
+        html = injectReaderPreviewMeta(html, options.readerPreviewMeta);
+      }
       if (GOOGLE_DRIVE_CLIENT_ID) {
         html = html.replace(
           /<meta\s+name="google-drive-client-id"\s+content="[^"]*"\s*\/?>/i,
@@ -454,7 +563,11 @@ const server = http.createServer(async (req, res) => {
       "x-reader-artifact-fallback": "proxy-force-remote"
     });
   }
-  return serveFile(res, routed.file, routed.route);
+  const readerPreviewMeta =
+    (pathname === "/books/reader/" || pathname === "/books/reader/index.html")
+      ? await resolveReaderPreviewMeta(url)
+      : null;
+  return serveFile(res, routed.file, routed.route, {}, { readerPreviewMeta });
 });
 
 server.listen(PORT, HOST, () => {

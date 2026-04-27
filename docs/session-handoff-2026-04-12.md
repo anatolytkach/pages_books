@@ -780,6 +780,7 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - Reader relocation now updates the URL hash to the current CFI and strips one-shot selection query params after startup, so reload keeps the user's latest page instead of returning to the original share/deep-link position.
 - Swipe/tap page turns also commit the prepared neighbor page CFI immediately, with delayed `currentLocation()` samples as backup, because `relocated` alone can lag behind the visible page.
 - Startup now decodes percent-encoded CFI hashes before passing them to epub.js, avoiding reload fallback to the beginning when the browser encodes hash characters.
+- Reader selection links now get server-rendered OG/Twitter preview metadata with ReaderPub, book title, author, cover image, and selected quote when the URL includes `selectionText`.
 - Selection links also include a short `selectionText` fallback so mobile-generated links can highlight by text when the CFI navigates correctly but resolves to a non-visible range.
 - `#reader1ViewStore` is explicitly hidden in CSS to avoid exposing the notes/view storage container during reload FOUC.
 - Added inline mark styling and bumped the `fbreader-ui.js` cache key in `reader1/index.html`.

@@ -1103,9 +1103,72 @@ function formatAuthorDisplayName(value) {
   return `${parts.slice(1).join(" ")} ${parts[0]}`.replace(/\s+/g, " ").trim();
 }
 
+function normalizePreviewText(value, maxLength = 220) {
+  const source = String(value || "").replace(/\s+/g, " ").trim();
+  if (source.length <= maxLength) return source;
+  const cut = source.slice(0, Math.max(0, maxLength - 1)).replace(/\s+\S*$/, "");
+  return `${cut || source.slice(0, Math.max(0, maxLength - 1))}...`;
+}
+
 function buildReaderFallbackDescription(title, authorName) {
   const author = formatAuthorDisplayName(authorName) || String(authorName || "").trim();
   return `Read "${String(title || "").trim()}" by ${author} on ReaderPub.`;
+}
+
+async function resolveReaderPreviewMeta(env, url) {
+  const id = String(url.searchParams.get("id") || url.searchParams.get("i") || "").trim();
+  if (!id) return null;
+  const shard = shardForReaderId(id);
+  const source = String(url.searchParams.get("source") || "").trim();
+  const candidates = [];
+  if (source) candidates.push(await getCatalogJson(env, `api/book-locations/${source}/${shard}.json`, null));
+  candidates.push(await getCatalogJson(env, `api/book-locations/${shard}.json`, null));
+  if (source !== "gutenberg") candidates.push(await getCatalogJson(env, `api/book-locations/gutenberg/${shard}.json`, null));
+
+  let item = null;
+  for (const payload of candidates) {
+    const found = payload && payload.items && payload.items[id] ? payload.items[id] : null;
+    if (found) {
+      item = found;
+      break;
+    }
+  }
+  if (!item) return null;
+
+  const title = String(item.title || "ReaderPub").trim();
+  const author = formatAuthorDisplayName(item.author || item.creator || "");
+  const quote = normalizePreviewText(url.searchParams.get("selectionText") || "", 240);
+  const description = quote
+    ? `${author ? `by ${author}. ` : ""}"${quote}"`
+    : `${author ? `by ${author}. ` : ""}Read on ReaderPub.`;
+  let image = String(item.cover || item.coverUrl || item.cover_url || "").trim();
+  if (image && !/^https?:\/\//i.test(image)) {
+    image = `${url.origin}${image.startsWith("/") ? "" : "/"}${image}`;
+  }
+  return {
+    title,
+    author,
+    description: normalizePreviewText(description, 300),
+    image,
+    url: url.toString(),
+  };
+}
+
+function buildReaderPreviewMetaTags(meta) {
+  if (!meta) return "";
+  return [
+    `<meta property="og:site_name" content="ReaderPub" />`,
+    `<meta property="og:type" content="article" />`,
+    `<meta property="og:title" content="${escapeHtml(meta.title)}" />`,
+    `<meta property="og:description" content="${escapeHtml(meta.description)}" />`,
+    `<meta property="og:url" content="${escapeHtml(meta.url)}" />`,
+    meta.image ? `<meta property="og:image" content="${escapeHtml(meta.image)}" />` : "",
+    `<meta name="twitter:card" content="summary" />`,
+    `<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`,
+    `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`,
+    meta.image ? `<meta name="twitter:image" content="${escapeHtml(meta.image)}" />` : "",
+    meta.author ? `<meta name="author" content="${escapeHtml(meta.author)}" />` : "",
+  ].filter(Boolean).join("\n");
 }
 
 function getRenderableBookDescription(book) {
@@ -3926,35 +3989,53 @@ export default {
       headers.set("pragma", "no-cache");
     }
 
-    if (isHtml && (driveClientId || posthogKey || posthogHost || rawPosthogEnabled)) {
-      const rewritten = new HTMLRewriter()
-        .on('meta[name="google-drive-client-id"]', {
+    const readerPreviewMeta = isHtml && (path === "/books/reader/" || path === "/books/reader/index.html")
+      ? await resolveReaderPreviewMeta(env, url)
+      : null;
+    const readerPreviewMetaTags = buildReaderPreviewMetaTags(readerPreviewMeta);
+
+    if (isHtml && (driveClientId || posthogKey || posthogHost || rawPosthogEnabled || readerPreviewMetaTags)) {
+      let rewriter = new HTMLRewriter();
+      if (driveClientId) {
+        rewriter = rewriter.on('meta[name="google-drive-client-id"]', {
           element(element) {
             element.setAttribute("content", driveClientId);
           },
-        })
-        .on('meta[name="posthog-enabled"]', {
+        });
+      }
+      if (rawPosthogEnabled || posthogKey || posthogHost) {
+        rewriter = rewriter.on('meta[name="posthog-enabled"]', {
           element(element) {
             element.setAttribute("content", posthogEnabled ? "true" : "false");
           },
-        })
-        .on('meta[name="posthog-key"]', {
+        });
+      }
+      if (posthogKey) {
+        rewriter = rewriter.on('meta[name="posthog-key"]', {
           element(element) {
             element.setAttribute("content", posthogKey);
           },
-        })
-        .on('meta[name="posthog-host"]', {
+        });
+      }
+      if (posthogHost) {
+        rewriter = rewriter.on('meta[name="posthog-host"]', {
           element(element) {
             element.setAttribute("content", posthogHost);
           },
-        })
-        .transform(
-          new Response(response.body, {
-            status: response.status,
-            statusText: response.statusText,
-            headers,
-          })
-        );
+        });
+      }
+      if (readerPreviewMetaTags) {
+        rewriter = rewriter.on("head", {
+          element(element) {
+            element.append(readerPreviewMetaTags, { html: true });
+          },
+        });
+      }
+      const rewritten = rewriter.transform(new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      }));
       return rewritten;
     }
 
