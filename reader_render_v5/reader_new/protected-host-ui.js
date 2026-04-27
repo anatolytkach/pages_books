@@ -7983,9 +7983,7 @@ async function handleAction(action) {
           : await getProtectedSelectionShareUrl(cachedCapture);
         if (!shareUrl) throw new Error("Unable to create share link.");
         try {
-          const sharePayload = { text: selectionText };
-          sharePayload.url = shareUrl;
-          navigator.share(sharePayload).then(() => {
+          navigator.share({ url: shareUrl }).then(() => {
             setHostActionStatus("Link shared.");
           }).catch((error) => {
             if (!isNativeShareCancelError(error)) {

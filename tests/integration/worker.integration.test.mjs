@@ -340,6 +340,9 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
   assert.match(body, /property="og:site_name" content="ReaderPub"/);
   assert.match(body, /property="og:title" content="Anna Karenina"/);
   assert.match(body, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
+  assert.match(body, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/1399\/OEBPS\/cover\.jpg"/);
+  assert.match(body, /property="og:image:width" content="600"/);
+  assert.match(body, /property="og:image:height" content="900"/);
   assert.match(body, /name="twitter:description" content="by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
   assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/reader1\/\?id=1399&selectionCfi=/);
   assert.match(body, /#epubcfi\(\/6\/6\[item3\]/);
@@ -401,6 +404,7 @@ test("Integration: protected selection share API stores payload and redirects to
 
   assert.equal(shareResponse.status, 200);
   assert.match(body, /property="og:title" content="The Protected Book"/);
+  assert.match(body, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/25344\/cover\.jpg"/);
   assert.match(body, /name="twitter:description" content="by Ada Example\. &quot;Protected quoted text&quot;"/);
   assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/books\/protected\/\?id=90025344&reader=protected/);
   assert.match(body, /protectedSelectionAnchor=/);
