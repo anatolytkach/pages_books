@@ -3238,6 +3238,42 @@ function _applyUiScale(fontSizePct) {
   var scale = _percentToScale(fontSizePct);
   document.documentElement.style.setProperty('--ui-font-scale', String(scale));
 }
+function getThemeTextColor(themeName) {
+  return themeName === "dark" ? "#ffffff" : "#000000";
+}
+function installFixedTextColorStyle(doc, themeName) {
+  try {
+    if (!doc || !doc.head) return;
+    var fg = getThemeTextColor(themeName);
+    var style = doc.getElementById("reader1-fixed-text-color-style");
+    if (!style) {
+      style = doc.createElement("style");
+      style.id = "reader1-fixed-text-color-style";
+      doc.head.appendChild(style);
+    }
+    style.textContent = ""
+      + "html,body{color:" + fg + "!important;}"
+      + "body,body *{color:" + fg + "!important;-webkit-text-fill-color:" + fg + "!important;}"
+      + "a,a:link,a:visited,a:hover,a:active,a:focus{color:" + fg + "!important;-webkit-text-fill-color:" + fg + "!important;}"
+      + "::selection{color:" + fg + "!important;-webkit-text-fill-color:" + fg + "!important;}";
+  } catch (e) {}
+}
+function applyFixedTextColorToDoc(doc, themeName) {
+  try {
+    if (!doc || !doc.documentElement || !doc.body) return;
+    var fg = getThemeTextColor(themeName);
+    installFixedTextColorStyle(doc, themeName);
+    try { doc.documentElement.style.setProperty("color", fg, "important"); } catch (e1) {}
+    try { doc.documentElement.style.setProperty("-webkit-text-fill-color", fg, "important"); } catch (e2) {}
+    try { doc.body.style.setProperty("color", fg, "important"); } catch (e3) {}
+    try { doc.body.style.setProperty("-webkit-text-fill-color", fg, "important"); } catch (e4) {}
+    var nodes = doc.body.querySelectorAll("*");
+    for (var i = 0; i < nodes.length; i++) {
+      try { nodes[i].style.setProperty("color", fg, "important"); } catch (e5) {}
+      try { nodes[i].style.setProperty("-webkit-text-fill-color", fg, "important"); } catch (e6) {}
+    }
+  } catch (e) {}
+}
 function primeThemeForContents(contents, themeName) {
   try {
     if (!contents) return;
@@ -3245,14 +3281,23 @@ function primeThemeForContents(contents, themeName) {
     if (!doc || !doc.documentElement || !doc.body) return;
     var isDark = themeName === "dark";
     var bg = isDark ? "#000000" : "#FCFAF8";
-    var fg = isDark ? "#ffffff" : "#000000";
+    var fg = getThemeTextColor(themeName);
     var selectionBg = isDark ? "rgba(0,130,116,0.72)" : "rgba(165,244,236,0.72)";
     try {
       if (contents.addStylesheetRules) {
         contents.addStylesheetRules({
           "html, body": {
-            "background": bg,
-            "color": fg
+            "background": bg + " !important",
+            "color": fg + " !important",
+            "-webkit-text-fill-color": fg + " !important"
+          },
+          "body, body *": {
+            "color": fg + " !important",
+            "-webkit-text-fill-color": fg + " !important"
+          },
+          "a, a:link, a:visited, a:hover, a:active, a:focus": {
+            "color": fg + " !important",
+            "-webkit-text-fill-color": fg + " !important"
           }
         });
       }
@@ -3262,6 +3307,7 @@ function primeThemeForContents(contents, themeName) {
     try { doc.documentElement.style.setProperty("color", fg, "important"); } catch (e3) {}
     try { doc.body.style.setProperty("color", fg, "important"); } catch (e4) {}
     try { doc.documentElement.style.setProperty("--fb-selection-bg", selectionBg); } catch (e4a) {}
+    try { applyFixedTextColorToDoc(doc, themeName); } catch (e4b) {}
     try {
       var fe = (doc.defaultView && doc.defaultView.frameElement) ? doc.defaultView.frameElement : null;
       if (fe && fe.style) fe.style.setProperty("background-color", bg, "important");
@@ -3273,13 +3319,14 @@ function applyThemeToDoc(doc, themeName) {
     if (!doc || !doc.documentElement || !doc.body) return;
     var isDark = themeName === "dark";
     var bg = isDark ? "#000000" : "#FCFAF8";
-    var fg = isDark ? "#ffffff" : "#000000";
+    var fg = getThemeTextColor(themeName);
     var selectionBg = isDark ? "rgba(0,130,116,0.72)" : "rgba(165,244,236,0.72)";
     try { doc.documentElement.style.setProperty("background-color", bg, "important"); } catch (e1) {}
     try { doc.body.style.setProperty("background-color", bg, "important"); } catch (e2) {}
     try { doc.documentElement.style.setProperty("color", fg, "important"); } catch (e3) {}
     try { doc.body.style.setProperty("color", fg, "important"); } catch (e4) {}
     try { doc.documentElement.style.setProperty("--fb-selection-bg", selectionBg); } catch (e4a) {}
+    try { applyFixedTextColorToDoc(doc, themeName); } catch (e4b) {}
   } catch (e5) {}
 }
 function applyThemeToIframes(themeName) {
@@ -3644,10 +3691,14 @@ function applyThemeToIframes(themeName) {
 		},
 		"body": {
 			"text-align": "justify",
-			"font-family": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important"
+			"font-family": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important",
+			"color": "#000000 !important",
+			"-webkit-text-fill-color": "#000000 !important"
 		},
 		"p, div, span, li, ul, ol, td, th, blockquote": {
-			"font-family": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important"
+			"font-family": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important",
+			"color": "#000000 !important",
+			"-webkit-text-fill-color": "#000000 !important"
 		},
 		"blockquote": {
 			"border-left": "none !important",
@@ -3678,7 +3729,8 @@ function applyThemeToIframes(themeName) {
 			"page-break-inside": "avoid"
 		},
 		"a": {
-			"color": "#1a0dab"
+			"color": "#000000 !important",
+			"-webkit-text-fill-color": "#000000 !important"
 		},
 		// Footnote markers are usually links (role/doc-noteref or epub:type=noteref)
 		// Make them superscript everywhere.
@@ -3687,7 +3739,8 @@ function applyThemeToIframes(themeName) {
 			"font-size": "0.75em",
 			"line-height": "1",
 			"text-decoration": "none",
-			"color": "#ff00ff"
+			"color": "#000000 !important",
+			"-webkit-text-fill-color": "#000000 !important"
 		},
 		"sup": {
 			"vertical-align": "super"
@@ -3726,7 +3779,9 @@ function applyThemeToIframes(themeName) {
 			"line-height": "1.5"
 		},
 		"p, div, span, li, ul, ol, td, th, blockquote": {
-			"font-family": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important"
+			"font-family": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important",
+			"color": "#ffffff !important",
+			"-webkit-text-fill-color": "#ffffff !important"
 		},
 		"blockquote": {
 			"border-left": "none !important",
@@ -3734,7 +3789,9 @@ function applyThemeToIframes(themeName) {
 			"margin-left": "0 !important"
 		},
 		"body": {
-			"text-align": "justify"
+			"text-align": "justify",
+			"color": "#ffffff !important",
+			"-webkit-text-fill-color": "#ffffff !important"
 		},
 		"h1, h2, h3, h4, h5, h6": {
 			"break-after": "avoid",
@@ -3754,15 +3811,16 @@ function applyThemeToIframes(themeName) {
 			"page-break-inside": "avoid"
 		},
 		"a": {
-			"color": "#ffffff"
+			"color": "#ffffff !important",
+			"-webkit-text-fill-color": "#ffffff !important"
 		},
 		"a[role~='doc-noteref'], a[epub\\:type~='noteref'], a[epub\\|type~='noteref'], a.noteref, a.footnote-ref, a.fn, a[href*='#fn'], a[href*='footnote']": {
 			"vertical-align": "super",
 			"font-size": "0.75em",
 			"line-height": "1",
 			"text-decoration": "none",
-			/* Dark theme: magenta footnote markers */
-			"color": "#ff00ff"
+			"color": "#ffffff !important",
+			"-webkit-text-fill-color": "#ffffff !important"
 		},
 		"sup": {
 			"vertical-align": "super",
