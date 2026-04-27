@@ -4942,7 +4942,10 @@
       markNodes: [],
       locked: false,
       noteHighlightActive: false,
-      dragSelecting: false
+      dragSelecting: false,
+      shareUrlKey: "",
+      shareUrl: "",
+      shareUrlPromise: null
     };
     var notePendingCfi = null;
 
@@ -5424,6 +5427,7 @@
         state.text = "";
         state.cfi = null;
         state.href = null;
+        clearSelectionShareCache();
         hideToolbar();
         return;
       }
@@ -5467,6 +5471,8 @@
       state.text = text;
       state.cfi = cfi;
       state.href = href;
+      clearSelectionShareCache();
+      prewarmSelectionShareUrl();
 
       // Desktop: use native selection highlight.
       showToolbarAt(doc, range);
@@ -5500,6 +5506,8 @@
         state.text = text;
         state.cfi = cfi;
         state.href = href;
+        clearSelectionShareCache();
+        prewarmSelectionShareUrl();
 
         showToolbarAt(doc, range);
         applyMark(doc, range);
@@ -5833,6 +5841,8 @@
         if (contents && contents.cfiFromRange) state.cfi = contents.cfiFromRange(range);
         if (contents && contents.section && contents.section.href) state.href = contents.section.href;
       } catch (e) {}
+      clearSelectionShareCache();
+      prewarmSelectionShareUrl();
       applyMark(doc, range);
       if (showToolbar) {
         var mrect = getMarkRect(doc);
@@ -6062,6 +6072,7 @@
       state.text = "";
       state.cfi = null;
       state.href = null;
+      clearSelectionShareCache();
       state.locked = false;
       state.noteHighlightActive = false;
       state.dragSelecting = false;
@@ -6878,6 +6889,43 @@
       });
     }
 
+    function selectionShareCacheKey(cfi, text) {
+      return String(cfi || "") + "\n" + normalizeInlineText(text || "").slice(0, 500);
+    }
+
+    function clearSelectionShareCache() {
+      state.shareUrlKey = "";
+      state.shareUrl = "";
+      state.shareUrlPromise = null;
+    }
+
+    function prewarmSelectionShareUrl() {
+      try {
+        if (!state.text) return;
+        var cfi = state.cfi || refreshSelectionCfiFromState();
+        if (!cfi) return;
+        var key = selectionShareCacheKey(cfi, state.text);
+        if (state.shareUrlKey === key && (state.shareUrl || state.shareUrlPromise)) return;
+        state.shareUrlKey = key;
+        state.shareUrl = "";
+        state.shareUrlPromise = createShortSelectionShare(cfi, state.text).then(function (url) {
+          if (state.shareUrlKey === key) state.shareUrl = url || "";
+          return url || "";
+        }).catch(function () {
+          if (state.shareUrlKey === key) state.shareUrlPromise = null;
+          return "";
+        });
+      } catch (e) {}
+    }
+
+    function getPrewarmedSelectionShareUrl(cfi, text) {
+      try {
+        var key = selectionShareCacheKey(cfi, text);
+        if (state.shareUrlKey === key && state.shareUrl) return state.shareUrl;
+      } catch (e) {}
+      return "";
+    }
+
     function getIncomingSelectionCfi() {
       try {
         var u = new URL(window.location.href || "", window.location.origin);
@@ -7092,14 +7140,16 @@
               });
             }).catch(function () {});
           } else if (navigator.share) {
-            getSelectionShareUrl(shareCfi, text, fallbackShareUrl).then(function (shareUrl) {
-              var sharePayload = { text: text };
-              if (shareUrl) sharePayload.url = shareUrl;
-              return navigator.share(sharePayload).catch(function () {
-                var fallbackText = shareUrl ? (text + "\n\n" + shareUrl) : text;
-                return copySelectionText(fallbackText).catch(function () {});
-              });
+            var mobileShareUrl = getPrewarmedSelectionShareUrl(shareCfi, text) || fallbackShareUrl;
+            var sharePayload = { text: text };
+            if (mobileShareUrl) sharePayload.url = mobileShareUrl;
+            navigator.share(sharePayload).catch(function () {
+              var fallbackText = mobileShareUrl ? (text + "\n\n" + mobileShareUrl) : text;
+              return copySelectionText(fallbackText).catch(function () {});
             }).catch(function () {});
+            if (!getPrewarmedSelectionShareUrl(shareCfi, text)) {
+              prewarmSelectionShareUrl();
+            }
           } else {
             getSelectionShareUrl(shareCfi, text, fallbackShareUrl).then(function (shareUrl) {
               var shareText = shareUrl ? (text + "\n\n" + shareUrl) : text;
