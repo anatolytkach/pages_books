@@ -7971,18 +7971,19 @@ async function handleAction(action) {
     }
     if (action === "search" || action === "translate" || action === "share") {
       if (action === "share" && shouldUseNativeSelectionShare()) {
-        const prewarmedUrl = HOST_STATE.selectionShare && HOST_STATE.selectionShare.shareUrl
-          ? HOST_STATE.selectionShare.shareUrl
-          : "";
-        if (!prewarmedUrl) {
-          const cachedCapture = HOST_STATE.cachedSelectionActionState;
-          if (cachedCapture && cachedCapture.hasSelection) prewarmProtectedSelectionShare(cachedCapture);
-          setHostActionStatus("Preparing link.");
-          updateProtectedSelectionShareButtonState();
+        const cachedCapture = HOST_STATE.cachedSelectionActionState || await primeSelectionActionState();
+        const selectionText = cachedCapture && cachedCapture.clipboardText ? String(cachedCapture.clipboardText) : "";
+        if (!selectionText) {
+          setHostActionStatus("Create a non-empty selection first.");
+          hideSelectionToolbar();
           return;
         }
+        const shareUrl = HOST_STATE.selectionShare && HOST_STATE.selectionShare.shareUrl
+          ? HOST_STATE.selectionShare.shareUrl
+          : await getProtectedSelectionShareUrl(cachedCapture);
+        if (!shareUrl) throw new Error("Unable to create share link.");
         try {
-          navigator.share({ url: prewarmedUrl }).then(() => {
+          navigator.share({ url: shareUrl }).then(() => {
             setHostActionStatus("Link shared.");
           }).catch((error) => {
             if (!isNativeShareCancelError(error)) {
