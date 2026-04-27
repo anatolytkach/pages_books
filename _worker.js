@@ -1138,6 +1138,16 @@ function formatAuthorDisplayName(value) {
   return `${parts.slice(1).join(" ")} ${parts[0]}`.replace(/\s+/g, " ").trim();
 }
 
+function getReaderPreviewMetaIds(id) {
+  const raw = String(id || "").trim();
+  const ids = raw ? [raw] : [];
+  if (/^900\d{1,}$/.test(raw)) {
+    const unprotectedId = raw.slice(3).replace(/^0+/, "") || raw.slice(3);
+    if (unprotectedId && !ids.includes(unprotectedId)) ids.push(unprotectedId);
+  }
+  return ids;
+}
+
 function normalizePreviewText(value, maxLength = 220) {
   const source = String(value || "").replace(/\s+/g, " ").trim();
   if (source.length <= maxLength) return source;
@@ -1162,11 +1172,14 @@ async function resolveReaderPreviewMeta(env, url) {
 
   let item = null;
   for (const payload of candidates) {
-    const found = payload && payload.items && payload.items[id] ? payload.items[id] : null;
-    if (found) {
-      item = found;
-      break;
+    for (const candidateId of getReaderPreviewMetaIds(id)) {
+      const found = payload && payload.items && payload.items[candidateId] ? payload.items[candidateId] : null;
+      if (found) {
+        item = found;
+        break;
+      }
     }
+    if (item) break;
   }
   if (!item) return null;
 

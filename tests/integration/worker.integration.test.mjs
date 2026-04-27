@@ -357,10 +357,10 @@ test("Integration: protected selection share API stores payload and redirects to
       "api/book-locations/44.json": createR2Object({
         body: JSON.stringify({
           items: {
-            "90025344": {
+            "25344": {
               title: "The Protected Book",
               author: "Example, Ada",
-              cover: "/books/content/90025344/cover.jpg",
+              cover: "/books/content/25344/cover.jpg",
               readerType: "protected",
             },
           },
