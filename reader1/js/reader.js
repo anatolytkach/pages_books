@@ -3493,21 +3493,29 @@ function applyReaderLayoutToIframes(themeName) {
 	this._neighborNextExpected = 0;
 	this._neighborPrevReady = false;
 	this._neighborNextReady = false;
+	this._neighborPrevAllowReady = false;
+	this._neighborNextAllowReady = false;
 	this._neighborBaseKeyExpected = "";
+	this._neighborBaseCfiExpected = "";
 	this._neighborPrevReadyKey = "";
 	this._neighborNextReadyKey = "";
 	this._neighborWaiters = [];
 	this._neighborPrevTurnWaiters = [];
 	this._neighborNextTurnWaiters = [];
 	this.__neighborBaseKeyForLocation = function(location){
+		var cfi = "";
 		try {
-			if (location && location.start && location.start.cfi) return String(location.start.cfi);
+			if (location && location.start && location.start.cfi) cfi = String(location.start.cfi);
 		} catch(e0){}
-		try {
+		if (!cfi) try {
 			var loc = this._lastRelocated || (this.rendition && this.rendition.currentLocation ? this.rendition.currentLocation() : null);
-			if (loc && loc.start && loc.start.cfi) return String(loc.start.cfi);
+			if (loc && loc.start && loc.start.cfi) cfi = String(loc.start.cfi);
 		} catch(e1){}
-		return "";
+		if (!cfi) return "";
+		try {
+			if (typeof getPageLayoutKey === "function") return cfi + "|" + getPageLayoutKey();
+		} catch(e2){}
+		return cfi;
 	};
 	this.__neighborsReadyForLocation = function(location){
 		try {
@@ -3617,10 +3625,12 @@ function applyReaderLayoutToIframes(themeName) {
 				try { setTimeout(function(){ try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutPrevRenderedLater) {} }, 0); } catch(eLayoutPrevTimer) {}
 				try {
 					var baseKey = self._neighborBaseKeyExpected || "";
+					var baseCfi = self._neighborBaseCfiExpected || "";
 					var token = self._neighborPrevExpected || 0;
+					if (!self._neighborPrevAllowReady) return;
 					var loc = self.renditionPrev && self.renditionPrev.currentLocation ? self.renditionPrev.currentLocation() : null;
 					var locKey = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
-					if (baseKey && token && locKey && locKey !== baseKey) {
+					if (baseKey && baseCfi && token && locKey && locKey !== baseCfi) {
 						self.__markNeighborReady("prev", token, baseKey);
 					}
 				} catch (ePrevRenderedReady) {}
@@ -3633,10 +3643,12 @@ function applyReaderLayoutToIframes(themeName) {
 				try { setTimeout(function(){ try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutNextRenderedLater) {} }, 0); } catch(eLayoutNextTimer) {}
 				try {
 					var baseKey = self._neighborBaseKeyExpected || "";
+					var baseCfi = self._neighborBaseCfiExpected || "";
 					var token = self._neighborNextExpected || 0;
+					if (!self._neighborNextAllowReady) return;
 					var loc = self.renditionNext && self.renditionNext.currentLocation ? self.renditionNext.currentLocation() : null;
 					var locKey = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
-					if (baseKey && token && locKey && locKey !== baseKey) {
+					if (baseKey && baseCfi && token && locKey && locKey !== baseCfi) {
 						self.__markNeighborReady("next", token, baseKey);
 					}
 				} catch (eNextRenderedReady) {}
@@ -3647,9 +3659,11 @@ function applyReaderLayoutToIframes(themeName) {
 				try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutPrevRelocated) {}
 				try { setTimeout(function(){ try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutPrevRelocatedLater) {} }, 0); } catch(eLayoutPrevRelocatedTimer) {}
 				var baseKey = self._neighborBaseKeyExpected || "";
+				var baseCfi = self._neighborBaseCfiExpected || "";
 				var token = self._neighborPrevExpected || 0;
+				if (!self._neighborPrevAllowReady) return;
 				var locKey = location && location.start && location.start.cfi ? String(location.start.cfi) : "";
-				if (!baseKey || !token || !locKey || locKey === baseKey) return;
+				if (!baseKey || !baseCfi || !token || !locKey || locKey === baseCfi) return;
 				self.__markNeighborReady("prev", token, baseKey);
 			} catch (ePrevRelocated) {}
 		});
@@ -3658,9 +3672,11 @@ function applyReaderLayoutToIframes(themeName) {
 				try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutNextRelocated) {}
 				try { setTimeout(function(){ try { applyReaderLayoutToIframes(self.currentTheme || "light"); } catch(eLayoutNextRelocatedLater) {} }, 0); } catch(eLayoutNextRelocatedTimer) {}
 				var baseKey = self._neighborBaseKeyExpected || "";
+				var baseCfi = self._neighborBaseCfiExpected || "";
 				var token = self._neighborNextExpected || 0;
+				if (!self._neighborNextAllowReady) return;
 				var locKey = location && location.start && location.start.cfi ? String(location.start.cfi) : "";
-				if (!baseKey || !token || !locKey || locKey === baseKey) return;
+				if (!baseKey || !baseCfi || !token || !locKey || locKey === baseCfi) return;
 				self.__markNeighborReady("next", token, baseKey);
 			} catch (eNextRelocated) {}
 		});
@@ -5796,7 +5812,11 @@ function attachSwipeToDoc(doc) {
 					} catch(e1) {}
 				}
 				if (!curCfi) return;
-				reader._neighborBaseKeyExpected = String(curCfi);
+				var baseKey = "";
+				try { baseKey = reader.__neighborBaseKeyForLocation ? reader.__neighborBaseKeyForLocation(location) : ""; } catch(eBaseKey) {}
+				if (!baseKey) baseKey = String(curCfi);
+				reader._neighborBaseKeyExpected = baseKey;
+				reader._neighborBaseCfiExpected = String(curCfi);
 				try {
 					var fs = (reader.settings && reader.settings.styles && reader.settings.styles.fontSize) ? reader.settings.styles.fontSize : null;
 					if (fs) {
@@ -5811,6 +5831,8 @@ function attachSwipeToDoc(doc) {
 				// Tokenize to avoid races when fast-swiping.
 				reader._neighborPrevReady = false;
 				reader._neighborNextReady = false;
+				reader._neighborPrevAllowReady = false;
+				reader._neighborNextAllowReady = false;
 				reader._neighborPrevReadyKey = "";
 				reader._neighborNextReadyKey = "";
 				reader._neighborPrevToken = (reader._neighborPrevToken || 0) + 1;
@@ -5820,7 +5842,48 @@ function attachSwipeToDoc(doc) {
 
 				var tokPrev = reader._neighborPrevExpected;
 				var tokNext = reader._neighborNextExpected;
-				var baseKey = String(curCfi);
+				function getLocationStartIndex(loc) {
+					try {
+						if (loc && loc.start && typeof loc.start.index === "number") return loc.start.index;
+					} catch (e0) {}
+					return -1;
+				}
+				function getLocationDisplayedPage(loc) {
+					try {
+						if (loc && loc.start && loc.start.displayed && typeof loc.start.displayed.page === "number") {
+							return loc.start.displayed.page;
+						}
+					} catch (e0) {}
+					return -1;
+				}
+				function isSameDisplayedStart(a, b) {
+					try {
+						if (!a || !b) return false;
+						return getLocationStartIndex(a) === getLocationStartIndex(b) &&
+							getLocationDisplayedPage(a) === getLocationDisplayedPage(b);
+					} catch (e0) {}
+					return false;
+				}
+				function isAtEndOfCurrentSpineItem(loc) {
+					try {
+						var d = loc && loc.end && loc.end.displayed ? loc.end.displayed : (loc && loc.start && loc.start.displayed ? loc.start.displayed : null);
+						if (!d || typeof d.page !== "number" || typeof d.total !== "number") return false;
+						return d.total > 0 && d.page >= d.total;
+					} catch (e0) {}
+					return false;
+				}
+				function getNextLinearSpineTarget(loc) {
+					try {
+						var item = null;
+						if (reader.book && reader.book.spine && typeof reader.book.spine.get === "function") {
+							item = reader.book.spine.get(curCfi);
+							if (!item && loc && loc.start && typeof loc.start.index === "number") item = reader.book.spine.get(loc.start.index);
+						}
+						var next = item && typeof item.next === "function" ? item.next() : null;
+						if (next && isSpineItemLinear(next) && next.href) return next.href;
+					} catch (e0) {}
+					return "";
+				}
 				Promise.resolve(reader.renditionPrev.display(curCfi))
 					.then(function(){
 						if (reader._neighborPrevExpected !== tokPrev) return;
@@ -5828,11 +5891,22 @@ function attachSwipeToDoc(doc) {
 					})
 					.then(function(){
 						if (reader._neighborPrevExpected !== tokPrev) return;
+						try {
+							var baseLoc = location || (reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
+							var loc = reader.renditionPrev && reader.renditionPrev.currentLocation ? reader.renditionPrev.currentLocation() : null;
+							if (isSameDisplayedStart(loc, baseLoc)) {
+								return reader.renditionPrev.prev();
+							}
+						} catch (ePrevRetry) {}
+					})
+					.then(function(){
+						if (reader._neighborPrevExpected !== tokPrev) return;
+						reader._neighborPrevAllowReady = true;
 						try { applyReaderLayoutToIframes(reader.currentTheme || "light"); } catch(eThemePrev) {}
 						try {
 							var loc = reader.renditionPrev && reader.renditionPrev.currentLocation ? reader.renditionPrev.currentLocation() : null;
 							var locKey = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
-							if (locKey && locKey !== baseKey && reader.__markNeighborReady) {
+							if (locKey && locKey !== curCfi && reader.__markNeighborReady) {
 								reader.__markNeighborReady("prev", tokPrev, baseKey);
 							}
 						} catch (eReadyPrev) {}
@@ -5846,11 +5920,36 @@ function attachSwipeToDoc(doc) {
 					})
 					.then(function(){
 						if (reader._neighborNextExpected !== tokNext) return;
+						try {
+							var baseLoc = location || (reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
+							if (!isAtEndOfCurrentSpineItem(baseLoc)) return;
+							var loc = reader.renditionNext && reader.renditionNext.currentLocation ? reader.renditionNext.currentLocation() : null;
+							var baseIndex = getLocationStartIndex(baseLoc);
+							var locIndex = getLocationStartIndex(loc);
+							var samePage = locIndex === baseIndex && getLocationDisplayedPage(loc) === getLocationDisplayedPage(baseLoc);
+							if (!samePage) return;
+							var target = getNextLinearSpineTarget(baseLoc);
+							if (target) return reader.renditionNext.display(target);
+						} catch (eNextBoundary) {}
+					})
+					.then(function(){
+						if (reader._neighborNextExpected !== tokNext) return;
+						try {
+							var baseLoc = location || (reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
+							var loc = reader.renditionNext && reader.renditionNext.currentLocation ? reader.renditionNext.currentLocation() : null;
+							if (isSameDisplayedStart(loc, baseLoc)) {
+								return reader.renditionNext.next();
+							}
+						} catch (eNextRetry) {}
+					})
+					.then(function(){
+						if (reader._neighborNextExpected !== tokNext) return;
+						reader._neighborNextAllowReady = true;
 						try { applyReaderLayoutToIframes(reader.currentTheme || "light"); } catch(eThemeNext) {}
 						try {
 							var loc = reader.renditionNext && reader.renditionNext.currentLocation ? reader.renditionNext.currentLocation() : null;
 							var locKey = loc && loc.start && loc.start.cfi ? String(loc.start.cfi) : "";
-							if (locKey && locKey !== baseKey && reader.__markNeighborReady) {
+							if (locKey && locKey !== curCfi && reader.__markNeighborReady) {
 								reader.__markNeighborReady("next", tokNext, baseKey);
 							}
 						} catch (eReadyNext) {}
@@ -7175,10 +7274,28 @@ if (doc) {
 		} catch (e0) {}
 		reader._layoutReflowTimer = setTimeout(function () {
 			reader._layoutReflowTimer = null;
+			try {
+				reader._neighborPrevReady = false;
+				reader._neighborNextReady = false;
+				reader._neighborPrevAllowReady = false;
+				reader._neighborNextAllowReady = false;
+				reader._neighborPrevReadyKey = "";
+				reader._neighborNextReadyKey = "";
+			} catch (eInvalidateNeighbors) {}
 			try { applyReaderNewCompatGapMetrics(); } catch (eCompat) {}
 			try { if (reader.rendition && reader.rendition.resize) reader.rendition.resize(); } catch (e1) {}
 			try { if (reader.renditionPrev && reader.renditionPrev.resize) reader.renditionPrev.resize(); } catch (e2) {}
 			try { if (reader.renditionNext && reader.renditionNext.resize) reader.renditionNext.resize(); } catch (e3) {}
+			try {
+				if (reader.__updateSwipeNeighbors) {
+					setTimeout(function(){
+						try {
+							var locForNeighbors = reader._lastRelocated || (reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
+							if (locForNeighbors) reader.__updateSwipeNeighbors(locForNeighbors);
+						} catch(eUpdateNeighbors) {}
+					}, 0);
+				}
+			} catch (eNeighborsAfterResize) {}
 			scheduleGlobalPageMapRebuild(reason || "layout", rebuildForce);
 		}, 140);
 	}
