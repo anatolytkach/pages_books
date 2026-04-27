@@ -768,39 +768,135 @@
       return window.innerWidth;
     }
 
-	    function updateCenterTapBounds() {
-	      try {
-	        var layerRect = null;
-	        try { layerRect = layer && layer.getBoundingClientRect ? layer.getBoundingClientRect() : null; } catch (eL) { layerRect = null; }
-	        var vw = (layerRect && layerRect.width) ? layerRect.width : getVisibleViewportWidth();
-	        var vLeft = (layerRect && typeof layerRect.left === "number") ? layerRect.left : 0;
-	        var centerW = Math.max(0, Math.round(vw * 0.60));
-	        var leftEdgeW = Math.max(0, Math.round(vw * 0.20));
-	        var rightEdgeW = leftEdgeW;
-	        var left = Math.max(0, Math.round((vw - centerW) / 2));
-	        try {
-	          if (__fb_isDesktop && !window.matchMedia("(pointer: coarse)").matches) {
-	            var stack = document.getElementById("viewerStack") || document.getElementById("viewer");
-	            var sr = stack && stack.getBoundingClientRect ? stack.getBoundingClientRect() : null;
-	            if (sr && sr.width > 0) {
-	              leftEdgeW = Math.max(0, Math.round(sr.left - vLeft));
-	              rightEdgeW = Math.max(0, Math.round((vLeft + vw) - sr.right));
-	              left = leftEdgeW;
-	              centerW = Math.max(0, Math.round(vw - leftEdgeW - rightEdgeW));
-	            }
-	          }
-	        } catch (eDesktopBounds) {}
-	        center.style.left = left + "px";
-	        center.style.width = centerW + "px";
-	        center.style.right = "auto";
-	        try {
-	          var leftZone = document.getElementById("fb-tap-left");
-	          var rightZone = document.getElementById("fb-tap-right");
-	          if (leftZone) leftZone.style.width = leftEdgeW + "px";
-	          if (rightZone) rightZone.style.width = rightEdgeW + "px";
-	        } catch (e4) {}
-	        // Expose bounds for iframe-level handlers to use the exact same zone.
-	        window.__fbTapCenterBounds = { left: vLeft + left, right: vLeft + left + centerW, width: vw };
+    function getVisibleTextBounds() {
+      try {
+        var minLeft = Infinity;
+        var maxRight = -Infinity;
+        var topLimit = 0;
+        var bottomLimit = window.innerHeight || document.documentElement.clientHeight || 0;
+        var leftLimit = 0;
+        var rightLimit = window.innerWidth || document.documentElement.clientWidth || 0;
+        try {
+          var titlebar = document.getElementById("titlebar");
+          var bottombar = document.getElementById("bottombar");
+          topLimit = titlebar && titlebar.getBoundingClientRect ? titlebar.getBoundingClientRect().bottom : topLimit;
+          bottomLimit = bottombar && bottombar.getBoundingClientRect ? bottombar.getBoundingClientRect().top : bottomLimit;
+        } catch (eBars) {}
+        var iframes = document.querySelectorAll("#viewerStack iframe, #viewer iframe");
+        for (var f = 0; f < iframes.length; f++) {
+          var iframe = iframes[f];
+          if (!iframe || !iframe.contentDocument || !iframe.getBoundingClientRect) continue;
+          var frameRect = iframe.getBoundingClientRect();
+          var doc = iframe.contentDocument;
+          var root = doc.body || doc.documentElement;
+          if (!root || !doc.createTreeWalker || !doc.createRange) continue;
+          var walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode: function (node) {
+              var value = "";
+              try { value = String(node && node.nodeValue || "").trim(); } catch (eValue) { value = ""; }
+              if (value.length < 2) return NodeFilter.FILTER_REJECT;
+              try {
+                var parent = node.parentElement || node.parentNode;
+                while (parent && parent.nodeType === 1) {
+                  var tag = String(parent.tagName || "").toLowerCase();
+                  if (tag === "script" || tag === "style" || tag === "svg" || tag === "img" || tag === "audio" || tag === "video") return NodeFilter.FILTER_REJECT;
+                  parent = parent.parentElement || parent.parentNode;
+                }
+              } catch (eParent) {}
+              return NodeFilter.FILTER_ACCEPT;
+            }
+          });
+          var range = doc.createRange();
+          var node = walker.nextNode();
+          while (node) {
+            try {
+              range.selectNodeContents(node);
+              var rects = range.getClientRects ? range.getClientRects() : [];
+              for (var j = 0; j < rects.length; j++) {
+                var r = rects[j];
+                if (!r || r.width <= 0 || r.height <= 0) continue;
+                var left = frameRect.left + r.left;
+                var right = frameRect.left + r.right;
+                var top = frameRect.top + r.top;
+                var bottom = frameRect.top + r.bottom;
+                if (right <= left || bottom <= top) continue;
+                if (right < leftLimit || left > rightLimit) continue;
+                if (bottom < topLimit || top > bottomLimit) continue;
+                minLeft = Math.min(minLeft, left);
+                maxRight = Math.max(maxRight, right);
+              }
+            } catch (eRange) {}
+            node = walker.nextNode();
+          }
+          try {
+            range.detach();
+          } catch (eDetach) {}
+            }
+        if (!isFinite(minLeft) || !isFinite(maxRight) || maxRight <= minLeft) return null;
+        return { left: minLeft, right: maxRight };
+      } catch (e) {}
+      return null;
+    }
+
+    function updateCenterTapBounds() {
+      try {
+        var layerRect = null;
+        try { layerRect = layer && layer.getBoundingClientRect ? layer.getBoundingClientRect() : null; } catch (eL) { layerRect = null; }
+        var vw = (layerRect && layerRect.width) ? layerRect.width : getVisibleViewportWidth();
+        var vLeft = (layerRect && typeof layerRect.left === "number") ? layerRect.left : 0;
+        var centerW = Math.max(0, Math.round(vw * 0.60));
+        var leftEdgeW = Math.max(0, Math.round(vw * 0.20));
+        var rightEdgeW = leftEdgeW;
+        var left = Math.max(0, Math.round((vw - centerW) / 2));
+        try {
+          if (__fb_isDesktop && !window.matchMedia("(pointer: coarse)").matches) {
+            var textBounds = getVisibleTextBounds();
+            if (textBounds) {
+              leftEdgeW = Math.max(0, Math.round(textBounds.left - vLeft));
+              rightEdgeW = Math.max(0, Math.round((vLeft + vw) - textBounds.right));
+            } else {
+              var stack = document.getElementById("viewerStack") || document.getElementById("viewer");
+              var sr = stack && stack.getBoundingClientRect ? stack.getBoundingClientRect() : null;
+              if (sr && sr.width > 0) {
+                leftEdgeW = Math.max(0, Math.round(sr.left - vLeft));
+                rightEdgeW = Math.max(0, Math.round((vLeft + vw) - sr.right));
+              }
+            }
+            left = leftEdgeW;
+            centerW = Math.max(0, Math.round(vw - leftEdgeW - rightEdgeW));
+          }
+        } catch (eDesktopBounds) {}
+        center.style.left = left + "px";
+        center.style.width = centerW + "px";
+        center.style.right = "auto";
+        try {
+          var leftZone = document.getElementById("fb-tap-left");
+          var rightZone = document.getElementById("fb-tap-right");
+          if (leftZone) leftZone.style.width = leftEdgeW + "px";
+          if (rightZone) rightZone.style.width = rightEdgeW + "px";
+          if (__fb_isDesktop && !window.matchMedia("(pointer: coarse)").matches) {
+            var prevArrow = document.getElementById("prev");
+            var nextArrow = document.getElementById("next");
+            if (prevArrow) {
+              prevArrow.style.left = "0px";
+              prevArrow.style.top = "0px";
+              prevArrow.style.bottom = "0px";
+              prevArrow.style.height = "auto";
+              prevArrow.style.width = leftEdgeW + "px";
+              prevArrow.style.transform = "none";
+            }
+            if (nextArrow) {
+              nextArrow.style.right = "0px";
+              nextArrow.style.top = "0px";
+              nextArrow.style.bottom = "0px";
+              nextArrow.style.height = "auto";
+              nextArrow.style.width = rightEdgeW + "px";
+              nextArrow.style.transform = "none";
+            }
+          }
+        } catch (e4) {}
+        // Expose bounds for iframe-level handlers to use the exact same zone.
+        window.__fbTapCenterBounds = { left: vLeft + left, right: vLeft + left + centerW, width: vw };
       } catch (e3) {}
     }
 
@@ -1011,6 +1107,24 @@
       return false;
     }
 
+    function isBookEmptySpaceAtPoint(x, y) {
+      try {
+        var ifr = findIframeAtPoint(x, y);
+        if (!ifr || !ifr.contentDocument || !ifr.getBoundingClientRect) return false;
+        var r = ifr.getBoundingClientRect();
+        var ix = x - r.left;
+        var iy = y - r.top;
+        var doc = ifr.contentDocument;
+        var el = null;
+        try { el = doc.elementFromPoint(ix, iy); } catch (e0) { el = null; }
+        if (el && el.nodeType === 3) el = el.parentElement;
+        if (el && el.closest && el.closest("a[href],button,input,textarea,select,[role='button']")) return false;
+        if (isBookTextAtPoint(x, y)) return false;
+        return true;
+      } catch (e) {}
+      return false;
+    }
+
     function tryToggle(e) {
       // Debounce to avoid double-fire and randomness.
       var now = Date.now();
@@ -1205,6 +1319,30 @@
       }
     }
 
+    function toggleUiFromBookTextPoint(x, y, ev) {
+      try {
+        if (!__fb_isDesktop) return false;
+        try {
+          var bounds = window.__fbTapCenterBounds || null;
+          if (bounds && typeof bounds.left === "number" && typeof bounds.right === "number") {
+            if (x < bounds.left || x > bounds.right) return false;
+          }
+        } catch (eBounds) {}
+        if (!isBookTextAtPoint(x, y) && !isBookEmptySpaceAtPoint(x, y)) return false;
+        var now = Date.now();
+        if (now - (window.__fbDesktopTextPointToggleAt || 0) < 350) return true;
+        window.__fbDesktopTextPointToggleAt = now;
+        try { window.__fbSelectionActive = false; } catch (eSelFlag) {}
+        if (document.body && document.body.classList && document.body.classList.contains("ui-hidden")) showUi();
+        else hideUi();
+        try {
+          if (ev && ev.stopPropagation) ev.stopPropagation();
+        } catch (eStop) {}
+        return true;
+      } catch (e) {}
+      return false;
+    }
+
     // Use POINTER events only to avoid double-firing (touchend + pointerup).
     // Fallback to touch events only if PointerEvent is unavailable.
     if (window.PointerEvent) {
@@ -1290,8 +1428,8 @@
 
     if (__fb_isDesktop || window.__readerpubReaderNewCompat) {
       try {
-        layer.style.pointerEvents = "auto";
-        center.style.pointerEvents = "auto";
+        layer.style.pointerEvents = __fb_isDesktop ? "none" : "auto";
+        center.style.pointerEvents = __fb_isDesktop ? "none" : "auto";
         left.style.pointerEvents = "auto";
         right.style.pointerEvents = "auto";
       } catch (ePointer) {}
@@ -1307,12 +1445,42 @@
         primeClickTap(e);
         tryEdgeTurn(e, true);
       }, true);
+      try {
+        var desktopParentDown = null;
+        document.addEventListener("mousedown", function (e) {
+          if (!__fb_isDesktop || isUiChromeTarget(e && e.target)) return;
+          desktopParentDown = { x: e.clientX, y: e.clientY, ts: Date.now() };
+        }, true);
+        document.addEventListener("mouseup", function (e) {
+          if (!__fb_isDesktop || !desktopParentDown || isUiChromeTarget(e && e.target)) return;
+          var dx = Math.abs(e.clientX - desktopParentDown.x);
+          var dy = Math.abs(e.clientY - desktopParentDown.y);
+          var dt = Date.now() - desktopParentDown.ts;
+          var down = desktopParentDown;
+          desktopParentDown = null;
+          if (dx > 18 || dy > 18 || dt > 1500) return;
+          toggleUiFromBookTextPoint(e.clientX || down.x, e.clientY || down.y, e);
+        }, true);
+        document.addEventListener("click", function (e) {
+          if (!__fb_isDesktop || isUiChromeTarget(e && e.target)) return;
+          toggleUiFromBookTextPoint(e.clientX, e.clientY, e);
+        }, true);
+      } catch (eParentClick) {}
     }
 
-    updateCenterTapBounds();
-    try {
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener("resize", updateCenterTapBounds);
+	    updateCenterTapBounds();
+	    try { window.__fbUpdateTapBounds = updateCenterTapBounds; } catch (eExposeTapBounds) {}
+	    try {
+	      var boundsTicks = 0;
+	      var boundsTimer = setInterval(function () {
+	        boundsTicks++;
+	        updateCenterTapBounds();
+	        if (boundsTicks > 24) clearInterval(boundsTimer);
+	      }, 500);
+	    } catch (eBoundsTimer) {}
+	    try {
+	      if (window.visualViewport) {
+	        window.visualViewport.addEventListener("resize", updateCenterTapBounds);
         window.visualViewport.addEventListener("scroll", updateCenterTapBounds);
       }
     } catch (e4) {}
@@ -2380,6 +2548,7 @@
   // -------- per-iframe gesture bridge + center tap toggle --------
   function enableIframeGestures(reader) {
     if (!reader || !reader.rendition) return;
+    var GESTURE_ATTACH_VERSION = "reader1-desktop-text-click-14";
 
     // epub.js can replace iframe documents as you paginate/relocate.
     // DOM scanning alone can miss the *current* contents document, which makes
@@ -2401,11 +2570,15 @@
     }
 
     function attachToDoc(doc) {
-      if (!doc || doc.__fbGesturesAttached) return;
+      if (!doc || doc.__fbGesturesAttachedVersion === GESTURE_ATTACH_VERSION) return;
       doc.__fbGesturesAttached = true;
+      doc.__fbGesturesAttachedVersion = GESTURE_ATTACH_VERSION;
 
       var startX = 0, startY = 0, moved = false;
       var startTime = 0;
+      var desktopClickArmed = false;
+      var desktopPointerDown = false;
+      var desktopSuppressClickUntil = 0;
       var lastDesktopTapAt = 0;
       var lastDesktopTapX = -10000;
       var lastDesktopTapY = -10000;
@@ -2434,6 +2607,10 @@
           var t = e.touches ? e.touches[0] : e;
           startX = t.clientX; startY = t.clientY; moved = false;
           startTime = Date.now();
+          if (__fb_isDesktop) {
+            desktopClickArmed = true;
+            desktopPointerDown = true;
+          }
           // Fullscreen MUST be requested synchronously in the same user-gesture stack.
           // postMessage is async and will often only succeed after several swipes.
           try {
@@ -2455,8 +2632,10 @@
 
       function onMove(e) {
         try {
+          if (__fb_isDesktop && !desktopPointerDown) return;
           var t = e.touches ? e.touches[0] : e;
-          if (Math.abs(t.clientX - startX) > TH || Math.abs(t.clientY - startY) > TH) moved = true;
+          var th = __fb_isDesktop ? 18 : TH;
+          if (Math.abs(t.clientX - startX) > th || Math.abs(t.clientY - startY) > th) moved = true;
         } catch (e2) {}
       }
 
@@ -2476,9 +2655,26 @@
         return false;
       }
 
+      function clearDocTextSelection() {
+        try {
+          var sel = getDocSelection();
+          if (sel && sel.removeAllRanges) sel.removeAllRanges();
+        } catch (e) {}
+      }
+
+      function toggleUiFromDesktopTextClick() {
+        try { window.__fbSelectionActive = false; } catch (eSelFlag) {}
+        try {
+          if (document.body && document.body.classList && document.body.classList.contains("ui-hidden")) showUi();
+          else hideUi();
+        } catch (eToggleDirect) {
+          try { toggleUi(); } catch (eToggleFallback) {}
+        }
+      }
+
       function onEnd(e) {
         if (__fb_isDesktop) {
-          maybeHandleDesktopReaderTap(e);
+          desktopPointerDown = false;
           return;
         }
         try {
@@ -2572,21 +2768,27 @@
       }
 
       function maybeHandleDesktopReaderTap(e) {
-        if (!__fb_isDesktop) return;
+        if (!__fb_isDesktop) return false;
         try {
           if (
             document.body &&
             document.body.classList &&
             document.body.classList.contains("search-open") &&
             !document.body.classList.contains("search-minimized")
-          ) return;
+          ) return false;
         } catch (eSearch) {}
-        if (moved) return;
-        if (Date.now() - startTime > 700) return;
+        if (!desktopClickArmed) return false;
+        desktopClickArmed = false;
+        if (moved) return false;
+        if (Date.now() - startTime > 1500) return false;
         try {
-          if (window.__fbSelectionActive && !hasDocTextSelection()) window.__fbSelectionActive = false;
-          if (window.__fbSelectionActive) return;
-          if (hasDocTextSelection()) return;
+          if (window.__fbSelectionActive) return false;
+          if (hasDocTextSelection()) {
+            clearDocTextSelection();
+            window.__fbSelectionActive = false;
+          } else {
+            window.__fbSelectionActive = false;
+          }
         } catch (eSel) {}
         try {
           var tgt = e && e.target;
@@ -2594,21 +2796,38 @@
           var interactive = tgt && tgt.closest
             ? tgt.closest("a,button,input,textarea,select,label")
             : null;
-          if (interactive) return;
+          if (interactive) return false;
           var pt = e;
-          if (!pt || typeof pt.clientX !== "number" || typeof pt.clientY !== "number") return;
+          if (!pt || typeof pt.clientX !== "number" || typeof pt.clientY !== "number") return false;
           var now = Date.now();
           var dx = Math.abs(pt.clientX - lastDesktopTapX);
           var dy = Math.abs(pt.clientY - lastDesktopTapY);
-          if (now - lastDesktopTapAt < 120 && dx < 3 && dy < 3) return;
+          if (now - lastDesktopTapAt < 120 && dx < 3 && dy < 3) return false;
           lastDesktopTapAt = now;
           lastDesktopTapX = pt.clientX;
           lastDesktopTapY = pt.clientY;
-          toggleUi();
+          toggleUiFromDesktopTextClick();
+          return true;
         } catch (eDesktopClick) {}
+        return false;
       }
 
       function onDesktopReaderClick(e) {
+        if (Date.now() - (window.__fbDesktopTextDirectToggleAt || 0) < 700) return;
+        if (Date.now() < desktopSuppressClickUntil) return;
+        try {
+          if (!desktopClickArmed) {
+            moved = false;
+            startTime = Date.now();
+            desktopClickArmed = true;
+            desktopPointerDown = false;
+          }
+          var pt = e;
+          if (!desktopClickArmed && pt && typeof pt.clientX === "number") {
+            startX = pt.clientX;
+            startY = pt.clientY;
+          }
+        } catch (ePrime) {}
         maybeHandleDesktopReaderTap(e);
       }
 
@@ -2625,8 +2844,8 @@
       var win = null;
       try { win = doc.defaultView; } catch (e) {}
       function bindMouseTapTarget(target) {
-        if (!target || target.__fbTextTapTargetAttached) return;
-        try { target.__fbTextTapTargetAttached = true; } catch (e0) {}
+        if (!target || target.__fbTextTapTargetAttached === GESTURE_ATTACH_VERSION) return;
+        try { target.__fbTextTapTargetAttached = GESTURE_ATTACH_VERSION; } catch (e0) {}
         try {
           target.addEventListener("pointerdown", onStart, { passive: true, capture: true });
           target.addEventListener("pointermove", onMove, { passive: true, capture: true });
@@ -2656,6 +2875,7 @@
           win.addEventListener("mousedown", onStart, { passive: true, capture: true });
           win.addEventListener("mousemove", onMove, { passive: true, capture: true });
           win.addEventListener("mouseup", onEnd, { passive: true, capture: true });
+          win.addEventListener("click", onDesktopReaderClick, true);
           win.addEventListener("contextmenu", blockContextMenu, true);
         }
       } catch (e) {
@@ -2671,6 +2891,74 @@
           win.addEventListener("contextmenu", blockContextMenu, true);
         }
       }
+
+      try {
+        if (__fb_isDesktop && doc.__fbDesktopTextClickDirectVersion !== GESTURE_ATTACH_VERSION) {
+          doc.__fbDesktopTextClickDirectVersion = GESTURE_ATTACH_VERSION;
+          var directDown = null;
+          var directInteractive = false;
+          function directIsInteractive(target) {
+            try {
+              if (!target) return false;
+              if (target.nodeType === 3) target = target.parentElement;
+              if (!target || !target.closest) return false;
+              return !!target.closest("a[href],button,input,textarea,select,[role='button']");
+            } catch (e) {}
+            return false;
+          }
+          function directHasSelection() {
+            try {
+              var sel = doc.getSelection ? doc.getSelection() : (doc.defaultView && doc.defaultView.getSelection ? doc.defaultView.getSelection() : null);
+              return !!(sel && !sel.isCollapsed && String(sel.toString() || "").trim());
+            } catch (e) {}
+            return false;
+          }
+          function directClearSelection() {
+            try {
+              var sel = doc.getSelection ? doc.getSelection() : (doc.defaultView && doc.defaultView.getSelection ? doc.defaultView.getSelection() : null);
+              if (sel && sel.removeAllRanges) sel.removeAllRanges();
+            } catch (e) {}
+          }
+          function directToggle() {
+            try {
+              try {
+                var fr = doc.defaultView && doc.defaultView.frameElement ? doc.defaultView.frameElement.getBoundingClientRect() : null;
+                var bounds = window.__fbTapCenterBounds || null;
+                if (fr && bounds && directDown) {
+                  var absX = fr.left + directDown.x;
+                  if (absX < bounds.left || absX > bounds.right) return;
+                }
+              } catch (eBounds) {}
+              var now = Date.now();
+              if (now - (window.__fbDesktopTextDirectToggleAt || 0) < 300) return;
+              window.__fbDesktopTextDirectToggleAt = now;
+              window.__fbSelectionActive = false;
+              if (document.body && document.body.classList && document.body.classList.contains("ui-hidden")) showUi();
+              else hideUi();
+            } catch (e) {}
+          }
+          doc.addEventListener("mousedown", function (ev) {
+            try {
+              if (!ev) return;
+              directDown = { x: ev.clientX, y: ev.clientY, t: Date.now() };
+              directInteractive = directIsInteractive(ev.target);
+            } catch (e) {}
+          }, true);
+          doc.addEventListener("mouseup", function (ev) {
+            try {
+              if (!directDown || directInteractive || !ev) return;
+              var dx = Math.abs(ev.clientX - directDown.x);
+              var dy = Math.abs(ev.clientY - directDown.y);
+              var dt = Date.now() - directDown.t;
+              directDown = null;
+              if (dx > 18 || dy > 18 || dt > 1500) return;
+              if (directHasSelection()) directClearSelection();
+              directToggle();
+              if (ev.stopPropagation) ev.stopPropagation();
+            } catch (e) {}
+          }, true);
+        }
+      } catch (eDirectDesktopTextClick) {}
     }
 
     // ---- Search highlight color fix (match protected reader overlay) ----
@@ -2714,14 +3002,15 @@
       for (var hr = 0; hr < hookRenditions.length; hr++) {
         (function (rendition) {
           if (!rendition) return;
-          try {
-            rendition.hooks.content.register(function (contents) {
-              try { attachToDoc(contents.document); } catch (e) {}
-              try { ensureSearchHlCss(contents.document); } catch (e) {}
-            });
-          } catch (eHook) {}
-          try {
-            rendition.on("rendered", function (section, view) {
+	          try {
+	            rendition.hooks.content.register(function (contents) {
+	              try { attachToDoc(contents.document); } catch (e) {}
+	              try { ensureSearchHlCss(contents.document); } catch (e) {}
+	              try { if (window.__fbUpdateTapBounds) setTimeout(window.__fbUpdateTapBounds, 0); } catch (eBoundsHook) {}
+	            });
+	          } catch (eHook) {}
+	          try {
+	            rendition.on("rendered", function (section, view) {
               try {
                 // Ensure CSS in the parent doc that owns the view element (overlay lives here).
                 if (view && view.element && view.element.ownerDocument) ensureSearchHlCss(view.element.ownerDocument);
@@ -2733,13 +3022,14 @@
                   if (view.element.tagName === "IFRAME") iframe = view.element;
                   else if (view.element.querySelector) iframe = view.element.querySelector("iframe");
                 }
-                if (iframe && iframe.contentDocument) {
-                  attachToDoc(iframe.contentDocument);
-                  ensureSearchHlCss(iframe.contentDocument);
-                }
-              } catch (e) {}
-            });
-          } catch (eRendered) {}
+	                if (iframe && iframe.contentDocument) {
+	                  attachToDoc(iframe.contentDocument);
+	                  ensureSearchHlCss(iframe.contentDocument);
+	                }
+	              } catch (e) {}
+	              try { if (window.__fbUpdateTapBounds) setTimeout(window.__fbUpdateTapBounds, 0); } catch (eBoundsRendered) {}
+	            });
+	          } catch (eRendered) {}
         })(hookRenditions[hr]);
       }
     } catch (e) {}
@@ -2784,16 +3074,13 @@
       }
     } catch (e) {}
 
-      // Final safety net: for the first few seconds, keep scanning.
-      // Some WebViews create iframes late and don't trigger hooks reliably.
+      // Safety net: EPUB.js can keep the same iframe element but swap the
+      // content document later; keep the current visible documents attached.
       try {
-        var cnt = 0;
         var iv = setInterval(function(){
-          cnt++;
           scanIframes();
           attachAllRenditionContents();
-          if (cnt > 24) clearInterval(iv); // ~12s
-        }, 500);
+        }, 1000);
       } catch (e) {}
   }
 
@@ -4633,7 +4920,7 @@
     // the outer shell chrome.
     try {
 	      var tapCenter = document.getElementById("fb-tap-center");
-	      if (tapCenter) tapCenter.style.pointerEvents = (__fb_isDesktop || window.__readerpubReaderNewCompat) ? "auto" : "none";
+	      if (tapCenter) tapCenter.style.pointerEvents = (__fb_isDesktop ? "none" : (window.__readerpubReaderNewCompat ? "auto" : "none"));
     } catch (e) {}
 
     var state = {
@@ -5162,7 +5449,9 @@
         state.href = href;
 
         showToolbarAt(doc, range);
+        applyMark(doc, range);
         state.locked = true;
+        state.desktopSelectionCommittedAt = Date.now();
         window.__fbSelectionActive = true;
       } catch (e0) {}
     }
@@ -5228,6 +5517,14 @@
       }, true); } catch (e) {}
       try { doc.addEventListener("pointerup", function () { commitSelection(doc); }, true); } catch (e) {}
       try { doc.addEventListener("mouseup", function () { commitSelection(doc); }, true); } catch (e) {}
+      try { doc.addEventListener("click", function (e) {
+        if (!isDesktopSelectionMode()) return;
+        if (!state.locked || state.doc !== doc) return;
+        if (Date.now() - (state.desktopSelectionCommittedAt || 0) > 700) return;
+        try { if (e && e.preventDefault) e.preventDefault(); } catch (e0) {}
+        try { if (e && e.stopImmediatePropagation) e.stopImmediatePropagation(); } catch (e1) {}
+        try { if (e && e.stopPropagation) e.stopPropagation(); } catch (e2) {}
+      }, true); } catch (e) {}
       try { doc.addEventListener("keyup", function () { scheduleUpdate(doc); }, true); } catch (e) {}
       try { doc.addEventListener("pointerdown", function () { if (state.locked) hideAndClear(); state.locked = false; }, true); } catch (e) {}
       try { doc.addEventListener("touchstart", function () { if (state.locked) hideAndClear(); state.locked = false; }, true); } catch (e) {}
