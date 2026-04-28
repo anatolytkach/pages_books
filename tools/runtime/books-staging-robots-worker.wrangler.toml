@@ -1,0 +1,7 @@
+name = "readerpub-books-staging-robots"
+main = "books-staging-robots-worker.js"
+compatibility_date = "2026-04-28"
+
+routes = [
+  { pattern = "books-staging.reader.pub/robots.txt*", zone_name = "reader.pub" },
+]
