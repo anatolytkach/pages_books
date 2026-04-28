@@ -3449,11 +3449,30 @@ function isReader1DesktopShareMode() {
   return !!(root && root.classList.contains("is-desktop") && !isPhoneOrTabletShell());
 }
 
-function shouldUseNativeSelectionShare() {
-  if (!navigator.share) return false;
-  if (isPhoneOrTabletShell()) return true;
+function isReader1TouchSelectionShareMode() {
   try {
-    if (hasTouchLikeViewportHost()) return true;
+    const root = document.documentElement;
+    if (root && root.classList && root.classList.contains("is-tablet")) return true;
+  } catch (_error) {}
+  try {
+    const ua = String((navigator && navigator.userAgent) || "");
+    if (/Android/i.test(ua)) return true;
+  } catch (_error) {}
+  try {
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
+  } catch (_error) {}
+  try {
+    if (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0) return true;
+  } catch (_error) {}
+  try {
+    if ("ontouchstart" in window) return true;
+  } catch (_error) {}
+  return !isReader1DesktopShareMode();
+}
+
+function shouldUseNativeSelectionShare() {
+  try {
+    return !!(!isReader1DesktopShareMode() && isReader1TouchSelectionShareMode() && navigator.share);
   } catch (_error) {}
   return false;
 }
@@ -11183,7 +11202,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-1");
+      await import("../dev/protected-reader.js?v=20260428-protected-native-share-2");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
