@@ -790,7 +790,11 @@ test("Integration: author, category, sitemap and robots routes render seo layer"
   });
   assert.equal(robotsResponse.status, 200);
   assert.equal(robotsResponse.headers.get("x-reader-route"), "seo-robots");
-  assert.match(await robotsResponse.text(), /Disallow: \/books\/reader\//);
+  const robotsBody = await robotsResponse.text();
+  assert.match(robotsBody, /User-agent: facebookexternalhit\s+Allow: \/s\/\s+Allow: \/books\/content\//);
+  assert.match(robotsBody, /User-agent: Facebot\s+Allow: \/s\/\s+Allow: \/books\/content\//);
+  assert.match(robotsBody, /User-agent: meta-externalagent\s+Allow: \/s\/\s+Allow: \/books\/content\//);
+  assert.match(robotsBody, /Disallow: \/books\/reader\//);
 });
 
 test("Integration: /docs requires auth and returns 401 without credentials", async () => {

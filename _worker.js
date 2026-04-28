@@ -2451,6 +2451,18 @@ async function renderSeoRoute(request, env, url, path) {
   if (path === "/robots.txt") {
     return await withSeoCache(request, globalVersion, cacheVariant, async () => {
       const body = [
+        "User-agent: facebookexternalhit",
+        "Allow: /s/",
+        "Allow: /books/content/",
+        "",
+        "User-agent: Facebot",
+        "Allow: /s/",
+        "Allow: /books/content/",
+        "",
+        "User-agent: meta-externalagent",
+        "Allow: /s/",
+        "Allow: /books/content/",
+        "",
         "User-agent: *",
         "Allow: /book/",
         "Allow: /author/",
