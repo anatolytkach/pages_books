@@ -3707,7 +3707,7 @@ function updateProtectedSelectionShareButtonState() {
   const share = HOST_STATE.selectionShare || {};
   const gateMobile = shouldUseNativeSelectionShare();
   const enabled = !gateMobile || !!share.shareUrl;
-  button.disabled = !enabled;
+  button.disabled = false;
   button.classList.toggle("is-disabled", !enabled);
   button.setAttribute("aria-disabled", enabled ? "false" : "true");
   button.setAttribute("title", gateMobile && !share.shareUrl ? "Preparing link" : "Share");
@@ -3816,6 +3816,16 @@ function getIncomingProtectedSelectionShare() {
   } catch (_error) {
     return null;
   }
+}
+
+function getProtectedNativeShareText() {
+  const cached = HOST_STATE.cachedSelectionActionState || null;
+  const cachedText = normalizeProtectedSelectionText(cached && cached.clipboardText ? cached.clipboardText : "");
+  if (cachedText) return cachedText;
+  const share = HOST_STATE.selectionShare || {};
+  const payloadText = normalizeProtectedSelectionText(share.lastPayload && share.lastPayload.selectionText ? share.lastPayload.selectionText : "");
+  if (payloadText) return payloadText;
+  return "";
 }
 
 async function restoreIncomingProtectedSelectionShare() {
@@ -8006,7 +8016,9 @@ async function handleAction(action) {
           return;
         }
         try {
-          navigator.share({ url: shareUrl }).then(() => {
+          const shareText = getProtectedNativeShareText();
+          const sharePayload = shareText ? { text: shareText, url: shareUrl } : { url: shareUrl };
+          navigator.share(sharePayload).then(() => {
             setHostActionStatus("Link shared.");
           }).catch((error) => {
             if (!isNativeShareCancelError(error)) {
@@ -8086,7 +8098,9 @@ async function handleAction(action) {
     }
     let sharePromise = null;
     try {
-      sharePromise = navigator.share({ url: shareUrl });
+      const shareText = getProtectedNativeShareText();
+      const sharePayload = shareText ? { text: shareText, url: shareUrl } : { url: shareUrl };
+      sharePromise = navigator.share(sharePayload);
     } catch (error) {
       if (!isNativeShareCancelError(error)) {
         setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
@@ -8117,7 +8131,6 @@ async function handleAction(action) {
     button.__protectedNativeShareClickBound = true;
     button.addEventListener("click", (event) => {
       if (!shouldUseNativeSelectionShare()) return;
-      if (button.disabled || button.getAttribute("aria-disabled") === "true") return;
       try {
         event.preventDefault();
         event.stopPropagation();
@@ -11262,7 +11275,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-5");
+      await import("../dev/protected-reader.js?v=20260428-protected-native-share-6");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
