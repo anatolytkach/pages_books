@@ -338,7 +338,7 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("x-reader-route"), "selection-share-page");
   assert.match(body, /property="og:site_name" content="ReaderPub"/);
-  assert.match(body, /property="og:title" content="Anna Karenina"/);
+  assert.match(body, /property="og:title" content="ReaderPub - Anna Karenina"/);
   assert.match(body, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
   assert.match(body, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/1399\/OEBPS\/cover\.jpg"/);
   assert.match(body, /property="og:image:width" content="600"/);
@@ -403,7 +403,7 @@ test("Integration: protected selection share API stores payload and redirects to
   const body = await shareResponse.text();
 
   assert.equal(shareResponse.status, 200);
-  assert.match(body, /property="og:title" content="The Protected Book"/);
+  assert.match(body, /property="og:title" content="ReaderPub - The Protected Book"/);
   assert.match(body, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/25344\/cover\.jpg"/);
   assert.match(body, /name="twitter:description" content="by Ada Example\. &quot;Protected quoted text&quot;"/);
   assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/books\/protected\/\?id=90025344&reader=protected/);

@@ -1160,6 +1160,12 @@ function buildReaderFallbackDescription(title, authorName) {
   return `Read "${String(title || "").trim()}" by ${author} on ReaderPub.`;
 }
 
+function formatReaderPubPreviewTitle(title) {
+  const rawTitle = String(title || "").replace(/\s+/g, " ").trim() || "ReaderPub";
+  if (/^readerpub\b/i.test(rawTitle)) return rawTitle;
+  return `ReaderPub - ${rawTitle}`;
+}
+
 async function resolveReaderPreviewMeta(env, url) {
   const id = String(url.searchParams.get("id") || url.searchParams.get("i") || "").trim();
   if (!id) return null;
@@ -1194,7 +1200,7 @@ async function resolveReaderPreviewMeta(env, url) {
     image = `${url.origin}${image.startsWith("/") ? "" : "/"}${image}`;
   }
   return {
-    title,
+    title: formatReaderPubPreviewTitle(title),
     author,
     description: normalizePreviewText(description, 300),
     image,
