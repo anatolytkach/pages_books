@@ -8114,6 +8114,8 @@ async function handleAction(action) {
   async function maybeHandleToolbarAction(event, viaClick = false) {
     const action = toolbarActionFromEvent(event);
     if (!action) return;
+    const nativeSelectionShareAction = action === "share" && shouldUseNativeSelectionShare();
+    if (nativeSelectionShareAction && !viaClick) return;
     try {
       if (toolbar.__protectedActionLock && Date.now() - toolbar.__protectedActionLock < 500) return;
       toolbar.__protectedActionLock = Date.now();
@@ -8123,7 +8125,7 @@ async function handleAction(action) {
       event.stopPropagation();
       event.stopImmediatePropagation && event.stopImmediatePropagation();
     } catch (error) {}
-    if (handleNativeSelectionShareFromGesture(action)) return;
+    if (nativeSelectionShareAction && handleNativeSelectionShareFromGesture(action)) return;
     try {
       await handleAction(action);
     } catch (error) {
@@ -11243,7 +11245,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-3");
+      await import("../dev/protected-reader.js?v=20260428-protected-native-share-4");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
