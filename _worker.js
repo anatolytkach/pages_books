@@ -1243,7 +1243,10 @@ function normalizeSelectionSharePayload(raw) {
 function buildSelectionReaderUrl(origin, payload) {
   const safePayload = normalizeSelectionSharePayload(payload);
   if (!safePayload) return "";
-  const u = new URL("/reader1/", origin);
+  const base = new URL(origin);
+  const host = String(base.host || "").toLowerCase();
+  const readerPath = host === "reader.pub" ? "/books/reader1/" : "/reader1/";
+  const u = new URL(readerPath, base.origin);
   u.searchParams.set("id", safePayload.bookId);
   if (safePayload.source) u.searchParams.set("source", safePayload.source);
   u.searchParams.set("selectionCfi", safePayload.selectionCfi);
