@@ -2820,7 +2820,10 @@ export default {
           "x-reader-route": "selection-share-miss",
         });
       }
-      const targetUrl = buildSelectionReaderUrl(url.origin, payload);
+      const forwardedOrigin = String(request.headers.get("x-reader-canonical-origin") || "").trim();
+      const publicOrigin =
+        /^https?:\/\/[a-z0-9.-]+$/i.test(forwardedOrigin) ? forwardedOrigin.replace(/\/+$/, "") : url.origin;
+      const targetUrl = buildSelectionReaderUrl(publicOrigin, payload);
       const previewUrl = new URL(targetUrl);
       const meta = await resolveReaderPreviewMeta(env, previewUrl);
       if (meta) {

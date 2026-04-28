@@ -6915,7 +6915,7 @@
           if (url) return url;
           var shareId = data && data.shareId ? String(data.shareId) : "";
           if (!shareId) throw new Error("missing share id");
-          return new URL("/s/" + encodeURIComponent(shareId), window.location.origin).toString();
+          return new URL("/s/" + encodeURIComponent(shareId), getCanonicalShareOrigin()).toString();
         }).catch(function (error) {
           state.shareUrlLastError = error && error.message ? error.message : String(error || "");
           state.shareUrlLastUpdatedAt = Date.now();
@@ -7798,6 +7798,17 @@
       }
       if (clearHash) u.hash = "";
       return u.toString();
+    }
+
+    function getCanonicalShareOrigin() {
+      try {
+        var host = String(window.location.hostname || "").toLowerCase();
+        if (host === "reader-books.pages.dev") return "https://reader.pub";
+        if (host.indexOf(".readerpub-books-staging.pages.dev") !== -1) {
+          return "https://books-staging.reader.pub";
+        }
+      } catch (e0) {}
+      return window.location.origin;
     }
 
     function getNotesShareCreateEndpoints() {
