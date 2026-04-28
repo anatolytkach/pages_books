@@ -61,6 +61,19 @@ function buildSelectionShareCacheKey(shareId) {
   return new Request(`https://selection-share.reader.pub/${encodeURIComponent(String(shareId || ""))}`);
 }
 
+function getCanonicalSelectionShareOrigin(urlLike) {
+  try {
+    const url = urlLike instanceof URL ? urlLike : new URL(String(urlLike || ""));
+    const host = String(url.hostname || "").toLowerCase();
+    if (host === "reader-books.pages.dev") return "https://reader.pub";
+    if (host.endsWith(".readerpub-books-staging.pages.dev")) {
+      return "https://books-staging.reader.pub";
+    }
+    return url.origin;
+  } catch (e) {}
+  return "https://reader.pub";
+}
+
 async function cachePutNotesShare(shareId, payload) {
   try {
     const cache = caches && caches.default ? caches.default : null;
@@ -2736,7 +2749,7 @@ export default {
       const previewUrl = new URL(targetUrl);
       const meta = await resolveReaderPreviewMeta(env, previewUrl);
       if (meta) {
-        meta.url = new URL(`/s/${encodeURIComponent(shareId)}`, url.origin).toString();
+        meta.url = new URL(`/s/${encodeURIComponent(shareId)}`, getCanonicalSelectionShareOrigin(url)).toString();
       }
       return htmlResponse(renderSelectionShareLandingPage(meta, targetUrl), 200, {
         "cache-control": "public, max-age=300, s-maxage=600",
@@ -2837,7 +2850,7 @@ export default {
         return jsonResponse(
           {
             shareId,
-            url: new URL(`/s/${encodeURIComponent(shareId)}`, url.origin).toString(),
+            url: new URL(`/s/${encodeURIComponent(shareId)}`, getCanonicalSelectionShareOrigin(url)).toString(),
           },
           200,
           notesShareCorsHeaders()
