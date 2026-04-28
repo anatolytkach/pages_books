@@ -8111,6 +8111,22 @@ async function handleAction(action) {
     return true;
   }
 
+  function bindNativeSelectionShareClick() {
+    const button = getProtectedSelectionShareButton();
+    if (!button || button.__protectedNativeShareClickBound) return;
+    button.__protectedNativeShareClickBound = true;
+    button.addEventListener("click", (event) => {
+      if (!shouldUseNativeSelectionShare()) return;
+      if (button.disabled || button.getAttribute("aria-disabled") === "true") return;
+      try {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation && event.stopImmediatePropagation();
+      } catch (_error) {}
+      handleNativeSelectionShareFromGesture("share");
+    }, true);
+  }
+
   async function maybeHandleToolbarAction(event, viaClick = false) {
     const action = toolbarActionFromEvent(event);
     if (!action) return;
@@ -8141,6 +8157,7 @@ async function handleAction(action) {
   toolbar.addEventListener("touchstart", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true, passive: false });
   toolbar.addEventListener("pointerup", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true });
   toolbar.addEventListener("touchend", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true, passive: false });
+  bindNativeSelectionShareClick();
   toolbar.addEventListener("click", (event) => { maybeHandleToolbarAction(event, true); });
   const dismissSelectionUi = (event) => {
     if (Date.now() < Number(HOST_STATE.suppressSelectionDismissUntil || 0)) return;
@@ -11245,7 +11262,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-4");
+      await import("../dev/protected-reader.js?v=20260428-protected-native-share-5");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
