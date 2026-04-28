@@ -7306,6 +7306,7 @@ function showSelectionToolbar(clientX, clientY) {
   toolbar.style.left = `${Math.max(12, clientX - 70)}px`;
   toolbar.style.top = `${Math.max(12, clientY - 64)}px`;
   toolbar.style.visibility = "visible";
+  primeProtectedSelectionShareForVisibleToolbar();
 }
 
 async function primeSelectionActionState() {
@@ -7317,6 +7318,18 @@ async function primeSelectionActionState() {
     HOST_STATE.cachedSelectionActionState = null;
     return null;
   }
+}
+
+function primeProtectedSelectionShareForVisibleToolbar() {
+  void primeSelectionActionState().then((capture) => {
+    if (capture && capture.hasSelection) {
+      prewarmProtectedSelectionShare(capture);
+    } else {
+      updateProtectedSelectionShareButtonState();
+    }
+  }).catch(() => {
+    updateProtectedSelectionShareButtonState();
+  });
 }
 
 function showSelectionToolbarForSummary(summary, fallbackX = 160, fallbackY = 160) {
@@ -7404,15 +7417,7 @@ function showSelectionToolbarForSummary(summary, fallbackX = 160, fallbackY = 16
     x: chosen.x,
     y: chosen.y
   };
-  void primeSelectionActionState().then((capture) => {
-    if (capture && capture.hasSelection) {
-      prewarmProtectedSelectionShare(capture);
-    } else {
-      updateProtectedSelectionShareButtonState();
-    }
-  }).catch(() => {
-    updateProtectedSelectionShareButtonState();
-  });
+  primeProtectedSelectionShareForVisibleToolbar();
 }
 
 function openExternalUrl(url) {
@@ -8077,7 +8082,8 @@ async function handleAction(action) {
   function toolbarActionFromEvent(event) {
     const direct = event && event.target && event.target.closest ? event.target.closest("[data-action]") : null;
     if (direct) {
-      if (direct.disabled || direct.getAttribute("aria-disabled") === "true") return "";
+      const action = direct.getAttribute("data-action");
+      if (direct.disabled || (direct.getAttribute("aria-disabled") === "true" && action !== "share")) return "";
       return direct.getAttribute("data-action");
     }
     return "";
@@ -11261,7 +11267,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-7");
+      await import("../dev/protected-reader.js?v=20260428-protected-native-share-8");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
