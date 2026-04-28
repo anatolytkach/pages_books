@@ -3450,7 +3450,7 @@ function isReader1DesktopShareMode() {
 }
 
 function shouldUseNativeSelectionShare() {
-  return !!(!isReader1DesktopShareMode() && navigator.share);
+  return !!(navigator.share && isTouchShellMode());
 }
 
 async function copyTextToClipboard(text) {
@@ -3706,6 +3706,8 @@ async function createShortProtectedSelectionShare(payload) {
       share.lastStatus = response ? String(response.status || "") : "no-response";
       if (!response || !response.ok) throw new Error(`selection share create failed: ${share.lastStatus}`);
       const data = await response.json();
+      const url = data && data.url ? String(data.url) : "";
+      if (url) return url;
       const shareId = data && data.shareId ? String(data.shareId) : "";
       if (!shareId) throw new Error("missing share id");
       return new URL(`/s/${encodeURIComponent(shareId)}`, window.location.origin).toString();
