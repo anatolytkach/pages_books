@@ -1,0 +1,11 @@
+name = "readerpub-facebook-share-staging"
+main = "facebook-share-staging-worker.js"
+compatibility_date = "2026-04-28"
+
+routes = [
+  { pattern = "fb-books-staging.reader.pub", zone_name = "reader.pub", custom_domain = true },
+  { pattern = "books-staging.reader.pub/books/api/ss*", zone_name = "reader.pub" },
+  { pattern = "books-staging.reader.pub/api/ss*", zone_name = "reader.pub" },
+  { pattern = "books-staging.reader.pub/books/reader/api/ss*", zone_name = "reader.pub" },
+  { pattern = "books-staging.reader.pub/books/reader1/api/ss*", zone_name = "reader.pub" },
+]
