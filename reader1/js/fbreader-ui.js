@@ -7347,11 +7347,8 @@
               prewarmSelectionShareUrl();
               return;
             }
-            var sharePayload = { text: text };
-            sharePayload.url = mobileShareUrl;
-            navigator.share(sharePayload).catch(function () {
-              var fallbackText = text + "\n\n" + mobileShareUrl;
-              return copySelectionText(fallbackText).catch(function () {});
+            navigator.share({ url: mobileShareUrl }).catch(function () {
+              return copySelectionText(mobileShareUrl).catch(function () {});
             }).catch(function () {});
           } else {
             getSelectionShareUrl(shareCfi, text, fallbackShareUrl).then(function (shareUrl) {
