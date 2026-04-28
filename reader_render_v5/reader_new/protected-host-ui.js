@@ -3450,7 +3450,12 @@ function isReader1DesktopShareMode() {
 }
 
 function shouldUseNativeSelectionShare() {
-  return !!(!isReader1DesktopShareMode() && navigator.share);
+  if (!navigator.share) return false;
+  if (isPhoneOrTabletShell()) return true;
+  try {
+    if (hasTouchLikeViewportHost()) return true;
+  } catch (_error) {}
+  return false;
 }
 
 async function copyTextToClipboard(text) {
