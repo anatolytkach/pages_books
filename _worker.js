@@ -1300,10 +1300,9 @@ function normalizeProtectedSelectionSharePayload(raw) {
   };
 }
 
-function buildSelectionReaderUrl(origin, payload, options = {}) {
+function buildSelectionReaderUrl(origin, payload) {
   const safePayload = normalizeSelectionSharePayload(payload);
   if (!safePayload) return "";
-  const selectionShareId = String(options.selectionShareId || options.shareId || "").trim();
   if (safePayload.readerType === "protected") {
     const u = new URL("/books/protected/", origin);
     u.searchParams.set("id", safePayload.bookId);
@@ -1315,11 +1314,7 @@ function buildSelectionReaderUrl(origin, payload, options = {}) {
     u.searchParams.set("protectedUx", safePayload.protectedUx || "protected-shell");
     u.searchParams.set("renderMode", safePayload.renderMode || "shape");
     u.searchParams.set("metricsMode", safePayload.metricsMode || "shape");
-    if (selectionShareId) {
-      u.searchParams.set("selectionShareId", selectionShareId);
-    } else {
-      u.searchParams.set("protectedSelectionAnchor", JSON.stringify(safePayload.protectedAnchor));
-    }
+    u.searchParams.set("protectedSelectionAnchor", JSON.stringify(safePayload.protectedAnchor));
     if (safePayload.selectionText) u.searchParams.set("selectionText", safePayload.selectionText);
     return u.toString();
   }
@@ -2828,7 +2823,7 @@ export default {
       const forwardedOrigin = String(request.headers.get("x-reader-canonical-origin") || "").trim();
       const publicOrigin =
         /^https?:\/\/[a-z0-9.-]+$/i.test(forwardedOrigin) ? forwardedOrigin.replace(/\/+$/, "") : url.origin;
-      const targetUrl = buildSelectionReaderUrl(publicOrigin, payload, { selectionShareId: shareId });
+      const targetUrl = buildSelectionReaderUrl(publicOrigin, payload);
       const previewUrl = new URL(targetUrl);
       const meta = await resolveReaderPreviewMeta(env, previewUrl);
       if (meta) {
@@ -2942,36 +2937,6 @@ export default {
         return jsonResponse(
           {
             error: "Failed to create selection share",
-            detail: error && error.message ? error.message : String(error || ""),
-          },
-          500,
-          notesShareCorsHeaders()
-        );
-      }
-    }
-
-    const selectionShareReadMatch = normalizedPath.match(
-      /^\/(?:books\/api\/selection-share|api\/selection-share|books\/reader\/api\/selection-share|books\/reader1\/api\/selection-share|books\/api\/ss|api\/ss|books\/reader\/api\/ss|books\/reader1\/api\/ss)\/([A-Za-z0-9_-]{4,64})$/
-    );
-    if (selectionShareReadMatch) {
-      if (request.method === "OPTIONS") {
-        const headers = new Headers(notesShareCorsHeaders());
-        headers.set("x-reader-worker", "1");
-        headers.set("x-reader-route", "selection-share-read-options");
-        return new Response(null, { status: 204, headers });
-      }
-      if (request.method !== "GET") {
-        return jsonResponse({ error: "Method not allowed" }, 405, notesShareCorsHeaders());
-      }
-      try {
-        const shareId = String(selectionShareReadMatch[1] || "");
-        const payload = await getSelectionSharePayload(env, shareId, selectionSharePrefix);
-        if (!payload) return jsonResponse({ error: "Not found" }, 404, notesShareCorsHeaders());
-        return jsonResponse({ shareId, payload }, 200, notesShareCorsHeaders());
-      } catch (error) {
-        return jsonResponse(
-          {
-            error: "Failed to load selection share",
             detail: error && error.message ? error.message : String(error || ""),
           },
           500,

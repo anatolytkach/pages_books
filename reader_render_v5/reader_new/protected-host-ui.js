@@ -3777,78 +3777,26 @@ function installProtectedSelectionShareDebug() {
   };
 }
 
-function getSelectionShareReadEndpoints(shareId) {
-  const encoded = encodeURIComponent(String(shareId || "").trim());
-  return [
-    `/books/api/ss/${encoded}`,
-    `/api/ss/${encoded}`,
-    `/books/reader/api/ss/${encoded}`,
-    `/books/reader1/api/ss/${encoded}`,
-    `/books/api/selection-share/${encoded}`,
-    `/api/selection-share/${encoded}`,
-    `/books/reader/api/selection-share/${encoded}`,
-    `/books/reader1/api/selection-share/${encoded}`
-  ];
-}
-
-function normalizeIncomingProtectedSelectionPayload(payload) {
-  const raw = payload && payload.payload && typeof payload.payload === "object" ? payload.payload : payload;
-  if (!raw || typeof raw !== "object") return null;
-  const readerType = String(raw.readerType || raw.reader || "").trim().toLowerCase();
-  const anchor = raw.protectedAnchor || raw.selectionAnchor || raw.selectionRange || raw.rangeDescriptor || null;
-  if (readerType && readerType !== "protected") return null;
-  if (!anchor) return null;
-  return {
-    anchor,
-    selectionText: normalizeProtectedSelectionText(raw.selectionText || raw.text || "")
-  };
-}
-
-async function fetchIncomingProtectedSelectionShare(shareId) {
-  const id = String(shareId || "").trim();
-  if (!/^[A-Za-z0-9_-]{4,64}$/.test(id)) return null;
-  for (const endpoint of getSelectionShareReadEndpoints(id)) {
-    try {
-      const response = await fetch(endpoint, {
-        method: "GET",
-        credentials: "same-origin",
-        headers: { accept: "application/json" }
-      });
-      if (!response || !response.ok) continue;
-      const data = await response.json();
-      const incoming = normalizeIncomingProtectedSelectionPayload(data);
-      if (incoming) return incoming;
-    } catch (_error) {}
-  }
-  return null;
-}
-
-async function getIncomingProtectedSelectionShare() {
+function getIncomingProtectedSelectionShare() {
   try {
     const params = new URLSearchParams(window.location.search || "");
     const rawAnchor =
       String(params.get("protectedSelectionAnchor") || "").trim() ||
       String(params.get("selectionAnchor") || "").trim() ||
       String(params.get("protectedAnchor") || "").trim();
-    if (rawAnchor) {
-      return {
-        anchor: JSON.parse(rawAnchor),
-        selectionText: normalizeProtectedSelectionText(params.get("selectionText") || "")
-      };
-    }
-    const shareId =
-      String(params.get("selectionShareId") || "").trim() ||
-      String(params.get("ss") || "").trim();
-    if (shareId) return await fetchIncomingProtectedSelectionShare(shareId);
+    if (!rawAnchor) return null;
+    return {
+      anchor: JSON.parse(rawAnchor),
+      selectionText: normalizeProtectedSelectionText(params.get("selectionText") || "")
+    };
   } catch (_error) {
     return null;
   }
-  return null;
 }
 
 async function restoreIncomingProtectedSelectionShare() {
   if (HOST_STATE.incomingSelectionShareApplied) return;
-  const incoming = await getIncomingProtectedSelectionShare();
+  const incoming = getIncomingProtectedSelectionShare();
   if (!incoming) return;
   const bridge = getBridge();
   if (!bridge || typeof bridge.restoreSharedSelection !== "function") return;
@@ -11233,7 +11181,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-compact-1");
+      await import("../dev/protected-reader.js?v=20260428-protected-native-share-rollback-3");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
