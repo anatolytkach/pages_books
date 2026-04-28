@@ -8,4 +8,8 @@ routes = [
   { pattern = "books-staging.reader.pub/api/ss*", zone_name = "reader.pub" },
   { pattern = "books-staging.reader.pub/books/reader/api/ss*", zone_name = "reader.pub" },
   { pattern = "books-staging.reader.pub/books/reader1/api/ss*", zone_name = "reader.pub" },
+  { pattern = "books-staging.reader.pub/books/api/selection-share*", zone_name = "reader.pub" },
+  { pattern = "books-staging.reader.pub/api/selection-share*", zone_name = "reader.pub" },
+  { pattern = "books-staging.reader.pub/books/reader/api/selection-share*", zone_name = "reader.pub" },
+  { pattern = "books-staging.reader.pub/books/reader1/api/selection-share*", zone_name = "reader.pub" },
 ]

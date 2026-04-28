@@ -86,7 +86,11 @@ export default {
         url.pathname === "/books/api/ss" ||
         url.pathname === "/api/ss" ||
         url.pathname === "/books/reader/api/ss" ||
-        url.pathname === "/books/reader1/api/ss"
+        url.pathname === "/books/reader1/api/ss" ||
+        url.pathname === "/books/api/selection-share" ||
+        url.pathname === "/api/selection-share" ||
+        url.pathname === "/books/reader/api/selection-share" ||
+        url.pathname === "/books/reader1/api/selection-share"
       )
     ) {
       return handleShortShareApi(request, url);
