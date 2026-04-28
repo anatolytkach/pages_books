@@ -7990,7 +7990,7 @@ async function handleAction(action) {
           : await getProtectedSelectionShareUrl(cachedCapture);
         if (!shareUrl) throw new Error("Unable to create share link.");
         try {
-          navigator.share({ text: selectionText, url: shareUrl }).then(() => {
+          navigator.share({ url: shareUrl }).then(() => {
             setHostActionStatus("Link shared.");
           }).catch((error) => {
             if (!isNativeShareCancelError(error)) {
@@ -11181,7 +11181,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-rollback-3");
+      await import("../dev/protected-reader.js?v=20260428-protected-native-share-rollback-2");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
