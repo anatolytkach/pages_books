@@ -57,6 +57,10 @@ function buildNotesShareCacheKey(shareId) {
   return new Request(`https://notes-share.reader.pub/${encodeURIComponent(String(shareId || ""))}`);
 }
 
+function buildSelectionShareCacheKey(shareId) {
+  return new Request(`https://selection-share.reader.pub/${encodeURIComponent(String(shareId || ""))}`);
+}
+
 async function cachePutNotesShare(shareId, payload) {
   try {
     const cache = caches && caches.default ? caches.default : null;
@@ -76,11 +80,42 @@ async function cachePutNotesShare(shareId, payload) {
   return false;
 }
 
+async function cachePutSelectionShare(shareId, payload) {
+  try {
+    const cache = caches && caches.default ? caches.default : null;
+    if (!cache) return false;
+    const key = buildSelectionShareCacheKey(shareId);
+    const body = JSON.stringify(payload || {});
+    const resp = new Response(body, {
+      status: 200,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=31536000",
+      },
+    });
+    await cache.put(key, resp);
+    return true;
+  } catch (e) {}
+  return false;
+}
+
 async function cacheGetNotesShare(shareId) {
   try {
     const cache = caches && caches.default ? caches.default : null;
     if (!cache) return null;
     const key = buildNotesShareCacheKey(shareId);
+    const hit = await cache.match(key);
+    if (!hit) return null;
+    return await hit.json();
+  } catch (e) {}
+  return null;
+}
+
+async function cacheGetSelectionShare(shareId) {
+  try {
+    const cache = caches && caches.default ? caches.default : null;
+    if (!cache) return null;
+    const key = buildSelectionShareCacheKey(shareId);
     const hit = await cache.match(key);
     if (!hit) return null;
     return await hit.json();
@@ -1103,9 +1138,229 @@ function formatAuthorDisplayName(value) {
   return `${parts.slice(1).join(" ")} ${parts[0]}`.replace(/\s+/g, " ").trim();
 }
 
+function getReaderPreviewMetaIds(id) {
+  const raw = String(id || "").trim();
+  const ids = raw ? [raw] : [];
+  if (/^900\d{1,}$/.test(raw)) {
+    const unprotectedId = raw.slice(3).replace(/^0+/, "") || raw.slice(3);
+    if (unprotectedId && !ids.includes(unprotectedId)) ids.push(unprotectedId);
+  }
+  return ids;
+}
+
+function normalizePreviewText(value, maxLength = 220) {
+  const source = String(value || "").replace(/\s+/g, " ").trim();
+  if (source.length <= maxLength) return source;
+  const cut = source.slice(0, Math.max(0, maxLength - 1)).replace(/\s+\S*$/, "");
+  return `${cut || source.slice(0, Math.max(0, maxLength - 1))}...`;
+}
+
 function buildReaderFallbackDescription(title, authorName) {
   const author = formatAuthorDisplayName(authorName) || String(authorName || "").trim();
   return `Read "${String(title || "").trim()}" by ${author} on ReaderPub.`;
+}
+
+async function resolveReaderPreviewMeta(env, url) {
+  const id = String(url.searchParams.get("id") || url.searchParams.get("i") || "").trim();
+  if (!id) return null;
+  const shard = shardForReaderId(id);
+  const source = String(url.searchParams.get("source") || "").trim();
+  const candidates = [];
+  if (source) candidates.push(await getCatalogJson(env, `api/book-locations/${source}/${shard}.json`, null));
+  candidates.push(await getCatalogJson(env, `api/book-locations/${shard}.json`, null));
+  if (source !== "gutenberg") candidates.push(await getCatalogJson(env, `api/book-locations/gutenberg/${shard}.json`, null));
+
+  let item = null;
+  for (const payload of candidates) {
+    for (const candidateId of getReaderPreviewMetaIds(id)) {
+      const found = payload && payload.items && payload.items[candidateId] ? payload.items[candidateId] : null;
+      if (found) {
+        item = found;
+        break;
+      }
+    }
+    if (item) break;
+  }
+  if (!item) return null;
+
+  const title = String(item.title || "ReaderPub").trim();
+  const author = formatAuthorDisplayName(item.author || item.creator || "");
+  const quote = normalizePreviewText(url.searchParams.get("selectionText") || "", 240);
+  const description = quote
+    ? `${author ? `by ${author}. ` : ""}"${quote}"`
+    : `${author ? `by ${author}. ` : ""}Read on ReaderPub.`;
+  let image = String(item.cover || item.coverUrl || item.cover_url || "").trim();
+  if (image && !/^https?:\/\//i.test(image)) {
+    image = `${url.origin}${image.startsWith("/") ? "" : "/"}${image}`;
+  }
+  return {
+    title,
+    author,
+    description: normalizePreviewText(description, 300),
+    image,
+    url: url.toString(),
+  };
+}
+
+function buildReaderPreviewMetaTags(meta) {
+  if (!meta) return "";
+  return [
+    `<meta property="og:site_name" content="ReaderPub" />`,
+    `<meta property="og:type" content="article" />`,
+    `<meta property="og:title" content="${escapeHtml(meta.title)}" />`,
+    `<meta property="og:description" content="${escapeHtml(meta.description)}" />`,
+    `<meta property="og:url" content="${escapeHtml(meta.url)}" />`,
+    meta.image ? `<meta property="og:image" content="${escapeHtml(meta.image)}" />` : "",
+    meta.image ? `<meta property="og:image:secure_url" content="${escapeHtml(meta.image)}" />` : "",
+    meta.image ? `<meta property="og:image:type" content="image/jpeg" />` : "",
+    meta.image ? `<meta property="og:image:width" content="600" />` : "",
+    meta.image ? `<meta property="og:image:height" content="900" />` : "",
+    `<meta name="twitter:card" content="summary" />`,
+    `<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`,
+    `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`,
+    meta.image ? `<meta name="twitter:image" content="${escapeHtml(meta.image)}" />` : "",
+    meta.author ? `<meta name="author" content="${escapeHtml(meta.author)}" />` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function normalizeSelectionSharePayload(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const readerType = String(raw.readerType || raw.reader || "").trim().toLowerCase();
+  if (readerType === "protected") return normalizeProtectedSelectionSharePayload(raw);
+  const bookId = String(raw.bookId || raw.id || raw.i || "").trim().slice(0, 200);
+  const selectionCfi = String(raw.selectionCfi || raw.cfi || "").trim().slice(0, 2000);
+  if (!bookId || !/^epubcfi\(/i.test(selectionCfi)) return null;
+  const source = String(raw.source || "").trim().slice(0, 200);
+  const selectionText = String(raw.selectionText || raw.text || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
+  return {
+    v: 1,
+    type: "reader-selection",
+    bookId,
+    source,
+    selectionCfi,
+    selectionText,
+    createdAt: Number(raw.createdAt || Date.now()) || Date.now(),
+  };
+}
+
+function normalizeProtectedSelectionAnchor(rawAnchor) {
+  let anchor = rawAnchor;
+  if (typeof rawAnchor === "string") {
+    try {
+      anchor = JSON.parse(rawAnchor);
+    } catch (_error) {
+      return null;
+    }
+  }
+  if (!anchor || typeof anchor !== "object") return null;
+  const start = anchor.start && typeof anchor.start === "object" ? anchor.start : null;
+  const end = anchor.end && typeof anchor.end === "object" ? anchor.end : null;
+  if (!start || !end) return null;
+  const bookId = String(anchor.bookId || start.bookId || end.bookId || "").trim().slice(0, 200);
+  const startGlobal = Number(start.globalOffset);
+  const endGlobal = Number(end.globalOffset);
+  if (!bookId || !Number.isFinite(startGlobal) || !Number.isFinite(endGlobal) || startGlobal === endGlobal) {
+    return null;
+  }
+  const clone = JSON.parse(JSON.stringify(anchor));
+  clone.kind = String(clone.kind || "protected-range-v1").slice(0, 80);
+  clone.bookId = bookId;
+  return clone;
+}
+
+function normalizeProtectedSelectionSharePayload(raw) {
+  const bookId = String(raw.bookId || raw.id || raw.i || raw.artifactBookId || raw.protectedArtifactBookId || "").trim().slice(0, 200);
+  const artifactBookId = String(raw.artifactBookId || raw.protectedArtifactBookId || raw.protectedBookId || bookId).trim().slice(0, 200);
+  const protectedAnchor = normalizeProtectedSelectionAnchor(
+    raw.protectedAnchor || raw.selectionAnchor || raw.selectionRange || raw.rangeDescriptor
+  );
+  if (!bookId || !artifactBookId || !protectedAnchor) return null;
+  const selectionText = String(raw.selectionText || raw.text || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
+  return {
+    v: 1,
+    type: "reader-selection",
+    readerType: "protected",
+    bookId,
+    artifactBookId,
+    source: String(raw.source || "").trim().slice(0, 200),
+    protectedArtifactSource: String(raw.protectedArtifactSource || raw.artifactSource || "").trim().slice(0, 80),
+    protectedAllowAll: /^(1|true|yes|on)$/i.test(String(raw.protectedAllowAll || "").trim()) ? "1" : "",
+    protectedUx: String(raw.protectedUx || "protected-shell").trim().slice(0, 80),
+    renderMode: String(raw.renderMode || "shape").trim() === "text" ? "text" : "shape",
+    metricsMode: String(raw.metricsMode || "shape").trim() === "text" ? "text" : "shape",
+    protectedAnchor,
+    selectionText,
+    createdAt: Number(raw.createdAt || Date.now()) || Date.now(),
+  };
+}
+
+function buildSelectionReaderUrl(origin, payload) {
+  const safePayload = normalizeSelectionSharePayload(payload);
+  if (!safePayload) return "";
+  if (safePayload.readerType === "protected") {
+    const u = new URL("/books/protected/", origin);
+    u.searchParams.set("id", safePayload.bookId);
+    u.searchParams.set("reader", "protected");
+    u.searchParams.set("protectedArtifactBookId", safePayload.artifactBookId || safePayload.bookId);
+    if (safePayload.source) u.searchParams.set("source", safePayload.source);
+    if (safePayload.protectedArtifactSource) u.searchParams.set("protectedArtifactSource", safePayload.protectedArtifactSource);
+    if (safePayload.protectedAllowAll) u.searchParams.set("protectedAllowAll", safePayload.protectedAllowAll);
+    u.searchParams.set("protectedUx", safePayload.protectedUx || "protected-shell");
+    u.searchParams.set("renderMode", safePayload.renderMode || "shape");
+    u.searchParams.set("metricsMode", safePayload.metricsMode || "shape");
+    u.searchParams.set("protectedSelectionAnchor", JSON.stringify(safePayload.protectedAnchor));
+    if (safePayload.selectionText) u.searchParams.set("selectionText", safePayload.selectionText);
+    return u.toString();
+  }
+  const u = new URL("/reader1/", origin);
+  u.searchParams.set("id", safePayload.bookId);
+  if (safePayload.source) u.searchParams.set("source", safePayload.source);
+  u.searchParams.set("selectionCfi", safePayload.selectionCfi);
+  if (safePayload.selectionText) u.searchParams.set("selectionText", safePayload.selectionText);
+  u.hash = safePayload.selectionCfi;
+  return u.toString();
+}
+
+async function getSelectionSharePayload(env, shareId, prefix) {
+  let data = null;
+  if (env.READER_BOOKS) {
+    const obj = await env.READER_BOOKS.get(`${prefix}${shareId}.json`);
+    if (obj) data = await obj.json();
+  } else {
+    data = await cacheGetSelectionShare(shareId);
+  }
+  return normalizeSelectionSharePayload(data);
+}
+
+function renderSelectionShareLandingPage(meta, targetUrl) {
+  const metaTags = buildReaderPreviewMetaTags(meta);
+  const safeTarget = escapeHtml(targetUrl);
+  const title = escapeHtml((meta && meta.title) || "ReaderPub");
+  const description = escapeHtml((meta && meta.description) || "Open this quote in ReaderPub.");
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${title}</title>
+<meta name="description" content="${description}" />
+${metaTags}
+<link rel="canonical" href="${safeTarget}" />
+<meta http-equiv="refresh" content="0;url=${safeTarget}" />
+<script>window.location.replace(${JSON.stringify(targetUrl)});</script>
+</head>
+<body>
+<main>
+<p><a href="${safeTarget}">Open in ReaderPub</a></p>
+</main>
+</body>
+</html>`;
 }
 
 function getRenderableBookDescription(book) {
@@ -2548,6 +2803,37 @@ export default {
     const posthogEnabled =
       /^(1|true|yes|on)$/i.test(rawPosthogEnabled) && !!posthogKey && !!posthogHost;
     const notesSharePrefix = "api/notes_shares/";
+    const selectionSharePrefix = "api/selection_shares/";
+
+    if (normalizedPath.startsWith("/s/")) {
+      const shareId = normalizedPath.slice(3).trim();
+      if (!/^[A-Za-z0-9_-]{4,64}$/.test(shareId)) {
+        return textResponse("Not found", 404, {
+          "cache-control": "no-store",
+          "x-reader-route": "selection-share-miss",
+        });
+      }
+      const payload = await getSelectionSharePayload(env, shareId, selectionSharePrefix);
+      if (!payload) {
+        return textResponse("Not found", 404, {
+          "cache-control": "no-store",
+          "x-reader-route": "selection-share-miss",
+        });
+      }
+      const forwardedOrigin = String(request.headers.get("x-reader-canonical-origin") || "").trim();
+      const publicOrigin =
+        /^https?:\/\/[a-z0-9.-]+$/i.test(forwardedOrigin) ? forwardedOrigin.replace(/\/+$/, "") : url.origin;
+      const targetUrl = buildSelectionReaderUrl(publicOrigin, payload);
+      const previewUrl = new URL(targetUrl);
+      const meta = await resolveReaderPreviewMeta(env, previewUrl);
+      if (meta) {
+        meta.url = new URL(`/s/${encodeURIComponent(shareId)}`, url.origin).toString();
+      }
+      return htmlResponse(renderSelectionShareLandingPage(meta, targetUrl), 200, {
+        "cache-control": "public, max-age=300, s-maxage=600",
+        "x-reader-route": "selection-share-page",
+      });
+    }
 
     if (
       path === "/robots.txt" ||
@@ -2566,6 +2852,97 @@ export default {
       }
       const seoResponse = await renderSeoRoute(request, env, url, stripTrailingSlash(path));
       if (seoResponse) return seoResponse;
+    }
+
+    if (
+      normalizedPath === "/books/api/selection-share" ||
+      normalizedPath === "/api/selection-share" ||
+      normalizedPath === "/books/reader/api/selection-share" ||
+      normalizedPath === "/books/reader1/api/selection-share" ||
+      normalizedPath === "/books/api/ss" ||
+      normalizedPath === "/api/ss" ||
+      normalizedPath === "/books/reader/api/ss" ||
+      normalizedPath === "/books/reader1/api/ss"
+    ) {
+      if (request.method === "OPTIONS") {
+        const headers = new Headers(notesShareCorsHeaders());
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "selection-share-options");
+        return new Response(null, { status: 204, headers });
+      }
+      if (request.method !== "POST") {
+        const headers = new Headers(notesShareCorsHeaders());
+        headers.set("content-type", "application/json; charset=utf-8");
+        headers.set("x-reader-worker", "1");
+        headers.set("x-reader-route", "selection-share-method");
+        return new Response(JSON.stringify({ error: "Method not allowed" }), {
+          status: 405,
+          headers,
+        });
+      }
+      try {
+        const body = await request.json();
+        const payload = normalizeSelectionSharePayload(body);
+        if (!payload) {
+          return jsonResponse(
+            { error: "Invalid selection share payload" },
+            400,
+            notesShareCorsHeaders()
+          );
+        }
+        let shareId = "";
+        let key = "";
+        for (let i = 0; i < 5; i++) {
+          shareId = randomShareId();
+          key = `${selectionSharePrefix}${shareId}.json`;
+          if (env.READER_BOOKS) {
+            const existing = await env.READER_BOOKS.get(key);
+            if (!existing) break;
+          } else {
+            const existing = await cacheGetSelectionShare(shareId);
+            if (!existing) break;
+          }
+          shareId = "";
+        }
+        if (!shareId) {
+          return jsonResponse(
+            { error: "Failed to create share id" },
+            500,
+            notesShareCorsHeaders()
+          );
+        }
+        if (env.READER_BOOKS) {
+          await env.READER_BOOKS.put(key, JSON.stringify(payload), {
+            httpMetadata: { contentType: "application/json; charset=utf-8" },
+          });
+        } else {
+          const cached = await cachePutSelectionShare(shareId, payload);
+          if (!cached) {
+            return jsonResponse(
+              { error: "Selection share storage unavailable" },
+              500,
+              notesShareCorsHeaders()
+            );
+          }
+        }
+        return jsonResponse(
+          {
+            shareId,
+            url: new URL(`/s/${encodeURIComponent(shareId)}`, url.origin).toString(),
+          },
+          200,
+          notesShareCorsHeaders()
+        );
+      } catch (error) {
+        return jsonResponse(
+          {
+            error: "Failed to create selection share",
+            detail: error && error.message ? error.message : String(error || ""),
+          },
+          500,
+          notesShareCorsHeaders()
+        );
+      }
     }
 
     if (
@@ -3926,35 +4303,58 @@ export default {
       headers.set("pragma", "no-cache");
     }
 
-    if (isHtml && (driveClientId || posthogKey || posthogHost || rawPosthogEnabled)) {
-      const rewritten = new HTMLRewriter()
-        .on('meta[name="google-drive-client-id"]', {
+    const isReaderPreviewHtml =
+      path === "/books/reader/" ||
+      path === "/books/reader/index.html" ||
+      path === "/reader1/" ||
+      path === "/reader1/index.html";
+    const readerPreviewMeta = isHtml && isReaderPreviewHtml
+      ? await resolveReaderPreviewMeta(env, url)
+      : null;
+    const readerPreviewMetaTags = buildReaderPreviewMetaTags(readerPreviewMeta);
+
+    if (isHtml && (driveClientId || posthogKey || posthogHost || rawPosthogEnabled || readerPreviewMetaTags)) {
+      let rewriter = new HTMLRewriter();
+      if (driveClientId) {
+        rewriter = rewriter.on('meta[name="google-drive-client-id"]', {
           element(element) {
             element.setAttribute("content", driveClientId);
           },
-        })
-        .on('meta[name="posthog-enabled"]', {
+        });
+      }
+      if (rawPosthogEnabled || posthogKey || posthogHost) {
+        rewriter = rewriter.on('meta[name="posthog-enabled"]', {
           element(element) {
             element.setAttribute("content", posthogEnabled ? "true" : "false");
           },
-        })
-        .on('meta[name="posthog-key"]', {
+        });
+      }
+      if (posthogKey) {
+        rewriter = rewriter.on('meta[name="posthog-key"]', {
           element(element) {
             element.setAttribute("content", posthogKey);
           },
-        })
-        .on('meta[name="posthog-host"]', {
+        });
+      }
+      if (posthogHost) {
+        rewriter = rewriter.on('meta[name="posthog-host"]', {
           element(element) {
             element.setAttribute("content", posthogHost);
           },
-        })
-        .transform(
-          new Response(response.body, {
-            status: response.status,
-            statusText: response.statusText,
-            headers,
-          })
-        );
+        });
+      }
+      if (readerPreviewMetaTags) {
+        rewriter = rewriter.on("head", {
+          element(element) {
+            element.append(readerPreviewMetaTags, { html: true });
+          },
+        });
+      }
+      const rewritten = rewriter.transform(new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      }));
       return rewritten;
     }
 

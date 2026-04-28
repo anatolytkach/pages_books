@@ -326,6 +326,14 @@ export default {
       return proxyRequest(request, upstreamUrl, "proxy-reader-render-v5");
     }
 
+    if (path.startsWith("/s/")) {
+      const upstreamUrl = new URL(`${host}${path}`);
+      upstreamUrl.search = url.search;
+      return proxyRequest(request, upstreamUrl, "proxy-selection-share", {
+        "x-reader-canonical-origin": `${url.protocol}//${url.host}`
+      });
+    }
+
     if (
       path === "/robots.txt" ||
       path === "/sitemap.xml" ||

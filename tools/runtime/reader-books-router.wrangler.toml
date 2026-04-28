@@ -12,6 +12,7 @@ routes = [
   { pattern = "reader.pub/run-daily*", zone_name = "reader.pub" },
   { pattern = "reader.pub/report-outcome*", zone_name = "reader.pub" },
   { pattern = "reader.pub/api/*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/s*", zone_name = "reader.pub" },
   { pattern = "reader.pub/sitemap.xml*", zone_name = "reader.pub" },
   { pattern = "reader.pub/sitemaps/*", zone_name = "reader.pub" },
   { pattern = "reader.pub/robots.txt*", zone_name = "reader.pub" },

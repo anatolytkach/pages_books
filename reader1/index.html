@@ -13,7 +13,7 @@
 <meta content="" name="posthog-host"/>
 <link rel="icon" type="image/svg+xml" href="/books/assets/logo-flip.svg?v=20260218-1" />
 <link href="css/normalize.css" rel="stylesheet"/>
-<link href="css/main.css?v=20260426-reader1-overlay-dismiss-2" rel="stylesheet"/>
+<link href="css/main.css?v=20260427-reader1-short-selection-share-3" rel="stylesheet"/>
 <link href="css/popup.css" rel="stylesheet"/>
 <script src="/books/shared/posthog.js"></script>
 <script src="js/libs/jquery.min.js"></script>
@@ -173,6 +173,9 @@
   const qentry = params.get("entry");
   const qid = params.get("id");
   const qidShort = params.get("i");
+  const qSelectionCfi = String(params.get("selectionCfi") || "").trim();
+  const querySelectionIsCfi = /^epubcfi\(/i.test(qSelectionCfi);
+  const qSelectionText = String(params.get("selectionText") || "");
   const qCatalogReturn = params.get("catalog_return");
   const qAutostart = params.get("autostart");
   const requestedContentSource = String(params.get("readerContentSource") || params.get("bookContentSource") || "")
@@ -182,12 +185,21 @@
     .trim()
     .toLowerCase();
   const rawHash = (location.hash || "");
-  const hid = rawHash.replace(/^#/, "");
+  const rawHashValue = rawHash.replace(/^#/, "");
+  let hid = rawHashValue;
+  try {
+    hid = decodeURIComponent(rawHashValue || "");
+  } catch (eDecodeHash) {}
   const hashIsId = /^\d+$/.test(hid);
   const hashIsCfi = /^epubcfi\(/i.test(hid);
   let id = (qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId ? hid.trim() : "") || "";
   let source = (qsource && qsource.trim()) || "";
   if (source === "gutenberg") source = "";
+
+  try {
+    window.__readerpubIncomingSelectionCfi = querySelectionIsCfi ? qSelectionCfi : "";
+    window.__readerpubIncomingSelectionText = qSelectionText;
+  } catch (eIncomingSelection) {}
 
   const hasExplicitId = !!((qid && qid.trim()) || (qidShort && qidShort.trim()) || (hashIsId && hid.trim()));
 
@@ -401,7 +413,9 @@
     var initialCfi = "";
     var startupTarget = "";
     try {
-      if (hashIsCfi && hid) {
+      if (querySelectionIsCfi && qSelectionCfi) {
+        initialCfi = qSelectionCfi;
+      } else if (hashIsCfi && hid) {
         initialCfi = hid;
       } else if (!isDemoEntry) {
         var lastKey = "readerpub:lastcfi:" + id;
@@ -412,7 +426,9 @@
     startupTarget = initialCfi;
     const opts = {
       openAs: spec.openAs,
-      restore: true
+      restore: true,
+      history: false,
+      readerpubSaveInitialLocation: !!(querySelectionIsCfi || hashIsCfi)
     };
     if (initialCfi) opts.previousLocationCfi = initialCfi;
 
@@ -576,12 +592,32 @@
         if (!window.reader || !window.reader.rendition) return;
         const key = `readerpub:lastcfi:${id}`;
         if (isDemoEntry) return;
+        function getCfiFromLocation(location) {
+          try {
+            if (!location) return "";
+            if (typeof location === "string") return /^epubcfi\(/i.test(location) ? location : "";
+            return location && location.start && location.start.cfi ? String(location.start.cfi) : "";
+          } catch (eCfiFromLocation) {}
+          return "";
+        }
         try {
           window.reader.rendition.on("relocated", function(location){
             try {
-              const cfi = location && location.start && location.start.cfi;
-              if (cfi && localStorage) localStorage.setItem(key, cfi);
+              const cfi = getCfiFromLocation(location);
+              const canSaveInitial = !!(querySelectionIsCfi || hashIsCfi);
+              const canSaveInteraction = !!(window.reader && window.reader._readerpubPositionSaveUnlocked);
+              if (cfi && localStorage && (canSaveInitial || canSaveInteraction)) localStorage.setItem(key, cfi);
             } catch (e2) {}
+            try {
+              if (!(querySelectionIsCfi || hashIsCfi)) return;
+              if (window.__readerpubDeepLinkCleared) return;
+              window.__readerpubDeepLinkCleared = true;
+              const p = new URLSearchParams(window.location.search || "");
+              p.delete("selectionCfi");
+              p.delete("selectionText");
+              const nextSearch = p.toString();
+              history.replaceState(null, "", `${window.location.pathname}${nextSearch ? "?" + nextSearch : ""}`);
+            } catch (eClearDeepLink) {}
           });
         } catch (e3) {}
       } catch (e0) {}
@@ -681,9 +717,9 @@
 <script src="js/epub.js?v=20260418-reader1-vertical-padding-restore-1"></script>
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
-<script src="js/reader.js?v=20260418-reader1-touch-gesture-prod-1"></script>
+<script src="js/reader.js?v=20260427-reader1-production-position-2"></script>
 <script src="js/fullscreen-fix.js"></script>
-<script src="js/fbreader-ui.js?v=20260426-reader1-overlay-dismiss-2"></script>
+<script src="js/fbreader-ui.js?v=20260427-reader1-short-selection-share-5"></script>
 <!-- Plugins -->
 <!--
 -->

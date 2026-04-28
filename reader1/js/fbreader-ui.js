@@ -261,6 +261,97 @@
   }
 
   // -------- UI bars --------
+  function isUnifiedOverlayShell() {
+    try {
+      return !!(document.body && document.body.classList && document.body.classList.contains("reader1-unified-shell"));
+    } catch (e) {}
+    return false;
+  }
+
+  function shouldUseDesktopBarFields() {
+    try {
+      if (!isUnifiedOverlayShell()) return false;
+      if (isTabletViewport() || isMobileViewport()) return false;
+      if (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) return false;
+      return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function applyDesktopBarFieldsToDoc(doc) {
+    try {
+      if (!doc || !doc.documentElement || !doc.body) return;
+      var enabled = shouldUseDesktopBarFields();
+      var root = document.documentElement;
+      var topField = enabled ? (root.style.getPropertyValue("--fb-desktop-top-field") || "0px") : "0px";
+      var bottomField = enabled ? (root.style.getPropertyValue("--fb-desktop-bottom-field") || "0px") : "0px";
+      if (!enabled) {
+        var restoreMobileEpubPadding = false;
+        try {
+          restoreMobileEpubPadding = !!(
+            isTabletViewport() ||
+            isMobileViewport() ||
+            (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches)
+          );
+        } catch (eMobilePad) {}
+        try { doc.documentElement.style.setProperty("--fb-desktop-top-field", "0px"); } catch (eTopOffVar) {}
+        try { doc.documentElement.style.setProperty("--fb-desktop-bottom-field", "0px"); } catch (eBottomOffVar) {}
+        if (restoreMobileEpubPadding) {
+          try { doc.body.style.setProperty("padding-top", "20px", "important"); } catch (eTopMobilePad) {}
+          try { doc.body.style.setProperty("padding-bottom", "20px", "important"); } catch (eBottomMobilePad) {}
+        } else {
+          try { doc.body.style.removeProperty("padding-top"); } catch (eTopOffPad) {}
+          try { doc.body.style.removeProperty("padding-bottom"); } catch (eBottomOffPad) {}
+        }
+        return;
+      }
+      var visualCorrection = 0;
+      try {
+        var bodyStyle = doc.defaultView && doc.defaultView.getComputedStyle ? doc.defaultView.getComputedStyle(doc.body) : null;
+        var fontSize = bodyStyle ? (parseFloat(bodyStyle.fontSize) || 0) : 0;
+        var lineHeight = bodyStyle ? (parseFloat(bodyStyle.lineHeight) || 0) : 0;
+        if (fontSize > 0 && lineHeight > fontSize) visualCorrection = Math.min(12, Math.max(0, (lineHeight - fontSize) / 2));
+      } catch (eCorrection) {}
+      var topPx = Math.max(0, (parseFloat(topField) || 0) - visualCorrection) + "px";
+      var bottomPx = Math.max(0, (parseFloat(bottomField) || 0) - visualCorrection) + "px";
+      try { doc.documentElement.style.setProperty("--fb-desktop-top-field", topField); } catch (eTopVar) {}
+      try { doc.documentElement.style.setProperty("--fb-desktop-bottom-field", bottomField); } catch (eBottomVar) {}
+      try { doc.body.style.setProperty("padding-top", topPx, "important"); } catch (eTopPad) {}
+      try { doc.body.style.setProperty("padding-bottom", bottomPx, "important"); } catch (eBottomPad) {}
+    } catch (e) {}
+  }
+
+  function applyDesktopBarFields(topH, bottomH) {
+    try {
+      var enabled = shouldUseDesktopBarFields();
+      var topField = enabled ? ((topH || 0) * 1.05) + "px" : "0px";
+      var bottomField = enabled ? ((bottomH || 0) * 1.05) + "px" : "0px";
+      var root = document.documentElement;
+      root.style.setProperty("--fb-desktop-top-field", topField);
+      root.style.setProperty("--fb-desktop-bottom-field", bottomField);
+      var list = document.querySelectorAll("#viewerStack iframe, #viewer iframe, #viewer-prev iframe, #viewer-next iframe, #reader-pagecalc-host iframe");
+      for (var i = 0; i < list.length; i++) {
+        try { applyDesktopBarFieldsToDoc(list[i].contentDocument); } catch (eDoc) {}
+      }
+    } catch (e) {}
+  }
+
+  try {
+    window.__fbApplyDesktopBarFields = function (doc) {
+      if (doc) {
+        applyDesktopBarFieldsToDoc(doc);
+        return;
+      }
+      var top = document.getElementById("titlebar");
+      var search = document.getElementById("searchbar");
+      var bottom = document.getElementById("bottombar");
+      var topH = (top && top.offsetHeight) || 0;
+      if (!topH && search) topH = search.offsetHeight || 0;
+      var bottomH = (bottom && bottom.offsetHeight) || 0;
+      applyDesktopBarFields(topH, bottomH);
+    };
+  } catch (eExposeFields) {}
+
   function applyViewerInsets(topH, bottomH, withResize) {
     try {
       var vs = document.getElementById("viewerStack") || document.getElementById("viewer");
@@ -315,6 +406,9 @@
       var bottomH = (bottom && bottom.offsetHeight) || 0;
       root.style.setProperty("--titlebar-h", (topH || 0) + "px");
       root.style.setProperty("--bottombar-h", (bottomH || 0) + "px");
+      applyDesktopBarFields(topH, bottomH);
+      try { setTimeout(function () { applyDesktopBarFields(topH, bottomH); }, 80); } catch (eFieldT1) {}
+      try { setTimeout(function () { applyDesktopBarFields(topH, bottomH); }, 320); } catch (eFieldT2) {}
       applyViewerInsets(topH, bottomH, withResize);
     } catch (e) {}
   }
@@ -374,6 +468,12 @@
 	    try { document.body.classList.remove("ui-hidden"); } catch (eBody0) {}
 	    try { syncBarHeights(false); } catch (eSync0) {}
 	  }
+  function suppressUiTapBurst(ms) {
+    try {
+      var until = Date.now() + (ms || 550);
+      window.__fbSuppressUiTapUntil = Math.max(window.__fbSuppressUiTapUntil || 0, until);
+    } catch (eSuppress) {}
+  }
 	  function closePanelsForUiHide() {
 	    try {
 	      if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
@@ -638,13 +738,11 @@
   // A dedicated transparent layer ABOVE the book is the only 100% reliable way to
   // detect a center tap on EVERY page.
   function installCenterTapLayer() {
-    try {
-      var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
-      var touch = (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-      if (__fb_isDesktop && !window.__readerpubReaderNewCompat && !coarse && !touch) return;
-    } catch (e0) {
-      if (__fb_isDesktop && !window.__readerpubReaderNewCompat) return;
-    }
+	    try {
+	      var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+	      var touch = (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+	    } catch (e0) {
+	    }
     var existing = document.getElementById("fb-tap-layer");
     var host = document.getElementById("container") || null;
     if (existing) {
@@ -688,6 +786,76 @@
       return window.innerWidth;
     }
 
+    function getVisibleTextBounds() {
+      try {
+        var minLeft = Infinity;
+        var maxRight = -Infinity;
+        var topLimit = 0;
+        var bottomLimit = window.innerHeight || document.documentElement.clientHeight || 0;
+        var leftLimit = 0;
+        var rightLimit = window.innerWidth || document.documentElement.clientWidth || 0;
+        try {
+          var titlebar = document.getElementById("titlebar");
+          var bottombar = document.getElementById("bottombar");
+          topLimit = titlebar && titlebar.getBoundingClientRect ? titlebar.getBoundingClientRect().bottom : topLimit;
+          bottomLimit = bottombar && bottombar.getBoundingClientRect ? bottombar.getBoundingClientRect().top : bottomLimit;
+        } catch (eBars) {}
+        var iframes = document.querySelectorAll("#viewerStack iframe, #viewer iframe");
+        for (var f = 0; f < iframes.length; f++) {
+          var iframe = iframes[f];
+          if (!iframe || !iframe.contentDocument || !iframe.getBoundingClientRect) continue;
+          var frameRect = iframe.getBoundingClientRect();
+          var doc = iframe.contentDocument;
+          var root = doc.body || doc.documentElement;
+          if (!root || !doc.createTreeWalker || !doc.createRange) continue;
+          var walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode: function (node) {
+              var value = "";
+              try { value = String(node && node.nodeValue || "").trim(); } catch (eValue) { value = ""; }
+              if (value.length < 2) return NodeFilter.FILTER_REJECT;
+              try {
+                var parent = node.parentElement || node.parentNode;
+                while (parent && parent.nodeType === 1) {
+                  var tag = String(parent.tagName || "").toLowerCase();
+                  if (tag === "script" || tag === "style" || tag === "svg" || tag === "img" || tag === "audio" || tag === "video") return NodeFilter.FILTER_REJECT;
+                  parent = parent.parentElement || parent.parentNode;
+                }
+              } catch (eParent) {}
+              return NodeFilter.FILTER_ACCEPT;
+            }
+          });
+          var range = doc.createRange();
+          var node = walker.nextNode();
+          while (node) {
+            try {
+              range.selectNodeContents(node);
+              var rects = range.getClientRects ? range.getClientRects() : [];
+              for (var j = 0; j < rects.length; j++) {
+                var r = rects[j];
+                if (!r || r.width <= 0 || r.height <= 0) continue;
+                var left = frameRect.left + r.left;
+                var right = frameRect.left + r.right;
+                var top = frameRect.top + r.top;
+                var bottom = frameRect.top + r.bottom;
+                if (right <= left || bottom <= top) continue;
+                if (right < leftLimit || left > rightLimit) continue;
+                if (bottom < topLimit || top > bottomLimit) continue;
+                minLeft = Math.min(minLeft, left);
+                maxRight = Math.max(maxRight, right);
+              }
+            } catch (eRange) {}
+            node = walker.nextNode();
+          }
+          try {
+            range.detach();
+          } catch (eDetach) {}
+            }
+        if (!isFinite(minLeft) || !isFinite(maxRight) || maxRight <= minLeft) return null;
+        return { left: minLeft, right: maxRight };
+      } catch (e) {}
+      return null;
+    }
+
     function updateCenterTapBounds() {
       try {
         var layerRect = null;
@@ -695,16 +863,46 @@
         var vw = (layerRect && layerRect.width) ? layerRect.width : getVisibleViewportWidth();
         var vLeft = (layerRect && typeof layerRect.left === "number") ? layerRect.left : 0;
         var centerW = Math.max(0, Math.round(vw * 0.60));
-        var edgeW = Math.max(0, Math.round(vw * 0.20));
+        var leftEdgeW = Math.max(0, Math.round(vw * 0.20));
+        var rightEdgeW = leftEdgeW;
         var left = Math.max(0, Math.round((vw - centerW) / 2));
+        try {
+          if (__fb_isDesktop && !window.matchMedia("(pointer: coarse)").matches) {
+            var desktopEdgeW = Math.max(78, Math.min(120, Math.round(vw * 0.058)));
+            leftEdgeW = desktopEdgeW;
+            rightEdgeW = desktopEdgeW;
+            left = leftEdgeW;
+            centerW = Math.max(0, Math.round(vw - leftEdgeW - rightEdgeW));
+          }
+        } catch (eDesktopBounds) {}
         center.style.left = left + "px";
         center.style.width = centerW + "px";
         center.style.right = "auto";
         try {
           var leftZone = document.getElementById("fb-tap-left");
           var rightZone = document.getElementById("fb-tap-right");
-          if (leftZone) leftZone.style.width = edgeW + "px";
-          if (rightZone) rightZone.style.width = edgeW + "px";
+          if (leftZone) leftZone.style.width = leftEdgeW + "px";
+          if (rightZone) rightZone.style.width = rightEdgeW + "px";
+          if (__fb_isDesktop && !window.matchMedia("(pointer: coarse)").matches) {
+            var prevArrow = document.getElementById("prev");
+            var nextArrow = document.getElementById("next");
+            if (prevArrow) {
+              prevArrow.style.left = "0px";
+              prevArrow.style.top = "0px";
+              prevArrow.style.bottom = "0px";
+              prevArrow.style.height = "auto";
+              prevArrow.style.width = leftEdgeW + "px";
+              prevArrow.style.transform = "none";
+            }
+            if (nextArrow) {
+              nextArrow.style.right = "0px";
+              nextArrow.style.top = "0px";
+              nextArrow.style.bottom = "0px";
+              nextArrow.style.height = "auto";
+              nextArrow.style.width = rightEdgeW + "px";
+              nextArrow.style.transform = "none";
+            }
+          }
         } catch (e4) {}
         // Expose bounds for iframe-level handlers to use the exact same zone.
         window.__fbTapCenterBounds = { left: vLeft + left, right: vLeft + left + centerW, width: vw };
@@ -891,6 +1089,51 @@
       }
     }
 
+    function isBookTextAtPoint(x, y) {
+      try {
+        var ifr = findIframeAtPoint(x, y);
+        if (!ifr || !ifr.contentDocument || !ifr.getBoundingClientRect) return false;
+        var r = ifr.getBoundingClientRect();
+        var ix = x - r.left;
+        var iy = y - r.top;
+        var doc = ifr.contentDocument;
+        var el = null;
+        try { el = doc.elementFromPoint(ix, iy); } catch (e0) { el = null; }
+        if (!el) return false;
+        if (el.nodeType === 3) el = el.parentElement;
+        if (!el || !el.closest) return false;
+        if (el.closest("a,button,input,textarea,select,label")) return false;
+        var textHost = el.closest("p,li,blockquote,h1,h2,h3,h4,h5,h6,div,span");
+        if (!textHost) return false;
+        var text = String(textHost.textContent || "").trim();
+        if (!text) return false;
+        if (textHost.getBoundingClientRect) {
+          var tr = textHost.getBoundingClientRect();
+          if (tr.width <= 0 || tr.height <= 0) return false;
+        }
+        return true;
+      } catch (e) {}
+      return false;
+    }
+
+    function isBookEmptySpaceAtPoint(x, y) {
+      try {
+        var ifr = findIframeAtPoint(x, y);
+        if (!ifr || !ifr.contentDocument || !ifr.getBoundingClientRect) return false;
+        var r = ifr.getBoundingClientRect();
+        var ix = x - r.left;
+        var iy = y - r.top;
+        var doc = ifr.contentDocument;
+        var el = null;
+        try { el = doc.elementFromPoint(ix, iy); } catch (e0) { el = null; }
+        if (el && el.nodeType === 3) el = el.parentElement;
+        if (el && el.closest && el.closest("a[href],button,input,textarea,select,[role='button']")) return false;
+        if (isBookTextAtPoint(x, y)) return false;
+        return true;
+      } catch (e) {}
+      return false;
+    }
+
     function tryToggle(e) {
       // Debounce to avoid double-fire and randomness.
       var now = Date.now();
@@ -999,6 +1242,10 @@
         try {
           var pt = (e && (e.changedTouches && e.changedTouches[0])) || (e && (e.touches && e.touches[0])) || e;
           if (pt && typeof pt.clientX === "number" && typeof pt.clientY === "number") {
+            if (isBookTextAtPoint(pt.clientX, pt.clientY)) {
+              tryToggle(e);
+              return;
+            }
             var ifr = findIframeAtPoint(pt.clientX, pt.clientY);
             if (ifr && ifr.getBoundingClientRect && ifr.contentDocument && ifr.contentDocument.__fb_tryFootnoteAtPoint) {
               var r = ifr.getBoundingClientRect();
@@ -1079,6 +1326,30 @@
         sx = t.clientX;
         sy = t.clientY;
       }
+    }
+
+    function toggleUiFromBookTextPoint(x, y, ev) {
+      try {
+        if (!__fb_isDesktop) return false;
+        try {
+          var bounds = window.__fbTapCenterBounds || null;
+          if (bounds && typeof bounds.left === "number" && typeof bounds.right === "number") {
+            if (x < bounds.left || x > bounds.right) return false;
+          }
+        } catch (eBounds) {}
+        if (!isBookTextAtPoint(x, y) && !isBookEmptySpaceAtPoint(x, y)) return false;
+        var now = Date.now();
+        if (now - (window.__fbDesktopTextPointToggleAt || 0) < 350) return true;
+        window.__fbDesktopTextPointToggleAt = now;
+        try { window.__fbSelectionActive = false; } catch (eSelFlag) {}
+        if (document.body && document.body.classList && document.body.classList.contains("ui-hidden")) showUi();
+        else hideUi();
+        try {
+          if (ev && ev.stopPropagation) ev.stopPropagation();
+        } catch (eStop) {}
+        return true;
+      } catch (e) {}
+      return false;
     }
 
     // Use POINTER events only to avoid double-firing (touchend + pointerup).
@@ -1165,6 +1436,12 @@
     }
 
     if (__fb_isDesktop || window.__readerpubReaderNewCompat) {
+      try {
+        layer.style.pointerEvents = __fb_isDesktop ? "none" : "auto";
+        center.style.pointerEvents = __fb_isDesktop ? "none" : "auto";
+        left.style.pointerEvents = "auto";
+        right.style.pointerEvents = "auto";
+      } catch (ePointer) {}
       center.addEventListener("click", function (e) {
         primeClickTap(e);
         tryToggle(e);
@@ -1177,12 +1454,42 @@
         primeClickTap(e);
         tryEdgeTurn(e, true);
       }, true);
+      try {
+        var desktopParentDown = null;
+        document.addEventListener("mousedown", function (e) {
+          if (!__fb_isDesktop || isUiChromeTarget(e && e.target)) return;
+          desktopParentDown = { x: e.clientX, y: e.clientY, ts: Date.now() };
+        }, true);
+        document.addEventListener("mouseup", function (e) {
+          if (!__fb_isDesktop || !desktopParentDown || isUiChromeTarget(e && e.target)) return;
+          var dx = Math.abs(e.clientX - desktopParentDown.x);
+          var dy = Math.abs(e.clientY - desktopParentDown.y);
+          var dt = Date.now() - desktopParentDown.ts;
+          var down = desktopParentDown;
+          desktopParentDown = null;
+          if (dx > 18 || dy > 18 || dt > 1500) return;
+          toggleUiFromBookTextPoint(e.clientX || down.x, e.clientY || down.y, e);
+        }, true);
+        document.addEventListener("click", function (e) {
+          if (!__fb_isDesktop || isUiChromeTarget(e && e.target)) return;
+          toggleUiFromBookTextPoint(e.clientX, e.clientY, e);
+        }, true);
+      } catch (eParentClick) {}
     }
 
-    updateCenterTapBounds();
-    try {
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener("resize", updateCenterTapBounds);
+	    updateCenterTapBounds();
+	    try { window.__fbUpdateTapBounds = updateCenterTapBounds; } catch (eExposeTapBounds) {}
+	    try {
+	      var boundsTicks = 0;
+	      var boundsTimer = setInterval(function () {
+	        boundsTicks++;
+	        updateCenterTapBounds();
+	        if (boundsTicks > 24) clearInterval(boundsTimer);
+	      }, 500);
+	    } catch (eBoundsTimer) {}
+	    try {
+	      if (window.visualViewport) {
+	        window.visualViewport.addEventListener("resize", updateCenterTapBounds);
         window.visualViewport.addEventListener("scroll", updateCenterTapBounds);
       }
     } catch (e4) {}
@@ -1326,6 +1633,7 @@
     }
 
     function closeAllAndHideBars() {
+      suppressUiTapBurst();
       closeAll();
       hideUi();
     }
@@ -1354,9 +1662,15 @@
     } catch (e) {}
 
     if (backdrop) {
-      backdrop.addEventListener("click", function () {
-        if (!isMobileViewport() && !isTabletPortrait()) closeAllAndHideBars();
-      });
+      backdrop.addEventListener("click", function (event) {
+        if (isMobileViewport() || isTabletPortrait()) return;
+        try {
+          if (event && event.preventDefault) event.preventDefault();
+          if (event && event.stopPropagation) event.stopPropagation();
+          if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
+        } catch (eBackdropStop) {}
+        closeAllAndHideBars();
+      }, true);
     }
 
     closeBtns.forEach(function (b) {
@@ -1682,6 +1996,7 @@
     }
 
     function closeAllOverlaysAndHideBars() {
+      suppressUiTapBurst();
       closeAllOverlays();
       hideUi();
     }
@@ -1984,9 +2299,14 @@
 
     if (overlayBackdrop && !overlayBackdrop.__fbShellBound) {
       overlayBackdrop.__fbShellBound = true;
-      overlayBackdrop.addEventListener("click", function () {
+      overlayBackdrop.addEventListener("click", function (event) {
+        try {
+          if (event && event.preventDefault) event.preventDefault();
+          if (event && event.stopPropagation) event.stopPropagation();
+          if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
+        } catch (_backdropStopError) {}
         closeAllOverlaysAndHideBars();
-      });
+      }, true);
     }
 
     [overlayLibrary, overlaySettings].forEach(function (panel) {
@@ -2237,6 +2557,7 @@
   // -------- per-iframe gesture bridge + center tap toggle --------
   function enableIframeGestures(reader) {
     if (!reader || !reader.rendition) return;
+    var GESTURE_ATTACH_VERSION = "reader1-desktop-text-click-14";
 
     // epub.js can replace iframe documents as you paginate/relocate.
     // DOM scanning alone can miss the *current* contents document, which makes
@@ -2244,21 +2565,32 @@
     // attach directly to rendition.getContents() on every relocation.
     function attachAllRenditionContents() {
       try {
-        if (!reader || !reader.rendition || typeof reader.rendition.getContents !== "function") return;
-        var cs = reader.rendition.getContents();
-        if (!cs || !cs.length) return;
-        for (var i = 0; i < cs.length; i++) {
-          try { attachToDoc(cs[i] && cs[i].document); } catch (e) {}
+        var renditions = [reader && reader.rendition, reader && reader.renditionPrev, reader && reader.renditionNext];
+        for (var r = 0; r < renditions.length; r++) {
+          var rendition = renditions[r];
+          if (!rendition || typeof rendition.getContents !== "function") continue;
+          var cs = rendition.getContents();
+          if (!cs || !cs.length) continue;
+          for (var i = 0; i < cs.length; i++) {
+            try { attachToDoc(cs[i] && cs[i].document); } catch (e) {}
+          }
         }
       } catch (e0) {}
     }
 
     function attachToDoc(doc) {
-      if (!doc || doc.__fbGesturesAttached) return;
+      if (!doc || doc.__fbGesturesAttachedVersion === GESTURE_ATTACH_VERSION) return;
       doc.__fbGesturesAttached = true;
+      doc.__fbGesturesAttachedVersion = GESTURE_ATTACH_VERSION;
 
       var startX = 0, startY = 0, moved = false;
       var startTime = 0;
+      var desktopClickArmed = false;
+      var desktopPointerDown = false;
+      var desktopSuppressClickUntil = 0;
+      var lastDesktopTapAt = 0;
+      var lastDesktopTapX = -10000;
+      var lastDesktopTapY = -10000;
       // Android often reports micro-movements during a "tap" (especially on text pages
       // where the WebView tries to scroll / selection kicks in). If the threshold is
       // too low, tapping works on the title page but fails on later pages.
@@ -2284,6 +2616,10 @@
           var t = e.touches ? e.touches[0] : e;
           startX = t.clientX; startY = t.clientY; moved = false;
           startTime = Date.now();
+          if (__fb_isDesktop) {
+            desktopClickArmed = true;
+            desktopPointerDown = true;
+          }
           // Fullscreen MUST be requested synchronously in the same user-gesture stack.
           // postMessage is async and will often only succeed after several swipes.
           try {
@@ -2305,14 +2641,51 @@
 
       function onMove(e) {
         try {
+          if (__fb_isDesktop && !desktopPointerDown) return;
           var t = e.touches ? e.touches[0] : e;
-          if (Math.abs(t.clientX - startX) > TH || Math.abs(t.clientY - startY) > TH) moved = true;
+          var th = __fb_isDesktop ? 18 : TH;
+          if (Math.abs(t.clientX - startX) > th || Math.abs(t.clientY - startY) > th) moved = true;
         } catch (e2) {}
       }
 
+      function getDocSelection() {
+        try {
+          if (doc.getSelection) return doc.getSelection();
+          if (doc.defaultView && doc.defaultView.getSelection) return doc.defaultView.getSelection();
+        } catch (e) {}
+        return null;
+      }
+
+      function hasDocTextSelection() {
+        try {
+          var sel = getDocSelection();
+          return !!(sel && !sel.isCollapsed && String(sel.toString() || "").trim());
+        } catch (e) {}
+        return false;
+      }
+
+      function clearDocTextSelection() {
+        try {
+          var sel = getDocSelection();
+          if (sel && sel.removeAllRanges) sel.removeAllRanges();
+        } catch (e) {}
+      }
+
+      function toggleUiFromDesktopTextClick() {
+        try { window.__fbSelectionActive = false; } catch (eSelFlag) {}
+        try {
+          if (document.body && document.body.classList && document.body.classList.contains("ui-hidden")) showUi();
+          else hideUi();
+        } catch (eToggleDirect) {
+          try { toggleUi(); } catch (eToggleFallback) {}
+        }
+      }
+
       function onEnd(e) {
-        // Desktop click is handled separately; touch keeps center-zone behavior.
-        if (__fb_isDesktop) return;
+        if (__fb_isDesktop) {
+          desktopPointerDown = false;
+          return;
+        }
         try {
           if (
             document.body &&
@@ -2403,43 +2776,68 @@
         } catch (e2) {}
       }
 
-      function onDesktopReaderClick(e) {
-        if (!__fb_isDesktop) return;
+      function maybeHandleDesktopReaderTap(e) {
+        if (!__fb_isDesktop) return false;
         try {
           if (
             document.body &&
             document.body.classList &&
             document.body.classList.contains("search-open") &&
             !document.body.classList.contains("search-minimized")
-          ) return;
+          ) return false;
         } catch (eSearch) {}
+        if (!desktopClickArmed) return false;
+        desktopClickArmed = false;
+        if (moved) return false;
+        if (Date.now() - startTime > 1500) return false;
         try {
-          if (window.__fbSelectionActive) return;
-          var sel = null;
-          if (doc.getSelection) sel = doc.getSelection();
-          else if (doc.defaultView && doc.defaultView.getSelection) sel = doc.defaultView.getSelection();
-          if (sel && !sel.isCollapsed) return;
+          if (window.__fbSelectionActive) return false;
+          if (hasDocTextSelection()) {
+            clearDocTextSelection();
+            window.__fbSelectionActive = false;
+          } else {
+            window.__fbSelectionActive = false;
+          }
         } catch (eSel) {}
         try {
           var tgt = e && e.target;
+          if (tgt && tgt.nodeType === 3) tgt = tgt.parentElement;
           var interactive = tgt && tgt.closest
             ? tgt.closest("a,button,input,textarea,select,label")
             : null;
-          if (interactive) return;
+          if (interactive) return false;
           var pt = e;
-          if (!pt || typeof pt.clientX !== "number" || typeof pt.clientY !== "number") return;
-          if (!window.__readerpubReaderNewCompat) {
-            toggleUi();
-            return;
-          }
-          var x = pt.clientX, y = pt.clientY;
-          var w = doc.defaultView.innerWidth || doc.documentElement.clientWidth;
-          var centerW = w * 0.60;
-          var mx1 = (w - centerW) / 2;
-          var mx2 = mx1 + centerW;
-          if (x < mx1 || x > mx2) return;
-          toggleUi();
+          if (!pt || typeof pt.clientX !== "number" || typeof pt.clientY !== "number") return false;
+          var now = Date.now();
+          var dx = Math.abs(pt.clientX - lastDesktopTapX);
+          var dy = Math.abs(pt.clientY - lastDesktopTapY);
+          if (now - lastDesktopTapAt < 120 && dx < 3 && dy < 3) return false;
+          lastDesktopTapAt = now;
+          lastDesktopTapX = pt.clientX;
+          lastDesktopTapY = pt.clientY;
+          toggleUiFromDesktopTextClick();
+          return true;
         } catch (eDesktopClick) {}
+        return false;
+      }
+
+      function onDesktopReaderClick(e) {
+        if (Date.now() - (window.__fbDesktopTextDirectToggleAt || 0) < 700) return;
+        if (Date.now() < desktopSuppressClickUntil) return;
+        try {
+          if (!desktopClickArmed) {
+            moved = false;
+            startTime = Date.now();
+            desktopClickArmed = true;
+            desktopPointerDown = false;
+          }
+          var pt = e;
+          if (!desktopClickArmed && pt && typeof pt.clientX === "number") {
+            startX = pt.clientX;
+            startY = pt.clientY;
+          }
+        } catch (ePrime) {}
+        maybeHandleDesktopReaderTap(e);
       }
 
       function blockContextMenu(e) {
@@ -2454,17 +2852,39 @@
       // Attach both to the document and to the iframe window to maximize coverage.
       var win = null;
       try { win = doc.defaultView; } catch (e) {}
+      function bindMouseTapTarget(target) {
+        if (!target || target.__fbTextTapTargetAttached === GESTURE_ATTACH_VERSION) return;
+        try { target.__fbTextTapTargetAttached = GESTURE_ATTACH_VERSION; } catch (e0) {}
+        try {
+          target.addEventListener("pointerdown", onStart, { passive: true, capture: true });
+          target.addEventListener("pointermove", onMove, { passive: true, capture: true });
+          target.addEventListener("pointerup", onEnd, { passive: true, capture: true });
+          target.addEventListener("mousedown", onStart, { passive: true, capture: true });
+          target.addEventListener("mousemove", onMove, { passive: true, capture: true });
+          target.addEventListener("mouseup", onEnd, { passive: true, capture: true });
+          target.addEventListener("click", onDesktopReaderClick, true);
+        } catch (e1) {}
+      }
       try {
         doc.addEventListener("pointerdown", onStart, { passive: true, capture: true });
         doc.addEventListener("pointermove", onMove, { passive: true, capture: true });
         doc.addEventListener("pointerup", onEnd, { passive: true, capture: true });
+        doc.addEventListener("mousedown", onStart, { passive: true, capture: true });
+        doc.addEventListener("mousemove", onMove, { passive: true, capture: true });
+        doc.addEventListener("mouseup", onEnd, { passive: true, capture: true });
         doc.addEventListener("click", onDesktopReaderClick, true);
         doc.addEventListener("contextmenu", blockContextMenu, true);
         doc.addEventListener("longpress", blockContextMenu, true);
+        bindMouseTapTarget(doc.documentElement);
+        bindMouseTapTarget(doc.body);
         if (win) {
           win.addEventListener("pointerdown", onStart, { passive: true, capture: true });
           win.addEventListener("pointermove", onMove, { passive: true, capture: true });
           win.addEventListener("pointerup", onEnd, { passive: true, capture: true });
+          win.addEventListener("mousedown", onStart, { passive: true, capture: true });
+          win.addEventListener("mousemove", onMove, { passive: true, capture: true });
+          win.addEventListener("mouseup", onEnd, { passive: true, capture: true });
+          win.addEventListener("click", onDesktopReaderClick, true);
           win.addEventListener("contextmenu", blockContextMenu, true);
         }
       } catch (e) {
@@ -2480,9 +2900,77 @@
           win.addEventListener("contextmenu", blockContextMenu, true);
         }
       }
+
+      try {
+        if (__fb_isDesktop && doc.__fbDesktopTextClickDirectVersion !== GESTURE_ATTACH_VERSION) {
+          doc.__fbDesktopTextClickDirectVersion = GESTURE_ATTACH_VERSION;
+          var directDown = null;
+          var directInteractive = false;
+          function directIsInteractive(target) {
+            try {
+              if (!target) return false;
+              if (target.nodeType === 3) target = target.parentElement;
+              if (!target || !target.closest) return false;
+              return !!target.closest("a[href],button,input,textarea,select,[role='button']");
+            } catch (e) {}
+            return false;
+          }
+          function directHasSelection() {
+            try {
+              var sel = doc.getSelection ? doc.getSelection() : (doc.defaultView && doc.defaultView.getSelection ? doc.defaultView.getSelection() : null);
+              return !!(sel && !sel.isCollapsed && String(sel.toString() || "").trim());
+            } catch (e) {}
+            return false;
+          }
+          function directClearSelection() {
+            try {
+              var sel = doc.getSelection ? doc.getSelection() : (doc.defaultView && doc.defaultView.getSelection ? doc.defaultView.getSelection() : null);
+              if (sel && sel.removeAllRanges) sel.removeAllRanges();
+            } catch (e) {}
+          }
+          function directToggle() {
+            try {
+              try {
+                var fr = doc.defaultView && doc.defaultView.frameElement ? doc.defaultView.frameElement.getBoundingClientRect() : null;
+                var bounds = window.__fbTapCenterBounds || null;
+                if (fr && bounds && directDown) {
+                  var absX = fr.left + directDown.x;
+                  if (absX < bounds.left || absX > bounds.right) return;
+                }
+              } catch (eBounds) {}
+              var now = Date.now();
+              if (now - (window.__fbDesktopTextDirectToggleAt || 0) < 300) return;
+              window.__fbDesktopTextDirectToggleAt = now;
+              window.__fbSelectionActive = false;
+              if (document.body && document.body.classList && document.body.classList.contains("ui-hidden")) showUi();
+              else hideUi();
+            } catch (e) {}
+          }
+          doc.addEventListener("mousedown", function (ev) {
+            try {
+              if (!ev) return;
+              directDown = { x: ev.clientX, y: ev.clientY, t: Date.now() };
+              directInteractive = directIsInteractive(ev.target);
+            } catch (e) {}
+          }, true);
+          doc.addEventListener("mouseup", function (ev) {
+            try {
+              if (!directDown || directInteractive || !ev) return;
+              var dx = Math.abs(ev.clientX - directDown.x);
+              var dy = Math.abs(ev.clientY - directDown.y);
+              var dt = Date.now() - directDown.t;
+              directDown = null;
+              if (dx > 18 || dy > 18 || dt > 1500) return;
+              if (directHasSelection()) directClearSelection();
+              directToggle();
+              if (ev.stopPropagation) ev.stopPropagation();
+            } catch (e) {}
+          }, true);
+        }
+      } catch (eDirectDesktopTextClick) {}
     }
 
-    // ---- Search highlight color fix (guarantee #61c2fa) ----
+    // ---- Search highlight color fix (match protected reader overlay) ----
     // epub.js can render highlights either:
     //   A) inside the iframe document (some builds)
     //   B) as an SVG overlay in the *parent* document (most builds)
@@ -2493,18 +2981,20 @@
         if (doc.getElementById("__fb_search_hl_css")) return;
         var style = doc.createElement("style");
         style.id = "__fb_search_hl_css";
-        // Force the requested highlight style (#61c2fa background, text color unchanged).
+        // Force the protected-reader highlight color, text color unchanged.
         // Notes:
         // - epub.js uses SVG <rect> elements for highlights; many versions set `opacity` or `style` inline.
         // - CSS with !important overrides presentation attributes and non-!important inline styles.
         style.textContent = ""
-          + "::highlight(fb-search){background:#61c2fa!important;color:inherit!important;}"
+          + ":root{--fb-search-bg:var(--fb-selection-bg,rgba(165,244,236,0.72));}"
+          + "@media (prefers-color-scheme: dark){:root{--fb-search-bg:var(--fb-selection-bg,rgba(0,130,116,0.72));}}"
+          + "::highlight(fb-search){background:var(--fb-search-bg)!important;color:inherit!important;}"
           + ".epubjs-hl, .epubjs-hl *, [class*='epubjs-hl'], [class*='epubjs-hl'] *{mix-blend-mode:multiply!important;}"
-          + ".search-match{background:#61c2fa!important;color:inherit!important;}"
-          + ".search-match-text{background:#61c2fa!important;color:inherit!important;}"
+          + ".search-match{background:var(--fb-search-bg)!important;color:inherit!important;}"
+          + ".search-match-text{background:var(--fb-search-bg)!important;color:inherit!important;}"
           + ".epubjs-hl rect, rect.epubjs-hl, [class*='epubjs-hl'] rect, rect[class*='epubjs-hl'],"
-          + "svg .epubjs-hl rect, svg rect.epubjs-hl{fill:#61c2fa!important;fill-opacity:1!important;opacity:1!important;}"
-          + ".search-match rect, rect.search-match{fill:#61c2fa!important;fill-opacity:1!important;opacity:1!important;}"
+          + "svg .epubjs-hl rect, svg rect.epubjs-hl{fill:var(--fb-search-bg)!important;fill-opacity:1!important;opacity:1!important;}"
+          + ".search-match rect, rect.search-match{fill:var(--fb-search-bg)!important;fill-opacity:1!important;opacity:1!important;}"
           + "@media (hover:none) and (pointer:coarse){"
           + "html,body,body *{-webkit-touch-callout:none!important;-webkit-tap-highlight-color:rgba(0,0,0,0)!important;}"
           + "}";
@@ -2517,28 +3007,40 @@
 
     // Hook each content document (covers highlights rendered inside the iframe document).
     try {
-      reader.rendition.hooks.content.register(function (contents) {
-        try { attachToDoc(contents.document); } catch (e) {}
-        try { ensureSearchHlCss(contents.document); } catch (e) {}
-      });
-      reader.rendition.on("rendered", function (section, view) {
-        try {
-          // Ensure CSS in the parent doc that owns the view element (overlay lives here).
-          if (view && view.element && view.element.ownerDocument) ensureSearchHlCss(view.element.ownerDocument);
-        } catch (e) {}
-        // epub.js versions differ: sometimes `view.element` is the iframe itself.
-        try {
-          var iframe = null;
-          if (view && view.element) {
-            if (view.element.tagName === "IFRAME") iframe = view.element;
-            else if (view.element.querySelector) iframe = view.element.querySelector("iframe");
-          }
-          if (iframe && iframe.contentDocument) {
-            attachToDoc(iframe.contentDocument);
-            ensureSearchHlCss(iframe.contentDocument);
-          }
-        } catch (e) {}
-      });
+      var hookRenditions = [reader.rendition, reader.renditionPrev, reader.renditionNext];
+      for (var hr = 0; hr < hookRenditions.length; hr++) {
+        (function (rendition) {
+          if (!rendition) return;
+	          try {
+	            rendition.hooks.content.register(function (contents) {
+	              try { attachToDoc(contents.document); } catch (e) {}
+	              try { ensureSearchHlCss(contents.document); } catch (e) {}
+	              try { if (window.__fbUpdateTapBounds) setTimeout(window.__fbUpdateTapBounds, 0); } catch (eBoundsHook) {}
+	            });
+	          } catch (eHook) {}
+	          try {
+	            rendition.on("rendered", function (section, view) {
+              try {
+                // Ensure CSS in the parent doc that owns the view element (overlay lives here).
+                if (view && view.element && view.element.ownerDocument) ensureSearchHlCss(view.element.ownerDocument);
+              } catch (e) {}
+              // epub.js versions differ: sometimes `view.element` is the iframe itself.
+              try {
+                var iframe = null;
+                if (view && view.element) {
+                  if (view.element.tagName === "IFRAME") iframe = view.element;
+                  else if (view.element.querySelector) iframe = view.element.querySelector("iframe");
+                }
+	                if (iframe && iframe.contentDocument) {
+	                  attachToDoc(iframe.contentDocument);
+	                  ensureSearchHlCss(iframe.contentDocument);
+	                }
+	              } catch (e) {}
+	              try { if (window.__fbUpdateTapBounds) setTimeout(window.__fbUpdateTapBounds, 0); } catch (eBoundsRendered) {}
+	            });
+	          } catch (eRendered) {}
+        })(hookRenditions[hr]);
+      }
     } catch (e) {}
 
 
@@ -2581,16 +3083,13 @@
       }
     } catch (e) {}
 
-      // Final safety net: for the first few seconds, keep scanning.
-      // Some WebViews create iframes late and don't trigger hooks reliably.
+      // Safety net: EPUB.js can keep the same iframe element but swap the
+      // content document later; keep the current visible documents attached.
       try {
-        var cnt = 0;
         var iv = setInterval(function(){
-          cnt++;
           scanIframes();
           attachAllRenditionContents();
-          if (cnt > 24) clearInterval(iv); // ~12s
-        }, 500);
+        }, 1000);
       } catch (e) {}
   }
 
@@ -3223,7 +3722,7 @@
         if (before) frag.appendChild(doc.createTextNode(before));
         var span = doc.createElement("span");
         span.className = "search-match-text";
-        span.style.setProperty("background", "#61c2fa", "important");
+        span.style.setProperty("background", "var(--fb-search-bg,var(--fb-selection-bg,rgba(165,244,236,0.72)))", "important");
         span.style.setProperty("color", "inherit", "important");
         span.textContent = middle;
         frag.appendChild(span);
@@ -3318,6 +3817,50 @@
       return false;
     }
 
+    function ensureHighlightedRangeVisible(contents, range) {
+      try {
+        if (!contents || !range || !reader || !reader.rendition || !reader.rendition.manager) return false;
+        var manager = reader.rendition.manager;
+        if (!manager.moveTo) return false;
+        var rect = range.getBoundingClientRect();
+        var doc = contents.document || (range.startContainer && range.startContainer.ownerDocument) || null;
+        var iframe = doc && doc.defaultView ? doc.defaultView.frameElement : null;
+        var iframeRect = iframe && iframe.getBoundingClientRect ? iframe.getBoundingClientRect() : null;
+        var viewer = document.getElementById("viewer") || document.getElementById("viewerStack");
+        var viewerRect = viewer && viewer.getBoundingClientRect ? viewer.getBoundingClientRect() : null;
+        if (!viewerRect || !iframeRect) return false;
+        var absLeft = iframeRect.left + rect.left;
+        var absRight = iframeRect.left + rect.right;
+        var absTop = iframeRect.top + rect.top;
+        var absBottom = iframeRect.top + rect.bottom;
+        var outX = absRight <= viewerRect.left || absLeft >= viewerRect.right;
+        var outY = absBottom <= viewerRect.top || absTop >= viewerRect.bottom;
+        if (!(outX || outY)) return false;
+        if (manager.scrollTo && manager.container) {
+          var targetLeft = manager.container.scrollLeft || 0;
+          var targetTop = manager.container.scrollTop || 0;
+          if (outX) {
+            var delta = (manager.layout && manager.layout.delta) || viewerRect.width || manager.container.clientWidth || 1;
+            targetLeft = Math.max(0, Math.floor((targetLeft + absLeft - viewerRect.left) / delta) * delta);
+          }
+          if (outY) {
+            var pageH = (manager.layout && manager.layout.height) || viewerRect.height || manager.container.clientHeight || 1;
+            targetTop = Math.max(0, Math.floor((targetTop + absTop - viewerRect.top) / pageH) * pageH);
+          }
+          manager.scrollTo(targetLeft, targetTop, true);
+        } else {
+          manager.moveTo({ left: Math.max(0, rect.left || 0), top: Math.max(0, rect.top || 0) });
+        }
+        return true;
+      } catch (e) {}
+      return false;
+    }
+
+    function scheduleHighlightedRangeVisible(contents, range) {
+      try { setTimeout(function () { ensureHighlightedRangeVisible(contents, range); }, 80); } catch (e0) {}
+      try { setTimeout(function () { ensureHighlightedRangeVisible(contents, range); }, 240); } catch (e1) {}
+    }
+
     function highlightCfi(cfi) {
       clearHighlight();
       if (!cfi) return false;
@@ -3340,6 +3883,8 @@
                 state.lastHighlight = { type: "text", doc: c.document };
                 state.pendingHighlightCfi = null;
                 state.highlightRetryCount = 0;
+                ensureHighlightedRangeVisible(c, r);
+                scheduleHighlightedRangeVisible(c, r);
                 return true;
               }
             } catch (eTxt) {}
@@ -3353,6 +3898,8 @@
               state.lastHighlight = { type: "css", doc: c.document };
               state.pendingHighlightCfi = null;
               state.highlightRetryCount = 0;
+              ensureHighlightedRangeVisible(c, r);
+              scheduleHighlightedRangeVisible(c, r);
               return true;
             }
           } catch (eCss) {}
@@ -3361,6 +3908,8 @@
             state.lastHighlight = { cfi: cfi, type: "highlight" };
             state.pendingHighlightCfi = null;
             state.highlightRetryCount = 0;
+            ensureHighlightedRangeVisible(c, r);
+            scheduleHighlightedRangeVisible(c, r);
             return true;
           } catch (eAnn) {}
         }
@@ -3369,6 +3918,7 @@
     }
 
     function ensureMatchVisible(item) {
+      var moved = false;
       try {
         if (!item || item.sectionIndex == null) return;
         var cfi = item.cfi;
@@ -3381,20 +3931,43 @@
         var rect = range.getBoundingClientRect();
         var doc = contents.document;
         var win = doc.defaultView || null;
-        var vw = (doc.documentElement && doc.documentElement.clientWidth) || (win && win.innerWidth) || 0;
-        var vh = (doc.documentElement && doc.documentElement.clientHeight) || (win && win.innerHeight) || 0;
+        var viewer = document.getElementById("viewer") || document.getElementById("viewerStack");
+        var viewerRect = viewer && viewer.getBoundingClientRect ? viewer.getBoundingClientRect() : null;
+        var vw = (viewerRect && viewerRect.width) || (win && win.innerWidth) || (doc.documentElement && doc.documentElement.clientWidth) || 0;
+        var vh = (viewerRect && viewerRect.height) || (win && win.innerHeight) || (doc.documentElement && doc.documentElement.clientHeight) || 0;
         if (!vw || !vh) return;
         var outX = (rect.right <= 0) || (rect.left >= vw);
         var outY = (rect.bottom <= 0) || (rect.top >= vh);
         if (!(outX || outY)) return;
         var offset = null;
         try { offset = contents.locationOf ? contents.locationOf(cfi) : null; } catch (e1) { offset = null; }
+        if ((!offset || (!(offset.left > 0) && !(offset.top > 0))) && (outX || outY)) {
+          offset = { left: Math.max(0, rect.left || 0), top: Math.max(0, rect.top || 0) };
+        }
         if (offset && reader.rendition && reader.rendition.manager && reader.rendition.manager.moveTo) {
-          reader.rendition.manager.moveTo(offset);
+          if (reader.rendition.manager.scrollTo && reader.rendition.manager.container && (outX || outY)) {
+            var mgr = reader.rendition.manager;
+            var targetLeft = mgr.container.scrollLeft || 0;
+            var targetTop = mgr.container.scrollTop || 0;
+            if (outX) {
+              var delta = (mgr.layout && mgr.layout.delta) || vw || mgr.container.clientWidth || 1;
+              targetLeft = Math.max(0, Math.floor((targetLeft + rect.left) / delta) * delta);
+            }
+            if (outY) {
+              var pageH = (mgr.layout && mgr.layout.height) || vh || mgr.container.clientHeight || 1;
+              targetTop = Math.max(0, Math.floor((targetTop + rect.top) / pageH) * pageH);
+            }
+            mgr.scrollTo(targetLeft, targetTop, true);
+          } else {
+            reader.rendition.manager.moveTo(offset);
+          }
+          moved = true;
         } else {
           reader.rendition.display(cfi);
+          moved = true;
         }
       } catch (e) {}
+      return moved;
     }
 
     function scheduleEnsureVisible(item) {
@@ -3410,7 +3983,16 @@
         if (!state.searchActive) return;
         if (token !== state.ensureVisibleToken) return;
         tries++;
-        ensureMatchVisible(item);
+        var moved = ensureMatchVisible(item);
+        if (moved) {
+          try {
+            var cfi = item && item.cfi;
+            setTimeout(function () {
+              if (!state.searchActive) return;
+              if (cfi) highlightCfi(cfi);
+            }, 90);
+          } catch (eHighlightAfterMove) {}
+        }
         if (tries >= maxTries) return;
         state.ensureVisibleTimer = setTimeout(step, 80);
       };
@@ -3663,7 +4245,7 @@
               scheduleHighlightRetry(targetCfi);
               return;
             }
-            if (touchFlow) scheduleEnsureVisible(item);
+            scheduleEnsureVisible(item);
           }).catch(function () {
             var firstTouchMatch = touchFlow && (safeIdx === 0);
             if (firstTouchMatch) {
@@ -3677,7 +4259,7 @@
               scheduleHighlightRetry(targetCfi);
               return;
             }
-            if (touchFlow) scheduleEnsureVisible(item);
+            scheduleEnsureVisible(item);
           });
         } catch (e) {
           var firstTouchMatch = touchFlow && (safeIdx === 0);
@@ -3692,7 +4274,7 @@
             scheduleHighlightRetry(targetCfi);
             return;
           }
-          if (touchFlow) scheduleEnsureVisible(item);
+          scheduleEnsureVisible(item);
         }
       };
 
@@ -4346,8 +4928,8 @@
     // reader_new compat mode the center tap layer is still needed to toggle
     // the outer shell chrome.
     try {
-      var tapCenter = document.getElementById("fb-tap-center");
-      if (tapCenter) tapCenter.style.pointerEvents = window.__readerpubReaderNewCompat ? "auto" : "none";
+	      var tapCenter = document.getElementById("fb-tap-center");
+	      if (tapCenter) tapCenter.style.pointerEvents = (__fb_isDesktop ? "none" : (window.__readerpubReaderNewCompat ? "auto" : "none"));
     } catch (e) {}
 
     var state = {
@@ -4360,7 +4942,23 @@
       markNodes: [],
       locked: false,
       noteHighlightActive: false,
-      dragSelecting: false
+      dragSelecting: false,
+      shareUrlKey: "",
+      shareUrl: "",
+      shareUrlPromise: null,
+      shareUrlPending: false,
+      shareUrlAttempts: 0,
+      shareUrlTimer: null,
+      shareUrlLastEndpoint: "",
+      shareUrlLastStatus: "",
+      shareUrlLastError: "",
+      shareUrlLastBody: null,
+      shareUrlLastPayload: null,
+      shareUrlLastUpdatedAt: 0,
+      lastToolbarAction: "",
+      lastToolbarActionAt: 0,
+      lastCopyValue: "",
+      lastCopyAt: 0
     };
     var notePendingCfi = null;
 
@@ -4488,6 +5086,43 @@
       return null;
     }
 
+    function cfiFromDocRange(doc, range) {
+      if (!doc || !range) return "";
+      try {
+        var contents = getContentsForDoc(doc);
+        if (contents && contents.cfiFromRange) {
+          return String(contents.cfiFromRange(range) || "");
+        }
+      } catch (e0) {}
+      return "";
+    }
+
+    function refreshSelectionCfiFromState() {
+      try {
+        if (state.doc && state.range) {
+          var cfi = cfiFromDocRange(state.doc, state.range);
+          if (cfi) {
+            state.cfi = cfi;
+            return cfi;
+          }
+        }
+      } catch (e0) {}
+      try {
+        var doc = state.doc || null;
+        var sel = getSelection(doc);
+        if (sel && !sel.isCollapsed && sel.rangeCount) {
+          var range = sel.getRangeAt(0).cloneRange();
+          var fromSelection = cfiFromDocRange(doc, range);
+          if (fromSelection) {
+            state.range = range;
+            state.cfi = fromSelection;
+            return fromSelection;
+          }
+        }
+      } catch (e1) {}
+      return "";
+    }
+
     function clearSelection(doc) {
       try {
         var sel = getSelection(doc);
@@ -4512,9 +5147,9 @@
 
     function applyMark(doc, range) {
       clearMarks();
-      if (!doc || !range) return;
+      if (!doc || !range) return false;
       var root = range.commonAncestorContainer;
-      if (!root) return;
+      if (!root) return false;
       var walker = null;
       var nodes = [];
       if (root.nodeType === 3) {
@@ -4539,7 +5174,7 @@
           }
         });
       } catch (e) {}
-      if (!walker) return;
+      if (!walker) return false;
       try {
         var n = walker.nextNode();
         while (n) { nodes.push(n); n = walker.nextNode(); }
@@ -4565,12 +5200,19 @@
         if (before) frag.appendChild(doc.createTextNode(before));
         var mark = doc.createElement("span");
         mark.className = "fb-selection-mark";
+        try {
+          mark.style.setProperty("background", "var(--fb-selection-bg,rgba(165,244,236,0.72))", "important");
+          mark.style.setProperty("color", "inherit", "important");
+          mark.style.setProperty("-webkit-box-decoration-break", "clone", "important");
+          mark.style.setProperty("box-decoration-break", "clone", "important");
+        } catch (eStyle) {}
         mark.textContent = middle;
         frag.appendChild(mark);
         if (after) frag.appendChild(doc.createTextNode(after));
         parent.replaceChild(frag, node);
         state.markNodes.push(mark);
       }
+      return !!(state.markNodes && state.markNodes.length);
     }
 
     function setDismissActive(on) {
@@ -4798,6 +5440,7 @@
         state.text = "";
         state.cfi = null;
         state.href = null;
+        clearSelectionShareCache();
         hideToolbar();
         return;
       }
@@ -4841,6 +5484,8 @@
       state.text = text;
       state.cfi = cfi;
       state.href = href;
+      resetSelectionShareIfChanged(cfi, text);
+      prewarmSelectionShareUrl();
 
       // Desktop: use native selection highlight.
       showToolbarAt(doc, range);
@@ -4874,9 +5519,13 @@
         state.text = text;
         state.cfi = cfi;
         state.href = href;
+        resetSelectionShareIfChanged(cfi, text);
+        prewarmSelectionShareUrl();
 
         showToolbarAt(doc, range);
+        applyMark(doc, range);
         state.locked = true;
+        state.desktopSelectionCommittedAt = Date.now();
         window.__fbSelectionActive = true;
       } catch (e0) {}
     }
@@ -4917,7 +5566,11 @@
         if (!doc.getElementById("__fb_selection_css")) {
           var st = doc.createElement("style");
           st.id = "__fb_selection_css";
-          st.textContent = ".fb-selection-mark{background:#61c2fa;color:inherit;-webkit-box-decoration-break:clone;box-decoration-break:clone;}";
+          st.textContent = ""
+            + ":root{--fb-selection-bg:rgba(165,244,236,0.72);}"
+            + "@media (prefers-color-scheme: dark){:root{--fb-selection-bg:rgba(0,130,116,0.72);}}"
+            + "::selection{background:var(--fb-selection-bg);color:inherit;}"
+            + ".fb-selection-mark{background:var(--fb-selection-bg);color:inherit;-webkit-box-decoration-break:clone;box-decoration-break:clone;}";
           doc.head && doc.head.appendChild(st);
         }
       } catch (e) {}
@@ -4938,6 +5591,14 @@
       }, true); } catch (e) {}
       try { doc.addEventListener("pointerup", function () { commitSelection(doc); }, true); } catch (e) {}
       try { doc.addEventListener("mouseup", function () { commitSelection(doc); }, true); } catch (e) {}
+      try { doc.addEventListener("click", function (e) {
+        if (!isDesktopSelectionMode()) return;
+        if (!state.locked || state.doc !== doc) return;
+        if (Date.now() - (state.desktopSelectionCommittedAt || 0) > 700) return;
+        try { if (e && e.preventDefault) e.preventDefault(); } catch (e0) {}
+        try { if (e && e.stopImmediatePropagation) e.stopImmediatePropagation(); } catch (e1) {}
+        try { if (e && e.stopPropagation) e.stopPropagation(); } catch (e2) {}
+      }, true); } catch (e) {}
       try { doc.addEventListener("keyup", function () { scheduleUpdate(doc); }, true); } catch (e) {}
       try { doc.addEventListener("pointerdown", function () { if (state.locked) hideAndClear(); state.locked = false; }, true); } catch (e) {}
       try { doc.addEventListener("touchstart", function () { if (state.locked) hideAndClear(); state.locked = false; }, true); } catch (e) {}
@@ -5193,6 +5854,8 @@
         if (contents && contents.cfiFromRange) state.cfi = contents.cfiFromRange(range);
         if (contents && contents.section && contents.section.href) state.href = contents.section.href;
       } catch (e) {}
+      resetSelectionShareIfChanged(state.cfi, state.text);
+      prewarmSelectionShareUrl();
       applyMark(doc, range);
       if (showToolbar) {
         var mrect = getMarkRect(doc);
@@ -5218,6 +5881,53 @@
       } else {
         showToolbarAt(state.doc, state.range);
       }
+    }
+
+    function ensureToolbarForTouchSelection() {
+      try {
+        if (!isTouchSelectionMode()) return;
+        if (!state.locked || !state.doc || !state.range || !state.text) return;
+        state.dragSelecting = false;
+        showToolbarForCurrentSelection();
+        setDismissActive(true);
+      } catch (e) {}
+    }
+
+    function completePendingTouchToolbar() {
+      try {
+        if (!state.pendingTouchToolbar) return;
+        state.pendingTouchToolbar = false;
+        setTimeout(function () {
+          ensureToolbarForTouchSelection();
+        }, 0);
+      } catch (e) {}
+    }
+
+    function bindTouchToolbarReleaseFallback(doc) {
+      try {
+        if (!doc || doc.__fbTouchToolbarReleaseFallback) return;
+        doc.__fbTouchToolbarReleaseFallback = true;
+        var win = doc.defaultView || null;
+        var topDoc = null;
+        try { topDoc = win && win.parent && win.parent.document ? win.parent.document : null; } catch (eTopDoc) { topDoc = null; }
+        var onRelease = function () { completePendingTouchToolbar(); };
+        try { doc.addEventListener("touchend", onRelease, { capture: true, passive: true }); } catch (e1) {}
+        try { doc.addEventListener("touchcancel", onRelease, { capture: true, passive: true }); } catch (e2) {}
+        try { doc.addEventListener("pointerup", onRelease, { capture: true, passive: true }); } catch (e3) {}
+        try { doc.addEventListener("pointercancel", onRelease, { capture: true, passive: true }); } catch (e4) {}
+        if (win) {
+          try { win.addEventListener("touchend", onRelease, { capture: true, passive: true }); } catch (e5) {}
+          try { win.addEventListener("touchcancel", onRelease, { capture: true, passive: true }); } catch (e6) {}
+          try { win.addEventListener("pointerup", onRelease, { capture: true, passive: true }); } catch (e7) {}
+          try { win.addEventListener("pointercancel", onRelease, { capture: true, passive: true }); } catch (e8) {}
+        }
+        if (topDoc && topDoc !== doc) {
+          try { topDoc.addEventListener("touchend", onRelease, { capture: true, passive: true }); } catch (e9) {}
+          try { topDoc.addEventListener("touchcancel", onRelease, { capture: true, passive: true }); } catch (e10) {}
+          try { topDoc.addEventListener("pointerup", onRelease, { capture: true, passive: true }); } catch (e11) {}
+          try { topDoc.addEventListener("pointercancel", onRelease, { capture: true, passive: true }); } catch (e12) {}
+        }
+      } catch (e) {}
     }
 
       function clearLongPress() {
@@ -5258,7 +5968,20 @@
           lpAnchorRect = rectFromRange(word);
           lpDir = 0;
           lpHasMeaningfulDrag = false;
-          if (word) applyCustomSelection(word, false);
+          if (word) {
+            applyCustomSelection(word, false);
+            state.pendingTouchToolbar = true;
+            bindTouchToolbarReleaseFallback(doc);
+            setTimeout(function () {
+              try {
+                if (!state.pendingTouchToolbar || lpHasMeaningfulDrag) return;
+                state.pendingTouchToolbar = false;
+                state.dragSelecting = false;
+                showToolbarForCurrentSelection();
+                setDismissActive(true);
+              } catch (eDeferredToolbar) {}
+            }, 260);
+          }
         }, 500);
       }
 
@@ -5315,15 +6038,20 @@
             if (!lpHasMeaningfulDrag && lpAnchorRange) {
               applyCustomSelection(lpAnchorRange, false);
             }
+            state.pendingTouchToolbar = false;
             showToolbarForCurrentSelection();
             setDismissActive(true);
           }
+        } else {
+          completePendingTouchToolbar();
+          ensureToolbarForTouchSelection();
         }
       }
 
       try { doc.addEventListener("touchstart", onTouchStart, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("touchmove", onTouchMove, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("touchend", onTouchEnd, { passive: false, capture: true }); } catch (e) {}
+      try { doc.addEventListener("touchcancel", onTouchEnd, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("pointerdown", function (e) {
         if (!e || e.pointerType !== "touch") return;
         onTouchStart(e);
@@ -5333,6 +6061,10 @@
         onTouchMove(e);
       }, { passive: false, capture: true }); } catch (e) {}
       try { doc.addEventListener("pointerup", function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        onTouchEnd(e);
+      }, { passive: false, capture: true }); } catch (e) {}
+      try { doc.addEventListener("pointercancel", function (e) {
         if (!e || e.pointerType !== "touch") return;
         onTouchEnd(e);
       }, { passive: false, capture: true }); } catch (e) {}
@@ -5353,6 +6085,7 @@
       state.text = "";
       state.cfi = null;
       state.href = null;
+      clearSelectionShareCache();
       state.locked = false;
       state.noteHighlightActive = false;
       state.dragSelecting = false;
@@ -5591,8 +6324,13 @@
         state.range = r;
         state.text = "";
         state.cfi = cfi;
-        applyMark(state.doc, r);
+        var marked = applyMark(state.doc, r);
         var mrect = getMarkRect(state.doc);
+        if (!marked || !mrect) {
+          clearMarks();
+          if (!highlightTextFallbackInDoc(c.document)) continue;
+          mrect = getMarkRect(state.doc);
+        }
         if (mrect) {
           try { showToolbarAtRect(state.doc, mrect); } catch (e2) {}
           hideToolbar();
@@ -6004,6 +6742,493 @@
       try { window.open(url, "_blank", "noopener"); } catch (e) { window.location.href = url; }
     }
 
+    function copySelectionText(value) {
+      var txt = String(value || "");
+      if (!txt) return Promise.reject(new Error("No text to copy"));
+      try {
+        state.lastCopyValue = txt;
+        state.lastCopyAt = Date.now();
+      } catch (eCopyState) {}
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(txt).catch(function () {
+            return fallbackCopySelectionText(txt);
+          });
+        }
+      } catch (e0) {}
+      return fallbackCopySelectionText(txt);
+    }
+
+    function fallbackCopySelectionText(txt) {
+      return new Promise(function (resolve, reject) {
+        try {
+          var ta = document.createElement("textarea");
+          ta.value = String(txt || "");
+          ta.setAttribute("readonly", "true");
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          ta.style.top = "-9999px";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          var ok = false;
+          try { ok = document.execCommand("copy"); } catch (e1) { ok = false; }
+          document.body.removeChild(ta);
+          if (ok) resolve();
+          else reject(new Error("Copy command failed"));
+        } catch (e2) {
+          reject(e2);
+        }
+      });
+    }
+
+    function showSelectionToast(message) {
+      if (!window.__fb_isDesktop) return;
+      try {
+        var toast = document.getElementById("selectionCopyToast");
+        if (!toast) {
+          toast = document.createElement("div");
+          toast.id = "selectionCopyToast";
+          toast.className = "selection-copy-toast";
+          toast.setAttribute("role", "status");
+          toast.setAttribute("aria-live", "polite");
+          document.body.appendChild(toast);
+        }
+        toast.textContent = String(message || "");
+        if (toast.__fbHideTimer) {
+          try { clearTimeout(toast.__fbHideTimer); } catch (e0) {}
+          toast.__fbHideTimer = null;
+        }
+        toast.classList.remove("is-hiding");
+        toast.classList.add("is-visible");
+        toast.__fbHideTimer = setTimeout(function () {
+          try {
+            toast.classList.add("is-hiding");
+            toast.classList.remove("is-visible");
+          } catch (e1) {}
+        }, 900);
+      } catch (e) {}
+    }
+
+    function buildSelectionShareUrl(cfi, text) {
+      try {
+        var current = new URL(window.location.href || "", window.location.origin);
+        var u = new URL(current.pathname || window.location.pathname || "/", window.location.origin);
+        var id = "";
+        var source = "";
+        try {
+          id = current.searchParams.get("id") || current.searchParams.get("i") || "";
+          source = current.searchParams.get("source") || "";
+        } catch (eId) {}
+        if (!cfi) return "";
+        if (source) u.searchParams.set("source", source);
+        if (id) u.searchParams.set("id", id);
+        u.searchParams.set("selectionCfi", cfi);
+        try {
+          var quote = normalizeInlineText(text || "");
+          if (quote) u.searchParams.set("selectionText", quote.slice(0, 500));
+        } catch (eQuote) {}
+        u.hash = cfi;
+        return u.toString();
+      } catch (e) {}
+      return "";
+    }
+
+    function getCurrentBookSource() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        return String(u.searchParams.get("source") || "");
+      } catch (e0) {}
+      return "";
+    }
+
+    function getSelectionBookId() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        var id = u.searchParams.get("id") || u.searchParams.get("i");
+        if (id) return String(id);
+      } catch (e0) {}
+      return "";
+    }
+
+    function getSelectionShareCreateEndpoints() {
+      var endpoints = [
+        "/books/api/ss",
+        "/api/ss",
+        "/books/reader1/api/ss",
+        "/books/api/selection-share",
+        "/api/selection-share",
+        "/books/reader1/api/selection-share"
+      ];
+      try {
+        var host = String(window.location.hostname || "").toLowerCase();
+        if (host === "reader.pub" || host === "www.reader.pub") {
+          endpoints = [
+            "/books/reader/api/ss",
+            "/books/api/ss",
+            "/api/ss",
+            "/books/reader/api/selection-share",
+            "/books/api/selection-share",
+            "/api/selection-share"
+          ];
+        }
+      } catch (e0) {}
+      return endpoints;
+    }
+
+    function createShortSelectionShare(cfi, text) {
+      if (!cfi) return Promise.reject(new Error("missing selection cfi"));
+      var body = {
+        bookId: getSelectionBookId(),
+        source: getCurrentBookSource(),
+        selectionCfi: cfi,
+        selectionText: normalizeInlineText(text || "").slice(0, 500)
+      };
+      state.shareUrlLastPayload = body;
+      if (!body.bookId) return Promise.reject(new Error("missing book id"));
+      var endpoints = getSelectionShareCreateEndpoints();
+      var idx = 0;
+      var tryNext = function () {
+        if (idx >= endpoints.length) {
+          state.shareUrlLastUpdatedAt = Date.now();
+          return Promise.reject(new Error("selection share create failed"));
+        }
+        var endpoint = endpoints[idx++];
+        state.shareUrlLastEndpoint = endpoint;
+        state.shareUrlLastStatus = "pending";
+        state.shareUrlLastError = "";
+        state.shareUrlLastUpdatedAt = Date.now();
+        return fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json; charset=utf-8" },
+          credentials: "same-origin",
+          body: JSON.stringify(body)
+        }).then(function (resp) {
+          state.shareUrlLastStatus = resp ? String(resp.status || "") : "no-response";
+          state.shareUrlLastUpdatedAt = Date.now();
+          if (!resp || !resp.ok) throw new Error("selection share create failed: " + state.shareUrlLastStatus);
+          return resp.json();
+        }).then(function (data) {
+          state.shareUrlLastBody = data || null;
+          state.shareUrlLastUpdatedAt = Date.now();
+          var url = data && data.url ? String(data.url) : "";
+          if (url) return url;
+          var shareId = data && data.shareId ? String(data.shareId) : "";
+          if (!shareId) throw new Error("missing share id");
+          return new URL("/s/" + encodeURIComponent(shareId), getCanonicalShareOrigin()).toString();
+        }).catch(function (error) {
+          state.shareUrlLastError = error && error.message ? error.message : String(error || "");
+          state.shareUrlLastUpdatedAt = Date.now();
+          return tryNext();
+        });
+      };
+      return tryNext();
+    }
+
+    function getSelectionShareUrl(cfi, text, fallbackUrl) {
+      return createShortSelectionShare(cfi, text).catch(function () {
+        return fallbackUrl || buildSelectionShareUrl(cfi, text);
+      });
+    }
+
+    function selectionShareCacheKey(cfi, text) {
+      return String(cfi || "") + "\n" + normalizeInlineText(text || "").slice(0, 500);
+    }
+
+    function clearSelectionShareCache() {
+      try {
+        if (state.shareUrlTimer) clearTimeout(state.shareUrlTimer);
+      } catch (e0) {}
+      state.shareUrlKey = "";
+      state.shareUrl = "";
+      state.shareUrlPromise = null;
+      state.shareUrlPending = false;
+      state.shareUrlAttempts = 0;
+      state.shareUrlTimer = null;
+      state.shareUrlLastEndpoint = "";
+      state.shareUrlLastStatus = "";
+      state.shareUrlLastError = "";
+      state.shareUrlLastBody = null;
+      state.shareUrlLastPayload = null;
+      state.shareUrlLastUpdatedAt = 0;
+      syncSelectionShareButtonState();
+    }
+
+    function resetSelectionShareIfChanged(cfi, text) {
+      try {
+        var key = selectionShareCacheKey(cfi || "", text || "");
+        if (key && state.shareUrlKey === key && (state.shareUrl || state.shareUrlPromise || state.shareUrlPending)) {
+          syncSelectionShareButtonState();
+          return;
+        }
+      } catch (e) {}
+      clearSelectionShareCache();
+    }
+
+    function getSelectionShareButton() {
+      try { return toolbar ? toolbar.querySelector('[data-action="share"]') : null; } catch (e) {}
+      return null;
+    }
+
+    function shouldGateMobileShareButton() {
+      try {
+        return !window.__fb_isDesktop && isTouchSelectionMode() && !!navigator.share;
+      } catch (e) {}
+      return false;
+    }
+
+    function syncSelectionShareButtonState() {
+      try {
+        var btn = getSelectionShareButton();
+        if (!btn) return;
+        var gated = shouldGateMobileShareButton();
+        var ready = !!state.shareUrl;
+        var pending = !!state.shareUrlPending;
+        var disabled = gated && !ready;
+        btn.classList.toggle("is-disabled", !!disabled);
+        btn.classList.toggle("is-loading", !!(gated && pending && !ready));
+        btn.setAttribute("aria-disabled", disabled ? "true" : "false");
+        btn.setAttribute("aria-label", disabled ? "Preparing share link" : "Share");
+      } catch (e) {}
+    }
+
+    function scheduleSelectionSharePrewarm(delay) {
+      try {
+        if (state.shareUrlTimer || state.shareUrl) return;
+        state.shareUrlTimer = setTimeout(function () {
+          state.shareUrlTimer = null;
+          prewarmSelectionShareUrl();
+        }, delay || 250);
+      } catch (e) {}
+    }
+
+    function prewarmSelectionShareUrl() {
+      try {
+        if (state.shareUrlTimer) {
+          try { clearTimeout(state.shareUrlTimer); } catch (eTimer) {}
+          state.shareUrlTimer = null;
+        }
+        if (!state.text) return;
+        var cfi = state.cfi || refreshSelectionCfiFromState() || getCurrentCfi();
+        if (!cfi) {
+          state.shareUrlPending = shouldGateMobileShareButton();
+          syncSelectionShareButtonState();
+          if (state.shareUrlAttempts < 20) {
+            state.shareUrlAttempts++;
+            scheduleSelectionSharePrewarm(250);
+          }
+          return;
+        }
+        var key = selectionShareCacheKey(cfi, state.text);
+        if (state.shareUrlKey === key && (state.shareUrl || state.shareUrlPromise)) return;
+        state.shareUrlKey = key;
+        state.shareUrl = "";
+        state.shareUrlPending = true;
+        syncSelectionShareButtonState();
+        state.shareUrlAttempts++;
+        state.shareUrlPromise = createShortSelectionShare(cfi, state.text).then(function (url) {
+          if (state.shareUrlKey === key) {
+            state.shareUrl = url || "";
+            state.shareUrlPending = false;
+            state.shareUrlAttempts = 0;
+            syncSelectionShareButtonState();
+          }
+          return url || "";
+        }).catch(function () {
+          if (state.shareUrlKey === key) {
+            state.shareUrlPromise = null;
+            state.shareUrlPending = true;
+            syncSelectionShareButtonState();
+            if (state.shareUrlAttempts < 10) {
+              scheduleSelectionSharePrewarm(Math.min(1500, 250 + state.shareUrlAttempts * 150));
+            } else {
+              state.shareUrlPending = false;
+              syncSelectionShareButtonState();
+            }
+          }
+          return "";
+        });
+      } catch (e) {}
+    }
+
+    function getPrewarmedSelectionShareUrl(cfi, text) {
+      try {
+        var key = selectionShareCacheKey(cfi, text);
+        if (state.shareUrlKey === key && state.shareUrl) return state.shareUrl;
+      } catch (e) {}
+      return "";
+    }
+
+    function installSelectionShareDebugHooks() {
+      try {
+        window.__readerpubSelectionShareDebug = {
+          status: function () {
+            var cfi = "";
+            try { cfi = state.cfi || refreshSelectionCfiFromState() || getCurrentCfi() || ""; } catch (e0) {}
+            var btn = getSelectionShareButton();
+            return {
+              text: state.text || "",
+              cfi: cfi,
+              stateCfi: state.cfi || "",
+              currentCfi: (function () { try { return getCurrentCfi() || ""; } catch (e1) { return ""; } })(),
+              bookId: getSelectionBookId(),
+              source: getCurrentBookSource(),
+              shareUrl: state.shareUrl || "",
+              shareUrlKey: state.shareUrlKey || "",
+              pending: !!state.shareUrlPending,
+              attempts: state.shareUrlAttempts || 0,
+              hasTimer: !!state.shareUrlTimer,
+              lastEndpoint: state.shareUrlLastEndpoint || "",
+              lastStatus: state.shareUrlLastStatus || "",
+              lastError: state.shareUrlLastError || "",
+              lastBody: state.shareUrlLastBody || null,
+              lastPayload: state.shareUrlLastPayload || null,
+              lastUpdatedAt: state.shareUrlLastUpdatedAt || 0,
+              lastToolbarAction: state.lastToolbarAction || "",
+              lastToolbarActionAt: state.lastToolbarActionAt || 0,
+              lastCopyValue: state.lastCopyValue || "",
+              lastCopyAt: state.lastCopyAt || 0,
+              gated: shouldGateMobileShareButton(),
+              mobileGated: shouldGateMobileShareButton(),
+              buttonAriaDisabled: btn ? btn.getAttribute("aria-disabled") : "",
+              buttonClass: btn ? btn.className : ""
+            };
+          },
+          prewarm: function () {
+            prewarmSelectionShareUrl();
+            return this.status();
+          },
+          clear: function () {
+            clearSelectionShareCache();
+            return this.status();
+          },
+          createNow: function () {
+            var cfi = state.cfi || refreshSelectionCfiFromState() || getCurrentCfi() || "";
+            return createShortSelectionShare(cfi, state.text || "").then(function (url) {
+              state.shareUrl = url || "";
+              state.shareUrlPending = false;
+              syncSelectionShareButtonState();
+              return window.__readerpubSelectionShareDebug.status();
+            }).catch(function (error) {
+              state.shareUrlLastError = error && error.message ? error.message : String(error || "");
+              syncSelectionShareButtonState();
+              return window.__readerpubSelectionShareDebug.status();
+            });
+          }
+        };
+      } catch (e) {}
+    }
+
+    installSelectionShareDebugHooks();
+
+    function getIncomingSelectionCfi() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        var cfi = u.searchParams.get("selectionCfi") || window.__readerpubIncomingSelectionCfi || "";
+        if (!cfi) return "";
+        return /^epubcfi\(/i.test(cfi) ? cfi : "";
+      } catch (e) {}
+      return "";
+    }
+
+    function getIncomingSelectionText() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        return normalizeInlineText(u.searchParams.get("selectionText") || window.__readerpubIncomingSelectionText || "");
+      } catch (e) {}
+      return "";
+    }
+
+    function findTextRangeInDoc(doc, query) {
+      query = normalizeInlineText(query || "");
+      if (!doc || !doc.body || !query) return null;
+      try {
+        var NF = doc.defaultView ? doc.defaultView.NodeFilter : NodeFilter;
+        var walker = doc.createTreeWalker(doc.body, NF.SHOW_TEXT, null, false);
+        var chars = [];
+        var points = [];
+        var prevSpace = true;
+        var node;
+        while ((node = walker.nextNode())) {
+          var value = node.nodeValue || "";
+          for (var i = 0; i < value.length; i++) {
+            var ch = value.charAt(i);
+            if (/\s/.test(ch)) {
+              if (!prevSpace) {
+                chars.push(" ");
+                points.push({ node: node, offset: i });
+                prevSpace = true;
+              }
+            } else {
+              chars.push(ch);
+              points.push({ node: node, offset: i });
+              prevSpace = false;
+            }
+          }
+        }
+        var haystack = chars.join("").toLowerCase();
+        var needle = query.toLowerCase();
+        var idx = haystack.indexOf(needle);
+        if (idx < 0) return null;
+        var start = points[idx];
+        var end = points[Math.min(points.length - 1, idx + needle.length - 1)];
+        if (!start || !end) return null;
+        var range = doc.createRange();
+        range.setStart(start.node, start.offset);
+        range.setEnd(end.node, Math.min((end.node.nodeValue || "").length, end.offset + 1));
+        return range;
+      } catch (e0) {}
+      return null;
+    }
+
+    function highlightTextFallbackInDoc(doc) {
+      try {
+        var query = getIncomingSelectionText();
+        if (!query) return false;
+        var range = findTextRangeInDoc(doc, query);
+        if (!range) return false;
+        state.doc = doc;
+        state.range = range;
+        state.text = query;
+        var marked = applyMark(doc, range);
+        return !!(marked && getMarkRect(doc));
+      } catch (e) {}
+      return false;
+    }
+
+    function activateIncomingSelectionHighlight() {
+      var cfi = getIncomingSelectionCfi();
+      if (!cfi) return;
+      notePendingCfi = cfi;
+      var attempts = 0;
+      var tryOnce = function () {
+        if (!notePendingCfi) return;
+        if (highlightNoteCfi(cfi)) {
+          notePendingCfi = null;
+          return;
+        }
+        attempts++;
+        if (attempts < 80) setTimeout(tryOnce, 150);
+      };
+      setTimeout(tryOnce, 0);
+      try {
+        if (reader && reader.book && reader.book.ready && typeof reader.book.ready.then === "function") {
+          reader.book.ready.then(function () {
+            if (!notePendingCfi) return;
+            setTimeout(tryOnce, 0);
+          }).catch(function () {});
+        }
+      } catch (eReady) {}
+      try {
+        if (reader && reader.displayed && typeof reader.displayed.then === "function") {
+          reader.displayed.then(function () {
+            if (!notePendingCfi) return;
+            setTimeout(tryOnce, 0);
+          }).catch(function () {});
+        }
+      } catch (eDisplayed) {}
+    }
+
     function isReaderNewCompatHost() {
       try {
         if (window.__readerpubReaderNewCompat) return true;
@@ -6048,6 +7273,10 @@
     }
 
     function handleAction(action) {
+      try {
+        state.lastToolbarAction = String(action || "");
+        state.lastToolbarActionAt = Date.now();
+      } catch (eActionState) {}
       var text = state.text || "";
       if (!text) { hideAndClear(); return; }
 
@@ -6099,37 +7328,44 @@
         openUrl(qUrl);
       } else if (action === "share") {
         try {
-          if (navigator.share) {
-            navigator.share({ text: text });
-          } else if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text);
+          var shareCfi = state.cfi || refreshSelectionCfiFromState() || getCurrentCfi();
+          var fallbackShareUrl = buildSelectionShareUrl(shareCfi, text);
+          if (window.__fb_isDesktop) {
+            if (!fallbackShareUrl) return;
+            var desktopShareUrl = getPrewarmedSelectionShareUrl(shareCfi, text);
+            if (!desktopShareUrl) {
+              prewarmSelectionShareUrl();
+              showSelectionToast("Preparing link");
+              return;
+            }
+            copySelectionText(desktopShareUrl).then(function () {
+                showSelectionToast("Link copied");
+            }).catch(function () {});
+          } else if (navigator.share) {
+            var mobileShareUrl = getPrewarmedSelectionShareUrl(shareCfi, text);
+            if (!mobileShareUrl) {
+              prewarmSelectionShareUrl();
+              return;
+            }
+            var sharePayload = { text: text };
+            sharePayload.url = mobileShareUrl;
+            navigator.share(sharePayload).catch(function () {
+              var fallbackText = text + "\n\n" + mobileShareUrl;
+              return copySelectionText(fallbackText).catch(function () {});
+            }).catch(function () {});
           } else {
-            var ta = document.createElement("textarea");
-            ta.value = text;
-            ta.setAttribute("readonly", "true");
-            ta.style.position = "fixed";
-            ta.style.opacity = "0";
-            document.body.appendChild(ta);
-            ta.select();
-            try { document.execCommand("copy"); } catch (e2) {}
-            document.body.removeChild(ta);
+            getSelectionShareUrl(shareCfi, text, fallbackShareUrl).then(function (shareUrl) {
+              if (!shareUrl) return;
+              var shareText = text + "\n\n" + shareUrl;
+              return copySelectionText(shareText).catch(function () {});
+            }).catch(function () {});
           }
         } catch (e) {}
       } else if (action === "copy") {
         try {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text);
-          } else {
-            var ta2 = document.createElement("textarea");
-            ta2.value = text;
-            ta2.setAttribute("readonly", "true");
-            ta2.style.position = "fixed";
-            ta2.style.opacity = "0";
-            document.body.appendChild(ta2);
-            ta2.select();
-            try { document.execCommand("copy"); } catch (e3) {}
-            document.body.removeChild(ta2);
-          }
+          copySelectionText(text).then(function () {
+            showSelectionToast("Text copied");
+          }).catch(function () {});
         } catch (e) {}
       }
 
@@ -6143,6 +7379,7 @@
       while (node && depth < 6) {
         try {
           if (node.getAttribute && node.getAttribute("data-action")) {
+            if (node.disabled || node.getAttribute("aria-disabled") === "true") return null;
             return node.getAttribute("data-action");
           }
         } catch (e1) {}
@@ -6156,6 +7393,7 @@
             var el = path[i];
             try {
               if (el && el.getAttribute && el.getAttribute("data-action")) {
+                if (el.disabled || el.getAttribute("aria-disabled") === "true") return null;
                 return el.getAttribute("data-action");
               }
             } catch (e3) {}
@@ -6167,6 +7405,9 @@
     function maybeHandleToolbarAction(e, viaClick) {
       var action = toolbarActionFromEvent(e);
       if (!action) return;
+      try {
+        if (!viaClick && e && e.type === "pointerdown" && e.pointerType === "mouse" && isDesktopSelectionMode()) return;
+      } catch (eMouseDown) {}
       try {
         if (toolbar.__fbActionLock && Date.now() - toolbar.__fbActionLock < 500) return;
       } catch (e0) {}
@@ -6193,6 +7434,13 @@
     try {
       reader.rendition.hooks.content.register(function (contents) {
         try { attachToDoc(contents.document); } catch (e) {}
+        try {
+          if (notePendingCfi) {
+            setTimeout(function () {
+              try { if (notePendingCfi && highlightNoteCfi(notePendingCfi)) notePendingCfi = null; } catch (ePendingContent) {}
+            }, 0);
+          }
+        } catch (ePendingHook) {}
       });
       reader.rendition.on("rendered", function (section, view) {
         try {
@@ -6207,7 +7455,7 @@
           var pendingCfi = notePendingCfi || (state.noteHighlightActive ? state.cfi : null);
           if (pendingCfi) {
             setTimeout(function () {
-              try { highlightNoteCfi(pendingCfi); } catch (eHighlightRender) {}
+              try { if (highlightNoteCfi(pendingCfi)) notePendingCfi = null; } catch (eHighlightRender) {}
             }, 0);
           }
         } catch (eRenderedHighlight) {}
@@ -6224,6 +7472,7 @@
       } catch (e) {}
     }
     scanIframes();
+    activateIncomingSelectionHighlight();
 
     try {
       reader.rendition.on("relocated", function () {
@@ -6549,6 +7798,17 @@
       }
       if (clearHash) u.hash = "";
       return u.toString();
+    }
+
+    function getCanonicalShareOrigin() {
+      try {
+        var host = String(window.location.hostname || "").toLowerCase();
+        if (host === "reader-books.pages.dev") return "https://reader.pub";
+        if (host.indexOf(".readerpub-books-staging.pages.dev") !== -1) {
+          return "https://books-staging.reader.pub";
+        }
+      } catch (e0) {}
+      return window.location.origin;
     }
 
     function getNotesShareCreateEndpoints() {
