@@ -8125,26 +8125,10 @@ async function handleAction(action) {
     return true;
   }
 
-  function bindNativeSelectionShareClick() {
-    const button = getProtectedSelectionShareButton();
-    if (!button || button.__protectedNativeShareClickBound) return;
-    button.__protectedNativeShareClickBound = true;
-    button.addEventListener("click", (event) => {
-      if (!shouldUseNativeSelectionShare()) return;
-      try {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation && event.stopImmediatePropagation();
-      } catch (_error) {}
-      handleNativeSelectionShareFromGesture("share");
-    }, true);
-  }
-
-  async function maybeHandleToolbarAction(event, viaClick = false) {
+  function maybeHandleToolbarAction(event, viaClick = false) {
     const action = toolbarActionFromEvent(event);
     if (!action) return;
     const nativeSelectionShareAction = action === "share" && shouldUseNativeSelectionShare();
-    if (nativeSelectionShareAction && !viaClick) return;
     try {
       if (toolbar.__protectedActionLock && Date.now() - toolbar.__protectedActionLock < 500) return;
       toolbar.__protectedActionLock = Date.now();
@@ -8156,7 +8140,10 @@ async function handleAction(action) {
     } catch (error) {}
     if (nativeSelectionShareAction && handleNativeSelectionShareFromGesture(action)) return;
     try {
-      await handleAction(action);
+      Promise.resolve(handleAction(action)).catch((error) => {
+        setHostActionStatus(error && error.message ? error.message : "Selection action failed.");
+        hideSelectionToolbar();
+      });
     } catch (error) {
       setHostActionStatus(error && error.message ? error.message : "Selection action failed.");
       hideSelectionToolbar();
@@ -8170,7 +8157,6 @@ async function handleAction(action) {
   toolbar.addEventListener("touchstart", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true, passive: false });
   toolbar.addEventListener("pointerup", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true });
   toolbar.addEventListener("touchend", (event) => { maybeHandleToolbarAction(event, false); }, { capture: true, passive: false });
-  bindNativeSelectionShareClick();
   toolbar.addEventListener("click", (event) => { maybeHandleToolbarAction(event, true); });
   const dismissSelectionUi = (event) => {
     if (Date.now() < Number(HOST_STATE.suppressSelectionDismissUntil || 0)) return;
@@ -11275,7 +11261,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-6");
+      await import("../dev/protected-reader.js?v=20260428-protected-native-share-7");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
