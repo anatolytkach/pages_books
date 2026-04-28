@@ -3449,32 +3449,8 @@ function isReader1DesktopShareMode() {
   return !!(root && root.classList.contains("is-desktop") && !isPhoneOrTabletShell());
 }
 
-function isReader1TouchSelectionShareMode() {
-  try {
-    const root = document.documentElement;
-    if (root && root.classList && root.classList.contains("is-tablet")) return true;
-  } catch (_error) {}
-  try {
-    const ua = String((navigator && navigator.userAgent) || "");
-    if (/Android/i.test(ua)) return true;
-  } catch (_error) {}
-  try {
-    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
-  } catch (_error) {}
-  try {
-    if (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0) return true;
-  } catch (_error) {}
-  try {
-    if ("ontouchstart" in window) return true;
-  } catch (_error) {}
-  return !isReader1DesktopShareMode();
-}
-
 function shouldUseNativeSelectionShare() {
-  try {
-    return !!(!isReader1DesktopShareMode() && isReader1TouchSelectionShareMode() && navigator.share);
-  } catch (_error) {}
-  return false;
+  return !!(!isReader1DesktopShareMode() && navigator.share);
 }
 
 async function copyTextToClipboard(text) {
@@ -3707,7 +3683,7 @@ function updateProtectedSelectionShareButtonState() {
   const share = HOST_STATE.selectionShare || {};
   const gateMobile = shouldUseNativeSelectionShare();
   const enabled = !gateMobile || !!share.shareUrl;
-  button.disabled = false;
+  button.disabled = !enabled;
   button.classList.toggle("is-disabled", !enabled);
   button.setAttribute("aria-disabled", enabled ? "false" : "true");
   button.setAttribute("title", gateMobile && !share.shareUrl ? "Preparing link" : "Share");
@@ -3816,16 +3792,6 @@ function getIncomingProtectedSelectionShare() {
   } catch (_error) {
     return null;
   }
-}
-
-function getProtectedNativeShareText() {
-  const cached = HOST_STATE.cachedSelectionActionState || null;
-  const cachedText = normalizeProtectedSelectionText(cached && cached.clipboardText ? cached.clipboardText : "");
-  if (cachedText) return cachedText;
-  const share = HOST_STATE.selectionShare || {};
-  const payloadText = normalizeProtectedSelectionText(share.lastPayload && share.lastPayload.selectionText ? share.lastPayload.selectionText : "");
-  if (payloadText) return payloadText;
-  return "";
 }
 
 async function restoreIncomingProtectedSelectionShare() {
@@ -7306,7 +7272,6 @@ function showSelectionToolbar(clientX, clientY) {
   toolbar.style.left = `${Math.max(12, clientX - 70)}px`;
   toolbar.style.top = `${Math.max(12, clientY - 64)}px`;
   toolbar.style.visibility = "visible";
-  primeProtectedSelectionShareForVisibleToolbar();
 }
 
 async function primeSelectionActionState() {
@@ -7318,18 +7283,6 @@ async function primeSelectionActionState() {
     HOST_STATE.cachedSelectionActionState = null;
     return null;
   }
-}
-
-function primeProtectedSelectionShareForVisibleToolbar() {
-  void primeSelectionActionState().then((capture) => {
-    if (capture && capture.hasSelection) {
-      prewarmProtectedSelectionShare(capture);
-    } else {
-      updateProtectedSelectionShareButtonState();
-    }
-  }).catch(() => {
-    updateProtectedSelectionShareButtonState();
-  });
 }
 
 function showSelectionToolbarForSummary(summary, fallbackX = 160, fallbackY = 160) {
@@ -7417,7 +7370,15 @@ function showSelectionToolbarForSummary(summary, fallbackX = 160, fallbackY = 16
     x: chosen.x,
     y: chosen.y
   };
-  primeProtectedSelectionShareForVisibleToolbar();
+  void primeSelectionActionState().then((capture) => {
+    if (capture && capture.hasSelection) {
+      prewarmProtectedSelectionShare(capture);
+    } else {
+      updateProtectedSelectionShareButtonState();
+    }
+  }).catch(() => {
+    updateProtectedSelectionShareButtonState();
+  });
 }
 
 function openExternalUrl(url) {
@@ -8010,20 +7971,19 @@ async function handleAction(action) {
     }
     if (action === "search" || action === "translate" || action === "share") {
       if (action === "share" && shouldUseNativeSelectionShare()) {
-        const shareUrl = HOST_STATE.selectionShare && HOST_STATE.selectionShare.shareUrl
-          ? HOST_STATE.selectionShare.shareUrl
-          : "";
-        if (!shareUrl) {
-          const cachedCapture = HOST_STATE.cachedSelectionActionState;
-          if (cachedCapture && cachedCapture.hasSelection) prewarmProtectedSelectionShare(cachedCapture);
-          setHostActionStatus("Preparing link.");
-          updateProtectedSelectionShareButtonState();
+        const cachedCapture = HOST_STATE.cachedSelectionActionState || await primeSelectionActionState();
+        const selectionText = cachedCapture && cachedCapture.clipboardText ? String(cachedCapture.clipboardText) : "";
+        if (!selectionText) {
+          setHostActionStatus("Create a non-empty selection first.");
+          hideSelectionToolbar();
           return;
         }
+        const shareUrl = HOST_STATE.selectionShare && HOST_STATE.selectionShare.shareUrl
+          ? HOST_STATE.selectionShare.shareUrl
+          : await getProtectedSelectionShareUrl(cachedCapture);
+        if (!shareUrl) throw new Error("Unable to create share link.");
         try {
-          const shareText = getProtectedNativeShareText();
-          const sharePayload = shareText ? { text: shareText, url: shareUrl } : { url: shareUrl };
-          navigator.share(sharePayload).then(() => {
+          navigator.share({ url: shareUrl }).then(() => {
             setHostActionStatus("Link shared.");
           }).catch((error) => {
             if (!isNativeShareCancelError(error)) {
@@ -8081,60 +8041,13 @@ async function handleAction(action) {
 
   function toolbarActionFromEvent(event) {
     const direct = event && event.target && event.target.closest ? event.target.closest("[data-action]") : null;
-    if (direct) {
-      const action = direct.getAttribute("data-action");
-      if (direct.disabled || (direct.getAttribute("aria-disabled") === "true" && action !== "share")) return "";
-      return direct.getAttribute("data-action");
-    }
+    if (direct) return direct.getAttribute("data-action");
     return "";
   }
 
-  function handleNativeSelectionShareFromGesture(action) {
-    if (action !== "share" || !shouldUseNativeSelectionShare()) return false;
-    if (HOST_STATE.selectionShare) HOST_STATE.selectionShare.lastToolbarAction = action;
-    const shareUrl = HOST_STATE.selectionShare && HOST_STATE.selectionShare.shareUrl
-      ? HOST_STATE.selectionShare.shareUrl
-      : "";
-    if (!shareUrl) {
-      const cachedCapture = HOST_STATE.cachedSelectionActionState;
-      if (cachedCapture && cachedCapture.hasSelection) prewarmProtectedSelectionShare(cachedCapture);
-      setHostActionStatus("Preparing link.");
-      updateProtectedSelectionShareButtonState();
-      return true;
-    }
-    let sharePromise = null;
-    try {
-      const shareText = getProtectedNativeShareText();
-      const sharePayload = shareText ? { text: shareText, url: shareUrl } : { url: shareUrl };
-      sharePromise = navigator.share(sharePayload);
-    } catch (error) {
-      if (!isNativeShareCancelError(error)) {
-        setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
-      }
-      return true;
-    }
-    Promise.resolve(sharePromise)
-      .then(() => {
-        setHostActionStatus("Link shared.");
-      })
-      .catch((error) => {
-        if (!isNativeShareCancelError(error)) {
-          setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
-        }
-      })
-      .finally(() => {
-        void invokeBridge("clearSelection").catch(() => {});
-        HOST_STATE.cachedSelectionActionState = null;
-        suppressSelectionToolbarReopen(1200);
-        hideSelectionToolbar();
-      });
-    return true;
-  }
-
-  function maybeHandleToolbarAction(event, viaClick = false) {
+  async function maybeHandleToolbarAction(event, viaClick = false) {
     const action = toolbarActionFromEvent(event);
     if (!action) return;
-    const nativeSelectionShareAction = action === "share" && shouldUseNativeSelectionShare();
     try {
       if (toolbar.__protectedActionLock && Date.now() - toolbar.__protectedActionLock < 500) return;
       toolbar.__protectedActionLock = Date.now();
@@ -8144,12 +8057,8 @@ async function handleAction(action) {
       event.stopPropagation();
       event.stopImmediatePropagation && event.stopImmediatePropagation();
     } catch (error) {}
-    if (nativeSelectionShareAction && handleNativeSelectionShareFromGesture(action)) return;
     try {
-      Promise.resolve(handleAction(action)).catch((error) => {
-        setHostActionStatus(error && error.message ? error.message : "Selection action failed.");
-        hideSelectionToolbar();
-      });
+      await handleAction(action);
     } catch (error) {
       setHostActionStatus(error && error.message ? error.message : "Selection action failed.");
       hideSelectionToolbar();
@@ -11267,7 +11176,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-8");
+      await import("../dev/protected-reader.js?v=20260428-protected-native-share-rollback-1");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
