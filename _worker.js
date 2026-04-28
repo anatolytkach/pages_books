@@ -1349,6 +1349,11 @@ function isTelegramPreviewBot(request) {
   return /\btelegrambot\b/i.test(userAgent);
 }
 
+function isFacebookPreviewBot(request) {
+  const userAgent = String(request && request.headers ? request.headers.get("user-agent") || "" : "");
+  return /\b(?:facebookexternalhit|facebot)\b/i.test(userAgent);
+}
+
 function renderSelectionShareLandingPage(meta, targetUrl, options = {}) {
   const metaTags = buildReaderPreviewMetaTags(meta);
   const safeTarget = escapeHtml(targetUrl);
@@ -2844,11 +2849,13 @@ export default {
         meta.url = new URL(`/s/${encodeURIComponent(shareId)}`, url.origin).toString();
       }
       const telegramProtectedPreview = payload.readerType === "protected" && isTelegramPreviewBot(request);
+      const facebookPreview = isFacebookPreviewBot(request);
+      const previewOnly = telegramProtectedPreview || facebookPreview;
       return htmlResponse(renderSelectionShareLandingPage(meta, targetUrl, {
-        previewOnly: telegramProtectedPreview,
+        previewOnly,
       }), 200, {
         "cache-control": "public, max-age=300, s-maxage=600",
-        ...(telegramProtectedPreview ? { vary: "User-Agent" } : {}),
+        ...(previewOnly ? { vary: "User-Agent" } : {}),
         "x-reader-route": "selection-share-page",
       });
     }

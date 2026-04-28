@@ -346,6 +346,22 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
   assert.match(body, /name="twitter:description" content="by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
   assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/reader1\/\?id=1399&selectionCfi=/);
   assert.match(body, /#epubcfi\(\/6\/6\[item3\]/);
+
+  const facebookResponse = await callWorker({
+    url: "https://books-staging.reader.pub/s/abc123XYZ",
+    headers: { "user-agent": "Facebot" },
+    env,
+  });
+  const facebookBody = await facebookResponse.text();
+
+  assert.equal(facebookResponse.status, 200);
+  assert.equal(facebookResponse.headers.get("cache-control"), "public, max-age=300, s-maxage=600");
+  assert.equal(facebookResponse.headers.get("vary"), "User-Agent");
+  assert.match(facebookBody, /property="og:title" content="ReaderPub - Anna Karenina"/);
+  assert.match(facebookBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
+  assert.match(facebookBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
+  assert.doesNotMatch(facebookBody, /http-equiv="refresh"/);
+  assert.doesNotMatch(facebookBody, /window\.location\.replace/);
 });
 
 test("Integration: protected selection share API stores payload and redirects to protected reader", async () => {
@@ -427,6 +443,23 @@ test("Integration: protected selection share API stores payload and redirects to
   assert.doesNotMatch(telegramBody, /http-equiv="refresh"/);
   assert.doesNotMatch(telegramBody, /window\.location\.replace/);
   assert.doesNotMatch(telegramBody, /protectedSelectionAnchor=/);
+
+  const facebookResponse = await callWorker({
+    url: data.url,
+    headers: { "user-agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)" },
+    env,
+  });
+  const facebookBody = await facebookResponse.text();
+
+  assert.equal(facebookResponse.status, 200);
+  assert.equal(facebookResponse.headers.get("cache-control"), "public, max-age=300, s-maxage=600");
+  assert.equal(facebookResponse.headers.get("vary"), "User-Agent");
+  assert.match(facebookBody, /property="og:title" content="ReaderPub - The Protected Book"/);
+  assert.match(facebookBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\//);
+  assert.match(facebookBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\//);
+  assert.doesNotMatch(facebookBody, /http-equiv="refresh"/);
+  assert.doesNotMatch(facebookBody, /window\.location\.replace/);
+  assert.doesNotMatch(facebookBody, /protectedSelectionAnchor=/);
 });
 
 test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () => {
