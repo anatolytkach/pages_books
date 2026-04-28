@@ -410,6 +410,23 @@ test("Integration: protected selection share API stores payload and redirects to
   assert.match(body, /protectedSelectionAnchor=/);
   assert.match(body, /protectedArtifactSource=r2/);
   assert.match(body, /protectedAllowAll=1/);
+
+  const telegramResponse = await callWorker({
+    url: data.url,
+    headers: { "user-agent": "TelegramBot (like TwitterBot)" },
+    env,
+  });
+  const telegramBody = await telegramResponse.text();
+
+  assert.equal(telegramResponse.status, 200);
+  assert.equal(telegramResponse.headers.get("cache-control"), "no-store");
+  assert.equal(telegramResponse.headers.get("vary"), "User-Agent");
+  assert.match(telegramBody, /property="og:title" content="ReaderPub - The Protected Book"/);
+  assert.match(telegramBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\//);
+  assert.match(telegramBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\//);
+  assert.doesNotMatch(telegramBody, /http-equiv="refresh"/);
+  assert.doesNotMatch(telegramBody, /window\.location\.replace/);
+  assert.doesNotMatch(telegramBody, /protectedSelectionAnchor=/);
 });
 
 test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () => {

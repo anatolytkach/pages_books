@@ -1344,9 +1344,17 @@ async function getSelectionSharePayload(env, shareId, prefix) {
   return normalizeSelectionSharePayload(data);
 }
 
-function renderSelectionShareLandingPage(meta, targetUrl) {
+function isTelegramPreviewBot(request) {
+  const userAgent = String(request && request.headers ? request.headers.get("user-agent") || "" : "");
+  return /\btelegrambot\b/i.test(userAgent);
+}
+
+function renderSelectionShareLandingPage(meta, targetUrl, options = {}) {
   const metaTags = buildReaderPreviewMetaTags(meta);
   const safeTarget = escapeHtml(targetUrl);
+  const previewOnly = !!options.previewOnly;
+  const canonicalTarget = previewOnly && meta && meta.url ? escapeHtml(meta.url) : safeTarget;
+  const linkTarget = previewOnly && meta && meta.url ? escapeHtml(meta.url) : safeTarget;
   const title = escapeHtml((meta && meta.title) || "ReaderPub");
   const description = escapeHtml((meta && meta.description) || "Open this quote in ReaderPub.");
   return `<!doctype html>
@@ -1357,13 +1365,13 @@ function renderSelectionShareLandingPage(meta, targetUrl) {
 <title>${title}</title>
 <meta name="description" content="${description}" />
 ${metaTags}
-<link rel="canonical" href="${safeTarget}" />
-<meta http-equiv="refresh" content="0;url=${safeTarget}" />
-<script>window.location.replace(${JSON.stringify(targetUrl)});</script>
+<link rel="canonical" href="${canonicalTarget}" />
+${previewOnly ? "" : `<meta http-equiv="refresh" content="0;url=${safeTarget}" />
+<script>window.location.replace(${JSON.stringify(targetUrl)});</script>`}
 </head>
 <body>
 <main>
-<p><a href="${safeTarget}">Open in ReaderPub</a></p>
+<p><a href="${linkTarget}">Open in ReaderPub</a></p>
 </main>
 </body>
 </html>`;
@@ -2835,8 +2843,12 @@ export default {
       if (meta) {
         meta.url = new URL(`/s/${encodeURIComponent(shareId)}`, url.origin).toString();
       }
-      return htmlResponse(renderSelectionShareLandingPage(meta, targetUrl), 200, {
-        "cache-control": "public, max-age=300, s-maxage=600",
+      const telegramProtectedPreview = payload.readerType === "protected" && isTelegramPreviewBot(request);
+      return htmlResponse(renderSelectionShareLandingPage(meta, targetUrl, {
+        previewOnly: telegramProtectedPreview,
+      }), 200, {
+        "cache-control": telegramProtectedPreview ? "no-store" : "public, max-age=300, s-maxage=600",
+        ...(telegramProtectedPreview ? { vary: "User-Agent" } : {}),
         "x-reader-route": "selection-share-page",
       });
     }
