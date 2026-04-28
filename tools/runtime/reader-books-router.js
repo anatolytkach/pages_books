@@ -329,7 +329,9 @@ export default {
     if (path.startsWith("/s/")) {
       const upstreamUrl = new URL(`${host}${path}`);
       upstreamUrl.search = url.search;
-      return proxyRequest(request, upstreamUrl, "proxy-selection-share");
+      return proxyRequest(request, upstreamUrl, "proxy-selection-share", {
+        "x-reader-canonical-origin": `${url.protocol}//${url.host}`
+      });
     }
 
     if (
