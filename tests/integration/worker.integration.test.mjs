@@ -419,7 +419,7 @@ test("Integration: protected selection share API stores payload and redirects to
   const telegramBody = await telegramResponse.text();
 
   assert.equal(telegramResponse.status, 200);
-  assert.equal(telegramResponse.headers.get("cache-control"), "no-store");
+  assert.equal(telegramResponse.headers.get("cache-control"), "public, max-age=300, s-maxage=600");
   assert.equal(telegramResponse.headers.get("vary"), "User-Agent");
   assert.match(telegramBody, /property="og:title" content="ReaderPub - The Protected Book"/);
   assert.match(telegramBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\//);

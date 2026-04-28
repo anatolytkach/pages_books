@@ -2847,7 +2847,7 @@ export default {
       return htmlResponse(renderSelectionShareLandingPage(meta, targetUrl, {
         previewOnly: telegramProtectedPreview,
       }), 200, {
-        "cache-control": telegramProtectedPreview ? "no-store" : "public, max-age=300, s-maxage=600",
+        "cache-control": "public, max-age=300, s-maxage=600",
         ...(telegramProtectedPreview ? { vary: "User-Agent" } : {}),
         "x-reader-route": "selection-share-page",
       });
