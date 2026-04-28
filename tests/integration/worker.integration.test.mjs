@@ -407,9 +407,22 @@ test("Integration: protected selection share API stores payload and redirects to
   assert.match(body, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/25344\/cover\.jpg"/);
   assert.match(body, /name="twitter:description" content="by Ada Example\. &quot;Protected quoted text&quot;"/);
   assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/books\/protected\/\?id=90025344&reader=protected/);
-  assert.match(body, /protectedSelectionAnchor=/);
+  assert.match(body, new RegExp(`selectionShareId=${data.shareId}`));
+  assert.doesNotMatch(body, /protectedSelectionAnchor=/);
   assert.match(body, /protectedArtifactSource=r2/);
   assert.match(body, /protectedAllowAll=1/);
+
+  const readResponse = await callWorker({
+    url: `https://books-staging.reader.pub/books/api/ss/${data.shareId}`,
+    env,
+  });
+  const readBody = await readResponse.json();
+
+  assert.equal(readResponse.status, 200);
+  assert.equal(readBody.shareId, data.shareId);
+  assert.equal(readBody.payload.readerType, "protected");
+  assert.deepEqual(readBody.payload.protectedAnchor, protectedAnchor);
+  assert.equal(readBody.payload.selectionText, "Protected quoted text");
 });
 
 test("Integration: /book/<slug> renders SSR HTML from seo manifest", async () => {
