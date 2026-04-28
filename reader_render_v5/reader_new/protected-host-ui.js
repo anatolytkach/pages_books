@@ -7162,6 +7162,14 @@ function hideSelectionToolbar() {
   updateProtectedSelectionShareButtonState();
 }
 
+async function clearProtectedSelectionAfterToolbarAction() {
+  try {
+    const nextSummary = await invokeBridgeRaw("clearSelection");
+    if (nextSummary) updateFromSummary(nextSummary);
+  } catch (_error) {}
+  HOST_STATE.cachedSelectionActionState = null;
+}
+
 function suppressSelectionToolbarReopen(durationMs = 900) {
   const until = Date.now() + Math.max(0, Number(durationMs || 0));
   HOST_STATE.selectionToolbarDismissSuppressUntil = Math.max(
@@ -7960,8 +7968,7 @@ async function handleAction(action) {
       const selectionText = cached && cached.clipboardText ? String(cached.clipboardText) : "";
       await copyTextToClipboard(selectionText);
       if (HOST_STATE.selectionShare) HOST_STATE.selectionShare.lastCopyValue = selectionText;
-      await invokeBridge("clearSelection");
-      HOST_STATE.cachedSelectionActionState = null;
+      await clearProtectedSelectionAfterToolbarAction();
       HOST_STATE.suppressSelectionToolbarUntil = Date.now() + 1200;
       setHostActionStatus("Text copied.");
       showProtectedSelectionToast("Text copied");
@@ -7995,8 +8002,7 @@ async function handleAction(action) {
             setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
           }
         }
-        await invokeBridge("clearSelection");
-        HOST_STATE.cachedSelectionActionState = null;
+        await clearProtectedSelectionAfterToolbarAction();
         suppressSelectionToolbarReopen(1200);
         hideSelectionToolbar();
         return;
@@ -8029,8 +8035,7 @@ async function handleAction(action) {
         } catch (error) {
           setHostActionStatus(error && error.message ? error.message : "Unable to share selection.");
         }
-        await invokeBridge("clearSelection");
-        HOST_STATE.cachedSelectionActionState = null;
+        await clearProtectedSelectionAfterToolbarAction();
         suppressSelectionToolbarReopen(1200);
       }
       hideSelectionToolbar();
@@ -11176,7 +11181,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-rollback-1");
+      await import("../dev/protected-reader.js?v=20260428-protected-native-share-rollback-2");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;
