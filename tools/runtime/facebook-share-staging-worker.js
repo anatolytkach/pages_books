@@ -401,7 +401,7 @@ async function handleShortShareApi(request, url) {
     });
   }
   if (data && data.shareId && data.url) {
-    data.url = `${SHARE_ORIGIN}/s/${encodeURIComponent(String(data.shareId))}`;
+    data.url = `${SOURCE_ORIGIN}/s/${encodeURIComponent(String(data.shareId))}`;
   }
   headers.set("content-type", "application/json; charset=utf-8");
   headers.delete("content-length");
