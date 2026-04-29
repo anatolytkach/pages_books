@@ -1,6 +1,6 @@
 const SOURCE_ORIGIN = "https://books-staging.reader.pub";
 const API_SOURCE_ORIGIN = "https://readerpub-books-staging.pages.dev";
-const SHARE_ORIGIN = "https://fb-books-staging.reader.pub";
+const SHARE_ORIGIN = "https://sh-staging.reader.pub";
 const OG_IMAGE_WIDTH = 1200;
 const OG_IMAGE_HEIGHT = 630;
 
@@ -18,52 +18,38 @@ function textResponse(body, status = 200, headers = {}) {
 
 function isPreviewBot(request) {
   const userAgent = String(request.headers.get("user-agent") || "");
-  return /\b(?:facebookexternalhit|facebot|twitterbot|telegrambot|whatsapp|linkedinbot|slackbot)\b/i.test(userAgent);
+  return /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|twitterbot|telegrambot|whatsapp|linkedinbot|slackbot)\b/i.test(userAgent);
 }
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function rewriteShareHtml(html, sharePath) {
+function isCloudflarePagePreview(request) {
+  return String(request.cf?.verifiedBotCategory || "").toLowerCase() === "page preview";
+}
+
+function getRequestOrigin(requestUrl) {
+  const url = new URL(requestUrl);
+  return `${url.protocol}//${url.host}`;
+}
+
+function rewriteShareHtml(html, sharePath, publicShareOrigin, options = {}) {
   const sourceShareUrl = `${SOURCE_ORIGIN}${sharePath}`;
-  const publicShareUrl = `${SHARE_ORIGIN}${sharePath}`;
-  const shareId = sharePath.replace(/^\/s\//, "");
-  const facebookImageUrl = `${SHARE_ORIGIN}/fb-og/${encodeURIComponent(shareId)}.png`;
-  return setMetaTag(
-    setMetaTag(
-      setMetaTag(
-        setMetaTag(
-          setMetaTag(
-            setMetaTag(
-              String(html || "")
+  const publicShareUrl = `${publicShareOrigin}${sharePath}`;
+  let rewritten = String(html || "")
     .replace(new RegExp(escapeRegExp(sourceShareUrl), "g"), publicShareUrl)
+    .replace(new RegExp(escapeRegExp(`${SOURCE_ORIGIN}/books/content/`), "g"), `${publicShareOrigin}/books/content/`)
     .replace(/<meta\s+http-equiv=["']refresh["'][^>]*>/gi, "")
-                .replace(/<script\b[^>]*>[\s\S]*?window\.location\.replace[\s\S]*?<\/script>/gi, ""),
-              "property",
-              "og:image",
-              facebookImageUrl
-            ),
-            "property",
-            "og:image:secure_url",
-            facebookImageUrl
-          ),
-          "property",
-          "og:image:type",
-          "image/png"
-        ),
-        "property",
-        "og:image:width",
-        String(OG_IMAGE_WIDTH)
-      ),
-      "property",
-      "og:image:height",
-      String(OG_IMAGE_HEIGHT)
-    ),
-    "name",
-    "twitter:image",
-    facebookImageUrl
-  );
+    .replace(/<script\b[^>]*>[\s\S]*?window\.location\.replace[\s\S]*?<\/script>/gi, "");
+
+  if (options.includeRedirectScript) {
+    rewritten = rewritten.replace(
+      /<\/body>/i,
+      `<script>window.location.replace(${JSON.stringify(sourceShareUrl)});</script>\n</body>`
+    );
+  }
+  return rewritten;
 }
 
 function escapeHtml(value) {
@@ -339,7 +325,7 @@ function renderFacebookOgImage(title, description) {
 
 async function fetchSourceShareHtml(sharePath, request) {
   const upstreamHeaders = new Headers(request.headers);
-  upstreamHeaders.set("user-agent", request.headers.get("user-agent") || "facebookexternalhit/1.1");
+  upstreamHeaders.set("user-agent", "facebookexternalhit/1.1");
   const upstream = await fetch(`${SOURCE_ORIGIN}${sharePath}`, {
     headers: upstreamHeaders,
     redirect: "manual",
@@ -364,6 +350,27 @@ async function handleFacebookOgImage(request, url) {
       "x-reader-route": "facebook-share-og-image",
       "x-robots-tag": "all",
     },
+  });
+}
+
+async function handleContentProxy(request, url) {
+  const upstreamUrl = new URL(url.pathname + url.search, SOURCE_ORIGIN);
+  const upstreamHeaders = new Headers(request.headers);
+  upstreamHeaders.set("host", new URL(SOURCE_ORIGIN).host);
+  upstreamHeaders.set("user-agent", "facebookexternalhit/1.1");
+  const upstream = await fetch(upstreamUrl.toString(), {
+    headers: upstreamHeaders,
+    redirect: "manual",
+  });
+  const headers = new Headers(upstream.headers);
+  headers.set("cache-control", "public, max-age=3600, s-maxage=3600");
+  headers.set("x-reader-route", "facebook-share-content-proxy");
+  headers.set("x-robots-tag", "all");
+  headers.delete("content-security-policy");
+  return new Response(upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers,
   });
 }
 
@@ -401,7 +408,7 @@ async function handleShortShareApi(request, url) {
     });
   }
   if (data && data.shareId && data.url) {
-    data.url = `${SOURCE_ORIGIN}/s/${encodeURIComponent(String(data.shareId))}`;
+    data.url = `${SHARE_ORIGIN}/s/${encodeURIComponent(String(data.shareId))}`;
   }
   headers.set("content-type", "application/json; charset=utf-8");
   headers.delete("content-length");
@@ -434,17 +441,8 @@ export default {
     if (url.pathname === "/robots.txt") {
       return textResponse(
         [
-          "User-agent: facebookexternalhit",
-          "Disallow:",
-          "Allow: /",
-          "",
-          "User-agent: Facebot",
-          "Disallow:",
-          "Allow: /",
-          "",
           "User-agent: *",
           "Disallow:",
-          "Allow: /",
           "",
         ].join("\n")
       );
@@ -454,19 +452,20 @@ export default {
       return handleFacebookOgImage(request, url);
     }
 
-    if (!/^\/s\/[A-Za-z0-9_-]{4,64}$/.test(url.pathname)) {
-      return textResponse("Not found", 404, { "cache-control": "no-store" });
+    if (url.pathname.startsWith("/books/content/")) {
+      return handleContentProxy(request, url);
     }
 
-    const sourceUrl = `${SOURCE_ORIGIN}${url.pathname}`;
-    if (!isPreviewBot(request)) {
-      return Response.redirect(sourceUrl, 302);
+    if (!/^\/s\/[A-Za-z0-9_-]{4,64}$/.test(url.pathname)) {
+      return textResponse("Not found", 404, { "cache-control": "no-store" });
     }
 
     const sourceHtml = await fetchSourceShareHtml(url.pathname, request);
     if (!sourceHtml) return textResponse("Not found", 404, { "cache-control": "no-store" });
 
-    const html = rewriteShareHtml(sourceHtml, url.pathname);
+    const html = rewriteShareHtml(sourceHtml, url.pathname, getRequestOrigin(request.url), {
+      includeRedirectScript: !(isCloudflarePagePreview(request) || isPreviewBot(request)),
+    });
     return new Response(html, {
       status: 200,
       headers: {
