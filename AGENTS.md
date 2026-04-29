@@ -117,6 +117,8 @@ After a successful deploy, record it in:
 
 - `deployments/history.jsonl`
 
+After a successful staging deploy, stop and report the deploy result. Do not run additional post-deploy staging checks unless the user explicitly asks for them; the user will verify staging manually.
+
 ## Publisher Workflow Notes
 
 Recent work in this repo reframed the self-publisher UI around:

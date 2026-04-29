@@ -1,4 +1,4 @@
-import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js?v=20260425-v5-fast-font-mode";
+import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js?v=20260429-protected-share-focus-1";
 import { createWorkerResponse, sanitizeProtectedWorkerPayload } from "./protected-worker-protocol.js";
 
 const core = new ProtectedReaderRuntimeCore();

@@ -22,10 +22,10 @@ import {
   renderChunkToCanvas,
   resolveProductionPayloadFromRoute,
   serializeRangeDescriptor
-} from "./protected-reader-runtime-core.js";
+} from "./protected-reader-runtime-core.js?v=20260429-protected-share-focus-1";
 import {
   createProtectedReaderHostBridge
-} from "./protected-reader-host-bridge.js?v=20260427-protected-selection-share-1";
+} from "./protected-reader-host-bridge.js?v=20260429-protected-share-focus-1";
 import {
   createProtectedReaderEventChannel,
   PROTECTED_READER_CANONICAL_EVENT_NAMES
@@ -927,6 +927,12 @@ function getSelectionBounds() {
 function getCurrentAnnotations() {
   const annotations = state.annotationStore ? state.annotationStore.all() : [];
   return state.sharedSelectionAnnotation ? [...annotations, state.sharedSelectionAnnotation] : annotations;
+}
+
+function clearTransientSharedSelectionAnnotation() {
+  if (!state.sharedSelectionAnnotation) return false;
+  state.sharedSelectionAnnotation = null;
+  return true;
 }
 
 function cloneJson(value) {
@@ -2076,6 +2082,7 @@ function getCanvasPointFromClient(clientX, clientY) {
 }
 
 async function requestAndApply(method, payload = {}) {
+  if (method === "clearSelection") clearTransientSharedSelectionAnnotation();
   const snapshot = await state.workerClient[method]({
     ...getViewportConfig(),
     annotations: getCurrentAnnotations(),
@@ -3535,6 +3542,7 @@ async function bridgeAddNoteFromRangeDescriptor(rangeDescriptor, noteText = "", 
 }
 
 async function bridgeClearSelection() {
+  clearTransientSharedSelectionAnnotation();
   const snapshot = await state.workerClient.clearSelection({
     ...getGenerationPayload(),
     annotations: getCurrentAnnotations()

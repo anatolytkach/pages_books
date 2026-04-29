@@ -1,4 +1,4 @@
-import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js?v=20260425-v5-fast-font-mode";
+import { ProtectedReaderRuntimeCore } from "./protected-worker-core.js?v=20260429-protected-share-focus-1";
 import {
   PROTECTED_WORKER_METHODS,
   createWorkerRequest,
@@ -7,7 +7,7 @@ import {
 
 class WorkerTransport {
   constructor() {
-    this.worker = new Worker(new URL("./protected-reader.worker.js?v=20260425-v5-fast-font-mode", import.meta.url), { type: "module" });
+    this.worker = new Worker(new URL("./protected-reader.worker.js?v=20260429-protected-share-focus-1", import.meta.url), { type: "module" });
     this.pending = new Map();
     this.requestId = 0;
     this.worker.addEventListener("message", (event) => {

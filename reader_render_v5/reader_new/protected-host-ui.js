@@ -8323,7 +8323,9 @@ function attachProtectedSurfaceInteractions(frame) {
       if (!inProtectedSurface || !shouldClear || !primaryButton) return;
       if (isTouchPointer) {
         suppressShellToggle();
+        suppressSelectionToolbarReopen(1000);
         hideSelectionToolbar();
+        void clearProtectedSelectionAfterToolbarAction();
         return;
       }
       desktopSurfaceClickState.selectionDismissed = true;
@@ -8345,7 +8347,9 @@ function attachProtectedSurfaceInteractions(frame) {
       );
       if (!shouldClear) return;
       suppressShellToggle();
+      suppressSelectionToolbarReopen(1000);
       hideSelectionToolbar();
+      void clearProtectedSelectionAfterToolbarAction();
     }, { capture: true, passive: true });
     doc.addEventListener("click", (event) => {
       const target = event.target;
@@ -11183,7 +11187,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260429-protected-share-restore-1");
+      await import("../dev/protected-reader.js?v=20260429-protected-share-focus-1");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;

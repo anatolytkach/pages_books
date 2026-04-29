@@ -827,3 +827,18 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
   - `node --check reader_render_v5/dev/protected-reader.js` passed.
   - `node --check reader_render_v5/reader_new/protected-host-ui.js` passed.
   - Local preview created `http://127.0.0.1:8788/s/KAcMTGu5J` for protected artifact `90055040`; opening it restored to page `15 / 26` instead of page `1 / 26`.
+
+## 2026-04-29 Protected Shared Highlight Focus Follow-Up
+
+- Fixed transient protected shared-selection highlights so a click/tap near the highlighted quote clears the highlight, matching unprotected reader behavior.
+- Root cause: `clearSelection` cleared the worker focus/selection state, but the host kept sending `state.sharedSelectionAnnotation` back as a transient annotation, so the visual highlight stayed rendered.
+- Protected `clearSelection` now drops the transient shared-selection annotation before the next worker render, without resetting the one-shot shared-selection applied flag.
+- Protected surface touch handlers now call the same clear-selection path when tapping outside the highlight/toolbar, instead of only hiding the toolbar and waiting for a later click event that mobile browsers may not send.
+- Protected layout updates now preserve `focusedAnnotationId` by re-running `goToAnnotation()` for the focused shared annotation after viewport/orientation pagination changes.
+- Protected annotation navigation now passes the full selected start/end range into `goToChunk()`, so the restored page is chosen around the highlighted quote rather than only around the first offset.
+- Bumped protected reader module cache keys through `reader/reader_new_v5.html`, `protected-host-ui.js`, `protected-reader.js`, `protected-reader-runtime-core.js`, `protected-worker-client.js`, and `protected-reader.worker.js`.
+- Verification:
+  - `node --check` passed for `reader_render_v5/dev/protected-reader.js`, `reader_render_v5/dev/protected-reader-runtime-core.js`, `reader_render_v5/runtime/protected-worker-core.js`, `reader_render_v5/runtime/protected-worker-client.js`, `reader_render_v5/runtime/protected-reader.worker.js`, and `reader_render_v5/reader_new/protected-host-ui.js`.
+  - Local preview created `http://127.0.0.1:8788/s/qWCwJgLsM`; opening it restored `focusedAnnotationId: "shared_selection_highlight"` with the quote range visible on the current page.
+  - A touch tap near the highlight cleared `focusedAnnotationId` to an empty value.
+  - Local mobile viewport check kept the highlighted quote range inside the current page in both portrait and landscape.

@@ -1288,6 +1288,18 @@ export class ProtectedReaderRuntimeCore {
     if (!fastCurrentPageOnly) {
       await this.rebuildBookPaginationSummary();
     }
+    const focusedAnnotation = this.focusedAnnotationId
+      ? annotations.find((annotation) => String(annotation && annotation.annotationId || "") === String(this.focusedAnnotationId))
+      : null;
+    if (focusedAnnotation && focusedAnnotation.rangeDescriptor) {
+      return this.goToAnnotation({
+        rangeDescriptor: {
+          ...focusedAnnotation.rangeDescriptor,
+          annotationId: focusedAnnotation.annotationId
+        },
+        annotations
+      });
+    }
     return currentVisibleRange
       ? this.goToChunk({
           chunkIndex: currentVisibleRange.chunkIndex,
@@ -1815,7 +1827,16 @@ export class ProtectedReaderRuntimeCore {
     if (!resolved) throw new Error("Unable to resolve annotation target.");
     const chunkIndex = this.book.manifest.chunks.findIndex((item) => item.chunkId === resolved.chunkId);
     if (chunkIndex < 0) throw new Error(`Unable to locate chunk ${resolved.chunkId}.`);
-    const snapshot = await this.goToChunk({ chunkIndex, globalOffset: rangeDescriptor.start.globalOffset, annotations });
+    const snapshot = await this.goToChunk({
+      chunkIndex,
+      globalOffset: rangeDescriptor.start.globalOffset,
+      preferredGlobalStartOffset: rangeDescriptor.start.globalOffset,
+      preferredGlobalEndOffset:
+        rangeDescriptor.end && Number.isFinite(Number(rangeDescriptor.end.globalOffset))
+          ? Number(rangeDescriptor.end.globalOffset)
+          : null,
+      annotations
+    });
     this.focusedAnnotationId = rangeDescriptor.annotationId || null;
     return this.buildSnapshot({ annotations, includeBook: !!snapshot.bookSummary });
   }
