@@ -10,6 +10,7 @@ const OG_IMAGE_WIDTH = 1200;
 const OG_IMAGE_HEIGHT = 630;
 const FACEBOOK_OG_IMAGE_WIDTH = 1200;
 const FACEBOOK_OG_IMAGE_HEIGHT = 630;
+const META_PREVIEW_BOT_PATTERN = /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|messengerbot|facebookmessengerbot|messengerexternalhit|messengerpreview)\b/i;
 
 function textResponse(body, status = 200, headers = {}) {
   return new Response(body, {
@@ -25,12 +26,12 @@ function textResponse(body, status = 200, headers = {}) {
 
 function isPreviewBot(request) {
   const userAgent = String(request.headers.get("user-agent") || "");
-  return /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|twitterbot|telegrambot|whatsapp|linkedinbot|slackbot)\b/i.test(userAgent);
+  return META_PREVIEW_BOT_PATTERN.test(userAgent) || /\b(?:twitterbot|telegrambot|whatsapp|linkedinbot|slackbot)\b/i.test(userAgent);
 }
 
 function isFacebookPreviewBot(request) {
   const userAgent = String(request.headers.get("user-agent") || "");
-  return /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent)\b/i.test(userAgent);
+  return META_PREVIEW_BOT_PATTERN.test(userAgent);
 }
 
 function escapeRegExp(value) {

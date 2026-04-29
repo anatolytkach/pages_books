@@ -854,3 +854,11 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
   - `node --check reader_render_v5/reader_new/protected-host-bootstrap.js` passed.
   - `node --check reader_render_v5/reader_new/protected-host-ui.js` passed.
   - Local preview with URL `id=90055040` and localStorage keys under public id `55040` produced `entry.fontScale: 1.5`, `entry.fontMode: "serif"` before runtime ready, and the first ready summary kept `fontScale: 1.5`, `runtimeFontMode: "serif"`.
+
+## 2026-04-29 Messenger Share Preview Follow-Up
+
+- Extended the staging share Worker Meta-preview detection so Messenger-specific preview bots receive the same Facebook-specific `fb-og/<id>.jpg` image that draws the quote into the preview image.
+- Kept generic `Messenger` user-agent strings out of the bot-only redirect suppression path, so real users opening links in Messenger's in-app browser should still follow the normal redirect.
+- Verification:
+  - `node --check tools/runtime/facebook-share-staging-worker.js` passed.
+  - Local Worker harness confirmed `MessengerBot/1.0` receives `/fb-og/<id>.jpg` and no `og:description`, while `WhatsApp/2.24` still receives the ordinary cover image and `og:description`.
