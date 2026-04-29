@@ -5565,6 +5565,85 @@
 
       // Touch input must use custom long-press selection even if viewport was classified as desktop.
       var isMobile = isTouchSelectionMode();
+      var desktopMouse = {
+        down: false,
+        dragging: false,
+        x: 0,
+        y: 0,
+        allowCommitUntil: 0,
+        lastPointerUpAt: 0
+      };
+
+      function isDesktopMouseEvent(e) {
+        try {
+          if (!isDesktopSelectionMode()) return false;
+          if (!e) return false;
+          if (e.pointerType) return e.pointerType === "mouse";
+          return true;
+        } catch (e0) {}
+        return false;
+      }
+
+      function resetDesktopClickSelection(docForClear) {
+        try {
+          hideToolbar();
+          clearMarks();
+          clearSelection(docForClear || doc);
+          state.doc = null;
+          state.range = null;
+          state.text = "";
+          state.cfi = null;
+          state.href = null;
+          clearSelectionShareCache();
+          state.locked = false;
+          state.dragSelecting = false;
+          window.__fbSelectionActive = false;
+        } catch (eResetDesktopClick) {}
+      }
+
+      function beginDesktopMouseSelection(e) {
+        if (!isDesktopMouseEvent(e)) return false;
+        desktopMouse.down = true;
+        desktopMouse.dragging = false;
+        desktopMouse.allowCommitUntil = 0;
+        try {
+          desktopMouse.x = e.clientX;
+          desktopMouse.y = e.clientY;
+        } catch (ePoint) {
+          desktopMouse.x = 0;
+          desktopMouse.y = 0;
+        }
+        prepareForNewMouseSelection();
+        return true;
+      }
+
+      function updateDesktopMouseSelection(e) {
+        if (!desktopMouse.down || !isDesktopMouseEvent(e)) return;
+        try {
+          var dx = Math.abs((e.clientX || 0) - desktopMouse.x);
+          var dy = Math.abs((e.clientY || 0) - desktopMouse.y);
+          if (dx > 5 || dy > 5) desktopMouse.dragging = true;
+        } catch (eMove) {}
+      }
+
+      function finishDesktopMouseSelection(e) {
+        if (!isDesktopMouseEvent(e)) return false;
+        var wasDown = desktopMouse.down;
+        var wasDragging = !!desktopMouse.dragging;
+        desktopMouse.down = false;
+        desktopMouse.dragging = false;
+        desktopMouse.lastPointerUpAt = Date.now();
+        if (wasDown && wasDragging) {
+          desktopMouse.allowCommitUntil = Date.now() + 500;
+          scheduleCommitSelection(doc);
+        } else {
+          desktopMouse.allowCommitUntil = 0;
+          window.__fbSuppressSelectionCommitUntil = Date.now() + 180;
+          resetDesktopClickSelection(doc);
+        }
+        return true;
+      }
+
       if (isMobile) {
         try {
           if (doc.documentElement && doc.documentElement.style) {
@@ -5587,7 +5666,11 @@
           st.textContent = ""
             + ":root{--fb-selection-bg:rgba(165,244,236,0.72);}"
             + "@media (prefers-color-scheme: dark){:root{--fb-selection-bg:rgba(0,130,116,0.72);}}"
-            + "::selection{background:var(--fb-selection-bg);color:inherit;}"
+            + (
+              isDesktopSelectionMode()
+                ? "::selection{background:transparent!important;color:inherit!important;-webkit-text-fill-color:inherit!important;}"
+                : "::selection{background:var(--fb-selection-bg);color:inherit;}"
+            )
             + ".fb-selection-mark{background:var(--fb-selection-bg);color:inherit;-webkit-box-decoration-break:clone;box-decoration-break:clone;}";
           doc.head && doc.head.appendChild(st);
         }
@@ -5607,10 +5690,21 @@
         if (isDesktopSelectionMode()) return;
         if (!state.ignoreSelectionChange && !state.locked) scheduleUpdate(doc);
       }, true); } catch (e) {}
-      try { doc.addEventListener("pointerup", function () { scheduleCommitSelection(doc); }, true); } catch (e) {}
-      try { doc.addEventListener("mouseup", function () { scheduleCommitSelection(doc); }, true); } catch (e) {}
+      try { doc.addEventListener("pointermove", function (e) { updateDesktopMouseSelection(e); }, true); } catch (e) {}
+      try { doc.addEventListener("mousemove", function (e) { updateDesktopMouseSelection(e); }, true); } catch (e) {}
+      try { doc.addEventListener("pointerup", function (e) { if (!finishDesktopMouseSelection(e)) scheduleCommitSelection(doc); }, true); } catch (e) {}
+      try { doc.addEventListener("mouseup", function (e) {
+        try {
+          if (isDesktopMouseEvent(e) && Date.now() - (desktopMouse.lastPointerUpAt || 0) < 80) return;
+        } catch (eDupMouseUp) {}
+        if (!finishDesktopMouseSelection(e)) scheduleCommitSelection(doc);
+      }, true); } catch (e) {}
       try { doc.addEventListener("click", function (e) {
         if (!isDesktopSelectionMode()) return;
+        if (!state.locked) {
+          resetDesktopClickSelection(doc);
+          return;
+        }
         if (!state.locked || state.doc !== doc) return;
         if (Date.now() - (state.desktopSelectionCommittedAt || 0) > 700) return;
         try { if (e && e.preventDefault) e.preventDefault(); } catch (e0) {}
@@ -5636,12 +5730,19 @@
         } catch (eClearTouch) {}
       }
 
+      try { doc.addEventListener("dblclick", function (e) {
+        if (!isDesktopSelectionMode()) return;
+        resetDesktopClickSelection(doc);
+        try { if (e && e.preventDefault) e.preventDefault(); } catch (e0) {}
+        try { if (e && e.stopImmediatePropagation) e.stopImmediatePropagation(); } catch (e1) {}
+        try { if (e && e.stopPropagation) e.stopPropagation(); } catch (e2) {}
+      }, true); } catch (e) {}
       try { doc.addEventListener("pointerdown", function (e) {
-        if (e && e.pointerType === "mouse") prepareForNewMouseSelection();
+        if (beginDesktopMouseSelection(e)) return;
         else clearForNewTouchSelection();
       }, true); } catch (e) {}
       try { doc.addEventListener("touchstart", function () { clearForNewTouchSelection(); }, true); } catch (e) {}
-      try { doc.addEventListener("mousedown", function () { prepareForNewMouseSelection(); }, true); } catch (e) {}
+      try { doc.addEventListener("mousedown", function (e) { beginDesktopMouseSelection(e); }, true); } catch (e) {}
 
       if (isMobile) {
         var preventNative = function (e) {
