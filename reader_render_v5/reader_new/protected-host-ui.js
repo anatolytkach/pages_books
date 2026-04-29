@@ -11182,7 +11182,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
   if (!HOST_STATE.directRuntimeBootPromise) {
     HOST_STATE.directRuntimeBootPromise = (async () => {
       root.innerHTML = buildDirectProtectedRenderMarkup();
-      const { bootstrapProtectedReaderIntegration } = await import("./protected-host-bootstrap.js");
+      const { bootstrapProtectedReaderIntegration } = await import("./protected-host-bootstrap.js?v=20260429-protected-font-bootstrap-1");
       const bootstrap = await bootstrapProtectedReaderIntegration();
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);

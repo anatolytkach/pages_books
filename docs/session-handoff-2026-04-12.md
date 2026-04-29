@@ -842,3 +842,15 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
   - Local preview created `http://127.0.0.1:8788/s/qWCwJgLsM`; opening it restored `focusedAnnotationId: "shared_selection_highlight"` with the quote range visible on the current page.
   - A touch tap near the highlight cleared `focusedAnnotationId` to an empty value.
   - Local mobile viewport check kept the highlighted quote range inside the current page in both portrait and landscape.
+
+## 2026-04-29 Protected Typography Bootstrap Follow-Up
+
+- Fixed protected reader reload flicker where the first render used default typography and then quickly jumped to the user's saved font size.
+- Root cause: typography changes are saved under the manifest/public book id, for example `55040`, but protected route bootstrap often starts from a wrapper/artifact id like `90055040`; the first `initBook` missed the saved value and the host applied it only after the first runtime summary exposed the public id.
+- Protected bootstrap now resolves typography storage candidates from both the route/artifact id and the corresponding public id before importing the runtime, so `window.__PROTECTED_READER_ENTRY__.fontScale/fontMode` is correct before the first protected render.
+- The bootstrap fallback font scale now matches the host fallback (`1.24` on mobile/tablet-sized viewports, `1.1` on desktop) to avoid a default-size correction even when no user setting exists.
+- Bumped the protected host/bootstrap module cache keys.
+- Verification:
+  - `node --check reader_render_v5/reader_new/protected-host-bootstrap.js` passed.
+  - `node --check reader_render_v5/reader_new/protected-host-ui.js` passed.
+  - Local preview with URL `id=90055040` and localStorage keys under public id `55040` produced `entry.fontScale: 1.5`, `entry.fontMode: "serif"` before runtime ready, and the first ready summary kept `fontScale: 1.5`, `runtimeFontMode: "serif"`.

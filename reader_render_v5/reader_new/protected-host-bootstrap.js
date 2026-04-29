@@ -27,6 +27,22 @@ function getBookScopedFontScaleStorageKey(bookId = "") {
   return `readerpub:protected-shell:font-scale:${String(bookId || "").trim()}`;
 }
 
+function getProtectedFontBookIdCandidates(...values) {
+  const candidates = [];
+  const add = (value) => {
+    const normalized = String(value || "").trim();
+    if (!normalized || candidates.includes(normalized)) return;
+    candidates.push(normalized);
+    const numeric = Number(normalized);
+    if (Number.isFinite(numeric) && numeric >= 90000000) {
+      const publicId = String(Math.floor(numeric - 90000000));
+      if (publicId && !candidates.includes(publicId)) candidates.push(publicId);
+    }
+  };
+  values.forEach(add);
+  return candidates;
+}
+
 function migratePriorProtectedScopedStorageValue({ bookId = "", currentKey = "", valueSuffix = "", normalize }) {
   try {
     const scopedBookId = String(bookId || "").trim();
@@ -53,7 +69,7 @@ function migratePriorProtectedScopedStorageValue({ bookId = "", currentKey = "",
   return "";
 }
 
-function getInitialFontModeFromEnvironment(bookId = "") {
+function getInitialFontModeFromEnvironment(...bookIdValues) {
   try {
     const url = new URL(window.location.href);
     const explicit = url.searchParams.get("protectedFontMode") || url.searchParams.get("fontMode");
@@ -62,18 +78,20 @@ function getInitialFontModeFromEnvironment(bookId = "") {
     }
   } catch (_error) {
   }
-  try {
-    const scopedBookId = String(bookId || "").trim();
-    const scoped = migratePriorProtectedScopedStorageValue({
-      bookId: scopedBookId,
-      currentKey: getBookScopedFontModeStorageKey(scopedBookId),
-      valueSuffix: `:font-mode:${scopedBookId}`,
-      normalize: normalizeFontMode
-    });
-    if (scoped) {
-      return scoped;
+  const candidates = getProtectedFontBookIdCandidates(...bookIdValues);
+  for (const scopedBookId of candidates) {
+    try {
+      const scoped = migratePriorProtectedScopedStorageValue({
+        bookId: scopedBookId,
+        currentKey: getBookScopedFontModeStorageKey(scopedBookId),
+        valueSuffix: `:font-mode:${scopedBookId}`,
+        normalize: normalizeFontMode
+      });
+      if (scoped) {
+        return scoped;
+      }
+    } catch (_error) {
     }
-  } catch (_error) {
   }
   try {
     return normalizeFontMode(window.localStorage.getItem(getLegacyFontModeStorageKey()));
@@ -82,7 +100,19 @@ function getInitialFontModeFromEnvironment(bookId = "") {
   return "sans";
 }
 
-function getInitialFontScaleFromEnvironment(bookId = "") {
+function getDefaultFontScaleFromEnvironment() {
+  try {
+    const ua = (navigator && navigator.userAgent) ? navigator.userAgent : "";
+    const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+    const vw = (window.visualViewport && window.visualViewport.width) ? window.visualViewport.width : window.innerWidth;
+    const isMobileViewport = !!vw && vw <= 1024;
+    return (isMobileUA || isMobileViewport) ? 1.24 : 1.1;
+  } catch (_error) {
+  }
+  return 1.1;
+}
+
+function getInitialFontScaleFromEnvironment(...bookIdValues) {
   try {
     const url = new URL(window.location.href);
     const explicit = Number(url.searchParams.get("protectedFontScale") || "");
@@ -91,23 +121,25 @@ function getInitialFontScaleFromEnvironment(bookId = "") {
     }
   } catch (_error) {
   }
-  try {
-    const scopedBookId = String(bookId || "").trim();
-    const raw = migratePriorProtectedScopedStorageValue({
-      bookId: scopedBookId,
-      currentKey: getBookScopedFontScaleStorageKey(scopedBookId),
-      valueSuffix: `:font-scale:${scopedBookId}`,
-      normalize: (value) => {
-        const stored = Number(value || "");
-        if (!Number.isFinite(stored) || stored <= 0) return "";
-        return String(Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2)))));
+  const candidates = getProtectedFontBookIdCandidates(...bookIdValues);
+  for (const scopedBookId of candidates) {
+    try {
+      const raw = migratePriorProtectedScopedStorageValue({
+        bookId: scopedBookId,
+        currentKey: getBookScopedFontScaleStorageKey(scopedBookId),
+        valueSuffix: `:font-scale:${scopedBookId}`,
+        normalize: (value) => {
+          const stored = Number(value || "");
+          if (!Number.isFinite(stored) || stored <= 0) return "";
+          return String(Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2)))));
+        }
+      });
+      const stored = Number(raw || "");
+      if (Number.isFinite(stored) && stored > 0) {
+        return Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2))));
       }
-    });
-    const stored = Number(raw || "");
-    if (Number.isFinite(stored) && stored > 0) {
-      return Math.max(0.8, Math.min(1.6, Number(stored.toFixed(2))));
+    } catch (_error) {
     }
-  } catch (_error) {
   }
   try {
     const stored = Number(window.localStorage.getItem(getLegacyFontScaleStorageKey()) || "");
@@ -116,7 +148,7 @@ function getInitialFontScaleFromEnvironment(bookId = "") {
     }
   } catch (_error) {
   }
-  return 1.1;
+  return getDefaultFontScaleFromEnvironment();
 }
 
 function setDlRows(container, rows) {
@@ -184,8 +216,8 @@ export async function bootstrapProtectedReaderIntegration() {
     renderHost: route.renderHost,
     driveMode: route.driveMode,
     automationSafe: !!route.automationSafe,
-    fontMode: getInitialFontModeFromEnvironment(route.bookId),
-    fontScale: getInitialFontScaleFromEnvironment(route.bookId),
+    fontMode: getInitialFontModeFromEnvironment(route.bookId, route.artifactBookId),
+    fontScale: getInitialFontScaleFromEnvironment(route.bookId, route.artifactBookId),
     readerNewRoute: route,
     shareState: route.shareState,
     importPayload: null,
