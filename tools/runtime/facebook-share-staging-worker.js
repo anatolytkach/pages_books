@@ -11,6 +11,7 @@ const OG_IMAGE_HEIGHT = 630;
 const FACEBOOK_OG_IMAGE_WIDTH = 1200;
 const FACEBOOK_OG_IMAGE_HEIGHT = 630;
 const META_PREVIEW_BOT_PATTERN = /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|messengerbot|facebookmessengerbot|messengerexternalhit|messengerpreview)\b/i;
+const META_APP_PREVIEW_PATTERN = /\b(?:FBAN|FBAV|FB_IAB|FBIOS|FB4A|Messenger|MSGR|FBMessenger|MessengerForiOS|MessengerLite)\b/i;
 
 function textResponse(body, status = 200, headers = {}) {
   return new Response(body, {
@@ -31,7 +32,7 @@ function isPreviewBot(request) {
 
 function isFacebookPreviewBot(request) {
   const userAgent = String(request.headers.get("user-agent") || "");
-  return META_PREVIEW_BOT_PATTERN.test(userAgent);
+  return META_PREVIEW_BOT_PATTERN.test(userAgent) || META_APP_PREVIEW_PATTERN.test(userAgent);
 }
 
 function escapeRegExp(value) {
