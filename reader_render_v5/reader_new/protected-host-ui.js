@@ -11183,7 +11183,7 @@ async function ensureDirectProtectedRuntimeMounted(root) {
       if (!bootstrap || bootstrap.action !== "open-protected-reader") {
         throw new Error(`Direct protected bootstrap did not open protected reader (action: ${bootstrap && bootstrap.action ? bootstrap.action : "none"}).`);
       }
-      await import("../dev/protected-reader.js?v=20260428-protected-native-share-rollback-2");
+      await import("../dev/protected-reader.js?v=20260429-protected-share-restore-1");
       const startedAt = Date.now();
       const softTimeoutMs = 45000;
       const hardTimeoutMs = 180000;

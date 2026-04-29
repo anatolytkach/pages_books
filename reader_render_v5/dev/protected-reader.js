@@ -1941,6 +1941,10 @@ async function finalizeArtifactLoad({
   state.artifactLoadStatus = "loaded";
   renderRuntimeMeta();
   await autoImportSharedPayload();
+  if (getIncomingProtectedSelection()) {
+    state.sharedSelectionApplied = false;
+    state.sharedSelectionAnnotation = null;
+  }
   await applyIncomingProtectedSelectionIfAvailable();
   if (state.annotationStore && state.annotationStore.all().length) {
     await requestAndApply("getRuntimeStatus");

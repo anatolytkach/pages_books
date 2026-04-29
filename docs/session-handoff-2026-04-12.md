@@ -816,3 +816,14 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
   - `node --check` passed for `_worker.js`, `tools/dev/local_preview_server.mjs`, `reader_render_v5/dev/protected-reader-host-bridge.js`, `reader_render_v5/dev/protected-reader.js`, and `reader_render_v5/reader_new/protected-host-ui.js`.
   - Local preview on `http://127.0.0.1:8788` created a protected `/s/<id>` and opened it into `reader_new_v5` with `focusedAnnotationId: "shared_selection_highlight"` and `focusHighlightCount: 1`.
   - Full `node --test tests/integration/worker.integration.test.mjs` still has two pre-existing unrelated failures around `/books/reader/` rewrite and PostHog meta expectations.
+
+## 2026-04-29 Protected Selection Restore Follow-Up
+
+- Fixed protected `/s/<id>` opens that could land at the book start or saved reading position instead of the selected quote.
+- Root cause: the host could call `restoreSharedSelection()` as soon as the first protected snapshot was ready, then the runtime finalization path applied persisted/default reading state afterward and skipped reapplying the incoming share because `sharedSelectionApplied` was already true.
+- The protected runtime now resets the incoming shared-selection application flag after the final artifact-load snapshot and before `applyIncomingProtectedSelectionIfAvailable()`, so URL-provided `protectedSelectionAnchor` wins over default/local reading restore.
+- Bumped protected reader module cache keys in `reader/reader_new_v5.html` and `reader_render_v5/reader_new/protected-host-ui.js`.
+- Verification:
+  - `node --check reader_render_v5/dev/protected-reader.js` passed.
+  - `node --check reader_render_v5/reader_new/protected-host-ui.js` passed.
+  - Local preview created `http://127.0.0.1:8788/s/KAcMTGu5J` for protected artifact `90055040`; opening it restored to page `15 / 26` instead of page `1 / 26`.
