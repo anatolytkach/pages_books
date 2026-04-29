@@ -571,9 +571,9 @@ function renderFacebookOgSvg(fields) {
 </svg>`;
 }
 
-async function fetchSourceShareHtml(sharePath, request) {
+async function fetchSourceShareHtml(sharePath, request, options = {}) {
   const upstreamHeaders = new Headers(request.headers);
-  upstreamHeaders.set("user-agent", "facebookexternalhit/1.1");
+  upstreamHeaders.set("user-agent", options.userAgent || "facebookexternalhit/1.1");
   const upstream = await fetch(`${SOURCE_ORIGIN}${sharePath}`, {
     headers: upstreamHeaders,
     redirect: "manual",
@@ -586,7 +586,9 @@ async function fetchSourceShareHtml(sharePath, request) {
 async function handleFacebookOgImage(request, url) {
   const match = url.pathname.match(/^\/fb-og\/([A-Za-z0-9_-]{4,64})\.(png|jpe?g|svg)$/);
   if (!match) return textResponse("Not found", 404, { "cache-control": "no-store" });
-  const html = await fetchSourceShareHtml(`/s/${match[1]}`, request);
+  const html = await fetchSourceShareHtml(`/s/${match[1]}`, request, {
+    userAgent: "WhatsApp/2.24 ReaderPub-OG-Image-Source"
+  });
   if (!html) return textResponse("Not found", 404, { "cache-control": "no-store" });
   if (match[2] === "svg") {
     const fields = parseSelectionPreviewFields(html);
