@@ -33,6 +33,7 @@ Key areas:
 - Use `apply_patch` for manual code edits.
 - The worktree may be dirty. Never revert unrelated changes.
 - Commit meaningful milestones instead of leaving large uncommitted state.
+- Before any deploy, review all modified code/config files in the worktree. Commit every intentional code/config change that may affect runtime before deploying, even if the change was made earlier in the session; do not leave live-affecting dirty files uncommitted.
 - When a milestone is worth preserving, update the session handoff note:
   - `docs/session-handoff-2026-04-12.md`
 

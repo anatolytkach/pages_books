@@ -1,23 +1,18 @@
 const STAGING_ROBOTS_TXT = `User-agent: facebookexternalhit
-Allow: /s/
-Allow: /books/content/
+Disallow:
+Allow: /
 
 User-agent: Facebot
-Allow: /s/
-Allow: /books/content/
+Disallow:
+Allow: /
 
 User-agent: meta-externalagent
-Allow: /s/
-Allow: /books/content/
+Disallow:
+Allow: /
 
 User-agent: *
-Allow: /book/
-Allow: /author/
-Allow: /category/
-Allow: /sitemap.xml
-Allow: /sitemaps/
-Disallow: /books/reader/
-Disallow: /books/api/
+Disallow:
+Allow: /
 
 Sitemap: https://books-staging.reader.pub/sitemap.xml
 `;
