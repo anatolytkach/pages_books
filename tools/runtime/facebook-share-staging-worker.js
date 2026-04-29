@@ -1,8 +1,15 @@
+import { Buffer } from "buffer";
+import jpeg from "jpeg-js";
+
+globalThis.Buffer = globalThis.Buffer || Buffer;
+
 const SOURCE_ORIGIN = "https://books-staging.reader.pub";
 const API_SOURCE_ORIGIN = "https://readerpub-books-staging.pages.dev";
 const SHARE_ORIGIN = "https://sh-staging.reader.pub";
 const OG_IMAGE_WIDTH = 1200;
 const OG_IMAGE_HEIGHT = 630;
+const FACEBOOK_OG_IMAGE_WIDTH = 1200;
+const FACEBOOK_OG_IMAGE_HEIGHT = 630;
 
 function textResponse(body, status = 200, headers = {}) {
   return new Response(body, {
@@ -21,6 +28,11 @@ function isPreviewBot(request) {
   return /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|twitterbot|telegrambot|whatsapp|linkedinbot|slackbot)\b/i.test(userAgent);
 }
 
+function isFacebookPreviewBot(request) {
+  const userAgent = String(request.headers.get("user-agent") || "");
+  return /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent)\b/i.test(userAgent);
+}
+
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -37,11 +49,16 @@ function getRequestOrigin(requestUrl) {
 function rewriteShareHtml(html, sharePath, publicShareOrigin, options = {}) {
   const sourceShareUrl = `${SOURCE_ORIGIN}${sharePath}`;
   const publicShareUrl = `${publicShareOrigin}${sharePath}`;
+  const shareId = sharePath.replace(/^\/s\//, "");
   let rewritten = String(html || "")
     .replace(new RegExp(escapeRegExp(sourceShareUrl), "g"), publicShareUrl)
     .replace(new RegExp(escapeRegExp(`${SOURCE_ORIGIN}/books/content/`), "g"), `${publicShareOrigin}/books/content/`)
     .replace(/<meta\s+http-equiv=["']refresh["'][^>]*>/gi, "")
     .replace(/<script\b[^>]*>[\s\S]*?window\.location\.replace[\s\S]*?<\/script>/gi, "");
+
+  rewritten = rewriteSelectionOgHtml(rewritten, shareId, publicShareOrigin, {
+    facebook: !!options.facebook,
+  });
 
   if (options.includeRedirectScript) {
     rewritten = rewritten.replace(
@@ -87,6 +104,113 @@ function decodeHtml(value) {
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">");
+}
+
+function removeMetaTag(html, attrName, attrValue) {
+  const attrPattern = escapeRegExp(attrValue);
+  const tagPattern = new RegExp(`<meta\\s+[^>]*${attrName}=["']${attrPattern}["'][^>]*>\\s*`, "gi");
+  return String(html || "").replace(tagPattern, "");
+}
+
+function setTitleTag(html, title) {
+  const replacement = `<title>${escapeHtml(title)}</title>`;
+  if (/<title>[\s\S]*?<\/title>/i.test(html)) return html.replace(/<title>[\s\S]*?<\/title>/i, replacement);
+  return html.replace(/<\/head>/i, `${replacement}\n</head>`);
+}
+
+function parseSelectionPreviewFields(html) {
+  const rawTitle = extractMetaContent(html, "property", "og:title");
+  const rawDescription =
+    extractMetaContent(html, "property", "og:description") ||
+    extractMetaContent(html, "name", "description");
+  const rawImage = extractMetaContent(html, "property", "og:image");
+  const description = normalizePlainText(rawDescription);
+  let title = normalizePlainText(rawTitle);
+  if (description && title.endsWith(` - ${description}`)) {
+    title = title.slice(0, -(` - ${description}`).length).trim();
+  } else {
+    title = title.replace(/\s+-\s+by\s+.+$/i, "").trim();
+  }
+  title = formatReaderPubOgTitle(title);
+  const author = extractAuthorFromDescription(description);
+  const quote = extractQuoteFromDescription(description);
+  return {
+    title,
+    description,
+    author,
+    quote,
+    image: rawImage,
+  };
+}
+
+function normalizePlainText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function formatReaderPubOgTitle(title) {
+  const source = normalizePlainText(title).replace(/^ReaderPub\s*-\s*/i, "").trim();
+  return `ReaderPub - ${source || "ReaderPub"}`;
+}
+
+function extractAuthorFromDescription(description) {
+  const match = normalizePlainText(description).match(/^by\s+(.+?)\.\s*(?:"|$)/i);
+  return match ? match[1].trim() : "";
+}
+
+function extractQuoteFromDescription(description) {
+  const match = String(description || "").match(/"([^"]*)"/);
+  return match ? normalizePlainText(match[1]) : "";
+}
+
+function rewriteSelectionOgHtml(html, shareId, publicShareOrigin, options = {}) {
+  const fields = parseSelectionPreviewFields(html);
+  const shareUrl = `${publicShareOrigin}/s/${encodeURIComponent(shareId)}`;
+  const coverImage = fields.image || "";
+  let rewritten = setTitleTag(html, fields.title);
+  rewritten = setMetaTag(rewritten, "property", "og:site_name", "ReaderPub");
+  rewritten = setMetaTag(rewritten, "property", "og:type", "article");
+  rewritten = setMetaTag(rewritten, "property", "og:title", fields.title);
+  rewritten = setMetaTag(rewritten, "property", "og:url", shareUrl);
+  rewritten = setMetaTag(rewritten, "name", "twitter:title", fields.title);
+
+  if (options.facebook) {
+    const facebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg`;
+    rewritten = removeMetaTag(rewritten, "property", "og:description");
+    rewritten = removeMetaTag(rewritten, "name", "description");
+    rewritten = removeMetaTag(rewritten, "name", "twitter:description");
+    rewritten = setMetaTag(rewritten, "property", "og:image", facebookImage);
+    rewritten = setMetaTag(rewritten, "property", "og:image:secure_url", facebookImage);
+    rewritten = setMetaTag(rewritten, "property", "og:image:type", "image/jpeg");
+    rewritten = setMetaTag(rewritten, "property", "og:image:width", String(FACEBOOK_OG_IMAGE_WIDTH));
+    rewritten = setMetaTag(rewritten, "property", "og:image:height", String(FACEBOOK_OG_IMAGE_HEIGHT));
+    rewritten = setMetaTag(rewritten, "name", "twitter:card", "summary_large_image");
+    rewritten = setMetaTag(rewritten, "name", "twitter:image", facebookImage);
+    return rewritten;
+  }
+
+  if (fields.description) {
+    rewritten = setMetaTag(rewritten, "name", "description", fields.description);
+    rewritten = setMetaTag(rewritten, "property", "og:description", fields.description);
+    rewritten = setMetaTag(rewritten, "name", "twitter:description", fields.description);
+  }
+  if (coverImage) {
+    rewritten = setMetaTag(rewritten, "property", "og:image", coverImage);
+    rewritten = setMetaTag(rewritten, "property", "og:image:secure_url", coverImage);
+    rewritten = setMetaTag(rewritten, "property", "og:image:type", "image/jpeg");
+    rewritten = setMetaTag(rewritten, "property", "og:image:width", "600");
+    rewritten = setMetaTag(rewritten, "property", "og:image:height", "900");
+    rewritten = setMetaTag(rewritten, "name", "twitter:card", "summary");
+    rewritten = setMetaTag(rewritten, "name", "twitter:image", coverImage);
+  }
+  return rewritten;
+}
+
+function escapeXml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 const FONT_5X7 = {
@@ -172,13 +296,43 @@ function drawGlyph(image, glyph, x, y, scale, color) {
   }
 }
 
+function drawGlyphStyled(image, glyph, x, y, scale, color, options = {}) {
+  const rows = FONT_5X7[glyph] || FONT_5X7["?"];
+  for (let row = 0; row < rows.length; row++) {
+    const slant = options.italic ? Math.max(0, 6 - row) * Math.max(1, Math.floor(scale / 3)) : 0;
+    for (let col = 0; col < rows[row].length; col++) {
+      if (rows[row][col] !== "1") continue;
+      fillRect(image, x + col * scale + slant, y + row * scale, scale, scale, color);
+      if (options.bold) fillRect(image, x + col * scale + slant + Math.max(1, Math.floor(scale / 3)), y + row * scale, scale, scale, color);
+    }
+  }
+}
+
 function drawText(image, text, x, y, scale, color) {
-  const normalized = String(text || "").toUpperCase().replace(/[^A-Z0-9 .,:!?'"&-]/g, " ");
+  const normalized = normalizeBitmapText(text);
   let cursor = x;
   for (const char of normalized) {
     drawGlyph(image, char, cursor, y, scale, color);
     cursor += 6 * scale;
   }
+}
+
+function drawTextStyled(image, text, x, y, scale, color, options = {}) {
+  const normalized = normalizeBitmapText(text);
+  let cursor = x;
+  for (const char of normalized) {
+    drawGlyphStyled(image, char, cursor, y, scale, color, options);
+    cursor += 6 * scale + (options.bold ? Math.max(1, Math.floor(scale / 3)) : 0);
+  }
+}
+
+function normalizeBitmapText(text) {
+  return String(text || "")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[–—]/g, "-")
+    .toUpperCase()
+    .replace(/[^A-Z0-9 .,:!?'"&-]/g, " ");
 }
 
 function measureText(text, scale) {
@@ -298,6 +452,17 @@ function encodePng(image) {
   ]);
 }
 
+function encodeJpeg(image, quality = 86) {
+  const data = new Uint8Array(image.width * image.height * 4);
+  for (let source = 0, target = 0; source < image.pixels.length; source += 3, target += 4) {
+    data[target] = image.pixels[source];
+    data[target + 1] = image.pixels[source + 1];
+    data[target + 2] = image.pixels[source + 2];
+    data[target + 3] = 255;
+  }
+  return jpeg.encode({ data, width: image.width, height: image.height }, quality).data;
+}
+
 function renderFacebookOgImage(title, description) {
   const image = createRaster(OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT, [241, 245, 249]);
   fillRect(image, 0, 0, OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT, [232, 238, 245]);
@@ -320,7 +485,79 @@ function renderFacebookOgImage(title, description) {
     y += 38;
   }
   drawText(image, "FB-BOOKS-STAGING.READER.PUB", 86, 548, 4, [100, 116, 139]);
-  return encodePng(image);
+  return image;
+}
+
+function drawCoverImage(target, decoded, x, y, width, height) {
+  const scale = Math.max(width / decoded.width, height / decoded.height);
+  const sourceWidth = width / scale;
+  const sourceHeight = height / scale;
+  const sourceX = Math.max(0, (decoded.width - sourceWidth) / 2);
+  const sourceY = Math.max(0, (decoded.height - sourceHeight) / 2);
+  for (let yy = 0; yy < height; yy++) {
+    const sy = Math.min(decoded.height - 1, Math.max(0, Math.floor(sourceY + yy / scale)));
+    for (let xx = 0; xx < width; xx++) {
+      const sx = Math.min(decoded.width - 1, Math.max(0, Math.floor(sourceX + xx / scale)));
+      const sourceIndex = (sy * decoded.width + sx) * 4;
+      const targetIndex = ((y + yy) * target.width + (x + xx)) * 3;
+      target.pixels[targetIndex] = decoded.data[sourceIndex];
+      target.pixels[targetIndex + 1] = decoded.data[sourceIndex + 1];
+      target.pixels[targetIndex + 2] = decoded.data[sourceIndex + 2];
+    }
+  }
+}
+
+async function renderFacebookOgPng(fields) {
+  const image = createRaster(FACEBOOK_OG_IMAGE_WIDTH, FACEBOOK_OG_IMAGE_HEIGHT, [238, 241, 243]);
+  const coverWidth = 498;
+  if (fields.image) {
+    try {
+      const coverResponse = await fetch(fields.image, {
+        headers: { "user-agent": "facebookexternalhit/1.1" },
+      });
+      if (coverResponse.ok) {
+        const decoded = jpeg.decode(new Uint8Array(await coverResponse.arrayBuffer()), { useTArray: true });
+        drawCoverImage(image, decoded, 0, 0, coverWidth, FACEBOOK_OG_IMAGE_HEIGHT);
+      }
+    } catch (_error) {
+      fillRect(image, 0, 0, coverWidth, FACEBOOK_OG_IMAGE_HEIGHT, [218, 224, 230]);
+    }
+  } else {
+    fillRect(image, 0, 0, coverWidth, FACEBOOK_OG_IMAGE_HEIGHT, [218, 224, 230]);
+  }
+  fillRect(image, coverWidth, 0, FACEBOOK_OG_IMAGE_WIDTH - coverWidth, FACEBOOK_OG_IMAGE_HEIGHT, [231, 235, 238]);
+  const quote = fields.quote ? `"${fields.quote}"` : `"${fields.description || fields.title || "ReaderPub"}"`;
+  const quoteLines = wrapText(quote, 5, 610, 8);
+  let y = 52;
+  for (const line of quoteLines) {
+    drawText(image, line, 545, y, 5, [31, 42, 51]);
+    y += 48;
+  }
+  const authorY = Math.min(Math.max(y + 34, 430), 548);
+  drawTextStyled(image, fields.author || "ReaderPub", 545, authorY, 6, [31, 42, 51], { bold: true, italic: true });
+  return image;
+}
+
+function renderFacebookOgSvg(fields) {
+  const cover = fields.image || "";
+  const quote = fields.quote ? `"${fields.quote}"` : `"${fields.description || fields.title || "ReaderPub"}"`;
+  const author = fields.author || "ReaderPub";
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${FACEBOOK_OG_IMAGE_WIDTH}" height="${FACEBOOK_OG_IMAGE_HEIGHT}" viewBox="0 0 ${FACEBOOK_OG_IMAGE_WIDTH} ${FACEBOOK_OG_IMAGE_HEIGHT}">
+  <rect width="1200" height="630" fill="#eef1f3"/>
+  <image href="${escapeXml(cover)}" x="0" y="0" width="498" height="630" preserveAspectRatio="xMidYMid slice"/>
+  <rect x="498" y="0" width="702" height="630" fill="#e7ebee"/>
+  <foreignObject x="545" y="52" width="610" height="360">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, 'Times New Roman', serif; font-size: 40px; line-height: 1.32; color: #1f2a33; overflow-wrap: break-word;">
+      ${escapeXml(quote)}
+    </div>
+  </foreignObject>
+  <foreignObject x="545" y="430" width="610" height="90">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, 'Times New Roman', serif; font-size: 42px; line-height: 1.2; font-weight: 700; font-style: italic; color: #1f2a33;">
+      ${escapeXml(author)}
+    </div>
+  </foreignObject>
+</svg>`;
 }
 
 async function fetchSourceShareHtml(sharePath, request) {
@@ -336,16 +573,29 @@ async function fetchSourceShareHtml(sharePath, request) {
 }
 
 async function handleFacebookOgImage(request, url) {
-  const match = url.pathname.match(/^\/fb-og\/([A-Za-z0-9_-]{4,64})\.png$/);
+  const match = url.pathname.match(/^\/fb-og\/([A-Za-z0-9_-]{4,64})\.(png|jpe?g|svg)$/);
   if (!match) return textResponse("Not found", 404, { "cache-control": "no-store" });
   const html = await fetchSourceShareHtml(`/s/${match[1]}`, request);
   if (!html) return textResponse("Not found", 404, { "cache-control": "no-store" });
-  const title = extractMetaContent(html, "property", "og:title");
-  const description = extractMetaContent(html, "property", "og:description");
-  return new Response(renderFacebookOgImage(title, description), {
+  if (match[2] === "svg") {
+    const fields = parseSelectionPreviewFields(html);
+    const publicOrigin = getRequestOrigin(request.url);
+    if (fields.image) fields.image = fields.image.replace(new RegExp(escapeRegExp(`${SOURCE_ORIGIN}/books/content/`), "g"), `${publicOrigin}/books/content/`);
+    return new Response(renderFacebookOgSvg(fields), {
+      status: 200,
+      headers: {
+        "content-type": "image/svg+xml; charset=utf-8",
+        "cache-control": "public, max-age=300, s-maxage=600",
+        "x-reader-route": "facebook-share-og-image",
+        "x-robots-tag": "all",
+      },
+    });
+  }
+  const fields = parseSelectionPreviewFields(html);
+  return new Response(encodeJpeg(await renderFacebookOgPng(fields)), {
     status: 200,
     headers: {
-      "content-type": "image/png",
+      "content-type": "image/jpeg",
       "cache-control": "public, max-age=300, s-maxage=600",
       "x-reader-route": "facebook-share-og-image",
       "x-robots-tag": "all",
@@ -448,7 +698,7 @@ export default {
       );
     }
 
-    if (/^\/fb-og\/[A-Za-z0-9_-]{4,64}\.png$/.test(url.pathname)) {
+    if (/^\/fb-og\/[A-Za-z0-9_-]{4,64}\.(png|jpe?g|svg)$/.test(url.pathname)) {
       return handleFacebookOgImage(request, url);
     }
 
@@ -464,6 +714,7 @@ export default {
     if (!sourceHtml) return textResponse("Not found", 404, { "cache-control": "no-store" });
 
     const html = rewriteShareHtml(sourceHtml, url.pathname, getRequestOrigin(request.url), {
+      facebook: isFacebookPreviewBot(request),
       includeRedirectScript: !(isCloudflarePagePreview(request) || isPreviewBot(request)),
     });
     return new Response(html, {

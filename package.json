@@ -31,5 +31,9 @@
   "description": "",
   "devDependencies": {
     "@playwright/test": "^1.59.1"
+  },
+  "dependencies": {
+    "buffer": "^6.0.3",
+    "jpeg-js": "^0.4.4"
   }
 }
