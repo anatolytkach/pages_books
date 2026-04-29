@@ -286,7 +286,7 @@ test("Integration: selection share API stores payload and returns short url", as
 
   assert.equal(response.status, 200);
   assert.match(data.shareId, /^[A-Za-z0-9_-]{9}$/);
-  assert.equal(data.url, `https://books-staging.reader.pub/s/${data.shareId}`);
+  assert.equal(data.url, `https://sh-staging.reader.pub/s/${data.shareId}`);
   assert.equal(bucket.putCalls.length, 1);
   assert.equal(bucket.putCalls[0].key, `api/selection_shares/${data.shareId}.json`);
   assert.deepEqual(JSON.parse(bucket.putCalls[0].body), {
@@ -413,8 +413,9 @@ test("Integration: protected selection share API stores payload and redirects to
   assert.deepEqual(stored.protectedAnchor, protectedAnchor);
   assert.equal(stored.selectionText, "Protected quoted text");
 
+  const sourceShareUrl = `https://books-staging.reader.pub/s/${data.shareId}`;
   const shareResponse = await callWorker({
-    url: data.url,
+    url: sourceShareUrl,
     env,
   });
   const body = await shareResponse.text();
@@ -430,7 +431,7 @@ test("Integration: protected selection share API stores payload and redirects to
   assert.match(body, /protectedAllowAll=1/);
 
   const telegramResponse = await callWorker({
-    url: data.url,
+    url: sourceShareUrl,
     headers: { "user-agent": "TelegramBot (like TwitterBot)" },
     env,
   });
@@ -447,7 +448,7 @@ test("Integration: protected selection share API stores payload and redirects to
   assert.doesNotMatch(telegramBody, /protectedSelectionAnchor=/);
 
   const facebookResponse = await callWorker({
-    url: data.url,
+    url: sourceShareUrl,
     headers: { "user-agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)" },
     env,
   });

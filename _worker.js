@@ -1354,6 +1354,18 @@ function isFacebookPreviewBot(request) {
   return /\b(?:facebookexternalhit|facebot)\b/i.test(userAgent);
 }
 
+function buildSelectionSharePublicUrl(url, shareId) {
+  const normalizedShareId = encodeURIComponent(String(shareId || ""));
+  const hostname = String(url && url.hostname ? url.hostname : "").trim().toLowerCase();
+  if (
+    hostname === "books-staging.reader.pub" ||
+    hostname.endsWith(".readerpub-books-staging.pages.dev")
+  ) {
+    return `https://sh-staging.reader.pub/s/${normalizedShareId}`;
+  }
+  return new URL(`/s/${normalizedShareId}`, url.origin).toString();
+}
+
 function renderSelectionShareLandingPage(meta, targetUrl, options = {}) {
   const metaTags = buildReaderPreviewMetaTags(meta);
   const safeTarget = escapeHtml(targetUrl);
@@ -2960,7 +2972,7 @@ export default {
         return jsonResponse(
           {
             shareId,
-            url: new URL(`/s/${encodeURIComponent(shareId)}`, url.origin).toString(),
+            url: buildSelectionSharePublicUrl(url, shareId),
           },
           200,
           notesShareCorsHeaders()
