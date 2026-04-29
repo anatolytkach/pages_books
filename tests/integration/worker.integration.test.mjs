@@ -262,8 +262,8 @@ test("Integration: /reader1 selection links inject reader OG preview metadata", 
   assert.equal(rewriter.appendCalls.length, 1);
   assert.equal(rewriter.appendCalls[0].selector, "head");
   assert.equal(rewriter.appendCalls[0].options.html, true);
-  assert.match(rewriter.appendCalls[0].html, /property="og:title" content="Anna Karenina"/);
-  assert.match(rewriter.appendCalls[0].html, /property="og:description" content="by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
+  assert.match(rewriter.appendCalls[0].html, /property="og:title" content="ReaderPub - Anna Karenina - by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
+  assert.doesNotMatch(rewriter.appendCalls[0].html, /property="og:description"/);
   assert.match(rewriter.appendCalls[0].html, /property="og:image" content="https:\/\/books-staging\.reader\.pub\/books\/content\/1399\/OEBPS\/cover\.jpg"/);
   assert.match(rewriter.appendCalls[0].html, /name="twitter:card" content="summary"/);
 });
@@ -338,12 +338,13 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("x-reader-route"), "selection-share-page");
   assert.match(body, /property="og:site_name" content="ReaderPub"/);
-  assert.match(body, /property="og:title" content="ReaderPub - Anna Karenina"/);
+  assert.match(body, /property="og:title" content="ReaderPub - Anna Karenina - by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
   assert.match(body, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
   assert.match(body, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/1399\/OEBPS\/cover\.jpg"/);
   assert.match(body, /property="og:image:width" content="600"/);
   assert.match(body, /property="og:image:height" content="900"/);
-  assert.match(body, /name="twitter:description" content="by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
+  assert.doesNotMatch(body, /property="og:description"/);
+  assert.doesNotMatch(body, /name="twitter:description"/);
   assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/reader1\/\?id=1399&selectionCfi=/);
   assert.match(body, /#epubcfi\(\/6\/6\[item3\]/);
 
@@ -356,8 +357,8 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
 
   assert.equal(facebookResponse.status, 200);
   assert.equal(facebookResponse.headers.get("cache-control"), "public, max-age=300, s-maxage=600");
-  assert.equal(facebookResponse.headers.get("vary"), "User-Agent");
-  assert.match(facebookBody, /property="og:title" content="ReaderPub - Anna Karenina"/);
+  assert.equal(facebookResponse.headers.get("vary"), null);
+  assert.match(facebookBody, /property="og:title" content="ReaderPub - Anna Karenina - by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
   assert.match(facebookBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
   assert.match(facebookBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
   assert.doesNotMatch(facebookBody, /http-equiv="refresh"/);
@@ -419,9 +420,10 @@ test("Integration: protected selection share API stores payload and redirects to
   const body = await shareResponse.text();
 
   assert.equal(shareResponse.status, 200);
-  assert.match(body, /property="og:title" content="ReaderPub - The Protected Book"/);
+  assert.match(body, /property="og:title" content="ReaderPub - The Protected Book - by Ada Example\. &quot;Protected quoted text&quot;"/);
   assert.match(body, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/25344\/cover\.jpg"/);
-  assert.match(body, /name="twitter:description" content="by Ada Example\. &quot;Protected quoted text&quot;"/);
+  assert.doesNotMatch(body, /property="og:description"/);
+  assert.doesNotMatch(body, /name="twitter:description"/);
   assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/books\/protected\/\?id=90025344&reader=protected/);
   assert.match(body, /protectedSelectionAnchor=/);
   assert.match(body, /protectedArtifactSource=r2/);
@@ -436,8 +438,8 @@ test("Integration: protected selection share API stores payload and redirects to
 
   assert.equal(telegramResponse.status, 200);
   assert.equal(telegramResponse.headers.get("cache-control"), "public, max-age=300, s-maxage=600");
-  assert.equal(telegramResponse.headers.get("vary"), "User-Agent");
-  assert.match(telegramBody, /property="og:title" content="ReaderPub - The Protected Book"/);
+  assert.equal(telegramResponse.headers.get("vary"), null);
+  assert.match(telegramBody, /property="og:title" content="ReaderPub - The Protected Book - by Ada Example\. &quot;Protected quoted text&quot;"/);
   assert.match(telegramBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\//);
   assert.match(telegramBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\//);
   assert.doesNotMatch(telegramBody, /http-equiv="refresh"/);
@@ -453,8 +455,8 @@ test("Integration: protected selection share API stores payload and redirects to
 
   assert.equal(facebookResponse.status, 200);
   assert.equal(facebookResponse.headers.get("cache-control"), "public, max-age=300, s-maxage=600");
-  assert.equal(facebookResponse.headers.get("vary"), "User-Agent");
-  assert.match(facebookBody, /property="og:title" content="ReaderPub - The Protected Book"/);
+  assert.equal(facebookResponse.headers.get("vary"), null);
+  assert.match(facebookBody, /property="og:title" content="ReaderPub - The Protected Book - by Ada Example\. &quot;Protected quoted text&quot;"/);
   assert.match(facebookBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\//);
   assert.match(facebookBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\//);
   assert.doesNotMatch(facebookBody, /http-equiv="refresh"/);

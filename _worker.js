@@ -1195,12 +1195,14 @@ async function resolveReaderPreviewMeta(env, url) {
   const description = quote
     ? `${author ? `by ${author}. ` : ""}"${quote}"`
     : `${author ? `by ${author}. ` : ""}Read on ReaderPub.`;
+  const previewTitle = formatReaderPubPreviewTitle(title);
+  const shareTitle = description ? `${previewTitle} - ${description}` : previewTitle;
   let image = String(item.cover || item.coverUrl || item.cover_url || "").trim();
   if (image && !/^https?:\/\//i.test(image)) {
     image = `${url.origin}${image.startsWith("/") ? "" : "/"}${image}`;
   }
   return {
-    title: formatReaderPubPreviewTitle(title),
+    title: normalizePreviewText(shareTitle, 300),
     author,
     description: normalizePreviewText(description, 300),
     image,
@@ -1214,7 +1216,6 @@ function buildReaderPreviewMetaTags(meta) {
     `<meta property="og:site_name" content="ReaderPub" />`,
     `<meta property="og:type" content="article" />`,
     `<meta property="og:title" content="${escapeHtml(meta.title)}" />`,
-    `<meta property="og:description" content="${escapeHtml(meta.description)}" />`,
     `<meta property="og:url" content="${escapeHtml(meta.url)}" />`,
     meta.image ? `<meta property="og:image" content="${escapeHtml(meta.image)}" />` : "",
     meta.image ? `<meta property="og:image:secure_url" content="${escapeHtml(meta.image)}" />` : "",
@@ -1223,7 +1224,6 @@ function buildReaderPreviewMetaTags(meta) {
     meta.image ? `<meta property="og:image:height" content="900" />` : "",
     `<meta name="twitter:card" content="summary" />`,
     `<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`,
-    `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`,
     meta.image ? `<meta name="twitter:image" content="${escapeHtml(meta.image)}" />` : "",
     meta.author ? `<meta name="author" content="${escapeHtml(meta.author)}" />` : "",
   ].filter(Boolean).join("\n");
@@ -2452,25 +2452,20 @@ async function renderSeoRoute(request, env, url, path) {
     return await withSeoCache(request, globalVersion, cacheVariant, async () => {
       const body = [
         "User-agent: facebookexternalhit",
-        "Allow: /s/",
-        "Allow: /books/content/",
+        "Disallow:",
+        "Allow: /",
         "",
         "User-agent: Facebot",
-        "Allow: /s/",
-        "Allow: /books/content/",
+        "Disallow:",
+        "Allow: /",
         "",
         "User-agent: meta-externalagent",
-        "Allow: /s/",
-        "Allow: /books/content/",
+        "Disallow:",
+        "Allow: /",
         "",
         "User-agent: *",
-        "Allow: /book/",
-        "Allow: /author/",
-        "Allow: /category/",
-        "Allow: /sitemap.xml",
-        "Allow: /sitemaps/",
-        "Disallow: /books/reader/",
-        "Disallow: /books/api/",
+        "Disallow:",
+        "Allow: /",
         "",
         `Sitemap: ${canonicalOrigin}/sitemap.xml`,
       ].join("\n");
@@ -2867,7 +2862,7 @@ export default {
         previewOnly,
       }), 200, {
         "cache-control": "public, max-age=300, s-maxage=600",
-        ...(previewOnly ? { vary: "User-Agent" } : {}),
+        "x-robots-tag": "all",
         "x-reader-route": "selection-share-page",
       });
     }

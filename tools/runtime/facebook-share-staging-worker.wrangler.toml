@@ -1,7 +1,7 @@
 name = "readerpub-facebook-share-staging"
 main = "facebook-share-staging-worker.js"
 compatibility_date = "2026-04-28"
+workers_dev = false
+preview_urls = false
 
-routes = [
-  { pattern = "fb-books-staging.reader.pub", zone_name = "reader.pub", custom_domain = true },
-]
+routes = []
