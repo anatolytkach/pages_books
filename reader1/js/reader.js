@@ -5066,7 +5066,7 @@ function attachSwipeToDoc(doc) {
 							return gen.then(function(){
 								try {
 							if (reader && reader.__updateSwipeNeighbors) {
-								var l = reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation());
+								var l = getSwipeBaseLocationForTurn(false) || getSwipeBaseLocationForTurn(true);
 								if (l) reader.__updateSwipeNeighbors(l);
 							}
 						} catch(e1) {}
@@ -5080,11 +5080,29 @@ function attachSwipeToDoc(doc) {
 						return Promise.resolve();
 					}
 
+					function getSwipeBaseLocationForTurn(isNext) {
+						try {
+							// Backward reveal is sensitive to stale _lastRelocated after a recent page turn.
+							// Use the live rendition location for prev so viewer-prev is validated against
+							// the page the user is actually dragging away from.
+							if (!isNext && rendition && rendition.currentLocation) {
+								var livePrevLoc = rendition.currentLocation();
+								if (livePrevLoc && livePrevLoc.start) return livePrevLoc;
+							}
+						} catch (eLivePrevLoc) {}
+						try {
+							if (reader && reader._lastRelocated && reader._lastRelocated.start) return reader._lastRelocated;
+						} catch (eLastLoc) {}
+						try {
+							var liveLoc = rendition && rendition.currentLocation ? rendition.currentLocation() : null;
+							if (liveLoc && liveLoc.start) return liveLoc;
+						} catch (eLiveLoc) {}
+						return null;
+					}
+
 					function ensureTurnNeighborReady(isNext, timeoutMs) {
 						try {
-							var loc = reader && reader._lastRelocated
-								? reader._lastRelocated
-								: (rendition && rendition.currentLocation && rendition.currentLocation());
+							var loc = getSwipeBaseLocationForTurn(!!isNext);
 							try {
 								if (
 									reader &&
@@ -5229,23 +5247,23 @@ function attachSwipeToDoc(doc) {
 					setSwipeOverlayAlpha(0);
 				}
 
-				function applyDx(dx) {
-					try {
-						layerCurrent.style.transition = "none";
-						layerCurrent.style.transform = "translate3d(" + dx + "px,0,0)";
-					} catch (e) {}
-				}
+					function applyDx(dx) {
+						try {
+							var d = Math.round(dx || 0);
+							layerCurrent.style.transition = "none";
+							layerCurrent.style.transform = "translate3d(" + d + "px,0,0)";
+						} catch (e) {}
+					}
 
-				function canRevealForDx(dx) {
-					try {
-						if (!dx) return false;
-						var isNextTurn = dx < 0;
-						var loc = reader && reader._lastRelocated
-							? reader._lastRelocated
-							: (rendition && rendition.currentLocation && rendition.currentLocation());
-						return !!(
-							reader &&
-							reader.__neighborReadyForTurn &&
+					function canRevealForDx(dx) {
+						try {
+							if (!dx) return false;
+							var isNextTurn = dx < 0;
+							var loc = getSwipeBaseLocationForTurn(isNextTurn);
+							if (!isNextTurn && !hasRenderableNeighborLayer(false)) return false;
+							return !!(
+								reader &&
+								reader.__neighborReadyForTurn &&
 							reader.__neighborReadyForTurn(loc, isNextTurn)
 						);
 					} catch (e) {}
@@ -5290,18 +5308,18 @@ function attachSwipeToDoc(doc) {
 						}
 
 				function resetTransform() {
-					try {
-						layerCurrent.style.willChange = "";
-						layerCurrent.style.transition = "";
-						layerCurrent.style.transform = "";
-						layerCurrent.style.zIndex = "";
 						try {
-							var vp2 = document.getElementById("viewer-prev");
-							var vn2 = document.getElementById("viewer-next");
-							if (vp2) vp2.style.zIndex = "";
-							if (vn2) vn2.style.zIndex = "";
-						} catch (eZ3) {}
-						try { doc.documentElement.classList.remove("fb-swipe-active"); } catch(eCss3) {}
+							layerCurrent.style.willChange = "";
+							layerCurrent.style.transition = "";
+							layerCurrent.style.transform = "";
+							layerCurrent.style.zIndex = "";
+							try {
+								var vp2 = document.getElementById("viewer-prev");
+								var vn2 = document.getElementById("viewer-next");
+								if (vp2) vp2.style.zIndex = "";
+								if (vn2) vn2.style.zIndex = "";
+							} catch (eZ3) {}
+							try { doc.documentElement.classList.remove("fb-swipe-active"); } catch(eCss3) {}
 						if (!usesTouchFullBleedLayout()) {
 							try { document.documentElement.classList.remove("fb-swipe-margins", "fb-swipe-underlay-left", "fb-swipe-underlay-right"); } catch(eCss4) {}
 						}
@@ -5330,9 +5348,9 @@ function attachSwipeToDoc(doc) {
 					}, delay);
 				}
 
-				function hasRenderableNeighborLayer(isNext) {
-					try {
-						var layerId = isNext ? "viewer-next" : "viewer-prev";
+					function hasRenderableNeighborLayer(isNext) {
+						try {
+							var layerId = isNext ? "viewer-next" : "viewer-prev";
 						var layer = document.getElementById(layerId);
 						if (!layer) return false;
 						var iframe = layer.querySelector("iframe");
@@ -5350,15 +5368,42 @@ function attachSwipeToDoc(doc) {
 						try {
 							if (body.querySelector && body.querySelector("img,svg,canvas,video,picture,figure")) return true;
 						} catch (eMedia) {}
-					} catch (e0) {}
-					return false;
-				}
+						} catch (e0) {}
+						return false;
+					}
 
-					function neighborRevealReady(isNext) {
+					function getLayerLocationForTurn(isNext) {
 						try {
-							var loc = reader && reader._lastRelocated
-								? reader._lastRelocated
-								: (rendition && rendition.currentLocation && rendition.currentLocation());
+							var r = isNext ? reader.renditionNext : reader.renditionPrev;
+							return r && r.currentLocation ? r.currentLocation() : null;
+						} catch (e0) {}
+						return null;
+					}
+
+					function getDisplayedLocationKey(loc) {
+						try {
+							if (!loc || !loc.start) return "";
+							var index = (typeof loc.start.index === "number") ? loc.start.index : "";
+							var page = loc.start.displayed && typeof loc.start.displayed.page === "number" ? loc.start.displayed.page : "";
+							var total = loc.start.displayed && typeof loc.start.displayed.total === "number" ? loc.start.displayed.total : "";
+							if (index === "" || page === "") return "";
+							return String(index) + ":" + String(page) + ":" + String(total);
+						} catch (e0) {}
+						return "";
+					}
+
+					function locationsSameDisplayedPage(a, b) {
+						try {
+							var ak = getDisplayedLocationKey(a);
+							var bk = getDisplayedLocationKey(b);
+							return !!(ak && bk && ak === bk);
+						} catch (e0) {}
+						return false;
+					}
+
+						function neighborRevealReady(isNext) {
+							try {
+								var loc = getSwipeBaseLocationForTurn(!!isNext);
 							return !!(
 								reader &&
 								reader.__neighborReadyForTurn &&
@@ -5378,9 +5423,7 @@ function attachSwipeToDoc(doc) {
 							if (!iframe) return false;
 							var src = "";
 							try { src = iframe.getAttribute("src") || iframe.contentWindow.location.href || ""; } catch (eSrc) {}
-							var loc = reader && reader._lastRelocated
-								? reader._lastRelocated
-								: (rendition && rendition.currentLocation && rendition.currentLocation());
+							var loc = getSwipeBaseLocationForTurn(!!isNext);
 							if (reader && reader.__neighborReadyForTurn && loc) {
 								return !!reader.__neighborReadyForTurn(loc, !!isNext);
 							}
@@ -5389,12 +5432,45 @@ function attachSwipeToDoc(doc) {
 						return false;
 					}
 
-					function neighborRevealStrictReady(isNext) {
-						return neighborRevealReady(!!isNext) && hasRenderableNeighborLayer(!!isNext);
+						function neighborRevealStrictReady(isNext) {
+							return neighborRevealReady(!!isNext) && hasRenderableNeighborLayer(!!isNext);
+						}
+
+					function waitForCurrentTurnSettled(expectedLoc, timeoutMs) {
+						var timeout = parseInt(timeoutMs, 10) || 900;
+						var started = Date.now();
+						function currentIsRenderable() {
+							try {
+								var layer = document.getElementById("viewer");
+								var iframe = layer && layer.querySelector ? layer.querySelector("iframe") : null;
+								var doc2 = iframe && (iframe.contentDocument || null);
+								var body = doc2 && doc2.body ? doc2.body : null;
+								if (!body) return false;
+								var text = "";
+								try { text = String(body.innerText || body.textContent || "").trim(); } catch (eText) {}
+								return text.length > 24 || !!(body.querySelector && body.querySelector("img,svg,canvas,video,picture,figure"));
+							} catch (e0) {}
+							return false;
+						}
+						function poll(resolve) {
+							try {
+								var loc = rendition && rendition.currentLocation ? rendition.currentLocation() : null;
+								if ((!expectedLoc || locationsSameDisplayedPage(loc, expectedLoc)) && currentIsRenderable()) {
+									resolve(true);
+									return;
+								}
+							} catch (eCheck) {}
+							if ((Date.now() - started) >= timeout) {
+								resolve(false);
+								return;
+							}
+							setTimeout(function(){ poll(resolve); }, 50);
+						}
+						return new Promise(function(resolve){ poll(resolve); });
 					}
 
-				function waitForNeighborRevealReady(isNext, timeoutMs) {
-					var timeout = parseInt(timeoutMs, 10) || 1800;
+					function waitForNeighborRevealReady(isNext, timeoutMs) {
+						var timeout = parseInt(timeoutMs, 10) || 1800;
 					var started = Date.now();
 					function poll(resolve) {
 							if (neighborRevealStrictReady(!!isNext)) {
@@ -5402,9 +5478,7 @@ function attachSwipeToDoc(doc) {
 								return;
 							}
 						try {
-							var loc = reader && reader._lastRelocated
-								? reader._lastRelocated
-								: (rendition && rendition.currentLocation && rendition.currentLocation());
+							var loc = getSwipeBaseLocationForTurn(!!isNext);
 							if (reader && reader.__updateSwipeNeighbors && loc) reader.__updateSwipeNeighbors(loc);
 							} catch (eRefreshNeighbor) {}
 							if ((Date.now() - started) >= timeout) {
@@ -5449,21 +5523,25 @@ function attachSwipeToDoc(doc) {
 						var settleAfterRelocateMs = 180;
 						var rect = stack.getBoundingClientRect();
 						var w = rect.width || window.innerWidth || 0;
-						var off = isNext ? -w : w;
-						var startDx = (isFinite(state.appliedDx) && state.appliedDx !== 1e9) ? state.appliedDx : 0;
-						var isDesktopReader = !!(window && window.__fb_isDesktop);
-						var canRevealUnderlay = false;
-							try {
-								canRevealUnderlay = neighborRevealReady(!!isNext);
-							} catch (eReady) {}
-							if (requireReveal && !canRevealUnderlay) {
-								try { if (unlockTimer) clearTimeout(unlockTimer); } catch(eReqRevealTimer){}
-								resetTransform();
-								state.lock = false;
-								return false;
-							}
-							if (canRevealUnderlay) {
-							setReveal(startDx || (isNext ? -1 : 1));
+							var off = isNext ? -w : w;
+							var startDx = (isFinite(state.appliedDx) && state.appliedDx !== 1e9) ? state.appliedDx : 0;
+							var isDesktopReader = !!(window && window.__fb_isDesktop);
+							var canRevealUnderlay = false;
+								try {
+									canRevealUnderlay = requireReveal ? neighborRevealStrictReady(!!isNext) : neighborRevealReady(!!isNext);
+								} catch (eReady) {}
+								if (requireReveal && !canRevealUnderlay) {
+									try { if (unlockTimer) clearTimeout(unlockTimer); } catch(eReqRevealTimer){}
+									resetTransform();
+									state.lock = false;
+									return false;
+								}
+								var expectedTurnLoc = null;
+								if (canRevealUnderlay) {
+									expectedTurnLoc = getLayerLocationForTurn(!!isNext);
+								}
+								if (canRevealUnderlay) {
+								setReveal(startDx || (isNext ? -1 : 1));
 							try {
 								if (shadow) {
 									var sw = state.shadowW || (shadow.getBoundingClientRect().width || 6) || 6;
@@ -5476,11 +5554,11 @@ function attachSwipeToDoc(doc) {
 								stack.classList.add("swiping");
 								setShadow(off);
 								setSwipeOverlayAlpha(0);
-							} catch (eRevealFallback) {}
-						}
-						layerCurrent.style.transition = "transform " + turnDurationMs + "ms ease-out";
-						layerCurrent.style.transform = "translate3d(" + startDx + "px,0,0)";
-						var rafMove = (win && win.requestAnimationFrame) ? win.requestAnimationFrame.bind(win) : function(cb){ return setTimeout(cb, 16); };
+								} catch (eRevealFallback) {}
+							}
+							layerCurrent.style.transition = "transform " + turnDurationMs + "ms ease-out";
+							layerCurrent.style.transform = "translate3d(" + startDx + "px,0,0)";
+							var rafMove = (win && win.requestAnimationFrame) ? win.requestAnimationFrame.bind(win) : function(cb){ return setTimeout(cb, 16); };
 						var overlayRaf = 0;
 						function stopOverlayAnim() {
 							try {
@@ -5508,29 +5586,55 @@ function attachSwipeToDoc(doc) {
 								}
 							}
 							overlayRaf = rafFn(step);
-						}
-						rafMove(function(){
-							layerCurrent.style.transform = "translate3d(" + off + "px,0,0)";
-							if (canRevealUnderlay) {
-								try { setShadow(off); } catch (eShadowMove) {}
-								animateOverlay(startDx, off);
+							}
+							rafMove(function(){
+								layerCurrent.style.transform = "translate3d(" + off + "px,0,0)";
+								if (canRevealUnderlay) {
+									try { setShadow(off); } catch (eShadowMove) {}
+									animateOverlay(startDx, off);
 							}
 						});
 						setTimeout(function(){
 								try { stopOverlayAnim(); } catch (eStopOverlay) {}
 								try { clearRevealOverlayOnly(); } catch (eDim) {}
 								var navResult = null;
-								try {
-									var rtl = isRtlReadingOrderSafe();
-									var goNext = isNext;
-									if (rtl) goNext = !goNext;
-									navResult = goNext ? rendition.next() : rendition.prev();
-							} catch (e) {}
+									try {
+										var rtl = isRtlReadingOrderSafe();
+											var goNext = isNext;
+											if (rtl) goNext = !goNext;
+											var exactTargetCfi = "";
+											var crossesSpineBoundary = false;
+											try {
+												exactTargetCfi = (!isNext && expectedTurnLoc && expectedTurnLoc.end && expectedTurnLoc.end.cfi)
+													? String(expectedTurnLoc.end.cfi)
+													: "";
+											} catch (eExactTarget) {}
+											try {
+												var currentTurnLoc = getSwipeBaseLocationForTurn(false);
+												var currentIndex = currentTurnLoc && currentTurnLoc.start && typeof currentTurnLoc.start.index === "number"
+													? currentTurnLoc.start.index
+													: null;
+												var targetIndex = expectedTurnLoc && expectedTurnLoc.start && typeof expectedTurnLoc.start.index === "number"
+													? expectedTurnLoc.start.index
+													: null;
+												crossesSpineBoundary = currentIndex !== null && targetIndex !== null && currentIndex !== targetIndex;
+											} catch (eSpineBoundary) {}
+											if (!goNext && exactTargetCfi && !crossesSpineBoundary) {
+												navResult = rendition.display(exactTargetCfi);
+											} else {
+												navResult = goNext ? rendition.next() : rendition.prev();
+										}
+								} catch (e) {}
 							// Reset after epub.js has accepted the relocation. A fixed short delay
 							// can expose the old layer for one frame and makes the page appear to jump.
-								Promise.resolve(navResult).catch(function(){}).finally(function(){
-									finishSwipeTurn(unlockTimer, settleAfterRelocateMs);
-								});
+									Promise.resolve(navResult)
+										.catch(function(){})
+										.then(function(){
+											return waitForCurrentTurnSettled(expectedTurnLoc, requireReveal ? 1100 : 600).catch(function(){});
+										})
+										.finally(function(){
+											finishSwipeTurn(unlockTimer, 0);
+										});
 							}, turnDurationMs);
 							return true;
 						} catch (e2) {
@@ -5552,10 +5656,10 @@ function attachSwipeToDoc(doc) {
 							var runCommit = function(){
 								try { commitTurn(isNext, true); } catch (e1) {}
 							};
-							try {
-								var isIosLike = /iPad|iPhone|iPod/i.test((navigator && navigator.userAgent) || "");
-								var isDesktopReader = !!(window && window.__fb_isDesktop);
-								var locForTurn = reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation());
+								try {
+									var isIosLike = /iPad|iPhone|iPod/i.test((navigator && navigator.userAgent) || "");
+									var isDesktopReader = !!(window && window.__fb_isDesktop);
+									var locForTurn = getSwipeBaseLocationForTurn(!!isNext);
 								if (existingNeighborLayerReady(!!isNext) || neighborRevealReady(!!isNext)) {
 									runCommit();
 									return;
@@ -5653,12 +5757,12 @@ function attachSwipeToDoc(doc) {
 							var neighborsReadyNow = false;
 							try {
 								neighborsReadyNow = !!(
-									reader &&
-									reader.__neighborsReadyForLocation &&
-									reader.__neighborsReadyForLocation(
-										reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation())
-									)
-								);
+										reader &&
+										reader.__neighborsReadyForLocation &&
+										reader.__neighborsReadyForLocation(
+											getSwipeBaseLocationForTurn(false) || getSwipeBaseLocationForTurn(true)
+										)
+									);
 							} catch (eReadyNow) {}
 							state.waitingNeighbors = !neighborsReadyNow;
 							if (state.waitingNeighbors) {
@@ -5930,16 +6034,24 @@ function attachSwipeToDoc(doc) {
 						return;
 					}
 
-					var isNextTurn = dx < 0;
-					if (state.waitingNeighbors || !canRevealForDx(dx)) {
-						state.lock = true;
-						ensureTurnNeighborReady(isNextTurn, 650).finally(function(){
-							state.lock = false;
-							commitTurn(isNextTurn);
-						});
-					} else {
-						commitTurn(isNextTurn);
-					}
+						var isNextTurn = dx < 0;
+						if (state.waitingNeighbors || !canRevealForDx(dx)) {
+							state.lock = true;
+							ensureTurnNeighborReady(isNextTurn, isNextTurn ? 650 : 1400)
+								.then(function(){
+									if (isNextTurn) return true;
+									return waitForNeighborRevealReady(false, 1800);
+								})
+								.catch(function(){ return false; })
+								.finally(function(){
+								state.lock = false;
+								if (isNextTurn || canRevealForDx(dx)) {
+									commitTurn(isNextTurn, !isNextTurn);
+								}
+							});
+						} else {
+							commitTurn(isNextTurn, !isNextTurn);
+						}
 					try { ev.preventDefault(); ev.stopPropagation(); } catch (e) {}
 				}
 
@@ -6098,6 +6210,19 @@ function attachSwipeToDoc(doc) {
 					} catch (e0) {}
 					return false;
 				}
+				function isBeforeDisplayedStart(a, b) {
+					try {
+						if (!a || !b) return false;
+						var ai = getLocationStartIndex(a);
+						var bi = getLocationStartIndex(b);
+						if (ai < 0 || bi < 0) return false;
+						if (ai !== bi) return ai < bi;
+						var ap = getLocationDisplayedPage(a);
+						var bp = getLocationDisplayedPage(b);
+						return ap > 0 && bp > 0 && ap < bp;
+					} catch (e0) {}
+					return false;
+				}
 				function isAtEndOfCurrentSpineItem(loc) {
 					try {
 						var d = loc && loc.end && loc.end.displayed ? loc.end.displayed : (loc && loc.start && loc.start.displayed ? loc.start.displayed : null);
@@ -6118,13 +6243,23 @@ function attachSwipeToDoc(doc) {
 					} catch (e0) {}
 					return "";
 				}
+				var prevDisplayAlreadyBefore = false;
 				Promise.resolve(reader.renditionPrev.display(curCfi))
 					.then(function(){
 						if (reader._neighborPrevExpected !== tokPrev) return;
+						try {
+							var baseLoc = location || (reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
+							var loc = reader.renditionPrev && reader.renditionPrev.currentLocation ? reader.renditionPrev.currentLocation() : null;
+							if (isBeforeDisplayedStart(loc, baseLoc)) {
+								prevDisplayAlreadyBefore = true;
+								return;
+							}
+						} catch (ePrevAlreadyBefore) {}
 						return reader.renditionPrev.prev();
 					})
 					.then(function(){
 						if (reader._neighborPrevExpected !== tokPrev) return;
+						if (prevDisplayAlreadyBefore) return;
 						try {
 							var baseLoc = location || (reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null);
 							var loc = reader.renditionPrev && reader.renditionPrev.currentLocation ? reader.renditionPrev.currentLocation() : null;
