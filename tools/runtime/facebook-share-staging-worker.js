@@ -35,6 +35,11 @@ function isFacebookPreviewBot(request) {
   return META_PREVIEW_BOT_PATTERN.test(userAgent) || META_APP_PREVIEW_PATTERN.test(userAgent);
 }
 
+function shouldUseStandardCoverPreview(request) {
+  const userAgent = String(request.headers.get("user-agent") || "");
+  return /\b(?:twitterbot|telegrambot|whatsapp|linkedinbot|slackbot)\b/i.test(userAgent);
+}
+
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -716,7 +721,7 @@ export default {
     if (!sourceHtml) return textResponse("Not found", 404, { "cache-control": "no-store" });
 
     const html = rewriteShareHtml(sourceHtml, url.pathname, getRequestOrigin(request.url), {
-      facebook: isFacebookPreviewBot(request),
+      facebook: isFacebookPreviewBot(request) || !shouldUseStandardCoverPreview(request),
       includeRedirectScript: !(isCloudflarePagePreview(request) || isPreviewBot(request)),
     });
     return new Response(html, {
