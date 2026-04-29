@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<html class="no-js">
+<html class="no-js reader1-unified-shell">
 <head>
 <meta charset="utf-8"/>
 <meta content="IE=edge,chrome=1" http-equiv="X-UA-Compatible"/>
@@ -411,6 +411,7 @@
   function bootReader(bookPath) {
     return detectReader1OpenSpec(bookPath).then(function(spec){
     var initialCfi = "";
+    var initialPageState = null;
     var startupTarget = "";
     try {
       if (querySelectionIsCfi && qSelectionCfi) {
@@ -419,11 +420,47 @@
         initialCfi = hid;
       } else if (!isDemoEntry) {
         var lastKey = "readerpub:lastcfi:" + id;
+        var lastPageKey = "readerpub:lastpage:" + id;
         var lastSaved = localStorage && localStorage.getItem(lastKey);
         if (lastSaved) initialCfi = String(lastSaved);
+        try {
+          var rawPage = localStorage && localStorage.getItem(lastPageKey);
+          if (rawPage) {
+            var parsedPage = JSON.parse(rawPage);
+            if (parsedPage && parsedPage.page) initialPageState = parsedPage;
+          }
+        } catch (eLastPage) {}
       }
     } catch (eInitialCfi) {}
     startupTarget = initialCfi;
+    function applyPositionRestoreMask() {
+      try {
+        if (!document.getElementById("readerpub-position-restore-style")) {
+          var restoreStyle = document.createElement("style");
+          restoreStyle.id = "readerpub-position-restore-style";
+          restoreStyle.textContent = "html.reader-position-restoring #viewerStack,body.reader-position-restoring #viewerStack{opacity:0!important;}";
+          document.head && document.head.appendChild(restoreStyle);
+        }
+        if (document.documentElement && document.documentElement.classList) document.documentElement.classList.add("reader-position-restoring");
+        if (document.body && document.body.classList) document.body.classList.add("reader-position-restoring");
+      } catch (eRestoreMask) {}
+    }
+    function clearPositionRestoreMask() {
+      try { if (document.documentElement && document.documentElement.classList) document.documentElement.classList.remove("reader-position-restoring"); } catch (eHtmlRestore) {}
+      try { if (document.body && document.body.classList) document.body.classList.remove("reader-position-restoring"); } catch (eBodyRestore) {}
+    }
+    var initialPageNumberForMask = initialPageState ? parseInt(initialPageState.page, 10) : 0;
+    if (
+      initialPageState &&
+      initialPageNumberForMask &&
+      !isNaN(initialPageNumberForMask) &&
+      initialPageNumberForMask >= 1 &&
+      !querySelectionIsCfi &&
+      !hashIsCfi &&
+      !isDemoEntry
+    ) {
+      applyPositionRestoreMask();
+    }
     const opts = {
       openAs: spec.openAs,
       restore: true,
@@ -591,6 +628,7 @@
       try {
         if (!window.reader || !window.reader.rendition) return;
         const key = `readerpub:lastcfi:${id}`;
+        const pageKey = `readerpub:lastpage:${id}`;
         if (isDemoEntry) return;
         function getCfiFromLocation(location) {
           try {
@@ -600,13 +638,67 @@
           } catch (eCfiFromLocation) {}
           return "";
         }
+        function resolveCurrentCfi(fallbackLocation) {
+          try {
+            const liveLoc = window.reader && window.reader.rendition && window.reader.rendition.currentLocation
+              ? window.reader.rendition.currentLocation()
+              : null;
+            const liveCfi = getCfiFromLocation(liveLoc);
+            if (liveCfi) return liveCfi;
+          } catch (eLiveCfi) {}
+          return getCfiFromLocation(fallbackLocation);
+        }
+        function persistCurrentCfi(fallbackLocation) {
+          try {
+            const cfi = resolveCurrentCfi(fallbackLocation);
+            if (!cfi || !localStorage) return "";
+            localStorage.setItem(key, cfi);
+            if (window.reader && window.reader.settings) window.reader.settings.previousLocationCfi = cfi;
+            try {
+              const loc = window.reader && window.reader.rendition && window.reader.rendition.currentLocation
+                ? window.reader.rendition.currentLocation()
+                : fallbackLocation;
+              const pageState = window.reader && typeof window.reader.__getGlobalPageForLocation === "function"
+                ? window.reader.__getGlobalPageForLocation(loc)
+                : null;
+              if (pageState && pageState.page) {
+                localStorage.setItem(pageKey, JSON.stringify({
+                  page: pageState.page,
+                  total: pageState.total || 0,
+                  cfi: cfi,
+                  spineIndex: loc && loc.start && typeof loc.start.index === "number" ? loc.start.index : null,
+                  href: loc && loc.start && loc.start.href ? loc.start.href : "",
+                  localPage: loc && loc.start && loc.start.displayed && typeof loc.start.displayed.page === "number" ? loc.start.displayed.page : null,
+                  localTotal: loc && loc.start && loc.start.displayed && typeof loc.start.displayed.total === "number" ? loc.start.displayed.total : null,
+                  at: Date.now()
+                }));
+              }
+            } catch (ePersistPage) {}
+            return cfi;
+          } catch (ePersistCurrentCfi) {}
+          return "";
+        }
+        try {
+          window.__readerpubPersistCurrentLocation = function () {
+            return persistCurrentCfi(null);
+          };
+        } catch (eExposePersistCurrent) {}
         try {
           window.reader.rendition.on("relocated", function(location){
+            const persistSeq = (window.__readerpubPositionPersistSeq || 0) + 1;
+            window.__readerpubPositionPersistSeq = persistSeq;
+            const relocatedDuringRestore = !!window.__readerpubRestoreInProgress;
+            function persistStableCfi() {
+              try {
+                if (window.__readerpubPositionPersistSeq !== persistSeq) return;
+                if (relocatedDuringRestore) return;
+                persistCurrentCfi(location);
+              } catch (ePersistStableCfi) {}
+            }
             try {
-              const cfi = getCfiFromLocation(location);
-              const canSaveInitial = !!(querySelectionIsCfi || hashIsCfi);
-              const canSaveInteraction = !!(window.reader && window.reader._readerpubPositionSaveUnlocked);
-              if (cfi && localStorage && (canSaveInitial || canSaveInteraction)) localStorage.setItem(key, cfi);
+              persistStableCfi();
+              window.setTimeout(persistStableCfi, 260);
+              window.setTimeout(persistStableCfi, 700);
             } catch (e2) {}
             try {
               if (!(querySelectionIsCfi || hashIsCfi)) return;
@@ -619,8 +711,88 @@
               history.replaceState(null, "", `${window.location.pathname}${nextSearch ? "?" + nextSearch : ""}`);
             } catch (eClearDeepLink) {}
           });
+          window.addEventListener("pagehide", function () { persistCurrentCfi(null); }, { passive: true });
+          window.addEventListener("beforeunload", function () { persistCurrentCfi(null); });
         } catch (e3) {}
       } catch (e0) {}
+    })();
+
+    (function restoreSavedPageState(){
+      try {
+        if (!initialPageState || querySelectionIsCfi || hashIsCfi || isDemoEntry) return;
+        var page = parseInt(initialPageState.page, 10);
+        if (!page || isNaN(page) || page < 1) return;
+        var restoreDone = false;
+        var restoreCanceled = false;
+        var restoreStartedAt = Date.now();
+        var restoreId = "restore-" + restoreStartedAt + "-" + Math.random().toString(36).slice(2);
+        try {
+          window.__readerpubRestoreInProgress = true;
+          window.__readerpubActiveRestoreId = restoreId;
+          applyPositionRestoreMask();
+        } catch (eRestoreStyle) {}
+        function finishRestore() {
+          try { restoreDone = true; } catch (eDone) {}
+          try { window.__readerpubRestoreInProgress = false; } catch (eFlag) {}
+          try { if (window.__readerpubActiveRestoreId === restoreId) window.__readerpubActiveRestoreId = ""; } catch (eRestoreId) {}
+          clearPositionRestoreMask();
+        }
+        function cancelRestore() {
+          try { restoreCanceled = true; } catch (eCancel) {}
+          finishRestore();
+        }
+        try {
+          window.__readerpubCancelPositionRestore = cancelRestore;
+          ["pointerdown", "touchstart", "wheel", "keydown"].forEach(function(type){
+            window.addEventListener(type, function(){
+              if ((Date.now() - restoreStartedAt) > 600) cancelRestore();
+            }, { passive: true, capture: true });
+          });
+        } catch (eCancelBind) {}
+        function runRestore(attempt) {
+          try {
+            if (restoreCanceled || restoreDone) return;
+            if (!window.reader || typeof window.reader.__displayGlobalPage !== "function") {
+              if (attempt < 20) window.setTimeout(function(){ runRestore(attempt + 1); }, 150);
+              return;
+            }
+            try { initialPageState.__restoreId = restoreId; } catch (eRestoreStateId) {}
+            const restorePromise = (typeof window.reader.__displayLocalPage === "function")
+              ? Promise.resolve(window.reader.__displayLocalPage(initialPageState))
+              : Promise.resolve(false);
+            restorePromise.then(function(ok){
+              try {
+                if (restoreCanceled || restoreDone || window.__readerpubActiveRestoreId !== restoreId) return;
+                var loc = window.reader && window.reader.rendition && window.reader.rendition.currentLocation
+                  ? window.reader.rendition.currentLocation()
+                  : null;
+                var currentPage = window.reader && typeof window.reader.__getGlobalPageForLocation === "function"
+                  ? window.reader.__getGlobalPageForLocation(loc)
+                  : null;
+                var localOk = false;
+                try {
+                  if (loc && loc.start && loc.start.displayed && initialPageState && initialPageState.localPage) {
+                    var s = parseInt(loc.start.displayed.page || 0, 10) || 0;
+                    var e = loc.end && loc.end.displayed ? (parseInt(loc.end.displayed.page || 0, 10) || s) : s;
+                    var targetLocal = parseInt(initialPageState.localPage || 0, 10) || 0;
+                    localOk = !!(targetLocal && targetLocal >= Math.min(s, e) && targetLocal <= Math.max(s, e));
+                  }
+                } catch (eLocalCheck) {}
+                if ((currentPage && currentPage.page === page) || localOk) finishRestore();
+              } catch (eCheckRestore) {}
+              if (ok && typeof window.__readerpubPersistCurrentLocation === "function") {
+                window.__readerpubPersistCurrentLocation();
+              }
+            }).catch(function(){});
+          } catch (eRunRestore) {}
+        }
+        [350, 1800, 4200, 7800, 12000].forEach(function(delay){
+          window.setTimeout(function(){
+            if (!restoreDone && !restoreCanceled) runRestore(0);
+          }, delay);
+        });
+        window.setTimeout(function(){ if (!restoreDone) finishRestore(); }, 15000);
+      } catch (eRestoreSavedPage) {}
     })();
     });
   }
@@ -717,9 +889,9 @@
 <script src="js/epub.js?v=20260418-reader1-vertical-padding-restore-1"></script>
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
-<script src="js/reader.js?v=20260427-reader1-production-position-2"></script>
+<script src="js/reader.js?v=20260429-reader1-restore-cancel-2"></script>
 <script src="js/fullscreen-fix.js"></script>
-<script src="js/fbreader-ui.js?v=20260428-reader1-share-url-only-1"></script>
+<script src="js/fbreader-ui.js?v=20260429-reader1-iframe-click-toggle-3"></script>
 <!-- Plugins -->
 <!--
 -->
@@ -728,7 +900,7 @@
 -->
 <!-- <script src="js/hooks/extensions/highlight.js"></script> -->
 </head>
-<body class="ui-hidden" role="application" aria-label="Reader">
+<body class="ui-hidden reader1-unified-shell" role="application" aria-label="Reader">
 <div id="container">
 <div id="catalogOnboardingHint" class="reader-onboarding-hint" aria-hidden="true">
   <div class="reader-onboarding-hint-line1"></div>

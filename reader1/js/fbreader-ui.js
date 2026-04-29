@@ -959,6 +959,7 @@
         tgt.closest("#titlebar") ||
         tgt.closest("#bottombar") ||
         tgt.closest(".overlay") ||
+        tgt.closest(".overlay-panel") ||
         tgt.closest("#overlay-backdrop") ||
         tgt.closest("#mobileMorePanel") ||
         tgt.closest("#mobileMoreToggle")
@@ -2330,7 +2331,11 @@
       if (!button || button.__fbShellBound) return;
       button.__fbShellBound = true;
       button.addEventListener("click", function (e) {
-        if (e) e.preventDefault();
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+        }
         switchLibraryTab(tab);
       });
     });
@@ -2557,7 +2562,7 @@
   // -------- per-iframe gesture bridge + center tap toggle --------
   function enableIframeGestures(reader) {
     if (!reader || !reader.rendition) return;
-    var GESTURE_ATTACH_VERSION = "reader1-desktop-text-click-14";
+    var GESTURE_ATTACH_VERSION = "reader1-iframe-click-toggle-15";
 
     // epub.js can replace iframe documents as you paginate/relocate.
     // DOM scanning alone can miss the *current* contents document, which makes
@@ -2681,8 +2686,58 @@
         }
       }
 
+      function isReaderIframeInteractiveTarget(target) {
+        try {
+          var t = target || null;
+          if (t && t.nodeType === 3) t = t.parentElement;
+          if (!t || !t.closest) return false;
+          return !!t.closest("a[href],button,input,textarea,select,label,[role='button']");
+        } catch (e) {}
+        return false;
+      }
+
+      function shouldIgnoreIframeClickToggle(e) {
+        try {
+          if (!e) return true;
+          if (isReaderIframeInteractiveTarget(e.target)) return true;
+          if (moved) return true;
+          if ((window.__fbSelectionCommitPendingUntil || 0) > Date.now()) return true;
+          if (window.__fbSelectionActive) return true;
+          if (hasDocTextSelection()) return true;
+          if (
+            document.body &&
+            document.body.classList &&
+            document.body.classList.contains("search-open") &&
+            !document.body.classList.contains("search-minimized")
+          ) return true;
+          if (document.body && document.body.classList && document.body.classList.contains("overlay-open")) return true;
+        } catch (eIgnore) {}
+        return false;
+      }
+
+      function toggleUiFromIframeClick(e) {
+        if (shouldIgnoreIframeClickToggle(e)) return false;
+        try {
+          var now = Date.now();
+          if (now - (window.__fbIframeClickToggleAt || 0) < 220) return true;
+          window.__fbIframeClickToggleAt = now;
+        } catch (eDebounce) {}
+        toggleUiFromDesktopTextClick();
+        try {
+          if (e && e.stopPropagation) e.stopPropagation();
+        } catch (eStop) {}
+        return true;
+      }
+
       function onEnd(e) {
         if (__fb_isDesktop) {
+          try {
+            if (hasDocTextSelection()) {
+              desktopClickArmed = false;
+              desktopSuppressClickUntil = Date.now() + 700;
+              window.__fbSelectionCommitPendingUntil = Date.now() + 700;
+            }
+          } catch (eDesktopSelectionPending) {}
           desktopPointerDown = false;
           return;
         }
@@ -2717,6 +2772,7 @@
             }
           }
           if (Date.now() - startTime > 150) return;
+          if (isReaderIframeInteractiveTarget(e && e.target)) return;
           if (window.__fbSelectionActive && typeof window.__fbClearSelectionToolbar === "function") {
             window.__fbClearSelectionToolbar();
           } else {
@@ -2733,46 +2789,7 @@
           // Support both TouchEvent and PointerEvent
           var pt = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : e;
           if (!pt) return;
-          var x = pt.clientX, y = pt.clientY;
-          var inCenter = false;
-          var inCenterY = false;
-          var isTablet = false;
-          try {
-            if (window.parent && window.parent.document && window.parent.document.documentElement) {
-              isTablet = window.parent.document.documentElement.classList.contains("is-tablet");
-            } else if (document.documentElement) {
-              isTablet = document.documentElement.classList.contains("is-tablet");
-            }
-          } catch (eTb) {}
-          // Prefer the parent-calculated bounds (actual visible viewport).
-          try {
-            if (window.parent && window.parent.__fbTapCenterBounds && doc.defaultView && doc.defaultView.frameElement) {
-              var fr = doc.defaultView.frameElement;
-              if (fr && fr.getBoundingClientRect) {
-                var r = fr.getBoundingClientRect();
-                var px = x + r.left;
-                var py = y + r.top;
-                var bounds = window.parent.__fbTapCenterBounds;
-                inCenter = (px >= bounds.left && px <= bounds.right);
-                if (isTablet) {
-                  var vhParent = (window.parent.visualViewport && window.parent.visualViewport.height)
-                    ? window.parent.visualViewport.height
-                    : (window.parent.innerHeight || 0);
-                  inCenterY = (py >= vhParent * (1/3) && py <= vhParent * (2/3));
-                }
-              }
-            }
-          } catch (e0) {}
-          if (!inCenter) {
-            var w = doc.defaultView.innerWidth || doc.documentElement.clientWidth;
-            var h = doc.defaultView.innerHeight || doc.documentElement.clientHeight;
-            var centerW = w * 0.60;
-            var mx1 = (w - centerW) / 2;
-            var mx2 = mx1 + centerW;
-            inCenter = (x >= mx1 && x <= mx2);
-            if (isTablet) inCenterY = (y >= h * (1/3) && y <= h * (2/3));
-          }
-          if (inCenter && (!isTablet || inCenterY)) toggleUi();
+          toggleUi();
         } catch (e2) {}
       }
 
@@ -2786,35 +2803,32 @@
             !document.body.classList.contains("search-minimized")
           ) return false;
         } catch (eSearch) {}
-        if (!desktopClickArmed) return false;
+        if (!desktopClickArmed) return toggleUiFromIframeClick(e);
         desktopClickArmed = false;
         if (moved) return false;
         if (Date.now() - startTime > 1500) return false;
         try {
+          if ((window.__fbSelectionCommitPendingUntil || 0) > Date.now()) return false;
           if (window.__fbSelectionActive) return false;
           if (hasDocTextSelection()) {
-            clearDocTextSelection();
-            window.__fbSelectionActive = false;
+            return false;
           } else {
             window.__fbSelectionActive = false;
           }
         } catch (eSel) {}
         try {
-          var tgt = e && e.target;
-          if (tgt && tgt.nodeType === 3) tgt = tgt.parentElement;
-          var interactive = tgt && tgt.closest
-            ? tgt.closest("a,button,input,textarea,select,label")
-            : null;
-          if (interactive) return false;
+          if (isReaderIframeInteractiveTarget(e && e.target)) return false;
           var pt = e;
           if (!pt || typeof pt.clientX !== "number" || typeof pt.clientY !== "number") return false;
           var now = Date.now();
+          if (now - (window.__fbIframeClickToggleAt || 0) < 220) return true;
           var dx = Math.abs(pt.clientX - lastDesktopTapX);
           var dy = Math.abs(pt.clientY - lastDesktopTapY);
           if (now - lastDesktopTapAt < 120 && dx < 3 && dy < 3) return false;
           lastDesktopTapAt = now;
           lastDesktopTapX = pt.clientX;
           lastDesktopTapY = pt.clientY;
+          window.__fbIframeClickToggleAt = now;
           toggleUiFromDesktopTextClick();
           return true;
         } catch (eDesktopClick) {}
@@ -2822,7 +2836,6 @@
       }
 
       function onDesktopReaderClick(e) {
-        if (Date.now() - (window.__fbDesktopTextDirectToggleAt || 0) < 700) return;
         if (Date.now() < desktopSuppressClickUntil) return;
         try {
           if (!desktopClickArmed) {
@@ -2907,13 +2920,7 @@
           var directDown = null;
           var directInteractive = false;
           function directIsInteractive(target) {
-            try {
-              if (!target) return false;
-              if (target.nodeType === 3) target = target.parentElement;
-              if (!target || !target.closest) return false;
-              return !!target.closest("a[href],button,input,textarea,select,[role='button']");
-            } catch (e) {}
-            return false;
+            return isReaderIframeInteractiveTarget(target);
           }
           function directHasSelection() {
             try {
@@ -2930,17 +2937,9 @@
           }
           function directToggle() {
             try {
-              try {
-                var fr = doc.defaultView && doc.defaultView.frameElement ? doc.defaultView.frameElement.getBoundingClientRect() : null;
-                var bounds = window.__fbTapCenterBounds || null;
-                if (fr && bounds && directDown) {
-                  var absX = fr.left + directDown.x;
-                  if (absX < bounds.left || absX > bounds.right) return;
-                }
-              } catch (eBounds) {}
               var now = Date.now();
-              if (now - (window.__fbDesktopTextDirectToggleAt || 0) < 300) return;
-              window.__fbDesktopTextDirectToggleAt = now;
+              if (now - (window.__fbIframeClickToggleAt || 0) < 220) return;
+              window.__fbIframeClickToggleAt = now;
               window.__fbSelectionActive = false;
               if (document.body && document.body.classList && document.body.classList.contains("ui-hidden")) showUi();
               else hideUi();
@@ -2961,7 +2960,8 @@
               var dt = Date.now() - directDown.t;
               directDown = null;
               if (dx > 18 || dy > 18 || dt > 1500) return;
-              if (directHasSelection()) directClearSelection();
+              if ((window.__fbSelectionCommitPendingUntil || 0) > Date.now()) return;
+              if (directHasSelection()) return;
               directToggle();
               if (ev.stopPropagation) ev.stopPropagation();
             } catch (e) {}
@@ -5136,10 +5136,11 @@
         var span = state.markNodes[i];
         try {
           if (!span || !span.parentNode) continue;
+          var parent = span.parentNode;
           var txt = span.textContent || "";
           var tn = state.doc.createTextNode(txt);
-          span.parentNode.replaceChild(tn, span);
-          if (span.parentNode && span.parentNode.normalize) span.parentNode.normalize();
+          parent.replaceChild(tn, span);
+          if (parent && parent.normalize) parent.normalize();
         } catch (e) {}
       }
       state.markNodes = [];
@@ -5494,6 +5495,7 @@
     function commitSelection(doc) {
       if (!isDesktopSelectionMode()) return;
       try {
+        if ((window.__fbSuppressSelectionCommitUntil || 0) > Date.now()) return;
         var sel = getSelection(doc);
         if (!sel || sel.isCollapsed || !sel.rangeCount) return;
         var range = sel.getRangeAt(0).cloneRange();
@@ -5530,8 +5532,24 @@
       } catch (e0) {}
     }
 
+    function scheduleCommitSelection(doc) {
+      if (!isDesktopSelectionMode() || !doc) return;
+      try {
+        window.__fbSelectionCommitPendingUntil = Date.now() + 700;
+        if (doc.__fbSelCommitTimer) clearTimeout(doc.__fbSelCommitTimer);
+        doc.__fbSelCommitTimer = setTimeout(function () {
+          doc.__fbSelCommitTimer = null;
+          window.__fbSelectionCommitPendingUntil = Date.now() + 200;
+          commitSelection(doc);
+        }, 40);
+      } catch (e) {}
+    }
+
     function scheduleUpdate(doc) {
       if (!doc) return;
+      try {
+        if ((window.__fbSuppressSelectionCommitUntil || 0) > Date.now()) return;
+      } catch (eSuppressUpdate) {}
       if (doc.__fbSelToolbarTimer) {
         try { clearTimeout(doc.__fbSelToolbarTimer); } catch (e) {}
       }
@@ -5589,8 +5607,8 @@
         if (isDesktopSelectionMode()) return;
         if (!state.ignoreSelectionChange && !state.locked) scheduleUpdate(doc);
       }, true); } catch (e) {}
-      try { doc.addEventListener("pointerup", function () { commitSelection(doc); }, true); } catch (e) {}
-      try { doc.addEventListener("mouseup", function () { commitSelection(doc); }, true); } catch (e) {}
+      try { doc.addEventListener("pointerup", function () { scheduleCommitSelection(doc); }, true); } catch (e) {}
+      try { doc.addEventListener("mouseup", function () { scheduleCommitSelection(doc); }, true); } catch (e) {}
       try { doc.addEventListener("click", function (e) {
         if (!isDesktopSelectionMode()) return;
         if (!state.locked || state.doc !== doc) return;
@@ -5600,9 +5618,30 @@
         try { if (e && e.stopPropagation) e.stopPropagation(); } catch (e2) {}
       }, true); } catch (e) {}
       try { doc.addEventListener("keyup", function () { scheduleUpdate(doc); }, true); } catch (e) {}
-      try { doc.addEventListener("pointerdown", function () { if (state.locked) hideAndClear(); state.locked = false; }, true); } catch (e) {}
-      try { doc.addEventListener("touchstart", function () { if (state.locked) hideAndClear(); state.locked = false; }, true); } catch (e) {}
-      try { doc.addEventListener("mousedown", function () { if (state.locked) hideAndClear(); state.locked = false; }, true); } catch (e) {}
+      function prepareForNewMouseSelection() {
+        try {
+          if (!state.locked && !state.text && !(state.markNodes && state.markNodes.length)) return;
+          hideToolbar();
+          setDismissActive(false);
+          state.locked = false;
+          state.dragSelecting = false;
+          window.__fbSelectionActive = false;
+        } catch (ePrepare) {}
+      }
+
+      function clearForNewTouchSelection() {
+        try {
+          if (state.locked || state.text || (state.markNodes && state.markNodes.length)) hideAndClear();
+          state.locked = false;
+        } catch (eClearTouch) {}
+      }
+
+      try { doc.addEventListener("pointerdown", function (e) {
+        if (e && e.pointerType === "mouse") prepareForNewMouseSelection();
+        else clearForNewTouchSelection();
+      }, true); } catch (e) {}
+      try { doc.addEventListener("touchstart", function () { clearForNewTouchSelection(); }, true); } catch (e) {}
+      try { doc.addEventListener("mousedown", function () { prepareForNewMouseSelection(); }, true); } catch (e) {}
 
       if (isMobile) {
         var preventNative = function (e) {
@@ -5840,8 +5879,9 @@
         return rr;
       }
 
-    function applyCustomSelection(range, showToolbar) {
+    function applyCustomSelection(range, showToolbar, options) {
       if (!range) return;
+      var deferMark = !!(options && options.deferMark);
       try {
         range = normalizeRangeToWordBoundaries(range);
       } catch (eNormRange) {}
@@ -5856,7 +5896,12 @@
       } catch (e) {}
       resetSelectionShareIfChanged(state.cfi, state.text);
       prewarmSelectionShareUrl();
-      applyMark(doc, range);
+      if (deferMark) {
+        clearMarks();
+        try { syncNativeSelectionToRange(doc, range); } catch (eSync) {}
+      } else {
+        applyMark(doc, range);
+      }
       if (showToolbar) {
         var mrect = getMarkRect(doc);
         if (mrect) {
@@ -5969,18 +6014,9 @@
           lpDir = 0;
           lpHasMeaningfulDrag = false;
           if (word) {
-            applyCustomSelection(word, false);
+            applyCustomSelection(word, false, { deferMark: true });
             state.pendingTouchToolbar = true;
             bindTouchToolbarReleaseFallback(doc);
-            setTimeout(function () {
-              try {
-                if (!state.pendingTouchToolbar || lpHasMeaningfulDrag) return;
-                state.pendingTouchToolbar = false;
-                state.dragSelecting = false;
-                showToolbarForCurrentSelection();
-                setDismissActive(true);
-              } catch (eDeferredToolbar) {}
-            }, 260);
           }
         }, 500);
       }
@@ -6018,7 +6054,7 @@
         } catch (eCmp) {}
         var combined = makeRangeBetween(lpAnchorRange, curr);
         if (combined) {
-          applyCustomSelection(combined, false);
+          applyCustomSelection(combined, false, { deferMark: true });
           lpLastX = x;
           lpLastY = y;
         }
@@ -6037,6 +6073,8 @@
           if (state.locked) {
             if (!lpHasMeaningfulDrag && lpAnchorRange) {
               applyCustomSelection(lpAnchorRange, false);
+            } else if (state.range) {
+              try { applyCustomSelection(state.range.cloneRange(), false); } catch (eFinalRange) {}
             }
             state.pendingTouchToolbar = false;
             showToolbarForCurrentSelection();
