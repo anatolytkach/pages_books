@@ -5149,6 +5149,12 @@ function attachSwipeToDoc(doc) {
 						if (reader) {
 							reader._userInteractionTs = Date.now();
 							reader._readerpubPositionSaveUnlocked = true;
+							try {
+								if (reader.rendition && typeof reader.rendition.currentLocation === "function") {
+									var liveLoc = reader.rendition.currentLocation();
+									if (liveLoc && liveLoc.start) reader.rendition.location = liveLoc;
+								}
+							} catch (eSyncLiveLoc) {}
 							if (typeof reader.__markReaderInteraction === "function") reader.__markReaderInteraction();
 						}
 					} catch (eReaderMark) {}
@@ -5505,8 +5511,8 @@ function attachSwipeToDoc(doc) {
 					}
 
 				function commitTurn(isNext, requireReveal) {
-					if (state.lock) return;
 					markIframeReaderInteraction();
+					if (state.lock) return;
 					state.lock = true;
 					try {
 						if (reader) {
@@ -5602,28 +5608,7 @@ function attachSwipeToDoc(doc) {
 										var rtl = isRtlReadingOrderSafe();
 											var goNext = isNext;
 											if (rtl) goNext = !goNext;
-											var exactTargetCfi = "";
-											var crossesSpineBoundary = false;
-											try {
-												exactTargetCfi = (!isNext && expectedTurnLoc && expectedTurnLoc.end && expectedTurnLoc.end.cfi)
-													? String(expectedTurnLoc.end.cfi)
-													: "";
-											} catch (eExactTarget) {}
-											try {
-												var currentTurnLoc = getSwipeBaseLocationForTurn(false);
-												var currentIndex = currentTurnLoc && currentTurnLoc.start && typeof currentTurnLoc.start.index === "number"
-													? currentTurnLoc.start.index
-													: null;
-												var targetIndex = expectedTurnLoc && expectedTurnLoc.start && typeof expectedTurnLoc.start.index === "number"
-													? expectedTurnLoc.start.index
-													: null;
-												crossesSpineBoundary = currentIndex !== null && targetIndex !== null && currentIndex !== targetIndex;
-											} catch (eSpineBoundary) {}
-											if (!goNext && exactTargetCfi && !crossesSpineBoundary) {
-												navResult = rendition.display(exactTargetCfi);
-											} else {
-												navResult = goNext ? rendition.next() : rendition.prev();
-										}
+											navResult = goNext ? rendition.next() : rendition.prev();
 								} catch (e) {}
 							// Reset after epub.js has accepted the relocation. A fixed short delay
 							// can expose the old layer for one frame and makes the page appear to jump.
@@ -5649,8 +5634,8 @@ function attachSwipeToDoc(doc) {
 					}
 
 				function commitTapTurn(isNext) {
-						if (state.lock) return;
 						markIframeReaderInteraction();
+						if (state.lock) return;
 						try { resetTransform(); } catch (e0) {}
 						try {
 							var runCommit = function(){
@@ -5702,6 +5687,7 @@ function attachSwipeToDoc(doc) {
 				} catch (eExposeQuickTurn) {}
 
 					function onStart(x, y, target) {
+					markIframeReaderInteraction();
 					if (state.lock) return;
 					if (isSelectionActive()) return;
 						// Mobile: fullscreen MUST be requested synchronously in the same gesture stack.
@@ -9590,7 +9576,34 @@ EPUBJS.reader.ReaderController = function(book) {
 		return null;
 	}
 
+	function markManualReaderNavigation() {
+		try {
+			reader._userInteractionTs = Date.now();
+			reader._readerpubPositionSaveUnlocked = true;
+			try {
+				if (rendition && typeof rendition.currentLocation === "function") {
+					var liveLoc = rendition.currentLocation();
+					if (liveLoc && liveLoc.start) rendition.location = liveLoc;
+				}
+			} catch (eSyncLiveLoc) {}
+		} catch (eReaderManualMark) {}
+		try {
+			if (typeof reader.__markReaderInteraction === "function") reader.__markReaderInteraction();
+		} catch (eReaderManualHook) {}
+		try {
+			if (window.__readerpubRestoreInProgress && typeof window.__readerpubCancelPositionRestore === "function") {
+				window.__readerpubCancelPositionRestore();
+			}
+		} catch (eCancelRestore) {}
+		try {
+			if (typeof window.__readerpubMarkReaderInteraction === "function") {
+				window.__readerpubMarkReaderInteraction();
+			}
+		} catch (eTopManualMark) {}
+	}
+
 	function runQuickSwipeByUi(isNext) {
+		markManualReaderNavigation();
 		try {
 			if (typeof window.__fbQuickSwipeTurn === "function") {
 				window.__fbQuickSwipeTurn(!!isNext);
