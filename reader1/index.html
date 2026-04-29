@@ -427,7 +427,7 @@
           var rawPage = localStorage && localStorage.getItem(lastPageKey);
           if (rawPage) {
             var parsedPage = JSON.parse(rawPage);
-            if (parsedPage && parsedPage.page) initialPageState = parsedPage;
+            if (parsedPage && (parsedPage.page || parsedPage.localPage)) initialPageState = parsedPage;
           }
         } catch (eLastPage) {}
       }
@@ -449,7 +449,7 @@
       try { if (document.documentElement && document.documentElement.classList) document.documentElement.classList.remove("reader-position-restoring"); } catch (eHtmlRestore) {}
       try { if (document.body && document.body.classList) document.body.classList.remove("reader-position-restoring"); } catch (eBodyRestore) {}
     }
-    var initialPageNumberForMask = initialPageState ? parseInt(initialPageState.page, 10) : 0;
+    var initialPageNumberForMask = initialPageState ? parseInt(initialPageState.page || initialPageState.localPage || 0, 10) : 0;
     if (
       initialPageState &&
       initialPageNumberForMask &&
@@ -638,15 +638,27 @@
           } catch (eCfiFromLocation) {}
           return "";
         }
-        function resolveCurrentCfi(fallbackLocation) {
+        function getLocationForPersist(fallbackLocation) {
+          try {
+            if (
+              window.reader &&
+              typeof window.reader.__getStableLocationForPersist === "function"
+            ) {
+              const stableLoc = window.reader.__getStableLocationForPersist(fallbackLocation);
+              if (stableLoc && stableLoc.start) return stableLoc;
+            }
+          } catch (eStableLoc) {}
           try {
             const liveLoc = window.reader && window.reader.rendition && window.reader.rendition.currentLocation
               ? window.reader.rendition.currentLocation()
               : null;
-            const liveCfi = getCfiFromLocation(liveLoc);
-            if (liveCfi) return liveCfi;
-          } catch (eLiveCfi) {}
-          return getCfiFromLocation(fallbackLocation);
+            if (liveLoc && liveLoc.start) return liveLoc;
+          } catch (eLiveLoc) {}
+          return fallbackLocation || null;
+        }
+        function resolveCurrentCfi(fallbackLocation) {
+          const loc = getLocationForPersist(fallbackLocation);
+          return getCfiFromLocation(loc);
         }
         function persistCurrentCfi(fallbackLocation) {
           try {
@@ -655,21 +667,26 @@
             localStorage.setItem(key, cfi);
             if (window.reader && window.reader.settings) window.reader.settings.previousLocationCfi = cfi;
             try {
-              const loc = window.reader && window.reader.rendition && window.reader.rendition.currentLocation
-                ? window.reader.rendition.currentLocation()
-                : fallbackLocation;
+              const loc = getLocationForPersist(fallbackLocation);
               const pageState = window.reader && typeof window.reader.__getGlobalPageForLocation === "function"
                 ? window.reader.__getGlobalPageForLocation(loc)
                 : null;
-              if (pageState && pageState.page) {
+              const startDisplayed = loc && loc.start && loc.start.displayed ? loc.start.displayed : null;
+              const localPage = startDisplayed && typeof startDisplayed.page === "number" ? startDisplayed.page : null;
+              if (localPage || (pageState && pageState.page)) {
+                let previousPageState = null;
+                try {
+                  const rawPreviousPage = localStorage.getItem(pageKey);
+                  previousPageState = rawPreviousPage ? JSON.parse(rawPreviousPage) : null;
+                } catch (ePreviousPageState) {}
                 localStorage.setItem(pageKey, JSON.stringify({
-                  page: pageState.page,
-                  total: pageState.total || 0,
+                  page: (pageState && pageState.page) || (previousPageState && previousPageState.page) || 0,
+                  total: (pageState && pageState.total) || (previousPageState && previousPageState.total) || 0,
                   cfi: cfi,
                   spineIndex: loc && loc.start && typeof loc.start.index === "number" ? loc.start.index : null,
                   href: loc && loc.start && loc.start.href ? loc.start.href : "",
-                  localPage: loc && loc.start && loc.start.displayed && typeof loc.start.displayed.page === "number" ? loc.start.displayed.page : null,
-                  localTotal: loc && loc.start && loc.start.displayed && typeof loc.start.displayed.total === "number" ? loc.start.displayed.total : null,
+                  localPage: localPage,
+                  localTotal: startDisplayed && typeof startDisplayed.total === "number" ? startDisplayed.total : null,
                   at: Date.now()
                 }));
               }
@@ -692,6 +709,11 @@
               try {
                 if (window.__readerpubPositionPersistSeq !== persistSeq) return;
                 if (relocatedDuringRestore) return;
+                if (
+                  window.reader &&
+                  typeof window.reader.__isLocationSettlingForPersist === "function" &&
+                  window.reader.__isLocationSettlingForPersist()
+                ) return;
                 persistCurrentCfi(location);
               } catch (ePersistStableCfi) {}
             }
@@ -699,6 +721,8 @@
               persistStableCfi();
               window.setTimeout(persistStableCfi, 260);
               window.setTimeout(persistStableCfi, 700);
+              window.setTimeout(persistStableCfi, 1300);
+              window.setTimeout(persistStableCfi, 2100);
             } catch (e2) {}
             try {
               if (!(querySelectionIsCfi || hashIsCfi)) return;
@@ -720,8 +744,9 @@
     (function restoreSavedPageState(){
       try {
         if (!initialPageState || querySelectionIsCfi || hashIsCfi || isDemoEntry) return;
-        var page = parseInt(initialPageState.page, 10);
-        if (!page || isNaN(page) || page < 1) return;
+        var page = parseInt(initialPageState.page || 0, 10) || 0;
+        var localPage = parseInt(initialPageState.localPage || 0, 10) || 0;
+        if ((!page || isNaN(page) || page < 1) && (!localPage || isNaN(localPage) || localPage < 1)) return;
         var restoreDone = false;
         var restoreCanceled = false;
         var restoreStartedAt = Date.now();
@@ -778,7 +803,7 @@
                     localOk = !!(targetLocal && targetLocal >= Math.min(s, e) && targetLocal <= Math.max(s, e));
                   }
                 } catch (eLocalCheck) {}
-                if ((currentPage && currentPage.page === page) || localOk) finishRestore();
+                if ((page && currentPage && currentPage.page === page) || localOk) finishRestore();
               } catch (eCheckRestore) {}
               if (ok && typeof window.__readerpubPersistCurrentLocation === "function") {
                 window.__readerpubPersistCurrentLocation();
@@ -889,7 +914,7 @@
 <script src="js/epub.js?v=20260418-reader1-vertical-padding-restore-1"></script>
 <script src="/books/shared/drive-sync.js"></script>
 <!-- Reader -->
-<script src="js/reader.js?v=20260429-reader1-restore-cancel-2"></script>
+<script src="js/reader.js?v=20260429-reader1-mobile-tap-reveal-1"></script>
 <script src="js/fullscreen-fix.js"></script>
 <script src="js/fbreader-ui.js?v=20260429-reader1-iframe-click-toggle-3"></script>
 <!-- Plugins -->

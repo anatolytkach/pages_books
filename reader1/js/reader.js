@@ -5354,6 +5354,68 @@ function attachSwipeToDoc(doc) {
 					return false;
 				}
 
+					function neighborRevealReady(isNext) {
+						try {
+							var loc = reader && reader._lastRelocated
+								? reader._lastRelocated
+								: (rendition && rendition.currentLocation && rendition.currentLocation());
+							return !!(
+								reader &&
+								reader.__neighborReadyForTurn &&
+								reader.__neighborReadyForTurn(loc, !!isNext)
+							);
+						} catch (e) {}
+						return false;
+					}
+
+					function existingNeighborLayerReady(isNext) {
+						try {
+							if (!hasRenderableNeighborLayer(!!isNext)) return false;
+							var layerId = isNext ? "viewer-next" : "viewer-prev";
+							var layer = document.getElementById(layerId);
+							if (!layer) return false;
+							var iframe = layer.querySelector("iframe");
+							if (!iframe) return false;
+							var src = "";
+							try { src = iframe.getAttribute("src") || iframe.contentWindow.location.href || ""; } catch (eSrc) {}
+							var loc = reader && reader._lastRelocated
+								? reader._lastRelocated
+								: (rendition && rendition.currentLocation && rendition.currentLocation());
+							if (reader && reader.__neighborReadyForTurn && loc) {
+								return !!reader.__neighborReadyForTurn(loc, !!isNext);
+							}
+							return !!src;
+						} catch (e) {}
+						return false;
+					}
+
+					function neighborRevealStrictReady(isNext) {
+						return neighborRevealReady(!!isNext) && hasRenderableNeighborLayer(!!isNext);
+					}
+
+				function waitForNeighborRevealReady(isNext, timeoutMs) {
+					var timeout = parseInt(timeoutMs, 10) || 1800;
+					var started = Date.now();
+					function poll(resolve) {
+							if (neighborRevealStrictReady(!!isNext)) {
+								resolve(true);
+								return;
+							}
+						try {
+							var loc = reader && reader._lastRelocated
+								? reader._lastRelocated
+								: (rendition && rendition.currentLocation && rendition.currentLocation());
+							if (reader && reader.__updateSwipeNeighbors && loc) reader.__updateSwipeNeighbors(loc);
+							} catch (eRefreshNeighbor) {}
+							if ((Date.now() - started) >= timeout) {
+								resolve(neighborRevealStrictReady(!!isNext));
+								return;
+							}
+						setTimeout(function(){ poll(resolve); }, 80);
+					}
+					return new Promise(function(resolve){ poll(resolve); });
+				}
+
 					function isRtlReadingOrderSafe() {
 						try {
 							var md = book && book.package && book.package.metadata ? book.package.metadata : null;
@@ -5368,7 +5430,7 @@ function attachSwipeToDoc(doc) {
 						return false;
 					}
 
-				function commitTurn(isNext) {
+				function commitTurn(isNext, requireReveal) {
 					if (state.lock) return;
 					markIframeReaderInteraction();
 					state.lock = true;
@@ -5377,7 +5439,7 @@ function attachSwipeToDoc(doc) {
 							reader._swipeAnimating = true;
 							reader._pendingSwipeNeighborLocation = null;
 						}
-					} catch (eSwipeFlag) {}
+						} catch (eSwipeFlag) {}
 					// Watchdog: epub.js can sometimes take longer to relocate on mobile;
 					// never leave the swipe state locked.
 					var unlockTimer = null;
@@ -5391,13 +5453,16 @@ function attachSwipeToDoc(doc) {
 						var startDx = (isFinite(state.appliedDx) && state.appliedDx !== 1e9) ? state.appliedDx : 0;
 						var isDesktopReader = !!(window && window.__fb_isDesktop);
 						var canRevealUnderlay = false;
-						try {
-							canRevealUnderlay = !!(reader && reader.__neighborReadyForTurn && reader.__neighborReadyForTurn(
-								reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation()),
-								!!isNext
-							));
-						} catch (eReady) {}
-						if (canRevealUnderlay) {
+							try {
+								canRevealUnderlay = neighborRevealReady(!!isNext);
+							} catch (eReady) {}
+							if (requireReveal && !canRevealUnderlay) {
+								try { if (unlockTimer) clearTimeout(unlockTimer); } catch(eReqRevealTimer){}
+								resetTransform();
+								state.lock = false;
+								return false;
+							}
+							if (canRevealUnderlay) {
 							setReveal(startDx || (isNext ? -1 : 1));
 							try {
 								if (shadow) {
@@ -5463,17 +5528,21 @@ function attachSwipeToDoc(doc) {
 							} catch (e) {}
 							// Reset after epub.js has accepted the relocation. A fixed short delay
 							// can expose the old layer for one frame and makes the page appear to jump.
-							Promise.resolve(navResult).catch(function(){}).finally(function(){
-								finishSwipeTurn(unlockTimer, settleAfterRelocateMs);
-							});
-						}, turnDurationMs);
-					} catch (e2) {
-						try { if (isNext) rendition.next(); else rendition.prev(); } catch(e3) {}
-						try { if (unlockTimer) clearTimeout(unlockTimer); } catch(e0){}
-						resetTransform();
-						state.lock = false;
+								Promise.resolve(navResult).catch(function(){}).finally(function(){
+									finishSwipeTurn(unlockTimer, settleAfterRelocateMs);
+								});
+							}, turnDurationMs);
+							return true;
+						} catch (e2) {
+							try { if (unlockTimer) clearTimeout(unlockTimer); } catch(e0){}
+							resetTransform();
+							state.lock = false;
+							if (!requireReveal) {
+								try { if (isNext) rendition.next(); else rendition.prev(); } catch(e3) {}
+							}
+							return false;
+						}
 					}
-				}
 
 				function commitTapTurn(isNext) {
 						if (state.lock) return;
@@ -5481,45 +5550,37 @@ function attachSwipeToDoc(doc) {
 						try { resetTransform(); } catch (e0) {}
 						try {
 							var runCommit = function(){
-								try { commitTurn(isNext); } catch (e1) {
-									try {
-										var rtl = isRtlReadingOrderSafe();
-										var goNext = isNext;
-										if (rtl) goNext = !goNext;
-										if (goNext) rendition.next(); else rendition.prev();
-									} catch (e2) {}
-								}
+								try { commitTurn(isNext, true); } catch (e1) {}
 							};
 							try {
 								var isIosLike = /iPad|iPhone|iPod/i.test((navigator && navigator.userAgent) || "");
 								var isDesktopReader = !!(window && window.__fb_isDesktop);
-								if (isDesktopReader) {
-									var locForTurn = reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation());
-									try {
-										if (reader && reader.__updateSwipeNeighbors && locForTurn) reader.__updateSwipeNeighbors(locForTurn);
-									} catch (eRefresh) {}
-									((reader && reader.__ensureNeighborRenderedForTurn)
-										? reader.__ensureNeighborRenderedForTurn(locForTurn, !!isNext, 420)
-										: Promise.resolve())
-									.catch(function(){})
-									.finally(function(){ runCommit(); });
-								} else if (isIosLike && win && typeof win.requestAnimationFrame === "function") {
-									try { ensureNeighborsReady().catch(function(){}); } catch (eWarm) {}
-									win.requestAnimationFrame(function(){ runCommit(); });
-								} else {
-									try { ensureNeighborsReady().catch(function(){}); } catch (eWarm2) {}
+								var locForTurn = reader._lastRelocated || (rendition && rendition.currentLocation && rendition.currentLocation());
+								if (existingNeighborLayerReady(!!isNext) || neighborRevealReady(!!isNext)) {
 									runCommit();
+									return;
 								}
+								try {
+									if (reader && reader.__updateSwipeNeighbors && locForTurn) reader.__updateSwipeNeighbors(locForTurn);
+								} catch (eRefresh) {}
+								state.lock = true;
+								((reader && reader.__ensureNeighborRenderedForTurn)
+									? reader.__ensureNeighborRenderedForTurn(locForTurn, !!isNext, isDesktopReader && !isIosLike ? 520 : 1400)
+									: ensureTurnNeighborReady(!!isNext, isDesktopReader && !isIosLike ? 520 : 1400))
+								.catch(function(){})
+								.then(function(){
+									return waitForNeighborRevealReady(!!isNext, isDesktopReader && !isIosLike ? 520 : 1800);
+								})
+								.catch(function(){ return false; })
+								.then(function(ready){
+									state.lock = false;
+									if (ready) runCommit();
+								});
 							} catch (eRun) {
 								runCommit();
 							}
 						} catch (e3) {
-							try {
-								var rtl2 = isRtlReadingOrderSafe();
-								var goNext2 = isNext;
-								if (rtl2) goNext2 = !goNext2;
-								if (goNext2) rendition.next(); else rendition.prev();
-							} catch (e4) {}
+							try { state.lock = false; } catch (e4) {}
 						}
 					}
 
@@ -6380,6 +6441,135 @@ if (doc) {
 	this._pageCounterPendingSince = 0;
 	this._lastStablePageCounterText = "";
 	this._globalPageMapBuildWatchdog = null;
+	this._readerpubMobileStableLocation = null;
+	this._readerpubMobileStableLocationAt = 0;
+	this._readerpubMobileLocationSettleTimer = null;
+	this._readerpubMobileLocationSettleToken = 0;
+	this._readerpubMobileLocationSettlingUntil = 0;
+
+	function isTouchPaginationMode() {
+		try {
+			var coarse = !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+			var touchCapable = !!((navigator && navigator.maxTouchPoints > 0) || ("ontouchstart" in window));
+			return coarse || touchCapable || window.__fb_isDesktop === false;
+		} catch (e) {}
+		return false;
+	}
+
+	function getViewportSizeSignature() {
+		try {
+			var vv = window.visualViewport || null;
+			var w = Math.round((vv && vv.width) || window.innerWidth || 0);
+			var h = Math.round((vv && vv.height) || window.innerHeight || 0);
+			var scale = vv && vv.scale ? Math.round(vv.scale * 1000) : 1000;
+			return w + "x" + h + "@" + scale;
+		} catch (e) {}
+		return "";
+	}
+
+	function waitForMobileLayoutStable(timeoutMs) {
+		if (!isTouchPaginationMode()) return Promise.resolve(true);
+		var timeout = parseInt(timeoutMs, 10) || 1800;
+		var started = Date.now();
+		var previousSignature = "";
+		var stableSince = 0;
+		function tick(resolve) {
+			var now = Date.now();
+			try {
+				if (reader._layoutReflowTimer || (reader._navInProgressUntil && now < reader._navInProgressUntil)) {
+					previousSignature = "";
+					stableSince = 0;
+				} else {
+					var sig = getViewportSizeSignature();
+					if (sig && sig === previousSignature) {
+						if (!stableSince) stableSince = now;
+						if ((now - stableSince) >= 260) {
+							resolve(true);
+							return;
+						}
+					} else {
+						previousSignature = sig;
+						stableSince = now;
+					}
+				}
+			} catch (eStableTick) {}
+			if ((now - started) >= timeout) {
+				resolve(false);
+				return;
+			}
+			setTimeout(function () { tick(resolve); }, 90);
+		}
+		return new Promise(function (resolve) { tick(resolve); });
+	}
+
+	function getBestLocationForPersist(fallbackLocation) {
+		try {
+			if (isTouchPaginationMode()) {
+				var settlingUntil = parseInt(reader._readerpubMobileLocationSettlingUntil || 0, 10) || 0;
+				var stableAt = parseInt(reader._readerpubMobileStableLocationAt || 0, 10) || 0;
+				if (
+					reader._readerpubMobileStableLocation &&
+					stableAt &&
+					(!settlingUntil || Date.now() >= settlingUntil)
+				) {
+					return reader._readerpubMobileStableLocation;
+				}
+			}
+		} catch (eStablePersist) {}
+		try {
+			var loc = reader.rendition && reader.rendition.currentLocation ? reader.rendition.currentLocation() : null;
+			if (loc && loc.start) return loc;
+		} catch (eCurrentPersist) {}
+		try {
+			if (reader._lastRelocated && reader._lastRelocated.start) return reader._lastRelocated;
+		} catch (eLastPersist) {}
+		return fallbackLocation || null;
+	}
+
+	function scheduleMobileStableLocation(location) {
+		if (!isTouchPaginationMode()) return;
+		var token = (reader._readerpubMobileLocationSettleToken || 0) + 1;
+		reader._readerpubMobileLocationSettleToken = token;
+		reader._readerpubMobileLocationSettlingUntil = Date.now() + 1100;
+		try {
+			if (reader._readerpubMobileLocationSettleTimer) clearTimeout(reader._readerpubMobileLocationSettleTimer);
+		} catch (eClearMobileSettle) {}
+		function captureStableLocation() {
+			if (reader._readerpubMobileLocationSettleToken !== token) return;
+			waitForMobileLayoutStable(1800).then(function () {
+				try {
+					if (reader._readerpubMobileLocationSettleToken !== token) return;
+					var loc = getBestLocationForPersist(location);
+					if (loc && loc.start) {
+						reader._readerpubMobileStableLocation = loc;
+						reader._readerpubMobileStableLocationAt = Date.now();
+						reader._readerpubMobileLocationSettlingUntil = 0;
+						if (
+							window.__readerpubPersistCurrentLocation &&
+							reader._readerpubPositionSaveUnlocked &&
+							!window.__readerpubRestoreInProgress
+						) {
+							window.__readerpubPersistCurrentLocation();
+						}
+					}
+				} catch (eCaptureStable) {}
+			}).catch(function(){});
+		}
+		reader._readerpubMobileLocationSettleTimer = setTimeout(captureStableLocation, 520);
+	}
+
+	reader.__waitForMobileLayoutStable = waitForMobileLayoutStable;
+	reader.__getStableLocationForPersist = getBestLocationForPersist;
+	reader.__isLocationSettlingForPersist = function () {
+		try {
+			return !!(
+				isTouchPaginationMode() &&
+				reader._readerpubMobileLocationSettlingUntil &&
+				Date.now() < reader._readerpubMobileLocationSettlingUntil
+			);
+		} catch (e) {}
+		return false;
+	};
 
 	function setPageCounterPending(pending) {
 		reader._pageCounterPending = !!pending;
@@ -6487,6 +6677,14 @@ if (doc) {
 		var hold = parseInt(ms, 10);
 		if (!hold || isNaN(hold) || hold < 200) hold = 1200;
 		try { reader._navInProgressUntil = Date.now() + hold; } catch (e) {}
+		try {
+			if (isTouchPaginationMode()) {
+				reader._readerpubMobileLocationSettlingUntil = Math.max(
+					reader._readerpubMobileLocationSettlingUntil || 0,
+					Date.now() + hold
+				);
+			}
+		} catch (eMobileNavHold) {}
 	}
 	reader.__markNavigationInProgress = markNavigationInProgress;
 
@@ -7619,7 +7817,9 @@ if (doc) {
 				}
 				return stepTowardTarget();
 			}
-			return waitForResponsiveSlot().then(function () {
+			return waitForMobileLayoutStable(2400).then(function () {
+				return waitForResponsiveSlot();
+			}).then(function () {
 				if (restoreWasCanceled()) return false;
 				return correctLocalPage(true);
 			});
@@ -7951,16 +8151,21 @@ if (doc) {
 		if (saveLocTimer) {
 			try { clearTimeout(saveLocTimer); } catch (e1) {}
 		}
+		var saveDelay = 200;
+		try {
+			if (isTouchPaginationMode()) saveDelay = 1200;
+		} catch (eDelay) {}
 		saveLocTimer = setTimeout(function () {
 			saveLocTimer = null;
 			try { reader.saveSettings(); } catch (e2) {}
-		}, 200);
+		}, saveDelay);
 	}
 ;
 
 	this.rendition.on("relocated", function (location) {
 		try { reader._lastRelocated = location; } catch (e) {}
 		try { reader._navInProgressUntil = 0; } catch (eNavDone) {}
+		try { scheduleMobileStableLocation(location); } catch (eMobileStableRelocated) {}
 		updatePageCount(location);
 		schedulePageCounterRecovery("relocated");
 		try {
@@ -8226,7 +8431,18 @@ EPUBJS.Reader.prototype.applySavedSettings = function() {
 
 EPUBJS.Reader.prototype.saveSettings = function(){
 	if(this.book) {
-		this.settings.previousLocationCfi = this.rendition.currentLocation().start.cfi;
+		var loc = null;
+		try {
+			loc = typeof this.__getStableLocationForPersist === "function"
+				? this.__getStableLocationForPersist(null)
+				: null;
+		} catch (eStableSettings) {}
+		if (!loc) {
+			try { loc = this.rendition.currentLocation(); } catch (eCurrentSettings) {}
+		}
+		if (loc && loc.start && loc.start.cfi) {
+			this.settings.previousLocationCfi = loc.start.cfi;
+		}
 	}
 
 	if(!localStorage) {
