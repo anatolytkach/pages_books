@@ -1212,6 +1212,9 @@ async function resolveReaderPreviewMeta(env, url) {
 
 function buildReaderPreviewMetaTags(meta) {
   if (!meta) return "";
+  const imageWidth = meta.imageWidth || "600";
+  const imageHeight = meta.imageHeight || "900";
+  const twitterCard = meta.twitterCard || "summary";
   return [
     `<meta property="og:site_name" content="ReaderPub" />`,
     `<meta property="og:type" content="article" />`,
@@ -1220,9 +1223,9 @@ function buildReaderPreviewMetaTags(meta) {
     meta.image ? `<meta property="og:image" content="${escapeHtml(meta.image)}" />` : "",
     meta.image ? `<meta property="og:image:secure_url" content="${escapeHtml(meta.image)}" />` : "",
     meta.image ? `<meta property="og:image:type" content="image/jpeg" />` : "",
-    meta.image ? `<meta property="og:image:width" content="600" />` : "",
-    meta.image ? `<meta property="og:image:height" content="900" />` : "",
-    `<meta name="twitter:card" content="summary" />`,
+    meta.image ? `<meta property="og:image:width" content="${escapeHtml(imageWidth)}" />` : "",
+    meta.image ? `<meta property="og:image:height" content="${escapeHtml(imageHeight)}" />` : "",
+    `<meta name="twitter:card" content="${escapeHtml(twitterCard)}" />`,
     `<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`,
     meta.image ? `<meta name="twitter:image" content="${escapeHtml(meta.image)}" />` : "",
     meta.author ? `<meta name="author" content="${escapeHtml(meta.author)}" />` : "",
@@ -1351,7 +1354,18 @@ function isTelegramPreviewBot(request) {
 
 function isFacebookPreviewBot(request) {
   const userAgent = String(request && request.headers ? request.headers.get("user-agent") || "" : "");
-  return /\b(?:facebookexternalhit|facebot)\b/i.test(userAgent);
+  return /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|messengerbot|facebookmessengerbot|messengerexternalhit|messengerpreview|FBAN|FBAV|FB_IAB|FBIOS|FB4A|Messenger|MSGR|FBMessenger|MessengerForiOS|MessengerLite)\b/i.test(userAgent);
+}
+
+function applyFacebookSelectionSharePreviewMeta(meta, shareId) {
+  if (!meta) return meta;
+  return {
+    ...meta,
+    image: `https://sh-staging.reader.pub/fb-og/${encodeURIComponent(String(shareId || ""))}.jpg`,
+    imageWidth: "1200",
+    imageHeight: "630",
+    twitterCard: "summary_large_image",
+  };
 }
 
 function buildSelectionSharePublicUrl(url, shareId) {
@@ -2863,12 +2877,15 @@ export default {
         /^https?:\/\/[a-z0-9.-]+$/i.test(forwardedOrigin) ? forwardedOrigin.replace(/\/+$/, "") : url.origin;
       const targetUrl = buildSelectionReaderUrl(publicOrigin, payload);
       const previewUrl = new URL(targetUrl);
-      const meta = await resolveReaderPreviewMeta(env, previewUrl);
+      let meta = await resolveReaderPreviewMeta(env, previewUrl);
       if (meta) {
         meta.url = new URL(`/s/${encodeURIComponent(shareId)}`, url.origin).toString();
       }
       const telegramProtectedPreview = payload.readerType === "protected" && isTelegramPreviewBot(request);
       const facebookPreview = isFacebookPreviewBot(request);
+      if (facebookPreview) {
+        meta = applyFacebookSelectionSharePreviewMeta(meta, shareId);
+      }
       const previewOnly = telegramProtectedPreview || facebookPreview;
       return htmlResponse(renderSelectionShareLandingPage(meta, targetUrl, {
         previewOnly,
