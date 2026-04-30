@@ -1445,13 +1445,12 @@ function resolveSelectionShareOrigin(url, env = {}) {
 function applyFacebookSelectionSharePreviewMeta(meta, shareId, url, env) {
   if (!meta) return meta;
   const shareOrigin = resolveSelectionShareOrigin(url, env);
-  const coverImage = String(meta.image || "").trim();
   return {
     ...meta,
-    image: coverImage || `${shareOrigin}/fb-og/${encodeURIComponent(String(shareId || ""))}.jpg`,
-    imageWidth: coverImage ? "600" : "1200",
-    imageHeight: coverImage ? "900" : "630",
-    twitterCard: coverImage ? "summary" : "summary_large_image",
+    image: `${shareOrigin}/fb-og/${encodeURIComponent(String(shareId || ""))}.jpg?v=book-card-v3`,
+    imageWidth: "1200",
+    imageHeight: "630",
+    twitterCard: "summary_large_image",
   };
 }
 

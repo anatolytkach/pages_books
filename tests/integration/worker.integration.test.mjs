@@ -412,10 +412,10 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
   assert.equal(facebookResponse.headers.get("vary"), null);
   assert.match(facebookBody, /property="og:title" content="ReaderPub - Anna Karenina - by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
   assert.match(facebookBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
-  assert.match(facebookBody, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/1399\/OEBPS\/cover\.jpg"/);
-  assert.match(facebookBody, /property="og:image:width" content="600"/);
-  assert.match(facebookBody, /property="og:image:height" content="900"/);
-  assert.match(facebookBody, /name="twitter:card" content="summary"/);
+  assert.match(facebookBody, /property="og:image:secure_url" content="https:\/\/sh-staging\.reader\.pub\/fb-og\/abc123XYZ\.jpg\?v=book-card-v3"/);
+  assert.match(facebookBody, /property="og:image:width" content="1200"/);
+  assert.match(facebookBody, /property="og:image:height" content="630"/);
+  assert.match(facebookBody, /name="twitter:card" content="summary_large_image"/);
   assert.match(facebookBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
   assert.doesNotMatch(facebookBody, /http-equiv="refresh"/);
   assert.doesNotMatch(facebookBody, /window\.location\.replace/);
@@ -458,7 +458,7 @@ test("Integration: production facebook selection preview uses production OG imag
 
   assert.equal(response.status, 200);
   assert.match(body, /property="og:url" content="https:\/\/reader\.pub\/s\/abc123XYZ"/);
-  assert.match(body, /property="og:image:secure_url" content="https:\/\/reader\.pub\/books\/content\/1399\/OEBPS\/cover\.jpg"/);
+  assert.match(body, /property="og:image:secure_url" content="https:\/\/share\.reader\.pub\/fb-og\/abc123XYZ\.jpg\?v=book-card-v3"/);
   assert.doesNotMatch(body, /sh-staging\.reader\.pub/);
 });
 
@@ -677,10 +677,10 @@ test("Integration: protected selection share API stores payload and redirects to
   assert.equal(facebookResponse.headers.get("vary"), null);
   assert.match(facebookBody, /property="og:title" content="ReaderPub - The Protected Book - by Ada Example\. &quot;Protected quoted text&quot;"/);
   assert.match(facebookBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\//);
-  assert.match(facebookBody, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/25344\/cover\.jpg"/);
-  assert.match(facebookBody, /property="og:image:width" content="600"/);
-  assert.match(facebookBody, /property="og:image:height" content="900"/);
-  assert.match(facebookBody, /name="twitter:card" content="summary"/);
+  assert.match(facebookBody, /property="og:image:secure_url" content="https:\/\/sh-staging\.reader\.pub\/fb-og\/[A-Za-z0-9_-]+\.jpg\?v=book-card-v3"/);
+  assert.match(facebookBody, /property="og:image:width" content="1200"/);
+  assert.match(facebookBody, /property="og:image:height" content="630"/);
+  assert.match(facebookBody, /name="twitter:card" content="summary_large_image"/);
   assert.match(facebookBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\//);
   assert.doesNotMatch(facebookBody, /http-equiv="refresh"/);
   assert.doesNotMatch(facebookBody, /window\.location\.replace/);

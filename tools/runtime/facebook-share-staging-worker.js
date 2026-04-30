@@ -10,7 +10,7 @@ const OG_IMAGE_WIDTH = 1200;
 const OG_IMAGE_HEIGHT = 630;
 const FACEBOOK_OG_IMAGE_WIDTH = 1200;
 const FACEBOOK_OG_IMAGE_HEIGHT = 630;
-const FACEBOOK_OG_IMAGE_VERSION = "book-card-v2";
+const FACEBOOK_OG_IMAGE_VERSION = "book-card-v3";
 const META_PREVIEW_BOT_PATTERN = /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|messengerbot|facebookmessengerbot|messengerexternalhit|messengerpreview)\b/i;
 const META_APP_PREVIEW_PATTERN = /\b(?:FBAN|FBAV|FB_IAB|FBIOS|FB4A|Messenger|MSGR|FBMessenger|MessengerForiOS|MessengerLite)\b/i;
 
@@ -242,10 +242,7 @@ function rewriteSelectionOgHtml(html, shareId, publicShareOrigin, options = {}) 
   rewritten = setMetaTag(rewritten, "name", "twitter:title", fields.title);
 
   if (options.facebook) {
-    const fallbackFacebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg?v=${encodeURIComponent(FACEBOOK_OG_IMAGE_VERSION)}`;
-    const facebookImage = coverImage || fallbackFacebookImage;
-    const facebookImageWidth = coverImage ? "600" : String(FACEBOOK_OG_IMAGE_WIDTH);
-    const facebookImageHeight = coverImage ? "900" : String(FACEBOOK_OG_IMAGE_HEIGHT);
+    const facebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg?v=${encodeURIComponent(FACEBOOK_OG_IMAGE_VERSION)}`;
     const facebookTitle = fields.title;
     rewritten = setTitleTag(rewritten, facebookTitle);
     rewritten = setMetaTag(rewritten, "property", "og:title", facebookTitle);
@@ -256,9 +253,9 @@ function rewriteSelectionOgHtml(html, shareId, publicShareOrigin, options = {}) 
     rewritten = setMetaTag(rewritten, "property", "og:image", facebookImage);
     rewritten = setMetaTag(rewritten, "property", "og:image:secure_url", facebookImage);
     rewritten = setMetaTag(rewritten, "property", "og:image:type", "image/jpeg");
-    rewritten = setMetaTag(rewritten, "property", "og:image:width", facebookImageWidth);
-    rewritten = setMetaTag(rewritten, "property", "og:image:height", facebookImageHeight);
-    rewritten = setMetaTag(rewritten, "name", "twitter:card", coverImage ? "summary" : "summary_large_image");
+    rewritten = setMetaTag(rewritten, "property", "og:image:width", String(FACEBOOK_OG_IMAGE_WIDTH));
+    rewritten = setMetaTag(rewritten, "property", "og:image:height", String(FACEBOOK_OG_IMAGE_HEIGHT));
+    rewritten = setMetaTag(rewritten, "name", "twitter:card", "summary_large_image");
     rewritten = setMetaTag(rewritten, "name", "twitter:image", facebookImage);
     return rewritten;
   }
@@ -693,6 +690,17 @@ function renderFacebookOgSvg(fields) {
 </svg>`;
 }
 
+function rewriteCoverImageForSourceFetch(imageUrl, config) {
+  const value = String(imageUrl || "").trim();
+  if (!value || !config) return value;
+  const publicPrefix = `${config.publicSourceOrigin}/books/content/`;
+  const sourcePrefix = `${config.sourceOrigin}/books/content/`;
+  if (value.startsWith(publicPrefix)) {
+    return `${sourcePrefix}${value.slice(publicPrefix.length)}`;
+  }
+  return value;
+}
+
 async function fetchSourceShareHtml(sharePath, request, options = {}) {
   const config = options.config || getShareWorkerConfig();
   const upstreamHeaders = new Headers(request.headers);
@@ -731,6 +739,7 @@ async function handleFacebookOgImage(request, url, config) {
     });
   }
   const fields = parseSelectionPreviewFields(html);
+  if (fields.image) fields.image = rewriteCoverImageForSourceFetch(fields.image, config);
   const image = fields.quote ? await renderFacebookOgPng(fields) : await renderFacebookBookOgPng(fields);
   return new Response(encodeJpeg(image), {
     status: 200,
