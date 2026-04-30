@@ -10,6 +10,7 @@ const OG_IMAGE_WIDTH = 1200;
 const OG_IMAGE_HEIGHT = 630;
 const FACEBOOK_OG_IMAGE_WIDTH = 1200;
 const FACEBOOK_OG_IMAGE_HEIGHT = 630;
+const FACEBOOK_OG_IMAGE_VERSION = "book-card-v2";
 const META_PREVIEW_BOT_PATTERN = /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|messengerbot|facebookmessengerbot|messengerexternalhit|messengerpreview)\b/i;
 const META_APP_PREVIEW_PATTERN = /\b(?:FBAN|FBAV|FB_IAB|FBIOS|FB4A|Messenger|MSGR|FBMessenger|MessengerForiOS|MessengerLite)\b/i;
 
@@ -185,7 +186,7 @@ function rewriteSelectionOgHtml(html, shareId, publicShareOrigin, options = {}) 
   rewritten = setMetaTag(rewritten, "name", "twitter:title", fields.title);
 
   if (options.facebook) {
-    const facebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg`;
+    const facebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg?v=${encodeURIComponent(FACEBOOK_OG_IMAGE_VERSION)}`;
     const facebookTitle = fields.quote ? fields.title : "ReaderPub";
     rewritten = setTitleTag(rewritten, facebookTitle);
     rewritten = setMetaTag(rewritten, "property", "og:title", facebookTitle);
@@ -784,6 +785,10 @@ export default {
 
     if (!/^\/s\/[A-Za-z0-9_-]{4,64}$/.test(url.pathname)) {
       return textResponse("Not found", 404, { "cache-control": "no-store" });
+    }
+
+    if (!(isCloudflarePagePreview(request) || isPreviewBot(request))) {
+      return Response.redirect(`${SOURCE_ORIGIN}${url.pathname}`, 302);
     }
 
     const sourceHtml = await fetchSourceShareHtml(url.pathname, request);
