@@ -459,6 +459,9 @@
   }
 	  function showUi() {
     try {
+      if ((window.__fbSuppressUiTapUntil || 0) > Date.now()) return;
+    } catch (eSuppressShow) {}
+    try {
       if (window.__readerpubReaderNewCompat && typeof window.__readerpubCompatShowUi === "function") {
         window.__readerpubCompatShowUi();
         return;
@@ -923,6 +926,7 @@
       try {
         if (document.body && document.body.classList && document.body.classList.contains("overlay-open")) {
           if (typeof window.__fbCloseOverlaysAndHideBars === "function") {
+            suppressUiTapBurst(900);
             window.__fbCloseOverlaysAndHideBars();
             if (e && e.stopPropagation) e.stopPropagation();
             if (e && e.preventDefault) e.preventDefault();
@@ -933,6 +937,7 @@
       try {
         if (document.body && document.body.classList && document.body.classList.contains("mobile-more-open")) {
           if (typeof window.__fb_closeMobileMoreAndHideBars === "function") {
+            suppressUiTapBurst(900);
             window.__fb_closeMobileMoreAndHideBars();
             if (e && e.stopPropagation) e.stopPropagation();
             if (e && e.preventDefault) e.preventDefault();
@@ -1139,6 +1144,9 @@
       // Debounce to avoid double-fire and randomness.
       var now = Date.now();
       if (now - lastToggleAt < 350) return;
+      try {
+        if ((window.__fbSuppressUiTapUntil || 0) > now) return;
+      } catch (eSuppressToggle) {}
 
       try {
         if (dismissOpenPanelFromLayer(e)) return;
@@ -1221,6 +1229,9 @@
     function tryEdgeTurn(e, isNext) {
       var now = Date.now();
       if (now - lastToggleAt < 350) return;
+      try {
+        if ((window.__fbSuppressUiTapUntil || 0) > now) return;
+      } catch (eSuppressEdge) {}
       try {
         if (dismissOpenPanelFromLayer(e)) return;
         if (overlaysOpen()) return;
@@ -1353,6 +1364,14 @@
       return false;
     }
 
+    function isTouchGestureSurface() {
+      try {
+        if (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) return true;
+        if (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0 && !__fb_isDesktop) return true;
+      } catch (e) {}
+      return false;
+    }
+
     // Use POINTER events only to avoid double-firing (touchend + pointerup).
     // Fallback to touch events only if PointerEvent is unavailable.
     if (window.PointerEvent) {
@@ -1438,10 +1457,11 @@
 
     if (__fb_isDesktop || window.__readerpubReaderNewCompat) {
       try {
-        layer.style.pointerEvents = __fb_isDesktop ? "none" : "auto";
-        center.style.pointerEvents = __fb_isDesktop ? "none" : "auto";
-        left.style.pointerEvents = "auto";
-        right.style.pointerEvents = "auto";
+        var passThroughTouchGestures = isTouchGestureSurface();
+        layer.style.pointerEvents = passThroughTouchGestures || __fb_isDesktop ? "none" : "auto";
+        center.style.pointerEvents = passThroughTouchGestures || __fb_isDesktop ? "none" : "auto";
+        left.style.pointerEvents = passThroughTouchGestures ? "none" : "auto";
+        right.style.pointerEvents = passThroughTouchGestures ? "none" : "auto";
       } catch (ePointer) {}
       center.addEventListener("click", function (e) {
         primeClickTap(e);

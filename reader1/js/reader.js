@@ -6080,10 +6080,25 @@ function attachSwipeToDoc(doc) {
 					} catch(e){}
 				}, { passive: true, capture: true });
 				// Pointer events fallback (some tablets only dispatch pointer events)
+				function isSwipePointerEvent(ev) {
+					try {
+						if (!ev) return false;
+						if (ev.pointerType === "touch") return true;
+						if (ev.pointerType !== "mouse") return false;
+						// Chrome DevTools mobile emulation can deliver mouse pointers even
+						// while the viewport is coarse/mobile. Treat those as touch gestures
+						// only in mobile/tablet UI, never on a real desktop reader.
+						if (isTabletMode() || isPhoneTouchMode()) return true;
+						if (document.documentElement && document.documentElement.classList) {
+							if (document.documentElement.classList.contains("is-phone") || document.documentElement.classList.contains("is-tablet")) return true;
+						}
+					} catch (e) {}
+					return false;
+				}
 				if (win && win.PointerEvent) {
 					doc.addEventListener("pointerdown", function(ev){
 						try {
-							if (!ev || ev.pointerType !== "touch") return;
+							if (!isSwipePointerEvent(ev)) return;
 							state.pointerActive = true;
 							state.pointerId = ev.pointerId;
 							onStart(ev.clientX, ev.clientY, ev.target);
@@ -6091,12 +6106,14 @@ function attachSwipeToDoc(doc) {
 					}, { passive: true, capture: true });
 					doc.addEventListener("pointermove", function(ev){
 						try {
+							if (!isSwipePointerEvent(ev)) return;
 							if (!state.pointerActive || ev.pointerId !== state.pointerId) return;
 							onMove(ev, ev.clientX, ev.clientY);
 						} catch (e) {}
 					}, { passive: false, capture: true });
 					doc.addEventListener("pointerup", function(ev){
 						try {
+							if (!isSwipePointerEvent(ev)) return;
 							if (!state.pointerActive || ev.pointerId !== state.pointerId) return;
 							state.pointerActive = false;
 							state.pointerId = null;
@@ -6105,6 +6122,7 @@ function attachSwipeToDoc(doc) {
 					}, { passive: false, capture: true });
 					doc.addEventListener("pointercancel", function(ev){
 						try {
+							if (!isSwipePointerEvent(ev)) return;
 							if (state.pointerId !== null && ev && ev.pointerId !== state.pointerId) return;
 							state.pointerActive = false;
 							state.pointerId = null;
