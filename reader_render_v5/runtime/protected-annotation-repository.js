@@ -77,6 +77,36 @@ export function createProtectedAnnotationRepository({
   async function hydrateRepositoryState() {
     const result = await persistenceManager.loadPersistedBundle();
     if (!result.applied) return result;
+    const currentAnnotations = store.all();
+    if (currentAnnotations.length || readingState) {
+      const parsed = normalizeProtectedAnnotationBundle(result.bundle);
+      const mergedById = new Map();
+      for (const annotation of parsed.annotations || []) {
+        if (annotation && annotation.annotationId) mergedById.set(annotation.annotationId, annotation);
+      }
+      for (const annotation of currentAnnotations) {
+        if (annotation && annotation.annotationId) mergedById.set(annotation.annotationId, annotation);
+      }
+      const mergedBundle = createProtectedAnnotationBundle({
+        bookId,
+        userScope,
+        bookFingerprint: persistenceManager.bookFingerprint,
+        artifactVersion: persistenceManager.bookFingerprint.artifactVersion,
+        annotations: Array.from(mergedById.values()),
+        readingState: readingState || parsed.readingState || null,
+        metadata: {
+          ...(parsed.metadata || {}),
+          source: "local-first-protected",
+          hydrationMergedWithInMemory: true
+        }
+      });
+      applyBundleToStore(mergedBundle);
+      return {
+        ...result,
+        bundle: mergedBundle,
+        mergedWithInMemory: true
+      };
+    }
     applyBundleToStore(result.bundle);
     return result;
   }

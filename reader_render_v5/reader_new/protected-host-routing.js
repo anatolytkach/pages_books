@@ -230,13 +230,17 @@ function normalizeImportedNotes(raw) {
   const notes = Array.isArray(raw) ? raw : [];
   return notes
     .map((note, index) => {
-      if (!note || !note.cfi) return null;
+      if (!note || (!note.cfi && !note.protectedAnchor && !note.rangeDescriptor)) return null;
       return {
         id: String(note.id || `shared-${index}`),
-        cfi: String(note.cfi),
+        cfi: String(note.cfi || ""),
         href: note.href ? String(note.href) : null,
         quote: String(note.quote || "").trim(),
-        comment: String(note.comment || "")
+        comment: String(note.comment || note.noteText || ""),
+        protectedAnchor: note.protectedAnchor || note.rangeDescriptor || null,
+        protectedAnnotationId: note.protectedAnnotationId ? String(note.protectedAnnotationId) : "",
+        protectedHighlightId: note.protectedHighlightId ? String(note.protectedHighlightId) : "",
+        protectedAnnotationType: note.protectedAnnotationType ? String(note.protectedAnnotationType) : ""
       };
     })
     .filter(Boolean);

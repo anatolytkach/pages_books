@@ -129,13 +129,18 @@ function normalizeNotes(raw) {
   for (const item of src) {
     if (!item || typeof item !== "object") continue;
     const cfi = String(item.cfi || "").trim();
-    if (!cfi) continue;
+    const protectedAnchor = item.protectedAnchor || item.rangeDescriptor || null;
+    if (!cfi && !protectedAnchor) continue;
     out.push({
       id: String(item.id || "").trim() || undefined,
       cfi,
       href: item.href == null ? null : String(item.href),
       quote: String(item.quote || "").slice(0, 2000),
-      comment: String(item.comment || "").slice(0, 8000),
+      comment: String(item.comment || item.noteText || "").slice(0, 8000),
+      protectedAnchor: protectedAnchor && typeof protectedAnchor === "object" ? protectedAnchor : undefined,
+      protectedAnnotationId: item.protectedAnnotationId ? String(item.protectedAnnotationId).slice(0, 200) : undefined,
+      protectedHighlightId: item.protectedHighlightId ? String(item.protectedHighlightId).slice(0, 200) : undefined,
+      protectedAnnotationType: item.protectedAnnotationType ? String(item.protectedAnnotationType).slice(0, 40) : undefined,
     });
     if (out.length >= 500) break;
   }

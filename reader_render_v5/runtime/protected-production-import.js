@@ -1,5 +1,6 @@
 import { createProtectedAnnotationBundle } from "./protected-annotation-bundle.js";
 import { buildProtectedCfiResolver, collectResolverDiagnostics, normalizeProductionPayloadShape } from "./protected-cfi-resolver.js";
+import { createNoteAnnotation } from "./protected-note-model.js";
 
 function nowIso() {
   return new Date().toISOString();
@@ -7,13 +8,25 @@ function nowIso() {
 
 function toCurrentProductionShape(note, index = 0) {
   if (!note || typeof note !== "object") return null;
+  const protectedAnchor = note.protectedAnchor || note.rangeDescriptor || null;
   if (note.cfi) {
     return {
       id: String(note.id || `shared-${index}`),
       cfi: String(note.cfi),
       href: note.href ? String(note.href) : null,
       quote: String(note.quote || "").trim(),
-      comment: String(note.comment || "")
+      comment: String(note.comment || ""),
+      protectedAnchor
+    };
+  }
+  if (protectedAnchor && protectedAnchor.start && protectedAnchor.end) {
+    return {
+      id: String(note.id || note.protectedAnnotationId || `protected-shared-${index}`),
+      cfi: "",
+      href: note.href ? String(note.href) : null,
+      quote: String(note.quote || "").trim(),
+      comment: String(note.comment || note.noteText || ""),
+      protectedAnchor
     };
   }
   if (note.anchor) {
@@ -38,6 +51,33 @@ export async function importProductionPayloadToProtected({ book, payload }) {
   let createdNotes = 0;
 
   for (const [index, note] of notes.entries()) {
+    if (note.protectedAnchor && note.protectedAnchor.start && note.protectedAnchor.end && !note.cfi) {
+      if (note.comment) {
+        annotations.push(createNoteAnnotation({
+          bookId: resolver.globalModel.bookId,
+          rangeDescriptor: note.protectedAnchor,
+          highlightId: null,
+          color: "blue",
+          noteText: String(note.comment),
+          annotationId: `note_protected_share_${note.id}`,
+          metadata: {
+            source: "protected-share-import",
+            resolutionStatus: "protected-range",
+            productionAnchor: note,
+            selectionQuote: note.quote || ""
+          }
+        }));
+        createdNotes += 1;
+      }
+      resolutions.push({
+        index,
+        noteId: note.id,
+        status: "exact",
+        reason: "protected-range",
+        rangeDescriptor: note.protectedAnchor
+      });
+      continue;
+    }
     const resolution = resolver.resolveProductionNote(note);
     resolutions.push({
       index,

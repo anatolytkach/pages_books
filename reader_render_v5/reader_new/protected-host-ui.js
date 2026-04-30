@@ -612,6 +612,11 @@ function installStyles() {
       overflow: hidden;
       -webkit-tap-highlight-color: transparent !important;
     }
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #viewerStack,
+    html:not(.is-phone):not(.is-tablet) body.protected-shell.ui-hidden #viewerStack {
+      top: 0 !important;
+      bottom: 0 !important;
+    }
     html.is-phone body.protected-shell,
     html.is-tablet body.protected-shell {
       width: var(--app-vw, 100vw);
@@ -1197,8 +1202,19 @@ function installStyles() {
       height: 43px !important;
       padding-top: 3px !important;
       padding-bottom: 3px !important;
-      position: relative;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      z-index: 10020;
       align-items: center;
+    }
+    html:not(.is-phone):not(.is-tablet) body.protected-shell #bottombar {
+      position: fixed !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      z-index: 10020;
     }
     html:not(.is-phone):not(.is-tablet) body.protected-shell #title-controls {
       position: absolute;
@@ -3850,7 +3866,7 @@ async function handleProtectedNotesShare(event) {
   updateProtectedNotesShareButtonState(HOST_STATE.lastSummary);
   let cancelled = false;
   try {
-    const exported = await invokeBridge("exportNotesSharePayload");
+    const exported = await invokeBridgeRaw("exportNotesSharePayload");
     const notesPayload = exported && exported.sharePayload && Array.isArray(exported.sharePayload.notes)
       ? exported.sharePayload.notes
       : [];

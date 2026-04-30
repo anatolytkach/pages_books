@@ -27,6 +27,7 @@ const GOOGLE_DRIVE_CLIENT_ID =
   process.env.GOOGLE_DRIVE_CLIENT_ID ||
   DEFAULT_GOOGLE_DRIVE_CLIENT_ID;
 const selectionShares = new Map();
+const notesShares = new Map();
 
 const MIME = new Map([
   [".html", "text/html; charset=utf-8"],
@@ -272,6 +273,30 @@ function normalizeProtectedSelectionSharePayload(raw) {
   };
 }
 
+function normalizeNotes(raw) {
+  const src = Array.isArray(raw) ? raw : [];
+  const out = [];
+  for (const item of src) {
+    if (!item || typeof item !== "object") continue;
+    const cfi = String(item.cfi || "").trim();
+    const protectedAnchor = item.protectedAnchor || item.rangeDescriptor || null;
+    if (!cfi && !protectedAnchor) continue;
+    out.push({
+      id: String(item.id || "").trim() || undefined,
+      cfi,
+      href: item.href == null ? null : String(item.href),
+      quote: String(item.quote || "").slice(0, 2000),
+      comment: String(item.comment || item.noteText || "").slice(0, 8000),
+      protectedAnchor: protectedAnchor && typeof protectedAnchor === "object" ? protectedAnchor : undefined,
+      protectedAnnotationId: item.protectedAnnotationId ? String(item.protectedAnnotationId).slice(0, 200) : undefined,
+      protectedHighlightId: item.protectedHighlightId ? String(item.protectedHighlightId).slice(0, 200) : undefined,
+      protectedAnnotationType: item.protectedAnnotationType ? String(item.protectedAnnotationType).slice(0, 40) : undefined,
+    });
+    if (out.length >= 500) break;
+  }
+  return out;
+}
+
 function buildSelectionReaderUrl(origin, payload) {
   const safePayload = normalizeSelectionSharePayload(payload);
   if (!safePayload) return "";
@@ -323,6 +348,55 @@ function sendJson(res, status, body, headers = {}) {
     "access-control-allow-headers": "content-type",
     ...headers,
   });
+}
+
+async function handleNotesShare(req, res, url) {
+  if (req.method === "OPTIONS") {
+    return send(res, 204, "", {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-headers": "content-type",
+      "x-reader-route": "notes-share-options",
+    });
+  }
+  const idMatch = url.pathname.match(/\/(?:notes-share|ns)\/([A-Za-z0-9_-]+)$/);
+  if (idMatch) {
+    if (req.method !== "GET") {
+      return sendJson(res, 405, { error: "Method not allowed" }, { "x-reader-route": "notes-share-method" });
+    }
+    const shareId = String(idMatch[1] || "");
+    const payload = notesShares.get(shareId);
+    if (!payload) return sendJson(res, 404, { error: "Not found" }, { "x-reader-route": "notes-share-miss" });
+    return sendJson(res, 200, {
+      shareId,
+      bookId: String(payload.bookId || ""),
+      notes: normalizeNotes(payload.notes),
+    }, { "x-reader-route": "notes-share-read" });
+  }
+  if (req.method !== "POST") {
+    return sendJson(res, 405, { error: "Method not allowed" }, { "x-reader-route": "notes-share-method" });
+  }
+  try {
+    const body = await readJsonBody(req);
+    const notes = normalizeNotes(body && body.notes);
+    if (!notes.length) return sendJson(res, 400, { error: "No notes to share" }, { "x-reader-route": "notes-share-empty" });
+    let shareId = "";
+    for (let i = 0; i < 5; i++) {
+      shareId = randomShareId();
+      if (!notesShares.has(shareId)) break;
+      shareId = "";
+    }
+    if (!shareId) return sendJson(res, 500, { error: "Failed to create share id" });
+    notesShares.set(shareId, {
+      v: 1,
+      bookId: String((body && body.bookId) || ""),
+      createdAt: Date.now(),
+      notes,
+    });
+    return sendJson(res, 200, { shareId, count: notes.length }, { "x-reader-route": "notes-share-create" });
+  } catch (error) {
+    return sendJson(res, 500, { error: "Failed to create notes share" });
+  }
 }
 
 async function handleSelectionShareCreate(req, res, url) {
@@ -711,6 +785,23 @@ const server = http.createServer(async (req, res) => {
     pathname === "/api/selection-share"
   ) {
     return handleSelectionShareCreate(req, res, url);
+  }
+
+  if (
+    pathname === "/books/api/ns" ||
+    pathname === "/api/ns" ||
+    pathname === "/books/reader/api/ns" ||
+    pathname === "/books/reader/api/notes-share" ||
+    pathname === "/books/api/notes-share" ||
+    pathname === "/api/notes-share" ||
+    pathname.startsWith("/books/api/ns/") ||
+    pathname.startsWith("/api/ns/") ||
+    pathname.startsWith("/books/reader/api/ns/") ||
+    pathname.startsWith("/books/reader/api/notes-share/") ||
+    pathname.startsWith("/books/api/notes-share/") ||
+    pathname.startsWith("/api/notes-share/")
+  ) {
+    return handleNotesShare(req, res, url);
   }
 
   const shortShareMatch = pathname.match(/^\/s\/([A-Za-z0-9_-]{4,64})$/);
