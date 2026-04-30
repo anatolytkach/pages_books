@@ -5668,6 +5668,7 @@
 
       function resetDesktopClickSelection(docForClear) {
         try {
+          setDesktopDragSelectionVisible(false);
           hideToolbar();
           clearMarks();
           clearSelection(docForClear || doc);
@@ -5683,11 +5684,19 @@
         } catch (eResetDesktopClick) {}
       }
 
+      function setDesktopDragSelectionVisible(visible) {
+        try {
+          if (!doc || !doc.documentElement || !isDesktopSelectionMode()) return;
+          doc.documentElement.classList.toggle("fb-desktop-drag-selecting", !!visible);
+        } catch (eDragSelectionClass) {}
+      }
+
       function beginDesktopMouseSelection(e) {
         if (!isDesktopMouseEvent(e)) return false;
         desktopMouse.down = true;
         desktopMouse.dragging = false;
         desktopMouse.allowCommitUntil = 0;
+        setDesktopDragSelectionVisible(false);
         try {
           desktopMouse.x = e.clientX;
           desktopMouse.y = e.clientY;
@@ -5704,7 +5713,10 @@
         try {
           var dx = Math.abs((e.clientX || 0) - desktopMouse.x);
           var dy = Math.abs((e.clientY || 0) - desktopMouse.y);
-          if (dx > 5 || dy > 5) desktopMouse.dragging = true;
+          if (dx > 5 || dy > 5) {
+            desktopMouse.dragging = true;
+            setDesktopDragSelectionVisible(true);
+          }
         } catch (eMove) {}
       }
 
@@ -5718,6 +5730,7 @@
         if (wasDown && wasDragging) {
           desktopMouse.allowCommitUntil = Date.now() + 500;
           scheduleCommitSelection(doc);
+          try { setTimeout(function () { setDesktopDragSelectionVisible(false); }, 160); } catch (eHideDragSelection) {}
         } else {
           desktopMouse.allowCommitUntil = 0;
           window.__fbSuppressSelectionCommitUntil = Date.now() + 180;
@@ -5750,7 +5763,7 @@
             + "@media (prefers-color-scheme: dark){:root{--fb-selection-bg:rgba(0,130,116,0.72);}}"
             + (
               isDesktopSelectionMode()
-                ? "::selection{background:transparent!important;color:inherit!important;-webkit-text-fill-color:inherit!important;}"
+                ? "::selection{background:transparent!important;color:inherit!important;-webkit-text-fill-color:inherit!important;}html.fb-desktop-drag-selecting ::selection{background:var(--fb-selection-bg)!important;color:inherit!important;-webkit-text-fill-color:inherit!important;}"
                 : "::selection{background:var(--fb-selection-bg);color:inherit;}"
             )
             + ".fb-selection-mark{background:var(--fb-selection-bg);color:inherit;-webkit-box-decoration-break:clone;box-decoration-break:clone;}";
@@ -5783,6 +5796,14 @@
       }, true); } catch (e) {}
       try { doc.addEventListener("click", function (e) {
         if (!isDesktopSelectionMode()) return;
+        try {
+          if ((window.__fbSelectionCommitPendingUntil || 0) > Date.now()) {
+            if (e && e.preventDefault) e.preventDefault();
+            if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+            if (e && e.stopPropagation) e.stopPropagation();
+            return;
+          }
+        } catch (ePendingClick) {}
         if (!state.locked) {
           resetDesktopClickSelection(doc);
           return;
@@ -5814,6 +5835,7 @@
 
       try { doc.addEventListener("dblclick", function (e) {
         if (!isDesktopSelectionMode()) return;
+        setDesktopDragSelectionVisible(false);
         resetDesktopClickSelection(doc);
         try { if (e && e.preventDefault) e.preventDefault(); } catch (e0) {}
         try { if (e && e.stopImmediatePropagation) e.stopImmediatePropagation(); } catch (e1) {}
