@@ -81,6 +81,26 @@ function rewriteShareHtml(html, sharePath, publicShareOrigin, options = {}) {
   return rewritten;
 }
 
+function decodeHtmlAttribute(value) {
+  return String(value || "")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function extractHumanOpenTargetUrl(html) {
+  const source = String(html || "");
+  const scriptMatch = source.match(/window\.location\.replace\((["'])([\s\S]*?)\1\)/i);
+  if (scriptMatch && scriptMatch[2]) return scriptMatch[2];
+  const refreshMatch = source.match(/<meta\s+http-equiv=["']refresh["'][^>]*content=["'][^"']*url=([^"']+)["'][^>]*>/i);
+  if (refreshMatch && refreshMatch[1]) return decodeHtmlAttribute(refreshMatch[1]).trim();
+  const canonicalMatch = source.match(/<link\s+[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["'][^>]*>/i);
+  if (canonicalMatch && canonicalMatch[1]) return decodeHtmlAttribute(canonicalMatch[1]).trim();
+  return "";
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -787,12 +807,12 @@ export default {
       return textResponse("Not found", 404, { "cache-control": "no-store" });
     }
 
-    if (!(isCloudflarePagePreview(request) || isPreviewBot(request))) {
-      return Response.redirect(`${SOURCE_ORIGIN}${url.pathname}`, 302);
-    }
-
     const sourceHtml = await fetchSourceShareHtml(url.pathname, request);
     if (!sourceHtml) return textResponse("Not found", 404, { "cache-control": "no-store" });
+
+    if (!(isCloudflarePagePreview(request) || isPreviewBot(request))) {
+      return Response.redirect(extractHumanOpenTargetUrl(sourceHtml) || `${SOURCE_ORIGIN}${url.pathname}`, 302);
+    }
 
     const facebookQuotePreview = shouldUseFacebookQuotePreview(request);
     const html = rewriteShareHtml(sourceHtml, url.pathname, getRequestOrigin(request.url), {
