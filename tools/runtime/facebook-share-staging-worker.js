@@ -32,7 +32,7 @@ function isPreviewBot(request) {
 
 function isFacebookPreviewBot(request) {
   const userAgent = String(request.headers.get("user-agent") || "");
-  return META_PREVIEW_BOT_PATTERN.test(userAgent) || META_APP_PREVIEW_PATTERN.test(userAgent);
+  return META_PREVIEW_BOT_PATTERN.test(userAgent);
 }
 
 function shouldUseStandardCoverPreview(request) {
