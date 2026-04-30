@@ -41,7 +41,7 @@ function shouldUseStandardCoverPreview(request) {
 }
 
 function shouldUseFacebookQuotePreview(request) {
-  return isFacebookPreviewBot(request) || !shouldUseStandardCoverPreview(request);
+  return isFacebookPreviewBot(request);
 }
 
 function escapeRegExp(value) {
