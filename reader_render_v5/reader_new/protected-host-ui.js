@@ -9736,8 +9736,10 @@ function animatePageTurnTo(fromDx, toDx, durationMs = 280) {
     };
     overlayRaf = rafFn(step);
   };
-  currentSurface.style.transition = `transform ${durationMs}ms ease-out`;
-  currentSurface.style.transform = `translate3d(${Math.round(startDx)}px, 0, 0)`;
+  currentLayer.style.transition = `transform ${durationMs}ms ease-out`;
+  currentLayer.style.transform = `translate3d(${Math.round(startDx)}px, 0, 0)`;
+  currentSurface.style.transition = "none";
+  currentSurface.style.transform = "";
   if (shadow) {
     try {
       const shadowWidth = Math.max(6, shadow.getBoundingClientRect().width || 6);
@@ -9748,7 +9750,7 @@ function animatePageTurnTo(fromDx, toDx, durationMs = 280) {
     } catch (_error) {}
   }
   window.requestAnimationFrame(() => {
-    currentSurface.style.transform = `translate3d(${Math.round(targetDx)}px, 0, 0)`;
+    currentLayer.style.transform = `translate3d(${Math.round(targetDx)}px, 0, 0)`;
     animateOverlay(startDx, targetDx);
   });
 }
@@ -9775,6 +9777,7 @@ async function performPageTurn(direction, options = {}) {
     return;
   }
   HOST_STATE.turnInFlight = true;
+  const instant = options.instant === true;
   window.__protectedTurnDebug = {
     count: Number((window.__protectedTurnDebug && window.__protectedTurnDebug.count) || 0) + 1,
     direction,
@@ -9783,7 +9786,11 @@ async function performPageTurn(direction, options = {}) {
   };
   let neighborsReady = syncNeighborPreviewLayers({ requireFresh: true, direction });
   if (!neighborsReady) {
-    neighborsReady = await prepareAndSyncNeighborPreviews(direction);
+    if (instant) {
+      void prepareAndSyncNeighborPreviews(direction).catch(() => {});
+    } else {
+      neighborsReady = await prepareAndSyncNeighborPreviews(direction);
+    }
   }
   window.__protectedTurnDebug.stage = neighborsReady ? "prepare-done" : "prepare-background";
   let prepared = false;
@@ -10364,6 +10371,28 @@ function installTouchSwipe(target) {
         }
       }
       if (isTap) {
+        if (tapZone === "left") {
+          if (!canNavigateDirection("prev")) return;
+          event.preventDefault();
+          await performPageTurn("prev", { instant: true });
+          window.__protectedTouchDebug.tap = {
+            tapZone,
+            turn: "prev",
+            fastPath: true
+          };
+          return;
+        }
+        if (tapZone === "right") {
+          if (!canNavigateDirection("next")) return;
+          event.preventDefault();
+          await performPageTurn("next", { instant: true });
+          window.__protectedTouchDebug.tap = {
+            tapZone,
+            turn: "next",
+            fastPath: true
+          };
+          return;
+        }
         const footnoteAnchor = await probeFootnoteAtClientPoint(
           touch ? touch.clientX : completedGesture.startX,
           touch ? touch.clientY : completedGesture.startY,
