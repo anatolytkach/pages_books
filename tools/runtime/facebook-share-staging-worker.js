@@ -242,8 +242,11 @@ function rewriteSelectionOgHtml(html, shareId, publicShareOrigin, options = {}) 
   rewritten = setMetaTag(rewritten, "name", "twitter:title", fields.title);
 
   if (options.facebook) {
-    const facebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg?v=${encodeURIComponent(FACEBOOK_OG_IMAGE_VERSION)}`;
-    const facebookTitle = fields.quote ? fields.title : "ReaderPub";
+    const fallbackFacebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg?v=${encodeURIComponent(FACEBOOK_OG_IMAGE_VERSION)}`;
+    const facebookImage = coverImage || fallbackFacebookImage;
+    const facebookImageWidth = coverImage ? "600" : String(FACEBOOK_OG_IMAGE_WIDTH);
+    const facebookImageHeight = coverImage ? "900" : String(FACEBOOK_OG_IMAGE_HEIGHT);
+    const facebookTitle = fields.title;
     rewritten = setTitleTag(rewritten, facebookTitle);
     rewritten = setMetaTag(rewritten, "property", "og:title", facebookTitle);
     rewritten = setMetaTag(rewritten, "name", "twitter:title", facebookTitle);
@@ -253,9 +256,9 @@ function rewriteSelectionOgHtml(html, shareId, publicShareOrigin, options = {}) 
     rewritten = setMetaTag(rewritten, "property", "og:image", facebookImage);
     rewritten = setMetaTag(rewritten, "property", "og:image:secure_url", facebookImage);
     rewritten = setMetaTag(rewritten, "property", "og:image:type", "image/jpeg");
-    rewritten = setMetaTag(rewritten, "property", "og:image:width", String(FACEBOOK_OG_IMAGE_WIDTH));
-    rewritten = setMetaTag(rewritten, "property", "og:image:height", String(FACEBOOK_OG_IMAGE_HEIGHT));
-    rewritten = setMetaTag(rewritten, "name", "twitter:card", "summary_large_image");
+    rewritten = setMetaTag(rewritten, "property", "og:image:width", facebookImageWidth);
+    rewritten = setMetaTag(rewritten, "property", "og:image:height", facebookImageHeight);
+    rewritten = setMetaTag(rewritten, "name", "twitter:card", coverImage ? "summary" : "summary_large_image");
     rewritten = setMetaTag(rewritten, "name", "twitter:image", facebookImage);
     return rewritten;
   }
