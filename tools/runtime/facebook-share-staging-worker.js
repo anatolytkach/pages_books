@@ -807,12 +807,16 @@ export default {
       return textResponse("Not found", 404, { "cache-control": "no-store" });
     }
 
+    if (!(isCloudflarePagePreview(request) || isPreviewBot(request))) {
+      const humanSourceHtml = await fetchSourceShareHtml(url.pathname, request, {
+        userAgent: "Mozilla/5.0 ReaderPub-Human-Open",
+      });
+      if (!humanSourceHtml) return textResponse("Not found", 404, { "cache-control": "no-store" });
+      return Response.redirect(extractHumanOpenTargetUrl(humanSourceHtml) || `${SOURCE_ORIGIN}${url.pathname}`, 302);
+    }
+
     const sourceHtml = await fetchSourceShareHtml(url.pathname, request);
     if (!sourceHtml) return textResponse("Not found", 404, { "cache-control": "no-store" });
-
-    if (!(isCloudflarePagePreview(request) || isPreviewBot(request))) {
-      return Response.redirect(extractHumanOpenTargetUrl(sourceHtml) || `${SOURCE_ORIGIN}${url.pathname}`, 302);
-    }
 
     const facebookQuotePreview = shouldUseFacebookQuotePreview(request);
     const html = rewriteShareHtml(sourceHtml, url.pathname, getRequestOrigin(request.url), {
