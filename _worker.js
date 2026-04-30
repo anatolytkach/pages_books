@@ -1373,7 +1373,7 @@ function buildSelectionReaderUrl(origin, payload) {
     }
     return u.toString();
   }
-  const u = new URL("/reader1/", origin);
+  const u = new URL("/books/reader/", origin);
   u.searchParams.set("id", safePayload.bookId);
   if (safePayload.source) u.searchParams.set("source", safePayload.source);
   if (safePayload.notesShareId) u.searchParams.set("n", safePayload.notesShareId);

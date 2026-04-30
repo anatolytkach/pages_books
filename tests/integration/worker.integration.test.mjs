@@ -321,6 +321,37 @@ test("Integration: production selection share API returns production share origi
   assert.equal(data.url, `https://share.reader.pub/s/${data.shareId}`);
 });
 
+test("Integration: production unprotected share redirects to routed reader path", async () => {
+  const selectionCfi = "epubcfi(/6/8[item4]!/4/24,/1:606,/1:613)";
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "api/selection_shares/NvM3VHrY3.json": createR2Object({
+        body: JSON.stringify({
+          v: 1,
+          type: "reader-selection",
+          bookId: "78229",
+          source: "gutenberg",
+          selectionCfi,
+          selectionText: "eastern",
+          createdAt: 1,
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://reader.pub/s/NvM3VHrY3",
+    env,
+  });
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-reader-route"), "selection-share-page");
+  assert.match(body, /window\.location\.replace\("https:\/\/reader\.pub\/books\/reader\/\?id=78229&source=gutenberg&selectionCfi=/);
+  assert.doesNotMatch(body, /https:\/\/reader\.pub\/reader1\//);
+});
+
 test("Integration: /s/<id> renders preview tags and redirects to reader selection", async () => {
   const selectionCfi = "epubcfi(/6/6[item3]!/4/2[pgepubid00003]/4[chap01]/6,/1:0,/8/1:10)";
   const bucket = createR2Bucket({
