@@ -125,19 +125,6 @@
         }
       },
       {
-        "id": "11",
-        "source": "gutenberg",
-        "query": {
-          "reader": "protected",
-          "protectedArtifactBookId": "11",
-          "protectedArtifactSource": "r2",
-          "readerRemoteMode": "strict",
-          "protectedUx": "protected-shell",
-          "renderMode": "shape",
-          "metricsMode": "shape"
-        }
-      },
-      {
         "id": "84",
         "source": "gutenberg",
         "query": {
