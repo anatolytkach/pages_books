@@ -1406,27 +1406,57 @@ function isFacebookPreviewBot(request) {
   return /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|messengerbot|facebookmessengerbot|messengerexternalhit|messengerpreview|FBAN|FBAV|FB_IAB|FBIOS|FB4A|Messenger|MSGR|FBMessenger|MessengerForiOS|MessengerLite)\b/i.test(userAgent);
 }
 
-function applyFacebookSelectionSharePreviewMeta(meta, shareId) {
+function cleanShareOrigin(value) {
+  try {
+    const parsed = new URL(String(value || "").trim());
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "";
+    return parsed.origin.replace(/\/+$/, "");
+  } catch (_error) {
+    return "";
+  }
+}
+
+function resolveSelectionShareOrigin(url, env = {}) {
+  const configured = cleanShareOrigin(
+    env.READERPUB_SELECTION_SHARE_ORIGIN ||
+      env.READERPUB_SHARE_ORIGIN ||
+      env.SELECTION_SHARE_ORIGIN ||
+      ""
+  );
+  if (configured) return configured;
+
+  const hostname = String(url && url.hostname ? url.hostname : "").trim().toLowerCase();
+  if (
+    hostname === "books-staging.reader.pub" ||
+    hostname.endsWith(".readerpub-books-staging.pages.dev")
+  ) {
+    return "https://sh-staging.reader.pub";
+  }
+  if (
+    hostname === "reader.pub" ||
+    hostname === "www.reader.pub" ||
+    hostname === "reader-books.pages.dev"
+  ) {
+    return "https://share.reader.pub";
+  }
+  return cleanShareOrigin(url && url.origin ? url.origin : "");
+}
+
+function applyFacebookSelectionSharePreviewMeta(meta, shareId, url, env) {
   if (!meta) return meta;
+  const shareOrigin = resolveSelectionShareOrigin(url, env);
   return {
     ...meta,
-    image: `https://sh-staging.reader.pub/fb-og/${encodeURIComponent(String(shareId || ""))}.jpg`,
+    image: `${shareOrigin}/fb-og/${encodeURIComponent(String(shareId || ""))}.jpg`,
     imageWidth: "1200",
     imageHeight: "630",
     twitterCard: "summary_large_image",
   };
 }
 
-function buildSelectionSharePublicUrl(url, shareId) {
+function buildSelectionSharePublicUrl(url, shareId, env) {
   const normalizedShareId = encodeURIComponent(String(shareId || ""));
-  const hostname = String(url && url.hostname ? url.hostname : "").trim().toLowerCase();
-  if (
-    hostname === "books-staging.reader.pub" ||
-    hostname.endsWith(".readerpub-books-staging.pages.dev")
-  ) {
-    return `https://sh-staging.reader.pub/s/${normalizedShareId}`;
-  }
-  return new URL(`/s/${normalizedShareId}`, url.origin).toString();
+  return `${resolveSelectionShareOrigin(url, env)}/s/${normalizedShareId}`;
 }
 
 function renderSelectionShareLandingPage(meta, targetUrl, options = {}) {
@@ -2933,7 +2963,7 @@ export default {
       const telegramProtectedPreview = payload.readerType === "protected" && isTelegramPreviewBot(request);
       const facebookPreview = isFacebookPreviewBot(request);
       if (facebookPreview && payload.type === "reader-selection") {
-        meta = applyFacebookSelectionSharePreviewMeta(meta, shareId);
+        meta = applyFacebookSelectionSharePreviewMeta(meta, shareId, url, env);
       }
       const previewOnly = telegramProtectedPreview || facebookPreview;
       return htmlResponse(renderSelectionShareLandingPage(meta, targetUrl, {
@@ -3038,7 +3068,7 @@ export default {
         return jsonResponse(
           {
             shareId,
-            url: buildSelectionSharePublicUrl(url, shareId),
+            url: buildSelectionSharePublicUrl(url, shareId, env),
           },
           200,
           notesShareCorsHeaders()

@@ -300,6 +300,27 @@ test("Integration: selection share API stores payload and returns short url", as
   });
 });
 
+test("Integration: production selection share API returns production share origin", async () => {
+  const bucket = createR2Bucket();
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://reader.pub/books/api/ss",
+    method: "POST",
+    body: {
+      bookId: "1399",
+      selectionCfi: "epubcfi(/6/6[item3]!/4/2[pgepubid00003]/4[chap01]/6,/1:0,/8/1:10)",
+      selectionText: "Everything was in confusion",
+    },
+    env,
+  });
+  const data = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.match(data.shareId, /^[A-Za-z0-9_-]{9}$/);
+  assert.equal(data.url, `https://share.reader.pub/s/${data.shareId}`);
+});
+
 test("Integration: /s/<id> renders preview tags and redirects to reader selection", async () => {
   const selectionCfi = "epubcfi(/6/6[item3]!/4/2[pgepubid00003]/4[chap01]/6,/1:0,/8/1:10)";
   const bucket = createR2Bucket({
@@ -367,6 +388,47 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
   assert.match(facebookBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
   assert.doesNotMatch(facebookBody, /http-equiv="refresh"/);
   assert.doesNotMatch(facebookBody, /window\.location\.replace/);
+});
+
+test("Integration: production facebook selection preview uses production OG image host", async () => {
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "api/selection_shares/abc123XYZ.json": createR2Object({
+        body: JSON.stringify({
+          v: 1,
+          type: "reader-selection",
+          bookId: "1399",
+          selectionCfi: "epubcfi(/6/6[item3]!/4/2[pgepubid00003]/4[chap01]/6,/1:0,/8/1:10)",
+          selectionText: "Everything was in confusion",
+          createdAt: "2026-04-30T00:00:00.000Z",
+        }),
+      }),
+      "api/book-locations/99.json": createR2Object({
+        body: JSON.stringify({
+          items: {
+            "1399": {
+              title: "Anna Karenina",
+              author: "Tolstoy, Leo graf",
+              cover: "/books/content/1399/OEBPS/cover.jpg",
+            },
+          },
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://reader.pub/s/abc123XYZ",
+    headers: { "user-agent": "Facebot" },
+    env,
+  });
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(body, /property="og:url" content="https:\/\/reader\.pub\/s\/abc123XYZ"/);
+  assert.match(body, /property="og:image:secure_url" content="https:\/\/share\.reader\.pub\/fb-og\/abc123XYZ\.jpg"/);
+  assert.doesNotMatch(body, /sh-staging\.reader\.pub/);
 });
 
 test("Integration: book share short link renders no-quote cover card", async () => {

@@ -1,0 +1,24 @@
+name = "readerpub-facebook-share-production"
+main = "facebook-share-staging-worker.js"
+compatibility_date = "2026-04-28"
+workers_dev = false
+preview_urls = false
+
+routes = [
+  { pattern = "share.reader.pub", zone_name = "reader.pub", custom_domain = true },
+  { pattern = "fb.reader.pub", zone_name = "reader.pub", custom_domain = true },
+  { pattern = "reader.pub/books/api/ss*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/api/ss*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/books/reader/api/ss*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/books/reader1/api/ss*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/books/api/selection-share*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/api/selection-share*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/books/reader/api/selection-share*", zone_name = "reader.pub" },
+  { pattern = "reader.pub/books/reader1/api/selection-share*", zone_name = "reader.pub" },
+]
+
+[vars]
+READERPUB_SHARE_SOURCE_ORIGIN = "https://reader-books.pages.dev"
+READERPUB_SHARE_PUBLIC_SOURCE_ORIGIN = "https://reader.pub"
+READERPUB_SHARE_API_ORIGIN = "https://reader-books.pages.dev"
+READERPUB_SHARE_ORIGIN = "https://share.reader.pub"
