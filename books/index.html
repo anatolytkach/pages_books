@@ -2912,7 +2912,7 @@
             delBtn.addEventListener("click", deleteSelectedMyBooks);
             els.toolbar.appendChild(delBtn);
 
-            els.toolbar.appendChild(el("div", "toolbarLabel", "My Books"));
+            els.toolbar.appendChild(el("div", "toolbarLabel", "My Library"));
           }
         }
 
@@ -5185,7 +5185,7 @@
               return;
             }
             const section = el("section", "landingSection");
-            section.appendChild(createSectionHeader("My Books", `${sortedItems.length} books`));
+            section.appendChild(createSectionHeader("My Library", `${sortedItems.length} books`));
 
             const grid = el("div", "bookGrid");
             sortedItems.forEach((book) => {
