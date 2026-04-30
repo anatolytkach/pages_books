@@ -3553,6 +3553,51 @@ function buildProtectedBookShareUrl() {
   return url.toString();
 }
 
+function buildProtectedBookShortSharePayload(type = "book-share", notesShareId = "") {
+  const route = HOST_STATE.route || {};
+  const bookId = String(route.bookId || getCurrentBookId() || "").trim();
+  if (!bookId) throw new Error("Book id is unavailable.");
+  const payload = {
+    type,
+    readerType: "protected",
+    bookId,
+    artifactBookId: String(route.artifactBookId || bookId).trim(),
+    source: String(route.source || "").trim(),
+    protectedArtifactSource: String(route.artifactSource || "").trim(),
+    protectedAllowAll: String(route.query && route.query.protectedAllowAll || "").trim(),
+    protectedUx: "protected-shell",
+    renderMode: String(route.renderMode || "shape").trim() || "shape",
+    metricsMode: String(route.metricsMode || "shape").trim() || "shape"
+  };
+  if (notesShareId) payload.notesShareId = String(notesShareId).trim();
+  return payload;
+}
+
+async function createShortProtectedBookShare(type = "book-share", notesShareId = "") {
+  const payload = buildProtectedBookShortSharePayload(type, notesShareId);
+  let lastError = "";
+  for (const endpoint of getSelectionShareCreateEndpoints()) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json; charset=utf-8" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload)
+      });
+      if (!response || !response.ok) throw new Error(`book share create failed: ${response ? response.status : "no-response"}`);
+      const data = await response.json();
+      const url = data && data.url ? String(data.url) : "";
+      if (url) return url;
+      const shareId = data && data.shareId ? String(data.shareId) : "";
+      if (!shareId) throw new Error("missing share id");
+      return new URL(`/s/${encodeURIComponent(shareId)}`, window.location.origin).toString();
+    } catch (error) {
+      lastError = error && error.message ? error.message : String(error || "");
+    }
+  }
+  throw new Error(lastError || "book share create failed");
+}
+
 function updateProtectedBookShareButtonState() {
   const button = getProtectedBookShareButton();
   if (!button) return;
@@ -3849,7 +3894,7 @@ async function createShortProtectedNotesShare(notesPayload, bookId = getCurrentB
       const data = await response.json();
       const shareId = data && data.shareId ? String(data.shareId) : "";
       if (!shareId) throw new Error("missing share id");
-      return buildNotesShareUrl(shareId);
+      return await createShortProtectedBookShare("notes-share", shareId).catch(() => buildNotesShareUrl(shareId));
     } catch (_error) {}
   }
   throw new Error("share create failed");
@@ -3922,7 +3967,7 @@ async function handleProtectedBookShare(event) {
   clearProtectedBookShareButtonState(button);
   let cancelled = false;
   try {
-    const shareUrl = buildProtectedBookShareUrl();
+    const shareUrl = await createShortProtectedBookShare("book-share").catch(() => buildProtectedBookShareUrl());
     const summary = HOST_STATE.lastSummary || {};
     const shareTitle = String(summary.bookTitle || document.title || "Book").trim();
     if (isPhoneOrTabletShell()) {

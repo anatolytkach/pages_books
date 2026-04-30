@@ -1554,6 +1554,67 @@
       return u.toString();
     }
 
+    function getCurrentBookSource() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        return String(u.searchParams.get("source") || "");
+      } catch (e0) {}
+      return "";
+    }
+
+    function getBookShortShareCreateEndpoints() {
+      var endpoints = ["/books/api/ss", "/api/ss", "/books/api/selection-share", "/api/selection-share"];
+      try {
+        var host = String(window.location.hostname || "").toLowerCase();
+        if (host === "reader.pub" || host === "www.reader.pub") {
+          endpoints = [
+            "/books/reader/api/ss",
+            "/books/api/ss",
+            "/api/ss",
+            "/books/reader/api/selection-share",
+            "/books/api/selection-share",
+            "/api/selection-share"
+          ];
+        }
+      } catch (e0) {}
+      return endpoints;
+    }
+
+    function createShortBookShare(type, notesShareId) {
+      var body = {
+        type: type || "book-share",
+        readerType: "reader1",
+        bookId: getCurrentBookId(),
+        source: getCurrentBookSource()
+      };
+      if (notesShareId) body.notesShareId = String(notesShareId);
+      if (!body.bookId) return Promise.reject(new Error("missing book id"));
+      var endpoints = getBookShortShareCreateEndpoints();
+      var idx = 0;
+      var tryNext = function () {
+        if (idx >= endpoints.length) return Promise.reject(new Error("book share create failed"));
+        var endpoint = endpoints[idx++];
+        return fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json; charset=utf-8" },
+          credentials: "same-origin",
+          body: JSON.stringify(body)
+        }).then(function (resp) {
+          if (!resp || !resp.ok) throw new Error("book share create failed");
+          return resp.json();
+        }).then(function (data) {
+          var url = data && data.url ? String(data.url) : "";
+          if (url) return url;
+          var shareId = data && data.shareId ? String(data.shareId) : "";
+          if (!shareId) throw new Error("missing share id");
+          return new URL("/s/" + encodeURIComponent(shareId), getCanonicalShareOrigin()).toString();
+        }).catch(function () {
+          return tryNext();
+        });
+      };
+      return tryNext();
+    }
+
     function copyText(value) {
       var txt = String(value || "");
       if (!txt) return Promise.reject(new Error("No text to copy"));
@@ -1600,8 +1661,8 @@
       var btn = button || null;
       var oldText = btn && btn.textContent ? btn.textContent : (isTouchShareDevice() ? "Share book" : "Copy book link");
       if (btn) resetShareButton(btn, oldText);
-      var cleanUrl = getCleanBookUrl();
-      if (!cleanUrl) {
+      var fallbackUrl = getCleanBookUrl();
+      if (!fallbackUrl) {
         if (btn) {
           btn.classList.add("is-failed");
           btn.textContent = "Action failed";
@@ -1609,24 +1670,25 @@
         }
         return;
       }
-      if (isTouchShareDevice()) {
-        try {
-          if (navigator.share) {
-            navigator.share({ url: cleanUrl }).catch(function () {});
-            return;
-          }
-        } catch (e0) {}
-        if (btn) {
-          btn.classList.add("is-failed");
-          btn.textContent = "Share unavailable";
-          setTimeout(function () { resetShareButton(btn, oldText); }, 1200);
+      createShortBookShare("book-share").catch(function () { return fallbackUrl; }).then(function (cleanUrl) {
+        if (isTouchShareDevice()) {
+          try {
+            if (navigator.share) {
+              return navigator.share({ url: cleanUrl }).catch(function (err) {
+                if (err && err.name === "AbortError") return;
+                throw err;
+              });
+            }
+          } catch (e0) {}
+          throw new Error("Share unavailable");
         }
-        return;
-      }
-      copyText(cleanUrl).then(function () {
+        return copyText(cleanUrl);
+      }).then(function () {
         if (!btn) return;
-        btn.classList.add("is-copied");
-        btn.textContent = "Copied";
+        if (!isTouchShareDevice()) {
+          btn.classList.add("is-copied");
+          btn.textContent = "Copied";
+        }
         setTimeout(function () { resetShareButton(btn, oldText); }, 1200);
       }).catch(function () {
         if (!btn) return;
@@ -7967,6 +8029,67 @@
       return window.location.origin;
     }
 
+    function getCurrentBookSource() {
+      try {
+        var u = new URL(window.location.href || "", window.location.origin);
+        return String(u.searchParams.get("source") || "");
+      } catch (e0) {}
+      return "";
+    }
+
+    function getBookShortShareCreateEndpoints() {
+      var endpoints = ["/books/api/ss", "/api/ss", "/books/api/selection-share", "/api/selection-share"];
+      try {
+        var host = String(window.location.hostname || "").toLowerCase();
+        if (host === "reader.pub" || host === "www.reader.pub") {
+          endpoints = [
+            "/books/reader/api/ss",
+            "/books/api/ss",
+            "/api/ss",
+            "/books/reader/api/selection-share",
+            "/books/api/selection-share",
+            "/api/selection-share"
+          ];
+        }
+      } catch (e0) {}
+      return endpoints;
+    }
+
+    function createShortBookShare(type, notesShareId) {
+      var body = {
+        type: type || "book-share",
+        readerType: "reader1",
+        bookId: getCurrentBookId(),
+        source: getCurrentBookSource()
+      };
+      if (notesShareId) body.notesShareId = String(notesShareId);
+      if (!body.bookId) return Promise.reject(new Error("missing book id"));
+      var endpoints = getBookShortShareCreateEndpoints();
+      var idx = 0;
+      var tryNext = function () {
+        if (idx >= endpoints.length) return Promise.reject(new Error("book share create failed"));
+        var endpoint = endpoints[idx++];
+        return fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json; charset=utf-8" },
+          credentials: "same-origin",
+          body: JSON.stringify(body)
+        }).then(function (resp) {
+          if (!resp || !resp.ok) throw new Error("book share create failed");
+          return resp.json();
+        }).then(function (data) {
+          var url = data && data.url ? String(data.url) : "";
+          if (url) return url;
+          var shareId = data && data.shareId ? String(data.shareId) : "";
+          if (!shareId) throw new Error("missing share id");
+          return new URL("/s/" + encodeURIComponent(shareId), getCanonicalShareOrigin()).toString();
+        }).catch(function () {
+          return tryNext();
+        });
+      };
+      return tryNext();
+    }
+
     function getNotesShareCreateEndpoints() {
       var endpoints = ["/books/api/ns", "/api/ns", "/books/api/notes-share", "/api/notes-share"];
       try {
@@ -8034,7 +8157,7 @@
         }).then(function (data) {
           var shareId = data && data.shareId ? String(data.shareId) : "";
           if (!shareId) throw new Error("missing share id");
-          return buildUrlWithParams({
+          var fallbackUrl = buildUrlWithParams({
             i: getCurrentBookId(),
             id: null,
             n: shareId,
@@ -8042,6 +8165,9 @@
             notes: null,
             notesz: null
           }, true);
+          return createShortBookShare("notes-share", shareId).catch(function () {
+            return fallbackUrl;
+          });
         }).catch(function () {
           return tryNext();
         });

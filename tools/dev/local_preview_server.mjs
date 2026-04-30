@@ -161,18 +161,22 @@ async function resolveReaderPreviewMeta(url) {
   const title = String(item.title || "ReaderPub").trim();
   const author = formatAuthorDisplayName(item.author || item.creator || "");
   const quote = normalizePreviewText(url.searchParams.get("selectionText") || "", 240);
-  const description = quote
+  const hasQuote = !!quote;
+  const description = hasQuote
     ? `${author ? `by ${author}. ` : ""}"${quote}"`
-    : `${author ? `by ${author}. ` : ""}Read on ReaderPub.`;
+    : (author ? `by ${author}` : "ReaderPub");
+  const previewTitle = /^readerpub\b/i.test(title) ? title : `ReaderPub - ${title}`;
+  const shareTitle = hasQuote && description ? `${previewTitle} - ${description}` : previewTitle;
   let image = String(item.cover || item.coverUrl || item.cover_url || "").trim();
   if (image && !/^https?:\/\//i.test(image)) {
     image = `${url.origin}${image.startsWith("/") ? "" : "/"}${image}`;
   }
   return {
-    title,
+    title: normalizePreviewText(shareTitle, 300),
     author,
     quote,
     description: normalizePreviewText(description, 300),
+    includeDescription: !hasQuote,
     image,
     url: url.toString(),
   };
@@ -184,7 +188,7 @@ function injectReaderPreviewMeta(html, meta) {
     `<meta property="og:site_name" content="ReaderPub" />`,
     `<meta property="og:type" content="article" />`,
     `<meta property="og:title" content="${escapeHtml(meta.title)}" />`,
-    `<meta property="og:description" content="${escapeHtml(meta.description)}" />`,
+    meta.includeDescription && meta.description ? `<meta property="og:description" content="${escapeHtml(meta.description)}" />` : "",
     `<meta property="og:url" content="${escapeHtml(meta.url)}" />`,
     meta.image ? `<meta property="og:image" content="${escapeHtml(meta.image)}" />` : "",
     meta.image ? `<meta property="og:image:secure_url" content="${escapeHtml(meta.image)}" />` : "",
@@ -193,7 +197,7 @@ function injectReaderPreviewMeta(html, meta) {
     meta.image ? `<meta property="og:image:height" content="900" />` : "",
     `<meta name="twitter:card" content="summary" />`,
     `<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`,
-    `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`,
+    meta.includeDescription && meta.description ? `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />` : "",
     meta.image ? `<meta name="twitter:image" content="${escapeHtml(meta.image)}" />` : "",
     meta.author ? `<meta name="author" content="${escapeHtml(meta.author)}" />` : "",
   ].filter(Boolean).join("\n");
@@ -209,6 +213,13 @@ function randomShareId() {
 
 function normalizeSelectionSharePayload(raw) {
   if (!raw || typeof raw !== "object") return null;
+  const shareType = String(raw.type || raw.shareType || "").trim().toLowerCase();
+  if (shareType === "book-share" || shareType === "reader-book" || shareType === "book") {
+    return normalizeReaderBookSharePayload(raw, "book-share");
+  }
+  if (shareType === "notes-share" || shareType === "reader-notes" || shareType === "notes") {
+    return normalizeReaderBookSharePayload(raw, "notes-share");
+  }
   const readerType = String(raw.readerType || raw.reader || "").trim().toLowerCase();
   if (readerType === "protected") return normalizeProtectedSelectionSharePayload(raw);
   const bookId = String(raw.bookId || raw.id || raw.i || "").trim().slice(0, 200);
@@ -223,6 +234,33 @@ function normalizeSelectionSharePayload(raw) {
     selectionText: String(raw.selectionText || raw.text || "").replace(/\s+/g, " ").trim().slice(0, 500),
     createdAt: Date.now(),
   };
+}
+
+function normalizeReaderBookSharePayload(raw, type) {
+  const readerType = String(raw.readerType || raw.reader || "").trim().toLowerCase();
+  const protectedReader = readerType === "protected";
+  const bookId = String(raw.bookId || raw.id || raw.i || raw.artifactBookId || raw.protectedArtifactBookId || "").trim().slice(0, 200);
+  if (!bookId) return null;
+  const notesShareId = String(raw.notesShareId || raw.notesShare || raw.n || "").trim().slice(0, 80);
+  if (type === "notes-share" && !/^[A-Za-z0-9_-]{4,64}$/.test(notesShareId)) return null;
+  const payload = {
+    v: 1,
+    type,
+    readerType: protectedReader ? "protected" : "reader1",
+    bookId,
+    source: String(raw.source || "").trim().slice(0, 200),
+    notesShareId: type === "notes-share" ? notesShareId : "",
+    createdAt: Date.now(),
+  };
+  if (protectedReader) {
+    payload.artifactBookId = String(raw.artifactBookId || raw.protectedArtifactBookId || raw.protectedBookId || bookId).trim().slice(0, 200);
+    payload.protectedArtifactSource = String(raw.protectedArtifactSource || raw.artifactSource || "").trim().slice(0, 80);
+    payload.protectedAllowAll = /^(1|true|yes|on)$/i.test(String(raw.protectedAllowAll || "").trim()) ? "1" : "";
+    payload.protectedUx = String(raw.protectedUx || "protected-shell").trim().slice(0, 80);
+    payload.renderMode = String(raw.renderMode || "shape").trim() === "text" ? "text" : "shape";
+    payload.metricsMode = String(raw.metricsMode || "shape").trim() === "text" ? "text" : "shape";
+  }
+  return payload;
 }
 
 function normalizeProtectedSelectionAnchor(rawAnchor) {
@@ -311,16 +349,22 @@ function buildSelectionReaderUrl(origin, payload) {
     u.searchParams.set("protectedUx", safePayload.protectedUx || "protected-shell");
     u.searchParams.set("renderMode", safePayload.renderMode || "shape");
     u.searchParams.set("metricsMode", safePayload.metricsMode || "shape");
-    u.searchParams.set("protectedSelectionAnchor", JSON.stringify(safePayload.protectedAnchor));
-    if (safePayload.selectionText) u.searchParams.set("selectionText", safePayload.selectionText);
+    if (safePayload.notesShareId) u.searchParams.set("n", safePayload.notesShareId);
+    if (safePayload.type === "reader-selection") {
+      u.searchParams.set("protectedSelectionAnchor", JSON.stringify(safePayload.protectedAnchor));
+      if (safePayload.selectionText) u.searchParams.set("selectionText", safePayload.selectionText);
+    }
     return u.toString();
   }
   const u = new URL("/reader1/", origin);
   u.searchParams.set("id", safePayload.bookId);
   if (safePayload.source) u.searchParams.set("source", safePayload.source);
-  u.searchParams.set("selectionCfi", safePayload.selectionCfi);
-  if (safePayload.selectionText) u.searchParams.set("selectionText", safePayload.selectionText);
-  u.hash = safePayload.selectionCfi;
+  if (safePayload.notesShareId) u.searchParams.set("n", safePayload.notesShareId);
+  if (safePayload.type === "reader-selection") {
+    u.searchParams.set("selectionCfi", safePayload.selectionCfi);
+    if (safePayload.selectionText) u.searchParams.set("selectionText", safePayload.selectionText);
+    u.hash = safePayload.selectionCfi;
+  }
   return u.toString();
 }
 

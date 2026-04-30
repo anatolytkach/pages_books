@@ -369,6 +369,127 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
   assert.doesNotMatch(facebookBody, /window\.location\.replace/);
 });
 
+test("Integration: book share short link renders no-quote cover card", async () => {
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "api/book-locations/99.json": createR2Object({
+        body: JSON.stringify({
+          items: {
+            "1399": {
+              title: "Anna Karenina",
+              author: "Tolstoy, Leo graf",
+              cover: "/books/content/1399/OEBPS/cover.jpg",
+            },
+          },
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const createResponse = await callWorker({
+    url: "https://books-staging.reader.pub/books/api/ss",
+    method: "POST",
+    body: {
+      type: "book-share",
+      readerType: "reader1",
+      bookId: "1399",
+    },
+    env,
+  });
+  const data = await createResponse.json();
+
+  assert.equal(createResponse.status, 200);
+  assert.equal(data.url, `https://sh-staging.reader.pub/s/${data.shareId}`);
+  assert.equal(JSON.parse(bucket.putCalls[0].body).type, "book-share");
+
+  const shareResponse = await callWorker({
+    url: `https://books-staging.reader.pub/s/${data.shareId}`,
+    headers: { "user-agent": "facebookexternalhit/1.1" },
+    env,
+  });
+  const body = await shareResponse.text();
+
+  assert.equal(shareResponse.status, 200);
+  assert.match(body, /property="og:title" content="ReaderPub - Anna Karenina"/);
+  assert.match(body, /property="og:description" content="by Leo graf Tolstoy"/);
+  assert.match(body, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/1399\/OEBPS\/cover\.jpg"/);
+  assert.match(body, /property="og:image:width" content="600"/);
+  assert.match(body, /property="og:image:height" content="900"/);
+  assert.doesNotMatch(body, /fb-og\/[A-Za-z0-9_-]+\.jpg/);
+
+  const browserResponse = await callWorker({
+    url: `https://books-staging.reader.pub/s/${data.shareId}`,
+    env,
+  });
+  const browserBody = await browserResponse.text();
+  assert.match(browserBody, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/reader1\/\?id=1399"\)/);
+});
+
+test("Integration: notes share short link opens reader with notes id and no quote card", async () => {
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "api/book-locations/44.json": createR2Object({
+        body: JSON.stringify({
+          items: {
+            "25344": {
+              title: "The Protected Book",
+              author: "Example, Ada",
+              cover: "/books/content/25344/cover.jpg",
+              readerType: "protected",
+            },
+          },
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const createResponse = await callWorker({
+    url: "https://books-staging.reader.pub/books/api/ss",
+    method: "POST",
+    body: {
+      type: "notes-share",
+      readerType: "protected",
+      bookId: "90025344",
+      artifactBookId: "90025344",
+      protectedArtifactSource: "r2",
+      protectedAllowAll: "1",
+      notesShareId: "notes1234",
+    },
+    env,
+  });
+  const data = await createResponse.json();
+
+  assert.equal(createResponse.status, 200);
+  const stored = JSON.parse(bucket.putCalls[0].body);
+  assert.equal(stored.type, "notes-share");
+  assert.equal(stored.notesShareId, "notes1234");
+
+  const shareResponse = await callWorker({
+    url: `https://books-staging.reader.pub/s/${data.shareId}`,
+    headers: { "user-agent": "facebookexternalhit/1.1" },
+    env,
+  });
+  const body = await shareResponse.text();
+
+  assert.equal(shareResponse.status, 200);
+  assert.match(body, /property="og:title" content="ReaderPub - The Protected Book"/);
+  assert.match(body, /property="og:description" content="by Ada Example"/);
+  assert.match(body, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/25344\/cover\.jpg"/);
+  assert.doesNotMatch(body, /fb-og\/[A-Za-z0-9_-]+\.jpg/);
+  assert.doesNotMatch(body, /protectedSelectionAnchor=/);
+
+  const browserResponse = await callWorker({
+    url: `https://books-staging.reader.pub/s/${data.shareId}`,
+    env,
+  });
+  const browserBody = await browserResponse.text();
+  assert.match(browserBody, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/books\/protected\/\?id=90025344&reader=protected/);
+  assert.match(browserBody, /[?&]n=notes1234/);
+  assert.doesNotMatch(browserBody, /protectedSelectionAnchor=/);
+});
+
 test("Integration: protected selection share API stores payload and redirects to protected reader", async () => {
   const protectedAnchor = {
     kind: "protected-range-v1",

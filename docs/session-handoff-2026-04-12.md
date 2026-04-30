@@ -862,3 +862,14 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - Verification:
   - `node --check tools/runtime/facebook-share-staging-worker.js` passed.
   - Local Worker harness confirmed `MessengerBot/1.0` receives `/fb-og/<id>.jpg` and no `og:description`, while `WhatsApp/2.24` still receives the ordinary cover image and `og:description`.
+
+## 2026-04-29 Reader Book/Notes Short Share Follow-Up
+
+- Added short `/s/<id>` support for non-selection book share and notes share payloads.
+- Reader1 and protected settings share now request a `book-share` short link before falling back to the old direct reader URL.
+- Reader1 and protected notes share keep using the existing notes package API, then wrap the notes id in a `notes-share` short link that opens the book at the beginning with `n=<notesShareId>`.
+- `/s/<id>` OG cards for `book-share` and `notes-share` use the original cover, `ReaderPub - Book Title`, and `by Author`; selection shares keep quote titles and Facebook/Messenger quote-image behavior.
+- The staging `sh-staging` share Worker now only applies `/fb-og/<id>.jpg` when the source OG description contains a quote, so non-selection shares use the same cover card for Facebook/Messenger as other platforms.
+- Verification:
+  - `node --check` passed for `reader1/js/fbreader-ui.js`, `reader_render_v5/reader_new/protected-host-ui.js`, `tools/dev/local_preview_server.mjs`, and `tools/runtime/facebook-share-staging-worker.js`.
+  - `node --test --test-name-pattern "book share|notes share|selection share" tests/integration/worker.integration.test.mjs` passed.

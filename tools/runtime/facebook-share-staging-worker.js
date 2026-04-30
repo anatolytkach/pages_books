@@ -184,7 +184,7 @@ function rewriteSelectionOgHtml(html, shareId, publicShareOrigin, options = {}) 
   rewritten = setMetaTag(rewritten, "property", "og:url", shareUrl);
   rewritten = setMetaTag(rewritten, "name", "twitter:title", fields.title);
 
-  if (options.facebook) {
+  if (options.facebook && fields.quote) {
     const facebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg`;
     rewritten = removeMetaTag(rewritten, "property", "og:description");
     rewritten = removeMetaTag(rewritten, "name", "description");
