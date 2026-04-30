@@ -164,7 +164,7 @@ function formatReaderPubOgTitle(title) {
 }
 
 function extractAuthorFromDescription(description) {
-  const match = normalizePlainText(description).match(/^by\s+(.+?)\.\s*(?:"|$)/i);
+  const match = normalizePlainText(description).match(/^by\s+(.+?)(?:\.\s*(?:"|$)|$)/i);
   return match ? match[1].trim() : "";
 }
 
@@ -572,10 +572,11 @@ async function renderFacebookBookOgPng(fields) {
     fillRect(image, 0, 0, coverWidth, FACEBOOK_OG_IMAGE_HEIGHT, [218, 224, 230]);
   }
   fillRect(image, coverWidth, 0, FACEBOOK_OG_IMAGE_WIDTH - coverWidth, FACEBOOK_OG_IMAGE_HEIGHT, [231, 235, 238]);
-  drawText(image, "READERPUB", 545, 52, 7, [24, 119, 242]);
+  drawText(image, "READERPUB", 545, 52, 5, [24, 119, 242]);
   const title = normalizePlainText(fields.title).replace(/^ReaderPub\s*-\s*/i, "") || "ReaderPub";
-  const titleLines = wrapText(title, 7, 610, 4);
-  let y = 132;
+  const quotedTitle = `"${title}"`;
+  const titleLines = wrapText(quotedTitle, 7, 610, 4);
+  let y = 112;
   for (const line of titleLines) {
     drawTextStyled(image, line, 545, y, 7, [31, 42, 51], { bold: true });
     y += 66;
@@ -594,6 +595,7 @@ function renderFacebookOgSvg(fields) {
   const cover = fields.image || "";
   if (!fields.quote) {
     const title = normalizePlainText(fields.title).replace(/^ReaderPub\s*-\s*/i, "") || "ReaderPub";
+    const quotedTitle = `"${title}"`;
     const author = fields.author ? `by ${fields.author}` : "by ReaderPub";
     return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${FACEBOOK_OG_IMAGE_WIDTH}" height="${FACEBOOK_OG_IMAGE_HEIGHT}" viewBox="0 0 ${FACEBOOK_OG_IMAGE_WIDTH} ${FACEBOOK_OG_IMAGE_HEIGHT}">
@@ -601,10 +603,10 @@ function renderFacebookOgSvg(fields) {
   <image href="${escapeXml(cover)}" x="0" y="0" width="498" height="630" preserveAspectRatio="xMidYMid slice"/>
   <rect x="498" y="0" width="702" height="630" fill="#e7ebee"/>
   <foreignObject x="545" y="52" width="610" height="70">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, Helvetica, sans-serif; font-size: 52px; line-height: 1.1; color: #1877f2; font-weight: 700;">ReaderPub</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, Helvetica, sans-serif; font-size: 38px; line-height: 1.1; color: #1877f2; font-weight: 700;">ReaderPub</div>
   </foreignObject>
-  <foreignObject x="545" y="132" width="610" height="270">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, Helvetica, sans-serif; font-size: 52px; line-height: 1.16; color: #1f2a33; font-weight: 800; overflow-wrap: break-word;">${escapeXml(title)}</div>
+  <foreignObject x="545" y="112" width="610" height="290">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, Helvetica, sans-serif; font-size: 52px; line-height: 1.16; color: #1f2a33; font-weight: 800; overflow-wrap: break-word;">${escapeXml(quotedTitle)}</div>
   </foreignObject>
   <foreignObject x="545" y="430" width="610" height="120">
     <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, Helvetica, sans-serif; font-size: 38px; line-height: 1.25; color: #475569; overflow-wrap: break-word;">${escapeXml(author)}</div>
