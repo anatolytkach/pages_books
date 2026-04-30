@@ -873,3 +873,10 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - Verification:
   - `node --check` passed for `reader1/js/fbreader-ui.js`, `reader_render_v5/reader_new/protected-host-ui.js`, `tools/dev/local_preview_server.mjs`, and `tools/runtime/facebook-share-staging-worker.js`.
   - `node --test --test-name-pattern "book share|notes share|selection share" tests/integration/worker.integration.test.mjs` passed.
+
+## 2026-04-29 Facebook Book/Notes Card Follow-Up
+
+- Updated the staging share Worker so Facebook/Messenger previews for non-selection `book-share` and `notes-share` links use generated 1200x630 `/fb-og/<id>.jpg` images instead of vertical cover images.
+- The generated book/notes image keeps the full cover on the left and renders `ReaderPub`, book title, and `by Author` on a light-gray right panel.
+- For these non-selection Facebook cards, visible OG text is reduced to `ReaderPub`; the book/title/author content is carried by the image.
+- Selection share quote cards keep the existing quote-image layout.

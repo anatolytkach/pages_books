@@ -184,8 +184,12 @@ function rewriteSelectionOgHtml(html, shareId, publicShareOrigin, options = {}) 
   rewritten = setMetaTag(rewritten, "property", "og:url", shareUrl);
   rewritten = setMetaTag(rewritten, "name", "twitter:title", fields.title);
 
-  if (options.facebook && fields.quote) {
+  if (options.facebook) {
     const facebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg`;
+    const facebookTitle = fields.quote ? fields.title : "ReaderPub";
+    rewritten = setTitleTag(rewritten, facebookTitle);
+    rewritten = setMetaTag(rewritten, "property", "og:title", facebookTitle);
+    rewritten = setMetaTag(rewritten, "name", "twitter:title", facebookTitle);
     rewritten = removeMetaTag(rewritten, "property", "og:description");
     rewritten = removeMetaTag(rewritten, "name", "description");
     rewritten = removeMetaTag(rewritten, "name", "twitter:description");
@@ -549,8 +553,64 @@ async function renderFacebookOgPng(fields) {
   return image;
 }
 
+async function renderFacebookBookOgPng(fields) {
+  const image = createRaster(FACEBOOK_OG_IMAGE_WIDTH, FACEBOOK_OG_IMAGE_HEIGHT, [238, 241, 243]);
+  const coverWidth = 498;
+  if (fields.image) {
+    try {
+      const coverResponse = await fetch(fields.image, {
+        headers: { "user-agent": "facebookexternalhit/1.1" },
+      });
+      if (coverResponse.ok) {
+        const decoded = jpeg.decode(new Uint8Array(await coverResponse.arrayBuffer()), { useTArray: true });
+        drawCoverImage(image, decoded, 0, 0, coverWidth, FACEBOOK_OG_IMAGE_HEIGHT);
+      }
+    } catch (_error) {
+      fillRect(image, 0, 0, coverWidth, FACEBOOK_OG_IMAGE_HEIGHT, [218, 224, 230]);
+    }
+  } else {
+    fillRect(image, 0, 0, coverWidth, FACEBOOK_OG_IMAGE_HEIGHT, [218, 224, 230]);
+  }
+  fillRect(image, coverWidth, 0, FACEBOOK_OG_IMAGE_WIDTH - coverWidth, FACEBOOK_OG_IMAGE_HEIGHT, [231, 235, 238]);
+  drawText(image, "READERPUB", 545, 52, 7, [24, 119, 242]);
+  const title = normalizePlainText(fields.title).replace(/^ReaderPub\s*-\s*/i, "") || "ReaderPub";
+  const titleLines = wrapText(title, 7, 610, 4);
+  let y = 132;
+  for (const line of titleLines) {
+    drawTextStyled(image, line, 545, y, 7, [31, 42, 51], { bold: true });
+    y += 66;
+  }
+  const author = fields.author ? `by ${fields.author}` : "by ReaderPub";
+  const authorLines = wrapText(author, 5, 610, 3);
+  y += 20;
+  for (const line of authorLines) {
+    drawText(image, line, 545, y, 5, [71, 85, 105]);
+    y += 48;
+  }
+  return image;
+}
+
 function renderFacebookOgSvg(fields) {
   const cover = fields.image || "";
+  if (!fields.quote) {
+    const title = normalizePlainText(fields.title).replace(/^ReaderPub\s*-\s*/i, "") || "ReaderPub";
+    const author = fields.author ? `by ${fields.author}` : "by ReaderPub";
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${FACEBOOK_OG_IMAGE_WIDTH}" height="${FACEBOOK_OG_IMAGE_HEIGHT}" viewBox="0 0 ${FACEBOOK_OG_IMAGE_WIDTH} ${FACEBOOK_OG_IMAGE_HEIGHT}">
+  <rect width="1200" height="630" fill="#eef1f3"/>
+  <image href="${escapeXml(cover)}" x="0" y="0" width="498" height="630" preserveAspectRatio="xMidYMid slice"/>
+  <rect x="498" y="0" width="702" height="630" fill="#e7ebee"/>
+  <foreignObject x="545" y="52" width="610" height="70">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, Helvetica, sans-serif; font-size: 52px; line-height: 1.1; color: #1877f2; font-weight: 700;">ReaderPub</div>
+  </foreignObject>
+  <foreignObject x="545" y="132" width="610" height="270">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, Helvetica, sans-serif; font-size: 52px; line-height: 1.16; color: #1f2a33; font-weight: 800; overflow-wrap: break-word;">${escapeXml(title)}</div>
+  </foreignObject>
+  <foreignObject x="545" y="430" width="610" height="120">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Arial, Helvetica, sans-serif; font-size: 38px; line-height: 1.25; color: #475569; overflow-wrap: break-word;">${escapeXml(author)}</div>
+  </foreignObject>
+</svg>`;
+  }
   const quote = fields.quote ? `"${fields.quote}"` : `"${fields.description || fields.title || "ReaderPub"}"`;
   const author = fields.author || "ReaderPub";
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -605,7 +665,8 @@ async function handleFacebookOgImage(request, url) {
     });
   }
   const fields = parseSelectionPreviewFields(html);
-  return new Response(encodeJpeg(await renderFacebookOgPng(fields)), {
+  const image = fields.quote ? await renderFacebookOgPng(fields) : await renderFacebookBookOgPng(fields);
+  return new Response(encodeJpeg(image), {
     status: 200,
     headers: {
       "content-type": "image/jpeg",
