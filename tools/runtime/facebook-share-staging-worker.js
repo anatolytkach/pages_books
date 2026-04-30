@@ -14,6 +14,41 @@ const FACEBOOK_OG_IMAGE_VERSION = "book-card-v2";
 const META_PREVIEW_BOT_PATTERN = /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|messengerbot|facebookmessengerbot|messengerexternalhit|messengerpreview)\b/i;
 const META_APP_PREVIEW_PATTERN = /\b(?:FBAN|FBAV|FB_IAB|FBIOS|FB4A|Messenger|MSGR|FBMessenger|MessengerForiOS|MessengerLite)\b/i;
 
+function cleanOrigin(value, fallback) {
+  try {
+    const parsed = new URL(String(value || "").trim());
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return fallback;
+    return parsed.origin.replace(/\/+$/, "");
+  } catch (_error) {
+    return fallback;
+  }
+}
+
+function getShareWorkerConfig(env = {}) {
+  const sourceOrigin = cleanOrigin(
+    env.READERPUB_SHARE_SOURCE_ORIGIN || env.SOURCE_ORIGIN,
+    SOURCE_ORIGIN
+  );
+  const publicSourceOrigin = cleanOrigin(
+    env.READERPUB_SHARE_PUBLIC_SOURCE_ORIGIN || env.PUBLIC_SOURCE_ORIGIN,
+    sourceOrigin
+  );
+  return {
+    sourceOrigin,
+    publicSourceOrigin,
+    apiSourceOrigin: cleanOrigin(
+      env.READERPUB_SHARE_API_ORIGIN || env.API_SOURCE_ORIGIN,
+      API_SOURCE_ORIGIN
+    ),
+    shareOrigin: cleanOrigin(
+      env.READERPUB_SHARE_ORIGIN || env.SHARE_ORIGIN,
+      SHARE_ORIGIN
+    ),
+    sourceHostname: new URL(sourceOrigin).hostname,
+    publicSourceHostname: new URL(publicSourceOrigin).hostname,
+  };
+}
+
 function textResponse(body, status = 200, headers = {}) {
   return new Response(body, {
     status,
@@ -59,12 +94,13 @@ function getRequestOrigin(requestUrl) {
 }
 
 function rewriteShareHtml(html, sharePath, publicShareOrigin, options = {}) {
-  const sourceShareUrl = `${SOURCE_ORIGIN}${sharePath}`;
+  const config = options.config || getShareWorkerConfig();
+  const sourceShareUrl = `${config.sourceOrigin}${sharePath}`;
   const publicShareUrl = `${publicShareOrigin}${sharePath}`;
   const shareId = sharePath.replace(/^\/s\//, "");
   let rewritten = String(html || "")
     .replace(new RegExp(escapeRegExp(sourceShareUrl), "g"), publicShareUrl)
-    .replace(new RegExp(escapeRegExp(`${SOURCE_ORIGIN}/books/content/`), "g"), `${publicShareOrigin}/books/content/`)
+    .replace(new RegExp(escapeRegExp(`${config.sourceOrigin}/books/content/`), "g"), `${publicShareOrigin}/books/content/`)
     .replace(/<meta\s+http-equiv=["']refresh["'][^>]*>/gi, "")
     .replace(/<script\b[^>]*>[\s\S]*?window\.location\.replace[\s\S]*?<\/script>/gi, "");
 
@@ -206,8 +242,11 @@ function rewriteSelectionOgHtml(html, shareId, publicShareOrigin, options = {}) 
   rewritten = setMetaTag(rewritten, "name", "twitter:title", fields.title);
 
   if (options.facebook) {
-    const facebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg?v=${encodeURIComponent(FACEBOOK_OG_IMAGE_VERSION)}`;
-    const facebookTitle = fields.quote ? fields.title : "ReaderPub";
+    const fallbackFacebookImage = `${publicShareOrigin}/fb-og/${encodeURIComponent(shareId)}.jpg?v=${encodeURIComponent(FACEBOOK_OG_IMAGE_VERSION)}`;
+    const facebookImage = coverImage || fallbackFacebookImage;
+    const facebookImageWidth = coverImage ? "600" : String(FACEBOOK_OG_IMAGE_WIDTH);
+    const facebookImageHeight = coverImage ? "900" : String(FACEBOOK_OG_IMAGE_HEIGHT);
+    const facebookTitle = fields.title;
     rewritten = setTitleTag(rewritten, facebookTitle);
     rewritten = setMetaTag(rewritten, "property", "og:title", facebookTitle);
     rewritten = setMetaTag(rewritten, "name", "twitter:title", facebookTitle);
@@ -217,9 +256,9 @@ function rewriteSelectionOgHtml(html, shareId, publicShareOrigin, options = {}) 
     rewritten = setMetaTag(rewritten, "property", "og:image", facebookImage);
     rewritten = setMetaTag(rewritten, "property", "og:image:secure_url", facebookImage);
     rewritten = setMetaTag(rewritten, "property", "og:image:type", "image/jpeg");
-    rewritten = setMetaTag(rewritten, "property", "og:image:width", String(FACEBOOK_OG_IMAGE_WIDTH));
-    rewritten = setMetaTag(rewritten, "property", "og:image:height", String(FACEBOOK_OG_IMAGE_HEIGHT));
-    rewritten = setMetaTag(rewritten, "name", "twitter:card", "summary_large_image");
+    rewritten = setMetaTag(rewritten, "property", "og:image:width", facebookImageWidth);
+    rewritten = setMetaTag(rewritten, "property", "og:image:height", facebookImageHeight);
+    rewritten = setMetaTag(rewritten, "name", "twitter:card", coverImage ? "summary" : "summary_large_image");
     rewritten = setMetaTag(rewritten, "name", "twitter:image", facebookImage);
     return rewritten;
   }
@@ -655,9 +694,12 @@ function renderFacebookOgSvg(fields) {
 }
 
 async function fetchSourceShareHtml(sharePath, request, options = {}) {
+  const config = options.config || getShareWorkerConfig();
   const upstreamHeaders = new Headers(request.headers);
+  upstreamHeaders.set("host", new URL(config.sourceOrigin).host);
+  upstreamHeaders.set("x-reader-canonical-origin", config.publicSourceOrigin);
   upstreamHeaders.set("user-agent", options.userAgent || "facebookexternalhit/1.1");
-  const upstream = await fetch(`${SOURCE_ORIGIN}${sharePath}`, {
+  const upstream = await fetch(`${config.sourceOrigin}${sharePath}`, {
     headers: upstreamHeaders,
     redirect: "manual",
   });
@@ -666,17 +708,18 @@ async function fetchSourceShareHtml(sharePath, request, options = {}) {
   return upstream.text();
 }
 
-async function handleFacebookOgImage(request, url) {
+async function handleFacebookOgImage(request, url, config) {
   const match = url.pathname.match(/^\/fb-og\/([A-Za-z0-9_-]{4,64})\.(png|jpe?g|svg)$/);
   if (!match) return textResponse("Not found", 404, { "cache-control": "no-store" });
   const html = await fetchSourceShareHtml(`/s/${match[1]}`, request, {
+    config,
     userAgent: "WhatsApp/2.24 ReaderPub-OG-Image-Source"
   });
   if (!html) return textResponse("Not found", 404, { "cache-control": "no-store" });
   if (match[2] === "svg") {
     const fields = parseSelectionPreviewFields(html);
     const publicOrigin = getRequestOrigin(request.url);
-    if (fields.image) fields.image = fields.image.replace(new RegExp(escapeRegExp(`${SOURCE_ORIGIN}/books/content/`), "g"), `${publicOrigin}/books/content/`);
+    if (fields.image) fields.image = fields.image.replace(new RegExp(escapeRegExp(`${config.sourceOrigin}/books/content/`), "g"), `${publicOrigin}/books/content/`);
     return new Response(renderFacebookOgSvg(fields), {
       status: 200,
       headers: {
@@ -700,10 +743,10 @@ async function handleFacebookOgImage(request, url) {
   });
 }
 
-async function handleContentProxy(request, url) {
-  const upstreamUrl = new URL(url.pathname + url.search, SOURCE_ORIGIN);
+async function handleContentProxy(request, url, config) {
+  const upstreamUrl = new URL(url.pathname + url.search, config.sourceOrigin);
   const upstreamHeaders = new Headers(request.headers);
-  upstreamHeaders.set("host", new URL(SOURCE_ORIGIN).host);
+  upstreamHeaders.set("host", new URL(config.sourceOrigin).host);
   upstreamHeaders.set("user-agent", "facebookexternalhit/1.1");
   const upstream = await fetch(upstreamUrl.toString(), {
     headers: upstreamHeaders,
@@ -721,10 +764,10 @@ async function handleContentProxy(request, url) {
   });
 }
 
-async function handleShortShareApi(request, url) {
-  const upstreamUrl = new URL(url.pathname + url.search, API_SOURCE_ORIGIN);
+async function handleShortShareApi(request, url, config) {
+  const upstreamUrl = new URL(url.pathname + url.search, config.apiSourceOrigin);
   const upstreamHeaders = new Headers(request.headers);
-  upstreamHeaders.set("host", new URL(API_SOURCE_ORIGIN).host);
+  upstreamHeaders.set("host", new URL(config.apiSourceOrigin).host);
   const upstream = await fetch(upstreamUrl.toString(), {
     method: request.method,
     headers: upstreamHeaders,
@@ -755,7 +798,7 @@ async function handleShortShareApi(request, url) {
     });
   }
   if (data && data.shareId && data.url) {
-    data.url = `${SHARE_ORIGIN}/s/${encodeURIComponent(String(data.shareId))}`;
+    data.url = `${config.shareOrigin}/s/${encodeURIComponent(String(data.shareId))}`;
   }
   headers.set("content-type", "application/json; charset=utf-8");
   headers.delete("content-length");
@@ -767,10 +810,11 @@ async function handleShortShareApi(request, url) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
+    const config = getShareWorkerConfig(env);
     if (
-      url.hostname === "books-staging.reader.pub" &&
+      (url.hostname === config.sourceHostname || url.hostname === config.publicSourceHostname) &&
       (
         url.pathname === "/books/api/ss" ||
         url.pathname === "/api/ss" ||
@@ -782,7 +826,7 @@ export default {
         url.pathname === "/books/reader1/api/selection-share"
       )
     ) {
-      return handleShortShareApi(request, url);
+      return handleShortShareApi(request, url, config);
     }
 
     if (url.pathname === "/robots.txt") {
@@ -796,11 +840,11 @@ export default {
     }
 
     if (/^\/fb-og\/[A-Za-z0-9_-]{4,64}\.(png|jpe?g|svg)$/.test(url.pathname)) {
-      return handleFacebookOgImage(request, url);
+      return handleFacebookOgImage(request, url, config);
     }
 
     if (url.pathname.startsWith("/books/content/")) {
-      return handleContentProxy(request, url);
+      return handleContentProxy(request, url, config);
     }
 
     if (!/^\/s\/[A-Za-z0-9_-]{4,64}$/.test(url.pathname)) {
@@ -809,17 +853,19 @@ export default {
 
     if (!(isCloudflarePagePreview(request) || isPreviewBot(request))) {
       const humanSourceHtml = await fetchSourceShareHtml(url.pathname, request, {
+        config,
         userAgent: "Mozilla/5.0 ReaderPub-Human-Open",
       });
       if (!humanSourceHtml) return textResponse("Not found", 404, { "cache-control": "no-store" });
-      return Response.redirect(extractHumanOpenTargetUrl(humanSourceHtml) || `${SOURCE_ORIGIN}${url.pathname}`, 302);
+      return Response.redirect(extractHumanOpenTargetUrl(humanSourceHtml) || `${config.sourceOrigin}${url.pathname}`, 302);
     }
 
-    const sourceHtml = await fetchSourceShareHtml(url.pathname, request);
+    const sourceHtml = await fetchSourceShareHtml(url.pathname, request, { config });
     if (!sourceHtml) return textResponse("Not found", 404, { "cache-control": "no-store" });
 
     const facebookQuotePreview = shouldUseFacebookQuotePreview(request);
     const html = rewriteShareHtml(sourceHtml, url.pathname, getRequestOrigin(request.url), {
+      config,
       facebook: facebookQuotePreview,
       includeRedirectScript: !facebookQuotePreview && !(isCloudflarePagePreview(request) || isPreviewBot(request)),
     });

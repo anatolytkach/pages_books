@@ -1373,7 +1373,7 @@ function buildSelectionReaderUrl(origin, payload) {
     }
     return u.toString();
   }
-  const u = new URL("/reader1/", origin);
+  const u = new URL("/books/reader/", origin);
   u.searchParams.set("id", safePayload.bookId);
   if (safePayload.source) u.searchParams.set("source", safePayload.source);
   if (safePayload.notesShareId) u.searchParams.set("n", safePayload.notesShareId);
@@ -1406,27 +1406,58 @@ function isFacebookPreviewBot(request) {
   return /\b(?:facebookexternalhit|facebot|facebookcatalog|facebookplatform|meta-externalagent|messengerbot|facebookmessengerbot|messengerexternalhit|messengerpreview|FBAN|FBAV|FB_IAB|FBIOS|FB4A|Messenger|MSGR|FBMessenger|MessengerForiOS|MessengerLite)\b/i.test(userAgent);
 }
 
-function applyFacebookSelectionSharePreviewMeta(meta, shareId) {
-  if (!meta) return meta;
-  return {
-    ...meta,
-    image: `https://sh-staging.reader.pub/fb-og/${encodeURIComponent(String(shareId || ""))}.jpg`,
-    imageWidth: "1200",
-    imageHeight: "630",
-    twitterCard: "summary_large_image",
-  };
+function cleanShareOrigin(value) {
+  try {
+    const parsed = new URL(String(value || "").trim());
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "";
+    return parsed.origin.replace(/\/+$/, "");
+  } catch (_error) {
+    return "";
+  }
 }
 
-function buildSelectionSharePublicUrl(url, shareId) {
-  const normalizedShareId = encodeURIComponent(String(shareId || ""));
+function resolveSelectionShareOrigin(url, env = {}) {
+  const configured = cleanShareOrigin(
+    env.READERPUB_SELECTION_SHARE_ORIGIN ||
+      env.READERPUB_SHARE_ORIGIN ||
+      env.SELECTION_SHARE_ORIGIN ||
+      ""
+  );
+  if (configured) return configured;
+
   const hostname = String(url && url.hostname ? url.hostname : "").trim().toLowerCase();
   if (
     hostname === "books-staging.reader.pub" ||
     hostname.endsWith(".readerpub-books-staging.pages.dev")
   ) {
-    return `https://sh-staging.reader.pub/s/${normalizedShareId}`;
+    return "https://sh-staging.reader.pub";
   }
-  return new URL(`/s/${normalizedShareId}`, url.origin).toString();
+  if (
+    hostname === "reader.pub" ||
+    hostname === "www.reader.pub" ||
+    hostname === "reader-books.pages.dev"
+  ) {
+    return "https://share.reader.pub";
+  }
+  return cleanShareOrigin(url && url.origin ? url.origin : "");
+}
+
+function applyFacebookSelectionSharePreviewMeta(meta, shareId, url, env) {
+  if (!meta) return meta;
+  const shareOrigin = resolveSelectionShareOrigin(url, env);
+  const coverImage = String(meta.image || "").trim();
+  return {
+    ...meta,
+    image: coverImage || `${shareOrigin}/fb-og/${encodeURIComponent(String(shareId || ""))}.jpg`,
+    imageWidth: coverImage ? "600" : "1200",
+    imageHeight: coverImage ? "900" : "630",
+    twitterCard: coverImage ? "summary" : "summary_large_image",
+  };
+}
+
+function buildSelectionSharePublicUrl(url, shareId, env) {
+  const normalizedShareId = encodeURIComponent(String(shareId || ""));
+  return `${resolveSelectionShareOrigin(url, env)}/s/${normalizedShareId}`;
 }
 
 function renderSelectionShareLandingPage(meta, targetUrl, options = {}) {
@@ -2933,7 +2964,7 @@ export default {
       const telegramProtectedPreview = payload.readerType === "protected" && isTelegramPreviewBot(request);
       const facebookPreview = isFacebookPreviewBot(request);
       if (facebookPreview && payload.type === "reader-selection") {
-        meta = applyFacebookSelectionSharePreviewMeta(meta, shareId);
+        meta = applyFacebookSelectionSharePreviewMeta(meta, shareId, url, env);
       }
       const previewOnly = telegramProtectedPreview || facebookPreview;
       return htmlResponse(renderSelectionShareLandingPage(meta, targetUrl, {
@@ -3038,7 +3069,7 @@ export default {
         return jsonResponse(
           {
             shareId,
-            url: buildSelectionSharePublicUrl(url, shareId),
+            url: buildSelectionSharePublicUrl(url, shareId, env),
           },
           200,
           notesShareCorsHeaders()

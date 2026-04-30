@@ -880,3 +880,25 @@ The protected DOCX staging pipeline was run end to end for `sample.docx`, produc
 - The generated book/notes image keeps the full cover on the left and renders `ReaderPub`, book title, and `by Author` on a light-gray right panel.
 - For these non-selection Facebook cards, visible OG text is reduced to `ReaderPub`; the book/title/author content is carried by the image.
 - Selection share quote cards keep the existing quote-image layout.
+## 2026-04-30 production share rollout preparation
+
+- Worktree: `C:\Users\yaran\Test1\pages_books\.worktrees\develop-anatoly-work`
+- Base commit checked out for exploration: `4e667ce54`
+- Created branch: `codex/production-share-rollout-4e667ce`
+- Prepared production-safe sharing changes:
+  - `_worker.js` resolves selection-share public URLs and Facebook OG image host by environment instead of always using `sh-staging.reader.pub`.
+  - `tools/runtime/facebook-share-staging-worker.js` keeps staging defaults but can now run with production Worker vars.
+  - Added `tools/runtime/facebook-share-production-worker.wrangler.toml` for `share.reader.pub`, `fb.reader.pub`, and production share API route overrides.
+  - Updated production bundle recipe to include `reader_render_v5` while excluding heavy artifact/source directories.
+  - Added Windows production deploy helper `tools/dev/deploy_production_windows.ps1`.
+- Validation performed:
+  - `node --check _worker.js`
+  - `node --check tools/runtime/facebook-share-staging-worker.js`
+  - PowerShell parse check for `tools/dev/deploy_production_windows.ps1`
+  - Wrangler dry-run for the production share Worker after installing locked root dependencies.
+  - Targeted integration tests for production share URL and production Facebook OG image host.
+- Cloudflare inspection:
+  - Wrangler auth is present for `yarane@gmail.com`.
+  - Account used by repo production scripts: `764a8c94ce002764fc1d3d29faa4bb09`.
+  - `reader-books` Pages project has active Production deployments on branch `production`.
+  - `readerpub-facebook-share-production` did not exist before deploy.

@@ -300,6 +300,58 @@ test("Integration: selection share API stores payload and returns short url", as
   });
 });
 
+test("Integration: production selection share API returns production share origin", async () => {
+  const bucket = createR2Bucket();
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://reader.pub/books/api/ss",
+    method: "POST",
+    body: {
+      bookId: "1399",
+      selectionCfi: "epubcfi(/6/6[item3]!/4/2[pgepubid00003]/4[chap01]/6,/1:0,/8/1:10)",
+      selectionText: "Everything was in confusion",
+    },
+    env,
+  });
+  const data = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.match(data.shareId, /^[A-Za-z0-9_-]{9}$/);
+  assert.equal(data.url, `https://share.reader.pub/s/${data.shareId}`);
+});
+
+test("Integration: production unprotected share redirects to routed reader path", async () => {
+  const selectionCfi = "epubcfi(/6/8[item4]!/4/24,/1:606,/1:613)";
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "api/selection_shares/NvM3VHrY3.json": createR2Object({
+        body: JSON.stringify({
+          v: 1,
+          type: "reader-selection",
+          bookId: "78229",
+          source: "gutenberg",
+          selectionCfi,
+          selectionText: "eastern",
+          createdAt: 1,
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://reader.pub/s/NvM3VHrY3",
+    env,
+  });
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-reader-route"), "selection-share-page");
+  assert.match(body, /window\.location\.replace\("https:\/\/reader\.pub\/books\/reader\/\?id=78229&source=gutenberg&selectionCfi=/);
+  assert.doesNotMatch(body, /https:\/\/reader\.pub\/reader1\//);
+});
+
 test("Integration: /s/<id> renders preview tags and redirects to reader selection", async () => {
   const selectionCfi = "epubcfi(/6/6[item3]!/4/2[pgepubid00003]/4[chap01]/6,/1:0,/8/1:10)";
   const bucket = createR2Bucket({
@@ -345,7 +397,7 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
   assert.match(body, /property="og:image:height" content="900"/);
   assert.doesNotMatch(body, /property="og:description"/);
   assert.doesNotMatch(body, /name="twitter:description"/);
-  assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/reader1\/\?id=1399&selectionCfi=/);
+  assert.match(body, /window\.location\.replace\("https:\/\/books-staging\.reader\.pub\/books\/reader\/\?id=1399&selectionCfi=/);
   assert.match(body, /#epubcfi\(\/6\/6\[item3\]/);
 
   const facebookResponse = await callWorker({
@@ -360,13 +412,54 @@ test("Integration: /s/<id> renders preview tags and redirects to reader selectio
   assert.equal(facebookResponse.headers.get("vary"), null);
   assert.match(facebookBody, /property="og:title" content="ReaderPub - Anna Karenina - by Leo graf Tolstoy\. &quot;Everything was in confusion&quot;"/);
   assert.match(facebookBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
-  assert.match(facebookBody, /property="og:image:secure_url" content="https:\/\/sh-staging\.reader\.pub\/fb-og\/abc123XYZ\.jpg"/);
-  assert.match(facebookBody, /property="og:image:width" content="1200"/);
-  assert.match(facebookBody, /property="og:image:height" content="630"/);
-  assert.match(facebookBody, /name="twitter:card" content="summary_large_image"/);
+  assert.match(facebookBody, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/1399\/OEBPS\/cover\.jpg"/);
+  assert.match(facebookBody, /property="og:image:width" content="600"/);
+  assert.match(facebookBody, /property="og:image:height" content="900"/);
+  assert.match(facebookBody, /name="twitter:card" content="summary"/);
   assert.match(facebookBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\/abc123XYZ"/);
   assert.doesNotMatch(facebookBody, /http-equiv="refresh"/);
   assert.doesNotMatch(facebookBody, /window\.location\.replace/);
+});
+
+test("Integration: production facebook selection preview uses production OG image host", async () => {
+  const bucket = createR2Bucket({
+    objectsByKey: {
+      "api/selection_shares/abc123XYZ.json": createR2Object({
+        body: JSON.stringify({
+          v: 1,
+          type: "reader-selection",
+          bookId: "1399",
+          selectionCfi: "epubcfi(/6/6[item3]!/4/2[pgepubid00003]/4[chap01]/6,/1:0,/8/1:10)",
+          selectionText: "Everything was in confusion",
+          createdAt: "2026-04-30T00:00:00.000Z",
+        }),
+      }),
+      "api/book-locations/99.json": createR2Object({
+        body: JSON.stringify({
+          items: {
+            "1399": {
+              title: "Anna Karenina",
+              author: "Tolstoy, Leo graf",
+              cover: "/books/content/1399/OEBPS/cover.jpg",
+            },
+          },
+        }),
+      }),
+    },
+  });
+  const env = createEnv({ READER_BOOKS: bucket });
+
+  const response = await callWorker({
+    url: "https://reader.pub/s/abc123XYZ",
+    headers: { "user-agent": "Facebot" },
+    env,
+  });
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(body, /property="og:url" content="https:\/\/reader\.pub\/s\/abc123XYZ"/);
+  assert.match(body, /property="og:image:secure_url" content="https:\/\/reader\.pub\/books\/content\/1399\/OEBPS\/cover\.jpg"/);
+  assert.doesNotMatch(body, /sh-staging\.reader\.pub/);
 });
 
 test("Integration: book share short link renders no-quote cover card", async () => {
@@ -584,10 +677,10 @@ test("Integration: protected selection share API stores payload and redirects to
   assert.equal(facebookResponse.headers.get("vary"), null);
   assert.match(facebookBody, /property="og:title" content="ReaderPub - The Protected Book - by Ada Example\. &quot;Protected quoted text&quot;"/);
   assert.match(facebookBody, /property="og:url" content="https:\/\/books-staging\.reader\.pub\/s\//);
-  assert.match(facebookBody, /property="og:image:secure_url" content="https:\/\/sh-staging\.reader\.pub\/fb-og\/[A-Za-z0-9_-]+\.jpg"/);
-  assert.match(facebookBody, /property="og:image:width" content="1200"/);
-  assert.match(facebookBody, /property="og:image:height" content="630"/);
-  assert.match(facebookBody, /name="twitter:card" content="summary_large_image"/);
+  assert.match(facebookBody, /property="og:image:secure_url" content="https:\/\/books-staging\.reader\.pub\/books\/content\/25344\/cover\.jpg"/);
+  assert.match(facebookBody, /property="og:image:width" content="600"/);
+  assert.match(facebookBody, /property="og:image:height" content="900"/);
+  assert.match(facebookBody, /name="twitter:card" content="summary"/);
   assert.match(facebookBody, /<link rel="canonical" href="https:\/\/books-staging\.reader\.pub\/s\//);
   assert.doesNotMatch(facebookBody, /http-equiv="refresh"/);
   assert.doesNotMatch(facebookBody, /window\.location\.replace/);
