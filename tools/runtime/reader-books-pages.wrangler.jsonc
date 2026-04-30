@@ -14,5 +14,11 @@
       "binding": "PUBLISHER_TASK_CACHE",
       "id": "73547361358549f5a33bfb0793d5a7d4"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "READER_BOOKS",
+      "bucket_name": "reader-books"
+    }
   ]
 }

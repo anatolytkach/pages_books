@@ -121,6 +121,7 @@ try {
   if (Test-Path (Join-Path $repoRoot "reader_render_v5")) {
     Copy-Tree -Source (Join-Path $repoRoot "reader_render_v5") -Destination (Join-Path $deployDir "reader_render_v5") -ExcludeDirs @("node_modules", "artifacts")
   }
+  Copy-Item (Join-PathMany $repoRoot @("tools", "runtime", "reader-books-pages.wrangler.jsonc")) (Join-Path $deployDir "wrangler.jsonc")
 
   Write-Host "[deploy-production] Repo root: $repoRoot"
   Write-Host "[deploy-production] Branch: $branch"
@@ -128,7 +129,7 @@ try {
   Write-Host "[deploy-production] Wrangler: $wranglerPath"
   Write-Host "[deploy-production] Bundle: $deployDir"
 
-  $deployOutput = & $wranglerPath pages deploy $deployDir --project-name $ProjectName --branch $PagesBranch --commit-dirty=true 2>&1
+  $deployOutput = & $wranglerPath pages deploy --cwd $deployDir --project-name $ProjectName --branch $PagesBranch --commit-dirty=true 2>&1
   $deployOutput | ForEach-Object { $_ }
 
   $previewUrl = $null
